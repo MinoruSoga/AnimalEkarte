@@ -150,7 +150,7 @@ func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.
 
 // GetStaffs は予約区分対応スタッフ一覧を返す（reservation_visible=true && typeIDを除外していない）。
 func (s *liffService) GetStaffs(ctx context.Context, clinicID, typeID uint64) ([]model.Staff, error) {
-	all, err := s.staffRepo.FindAllByClinicID(ctx, clinicID)
+	all, err := s.staffRepo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get staffs")
 	}
@@ -497,7 +497,7 @@ func (s *liffService) tryAttachReservationOwnerPet(
 // resolveTargetStaffs はtypeID・staffIDに基づいて対象スタッフを返す。
 func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, typeID, staffID uint64) ([]model.Staff, error) {
 	if staffID != 0 {
-		staff, err := s.staffRepo.FindByIDAndClinicID(ctx, clinicID, staffID)
+		staff, err := s.staffRepo.FindByID(ctx, clinicID, staffID)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to get staff")
 		}
@@ -507,7 +507,7 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, typeID,
 		return []model.Staff{*staff}, nil
 	}
 
-	all, err := s.staffRepo.FindAllByClinicID(ctx, clinicID)
+	all, err := s.staffRepo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get staffs")
 	}

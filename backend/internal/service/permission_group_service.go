@@ -103,6 +103,7 @@ func newPermissionGroupServiceImpl(repo repository.PermissionGroupRepository) *p
 func (s *permissionGroupService) List(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list permission groups", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list permission groups")
 	}
 	return items, nil
@@ -111,6 +112,7 @@ func (s *permissionGroupService) List(ctx context.Context, clinicID uint64) ([]m
 func (s *permissionGroupService) GetByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get permission group", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get permission group")
 	}
 	return result, nil
@@ -129,6 +131,7 @@ func (s *permissionGroupService) Create(ctx context.Context, clinicID uint64, in
 		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, group); err != nil {
+		slog.ErrorContext(ctx, "failed to create permission group", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create permission group")
 	}
 	slog.InfoContext(ctx, "permission group created",
@@ -143,6 +146,7 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get permission group", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get permission group")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -154,6 +158,7 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 	}
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update permission group", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update permission group")
 	}
 	slog.InfoContext(ctx, "permission group updated",
@@ -164,16 +169,19 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 
 func (s *permissionGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get permission group", "error", err)
 		return apperrors.Wrap(err, "failed to get permission group")
 	}
 	count, err := s.repo.CountUsageByGroupID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check permission group dependencies", "error", err)
 		return apperrors.Wrap(err, "failed to check permission group dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この権限グループはスタッフに割り当てられているため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete permission group", "error", err)
 		return apperrors.Wrap(err, "failed to delete permission group")
 	}
 	slog.InfoContext(ctx, "permission group deleted",
@@ -212,6 +220,7 @@ func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, i
 		return err
 	}
 	if err := s.repo.SetRules(ctx, groupID, rules); err != nil {
+		slog.ErrorContext(ctx, "failed to set permission group rules", "error", err)
 		return apperrors.Wrap(err, "failed to set permission group rules")
 	}
 	slog.InfoContext(ctx, "permission group rules set",
@@ -268,6 +277,7 @@ func (s *permissionGroupService) Reorder(ctx context.Context, clinicID uint64, i
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder permission groups", "error", err)
 		return apperrors.Wrap(err, "failed to reorder permission groups")
 	}
 	slog.InfoContext(ctx, "permission groups reordered",
@@ -279,6 +289,7 @@ func (s *permissionGroupService) Reorder(ctx context.Context, clinicID uint64, i
 func (s *permissionGroupService) GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
 	rules, err := s.repo.GetEffectivePermissionsByStaffID(ctx, staffID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get effective permissions", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get effective permissions")
 	}
 	return rules, nil

@@ -69,22 +69,22 @@ func (m *mockLiffTypeRepository) SwapSortOrder(_ context.Context, _, _ uint64, _
 // --- mockLiffStaffRepository ---
 
 type mockLiffStaffRepository struct {
-	findAllByClinicIDFn                      func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
-	findByIDAndClinicIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
+	findAllFn                                func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
+	findByIDFn                               func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	findExcludedReservationTypesFn           func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	findExcludedReservationTypesByStaffIDsFn func(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
 }
 
-func (m *mockLiffStaffRepository) FindAllByClinicID(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
-	if m.findAllByClinicIDFn != nil {
-		return m.findAllByClinicIDFn(ctx, clinicID)
+func (m *mockLiffStaffRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
+	if m.findAllFn != nil {
+		return m.findAllFn(ctx, clinicID)
 	}
 	return nil, nil
 }
 
-func (m *mockLiffStaffRepository) FindByIDAndClinicID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
-	if m.findByIDAndClinicIDFn != nil {
-		return m.findByIDAndClinicIDFn(ctx, clinicID, id)
+func (m *mockLiffStaffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return nil, apperrors.ErrNotFound
 }
@@ -98,7 +98,7 @@ func (m *mockLiffStaffRepository) UpdateFields(_ context.Context, _, _ uint64, _
 }
 
 func (m *mockLiffStaffRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mockLiffStaffRepository) CountAppointmentsByStaffID(_ context.Context, _, _ uint64) (int64, error) {
+func (m *mockLiffStaffRepository) CountUsageByStaffID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -153,7 +153,7 @@ func (m *mockLiffScheduleRepository) Upsert(_ context.Context, _ *model.ShiftEnt
 	return nil
 }
 
-func (m *mockLiffScheduleRepository) DeleteByDate(_ context.Context, _, _ uint64, _ time.Time) error {
+func (m *mockLiffScheduleRepository) Delete(_ context.Context, _, _ uint64, _ time.Time) error {
 	return nil
 }
 

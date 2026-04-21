@@ -209,7 +209,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
-				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
 						{ID: 1, Name: "林先生", ReservationVisible: true},
 						{ID: 2, Name: "スタッフ山田", ReservationVisible: false}, // 非公開 → 除外
@@ -239,7 +239,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
-				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
 						{ID: 1, Name: "林先生", ReservationVisible: true},
 						{ID: 2, Name: "トリマー田中", ReservationVisible: true},
@@ -270,7 +270,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
-				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
 				},
 				findExcludedReservationTypesByStaffIDsFn: func(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
@@ -350,7 +350,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			},
 			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
-				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
 						{ID: 5, Name: "林先生", ReservationVisible: true},
 						{ID: 6, Name: "三井先生", ReservationVisible: true},
@@ -398,7 +398,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			},
 			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
-				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
 						{ID: 5, Name: "林先生", ReservationVisible: true},
 						{ID: 6, Name: "三井先生", ReservationVisible: true},

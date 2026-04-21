@@ -15,13 +15,13 @@ import (
 // ---- モックリポジトリ定義 ----
 
 type mockClinicSettingsRepository struct {
-	getFn    func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
-	upsertFn func(ctx context.Context, s *model.ClinicSettings) (*model.ClinicSettings, error)
+	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
+	upsertFn         func(ctx context.Context, s *model.ClinicSettings) (*model.ClinicSettings, error)
 }
 
-func (m *mockClinicSettingsRepository) Get(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
-	if m.getFn != nil {
-		return m.getFn(ctx, clinicID)
+func (m *mockClinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+	if m.findByClinicIDFn != nil {
+		return m.findByClinicIDFn(ctx, clinicID)
 	}
 	return nil, nil
 }
@@ -276,7 +276,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			settingsRepo := &mockClinicSettingsRepository{getFn: tt.settingsFn}
+			settingsRepo := &mockClinicSettingsRepository{findByClinicIDFn: tt.settingsFn}
 			periodRepo := &mockClosingSpecialPeriodRepository{findByDateFn: tt.periodFn}
 			holidayRepo := &mockClosingHolidayRepository{findByYearMonthFn: tt.holidayFn}
 			svc := newClosingService(settingsRepo, periodRepo, holidayRepo)

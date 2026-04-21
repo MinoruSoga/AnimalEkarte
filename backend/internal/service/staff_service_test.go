@@ -19,7 +19,7 @@ type mockStaffRepository struct {
 	findByIDFn        func(ctx context.Context, id uint64) (*model.Staff, error)
 	findByAccountIDFn func(ctx context.Context, accountID uint64) (*model.Staff, error)
 	createFn          func(ctx context.Context, staff *model.Staff) error
-	updateFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFieldsFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn          func(ctx context.Context, clinicID, id uint64) error
 	reorderErr        error
 }
@@ -43,8 +43,8 @@ func (m *mockStaffRepository) Create(ctx context.Context, staff *model.Staff) er
 	return m.createFn(ctx, staff)
 }
 
-func (m *mockStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockStaffRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockStaffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -118,10 +118,10 @@ func (m *mockShiftEntryForStaff) FindOnDutyStaffs(_ context.Context, _ uint64, _
 
 // mockAccountForStaff は Staff テストで使用する AccountRepository のスタブ
 type mockAccountForStaff struct {
-	findByEmailFn func(ctx context.Context, email string) (*model.Account, error)
-	getByIDFn     func(ctx context.Context, id uint64) (*model.Account, error)
-	createFn      func(ctx context.Context, account *model.Account) error
-	updateFn      func(ctx context.Context, id uint64, fields map[string]any) error
+	findByEmailFn  func(ctx context.Context, email string) (*model.Account, error)
+	getByIDFn      func(ctx context.Context, id uint64) (*model.Account, error)
+	createFn       func(ctx context.Context, account *model.Account) error
+	updateFieldsFn func(ctx context.Context, id uint64, fields map[string]any) error
 }
 
 func (m *mockAccountForStaff) FindByID(ctx context.Context, id uint64) (*model.Account, error) {
@@ -144,8 +144,8 @@ func (m *mockAccountForStaff) Create(ctx context.Context, account *model.Account
 	return nil
 }
 func (m *mockAccountForStaff) Update(ctx context.Context, id uint64, fields map[string]any) error {
-	if m.updateFn != nil {
-		return m.updateFn(ctx, id, fields)
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, id, fields)
 	}
 	return nil
 }
@@ -172,11 +172,7 @@ func (m *mockAssignmentForStaff) Create(ctx context.Context, a *model.StaffClini
 	}
 	return nil
 }
-func (m *mockAssignmentForStaff) Update(_ context.Context, _ *model.StaffClinicAssignment) error {
-	return nil
-}
-func (m *mockAssignmentForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mockAssignmentForStaff) DeleteByStaffID(ctx context.Context, staffID uint64) error {
+func (m *mockAssignmentForStaff) Delete(ctx context.Context, staffID uint64) error {
 	if m.deleteByStaffIDFn != nil {
 		return m.deleteByStaffIDFn(ctx, staffID)
 	}
@@ -221,10 +217,10 @@ func (m *mockPermissionGroupForStaff) SetStaffGroups(_ context.Context, _ uint64
 // mockResStaffForStaff は Staff テストで使用する ReservationStaffRepository のスタブ
 type mockResStaffForStaff struct{}
 
-func (m *mockResStaffForStaff) FindAllByClinicID(_ context.Context, _ uint64) ([]model.Staff, error) {
+func (m *mockResStaffForStaff) FindAll(_ context.Context, _ uint64) ([]model.Staff, error) {
 	return nil, nil
 }
-func (m *mockResStaffForStaff) FindByIDAndClinicID(_ context.Context, _, _ uint64) (*model.Staff, error) {
+func (m *mockResStaffForStaff) FindByID(_ context.Context, _, _ uint64) (*model.Staff, error) {
 	return nil, nil
 }
 func (m *mockResStaffForStaff) Create(_ context.Context, _ *model.Staff, _ uint64) error { return nil }
@@ -232,7 +228,7 @@ func (m *mockResStaffForStaff) UpdateFields(_ context.Context, _, _ uint64, _ ma
 	return nil
 }
 func (m *mockResStaffForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mockResStaffForStaff) CountAppointmentsByStaffID(_ context.Context, _, _ uint64) (int64, error) {
+func (m *mockResStaffForStaff) CountUsageByStaffID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *mockResStaffForStaff) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
@@ -517,7 +513,7 @@ func TestStaffService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockStaffRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoErr
 				},
 				findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {

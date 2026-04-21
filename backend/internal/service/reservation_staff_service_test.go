@@ -13,24 +13,24 @@ import (
 
 // mockReservationStaffRepository は ReservationStaffRepository のテスト用モック実装
 type mockReservationStaffRepository struct {
-	findAllByClinicIDFn                    func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
-	findByIDAndClinicIDFn                  func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
+	findAllFn                              func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
+	findByIDFn                             func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	createFn                               func(ctx context.Context, staff *model.Staff, clinicID uint64) error
 	updateFieldsFn                         func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn                               func(ctx context.Context, clinicID, id uint64) error
-	countAppointmentsByStaffIDFn           func() (int64, error)
+	countUsageByStaffIDFn                  func() (int64, error)
 	swapSortOrderFn                        func(ctx context.Context, clinicID, id uint64, direction string) error
 	findExcludedReservationTypesFn         func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	findExcludedReservationTypesByStaffIDs func(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
 	replaceExcludedReservationTypesFn      func(ctx context.Context, staffID uint64, courseIDs []uint64) error
 }
 
-func (m *mockReservationStaffRepository) FindAllByClinicID(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
-	return m.findAllByClinicIDFn(ctx, clinicID)
+func (m *mockReservationStaffRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
+	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockReservationStaffRepository) FindByIDAndClinicID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
-	return m.findByIDAndClinicIDFn(ctx, clinicID, id)
+func (m *mockReservationStaffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockReservationStaffRepository) Create(ctx context.Context, staff *model.Staff, clinicID uint64) error {
@@ -48,9 +48,9 @@ func (m *mockReservationStaffRepository) Delete(ctx context.Context, clinicID, i
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockReservationStaffRepository) CountAppointmentsByStaffID(_ context.Context, _, _ uint64) (int64, error) {
-	if m.countAppointmentsByStaffIDFn != nil {
-		return m.countAppointmentsByStaffIDFn()
+func (m *mockReservationStaffRepository) CountUsageByStaffID(_ context.Context, _, _ uint64) (int64, error) {
+	if m.countUsageByStaffIDFn != nil {
+		return m.countUsageByStaffIDFn()
 	}
 	return 0, nil
 }
@@ -126,7 +126,7 @@ func TestReservationStaffService_List_ReturnsStaffs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationStaffRepository{
-				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return tt.repoStaffs, tt.repoErr
 				},
 			}
@@ -153,7 +153,7 @@ func TestReservationStaffService_GetByID_Found(t *testing.T) {
 		StaffType: model.StaffTypeDoctor,
 	}
 	repo := &mockReservationStaffRepository{
-		findByIDAndClinicIDFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) {
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) {
 			return expected, nil
 		},
 	}
@@ -168,7 +168,7 @@ func TestReservationStaffService_GetByID_Found(t *testing.T) {
 
 func TestReservationStaffService_GetByID_NotFound(t *testing.T) {
 	repo := &mockReservationStaffRepository{
-		findByIDAndClinicIDFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) {
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) {
 			return nil, apperrors.WrapNotFound("reservation_staff", "999")
 		},
 	}
@@ -213,7 +213,7 @@ func TestReservationStaffService_Create_Success(t *testing.T) {
 
 func TestReservationStaffService_Delete_Success(t *testing.T) {
 	repo := &mockReservationStaffRepository{
-		findByIDAndClinicIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
 			return &model.Staff{ID: id, Name: "田中医師"}, nil
 		},
 		deleteFn: func(_ context.Context, _, _ uint64) error {
@@ -230,7 +230,7 @@ func TestReservationStaffService_Delete_Success(t *testing.T) {
 
 func TestReservationStaffService_Delete_NotFound(t *testing.T) {
 	repo := &mockReservationStaffRepository{
-		findByIDAndClinicIDFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) {
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) {
 			return nil, apperrors.WrapNotFound("reservation_staff", "999")
 		},
 		deleteFn: func(_ context.Context, _, _ uint64) error {

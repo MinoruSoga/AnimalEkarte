@@ -84,6 +84,7 @@ func NewInsuranceService(repo repository.InsuranceRepository) InsuranceService {
 func (s *insuranceService) List(ctx context.Context, clinicID uint64) ([]model.Insurance, error) {
 	result, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list insurance", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list insurance")
 	}
 	return result, nil
@@ -91,6 +92,7 @@ func (s *insuranceService) List(ctx context.Context, clinicID uint64) ([]model.I
 func (s *insuranceService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get insurance", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get insurance")
 	}
 	return result, nil
@@ -117,6 +119,7 @@ func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *C
 		SortOrder:    input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, insurance); err != nil {
+		slog.ErrorContext(ctx, "failed to create insurance", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create insurance")
 	}
 	slog.InfoContext(ctx, "insurance created", slog.Uint64("clinic_id", clinicID), slog.Uint64("insurance_id", insurance.ID))
@@ -127,6 +130,7 @@ func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, inpu
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get insurance", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get insurance")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -141,6 +145,7 @@ func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, inpu
 	}
 	insurance, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update insurance", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update insurance")
 	}
 	slog.InfoContext(ctx, "insurance updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("insurance_id", id))
@@ -148,16 +153,19 @@ func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, inpu
 }
 func (s *insuranceService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get insurance", "error", err)
 		return apperrors.Wrap(err, "failed to get insurance")
 	}
 	count, err := s.repo.CountUsageByInsuranceID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check insurance dependencies", "error", err)
 		return apperrors.Wrap(err, "failed to check insurance dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この保険はペット情報で使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete insurance", "error", err)
 		return apperrors.Wrap(err, "failed to delete insurance")
 	}
 	slog.InfoContext(ctx, "insurance deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("insurance_id", id))
@@ -169,6 +177,7 @@ func (s *insuranceService) Reorder(ctx context.Context, clinicID uint64, ids []u
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder insurances", "error", err)
 		return apperrors.Wrap(err, "failed to reorder insurances")
 	}
 	slog.InfoContext(ctx, "insurances reordered",

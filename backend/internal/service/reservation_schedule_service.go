@@ -48,6 +48,7 @@ func NewReservationScheduleService(repo repository.ReservationScheduleRepository
 func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]ScheduleEntry, error) {
 	entries, err := s.repo.FindByMonth(ctx, clinicID, staffID, month)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list schedules", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list schedules")
 	}
 	if len(entries) == 0 {
@@ -59,6 +60,7 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 	}
 	breaksMap, err := s.repo.FindBreaksByEntryIDs(ctx, entryIDs)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list schedule breaks", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list schedule breaks")
 	}
 	result := make([]ScheduleEntry, 0, len(entries))
@@ -96,11 +98,13 @@ func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staff
 	}
 
 	if err := s.repo.Upsert(ctx, entry, breaks); err != nil {
+		slog.ErrorContext(ctx, "failed to upsert schedule", "error", err)
 		return nil, apperrors.Wrap(err, "failed to upsert schedule")
 	}
 	// Upsert後に DB から最新の breaks を取得（ID が振られた状態で返す）
 	savedBreaks, err := s.repo.FindBreaksByEntryID(ctx, entry.ID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to load schedule breaks after upsert", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load schedule breaks after upsert")
 	}
 	slog.InfoContext(ctx, "schedule upserted",
@@ -111,7 +115,8 @@ func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staff
 }
 
 func (s *reservationScheduleService) Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
-	if err := s.repo.DeleteByDate(ctx, clinicID, staffID, date); err != nil {
+	if err := s.repo.Delete(ctx, clinicID, staffID, date); err != nil {
+		slog.ErrorContext(ctx, "failed to delete schedule", "error", err)
 		return apperrors.Wrap(err, "failed to delete schedule")
 	}
 	slog.InfoContext(ctx, "schedule deleted",

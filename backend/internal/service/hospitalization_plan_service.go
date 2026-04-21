@@ -104,6 +104,7 @@ func NewHospitalizationPlanService(repo repository.HospitalizationPlanRepository
 func (s *hospitalizationPlanService) List(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error) {
 	result, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list hospitalization plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list hospitalization plan")
 	}
 	return result, nil
@@ -111,6 +112,7 @@ func (s *hospitalizationPlanService) List(ctx context.Context, clinicID uint64) 
 func (s *hospitalizationPlanService) GetByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get hospitalization plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get hospitalization plan")
 	}
 	return result, nil
@@ -146,6 +148,7 @@ func (s *hospitalizationPlanService) Create(ctx context.Context, clinicID uint64
 		plan.BillingUnit = &bu
 	}
 	if err := s.repo.Create(ctx, plan); err != nil {
+		slog.ErrorContext(ctx, "failed to create hospitalization plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create hospitalization plan")
 	}
 	slog.InfoContext(ctx, "hospitalization plan created",
@@ -158,6 +161,7 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get hospitalization plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get hospitalization plan")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -169,6 +173,7 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	}
 	plan, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update hospitalization plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update hospitalization plan")
 	}
 	slog.InfoContext(ctx, "hospitalization plan updated",
@@ -178,16 +183,19 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 }
 func (s *hospitalizationPlanService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to find hospitalization plan", "error", err)
 		return apperrors.Wrap(err, "failed to find hospitalization plan")
 	}
 	count, err := s.repo.CountCarePlanItemsByPlanID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check hospitalization plan dependencies", "error", err)
 		return apperrors.Wrap(err, "failed to check hospitalization plan dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この入院プランはケアプランで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete hospitalization plan", "error", err)
 		return apperrors.Wrap(err, "failed to delete hospitalization plan")
 	}
 	slog.InfoContext(ctx, "hospitalization plan deleted",
@@ -201,6 +209,7 @@ func (s *hospitalizationPlanService) Reorder(ctx context.Context, clinicID uint6
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder hospitalization plan", "error", err)
 		return apperrors.Wrap(err, "failed to reorder hospitalization plan")
 	}
 	slog.InfoContext(ctx, "hospitalization plans reordered",

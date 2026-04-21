@@ -140,6 +140,7 @@ func NewMedicineService(repo repository.MedicineRepository, inventoryRepo reposi
 func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
 	result, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list medicines", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list medicines")
 	}
 	return result, total, nil
@@ -148,6 +149,7 @@ func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit
 func (s *medicineService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get medicine", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get medicine")
 	}
 	return result, nil
@@ -191,6 +193,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	// BUG-429: 薬剤作成と在庫アイテム自動作成をトランザクションでアトミックに実行
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, medicine); err != nil {
+			slog.ErrorContext(txCtx, "failed to create medicine", "error", err)
 			return apperrors.Wrap(err, "failed to create medicine")
 		}
 		// BUG-320: 薬品作成時に在庫アイテムを自動作成
@@ -204,6 +207,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 			Status:        model.InventoryStatusSufficient,
 		}
 		if err := s.inventoryRepo.Create(txCtx, clinicID, inventoryItem); err != nil {
+			slog.ErrorContext(txCtx, "failed to create inventory item for medicine", "error", err)
 			return apperrors.Wrap(err, "failed to create inventory item for medicine")
 		}
 		return nil
@@ -225,6 +229,7 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "medicine not found", "error", err)
 		return nil, apperrors.Wrap(err, "medicine not found")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -244,9 +249,11 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 			var txErr error
 			result, txErr = s.repo.UpdateFields(txCtx, clinicID, id, fields)
 			if txErr != nil {
+				slog.ErrorContext(txCtx, "failed to update medicine", "error", txErr)
 				return apperrors.Wrap(txErr, "failed to update medicine")
 			}
 			if txErr = s.inventoryRepo.UpdateNameByMedicineCategory(txCtx, clinicID, oldName, newName); txErr != nil {
+				slog.ErrorContext(txCtx, "failed to sync inventory item name", "error", txErr)
 				return apperrors.Wrap(txErr, "failed to sync inventory item name")
 			}
 			return nil
@@ -256,6 +263,7 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	} else {
 		result, err = s.repo.UpdateFields(ctx, clinicID, id, fields)
 		if err != nil {
+			slog.ErrorContext(ctx, "failed to update medicine", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update medicine")
 		}
 	}
@@ -271,6 +279,7 @@ func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder medicines", "error", err)
 		return apperrors.Wrap(err, "failed to reorder medicines")
 	}
 	slog.InfoContext(ctx, "medicines reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
@@ -280,6 +289,7 @@ func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error {
 	m, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get medicine", "error", err)
 		return apperrors.Wrap(err, "failed to get medicine")
 	}
 
@@ -287,6 +297,7 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 	if m.ParentID == nil {
 		count, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 		if err != nil {
+			slog.ErrorContext(ctx, "failed to count medicine children", "error", err)
 			return apperrors.Wrap(err, "failed to count medicine children")
 		}
 		if count > 0 {
@@ -298,6 +309,7 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 		// 薬剤アイテムの場合、治療や入院ケアプランで使用中であれば削除を拒否する（BUG-108）
 		usageCount, err := s.repo.CountUsageByMedicineID(ctx, clinicID, id)
 		if err != nil {
+			slog.ErrorContext(ctx, "failed to check medicine usage", "error", err)
 			return apperrors.Wrap(err, "failed to check medicine usage")
 		}
 		if usageCount > 0 {
@@ -309,9 +321,11 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 	// BUG-381: Create 時に BUG-320 で自動生成した連携在庫もカスケード削除する。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete medicine", "error", err)
 			return apperrors.Wrap(err, "failed to delete medicine")
 		}
 		if err := s.inventoryRepo.DeleteByNameAndMedicineCategory(txCtx, clinicID, m.Name); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete linked inventory for medicine", "error", err)
 			return apperrors.Wrap(err, "failed to delete linked inventory for medicine")
 		}
 		return nil

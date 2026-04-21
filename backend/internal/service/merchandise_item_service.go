@@ -98,6 +98,7 @@ func NewMerchandiseItemService(repo repository.MerchandiseItemRepository) Mercha
 func (s *merchandiseItemService) List(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
 	result, err := s.repo.FindAll(ctx, clinicID, category)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list merchandise items", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list merchandise items")
 	}
 	return result, nil
@@ -106,6 +107,7 @@ func (s *merchandiseItemService) List(ctx context.Context, clinicID uint64, cate
 func (s *merchandiseItemService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get merchandise item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get merchandise item")
 	}
 	return result, nil
@@ -139,6 +141,7 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 	}
 
 	if err := s.repo.Create(ctx, item); err != nil {
+		slog.ErrorContext(ctx, "failed to create merchandise item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create merchandise item")
 	}
 
@@ -154,6 +157,7 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get merchandise item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get merchandise item")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -169,6 +173,7 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update merchandise item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update merchandise item")
 	}
 	slog.InfoContext(ctx, "merchandise item updated",
@@ -183,6 +188,7 @@ func (s *merchandiseItemService) Reorder(ctx context.Context, clinicID uint64, i
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder merchandise items", "error", err)
 		return apperrors.Wrap(err, "failed to reorder merchandise items")
 	}
 	slog.InfoContext(ctx, "merchandise items reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
@@ -191,11 +197,13 @@ func (s *merchandiseItemService) Reorder(ctx context.Context, clinicID uint64, i
 
 func (s *merchandiseItemService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get merchandise item", "error", err)
 		return apperrors.Wrap(err, "failed to get merchandise item")
 	}
 
 	count, err := s.repo.CountUsageByMerchandiseItemID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check merchandise item dependencies", "error", err)
 		return apperrors.Wrap(err, "failed to check merchandise item dependencies")
 	}
 	if count > 0 {
@@ -203,6 +211,7 @@ func (s *merchandiseItemService) Delete(ctx context.Context, clinicID, id uint64
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete merchandise item", "error", err)
 		return apperrors.Wrap(err, "failed to delete merchandise item")
 	}
 	slog.InfoContext(ctx, "merchandise item deleted",

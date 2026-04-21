@@ -89,6 +89,7 @@ func NewTrimmingCourseService(repo repository.TrimmingCourseRepository) Trimming
 func (s *trimmingCourseService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
 	result, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list trimming courses", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list trimming courses")
 	}
 	return result, nil
@@ -97,6 +98,7 @@ func (s *trimmingCourseService) List(ctx context.Context, clinicID uint64) ([]mo
 func (s *trimmingCourseService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get trimming course", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get trimming course")
 	}
 	return result, nil
@@ -120,6 +122,7 @@ func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, inp
 		course.TargetSize = &ts
 	}
 	if err := s.repo.Create(ctx, course); err != nil {
+		slog.ErrorContext(ctx, "failed to create trimming course", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create trimming course")
 	}
 	slog.InfoContext(ctx, "trimming course created",
@@ -133,6 +136,7 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get trimming course", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get trimming course")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -144,6 +148,7 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 	}
 	course, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update trimming course", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update trimming course")
 	}
 	slog.InfoContext(ctx, "trimming course updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("trimming_course_id", id))
@@ -152,16 +157,19 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 
 func (s *trimmingCourseService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get trimming course", "error", err)
 		return apperrors.Wrap(err, "failed to get trimming course")
 	}
 	count, err := s.repo.CountUsageByCourseID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check trimming course dependencies", "error", err)
 		return apperrors.Wrap(err, "failed to check trimming course dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("このトリミングコースはトリミング記録で使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete trimming course", "error", err)
 		return apperrors.Wrap(err, "failed to delete trimming course")
 	}
 	slog.InfoContext(ctx, "trimming course deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("trimming_course_id", id))
@@ -173,6 +181,7 @@ func (s *trimmingCourseService) Reorder(ctx context.Context, clinicID uint64, id
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder trimming courses", "error", err)
 		return apperrors.Wrap(err, "failed to reorder trimming courses")
 	}
 	slog.InfoContext(ctx, "trimming courses reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
