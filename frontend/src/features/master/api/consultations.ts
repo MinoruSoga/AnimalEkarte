@@ -11,6 +11,8 @@ import type {
   ReorderTreatmentRequest,
 } from "@/types/treatment";
 
+const CONSULTATIONS_QUERY_KEY = ["masters", "consultations"] as const;
+
 export type { ConsultationItem };
 
 export const getAllConsultations = async (): Promise<ConsultationItem[]> => {
@@ -20,7 +22,7 @@ export const getAllConsultations = async (): Promise<ConsultationItem[]> => {
 
 export const useGetAllConsultations = () =>
   useQuery({
-    queryKey: ["masters", "consultations"],
+    queryKey: CONSULTATIONS_QUERY_KEY,
     queryFn: getAllConsultations,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -33,7 +35,7 @@ export const useCreateConsultation = () => {
       const { data } = await axios.post<Consultation>("/v1/masters/consultations", req);
       return transformConsultation(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: CONSULTATIONS_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -54,7 +56,7 @@ export const useUpdateConsultation = () => {
       );
       return transformConsultation(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: CONSULTATIONS_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -63,7 +65,7 @@ export const useDeleteConsultation = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/consultations/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: CONSULTATIONS_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -73,7 +75,7 @@ export const useReorderConsultations = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/consultations/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: CONSULTATIONS_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };

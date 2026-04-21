@@ -11,6 +11,8 @@ import type {
   ReorderTreatmentRequest,
 } from "@/types/treatment";
 
+const VACCINES_MASTER_QUERY_KEY = ["masters", "vaccines"] as const;
+
 export type { VaccineItem };
 
 export const getAllVaccinesMaster = async (): Promise<VaccineItem[]> => {
@@ -20,7 +22,7 @@ export const getAllVaccinesMaster = async (): Promise<VaccineItem[]> => {
 
 export const useGetAllVaccinesMaster = () =>
   useQuery({
-    queryKey: ["masters", "vaccines"],
+    queryKey: VACCINES_MASTER_QUERY_KEY,
     queryFn: getAllVaccinesMaster,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -33,7 +35,7 @@ export const useCreateVaccineMaster = () => {
       const { data } = await axios.post<Vaccine>("/v1/masters/vaccines", req);
       return transformVaccine(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "vaccines"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: VACCINES_MASTER_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -51,7 +53,7 @@ export const useUpdateVaccineMaster = () => {
       const { data } = await axios.patch<Vaccine>(`/v1/masters/vaccines/${id}`, req);
       return transformVaccine(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "vaccines"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: VACCINES_MASTER_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -60,7 +62,7 @@ export const useDeleteVaccineMaster = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/vaccines/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "vaccines"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: VACCINES_MASTER_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -70,7 +72,7 @@ export const useReorderVaccinesMaster = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/vaccines/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "vaccines"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: VACCINES_MASTER_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };

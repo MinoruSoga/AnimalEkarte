@@ -11,6 +11,8 @@ import type {
   ReorderTreatmentRequest,
 } from "@/types/treatment";
 
+const EXAM_TYPES_QUERY_KEY = ["masters", "examination-types"] as const;
+
 export type { ExamTypeField };
 
 export const getAllExaminationTypes = async (): Promise<ExamTypeField[]> => {
@@ -20,7 +22,7 @@ export const getAllExaminationTypes = async (): Promise<ExamTypeField[]> => {
 
 export const useGetAllExaminationTypes = () =>
   useQuery({
-    queryKey: ["masters", "examination-types"],
+    queryKey: EXAM_TYPES_QUERY_KEY,
     queryFn: getAllExaminationTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -36,7 +38,7 @@ export const useCreateExaminationType = () => {
       );
       return transformExaminationType(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: EXAM_TYPES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -57,7 +59,7 @@ export const useUpdateExaminationType = () => {
       );
       return transformExaminationType(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: EXAM_TYPES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -66,7 +68,7 @@ export const useDeleteExaminationType = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/examination-types/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: EXAM_TYPES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -76,7 +78,7 @@ export const useReorderExaminationTypes = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/examination-types/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: EXAM_TYPES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };

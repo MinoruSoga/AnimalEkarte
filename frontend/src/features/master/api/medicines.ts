@@ -7,6 +7,8 @@ import type { Medicine } from "@/lib/transforms/medicine";
 import type { Medicine as MedicineModel } from "@/types/generated/models";
 import type { CreateMedicineRequest, UpdateMedicineRequest, ReorderMedicinesRequest } from "@/types/medicine";
 
+const MEDICINES_QUERY_KEY = ["masters", "medicines"] as const;
+
 export const getAllMedicines = async (): Promise<Medicine[]> => {
   const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
   return (data ?? []).map(transformBackendMedicineToFrontend);
@@ -14,7 +16,7 @@ export const getAllMedicines = async (): Promise<Medicine[]> => {
 
 export const useGetAllMedicines = () => {
   return useQuery({
-    queryKey: ["masters", "medicines"],
+    queryKey: MEDICINES_QUERY_KEY,
     queryFn: getAllMedicines,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -36,7 +38,7 @@ export const useCreateMedicine = () => {
   return useMutation({
     mutationFn: createMedicine,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
+      queryClient.invalidateQueries({ queryKey: MEDICINES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -53,7 +55,7 @@ export const useUpdateMedicine = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateMedicineRequest }) =>
       updateMedicine(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
+      queryClient.invalidateQueries({ queryKey: MEDICINES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -68,7 +70,7 @@ export const useDeleteMedicine = () => {
   return useMutation({
     mutationFn: deleteMedicine,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
+      queryClient.invalidateQueries({ queryKey: MEDICINES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -83,7 +85,7 @@ export const useReorderMedicines = () => {
   return useMutation({
     mutationFn: reorderMedicines,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
+      queryClient.invalidateQueries({ queryKey: MEDICINES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });

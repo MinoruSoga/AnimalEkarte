@@ -11,6 +11,8 @@ import type {
   ReorderTreatmentRequest,
 } from "@/types/treatment";
 
+const CHECKUP_TYPES_QUERY_KEY = ["masters", "checkup-types"] as const;
+
 export type { CheckupTypeItem };
 
 export const getAllCheckupTypes = async (): Promise<CheckupTypeItem[]> => {
@@ -20,7 +22,7 @@ export const getAllCheckupTypes = async (): Promise<CheckupTypeItem[]> => {
 
 export const useGetAllCheckupTypes = () =>
   useQuery({
-    queryKey: ["masters", "checkup-types"],
+    queryKey: CHECKUP_TYPES_QUERY_KEY,
     queryFn: getAllCheckupTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -33,7 +35,7 @@ export const useCreateCheckupType = () => {
       const { data } = await axios.post<CheckupType>("/v1/masters/checkup-types", req);
       return transformCheckupType(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "checkup-types"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: CHECKUP_TYPES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -54,7 +56,7 @@ export const useUpdateCheckupType = () => {
       );
       return transformCheckupType(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "checkup-types"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: CHECKUP_TYPES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -63,7 +65,7 @@ export const useDeleteCheckupType = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/checkup-types/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "checkup-types"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: CHECKUP_TYPES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -73,7 +75,7 @@ export const useReorderCheckupTypes = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/checkup-types/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "checkup-types"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: CHECKUP_TYPES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };

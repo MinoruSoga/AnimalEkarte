@@ -4,6 +4,8 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Cage as ModelCage } from "@/types/generated/models";
 
+const CAGES_QUERY_KEY = ["masters", "cages"] as const;
+
 // Strict union types (models.ts uses string, but we keep these for form safety)
 export type CageType = "icu" | "dog" | "cat" | "general";
 export type CageSize = "small" | "medium" | "large";
@@ -52,7 +54,7 @@ export const getAllCages = async (): Promise<Cage[]> => {
 
 export const useGetAllCages = () => {
   return useQuery({
-    queryKey: ["masters", "cages"],
+    queryKey: CAGES_QUERY_KEY,
     queryFn: getAllCages,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -74,7 +76,7 @@ export const useCreateCage = () => {
   return useMutation({
     mutationFn: createCage,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
+      queryClient.invalidateQueries({ queryKey: CAGES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -91,7 +93,7 @@ export const useUpdateCage = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateCageRequest }) =>
       updateCage(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
+      queryClient.invalidateQueries({ queryKey: CAGES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -110,7 +112,7 @@ export const useDeleteCage = () => {
   return useMutation({
     mutationFn: deleteCage,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
+      queryClient.invalidateQueries({ queryKey: CAGES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -121,7 +123,7 @@ export const useReorderCages = () => {
   return useMutation({
     mutationFn: reorderCages,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
+      queryClient.invalidateQueries({ queryKey: CAGES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });

@@ -4,6 +4,8 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Occupation as ModelOccupation } from "@/types/generated/models";
 
+const OCCUPATIONS_QUERY_KEY = ["masters", "occupations"] as const;
+
 // ─────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────
@@ -67,7 +69,7 @@ const deleteOccupation = async (id: string): Promise<void> => {
 
 export const useGetAllOccupations = () => {
   return useQuery({
-    queryKey: ["masters", "occupations"],
+    queryKey: OCCUPATIONS_QUERY_KEY,
     queryFn: getAllOccupations,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -79,7 +81,7 @@ export const useCreateOccupation = () => {
   return useMutation({
     mutationFn: createOccupation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
+      queryClient.invalidateQueries({ queryKey: OCCUPATIONS_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -91,7 +93,7 @@ export const useUpdateOccupation = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateOccupationRequest }) =>
       updateOccupation(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
+      queryClient.invalidateQueries({ queryKey: OCCUPATIONS_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -102,14 +104,13 @@ export const useDeleteOccupation = () => {
   return useMutation({
     mutationFn: deleteOccupation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
+      queryClient.invalidateQueries({ queryKey: OCCUPATIONS_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
 };
 
 
-const OCCUPATIONS_QUERY_KEY = ["masters", "occupations"] as const;
 
 const reorderOccupations = async (ids: number[]): Promise<void> => {
   await axios.patch("/v1/masters/occupations/reorder", { ids });

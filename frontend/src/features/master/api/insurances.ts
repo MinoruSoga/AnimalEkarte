@@ -4,6 +4,8 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Insurance as ModelInsurance } from "@/types/generated/models";
 
+const INSURANCES_QUERY_KEY = ["masters", "insurances"] as const;
+
 // ─────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────
@@ -73,7 +75,7 @@ const deleteInsurance = async (id: string): Promise<void> => {
 
 export const useGetAllInsurances = () => {
   return useQuery({
-    queryKey: ["masters", "insurances"],
+    queryKey: INSURANCES_QUERY_KEY,
     queryFn: getAllInsurances,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -85,7 +87,7 @@ export const useCreateInsurance = () => {
   return useMutation({
     mutationFn: createInsurance,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "insurances"] });
+      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -97,7 +99,7 @@ export const useUpdateInsurance = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateInsuranceRequest }) =>
       updateInsurance(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "insurances"] });
+      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -108,14 +110,13 @@ export const useDeleteInsurance = () => {
   return useMutation({
     mutationFn: deleteInsurance,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "insurances"] });
+      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
 };
 
 
-const INSURANCES_QUERY_KEY = ["masters", "insurances"] as const;
 
 const reorderInsurances = async (ids: number[]): Promise<void> => {
   await axios.patch("/v1/masters/insurances/reorder", { ids });

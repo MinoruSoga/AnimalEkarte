@@ -4,6 +4,8 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { PaymentMethodMaster as ModelPaymentMethodMaster } from "@/types/generated/models";
 
+const PAYMENT_METHODS_QUERY_KEY = ["masters", "payment-methods"] as const;
+
 // ─────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────
@@ -62,7 +64,7 @@ const deletePaymentMethod = async (id: string): Promise<void> => {
 
 export const useGetPaymentMethods = () =>
   useQuery({
-    queryKey: ["masters", "payment-methods"],
+    queryKey: PAYMENT_METHODS_QUERY_KEY,
     queryFn: getPaymentMethods,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -72,7 +74,7 @@ export const useCreatePaymentMethod = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createPaymentMethod,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["masters", "payment-methods"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PAYMENT_METHODS_QUERY_KEY }),
     onError: (error) => handleApiError(error, "作成"),
   });
 };
@@ -82,7 +84,7 @@ export const useUpdatePaymentMethod = () => {
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: UpdatePaymentMethodRequest }) =>
       updatePaymentMethod(id, req),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["masters", "payment-methods"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PAYMENT_METHODS_QUERY_KEY }),
     onError: (error) => handleApiError(error, "更新"),
   });
 };
@@ -91,12 +93,11 @@ export const useDeletePaymentMethod = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deletePaymentMethod,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["masters", "payment-methods"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PAYMENT_METHODS_QUERY_KEY }),
     onError: (error) => handleApiError(error, "削除"),
   });
 };
 
-const PAYMENT_METHODS_QUERY_KEY = ["masters", "payment-methods"] as const;
 
 const reorderPaymentMethods = async (ids: number[]): Promise<void> => {
   await axios.patch("/v1/payment-methods/reorder", { ids });
