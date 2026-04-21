@@ -138,7 +138,7 @@ func (h *Handler) DeletePaymentMethod(c *gin.Context) {
 func (h *Handler) RegisterPaymentMethodMasterRoutes(rg *gin.RouterGroup) {
 	pm := rg.Group("/payment-methods")
 	pm.GET("", h.RequirePermission(string(model.ResourcePaymentMethod), "view"), h.ListPaymentMethods)
-	pm.POST("", h.RequirePermission(string(model.ResourcePaymentMethod), "edit"), h.CreatePaymentMethod)
+	pm.POST("", h.RequirePermission(string(model.ResourcePaymentMethod), "create"), h.CreatePaymentMethod)
 	pm.PATCH("/reorder", h.RequirePermission(string(model.ResourcePaymentMethod), "edit"), h.ReorderPaymentMethods)
 	pm.GET("/:id", h.RequirePermission(string(model.ResourcePaymentMethod), "view"), h.GetPaymentMethod)
 	pm.PATCH("/:id", h.RequirePermission(string(model.ResourcePaymentMethod), "edit"), h.UpdatePaymentMethod)
