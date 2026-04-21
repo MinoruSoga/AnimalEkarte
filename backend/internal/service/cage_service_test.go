@@ -27,10 +27,10 @@ func (m *mockCageRepository) FindAll(ctx context.Context, clinicID uint64, cageT
 }
 
 func (m *mockCageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
- if m.findByIDFn != nil {
-	return m.findByIDFn(ctx, clinicID, id)
- }
- return nil, nil
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockCageRepository) Create(ctx context.Context, cage *model.Cage) error {

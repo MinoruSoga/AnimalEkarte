@@ -101,7 +101,6 @@ type UpdateOwnerInput struct {
 	MembershipType *model.MembershipType
 }
 
-
 // buildOwnerUpdate はポインタが非 nil のフィールドのみ map に追加する
 func buildOwnerUpdate(input *UpdateOwnerInput) map[string]any {
 	fields := make(map[string]any)

@@ -150,6 +150,7 @@ func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
 	}
 	return fields
 }
+
 type AccountingService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
@@ -327,4 +328,3 @@ func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64
 	}
 	return result, nil
 }
-

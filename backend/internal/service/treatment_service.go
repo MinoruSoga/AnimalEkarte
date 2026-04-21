@@ -119,7 +119,6 @@ func buildTreatmentUpdate(input *UpdateTreatmentInput) map[string]any {
 	return fields
 }
 
-
 // TreatmentService は治療項目のビジネスロジックインターフェース
 type TreatmentService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)

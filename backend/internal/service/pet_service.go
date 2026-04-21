@@ -80,7 +80,6 @@ type UpdatePetInput struct {
 	Remarks         *string
 }
 
-
 // buildPetUpdate はポインタが非 nil のフィールドのみ map に追加する
 func buildPetUpdate(input *UpdatePetInput) map[string]any {
 	fields := make(map[string]any)

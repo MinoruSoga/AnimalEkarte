@@ -99,7 +99,6 @@ func NewCheckupTypeService(repo repository.CheckupTypeRepository) CheckupTypeSer
 func (s *checkupTypeService) List(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list checkup types", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list checkup types")
 	}
 	return items, nil
@@ -107,7 +106,6 @@ func (s *checkupTypeService) List(ctx context.Context, clinicID uint64) ([]model
 func (s *checkupTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get checkup type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get checkup type")
 	}
 	return result, nil
@@ -128,7 +126,6 @@ func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input 
 		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, checkupType); err != nil {
-		slog.ErrorContext(ctx, "failed to create checkup type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create checkup type")
 	}
 	slog.InfoContext(ctx, "checkup type created",
@@ -141,7 +138,6 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get checkup type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get checkup type")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -153,7 +149,6 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	checkupType, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update checkup type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update checkup type")
 	}
 	slog.InfoContext(ctx, "checkup type updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("checkup_type_id", id))
@@ -161,12 +156,10 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 }
 func (s *checkupTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get checkup type", "error", err)
 		return apperrors.Wrap(err, "failed to get checkup type")
 	}
 	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check checkup type children", "error", err)
 		return apperrors.Wrap(err, "failed to check checkup type children")
 	}
 	if childCount > 0 {
@@ -174,14 +167,12 @@ func (s *checkupTypeService) Delete(ctx context.Context, clinicID, id uint64) er
 	}
 	count, err := s.repo.CountUsageByCheckupTypeID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check checkup type dependencies", "error", err)
 		return apperrors.Wrap(err, "failed to check checkup type dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この定期健診種別は健診記録で使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete checkup type", "error", err)
 		return apperrors.Wrap(err, "failed to delete checkup type")
 	}
 	slog.InfoContext(ctx, "checkup type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("checkup_type_id", id))
@@ -193,7 +184,6 @@ func (s *checkupTypeService) Reorder(ctx context.Context, clinicID uint64, ids [
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder checkup types", "error", err)
 		return apperrors.Wrap(err, "failed to reorder checkup types")
 	}
 	slog.InfoContext(ctx, "checkup type reordered",

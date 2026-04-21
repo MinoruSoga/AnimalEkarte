@@ -37,7 +37,6 @@ func generateCryptoRandomString(length int) string {
 	return string(b)
 }
 
-
 // UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO
 type UpdateMedicalRecordInput struct {
 	Date          *time.Time
@@ -226,6 +225,7 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
+
 // CreateSubRecords はカルテ作成と同時に inquiry / clinical_plan を best-effort で作成する。
 // 失敗しても呼び出し元のカルテ作成は完了済みのためエラーは握りつぶし slog.Warn のみ出力する。
 func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput) {

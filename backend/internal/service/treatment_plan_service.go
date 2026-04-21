@@ -33,7 +33,6 @@ type UpdateTreatmentPlanInput struct {
 	SortOrder        *int
 }
 
-
 func buildTreatmentPlanUpdate(input *UpdateTreatmentPlanInput) map[string]any {
 	fields := map[string]any{}
 	if input.TreatmentContent != nil {

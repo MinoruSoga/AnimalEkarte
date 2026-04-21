@@ -128,10 +128,10 @@ func (m *mockClinicRepository) FindByStaffID(ctx context.Context, staffID uint64
 }
 
 func (m *mockClinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clinic, error) {
- if m.findByIDFn != nil {
-	return m.findByIDFn(ctx, id)
- }
- return nil, nil
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, id)
+	}
+	return nil, nil
 }
 
 func (m *mockClinicRepository) GetCompany(ctx context.Context) (*model.Company, error) {

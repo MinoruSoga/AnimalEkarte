@@ -97,7 +97,6 @@ func NewVaccineService(repo repository.VaccineRepository) VaccineService {
 func (s *vaccineService) List(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
 	items, err := s.repo.FindAll(ctx, clinicID, species)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list vaccines", "clinic_id", clinicID, "error", err)
 		return nil, apperrors.Wrap(err, "failed to list vaccines")
 	}
 	return items, nil
@@ -148,7 +147,6 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get vaccine", slog.Any("error", err))
 		return nil, apperrors.Wrap(err, "failed to get vaccine")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -168,7 +166,6 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	}
 	vaccine, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update vaccine", slog.Any("error", err))
 		return nil, apperrors.Wrap(err, "failed to update vaccine")
 	}
 	slog.InfoContext(ctx, "vaccine updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("vaccine_id", id))

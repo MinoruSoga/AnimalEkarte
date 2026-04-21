@@ -49,6 +49,7 @@ func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
 	}
 	return fields
 }
+
 type EstimateService interface {
 	List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
@@ -220,4 +221,3 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error
 		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
-

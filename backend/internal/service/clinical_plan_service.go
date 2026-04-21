@@ -20,7 +20,6 @@ type UpdateClinicalPlanInput struct {
 	TreatmentPolicy      *string
 }
 
-
 func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
 	fields := map[string]any{}
 	if input.PhysicalExam != nil {
@@ -46,7 +45,6 @@ func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
 	}
 	return fields
 }
-
 
 // ClinicalPlanService は診察所見・診断・治療方針のビジネスロジックインターフェース
 type ClinicalPlanService interface {
@@ -124,4 +122,5 @@ func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecor
 		slog.Uint64("medical_record_id", medicalRecordID))
 	return nil
 }
+
 var _ ClinicalPlanService = (*clinicalPlanService)(nil)

@@ -27,7 +27,6 @@ type CreateVaccinationInput struct {
 	Remarks          string
 }
 
-
 // UpdateVaccinationInput はワクチン接種更新のサービス入力 DTO
 type UpdateVaccinationInput struct {
 	MedicalRecordID  *uint64

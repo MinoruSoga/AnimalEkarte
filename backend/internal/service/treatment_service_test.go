@@ -54,10 +54,10 @@ func (m *mockTreatmentRepository) FindByMedicalRecordID(ctx context.Context, cli
 }
 
 func (m *mockTreatmentRepository) FindByID(ctx context.Context, clinicID, treatmentID uint64) (*model.Treatment, error) {
- if m.findByIDFn != nil {
-	return m.findByIDFn(ctx, clinicID, treatmentID)
- }
- return nil, nil
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, treatmentID)
+	}
+	return nil, nil
 }
 
 func (m *mockTreatmentRepository) Create(ctx context.Context, treatment *model.Treatment) error {

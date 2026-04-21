@@ -64,6 +64,7 @@ func buildCheckupUpdate(input *UpdateCheckupInput) map[string]any {
 	}
 	return fields
 }
+
 type CheckupService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
 	ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error)
@@ -172,4 +173,3 @@ func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, 
 		slog.Uint64("medical_record_id", medicalRecordID))
 	return nil
 }
-

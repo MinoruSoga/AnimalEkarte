@@ -35,10 +35,10 @@ func (m *mockCheckupRepository) FindByClinicID(ctx context.Context, clinicID uin
 }
 
 func (m *mockCheckupRepository) FindByID(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error) {
- if m.findByIDFn != nil {
-	return m.findByIDFn(ctx, clinicID, checkupID)
- }
- return nil, nil
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, checkupID)
+	}
+	return nil, nil
 }
 
 func (m *mockCheckupRepository) Create(ctx context.Context, checkup *model.Checkup) error {

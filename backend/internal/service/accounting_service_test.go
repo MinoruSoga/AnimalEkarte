@@ -26,10 +26,10 @@ func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64,
 }
 
 func (m *mockAccountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
- if m.findByIDFn != nil {
-	return m.findByIDFn(ctx, clinicID, id)
- }
- return nil, nil
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockAccountingRepository) Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error {

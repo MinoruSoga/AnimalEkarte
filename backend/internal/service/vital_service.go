@@ -35,7 +35,6 @@ type UpdateVitalInput struct {
 	Notes           *string
 }
 
-
 // buildVitalUpdate はnilでないフィールドのみmap[string]anyに変換する
 func buildVitalUpdate(input *UpdateVitalInput) map[string]any {
 	fields := map[string]any{}
@@ -65,7 +64,6 @@ func buildVitalUpdate(input *UpdateVitalInput) map[string]any {
 	}
 	return fields
 }
-
 
 // VitalService はバイタル記録のビジネスロジックインターフェース
 type VitalService interface {

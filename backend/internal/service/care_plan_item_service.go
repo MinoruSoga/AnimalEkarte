@@ -44,7 +44,6 @@ type UpdateCarePlanItemInput struct {
 	SortOrder             *int
 }
 
-
 func buildCarePlanItemUpdate(input *UpdateCarePlanItemInput) map[string]any {
 	fields := map[string]any{}
 	if input.Type != nil {
@@ -85,7 +84,6 @@ func buildCarePlanItemUpdate(input *UpdateCarePlanItemInput) map[string]any {
 	}
 	return fields
 }
-
 
 // CarePlanItemService はケアプランアイテムのビジネスロジックインターフェース
 type CarePlanItemService interface {

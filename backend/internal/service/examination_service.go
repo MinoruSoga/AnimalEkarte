@@ -62,6 +62,7 @@ func buildExaminationUpdate(input UpdateExaminationInput) map[string]any {
 	}
 	return fields
 }
+
 type ExaminationService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
@@ -161,4 +162,3 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) er
 
 	return nil
 }
-

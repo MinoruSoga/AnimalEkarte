@@ -111,7 +111,6 @@ func NewConsultationService(repo repository.ConsultationRepository) Consultation
 func (s *consultationService) List(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list consultations", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list consultations")
 	}
 	return items, nil
@@ -119,7 +118,6 @@ func (s *consultationService) List(ctx context.Context, clinicID uint64) ([]mode
 func (s *consultationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get consultation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get consultation")
 	}
 	return result, nil
@@ -150,7 +148,6 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 		TaxRate:       taxRate,
 	}
 	if err := s.repo.Create(ctx, consultation); err != nil {
-		slog.ErrorContext(ctx, "failed to create consultation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create consultation")
 	}
 	slog.InfoContext(ctx, "consultation created", slog.Uint64("clinic_id", clinicID), slog.Uint64("consultation_id", consultation.ID))
@@ -161,7 +158,6 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get consultation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get consultation")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -173,7 +169,6 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	}
 	consultation, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update consultation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update consultation")
 	}
 	slog.InfoContext(ctx, "consultation updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("consultation_id", id))
@@ -181,12 +176,10 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 }
 func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to find consultation", "error", err)
 		return apperrors.Wrap(err, "failed to find consultation")
 	}
 	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check consultation children", "error", err)
 		return apperrors.Wrap(err, "failed to check consultation children")
 	}
 	if childCount > 0 {
@@ -194,14 +187,12 @@ func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) e
 	}
 	count, err := s.repo.CountUsageByConsultationID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check consultation dependencies", "error", err)
 		return apperrors.Wrap(err, "failed to check consultation dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この診察項目は診療記録で使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete consultation", "error", err)
 		return apperrors.Wrap(err, "failed to delete consultation")
 	}
 	slog.InfoContext(ctx, "consultation deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("consultation_id", id))
@@ -213,7 +204,6 @@ func (s *consultationService) Reorder(ctx context.Context, clinicID uint64, ids 
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder consultations", "error", err)
 		return apperrors.Wrap(err, "failed to reorder consultations")
 	}
 	slog.InfoContext(ctx, "consultations reordered",

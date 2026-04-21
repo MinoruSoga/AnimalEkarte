@@ -261,6 +261,7 @@ func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) err
 	slog.InfoContext(ctx, "shift entry deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_entry_id", id))
 	return nil
 }
+
 // validateYearMonth は "YYYY-MM" 形式を検証する
 func validateYearMonth(yearMonth string) error {
 	matched, _ := regexp.MatchString(`^\d{4}-\d{2}$`, yearMonth)

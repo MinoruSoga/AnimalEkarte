@@ -38,7 +38,6 @@ type CreateHospitalizationInput struct {
 	StaffNotes          string
 }
 
-
 // UpdateHospitalizationInput は入院更新のサービス入力 DTO
 type UpdateHospitalizationInput struct {
 	OwnerID             *uint64

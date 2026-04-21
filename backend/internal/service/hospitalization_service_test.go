@@ -28,10 +28,10 @@ func (m *mockHospitalizationRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (m *mockHospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
- if m.findByIDFn != nil {
-	return m.findByIDFn(ctx, clinicID, id)
- }
- return nil, nil
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockHospitalizationRepository) Create(ctx context.Context, hospitalization *model.Hospitalization) error {

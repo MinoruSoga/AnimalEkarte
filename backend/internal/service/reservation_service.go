@@ -10,7 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-
 // UpdateReservationInput は予約更新のサービス入力 DTO
 type UpdateReservationInput struct {
 	StartTime         *time.Time

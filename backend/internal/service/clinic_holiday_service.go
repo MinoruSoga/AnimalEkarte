@@ -29,7 +29,6 @@ func NewClinicHolidayService(repo repository.ClinicHolidayRepository) ClinicHoli
 func (s *clinicHolidayService) List(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
 	holidays, err := s.repo.FindByYearMonth(ctx, clinicID, yearMonth)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list clinic holidays", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list clinic holidays")
 	}
 	return holidays, nil
@@ -43,7 +42,6 @@ func (s *clinicHolidayService) Set(ctx context.Context, clinicID uint64, date ti
 	}
 	result, err := s.repo.Upsert(ctx, clinicID, holiday)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to set clinic holiday", "error", err)
 		return nil, apperrors.Wrap(err, "failed to set clinic holiday")
 	}
 	slog.InfoContext(ctx, "clinic holiday set",
@@ -57,7 +55,6 @@ func (s *clinicHolidayService) Remove(ctx context.Context, clinicID uint64, date
 		if apperrors.IsNotFound(err) {
 			return nil // 冪等: 存在しない場合も成功
 		}
-		slog.ErrorContext(ctx, "failed to remove clinic holiday", "error", err)
 		return apperrors.Wrap(err, "failed to remove clinic holiday")
 	}
 	slog.InfoContext(ctx, "clinic holiday removed",

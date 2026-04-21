@@ -79,7 +79,6 @@ func NewInquiryTemplateService(repo repository.InquiryTemplateRepository) Inquir
 func (s *inquiryTemplateService) List(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list inquiry templates", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list inquiry templates")
 	}
 	return items, nil
@@ -88,7 +87,6 @@ func (s *inquiryTemplateService) List(ctx context.Context, clinicID uint64) ([]m
 func (s *inquiryTemplateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get inquiry template", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get inquiry template")
 	}
 	return result, nil
@@ -107,7 +105,6 @@ func (s *inquiryTemplateService) Create(ctx context.Context, clinicID uint64, in
 		SortOrder: input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, template); err != nil {
-		slog.ErrorContext(ctx, "failed to create inquiry template", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create inquiry template")
 	}
 	slog.InfoContext(ctx, "inquiry template created",
@@ -121,7 +118,6 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get inquiry template", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get inquiry template")
 	}
 	if err := validateOptionalName(input.Title); err != nil {
@@ -133,7 +129,6 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 	}
 	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update inquiry template", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update inquiry template")
 	}
 	slog.InfoContext(ctx, "inquiry template updated",
@@ -144,19 +139,16 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 
 func (s *inquiryTemplateService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to find inquiry template", "error", err)
 		return apperrors.Wrap(err, "failed to find inquiry template")
 	}
 	count, err := s.repo.CountUsageByInquiryTemplateID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check inquiry template usage", "error", err)
 		return apperrors.Wrap(err, "failed to check inquiry template usage")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この問診定型文は使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete inquiry template", "error", err)
 		return apperrors.Wrap(err, "failed to delete inquiry template")
 	}
 	slog.InfoContext(ctx, "inquiry template deleted",
@@ -170,7 +162,6 @@ func (s *inquiryTemplateService) Reorder(ctx context.Context, clinicID uint64, i
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder inquiry templates", "error", err)
 		return apperrors.Wrap(err, "failed to reorder inquiry templates")
 	}
 	slog.InfoContext(ctx, "inquiry templates reordered",

@@ -140,7 +140,6 @@ func NewMedicineService(repo repository.MedicineRepository, inventoryRepo reposi
 func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
 	result, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list medicines", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list medicines")
 	}
 	return result, total, nil
@@ -149,7 +148,6 @@ func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit
 func (s *medicineService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get medicine", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get medicine")
 	}
 	return result, nil
@@ -229,7 +227,6 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "medicine not found", "error", err)
 		return nil, apperrors.Wrap(err, "medicine not found")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -263,7 +260,6 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	} else {
 		result, err = s.repo.Update(ctx, clinicID, id, fields)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to update medicine", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update medicine")
 		}
 	}
@@ -279,7 +275,6 @@ func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder medicines", "error", err)
 		return apperrors.Wrap(err, "failed to reorder medicines")
 	}
 	slog.InfoContext(ctx, "medicines reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
@@ -289,7 +284,6 @@ func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error {
 	m, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get medicine", "error", err)
 		return apperrors.Wrap(err, "failed to get medicine")
 	}
 
@@ -297,7 +291,6 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 	if m.ParentID == nil {
 		count, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to count medicine children", "error", err)
 			return apperrors.Wrap(err, "failed to count medicine children")
 		}
 		if count > 0 {
@@ -309,7 +302,6 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 		// 薬剤アイテムの場合、治療や入院ケアプランで使用中であれば削除を拒否する（BUG-108）
 		usageCount, err := s.repo.CountUsageByMedicineID(ctx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to check medicine usage", "error", err)
 			return apperrors.Wrap(err, "failed to check medicine usage")
 		}
 		if usageCount > 0 {

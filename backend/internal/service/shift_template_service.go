@@ -97,7 +97,6 @@ func NewShiftTemplateService(repo repository.ShiftTemplateRepository) ShiftTempl
 func (s *shiftTemplateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get shift template", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get shift template")
 	}
 	return result, nil
@@ -106,7 +105,6 @@ func (s *shiftTemplateService) GetByID(ctx context.Context, clinicID, id uint64)
 func (s *shiftTemplateService) List(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list shift templates", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list shift templates")
 	}
 	return items, nil
@@ -141,7 +139,6 @@ func (s *shiftTemplateService) Create(ctx context.Context, clinicID uint64, inpu
 		IsActive:  isActive,
 	}
 	if err := s.repo.Create(ctx, tpl); err != nil {
-		slog.ErrorContext(ctx, "failed to create shift template", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create shift template")
 	}
 	if len(input.Breaks) > 0 {
@@ -150,14 +147,12 @@ func (s *shiftTemplateService) Create(ctx context.Context, clinicID uint64, inpu
 			breaks = append(breaks, model.ShiftTemplateBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
 		}
 		if err := s.repo.ReplaceBreaks(ctx, tpl.ID, breaks); err != nil {
-			slog.ErrorContext(ctx, "failed to save shift template breaks", "error", err)
 			return nil, apperrors.Wrap(err, "failed to save shift template breaks")
 		}
 	}
 	slog.InfoContext(ctx, "shift template created", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_template_id", tpl.ID))
 	result, err := s.repo.FindByID(ctx, clinicID, tpl.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get shift template after create", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get shift template after create")
 	}
 	return result, nil
@@ -165,14 +160,12 @@ func (s *shiftTemplateService) Create(ctx context.Context, clinicID uint64, inpu
 
 func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get shift template", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get shift template")
 	}
 	fields := buildShiftTemplateUpdate(input)
 	if len(fields) == 0 && input.Breaks == nil {
 		existing, err := s.repo.FindByID(ctx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to find shift template", "error", err)
 			return nil, apperrors.Wrap(err, "failed to find shift template")
 		}
 		return existing, nil
@@ -182,7 +175,6 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 		var err error
 		result, err = s.repo.Update(ctx, clinicID, id, fields)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to update shift template", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update shift template")
 		}
 	}
@@ -192,13 +184,11 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 			breaks = append(breaks, model.ShiftTemplateBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
 		}
 		if err := s.repo.ReplaceBreaks(ctx, id, breaks); err != nil {
-			slog.ErrorContext(ctx, "failed to save shift template breaks", "error", err)
 			return nil, apperrors.Wrap(err, "failed to save shift template breaks")
 		}
 		var err error
 		result, err = s.repo.FindByID(ctx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to get shift template after update", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get shift template after update")
 		}
 	}
@@ -208,19 +198,16 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 
 func (s *shiftTemplateService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get shift template", "error", err)
 		return apperrors.Wrap(err, "failed to get shift template")
 	}
 	count, err := s.repo.CountUsageByShiftTemplateID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count shift template usage", "error", err)
 		return apperrors.Wrap(err, "failed to check shift template usage")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("このシフトテンプレートは使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete shift template", "error", err)
 		return apperrors.Wrap(err, "failed to delete shift template")
 	}
 	slog.InfoContext(ctx, "shift template deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_template_id", id))
@@ -232,7 +219,6 @@ func (s *shiftTemplateService) Reorder(ctx context.Context, clinicID uint64, ids
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder shift templates", "error", err)
 		return apperrors.Wrap(err, "failed to reorder shift templates")
 	}
 	slog.InfoContext(ctx, "shift templates reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))

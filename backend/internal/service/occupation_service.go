@@ -73,7 +73,6 @@ func NewOccupationService(repo repository.OccupationRepository) OccupationServic
 func (s *occupationService) List(ctx context.Context, clinicID uint64) ([]model.Occupation, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list occupations", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list occupations")
 	}
 	return items, nil
@@ -82,7 +81,6 @@ func (s *occupationService) List(ctx context.Context, clinicID uint64) ([]model.
 func (s *occupationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get occupation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get occupation")
 	}
 	return result, nil
@@ -100,7 +98,6 @@ func (s *occupationService) Create(ctx context.Context, clinicID uint64, input *
 		IsActive:    input.IsActive,
 	}
 	if err := s.repo.Create(ctx, occupation); err != nil {
-		slog.ErrorContext(ctx, "failed to create occupation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create occupation")
 	}
 	slog.InfoContext(ctx, "occupation created",
@@ -114,7 +111,6 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get occupation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get occupation")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -126,7 +122,6 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 	}
 	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update occupation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update occupation")
 	}
 	slog.InfoContext(ctx, "occupation updated",
@@ -137,19 +132,16 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 
 func (s *occupationService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to find occupation", "error", err)
 		return apperrors.Wrap(err, "failed to find occupation")
 	}
 	count, err := s.repo.CountUsageByOccupationID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check occupation dependencies", "error", err)
 		return apperrors.Wrap(err, "failed to check occupation dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この役職はスタッフ情報で使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete occupation", "error", err)
 		return apperrors.Wrap(err, "failed to delete occupation")
 	}
 	slog.InfoContext(ctx, "occupation deleted",
@@ -163,7 +155,6 @@ func (s *occupationService) Reorder(ctx context.Context, clinicID uint64, ids []
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder occupations", "error", err)
 		return apperrors.Wrap(err, "failed to reorder occupations")
 	}
 	slog.InfoContext(ctx, "occupations reordered",
