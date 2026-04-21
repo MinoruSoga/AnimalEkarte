@@ -65,6 +65,61 @@ type BulkTreatmentItem struct {
 
 // ─── Interface ────────────────────────────────────────────────────────────────
 
+// GORMのzero-value問題（false/0/"" がスキップされる）を回避するために使用する。
+func buildTreatmentUpdate(input *UpdateTreatmentInput) map[string]any {
+	fields := map[string]any{}
+	if input.ItemType != nil {
+		fields["item_type"] = *input.ItemType
+	}
+	if input.ConsultationID != nil {
+		fields["consultation_id"] = *input.ConsultationID
+	}
+	if input.ProcedureID != nil {
+		fields["procedure_id"] = *input.ProcedureID
+	}
+	if input.MedicineID != nil {
+		fields["medicine_id"] = *input.MedicineID
+	}
+	if input.InventoryID != nil {
+		fields["inventory_id"] = *input.InventoryID
+	}
+	if input.UnitPrice != nil {
+		fields["unit_price"] = *input.UnitPrice
+	}
+	if input.Quantity != nil {
+		fields["quantity"] = *input.Quantity
+	}
+	if input.IsSelected != nil {
+		fields["is_selected"] = *input.IsSelected
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	if input.Content != nil {
+		fields["content"] = *input.Content
+	}
+	if input.Memo != nil {
+		fields["memo"] = *input.Memo
+	}
+	if input.AdminRoute != nil {
+		fields["admin_route"] = *input.AdminRoute
+	}
+	if input.IsInsurance != nil {
+		fields["is_insurance"] = *input.IsInsurance
+	}
+	if input.DiscountRate != nil {
+		fields["discount_rate"] = *input.DiscountRate
+	}
+	if input.DiscountAmount != nil {
+		fields["discount_amount"] = *input.DiscountAmount
+	}
+	if input.SortOrder != nil {
+		fields["sort_order"] = *input.SortOrder
+	}
+	return fields
+}
+
+
 // TreatmentService は治療項目のビジネスロジックインターフェース
 type TreatmentService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
@@ -288,60 +343,6 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // buildTreatmentUpdate は非nilポインタフィールドだけをGORM向けmapに変換する。
-// GORMのzero-value問題（false/0/"" がスキップされる）を回避するために使用する。
-func buildTreatmentUpdate(input *UpdateTreatmentInput) map[string]any {
-	fields := map[string]any{}
-	if input.ItemType != nil {
-		fields["item_type"] = *input.ItemType
-	}
-	if input.ConsultationID != nil {
-		fields["consultation_id"] = *input.ConsultationID
-	}
-	if input.ProcedureID != nil {
-		fields["procedure_id"] = *input.ProcedureID
-	}
-	if input.MedicineID != nil {
-		fields["medicine_id"] = *input.MedicineID
-	}
-	if input.InventoryID != nil {
-		fields["inventory_id"] = *input.InventoryID
-	}
-	if input.UnitPrice != nil {
-		fields["unit_price"] = *input.UnitPrice
-	}
-	if input.Quantity != nil {
-		fields["quantity"] = *input.Quantity
-	}
-	if input.IsSelected != nil {
-		fields["is_selected"] = *input.IsSelected
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	if input.Content != nil {
-		fields["content"] = *input.Content
-	}
-	if input.Memo != nil {
-		fields["memo"] = *input.Memo
-	}
-	if input.AdminRoute != nil {
-		fields["admin_route"] = *input.AdminRoute
-	}
-	if input.IsInsurance != nil {
-		fields["is_insurance"] = *input.IsInsurance
-	}
-	if input.DiscountRate != nil {
-		fields["discount_rate"] = *input.DiscountRate
-	}
-	if input.DiscountAmount != nil {
-		fields["discount_amount"] = *input.DiscountAmount
-	}
-	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
-	}
-	return fields
-}
-
 func validateTreatmentItemType(t model.TreatmentItemType) error {
 	switch t {
 	case model.TreatmentItemTypeConsultation,

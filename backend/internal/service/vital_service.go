@@ -35,6 +35,38 @@ type UpdateVitalInput struct {
 	Notes           *string
 }
 
+
+// buildVitalUpdate はnilでないフィールドのみmap[string]anyに変換する
+func buildVitalUpdate(input *UpdateVitalInput) map[string]any {
+	fields := map[string]any{}
+	if input.RecordedAt != nil {
+		fields["recorded_at"] = *input.RecordedAt
+	}
+	if input.StaffID != nil {
+		fields["staff_id"] = *input.StaffID
+	}
+	if input.Temperature != nil {
+		fields["temperature"] = *input.Temperature
+	}
+	if input.HeartRate != nil {
+		fields["heart_rate"] = *input.HeartRate
+	}
+	if input.RespirationRate != nil {
+		fields["respiration_rate"] = *input.RespirationRate
+	}
+	if input.Weight != nil {
+		fields["weight"] = *input.Weight
+	}
+	if input.WeightUnit != nil {
+		fields["weight_unit"] = *input.WeightUnit
+	}
+	if input.Notes != nil {
+		fields["notes"] = *input.Notes
+	}
+	return fields
+}
+
+
 // VitalService はバイタル記録のビジネスロジックインターフェース
 type VitalService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
@@ -142,34 +174,4 @@ func weightUnitOrDefault(u *model.BodyWeightUnit) model.BodyWeightUnit {
 		return *u
 	}
 	return model.BodyWeightUnitKg
-}
-
-// buildVitalUpdate はnilでないフィールドのみmap[string]anyに変換する
-func buildVitalUpdate(input *UpdateVitalInput) map[string]any {
-	fields := map[string]any{}
-	if input.RecordedAt != nil {
-		fields["recorded_at"] = *input.RecordedAt
-	}
-	if input.StaffID != nil {
-		fields["staff_id"] = *input.StaffID
-	}
-	if input.Temperature != nil {
-		fields["temperature"] = *input.Temperature
-	}
-	if input.HeartRate != nil {
-		fields["heart_rate"] = *input.HeartRate
-	}
-	if input.RespirationRate != nil {
-		fields["respiration_rate"] = *input.RespirationRate
-	}
-	if input.Weight != nil {
-		fields["weight"] = *input.Weight
-	}
-	if input.WeightUnit != nil {
-		fields["weight_unit"] = *input.WeightUnit
-	}
-	if input.Notes != nil {
-		fields["notes"] = *input.Notes
-	}
-	return fields
 }

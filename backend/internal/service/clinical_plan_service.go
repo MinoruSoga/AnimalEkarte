@@ -20,6 +20,34 @@ type UpdateClinicalPlanInput struct {
 	TreatmentPolicy      *string
 }
 
+
+func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
+	fields := map[string]any{}
+	if input.PhysicalExam != nil {
+		fields["physical_exam"] = *input.PhysicalExam
+	}
+	if input.DiagnosisTypeID != nil {
+		fields["diagnosis_type_id"] = *input.DiagnosisTypeID
+	}
+	if input.DiagnosisNameID != nil {
+		fields["diagnosis_name_id"] = *input.DiagnosisNameID
+	}
+	if input.Diagnosis2CategoryID != nil {
+		fields["diagnosis_2_category_id"] = *input.Diagnosis2CategoryID
+	}
+	if input.Diagnosis2NameID != nil {
+		fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
+	}
+	if input.DiagnosisDetails != nil {
+		fields["diagnosis_details"] = *input.DiagnosisDetails
+	}
+	if input.TreatmentPolicy != nil {
+		fields["treatment_policy"] = *input.TreatmentPolicy
+	}
+	return fields
+}
+
+
 // ClinicalPlanService は診察所見・診断・治療方針のビジネスロジックインターフェース
 type ClinicalPlanService interface {
 	GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
@@ -96,31 +124,4 @@ func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecor
 		slog.Uint64("medical_record_id", medicalRecordID))
 	return nil
 }
-
-func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
-	fields := map[string]any{}
-	if input.PhysicalExam != nil {
-		fields["physical_exam"] = *input.PhysicalExam
-	}
-	if input.DiagnosisTypeID != nil {
-		fields["diagnosis_type_id"] = *input.DiagnosisTypeID
-	}
-	if input.DiagnosisNameID != nil {
-		fields["diagnosis_name_id"] = *input.DiagnosisNameID
-	}
-	if input.Diagnosis2CategoryID != nil {
-		fields["diagnosis_2_category_id"] = *input.Diagnosis2CategoryID
-	}
-	if input.Diagnosis2NameID != nil {
-		fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
-	}
-	if input.DiagnosisDetails != nil {
-		fields["diagnosis_details"] = *input.DiagnosisDetails
-	}
-	if input.TreatmentPolicy != nil {
-		fields["treatment_policy"] = *input.TreatmentPolicy
-	}
-	return fields
-}
-
 var _ ClinicalPlanService = (*clinicalPlanService)(nil)
