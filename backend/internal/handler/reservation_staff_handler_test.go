@@ -27,15 +27,15 @@ func TestReservationStaffHandlerCompiles(t *testing.T) {
 // ---- mock ReservationStaffService ----
 
 type mockReservationStaffService struct {
-	listFn                    func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
-	getByIDFn                 func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
-	createFn                  func(ctx context.Context, clinicID uint64, input *service.CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
-	updateFn                  func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
-	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
-	patchStatusFn             func(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error)
-	patchSortOrderFn          func(ctx context.Context, clinicID, id uint64, direction string) error
-	getExcludedFn             func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
-	listExcludedByStaffIDsFn  func(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
+	listFn                   func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
+	getByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
+	createFn                 func(ctx context.Context, clinicID uint64, input *service.CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
+	updateFn                 func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
+	patchStatusFn            func(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error)
+	patchSortOrderFn         func(ctx context.Context, clinicID, id uint64, direction string) error
+	getExcludedFn            func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
+	listExcludedByStaffIDsFn func(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
 }
 
 func (m *mockReservationStaffService) List(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
@@ -205,7 +205,7 @@ func TestCreateReservationStaff_Valid_Returns201(t *testing.T) {
 			name: "creates reservation staff successfully returns 201",
 			body: map[string]any{
 				"name":                "新予約スタッフ",
-				"staff_type":         "doctor",
+				"staff_type":          "doctor",
 				"reservation_visible": true,
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
@@ -234,8 +234,8 @@ func TestCreateReservationStaff_Valid_Returns201(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "returns 500 on service error",
-			body: map[string]any{"name": "エラースタッフ"},
+			name:     "returns 500 on service error",
+			body:     map[string]any{"name": "エラースタッフ"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationStaffService{
 				createFn: func(_ context.Context, _ uint64, _ *service.CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
@@ -355,9 +355,9 @@ func TestUpdateReservationStaff(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name:    "updates reservation staff successfully returns 200",
-			paramID: "3",
-			body:    map[string]any{"name": nameVal},
+			name:     "updates reservation staff successfully returns 200",
+			paramID:  "3",
+			body:     map[string]any{"name": nameVal},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationStaffService{
 				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
@@ -379,9 +379,9 @@ func TestUpdateReservationStaff(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:    "returns 404 when reservation staff not found",
-			paramID: "999",
-			body:    map[string]any{"name": "テスト"},
+			name:     "returns 404 when reservation staff not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "テスト"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationStaffService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {

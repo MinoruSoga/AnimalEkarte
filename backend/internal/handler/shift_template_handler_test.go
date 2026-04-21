@@ -21,12 +21,12 @@ import (
 // ---- mock ShiftTemplateService ----
 
 type mockShiftTemplateService struct {
-	listFn     func(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
-	getByIDFn  func(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
-	createFn   func(ctx context.Context, clinicID uint64, input *service.CreateShiftTemplateInput) (*model.ShiftTemplate, error)
-	updateFn   func(ctx context.Context, clinicID, id uint64, input *service.UpdateShiftTemplateInput) (*model.ShiftTemplate, error)
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
-	reorderFn  func(ctx context.Context, clinicID uint64, ids []uint64) error
+	listFn    func(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
+	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateShiftTemplateInput) (*model.ShiftTemplate, error)
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateShiftTemplateInput) (*model.ShiftTemplate, error)
+	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockShiftTemplateService) List(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error) {
@@ -333,8 +333,8 @@ func TestCreateShiftTemplate_Valid_Returns201(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "returns 500 on service error",
-			body: map[string]any{"name": "テスト", "shift_type": "full"},
+			name:     "returns 500 on service error",
+			body:     map[string]any{"name": "テスト", "shift_type": "full"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockShiftTemplateService{
 				createFn: func(_ context.Context, _ uint64, _ *service.CreateShiftTemplateInput) (*model.ShiftTemplate, error) {
@@ -463,9 +463,9 @@ func TestUpdateShiftTemplate(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:    "updates shift template name successfully returns 200",
-			paramID: "1",
-			body:    map[string]any{"name": "更新勤務テンプレート"},
+			name:     "updates shift template name successfully returns 200",
+			paramID:  "1",
+			body:     map[string]any{"name": "更新勤務テンプレート"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockShiftTemplateService{
 				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {
@@ -480,9 +480,9 @@ func TestUpdateShiftTemplate(t *testing.T) {
 			wantBody:   `"name":"更新勤務テンプレート"`,
 		},
 		{
-			name:    "updates shift type to morning returns 200",
-			paramID: "2",
-			body:    map[string]any{"shift_type": "morning"},
+			name:     "updates shift type to morning returns 200",
+			paramID:  "2",
+			body:     map[string]any{"shift_type": "morning"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockShiftTemplateService{
 				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {
@@ -503,9 +503,9 @@ func TestUpdateShiftTemplate(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:    "returns 404 when shift template not found",
-			paramID: "999",
-			body:    map[string]any{"name": "テスト"},
+			name:     "returns 404 when shift template not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "テスト"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockShiftTemplateService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {

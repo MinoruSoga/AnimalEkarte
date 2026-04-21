@@ -177,12 +177,12 @@ func TestClinicHandlerCompiles(t *testing.T) {
 // ---- mock ClinicService ----
 
 type mockClinicService struct {
-	listClinicsFn       func(ctx context.Context) ([]model.Clinic, error)
-	listByStaffIDFn     func(ctx context.Context, staffID uint64) ([]model.Clinic, error)
-	getClinicByIDFn     func(ctx context.Context, id uint64) (*model.Clinic, error)
-	createClinicFn      func(ctx context.Context, input *service.CreateClinicInput) (*model.Clinic, error)
-	updateClinicFn      func(ctx context.Context, id uint64, input *service.UpdateClinicInput) (*model.Clinic, error)
-	deleteClinicFn      func(ctx context.Context, id uint64) error
+	listClinicsFn   func(ctx context.Context) ([]model.Clinic, error)
+	listByStaffIDFn func(ctx context.Context, staffID uint64) ([]model.Clinic, error)
+	getClinicByIDFn func(ctx context.Context, id uint64) (*model.Clinic, error)
+	createClinicFn  func(ctx context.Context, input *service.CreateClinicInput) (*model.Clinic, error)
+	updateClinicFn  func(ctx context.Context, id uint64, input *service.UpdateClinicInput) (*model.Clinic, error)
+	deleteClinicFn  func(ctx context.Context, id uint64) error
 }
 
 func (m *mockClinicService) ListClinics(ctx context.Context) ([]model.Clinic, error) {
@@ -367,9 +367,9 @@ func TestGetClinic_SystemAdmin_ReturnsOK(t *testing.T) {
 		getClinicByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
 			assert.Equal(t, uint64(5), id)
 			return &model.Clinic{
-				ID:          5,
-				Name:        "ノア動物病院 渋谷",
-				IsActive:    true,
+				ID:              5,
+				Name:            "ノア動物病院 渋谷",
+				IsActive:        true,
 				StandardTaxRate: 0.10,
 				ReducedTaxRate:  0.08,
 			}, nil

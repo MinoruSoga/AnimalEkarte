@@ -27,21 +27,21 @@ func TestStaffHandlerCompiles(t *testing.T) {
 // ---- mock StaffService ----
 
 type mockStaffService struct {
-	listFn                         func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
-	getByIDFn                      func(ctx context.Context, id uint64) (*model.Staff, error)
-	findByAccountIDFn              func(ctx context.Context, accountID uint64) (*model.Staff, error)
-	createFn                       func(ctx context.Context, input *service.CreateStaffInput) (*model.Staff, error)
-	createWithAccountFn            func(ctx context.Context, input *service.CreateStaffWithAccountInput) (*model.Staff, error)
-	updatePasswordFn               func(ctx context.Context, accountID uint64, newPassword string) error
-	setClinicAssignmentsFn         func(ctx context.Context, staffID uint64, clinicIDs []uint64) error
-	updateFn                       func(ctx context.Context, clinicID, id uint64, input *service.UpdateStaffInput) (*model.Staff, error)
-	deleteFn                       func(ctx context.Context, clinicID, id uint64) error
-	reorderFn                      func(ctx context.Context, clinicID uint64, ids []uint64) error
-	getPermissionGroupIDsFn        func(ctx context.Context, staffID uint64) ([]uint64, error)
-	setPermissionGroupIDsFn        func(ctx context.Context, staffID uint64, groupIDs []uint64) error
-	getExcludedReservationTypesFn  func(ctx context.Context, staffID uint64) ([]uint64, error)
-	setExcludedReservationTypesFn  func(ctx context.Context, staffID uint64, typeIDs []uint64) error
-	verifyClinicMembershipFn       func(ctx context.Context, staffID, clinicID uint64) error
+	listFn                        func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
+	getByIDFn                     func(ctx context.Context, id uint64) (*model.Staff, error)
+	findByAccountIDFn             func(ctx context.Context, accountID uint64) (*model.Staff, error)
+	createFn                      func(ctx context.Context, input *service.CreateStaffInput) (*model.Staff, error)
+	createWithAccountFn           func(ctx context.Context, input *service.CreateStaffWithAccountInput) (*model.Staff, error)
+	updatePasswordFn              func(ctx context.Context, accountID uint64, newPassword string) error
+	setClinicAssignmentsFn        func(ctx context.Context, staffID uint64, clinicIDs []uint64) error
+	updateFn                      func(ctx context.Context, clinicID, id uint64, input *service.UpdateStaffInput) (*model.Staff, error)
+	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
+	getPermissionGroupIDsFn       func(ctx context.Context, staffID uint64) ([]uint64, error)
+	setPermissionGroupIDsFn       func(ctx context.Context, staffID uint64, groupIDs []uint64) error
+	getExcludedReservationTypesFn func(ctx context.Context, staffID uint64) ([]uint64, error)
+	setExcludedReservationTypesFn func(ctx context.Context, staffID uint64, typeIDs []uint64) error
+	verifyClinicMembershipFn      func(ctx context.Context, staffID, clinicID uint64) error
 }
 
 func (m *mockStaffService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error) {
@@ -158,15 +158,6 @@ func newHandlerWithStaffSvc(staffSvc service.StaffService) *Handler {
 		svc: &service.Services{
 			Staff:                 staffSvc,
 			StaffClinicAssignment: &mockStaffClinicAssignmentService{},
-		},
-	}
-}
-
-func newHandlerWithStaffAndAssignmentSvc(staffSvc service.StaffService, assignSvc service.StaffClinicAssignmentService) *Handler {
-	return &Handler{
-		svc: &service.Services{
-			Staff:                 staffSvc,
-			StaffClinicAssignment: assignSvc,
 		},
 	}
 }
@@ -297,8 +288,8 @@ func TestCreateStaff_Valid_Returns201(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "returns 500 on service error",
-			body: map[string]any{"name": "エラースタッフ"},
+			name:     "returns 500 on service error",
+			body:     map[string]any{"name": "エラースタッフ"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockStaffService{
 				createFn: func(_ context.Context, _ *service.CreateStaffInput) (*model.Staff, error) {
@@ -426,9 +417,9 @@ func TestUpdateStaff(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name:    "updates staff successfully returns 200",
-			paramID: "5",
-			body:    map[string]any{"name": "更新スタッフ"},
+			name:     "updates staff successfully returns 200",
+			paramID:  "5",
+			body:     map[string]any{"name": "更新スタッフ"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockStaffService{
 				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateStaffInput) (*model.Staff, error) {
@@ -450,9 +441,9 @@ func TestUpdateStaff(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:    "returns 404 when staff not found",
-			paramID: "999",
-			body:    map[string]any{"name": "テスト"},
+			name:     "returns 404 when staff not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "テスト"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockStaffService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateStaffInput) (*model.Staff, error) {
