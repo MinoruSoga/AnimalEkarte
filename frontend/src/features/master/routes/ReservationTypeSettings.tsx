@@ -15,7 +15,7 @@ import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
