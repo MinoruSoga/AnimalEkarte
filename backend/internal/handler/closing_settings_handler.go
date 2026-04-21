@@ -23,7 +23,7 @@ func (h *Handler) GetClosingSettings(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, toClosingSettingsFullResponse(resp.Settings, resp.SpecialPeriods))
 }
 
 // UpdateClosingSettings godoc

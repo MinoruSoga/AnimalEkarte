@@ -44,6 +44,23 @@ type closingSpecialPeriodResponse struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// closingSettingsFullResponse は Get エンドポイントの HTTP レスポンス型（設定 + 特別期間）
+type closingSettingsFullResponse struct {
+	Settings       clinicSettingsResponse        `json:"settings"`
+	SpecialPeriods []closingSpecialPeriodResponse `json:"special_periods"`
+}
+
+func toClosingSettingsFullResponse(s *model.ClinicSettings, periods []model.ClosingSpecialPeriod) closingSettingsFullResponse {
+	sp := make([]closingSpecialPeriodResponse, 0, len(periods))
+	for i := range periods {
+		sp = append(sp, toClosingSpecialPeriodResponse(&periods[i]))
+	}
+	return closingSettingsFullResponse{
+		Settings:       toClinicSettingsResponse(s),
+		SpecialPeriods: sp,
+	}
+}
+
 func toClosingSpecialPeriodResponse(p *model.ClosingSpecialPeriod) closingSpecialPeriodResponse {
 	return closingSpecialPeriodResponse{
 		ID:           p.ID,
