@@ -44,7 +44,7 @@ func toExamTypeItemResponse(item *model.ExamTypeField) examTypeItemResponse {
 	}
 }
 
-func toExamTypeResponse(et *model.ExaminationType) examTypeResponse {
+func toExaminationTypeResponse(et *model.ExaminationType) examTypeResponse {
 	items := make([]examTypeItemResponse, 0, len(et.Items))
 	for i := range et.Items {
 		items = append(items, toExamTypeItemResponse(&et.Items[i]))

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -38,7 +39,7 @@ func (h *Handler) UpsertLineReservationSetting(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	setting, err := h.svc.LineReservationSetting.Upsert(c.Request.Context(), clinicID, &service.UpsertLineReservationSettingInput{
+	setting, isNew, err := h.svc.LineReservationSetting.Upsert(c.Request.Context(), clinicID, &service.UpsertLineReservationSettingInput{
 		Status:                  req.Status,
 		HeaderText:              req.HeaderText,
 		ReservationNotice:       req.ReservationNotice,
@@ -70,6 +71,11 @@ func (h *Handler) UpsertLineReservationSetting(c *gin.Context) {
 	})
 	if err != nil {
 		RespondError(c, err)
+		return
+	}
+	if isNew {
+		c.Header("Location", fmt.Sprintf("/v1/clinics/%d/line-reservation-settings", clinicID))
+		c.JSON(http.StatusCreated, toLineReservationSettingResponse(setting))
 		return
 	}
 	c.JSON(http.StatusOK, toLineReservationSettingResponse(setting))

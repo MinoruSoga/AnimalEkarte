@@ -33,7 +33,7 @@ type ScheduleEntry struct {
 // ReservationScheduleService はスタッフスケジュールのビジネスロジックインターフェース
 type ReservationScheduleService interface {
 	ListByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]ScheduleEntry, error)
-	Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *UpsertScheduleInput) (*ScheduleEntry, error)
+	Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *UpsertScheduleInput) (*ScheduleEntry, bool, error)
 	Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
@@ -73,13 +73,22 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 	return result, nil
 }
 
-func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *UpsertScheduleInput) (*ScheduleEntry, error) {
+func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *UpsertScheduleInput) (*ScheduleEntry, bool, error) {
 	shiftType := model.ShiftType(input.ShiftType)
 	startTime := normalizeTimeString(input.WorkStart)
 	endTime := normalizeTimeString(input.WorkEnd)
 	if err := validateShiftTimes(shiftType, startTime, endTime); err != nil {
-		return nil, err
+		return nil, false, err
 	}
+
+	// 既存レコードの有無を確認し、新規作成かどうかを判定する
+	existing, err := s.repo.FindByDate(ctx, clinicID, staffID, date)
+	isNew := err != nil || existing == nil
+	if err != nil && !apperrors.IsNotFound(err) {
+		slog.ErrorContext(ctx, "failed to find schedule before upsert", "error", err)
+		return nil, false, apperrors.Wrap(err, "failed to find schedule before upsert")
+	}
+
 	entry := &model.ShiftEntry{
 		ClinicID:  clinicID,
 		StaffID:   staffID,
@@ -99,19 +108,19 @@ func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staff
 
 	if err := s.repo.Upsert(ctx, entry, breaks); err != nil {
 		slog.ErrorContext(ctx, "failed to upsert schedule", "error", err)
-		return nil, apperrors.Wrap(err, "failed to upsert schedule")
+		return nil, false, apperrors.Wrap(err, "failed to upsert schedule")
 	}
 	// Upsert後に DB から最新の breaks を取得（ID が振られた状態で返す）
 	savedBreaks, err := s.repo.FindBreaksByEntryID(ctx, entry.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load schedule breaks after upsert", "error", err)
-		return nil, apperrors.Wrap(err, "failed to load schedule breaks after upsert")
+		return nil, false, apperrors.Wrap(err, "failed to load schedule breaks after upsert")
 	}
 	slog.InfoContext(ctx, "schedule upserted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("staff_id", staffID),
 		slog.String("date", date.Format("2006-01-02")))
-	return &ScheduleEntry{Entry: *entry, Breaks: savedBreaks}, nil
+	return &ScheduleEntry{Entry: *entry, Breaks: savedBreaks}, isNew, nil
 }
 
 func (s *reservationScheduleService) Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error {

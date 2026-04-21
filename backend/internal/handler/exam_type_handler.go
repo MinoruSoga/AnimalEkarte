@@ -24,7 +24,7 @@ func (h *Handler) ListExaminationTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, mapSlice(exTypes, toExamTypeResponse))
+	c.JSON(http.StatusOK, mapSlice(exTypes, toExaminationTypeResponse))
 }
 
 // GetExaminationType godoc
@@ -42,7 +42,7 @@ func (h *Handler) GetExaminationType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toExamTypeResponse(et))
+	c.JSON(http.StatusOK, toExaminationTypeResponse(et))
 }
 
 // CreateExaminationType godoc
@@ -73,7 +73,7 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/examination-types/%d", examType.ID))
-	c.JSON(http.StatusCreated, toExamTypeResponse(examType))
+	c.JSON(http.StatusCreated, toExaminationTypeResponse(examType))
 }
 
 // UpdateExaminationType godoc
@@ -107,7 +107,7 @@ func (h *Handler) UpdateExaminationType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toExamTypeResponse(exType))
+	c.JSON(http.StatusOK, toExaminationTypeResponse(exType))
 }
 
 // ReorderExaminationTypes godoc
