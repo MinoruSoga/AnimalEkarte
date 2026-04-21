@@ -152,13 +152,13 @@ func (h *Handler) RegisterClosingSettingsRoutes(rg *gin.RouterGroup) {
 
 	sp := cs.Group("/special-periods")
 	sp.GET("", h.RequirePermission(string(model.ResourceClosingSettings), "view"), h.ListSpecialPeriods)
-	sp.POST("", h.RequirePermission(string(model.ResourceClosingSettings), "edit"), h.CreateSpecialPeriod)
+	sp.POST("", h.RequirePermission(string(model.ResourceClosingSettings), "create"), h.CreateSpecialPeriod)
 	sp.PATCH("/:id", h.RequirePermission(string(model.ResourceClosingSettings), "edit"), h.UpdateSpecialPeriod)
 	sp.DELETE("/:id", h.RequirePermission(string(model.ResourceClosingSettings), "delete"), h.DeleteSpecialPeriod)
 
 	// 休診日は既存 ClinicHoliday ハンドラに委譲
 	holidays := cs.Group("/holidays")
 	holidays.GET("", h.ListClinicHolidays)
-	holidays.POST("", h.RequirePermission(string(model.ResourceClosingSettings), "edit"), h.SetClinicHoliday)
+	holidays.POST("", h.RequirePermission(string(model.ResourceClosingSettings), "create"), h.SetClinicHoliday)
 	holidays.DELETE("/:date", h.RequirePermission(string(model.ResourceClosingSettings), "delete"), h.DeleteClinicHoliday)
 }

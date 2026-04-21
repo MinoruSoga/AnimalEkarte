@@ -25,22 +25,22 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	// TASK-RES-011: 予約区分（LINE管理用）
 	types := clinics.Group("/reservation-types")
 	types.GET("", h.RequirePermission(string(model.ResourceMasterReservationType), "view"), h.ListReservationTypeLiffs)
-	types.POST("", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.CreateReservationTypeLiff)
+	types.POST("", h.RequirePermission(string(model.ResourceMasterReservationType), "create"), h.CreateReservationTypeLiff)
 	types.PUT("/:id", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.UpdateReservationTypeLiff)
 	types.DELETE("/:id", h.RequirePermission(string(model.ResourceMasterReservationType), "delete"), h.DeleteReservationTypeLiff)
 	types.PATCH("/:id/status", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.PatchReservationTypeLiffStatus)
 	types.PATCH("/:id/sort-order", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.PatchReservationTypeLiffSortOrder)
-	types.POST("/:id/image", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.UploadReservationTypeLiffImage)
+	types.POST("/:id/image", h.RequirePermission(string(model.ResourceMasterReservationType), "create"), h.UploadReservationTypeLiffImage)
 
 	// TASK-RES-012: スタッフ
 	staffs := clinics.Group("/reservation-staffs")
 	staffs.GET("", h.RequirePermission(string(model.ResourceMasterStaff), "view"), h.ListReservationStaffs)
-	staffs.POST("", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.CreateReservationStaff)
+	staffs.POST("", h.RequirePermission(string(model.ResourceMasterStaff), "create"), h.CreateReservationStaff)
 	staffs.PUT("/:staffId", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.UpdateReservationStaff)
 	staffs.DELETE("/:staffId", h.RequirePermission(string(model.ResourceMasterStaff), "delete"), h.DeleteReservationStaff)
 	staffs.PATCH("/:staffId/status", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.PatchReservationStaffStatus)
 	staffs.PATCH("/:staffId/sort-order", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.PatchReservationStaffSortOrder)
-	staffs.POST("/:staffId/image", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.UploadReservationStaffImage)
+	staffs.POST("/:staffId/image", h.RequirePermission(string(model.ResourceMasterStaff), "create"), h.UploadReservationStaffImage)
 
 	// TASK-RES-013: スタッフ個人スケジュール
 	schedules := clinics.Group("/reservation-staffs/:staffId/schedules")
