@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
-	_ "time/tzdata"
+	_ "time/tzdata" // Asia/Tokyo タイムゾーンデータを組み込む
 
 	"gorm.io/gorm"
 

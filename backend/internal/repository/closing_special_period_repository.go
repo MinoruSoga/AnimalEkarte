@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"gorm.io/gorm"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"gorm.io/gorm"
 )
 
 // ClosingSpecialPeriodRepository は特別締め期間のデータアクセスインターフェース

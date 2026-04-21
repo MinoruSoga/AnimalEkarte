@@ -106,7 +106,7 @@ func (m *mockAuditServiceForPG) Log(ctx context.Context, log *model.AuditLog) er
 	return nil
 }
 
-func (m *mockAuditServiceForPG) LogAuthLogin(ctx context.Context, clinicID *uint64, staffID *uint64, action string, ipAddress string, userAgent string) error {
+func (m *mockAuditServiceForPG) LogAuthLogin(ctx context.Context, clinicID, staffID *uint64, action, ipAddress, userAgent string) error {
 	if m.logAuthLoginFn != nil {
 		return m.logAuthLoginFn(ctx, clinicID, staffID, action, ipAddress, userAgent)
 	}
@@ -120,14 +120,6 @@ func newHandlerWithPermissionGroupSvc(pgSvc service.PermissionGroupService) *Han
 		PermissionGroup:     pgSvc,
 		EffectivePermission: &mockEffectivePermissionService{},
 		Audit:               &mockAuditServiceForPG{},
-	}}
-}
-
-func newHandlerWithPermissionGroupAndAuditSvc(pgSvc service.PermissionGroupService, auditSvc service.AuditService) *Handler {
-	return &Handler{svc: &service.Services{
-		PermissionGroup:     pgSvc,
-		EffectivePermission: &mockEffectivePermissionService{},
-		Audit:               auditSvc,
 	}}
 }
 

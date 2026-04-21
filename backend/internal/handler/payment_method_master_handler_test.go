@@ -386,13 +386,6 @@ func TestPaymentMethodMasterHandler_Update(t *testing.T) {
 
 // ---- TestPaymentMethodMasterHandler_Delete ----
 
-func newDeletePaymentMethodRouter(svc service.PaymentMethodMasterService) *gin.Engine {
-	r := gin.New()
-	h := newHandlerWithPaymentMethodSvc(svc)
-	r.DELETE("/payment-methods/:id", h.DeletePaymentMethod)
-	return r
-}
-
 func TestPaymentMethodMasterHandler_Delete(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

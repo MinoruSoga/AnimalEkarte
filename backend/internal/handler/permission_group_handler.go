@@ -239,7 +239,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	inputRules := make([]service.SetPermissionGroupRulesInput, 0, len(req.Rules))
 	for _, r := range req.Rules {
 		inputRules = append(inputRules, service.SetPermissionGroupRulesInput{
-			Resource:  string(r.Resource),
+			Resource:  r.Resource,
 			CanView:   r.CanView,
 			CanCreate: r.CanCreate,
 			CanEdit:   r.CanEdit,
