@@ -21,30 +21,23 @@ export {
 };
 
 // ─────────────────────────────────────────────────
-// Types
+// Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export interface CreateHospitalizationPlanRequest {
-  name: string;
-  price?: number;
-  description?: string;
-  is_active?: boolean;
-  body_size?: BodySize;
-  billing_unit?: BillingUnit;
-  tax_type?: TaxType;
-  tax_rate?: number;
-}
+type HospitalizationPlanRequestBase = Omit<
+  ModelHospitalizationPlan,
+  "id" | "clinic_id" | "created_at" | "updated_at"
+>;
 
-export interface UpdateHospitalizationPlanRequest {
-  name?: string;
-  price?: number;
-  description?: string;
-  is_active?: boolean;
+export type CreateHospitalizationPlanRequest = Pick<HospitalizationPlanRequestBase, "name"> &
+  Partial<Omit<HospitalizationPlanRequestBase, "name">>;
+
+export type UpdateHospitalizationPlanRequest = Partial<
+  Omit<HospitalizationPlanRequestBase, "body_size" | "billing_unit">
+> & {
   body_size?: BodySize | null;
   billing_unit?: BillingUnit | null;
-  tax_type?: TaxType;
-  tax_rate?: number;
-}
+};
 
 export const BODY_SIZE_OPTIONS: { value: BodySize; label: string }[] = [
   { value: BodySizeSmall, label: "小型" },

@@ -5,24 +5,18 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { PermissionGroup as ModelPermissionGroup } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Request types
+// Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export interface CreatePermissionGroupRequest {
-  name: string;
-  description?: string;
-  color: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
+type PermissionGroupRequestBase = Omit<
+  ModelPermissionGroup,
+  "id" | "clinic_id" | "created_at" | "updated_at" | "rules" | "staffs"
+>;
 
-export interface UpdatePermissionGroupRequest {
-  name?: string;
-  description?: string;
-  color?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
+export type CreatePermissionGroupRequest = Pick<PermissionGroupRequestBase, "name" | "color"> &
+  Partial<Omit<PermissionGroupRequestBase, "name" | "color">>;
+
+export type UpdatePermissionGroupRequest = Partial<PermissionGroupRequestBase>;
 
 export interface SetPermissionGroupRulesRequest {
   rules: Array<{

@@ -5,38 +5,33 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Staff as ModelStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Request types - api.yaml StaffRegistrationRequest 準拠
+// Request types (derived from models.ts, extended for api.yaml StaffRegistrationRequest)
 // ─────────────────────────────────────────────────
 
-export interface CreateStaffRequest {
-  name: string;
-  email: string;
-  password: string;
-  license_number?: string;
-  occupation_id?: string | null;
-  sort_order?: number;
-  // LINE予約用
-  staff_type?: string;
-  reservation_display_name?: string;
-  reservation_visible?: boolean;
-  reservation_comment?: string;
-  reservation_image_url?: string;
-}
+// ModelStaff fields usable in Create/Update (excludes system + relations + occupation_id which is overridden below as string|null)
+type StaffModelFields = Omit<
+  ModelStaff,
+  | "id"
+  | "account_id"
+  | "account"
+  | "occupation"
+  | "clinic_assignments"
+  | "occupation_id"
+  | "created_at"
+  | "updated_at"
+>;
 
-export interface UpdateStaffRequest {
-  name?: string;
-  license_number?: string;
-  is_active?: boolean;
-  occupation_id?: string | null;
-  sort_order?: number;
+export type CreateStaffRequest = Pick<StaffModelFields, "name"> &
+  Partial<Omit<StaffModelFields, "name">> & {
+    email: string;
+    password: string;
+    occupation_id?: string | null;
+  };
+
+export type UpdateStaffRequest = Partial<StaffModelFields> & {
   password?: string;
-  // LINE予約用
-  staff_type?: string;
-  reservation_display_name?: string;
-  reservation_visible?: boolean;
-  reservation_comment?: string;
-  reservation_image_url?: string;
-}
+  occupation_id?: string | null;
+};
 
 // ─────────────────────────────────────────────────
 // Transform

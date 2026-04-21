@@ -7,18 +7,18 @@ import type { PaymentMethodMaster as ModelPaymentMethodMaster } from "@/types/ge
 const PAYMENT_METHODS_QUERY_KEY = ["masters", "payment-methods"] as const;
 
 // ─────────────────────────────────────────────────
-// Types
+// Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export interface CreatePaymentMethodRequest {
-  name: string;
-  is_active?: boolean;
-}
+type PaymentMethodRequestBase = Omit<
+  ModelPaymentMethodMaster,
+  "id" | "clinic_id" | "created_at" | "updated_at"
+>;
 
-export interface UpdatePaymentMethodRequest {
-  name?: string;
-  is_active?: boolean;
-}
+export type CreatePaymentMethodRequest = Pick<PaymentMethodRequestBase, "name"> &
+  Partial<Omit<PaymentMethodRequestBase, "name">>;
+
+export type UpdatePaymentMethodRequest = Partial<PaymentMethodRequestBase>;
 
 // ─────────────────────────────────────────────────
 // Transform
