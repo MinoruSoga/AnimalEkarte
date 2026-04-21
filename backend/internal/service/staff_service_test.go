@@ -228,7 +228,7 @@ func (m *mockResStaffForStaff) FindByIDAndClinicID(_ context.Context, _, _ uint6
 	return nil, nil
 }
 func (m *mockResStaffForStaff) Create(_ context.Context, _ *model.Staff, _ uint64) error { return nil }
-func (m *mockResStaffForStaff) UpdateFields(_ context.Context, _ uint64, _ map[string]any) error {
+func (m *mockResStaffForStaff) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) error {
 	return nil
 }
 func (m *mockResStaffForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }

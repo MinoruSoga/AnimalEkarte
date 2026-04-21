@@ -16,7 +16,7 @@ type ReservationStaffRepository interface {
 	FindAllByClinicID(ctx context.Context, clinicID uint64) ([]model.Staff, error)
 	FindByIDAndClinicID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	Create(ctx context.Context, staff *model.Staff, clinicID uint64) error
-	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 	// ExcludedReservationTypes
@@ -78,9 +78,10 @@ func (r *reservationStaffRepository) Create(ctx context.Context, staff *model.St
 	return nil
 }
 
-func (r *reservationStaffRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *reservationStaffRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Staff{}).
+		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {

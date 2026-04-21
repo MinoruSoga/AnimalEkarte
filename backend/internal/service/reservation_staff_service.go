@@ -151,7 +151,7 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 
 	fields := buildReservationStaffUpdateFields(input)
 	if len(fields) > 0 {
-		if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
+		if err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
 			return nil, nil, apperrors.Wrap(err, "failed to update reservation staff")
 		}
 	}
@@ -191,7 +191,7 @@ func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id 
 	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
-	if err := s.repo.UpdateFields(ctx, id, map[string]any{"is_active": isActive}); err != nil {
+	if err := s.repo.UpdateFields(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to patch staff status")
 	}
 	result, err := s.repo.FindByIDAndClinicID(ctx, clinicID, id)

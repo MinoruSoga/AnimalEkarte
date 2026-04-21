@@ -93,7 +93,7 @@ func (m *mockLiffStaffRepository) Create(_ context.Context, _ *model.Staff, _ ui
 	return nil
 }
 
-func (m *mockLiffStaffRepository) UpdateFields(_ context.Context, _ uint64, _ map[string]any) error {
+func (m *mockLiffStaffRepository) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) error {
 	return nil
 }
 
