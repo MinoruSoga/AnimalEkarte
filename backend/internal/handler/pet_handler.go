@@ -104,7 +104,7 @@ func (h *Handler) CreatePet(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/v1/pets/%d", pet.ID))
+	c.Header("Location", fmt.Sprintf("/api/v1/pets/%d", pet.ID))
 	c.JSON(http.StatusCreated, toPetResponse(pet))
 }
 

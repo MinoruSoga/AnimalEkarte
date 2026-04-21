@@ -129,7 +129,7 @@ func (r *medicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Co
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Estimate{}).
-		Where("medical_record_id = ?", medicalRecordID).
+		Where("medical_record_id = ? AND deleted_at IS NULL", medicalRecordID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "estimate", "")

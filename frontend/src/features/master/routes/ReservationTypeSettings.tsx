@@ -1,12 +1,12 @@
-import { useState, useCallback, useRef, useEffect, useMemo, useTransition, useDeferredValue, Fragment } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, useDeferredValue, Fragment } from "react";
 import { useNavigate } from "react-router";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Activity, ChevronDown, Pencil, Plus } from "lucide-react";
-import { toast } from "sonner";
-import { handleApiError } from "@/lib/handle-api-error";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
 import { TableCell } from "@/components/ui/table";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -42,6 +42,7 @@ import { GroupSidePanel } from "./ReservationTypeGroupSidePanel";
 import type { GroupFormData } from "./ReservationTypeGroupSidePanel";
 import { CategorySidePanel } from "./ReservationTypeSidePanel";
 import type { CategoryFormData } from "./ReservationTypeSidePanel";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // ─────────────────────────────────────────────────────────────────
 // GroupedTable
@@ -68,7 +69,7 @@ function GroupedTable({
 
   const handleReorder = useCallback((newIds: string[]) => {
     reorderMutation.mutate({ ids: newIds.map(Number) }, {
-      onError: (error: unknown) => { resetOrderRef.current(); handleApiError(error, "並び替え"); },
+      onError: (error: unknown) => { resetOrderRef.current(); },
     });
   }, [reorderMutation]);
 
@@ -277,14 +278,6 @@ export function ReservationTypeSettings() {
     return items;
   }, [categoriesRaw, activeFilters, deferredSearch]);
 
-  // 編集・削除ターゲット
-  const [groupEditTarget, setGroupEditTarget] = useState<ReservationTypeGroup | "new" | null>(null);
-  const [groupPendingDelete, setGroupPendingDelete] = useState<ReservationTypeGroup | null>(null);
-  const [categoryEditTarget, setCategoryEditTarget] = useState<ReservationType | "new" | null>(null);
-  const [categoryDefaultGroupId, setCategoryDefaultGroupId] = useState<string | undefined>(undefined);
-  const [categoryPendingDelete, setCategoryPendingDelete] = useState<ReservationType | null>(null);
-  const [, startTransition] = useTransition();
-
   // ミューテーション
   const createGroupMutation = useCreateReservationTypeGroup();
   const updateGroupMutation = useUpdateReservationTypeGroup();
@@ -296,6 +289,34 @@ export function ReservationTypeSettings() {
   // BUG-380: 未保存破棄ガード
   const dirty = useSidePeekDirty();
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+
+  // ── FR1: useMasterCRUD hooks (groups & categories) ────────────
+  const groupCrud = useMasterCRUD<ReservationTypeGroup>({
+    data: groupsRaw,
+    deleteMutation: deleteGroupMutation,
+    entityLabel: "予約区分グループ",
+    dirtyGuard: dirty,
+  });
+
+  const categoryCrud = useMasterCRUD<ReservationType>({
+    data: filteredCategories,
+    deleteMutation: deleteCategoryMutation,
+    entityLabel: "予約区分",
+    dirtyGuard: dirty,
+    searchFilter: (item, term) => item.name.toLowerCase().includes(term.toLowerCase()),
+    activeFilterApply: (item, filters) => {
+      for (const f of filters) {
+        if (f.key === "status" && typeof f.value === "string") {
+          const want = f.value === "active";
+          if (f.condition === "is" ? item.isActive !== want : item.isActive === want) return false;
+        }
+      }
+      return true;
+    },
+  });
+
+  // ── Additional state: categoryDefaultGroupId (creation context) ───
+  const [categoryDefaultGroupId, setCategoryDefaultGroupId] = useState<string | undefined>(undefined);
 
   // ── ハンドラ ─────────────────────────────────────────────────
   const handleGroupEdit = useCallback((group: ReservationTypeGroup) => {
