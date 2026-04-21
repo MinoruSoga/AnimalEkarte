@@ -115,7 +115,8 @@ func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model
 				"notes":      entry.Notes,
 				"updated_at": gorm.Expr("NOW()"),
 			}
-			if err2 := tx.Model(&model.ShiftEntry{}).Where("id = ?", existing.ID).Updates(fields).Error; err2 != nil {
+			if err2 := tx.Scopes(clinicScope(entry.ClinicID)).
+				Model(&model.ShiftEntry{}).Where("id = ?", existing.ID).Updates(fields).Error; err2 != nil {
 				return apperrors.FromGORM(err2, "shift_entry", fmt.Sprintf("%d", existing.ID))
 			}
 		}
