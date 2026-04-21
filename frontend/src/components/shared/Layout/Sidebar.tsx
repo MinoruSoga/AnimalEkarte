@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 import { ChangePasswordDialog } from "@/components/shared/ChangePasswordDialog/ChangePasswordDialog";
 import { paths } from "@/config/paths";
-import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCashRegisterClose, ResourceClosingSettings, ResourcePaymentMethods } from "@/types/generated/models";
+import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCashRegisterClose, ResourceClosingSettings, ResourcePaymentMethod } from "@/types/generated/models";
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */
@@ -363,7 +363,7 @@ export const Sidebar = memo(function Sidebar() {
                 { icon: <Users        className={ICON.toolbar} />, label: "スタッフ管理", path: paths.settings.staff.getHref(), resource: ResourceMasterStaff },
                 { icon: <ShieldCheck  className={ICON.toolbar} />, label: "保険マスタ", path: paths.settings.insurance.getHref(), resource: ResourceMasterInsurance },
                 { icon: <Package      className={ICON.toolbar} />, label: "物販・フード", path: paths.settings.merchandiseItems.getHref(), resource: ResourceMasterMerchandise },
-                { icon: <CreditCard   className={ICON.toolbar} />, label: "支払方法",     path: paths.settings.paymentMethods.getHref(), resource: ResourcePaymentMethods },
+                { icon: <CreditCard   className={ICON.toolbar} />, label: "支払方法",     path: paths.settings.paymentMethods.getHref(), resource: ResourcePaymentMethod },
                 { icon: <CalendarDays className={ICON.toolbar} />, label: "締め時間設定", path: paths.settings.closingTime.getHref(), resource: ResourceClosingSettings },
               ]
             } as MenuItem} 
