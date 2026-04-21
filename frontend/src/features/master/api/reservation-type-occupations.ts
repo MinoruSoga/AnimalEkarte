@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ReservationTypeOccupation } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -56,6 +57,8 @@ export function useGetReservationTypeOccupations(clinicId: string, reservationTy
   return useQuery({
     queryKey: occupationsKey(reservationTypeId),
     queryFn: () => getReservationTypeOccupations(clinicId, reservationTypeId),
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
@@ -66,6 +69,8 @@ export function useLinkOccupation(clinicId: string, reservationTypeId: string) {
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: occupationsKey(reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "職種の紐付け"),
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
@@ -76,5 +81,7 @@ export function useUnlinkOccupation(clinicId: string, reservationTypeId: string)
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: occupationsKey(reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "職種の紐付け解除"),
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ReservationTypeUnavailableTime } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -65,6 +66,8 @@ export function useGetUnavailableTimes(clinicId: string, reservationTypeId: stri
   return useQuery({
     queryKey: unavailableTimesKey(reservationTypeId),
     queryFn: () => getUnavailableTimes(clinicId, reservationTypeId),
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
@@ -76,6 +79,8 @@ export function useCreateUnavailableTime(clinicId: string, reservationTypeId: st
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: unavailableTimesKey(reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "予約不可時間の作成"),
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
@@ -86,5 +91,7 @@ export function useDeleteUnavailableTime(clinicId: string, reservationTypeId: st
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: unavailableTimesKey(reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "予約不可時間の削除"),
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
