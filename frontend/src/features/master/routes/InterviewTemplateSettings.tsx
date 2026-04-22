@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useEffect } from "react";
 import { FileText } from "lucide-react";
+import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -107,6 +108,7 @@ const SidePanel = memo(function SidePanel({
 });
 
 export function InterviewTemplateSettings() {
+  usePermission(ResourceMasterMedical);
   const { data } = useGetInquiryTemplates();
   const createMutation = useCreateInquiryTemplate();
   const updateMutation = useUpdateInquiryTemplate();

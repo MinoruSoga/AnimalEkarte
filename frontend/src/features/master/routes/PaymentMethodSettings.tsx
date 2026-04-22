@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useEffect } from "react";
 import { CreditCard } from "lucide-react";
+import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -107,6 +108,7 @@ const PaymentMethodSidePanel = memo(function PaymentMethodSidePanel({
 
 // ─── Page ───
 export function PaymentMethodSettings() {
+  usePermission(ResourcePaymentMethod);
   const { data } = useGetPaymentMethods();
   const createMutation = useCreatePaymentMethod();
   const updateMutation = useUpdatePaymentMethod();

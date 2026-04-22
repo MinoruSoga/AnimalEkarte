@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useEffect } from "react";
 import { Briefcase } from "lucide-react";
+import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -108,6 +109,7 @@ const OccupationSidePanel = memo(function OccupationSidePanel({
 
 // ─── Page ───
 export function OccupationSettings() {
+  usePermission(ResourceMasterStaff);
   const { data } = useGetAllOccupations();
   const createMutation = useCreateOccupation();
   const updateMutation = useUpdateOccupation();

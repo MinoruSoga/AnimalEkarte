@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useEffect } from "react";
 import { Bed } from "lucide-react";
+import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell } from "@/components/ui/table";
@@ -139,6 +140,7 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
 });
 
 export function HospitalizationSettings() {
+  usePermission(ResourceMasterHospitalization);
   const { data } = useGetAllHospitalizationPlans();
   const createMutation = useCreateHospitalizationPlan();
   const updateMutation = useUpdateHospitalizationPlan();

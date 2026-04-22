@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useEffect } from "react";
 import { Shield } from "lucide-react";
+import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -106,6 +107,7 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
 });
 
 export function InsuranceSettings() {
+  usePermission(ResourceMasterInsurance);
   const { data } = useGetAllInsurances();
   const createMutation = useCreateInsurance();
   const updateMutation = useUpdateInsurance();

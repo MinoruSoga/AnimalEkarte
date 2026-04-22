@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useEffect } from "react";
 import { MessageSquareText } from "lucide-react";
+import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -92,6 +93,7 @@ const SidePanel = memo(function SidePanel({
 });
 
 export function ChiefComplaintSettings() {
+  usePermission(ResourceMasterMedical);
   const { data } = useGetChiefComplaintTypes();
   const createMutation = useCreateChiefComplaintType();
   const updateMutation = useUpdateChiefComplaintType();
