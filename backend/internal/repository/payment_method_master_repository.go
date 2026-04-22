@@ -53,6 +53,9 @@ func (r *paymentMethodMasterRepository) FindByID(ctx context.Context, clinicID, 
 
 func (r *paymentMethodMasterRepository) Create(ctx context.Context, m *model.PaymentMethodMaster) (*model.PaymentMethodMaster, error) {
 	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
+		if isUniqueConstraintErr(err) {
+			return nil, apperrors.WrapConflict("同じ名称が既に登録されています")
+		}
 		return nil, apperrors.FromGORM(err, "payment_method", "")
 	}
 	return m, nil

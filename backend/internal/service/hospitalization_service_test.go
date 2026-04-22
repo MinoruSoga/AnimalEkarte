@@ -46,8 +46,8 @@ func (m *mockHospitalizationRepository) Delete(ctx context.Context, clinicID, id
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockHospitalizationRepository) ExistsByCageID(_ context.Context, _, _ uint64) (bool, error) {
-	return false, nil
+func (m *mockHospitalizationRepository) CountByCageID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
 }
 
 func (m *mockHospitalizationRepository) CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {

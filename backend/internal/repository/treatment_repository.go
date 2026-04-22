@@ -13,6 +13,7 @@ import (
 // TreatmentSortUpdate は並び順一括更新に使う軽量DTO
 type TreatmentSortUpdate struct {
 	ID        uint64
+	ClinicID  uint64
 	SortOrder int
 }
 
@@ -102,7 +103,8 @@ func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates [
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, u := range updates {
 			result := tx.Model(&model.Treatment{}).
-				Where("id = ? AND deleted_at IS NULL", u.ID).
+				Joins("JOIN medical_records ON treatments.medical_record_id = medical_records.id").
+				Where("treatments.id = ? AND treatments.deleted_at IS NULL AND medical_records.clinic_id = ?", u.ID, u.ClinicID).
 				Update("sort_order", u.SortOrder)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", u.ID))
