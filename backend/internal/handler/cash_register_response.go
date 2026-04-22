@@ -91,7 +91,8 @@ func toCashRegisterPreviewResponse(p *service.CashRegisterPreview) cashRegisterP
 	}
 
 	details := make([]cashRegisterBillingDetailResponse, 0, len(p.BillingDetails))
-	for _, d := range p.BillingDetails {
+	for i := range p.BillingDetails {
+		d := &p.BillingDetails[i]
 		details = append(details, cashRegisterBillingDetailResponse{
 			BillingID:         d.BillingID,
 			PaidAt:            d.PaidAt,
