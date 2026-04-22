@@ -10,7 +10,7 @@ import (
 )
 
 type StaffClinicAssignmentService interface {
-	FindByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
+	FindAllByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
 	Create(ctx context.Context, assignment *model.StaffClinicAssignment) error
 }
 
@@ -22,8 +22,8 @@ func NewStaffClinicAssignmentService(repo repository.StaffClinicAssignmentReposi
 	return &staffClinicAssignmentService{repo: repo}
 }
 
-func (s *staffClinicAssignmentService) FindByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
-	assignments, err := s.repo.FindByStaffID(ctx, staffID)
+func (s *staffClinicAssignmentService) FindAllByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
+	assignments, err := s.repo.FindAllByStaffID(ctx, staffID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find clinic assignments for staff")
 	}

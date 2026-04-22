@@ -157,7 +157,7 @@ type mockAssignmentForStaff struct {
 	createFn          func(ctx context.Context, a *model.StaffClinicAssignment) error
 }
 
-func (m *mockAssignmentForStaff) FindByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
+func (m *mockAssignmentForStaff) FindAllByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
 	return nil, nil
 }
 func (m *mockAssignmentForStaff) ExistsByStaffAndClinic(_ context.Context, _, _ uint64) (bool, error) {

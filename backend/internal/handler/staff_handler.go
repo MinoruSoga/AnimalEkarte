@@ -239,7 +239,7 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
-	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(c.Request.Context(), id)
+	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
 		return

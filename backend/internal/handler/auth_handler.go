@@ -236,7 +236,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(ctx, staff.ID)
 	if err != nil {
 		RespondError(c, apperrors.Wrap(err, "所属クリニック情報の取得に失敗しました"))
 		return
@@ -385,7 +385,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	}
 
 	// 所属クリニック再取得（assignment 変更があった場合に最新を反映）
-	assignments, asgErr := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	assignments, asgErr := h.svc.StaffClinicAssignment.FindAllByStaffID(ctx, staff.ID)
 	if asgErr != nil {
 		RespondError(c, apperrors.Wrap(asgErr, "failed to get clinic assignments"))
 		return
@@ -558,7 +558,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 
 	// clinic assignments を取得
-	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(ctx, staff.ID)
 	if err == nil {
 		staff.ClinicAssignments = assignments
 	}

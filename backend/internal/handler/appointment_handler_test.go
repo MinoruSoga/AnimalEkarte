@@ -62,7 +62,7 @@ func newHandlerWithReservationSvc(svc service.ReservationService) *Handler {
 // mockStaffClinicAssignmentService はテスト用モック。テストで使われるクリニックID（1, 3）すべてに所属を返す。
 type mockStaffClinicAssignmentService struct{}
 
-func (m *mockStaffClinicAssignmentService) FindByStaffID(_ context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
+func (m *mockStaffClinicAssignmentService) FindAllByStaffID(_ context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
 	return []model.StaffClinicAssignment{
 		{StaffID: staffID, ClinicID: 1},
 		{StaffID: staffID, ClinicID: 3},

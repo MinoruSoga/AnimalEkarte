@@ -12,7 +12,7 @@ import (
 
 // StaffClinicAssignmentRepository はスタッフ-クリニック中間テーブルのインターフェース
 type StaffClinicAssignmentRepository interface {
-	FindByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
+	FindAllByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
 	ExistsByStaffAndClinic(ctx context.Context, staffID, clinicID uint64) (bool, error)
 	Create(ctx context.Context, assignment *model.StaffClinicAssignment) error
 	Delete(ctx context.Context, staffID uint64) error
@@ -28,10 +28,10 @@ func NewStaffClinicAssignmentRepository(db *gorm.DB) StaffClinicAssignmentReposi
 	return &staffClinicAssignmentRepository{db: db}
 }
 
-// FindByStaffID はスタッフIDでクリニック所属を取得する
+// FindAllByStaffID はスタッフIDでクリニック所属を取得する（複数件）
 // NOTE: model.StaffClinicAssignment は gorm.DeletedAt を持つため、GORM SoftDelete スコープにより
 // deleted_at IS NULL フィルタは自動適用される。明示的な条件追加は不要。
-func (r *staffClinicAssignmentRepository) FindByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
+func (r *staffClinicAssignmentRepository) FindAllByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
 	var assignments []model.StaffClinicAssignment
 	if err := dbOrTx(ctx, r.db).Where("staff_id = ?", staffID).Find(&assignments).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff_id=%d", staffID))

@@ -27,7 +27,7 @@ func (h *Handler) checkDoctorClinicAssignment(ctx context.Context, clinicID, doc
 	if doctorID == 0 {
 		return nil
 	}
-	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, doctorID)
+	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(ctx, doctorID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to verify staff assignment")
 	}
