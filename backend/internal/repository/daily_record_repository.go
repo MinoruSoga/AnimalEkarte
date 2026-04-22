@@ -35,7 +35,7 @@ func (r *dailyRecordRepository) FindByHospitalizationID(ctx context.Context, cli
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).Where("hospitalization_id = ?", hospitalizationID).
 		Order("date DESC").
-		Preload("VitalRecords").
+		Preload("VitalRecords", "deleted_at IS NULL").
 		Preload("CareLogs", "deleted_at IS NULL").
 		Preload("StaffNotes", "deleted_at IS NULL").
 		Find(&records).Error
@@ -49,7 +49,7 @@ func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Conte
 	var record model.DailyRecord
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).Where("hospitalization_id = ? AND date = ?", hospitalizationID, date).
-		Preload("VitalRecords").
+		Preload("VitalRecords", "deleted_at IS NULL").
 		Preload("CareLogs", "deleted_at IS NULL").
 		Preload("StaffNotes", "deleted_at IS NULL").
 		First(&record).Error

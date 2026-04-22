@@ -60,7 +60,7 @@ func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uin
 	var record model.MedicalRecord
 	err := r.db.WithContext(ctx).
 		Preload("Treatments", "deleted_at IS NULL").
-		Preload("Vitals").
+		Preload("Vitals", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("EnteredByStaff", "deleted_at IS NULL").
 		Preload("Owner", "deleted_at IS NULL").
