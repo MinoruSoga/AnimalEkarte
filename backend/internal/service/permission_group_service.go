@@ -202,10 +202,7 @@ func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, i
 	// staffGroupIDs をサービス内で取得する（Handler が外部データを取得する責務を持たない）
 	staffGroupIDs, err := s.repo.FindGroupIDsByStaffID(ctx, actorStaffID)
 	if err != nil {
-		// エラー時は空にして自己参照チェック不能なら許可方向（ベストエフォート）
-		slog.WarnContext(ctx, "failed to get staff group ids for self-reference check, allowing by best-effort",
-			slog.Uint64("actor_staff_id", actorStaffID),
-			slog.Any("error", err))
+		// エラー時は空にして自己参照チェック不能なら許可方向（ベストエフォート、Handler層がエラーハンドリング）
 		staffGroupIDs = []uint64{}
 	}
 	if err := validateNotSelfReference(groupID, rules, staffGroupIDs); err != nil {
