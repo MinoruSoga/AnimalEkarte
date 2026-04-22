@@ -18,7 +18,7 @@ type TrimmingCourseRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountUsageByCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error)
+	CountUsageByTrimmingCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error)
 }
 
 type trimmingCourseRepository struct{ db *gorm.DB }
@@ -80,9 +80,9 @@ func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint
 	return nil
 }
 
-// CountUsageByCourseID は指定コースを使用しているトリミング詳細数を返す（BUG-111）
+// CountUsageByTrimmingCourseID は指定コースを使用しているトリミング詳細数を返す（BUG-111）
 // appointment_trimming_details は deleted_at を持たないため appointments を JOIN して論理削除を考慮する
-func (r *trimmingCourseRepository) CountUsageByCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error) {
+func (r *trimmingCourseRepository) CountUsageByTrimmingCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.AppointmentTrimmingDetail{}).

@@ -18,7 +18,7 @@ type TrimmingOptionRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountUsageByOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error)
+	CountUsageByTrimmingOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error)
 }
 
 type trimmingOptionRepository struct{ db *gorm.DB }
@@ -84,9 +84,9 @@ func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64,
 	return reorderByClinicID(ctx, r.db, &model.TrimmingOption{}, "trimming_option", clinicID, ids)
 }
 
-// CountUsageByOptionID は指定オプションを使用しているトリミングオプション数を返す（BUG-201）
+// CountUsageByTrimmingOptionID は指定オプションを使用しているトリミングオプション数を返す（BUG-201）
 // appointment_trimming_options は直接 clinic_id を持たないため appointments を JOIN してテナント分離する
-func (r *trimmingOptionRepository) CountUsageByOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error) {
+func (r *trimmingOptionRepository) CountUsageByTrimmingOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.AppointmentTrimmingOption{}).

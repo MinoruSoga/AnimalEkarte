@@ -154,7 +154,7 @@ func (s *trimmingCourseService) Delete(ctx context.Context, clinicID, id uint64)
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to get trimming course")
 	}
-	count, err := s.repo.CountUsageByCourseID(ctx, clinicID, id)
+	count, err := s.repo.CountUsageByTrimmingCourseID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check trimming course dependencies")
 	}

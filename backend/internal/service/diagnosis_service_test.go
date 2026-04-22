@@ -109,7 +109,7 @@ func (m *mockDiagnosisNameRepository) Reorder(ctx context.Context, clinicID uint
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockDiagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error) {
+func (m *mockDiagnosisNameRepository) CountUsageByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error) {
 	if m.countClinicalPlansByDiagnosisNameIDFn != nil {
 		return m.countClinicalPlansByDiagnosisNameIDFn(ctx, clinicID, diagnosisNameID)
 	}

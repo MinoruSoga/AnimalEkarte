@@ -31,7 +31,7 @@ func (m *mockReservationTypeGroupRepository) FindByID(ctx context.Context, clini
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockReservationTypeGroupRepository) CountReservationTypesByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
+func (m *mockReservationTypeGroupRepository) CountUsageByReservationTypeGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
 	if m.countReservationTypesByGroupFn != nil {
 		return m.countReservationTypesByGroupFn(ctx, clinicID, groupID)
 	}

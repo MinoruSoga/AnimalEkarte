@@ -334,7 +334,7 @@ func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) 
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to get diagnosis name")
 	}
-	count, err := s.repo.CountClinicalPlansByDiagnosisNameID(ctx, clinicID, id)
+	count, err := s.repo.CountUsageByDiagnosisNameID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check diagnosis name dependencies")
 	}

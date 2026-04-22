@@ -127,7 +127,7 @@ type DiagnosisNameRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountClinicalPlansByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error)
+	CountUsageByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error)
 }
 
 type diagnosisNameRepository struct{ db *gorm.DB }
@@ -238,10 +238,10 @@ func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint6
 	return nil
 }
 
-// CountClinicalPlansByDiagnosisNameID は診断名を参照している clinical_plans の件数を返す（BUG-113）
+// CountUsageByDiagnosisNameID は診断名を参照している clinical_plans の件数を返す（BUG-113）
 // diagnosis_name_id および diagnosis_2_name_id 両方をカウントする
 // clinical_plans は直接 clinic_id を持たないため medical_records を JOIN してテナント分離する
-func (r *diagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error) {
+func (r *diagnosisNameRepository) CountUsageByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.ClinicalPlan{}).

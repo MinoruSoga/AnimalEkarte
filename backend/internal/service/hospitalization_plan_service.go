@@ -180,7 +180,7 @@ func (s *hospitalizationPlanService) Delete(ctx context.Context, clinicID, id ui
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find hospitalization plan")
 	}
-	count, err := s.repo.CountCarePlanItemsByPlanID(ctx, clinicID, id)
+	count, err := s.repo.CountUsageByHospitalizationPlanID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check hospitalization plan dependencies")
 	}

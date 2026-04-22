@@ -50,7 +50,7 @@ func (m *mockHospitalizationPlanRepository) Reorder(ctx context.Context, clinicI
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockHospitalizationPlanRepository) CountCarePlanItemsByPlanID(ctx context.Context, clinicID, planID uint64) (int64, error) {
+func (m *mockHospitalizationPlanRepository) CountUsageByHospitalizationPlanID(ctx context.Context, clinicID, planID uint64) (int64, error) {
 	if m.countCarePlanItemsByPlanIDFn != nil {
 		return m.countCarePlanItemsByPlanIDFn(ctx, clinicID, planID)
 	}

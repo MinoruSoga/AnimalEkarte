@@ -20,7 +20,7 @@ type HospitalizationPlanRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountCarePlanItemsByPlanID(ctx context.Context, clinicID, planID uint64) (int64, error)
+	CountUsageByHospitalizationPlanID(ctx context.Context, clinicID, planID uint64) (int64, error)
 }
 
 type hospitalizationPlanRepository struct{ db *gorm.DB }
@@ -83,10 +83,10 @@ func (r *hospitalizationPlanRepository) Delete(ctx context.Context, clinicID, id
 	return nil
 }
 
-// CountCarePlanItemsByPlanID は指定入院プランを参照する care_plan_items の件数を返す（BUG-105）。
+// CountUsageByHospitalizationPlanID は指定入院プランを参照する care_plan_items の件数を返す（BUG-105）。
 // care_plan_items は直接 clinic_id を持たないため、hospitalization_plans を JOIN して
 // clinic 境界を明示する（CODE-QUALITY-229）。
-func (r *hospitalizationPlanRepository) CountCarePlanItemsByPlanID(ctx context.Context, clinicID, planID uint64) (int64, error) {
+func (r *hospitalizationPlanRepository) CountUsageByHospitalizationPlanID(ctx context.Context, clinicID, planID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
