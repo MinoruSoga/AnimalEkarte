@@ -135,7 +135,7 @@ func (m *mockOccupationRepoForRType) Delete(ctx context.Context, clinicID, reser
 	}
 	return nil
 }
-func (m *mockOccupationRepoForRType) CountByStaffID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
+func (m *mockOccupationRepoForRType) CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
 	if m.countByStaffIDFn != nil {
 		return m.countByStaffIDFn(ctx, clinicID, reservationTypeID, date)
 	}

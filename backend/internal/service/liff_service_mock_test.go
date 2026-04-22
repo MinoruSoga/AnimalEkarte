@@ -484,7 +484,7 @@ func (m *mockLiffOccupationRepository) Create(_ context.Context, _ *model.Reserv
 	return nil
 }
 func (m *mockLiffOccupationRepository) Delete(_ context.Context, _, _, _ uint64) error { return nil }
-func (m *mockLiffOccupationRepository) CountByStaffID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
+func (m *mockLiffOccupationRepository) CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
 	if m.countByStaffIDFn != nil {
 		return m.countByStaffIDFn(ctx, clinicID, reservationTypeID, date)
 	}
