@@ -46,7 +46,7 @@ func (m *mockHospitalizationRepository) Delete(ctx context.Context, clinicID, id
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockHospitalizationRepository) ExistsByCageID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockHospitalizationRepository) ExistsByCageID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
 
