@@ -2,7 +2,42 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { ReservationTypeOccupation } from "@/types/generated/models";
+
+// ─────────────────────────────────────────────────
+// Raw backend response types
+// ─────────────────────────────────────────────────
+
+interface ReservationTypeOccupationRaw {
+  id: number;
+  clinic_id: number;
+  reservation_type_id: number;
+  occupation_id: number;
+  occupation?: { id: number; name: string };
+  created_at: string;
+}
+
+// ─────────────────────────────────────────────────
+// Transform function
+// ─────────────────────────────────────────────────
+
+function transformReservationTypeOccupation(
+  raw: ReservationTypeOccupationRaw,
+): ReservationTypeOccupation {
+  return {
+    id: raw.id,
+    clinicId: raw.clinic_id,
+    reservationTypeId: raw.reservation_type_id,
+    occupationId: raw.occupation_id,
+    occupation: raw.occupation ? { id: raw.occupation.id, name: raw.occupation.name } : undefined,
+    createdAt: raw.created_at,
+  };
+}
+
+// ─────────────────────────────────────────────────
+// Domain type
+// ─────────────────────────────────────────────────
+
+export type ReservationTypeOccupation = ReturnType<typeof transformReservationTypeOccupation>;
 
 // ─────────────────────────────────────────────────
 // Request types
@@ -30,10 +65,10 @@ async function getReservationTypeOccupations(
   clinicId: string,
   reservationTypeId: string,
 ): Promise<ReservationTypeOccupation[]> {
-  const { data } = await axios.get<{ data: ReservationTypeOccupation[] }>(
+  const { data } = await axios.get<{ data: ReservationTypeOccupationRaw[] }>(
     `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/occupations`,
   );
-  return data.data;
+  return data.data.map(transformReservationTypeOccupation);
 }
 
 async function linkOccupation(

@@ -2,15 +2,58 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { ReservationTypeUnavailableTime } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Request types（models.ts から導出）
+// Raw backend response types
+// ─────────────────────────────────────────────────
+
+interface ReservationTypeUnavailableTimeRaw {
+  id: number;
+  clinic_id: number;
+  reservation_type_id: number;
+  unavailable_type: string;
+  day_of_week?: number;
+  specific_date?: string;
+  start_time: string;
+  end_time: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─────────────────────────────────────────────────
+// Transform function
+// ─────────────────────────────────────────────────
+
+function transformUnavailableTime(
+  raw: ReservationTypeUnavailableTimeRaw,
+): ReservationTypeUnavailableTime {
+  return {
+    id: raw.id,
+    clinicId: raw.clinic_id,
+    reservationTypeId: raw.reservation_type_id,
+    unavailableType: raw.unavailable_type,
+    dayOfWeek: raw.day_of_week ?? undefined,
+    specificDate: raw.specific_date ?? undefined,
+    startTime: raw.start_time,
+    endTime: raw.end_time,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  };
+}
+
+// ─────────────────────────────────────────────────
+// Domain type
+// ─────────────────────────────────────────────────
+
+export type ReservationTypeUnavailableTime = ReturnType<typeof transformUnavailableTime>;
+
+// ─────────────────────────────────────────────────
+// Request types
 // ─────────────────────────────────────────────────
 
 export type CreateUnavailableTimeRequest = Omit<
   ReservationTypeUnavailableTime,
-  "id" | "clinic_id" | "reservation_type_id" | "created_at" | "updated_at"
+  "id" | "clinicId" | "reservationTypeId" | "createdAt" | "updatedAt"
 >;
 
 // ─────────────────────────────────────────────────
@@ -32,10 +75,10 @@ async function getUnavailableTimes(
   clinicId: string,
   reservationTypeId: string,
 ): Promise<ReservationTypeUnavailableTime[]> {
-  const { data } = await axios.get<{ data: ReservationTypeUnavailableTime[] }>(
+  const { data } = await axios.get<{ data: ReservationTypeUnavailableTimeRaw[] }>(
     `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/unavailable-times`,
   );
-  return data.data;
+  return data.data.map(transformUnavailableTime);
 }
 
 async function createUnavailableTime(
