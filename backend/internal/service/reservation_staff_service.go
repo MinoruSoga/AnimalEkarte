@@ -122,12 +122,10 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, staff, clinicID); err != nil {
-			slog.ErrorContext(txCtx, "failed to create reservation staff", "error", err)
 			return apperrors.Wrap(err, "failed to create reservation staff")
 		}
 		if len(input.ExcludedTypeIDs) > 0 {
 			if err := s.repo.ReplaceExcludedReservationTypes(txCtx, staff.ID, input.ExcludedTypeIDs); err != nil {
-				slog.ErrorContext(txCtx, "failed to set excluded courses", "error", err)
 				return apperrors.Wrap(err, "failed to set excluded courses")
 			}
 		}

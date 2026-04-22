@@ -39,6 +39,23 @@ func buildSpecialPeriodUpdate(input UpdateSpecialPeriodInput, parsedStart, parse
 	return fields
 }
 
+// ClosingSettingsService は締め時間設定のビジネスロジックインターフェース
+type ClosingSettingsService interface {
+	Get(ctx context.Context, clinicID uint64) (*ClosingSettingsResponse, error)
+	ListSpecialPeriods(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
+	UpdateStandard(ctx context.Context, clinicID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error)
+	CreateSpecialPeriod(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
+	UpdateSpecialPeriod(ctx context.Context, clinicID, id uint64, input UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
+	DeleteSpecialPeriod(ctx context.Context, clinicID, id uint64) error
+	ResolveSchedule(ctx context.Context, clinicID uint64, date time.Time) (*DaySchedule, error)
+}
+
+type closingSettingsService struct {
+	settingsRepo repository.ClinicSettingsRepository
+	periodRepo   repository.ClosingSpecialPeriodRepository
+	holidayRepo  repository.ClinicHolidayRepository
+}
+
 // ClosingSettingsResponse は設定・特別期間をまとめたレスポンス
 type ClosingSettingsResponse struct {
 	Settings       *model.ClinicSettings        `json:"settings"`
@@ -76,23 +93,6 @@ type UpdateSpecialPeriodInput struct {
 	AmPmBoundary *string
 	PmEnd        *string
 	Note         *string
-}
-
-// ClosingSettingsService は締め時間設定のビジネスロジックインターフェース
-type ClosingSettingsService interface {
-	Get(ctx context.Context, clinicID uint64) (*ClosingSettingsResponse, error)
-	ListSpecialPeriods(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
-	UpdateStandard(ctx context.Context, clinicID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error)
-	CreateSpecialPeriod(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
-	UpdateSpecialPeriod(ctx context.Context, clinicID, id uint64, input UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
-	DeleteSpecialPeriod(ctx context.Context, clinicID, id uint64) error
-	ResolveSchedule(ctx context.Context, clinicID uint64, date time.Time) (*DaySchedule, error)
-}
-
-type closingSettingsService struct {
-	settingsRepo repository.ClinicSettingsRepository
-	periodRepo   repository.ClosingSpecialPeriodRepository
-	holidayRepo  repository.ClinicHolidayRepository
 }
 
 // NewClosingSettingsService は ClosingSettingsService を初期化して返す
@@ -248,10 +248,6 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 	}
 	result, err := s.periodRepo.Update(ctx, clinicID, id, fields)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update closing special period",
-			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("id", id),
-			slog.Any("error", err))
 		return nil, apperrors.Wrap(err, "failed to update special period")
 	}
 	slog.InfoContext(ctx, "closing special period updated",

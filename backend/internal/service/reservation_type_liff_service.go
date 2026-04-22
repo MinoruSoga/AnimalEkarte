@@ -23,6 +23,36 @@ const (
 	colReservationTypeLiffIsInternal           = "is_internal"
 )
 
+// CreateReservationTypeLiffInput は予約コース作成の入力データ
+type CreateReservationTypeLiffInput struct {
+	Name                 string
+	Color                string
+	Description          string
+	SortOrder            int
+	DurationMinutes      int
+	ShortName            string
+	ShowShortName        bool
+	ReservationVisible   bool
+	ReservationComment   string
+	ReservationDayOption string
+	IsInternal           bool
+}
+
+// UpdateReservationTypeLiffInput は予約コース更新の入力データ（ポインタ型でゼロ値を区別）
+type UpdateReservationTypeLiffInput struct {
+	Name                 *string
+	Color                *string
+	Description          *string
+	SortOrder            *int
+	DurationMinutes      *int
+	ShortName            *string
+	ShowShortName        *bool
+	ReservationVisible   *bool
+	ReservationComment   *string
+	ReservationDayOption *string
+	IsInternal           *bool
+}
+
 func buildReservationTypeLiffUpdate(input *UpdateReservationTypeLiffInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
@@ -59,36 +89,6 @@ func buildReservationTypeLiffUpdate(input *UpdateReservationTypeLiffInput) map[s
 		fields[colReservationTypeLiffIsInternal] = *input.IsInternal
 	}
 	return fields
-}
-
-// CreateReservationTypeLiffInput は予約コース作成の入力データ
-type CreateReservationTypeLiffInput struct {
-	Name                 string
-	Color                string
-	Description          string
-	SortOrder            int
-	DurationMinutes      int
-	ShortName            string
-	ShowShortName        bool
-	ReservationVisible   bool
-	ReservationComment   string
-	ReservationDayOption string
-	IsInternal           bool
-}
-
-// UpdateReservationTypeLiffInput は予約コース更新の入力データ（ポインタ型でゼロ値を区別）
-type UpdateReservationTypeLiffInput struct {
-	Name                 *string
-	Color                *string
-	Description          *string
-	SortOrder            *int
-	DurationMinutes      *int
-	ShortName            *string
-	ShowShortName        *bool
-	ReservationVisible   *bool
-	ReservationComment   *string
-	ReservationDayOption *string
-	IsInternal           *bool
 }
 
 // ReservationTypeLiffService は予約コース（reservation_types）のビジネスロジックインターフェース

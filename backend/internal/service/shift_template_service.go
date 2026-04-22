@@ -19,6 +19,32 @@ const (
 	colShiftTemplateIsActive  = "is_active"
 )
 
+func buildShiftTemplateUpdate(input *UpdateShiftTemplateInput) map[string]any {
+	fields := map[string]any{}
+	if input.Name != nil {
+		fields[colShiftTemplateName] = *input.Name
+	}
+	if input.ShiftType != nil {
+		fields[colShiftTemplateShiftType] = *input.ShiftType
+	}
+	if input.StartTime != nil {
+		fields[colShiftTemplateStartTime] = normalizeTimeString(input.StartTime)
+	}
+	if input.EndTime != nil {
+		fields[colShiftTemplateEndTime] = normalizeTimeString(input.EndTime)
+	}
+	if input.Notes != nil {
+		fields[colShiftTemplateNotes] = *input.Notes
+	}
+	if input.SortOrder != nil {
+		fields[colShiftTemplateSortOrder] = *input.SortOrder
+	}
+	if input.IsActive != nil {
+		fields[colShiftTemplateIsActive] = *input.IsActive
+	}
+	return fields
+}
+
 // ShiftBreakTemplateInput は休憩時間テンプレートの入力DTO
 type ShiftBreakTemplateInput struct {
 	BreakStart string
@@ -47,32 +73,6 @@ type UpdateShiftTemplateInput struct {
 	SortOrder *int
 	IsActive  *bool
 	Breaks    *[]ShiftBreakTemplateInput
-}
-
-func buildShiftTemplateUpdate(input *UpdateShiftTemplateInput) map[string]any {
-	fields := map[string]any{}
-	if input.Name != nil {
-		fields[colShiftTemplateName] = *input.Name
-	}
-	if input.ShiftType != nil {
-		fields[colShiftTemplateShiftType] = *input.ShiftType
-	}
-	if input.StartTime != nil {
-		fields[colShiftTemplateStartTime] = normalizeTimeString(input.StartTime)
-	}
-	if input.EndTime != nil {
-		fields[colShiftTemplateEndTime] = normalizeTimeString(input.EndTime)
-	}
-	if input.Notes != nil {
-		fields[colShiftTemplateNotes] = *input.Notes
-	}
-	if input.SortOrder != nil {
-		fields[colShiftTemplateSortOrder] = *input.SortOrder
-	}
-	if input.IsActive != nil {
-		fields[colShiftTemplateIsActive] = *input.IsActive
-	}
-	return fields
 }
 
 // ShiftTemplateService はシフトテンプレートのビジネスロジックインターフェース

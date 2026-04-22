@@ -33,7 +33,7 @@ func NewShiftTemplateRepository(db *gorm.DB) ShiftTemplateRepository {
 func (r *shiftTemplateRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error) {
 	items := make([]model.ShiftTemplate, 0)
 	err := r.db.WithContext(ctx).
-		Preload("Breaks").
+		Preload("Breaks", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&items).Error
@@ -46,7 +46,7 @@ func (r *shiftTemplateRepository) FindAll(ctx context.Context, clinicID uint64) 
 func (r *shiftTemplateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error) {
 	var tpl model.ShiftTemplate
 	err := r.db.WithContext(ctx).
-		Preload("Breaks").
+		Preload("Breaks", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		First(&tpl).Error
 	if err != nil {
