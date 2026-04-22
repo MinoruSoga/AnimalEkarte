@@ -89,9 +89,24 @@ make codegen
 
 | カテゴリ | ドキュメント |
 |:---|:---|
+| **API** | [API_SPEC.md](docs/API_SPEC.md), [openapi.yaml](docs/openapi.yaml), [API_DOCUMENTATION_GUIDE.md](docs/API_DOCUMENTATION_GUIDE.md) |
+| **テスト** | [E2E_TESTING_GUIDE.md](docs/E2E_TESTING_GUIDE.md), [PERFORMANCE_PROFILING.md](docs/PERFORMANCE_PROFILING.md), [load-tests/README.md](load-tests/README.md) |
 | **設計** | [architecture.md](docs/architecture.md), [ERD.md](docs/ERD.md), [AUTH.md](docs/AUTH.md) |
 | **仕様** | [screens/](docs/screens/) (画面定義), [SPECIFICATION.md](docs/SPECIFICATION.md) |
 | **履歴** | [archive/](docs/archive/) (刷新前の設計図、過去のタスク履歴) |
+
+---
+
+## 🌐 API ドキュメント表示（対話的）
+
+### Swagger UI / Redoc
+```bash
+# Swagger UI (localhost:8081) + Redoc (localhost:8082) を起動
+docker compose -f docker-compose.swagger.yml up
+```
+
+- **Swagger UI**: http://localhost:8081 — 対話的なリクエスト生成・テスト
+- **Redoc**: http://localhost:8082 — API リファレンス表示
 
 ---
 
