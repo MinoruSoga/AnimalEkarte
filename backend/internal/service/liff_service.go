@@ -227,7 +227,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 			if err != nil {
 				return nil, window, apperrors.Wrap(err, "failed to parse date")
 			}
-			count, err := s.occupationRepo.CountUsageByReservationTypeOccupationID(ctx, clinicID, typeID, date)
+			count, err := s.occupationRepo.CountWorkingStaffByReservationTypeID(ctx, clinicID, typeID, date)
 			if err != nil {
 				return nil, window, apperrors.Wrap(err, "failed to count working staff")
 			}

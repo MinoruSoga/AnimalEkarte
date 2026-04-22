@@ -156,7 +156,7 @@ func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64)
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to get trimming option")
 	}
-	count, err := s.repo.CountUsageByOptionID(ctx, clinicID, id)
+	count, err := s.repo.CountUsageByTrimmingOptionID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check trimming option dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check trimming option dependencies")
