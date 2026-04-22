@@ -120,7 +120,7 @@ func (m *mockOccupationRepoForRType) FindAll(ctx context.Context, clinicID, rese
 	}
 	return []model.ReservationTypeOccupation{}, nil
 }
-func (m *mockOccupationRepoForRType) FindByOccupationID(_ context.Context, _, _, _ uint64) (*model.ReservationTypeOccupation, error) {
+func (m *mockOccupationRepoForRType) FindByID(_ context.Context, _, _, _ uint64) (*model.ReservationTypeOccupation, error) {
 	return &model.ReservationTypeOccupation{}, nil
 }
 func (m *mockOccupationRepoForRType) Create(ctx context.Context, o *model.ReservationTypeOccupation) error {
@@ -135,7 +135,7 @@ func (m *mockOccupationRepoForRType) Delete(ctx context.Context, clinicID, reser
 	}
 	return nil
 }
-func (m *mockOccupationRepoForRType) CountUsageByReservationTypeOccupationID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
+func (m *mockOccupationRepoForRType) CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
 	if m.countByStaffIDFn != nil {
 		return m.countByStaffIDFn(ctx, clinicID, reservationTypeID, date)
 	}

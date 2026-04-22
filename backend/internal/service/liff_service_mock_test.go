@@ -477,14 +477,14 @@ func (m *mockLiffOccupationRepository) FindAll(ctx context.Context, clinicID, re
 	}
 	return []model.ReservationTypeOccupation{}, nil
 }
-func (m *mockLiffOccupationRepository) FindByOccupationID(_ context.Context, _, _, _ uint64) (*model.ReservationTypeOccupation, error) {
+func (m *mockLiffOccupationRepository) FindByID(_ context.Context, _, _, _ uint64) (*model.ReservationTypeOccupation, error) {
 	return &model.ReservationTypeOccupation{}, nil
 }
 func (m *mockLiffOccupationRepository) Create(_ context.Context, _ *model.ReservationTypeOccupation) error {
 	return nil
 }
 func (m *mockLiffOccupationRepository) Delete(_ context.Context, _, _, _ uint64) error { return nil }
-func (m *mockLiffOccupationRepository) CountUsageByReservationTypeOccupationID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
+func (m *mockLiffOccupationRepository) CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
 	if m.countByStaffIDFn != nil {
 		return m.countByStaffIDFn(ctx, clinicID, reservationTypeID, date)
 	}

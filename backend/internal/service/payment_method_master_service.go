@@ -64,6 +64,7 @@ func NewPaymentMethodMasterService(repo repository.PaymentMethodMasterRepository
 func (s *paymentMethodMasterService) List(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list payment methods", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list payment methods")
 	}
 	return items, nil
@@ -72,6 +73,7 @@ func (s *paymentMethodMasterService) List(ctx context.Context, clinicID uint64) 
 func (s *paymentMethodMasterService) GetByID(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get payment method", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get payment method")
 	}
 	return result, nil
@@ -88,6 +90,7 @@ func (s *paymentMethodMasterService) Create(ctx context.Context, clinicID uint64
 	}
 	result, err := s.repo.Create(ctx, m)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to create payment method", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create payment method")
 	}
 	slog.InfoContext(ctx, "payment method created",
@@ -101,6 +104,7 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get payment method", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get payment method")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -112,6 +116,7 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 	}
 	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update payment method", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update payment method")
 	}
 	slog.InfoContext(ctx, "payment method updated",
@@ -126,12 +131,14 @@ func (s *paymentMethodMasterService) Delete(ctx context.Context, clinicID, id ui
 	}
 	count, err := s.repo.CountUsageByPaymentMethodID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check payment method usage", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check payment method usage")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この支払方法は使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete payment method", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete payment method")
 	}
 	slog.InfoContext(ctx, "payment method deleted",
@@ -145,6 +152,7 @@ func (s *paymentMethodMasterService) Reorder(ctx context.Context, clinicID uint6
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder payment methods", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder payment methods")
 	}
 	slog.InfoContext(ctx, "payment methods reordered",

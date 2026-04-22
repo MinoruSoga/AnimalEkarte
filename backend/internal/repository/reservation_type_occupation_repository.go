@@ -26,14 +26,14 @@ var jstLoc = func() *time.Location {
 type ReservationTypeOccupationRepository interface {
 	// FindAll は Occupation を Preload して返す
 	FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
-	// FindByOccupationID は指定した occupation_id に対応する紐付けを1件返す
-	FindByOccupationID(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error)
+	// FindByID は指定した occupation_id に対応する紐付けを1件返す
+	FindByID(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error)
 	Create(ctx context.Context, o *model.ReservationTypeOccupation) error
 	// Delete は物理削除（論理削除なし）
 	Delete(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
-	// CountUsageByReservationTypeOccupationID は指定日に対応職種のスタッフが何人出勤しているかを返す（LIFF 専用）
+	// CountWorkingStaffByReservationTypeID は指定日に対応職種のスタッフが何人出勤しているかを返す（LIFF 専用）
 	// shift_type が 'off' / 'paid_leave' 以外のスタッフのみカウント
-	CountUsageByReservationTypeOccupationID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
+	CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
 }
 
 type reservationTypeOccupationRepository struct {
@@ -61,7 +61,7 @@ func (r *reservationTypeOccupationRepository) FindAll(
 	return results, nil
 }
 
-func (r *reservationTypeOccupationRepository) FindByOccupationID(
+func (r *reservationTypeOccupationRepository) FindByID(
 	ctx context.Context, clinicID, reservationTypeID, occupationID uint64,
 ) (*model.ReservationTypeOccupation, error) {
 	var rto model.ReservationTypeOccupation
@@ -104,7 +104,7 @@ func (r *reservationTypeOccupationRepository) Delete(
 	return nil
 }
 
-func (r *reservationTypeOccupationRepository) CountUsageByReservationTypeOccupationID(
+func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationTypeID(
 	ctx context.Context, clinicID, reservationTypeID uint64, date time.Time,
 ) (int64, error) {
 	// JST 日付文字列で shift_entries.date と比較する

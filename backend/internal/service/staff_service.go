@@ -202,6 +202,7 @@ func NewStaffService(
 func (s *staffService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error) {
 	staff, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list staff", "error", err, "clinic_id", clinicID)
 		return nil, 0, apperrors.Wrap(err, "failed to list staff")
 	}
 	return staff, total, nil
@@ -210,6 +211,7 @@ func (s *staffService) List(ctx context.Context, clinicID uint64, page, limit in
 func (s *staffService) GetByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	staff, err := s.repo.FindByID(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get staff", "error", err, "id", id)
 		return nil, apperrors.Wrap(err, "failed to get staff")
 	}
 	return staff, nil
@@ -218,6 +220,7 @@ func (s *staffService) GetByID(ctx context.Context, id uint64) (*model.Staff, er
 func (s *staffService) FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error) {
 	staff, err := s.repo.FindByAccountID(ctx, accountID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to find staff by account id", "error", err, "id", accountID)
 		return nil, apperrors.Wrap(err, "failed to find staff by account id")
 	}
 	return staff, nil
@@ -296,6 +299,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	// email 重複チェック: FindByEmail が NotFound 以外のエラーを返した場合は伝播する
 	existing, err := s.accountRepo.FindByEmail(ctx, input.Email)
 	if err != nil && !apperrors.IsNotFound(err) {
+		slog.ErrorContext(ctx, "failed to check email uniqueness", "error", err, "clinic_id", input.ClinicID)
 		return nil, apperrors.Wrap(err, "failed to check email uniqueness")
 	}
 	if existing != nil {
@@ -369,6 +373,7 @@ func (s *staffService) UpdatePassword(ctx context.Context, accountID uint64, new
 		return apperrors.Wrap(err, "failed to hash password")
 	}
 	if err := s.accountRepo.Update(ctx, accountID, map[string]any{"password_hash": string(hashed)}); err != nil {
+		slog.ErrorContext(ctx, "failed to update account password", "error", err, "id", accountID)
 		return apperrors.Wrap(err, "failed to update account password")
 	}
 	slog.InfoContext(ctx, "password updated", slog.Uint64("account_id", accountID))
@@ -401,6 +406,7 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, staffID uint64,
 
 func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error) {
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get staff", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get staff")
 	}
 	if input.Name != nil {
@@ -425,6 +431,7 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 	if hasProfileUpdate {
 		fields := buildStaffUpdate(input)
 		if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+			slog.ErrorContext(ctx, "failed to update staff", "error", err, "id", id, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to update staff")
 		}
 		slog.InfoContext(ctx, "staff updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("staff_id", id))
@@ -432,6 +439,7 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 
 	updated, err := s.repo.FindByID(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get updated staff", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get updated staff")
 	}
 	staff = updated
@@ -458,6 +466,7 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
 
 	reservationExists, err := s.reservationRepo.ExistsByStaffID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check reservation dependency", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}
 	if reservationExists {
@@ -465,12 +474,14 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
 	}
 	shiftExists, err := s.shiftEntryRepo.ExistsByStaffID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check shift dependency", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check shift dependency")
 	}
 	if shiftExists {
 		return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete staff", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete staff")
 	}
 	slog.InfoContext(ctx, "staff deleted", slog.Uint64("staff_id", id), slog.Uint64("clinic_id", clinicID))
@@ -482,6 +493,7 @@ func (s *staffService) Reorder(ctx context.Context, clinicID uint64, ids []uint6
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder staff", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder staff")
 	}
 	slog.InfoContext(ctx, "staff reordered", slog.Uint64("clinic_id", clinicID))
@@ -492,6 +504,7 @@ func (s *staffService) Reorder(ctx context.Context, clinicID uint64, ids []uint6
 func (s *staffService) GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
 	ids, err := s.permissionGroupRepo.FindGroupIDsByStaffID(ctx, staffID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get permission group ids", "error", err, "id", staffID)
 		return nil, apperrors.Wrap(err, "failed to get permission group ids")
 	}
 	return ids, nil
@@ -500,6 +513,7 @@ func (s *staffService) GetPermissionGroupIDs(ctx context.Context, staffID uint64
 // SetPermissionGroupIDs はスタッフの権限グループを全置換する
 func (s *staffService) SetPermissionGroupIDs(ctx context.Context, staffID uint64, groupIDs []uint64) error {
 	if err := s.permissionGroupRepo.ReplaceStaffGroups(ctx, staffID, groupIDs); err != nil {
+		slog.ErrorContext(ctx, "failed to set permission group ids", "error", err, "id", staffID)
 		return apperrors.Wrap(err, "failed to set permission group ids")
 	}
 	return nil
@@ -509,6 +523,7 @@ func (s *staffService) SetPermissionGroupIDs(ctx context.Context, staffID uint64
 func (s *staffService) GetExcludedReservationTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
 	items, err := s.resStaffRepo.FindExcludedReservationTypes(ctx, staffID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get excluded service type ids", "error", err, "id", staffID)
 		return nil, apperrors.Wrap(err, "failed to get excluded service type ids")
 	}
 	ids := make([]uint64, 0, len(items))
@@ -521,6 +536,7 @@ func (s *staffService) GetExcludedReservationTypeIDs(ctx context.Context, staffI
 // SetExcludedReservationTypeIDs はスタッフの除外サービス種別を全置換する
 func (s *staffService) SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error {
 	if err := s.resStaffRepo.ReplaceExcludedReservationTypes(ctx, staffID, typeIDs); err != nil {
+		slog.ErrorContext(ctx, "failed to set excluded service type ids", "error", err, "id", staffID)
 		return apperrors.Wrap(err, "failed to set excluded service type ids")
 	}
 	return nil
@@ -531,6 +547,7 @@ func (s *staffService) SetExcludedReservationTypeIDs(ctx context.Context, staffI
 func (s *staffService) VerifyClinicMembership(ctx context.Context, staffID, clinicID uint64) error {
 	exists, err := s.assignmentRepo.ExistsByStaffAndClinic(ctx, staffID, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to verify staff clinic membership", "error", err, "id", staffID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to verify staff clinic membership")
 	}
 	if !exists {

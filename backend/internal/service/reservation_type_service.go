@@ -203,6 +203,7 @@ func NewReservationTypeService(
 func (s *reservationTypeService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list reservation types", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list reservation types")
 	}
 	return items, nil
@@ -211,6 +212,7 @@ func (s *reservationTypeService) List(ctx context.Context, clinicID uint64) ([]m
 func (s *reservationTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation type")
 	}
 	return result, nil
@@ -257,6 +259,7 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 		GroupID:                input.GroupID,
 	}
 	if err := s.repo.Create(ctx, st); err != nil {
+		slog.ErrorContext(ctx, "failed to create reservation type", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create reservation type")
 	}
 	slog.InfoContext(ctx, "reservation type created", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", st.ID))
@@ -268,6 +271,7 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation type")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -279,6 +283,7 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 	}
 	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update reservation type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update reservation type")
 	}
 	slog.InfoContext(ctx, "reservation type updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", id))
@@ -291,12 +296,14 @@ func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64
 	}
 	count, err := s.repo.CountUsageByReservationTypeID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check reservation type usage", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check reservation type usage")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この項目は予約データで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete reservation type", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete reservation type")
 	}
 	slog.InfoContext(ctx, "reservation type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", id))
@@ -308,6 +315,7 @@ func (s *reservationTypeService) Reorder(ctx context.Context, clinicID uint64, i
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder reservation types", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder reservation types")
 	}
 	slog.InfoContext(ctx, "reservation type reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
@@ -323,6 +331,7 @@ func (s *reservationTypeService) ListUnavailableTimes(ctx context.Context, clini
 	}
 	items, err := s.unavailableTimeRepo.FindAll(ctx, clinicID, reservationTypeID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list unavailable times", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list unavailable times")
 	}
 	return items, nil
@@ -340,6 +349,7 @@ func (s *reservationTypeService) CreateUnavailableTime(ctx context.Context, clin
 	// 重複チェック
 	existing, err := s.unavailableTimeRepo.FindAll(ctx, clinicID, reservationTypeID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check existing unavailable times", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to check existing unavailable times")
 	}
 	if err := validateUnavailableTimeNotOverlaps(existing, input); err != nil {
@@ -356,6 +366,7 @@ func (s *reservationTypeService) CreateUnavailableTime(ctx context.Context, clin
 		EndTime:           input.EndTime,
 	}
 	if err := s.unavailableTimeRepo.Create(ctx, t); err != nil {
+		slog.ErrorContext(ctx, "failed to create unavailable time", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create unavailable time")
 	}
 	slog.InfoContext(ctx, "unavailable time created",
@@ -372,6 +383,7 @@ func (s *reservationTypeService) DeleteUnavailableTime(ctx context.Context, clin
 		return apperrors.Wrap(err, "unavailable time not found")
 	}
 	if err := s.unavailableTimeRepo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete unavailable time", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete unavailable time")
 	}
 	slog.InfoContext(ctx, "unavailable time deleted",
@@ -389,6 +401,7 @@ func (s *reservationTypeService) ListOccupations(ctx context.Context, clinicID, 
 	}
 	items, err := s.occupationRepo.FindAll(ctx, clinicID, reservationTypeID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list occupations", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list occupations")
 	}
 	return items, nil
@@ -407,24 +420,27 @@ func (s *reservationTypeService) LinkOccupation(ctx context.Context, clinicID, r
 		OccupationID:      occupationID,
 	}
 	if err := s.occupationRepo.Create(ctx, o); err != nil {
+		slog.ErrorContext(ctx, "failed to link occupation", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to link occupation")
 	}
 	slog.InfoContext(ctx, "occupation linked",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("reservation_type_id", reservationTypeID),
 		slog.Uint64("occupation_id", occupationID))
-	result, err := s.occupationRepo.FindByOccupationID(ctx, clinicID, reservationTypeID, occupationID)
+	result, err := s.occupationRepo.FindByID(ctx, clinicID, reservationTypeID, occupationID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get linked occupation", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get linked occupation")
 	}
 	return result, nil
 }
 
 func (s *reservationTypeService) UnlinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error {
-	if _, err := s.occupationRepo.FindByOccupationID(ctx, clinicID, reservationTypeID, occupationID); err != nil {
+	if _, err := s.occupationRepo.FindByID(ctx, clinicID, reservationTypeID, occupationID); err != nil {
 		return apperrors.Wrap(err, "failed to find reservation type occupation")
 	}
 	if err := s.occupationRepo.Delete(ctx, clinicID, reservationTypeID, occupationID); err != nil {
+		slog.ErrorContext(ctx, "failed to unlink occupation", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to unlink occupation")
 	}
 	slog.InfoContext(ctx, "occupation unlinked",

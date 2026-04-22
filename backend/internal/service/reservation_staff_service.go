@@ -122,10 +122,12 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, staff, clinicID); err != nil {
+			slog.ErrorContext(txCtx, "failed to create reservation staff", "error", err)
 			return apperrors.Wrap(err, "failed to create reservation staff")
 		}
 		if len(input.ExcludedTypeIDs) > 0 {
 			if err := s.repo.ReplaceExcludedReservationTypes(txCtx, staff.ID, input.ExcludedTypeIDs); err != nil {
+				slog.ErrorContext(txCtx, "failed to set excluded courses", "error", err)
 				return apperrors.Wrap(err, "failed to set excluded courses")
 			}
 		}
@@ -138,6 +140,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 		slog.Uint64("clinic_id", clinicID))
 	excluded, err := s.repo.FindExcludedReservationTypes(ctx, staff.ID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get excluded reservation types", "error", err, "clinic_id", clinicID)
 		return nil, nil, apperrors.Wrap(err, "failed to get excluded reservation types")
 	}
 	return staff, excluded, nil
@@ -152,16 +155,19 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 	fields := buildReservationStaffUpdate(input)
 	if len(fields) > 0 {
 		if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+			slog.ErrorContext(ctx, "failed to update reservation staff", "error", err, "id", id, "clinic_id", clinicID)
 			return nil, nil, apperrors.Wrap(err, "failed to update reservation staff")
 		}
 	}
 	if input.ExcludedTypeIDs != nil {
 		if err := s.repo.ReplaceExcludedReservationTypes(ctx, id, *input.ExcludedTypeIDs); err != nil {
+			slog.ErrorContext(ctx, "failed to update excluded courses", "error", err, "id", id, "clinic_id", clinicID)
 			return nil, nil, apperrors.Wrap(err, "failed to update excluded courses")
 		}
 	}
 	updated, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation staff after update", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, nil, apperrors.Wrap(err, "failed to get reservation staff after update")
 	}
 	slog.InfoContext(ctx, "reservation staff updated",
@@ -169,6 +175,7 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 		slog.Uint64("clinic_id", clinicID))
 	excluded, err := s.repo.FindExcludedReservationTypes(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get excluded reservation types", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, nil, apperrors.Wrap(err, "failed to get excluded reservation types")
 	}
 	return updated, excluded, nil
@@ -180,12 +187,14 @@ func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint6
 	}
 	count, err := s.repo.CountUsageByStaffID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to count reservation staff usage", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to count reservation staff usage")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("このスタッフは予約データで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete reservation staff", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete reservation staff")
 	}
 	slog.InfoContext(ctx, "reservation staff deleted",
@@ -199,10 +208,12 @@ func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id 
 		return nil, nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
+		slog.ErrorContext(ctx, "failed to patch staff status", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, nil, apperrors.Wrap(err, "failed to patch staff status")
 	}
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation staff after patch status", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, nil, apperrors.Wrap(err, "failed to get reservation staff after patch status")
 	}
 	slog.InfoContext(ctx, "reservation staff status patched",
@@ -211,6 +222,7 @@ func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id 
 		slog.Bool("is_active", isActive))
 	excluded, err := s.repo.FindExcludedReservationTypes(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get excluded reservation types", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, nil, apperrors.Wrap(err, "failed to get excluded reservation types")
 	}
 	return result, excluded, nil
@@ -221,6 +233,7 @@ func (s *reservationStaffService) PatchSortOrder(ctx context.Context, clinicID, 
 		return apperrors.WrapInvalidInput("direction must be 'up' or 'down'")
 	}
 	if err := s.repo.SwapSortOrder(ctx, clinicID, id, direction); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder reservation staff", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder reservation staff")
 	}
 	return nil
@@ -230,6 +243,7 @@ func (s *reservationStaffService) PatchSortOrder(ctx context.Context, clinicID, 
 func (s *reservationStaffService) GetExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
 	items, err := s.repo.FindExcludedReservationTypes(ctx, staffID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get excluded service types", "error", err, "id", staffID)
 		return nil, apperrors.Wrap(err, "failed to get excluded service types")
 	}
 	return items, nil
@@ -239,6 +253,7 @@ func (s *reservationStaffService) GetExcludedReservationTypes(ctx context.Contex
 func (s *reservationStaffService) ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
 	items, err := s.repo.FindExcludedReservationTypesByStaffIDs(ctx, staffIDs)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list excluded service types", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list excluded service types")
 	}
 	m := make(map[uint64][]model.StaffReservationExclusion, len(staffIDs))

@@ -90,6 +90,7 @@ func NewCageService(repo repository.CageRepository) CageService {
 func (s *cageService) List(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
 	result, err := s.repo.FindAll(ctx, clinicID, cageType)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list cage", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list cage")
 	}
 	return result, nil
@@ -97,6 +98,7 @@ func (s *cageService) List(ctx context.Context, clinicID uint64, cageType *strin
 func (s *cageService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get cage", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get cage")
 	}
 	return result, nil
@@ -123,6 +125,7 @@ func (s *cageService) Create(ctx context.Context, clinicID uint64, input *Create
 		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, cage); err != nil {
+		slog.ErrorContext(ctx, "failed to create cage", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create cage")
 	}
 	slog.InfoContext(ctx, "cage created",
@@ -135,6 +138,7 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get cage", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get cage")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -157,6 +161,7 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 	}
 	cage, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update cage", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update cage")
 	}
 	slog.InfoContext(ctx, "cage updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("cage_id", id))
@@ -168,12 +173,14 @@ func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
 	}
 	count, err := s.repo.CountUsageByCageID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check cage usage", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check cage usage")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("このケージは入院データで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete cage", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete cage")
 	}
 	slog.InfoContext(ctx, "cage deleted",
@@ -187,6 +194,7 @@ func (s *cageService) Reorder(ctx context.Context, clinicID uint64, ids []uint64
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder cage", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder cage")
 	}
 	slog.InfoContext(ctx, "cage reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))

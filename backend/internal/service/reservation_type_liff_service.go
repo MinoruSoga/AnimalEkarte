@@ -23,36 +23,6 @@ const (
 	colReservationTypeLiffIsInternal           = "is_internal"
 )
 
-// CreateReservationTypeLiffInput は予約コース作成の入力データ
-type CreateReservationTypeLiffInput struct {
-	Name                 string
-	Color                string
-	Description          string
-	SortOrder            int
-	DurationMinutes      int
-	ShortName            string
-	ShowShortName        bool
-	ReservationVisible   bool
-	ReservationComment   string
-	ReservationDayOption string
-	IsInternal           bool
-}
-
-// UpdateReservationTypeLiffInput は予約コース更新の入力データ（ポインタ型でゼロ値を区別）
-type UpdateReservationTypeLiffInput struct {
-	Name                 *string
-	Color                *string
-	Description          *string
-	SortOrder            *int
-	DurationMinutes      *int
-	ShortName            *string
-	ShowShortName        *bool
-	ReservationVisible   *bool
-	ReservationComment   *string
-	ReservationDayOption *string
-	IsInternal           *bool
-}
-
 func buildReservationTypeLiffUpdate(input *UpdateReservationTypeLiffInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
@@ -91,6 +61,36 @@ func buildReservationTypeLiffUpdate(input *UpdateReservationTypeLiffInput) map[s
 	return fields
 }
 
+// CreateReservationTypeLiffInput は予約コース作成の入力データ
+type CreateReservationTypeLiffInput struct {
+	Name                 string
+	Color                string
+	Description          string
+	SortOrder            int
+	DurationMinutes      int
+	ShortName            string
+	ShowShortName        bool
+	ReservationVisible   bool
+	ReservationComment   string
+	ReservationDayOption string
+	IsInternal           bool
+}
+
+// UpdateReservationTypeLiffInput は予約コース更新の入力データ（ポインタ型でゼロ値を区別）
+type UpdateReservationTypeLiffInput struct {
+	Name                 *string
+	Color                *string
+	Description          *string
+	SortOrder            *int
+	DurationMinutes      *int
+	ShortName            *string
+	ShowShortName        *bool
+	ReservationVisible   *bool
+	ReservationComment   *string
+	ReservationDayOption *string
+	IsInternal           *bool
+}
+
 // ReservationTypeLiffService は予約コース（reservation_types）のビジネスロジックインターフェース
 type ReservationTypeLiffService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
@@ -114,6 +114,7 @@ func NewReservationTypeLiffService(repo repository.ReservationTypeLiffRepository
 func (s *reservationTypeLiffService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	result, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list reservation course", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list reservation course")
 	}
 	return result, nil
@@ -140,6 +141,7 @@ func (s *reservationTypeLiffService) Create(ctx context.Context, clinicID uint64
 		IsInternal:           input.IsInternal,
 	}
 	if err := s.repo.Create(ctx, st); err != nil {
+		slog.ErrorContext(ctx, "failed to create reservation course", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create reservation course")
 	}
 	slog.InfoContext(ctx, "reservation course created",
@@ -147,6 +149,7 @@ func (s *reservationTypeLiffService) Create(ctx context.Context, clinicID uint64
 		slog.Uint64("clinic_id", clinicID))
 	created, err := s.repo.FindByID(ctx, clinicID, st.ID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation course after create", "error", err, "id", st.ID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation course after create")
 	}
 	return created, nil
@@ -154,18 +157,21 @@ func (s *reservationTypeLiffService) Create(ctx context.Context, clinicID uint64
 
 func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation course", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation course")
 	}
 	fields := buildReservationTypeLiffUpdate(input)
 	if len(fields) == 0 {
 		result, err := s.repo.FindByID(ctx, clinicID, id)
 		if err != nil {
+			slog.ErrorContext(ctx, "failed to get reservation course", "error", err, "id", id, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to get reservation course")
 		}
 		return result, nil
 	}
 	updated, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update reservation course", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update reservation course")
 	}
 	slog.InfoContext(ctx, "reservation course updated",
@@ -180,12 +186,14 @@ func (s *reservationTypeLiffService) Delete(ctx context.Context, clinicID, id ui
 	}
 	exists, err := s.resRepo.ExistsByReservationTypeID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check reservation dependency", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}
 	if exists {
 		return apperrors.WrapConflict("この予約コースは予約データで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete reservation course", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete reservation course")
 	}
 	slog.InfoContext(ctx, "reservation course deleted",
@@ -200,6 +208,7 @@ func (s *reservationTypeLiffService) PatchStatus(ctx context.Context, clinicID, 
 	}
 	result, err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive})
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to patch status", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to patch status")
 	}
 	return result, nil
@@ -210,6 +219,7 @@ func (s *reservationTypeLiffService) PatchSortOrder(ctx context.Context, clinicI
 		return apperrors.WrapInvalidInput("direction must be 'up' or 'down'")
 	}
 	if err := s.repo.SwapSortOrder(ctx, clinicID, id, direction); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder reservation course", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder reservation course")
 	}
 	return nil

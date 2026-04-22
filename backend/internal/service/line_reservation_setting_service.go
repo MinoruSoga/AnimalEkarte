@@ -62,6 +62,7 @@ func (s *lineReservationSettingService) Get(ctx context.Context, clinicID uint64
 		if apperrors.IsNotFound(err) {
 			return nil, nil
 		}
+		slog.ErrorContext(ctx, "failed to get reservation setting", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
 	return setting, nil
@@ -92,6 +93,7 @@ func (s *lineReservationSettingService) Upsert(ctx context.Context, clinicID uin
 	// 既存レコードの有無を確認し、新規作成かどうかを判定する
 	existing, err := s.repo.FindByClinicID(ctx, clinicID)
 	if err != nil && !apperrors.IsNotFound(err) {
+		slog.ErrorContext(ctx, "failed to get existing reservation setting", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to get existing reservation setting")
 	}
 	isNew := existing == nil
@@ -141,10 +143,12 @@ func (s *lineReservationSettingService) Upsert(ctx context.Context, clinicID uin
 		LineAccessToken:         accessToken,
 	}
 	if err := s.repo.Upsert(ctx, clinicID, setting); err != nil {
+		slog.ErrorContext(ctx, "failed to upsert reservation setting", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to upsert reservation setting")
 	}
 	result, err := s.repo.FindByClinicID(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation setting after upsert", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to get reservation setting after upsert")
 	}
 	slog.InfoContext(ctx, "reservation setting upserted",

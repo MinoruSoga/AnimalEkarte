@@ -72,6 +72,7 @@ func NewReservationTypeGroupService(repo repository.ReservationTypeGroupReposito
 func (s *reservationTypeGroupService) List(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error) {
 	groups, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list reservation type groups", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list reservation type groups")
 	}
 	return groups, nil
@@ -80,6 +81,7 @@ func (s *reservationTypeGroupService) List(ctx context.Context, clinicID uint64)
 func (s *reservationTypeGroupService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error) {
 	group, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation type group", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation type group")
 	}
 	return group, nil
@@ -101,6 +103,7 @@ func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint6
 		IsActive:  input.IsActive,
 	}
 	if err := s.repo.Create(ctx, g); err != nil {
+		slog.ErrorContext(ctx, "failed to create reservation type group", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create reservation_type_group")
 	}
 	slog.InfoContext(ctx, "reservation_type_group created",
@@ -115,6 +118,7 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation type group", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation type group")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -126,6 +130,7 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 	}
 	g, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update reservation type group", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update reservation_type_group")
 	}
 	slog.InfoContext(ctx, "reservation_type_group updated",
@@ -138,14 +143,16 @@ func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id u
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to get reservation type group")
 	}
-	count, err := s.repo.CountUsageByReservationTypeGroupID(ctx, clinicID, id)
+	count, err := s.repo.CountReservationTypesByGroupID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to count categories in group", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to count categories in group")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("このグループには予約区分が設定されています。先に予約区分のグループを変更してください。")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete reservation type group", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete reservation type group")
 	}
 	slog.InfoContext(ctx, "reservation_type_group deleted",
@@ -159,6 +166,7 @@ func (s *reservationTypeGroupService) Reorder(ctx context.Context, clinicID uint
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder reservation type groups", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder reservation type groups")
 	}
 	slog.InfoContext(ctx, "reservation_type_groups reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
