@@ -1,13 +1,23 @@
 # 機能テストレポート
 
-> **最終更新**: 2026-04-16 (詳細実装追従: ペット選択フロー、カルテ画像添付、LIFFアプリ項目追加)
+> **最終更新**: 2026-04-23 (DB マイグレーション修正、TASK-503 P16パターン確認、BUG-PERMISSION-GROUPS-NO-DEFAULT実装検証)
 > テスト環境: ローカル (localhost:3003, localhost:8080) / ステージング (stg.noah-karte.com)
 > テストアカウント: admin@example.com (安田 希恵 / 一般) / vet@example.com (倉田 春香 / 一般)
 > **テスト完成度**: OK=3,512 / NG=0 / 未確認=多数 (新規・詳細項目)
+> **直近修正**: ✅ DB Migration 001-004 動作確認 / ✅ Service Tests PASS / ✅ Backend Code Quality P16完全実装
 
 > **集約方針**: 2026-04-04 の TIER 1 修正レポート群（`TESTING_SUMMARY.md` / `TEST_IMPLEMENTATION_DETAILS.md` / `TEST_VERIFICATION_REPORT.md` / `TEST_VERIFICATION_SUMMARY.md` / `TIER1_COMPLETION_SUMMARY.md`）はこのファイルに統合し、個別ファイルは廃止しました。
 
 ## 0. 集約済み検証サマリー
+
+### TIER 2 修正検証（2026-04-23 — Backend Infrastructure）
+
+| 対象 | 結果 | 補足 |
+|---|---|---|
+| TASK-503 P16 FindAllByStaffID | ✅ PASS | 複数返却メソッド 13箇所全統一確認 (Repository/Service/Handler/Mock) |
+| BUG-PERMISSION-GROUPS-NO-DEFAULT | ✅ PASS | CreateClinic による動的グループ生成確認 (slog logging付き) |
+| DB Migration 001-004 | ✅ PASS | 004_seed_staging.sql 設計問題解決（ON CONFLICT DO UPDATE競合除去） |
+| Backend Service Tests | ✅ PASS | `go test ./internal/service` — 全PASS (0.017s) |
 
 ### TIER 1 修正検証（2026-04-04）
 
