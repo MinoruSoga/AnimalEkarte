@@ -34,15 +34,6 @@
     "figma": {
       "type": "sse",
       "url": "http://127.0.0.1:3845/sse"
-    },
-    "notion": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "https://mcp.notion.com/mcp"
-      ],
-      "env": {}
     }
   }
 }
