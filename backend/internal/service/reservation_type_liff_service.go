@@ -195,6 +195,9 @@ func (s *reservationTypeLiffService) Delete(ctx context.Context, clinicID, id ui
 }
 
 func (s *reservationTypeLiffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationType, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation type")
+	}
 	result, err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive})
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to patch status")

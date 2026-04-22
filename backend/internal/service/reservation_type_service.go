@@ -421,6 +421,9 @@ func (s *reservationTypeService) LinkOccupation(ctx context.Context, clinicID, r
 }
 
 func (s *reservationTypeService) UnlinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error {
+	if _, err := s.occupationRepo.FindByOccupationID(ctx, clinicID, reservationTypeID, occupationID); err != nil {
+		return apperrors.Wrap(err, "failed to find reservation type occupation")
+	}
 	if err := s.occupationRepo.Delete(ctx, clinicID, reservationTypeID, occupationID); err != nil {
 		return apperrors.Wrap(err, "failed to unlink occupation")
 	}
