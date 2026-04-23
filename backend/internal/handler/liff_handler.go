@@ -216,12 +216,10 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 	if err != nil {
 		// 予約制限エラーはフロントエンドに redirect_step を伝える
 		if limErr, ok := service.IsReservationLimitError(err); ok {
-			// NOTE: Intentional direct response — ReservationLimitError は RespondError で処理できないカスタムペイロード（redirect_step）を含む
-			c.JSON(http.StatusConflict, gin.H{
-				"error":         limErr.Error(),
-				"code":          limErr.Code,
+			extras := map[string]any{
 				"redirect_step": limErr.RedirectStep,
-			})
+			}
+			RespondErrorWithExtras(c, limErr, extras)
 			return
 		}
 		RespondError(c, err)

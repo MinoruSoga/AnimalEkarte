@@ -115,7 +115,7 @@ func (r *examinationRepository) CountItemsByExamID(ctx context.Context, clinicID
 	err := r.db.WithContext(ctx).
 		Model(&model.ExamResult{}).
 		Joins("JOIN exams ON exam_results.exam_id = exams.id AND exams.deleted_at IS NULL").
-		Where("exams.clinic_id = ? AND exam_results.exam_id = ?", clinicID, examID).
+		Where("exams.clinic_id = ? AND exam_results.exam_id = ? AND exam_results.deleted_at IS NULL", clinicID, examID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "exam_item", fmt.Sprintf("exam_id=%d", examID))

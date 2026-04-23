@@ -12,7 +12,38 @@ import (
 
 // ---- EstimateService ----
 
-// EstimateService は見積書のビジネスロジックインターフェース
+// CreateEstimateInput は見積書作成のサービス入力DTO
+type CreateEstimateInput struct {
+	MedicalRecordID *uint64
+	Title           string
+	OwnerID         *uint64
+	Status          model.EstimateStatus
+	Subtotal        int64
+	TaxTotal        int64
+	TotalAmount     int64
+	InsuranceAmount int64
+	DiscountAmount  int64
+	ValidUntil      *time.Time
+	Comment         string
+	Notes           string
+	CreatedBy       *uint64
+}
+
+// UpdateEstimateInput は見積書更新のサービス入力DTO（nil = 未送信）
+type UpdateEstimateInput struct {
+	Title           *string
+	Status          *model.EstimateStatus
+	Subtotal        *int64
+	TaxTotal        *int64
+	TotalAmount     *int64
+	InsuranceAmount *int64
+	DiscountAmount  *int64
+	ValidUntil      *time.Time
+	ClearValidUntil bool
+	Comment         *string
+	Notes           *string
+}
+
 func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
 	fields := map[string]any{}
 	if input.Title != nil {
@@ -50,44 +81,13 @@ func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
 	return fields
 }
 
+// EstimateService は見積書のビジネスロジックインターフェース
 type EstimateService interface {
 	List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-}
-
-// CreateEstimateInput は見積書作成のサービス入力DTO
-type CreateEstimateInput struct {
-	MedicalRecordID *uint64
-	Title           string
-	OwnerID         *uint64
-	Status          model.EstimateStatus
-	Subtotal        int64
-	TaxTotal        int64
-	TotalAmount     int64
-	InsuranceAmount int64
-	DiscountAmount  int64
-	ValidUntil      *time.Time
-	Comment         string
-	Notes           string
-	CreatedBy       *uint64
-}
-
-// UpdateEstimateInput は見積書更新のサービス入力DTO（nil = 未送信）
-type UpdateEstimateInput struct {
-	Title           *string
-	Status          *model.EstimateStatus
-	Subtotal        *int64
-	TaxTotal        *int64
-	TotalAmount     *int64
-	InsuranceAmount *int64
-	DiscountAmount  *int64
-	ValidUntil      *time.Time
-	ClearValidUntil bool
-	Comment         *string
-	Notes           *string
 }
 
 type estimateService struct{ repo repository.EstimateRepository }

@@ -75,7 +75,7 @@ func (h *Handler) CloseCashRegister(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/v1/cash-register/closes/%d", record.ID))
+	c.Header("Location", fmt.Sprintf("/api/v1/cash-register/closes/%d", record.ID))
 	c.JSON(http.StatusCreated, toCashRegisterCloseResponse(record))
 }
 

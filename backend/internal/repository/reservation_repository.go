@@ -279,7 +279,7 @@ func (r *reservationRepository) CountByCustomerAndDateRange(ctx context.Context,
 	var count int64
 	err := dbOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Scopes(clinicScope(clinicID)).
-		Where("line_customer_id = ? AND status NOT IN ('cancelled') AND start_time >= ? AND start_time < ?",
+		Where("line_customer_id = ? AND status NOT IN ('cancelled') AND start_time >= ? AND start_time < ? AND deleted_at IS NULL",
 			customerID, start, end,
 		).Count(&count).Error
 	if err != nil {
@@ -346,7 +346,7 @@ func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinic
 	start, end := appointmentDayRange(date)
 	err := dbOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Scopes(clinicScope(clinicID)).
-		Where("start_time >= ? AND start_time < ? AND source = ?", start, end, source).
+		Where("start_time >= ? AND start_time < ? AND source = ? AND deleted_at IS NULL", start, end, source).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "reservation", "")
