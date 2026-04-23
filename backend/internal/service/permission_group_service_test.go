@@ -42,7 +42,7 @@ func (m *mockPermissionGroupRepository) Update(ctx context.Context, clinicID, id
 func (m *mockPermissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
 }
-func (m *mockPermissionGroupRepository) SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
+func (m *mockPermissionGroupRepository) UpdateRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
 	return m.setRulesFn(ctx, groupID, rules)
 }
 func (m *mockPermissionGroupRepository) CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
@@ -51,16 +51,16 @@ func (m *mockPermissionGroupRepository) CountUsageByGroupID(ctx context.Context,
 func (m *mockPermissionGroupRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
 	return m.reorderErr
 }
-func (m *mockPermissionGroupRepository) FindEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
+func (m *mockPermissionGroupRepository) FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
 	return m.getEffectivePermissionsByStaffID(ctx, staffID)
 }
-func (m *mockPermissionGroupRepository) FindGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
+func (m *mockPermissionGroupRepository) FindAllGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
 	if m.getGroupIDsByStaffIDFn != nil {
 		return m.getGroupIDsByStaffIDFn(ctx, staffID)
 	}
 	return nil, nil
 }
-func (m *mockPermissionGroupRepository) ReplaceStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
+func (m *mockPermissionGroupRepository) UpdateStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
 	if m.setStaffGroupsFn != nil {
 		return m.setStaffGroupsFn(ctx, staffID, groupIDs)
 	}
@@ -344,7 +344,7 @@ func TestPermissionGroupService_SetRules(t *testing.T) {
 				},
 			}
 			svc := NewPermissionGroupService(repo)
-			err := svc.SetRules(context.Background(), 1, tt.inputs, 0)
+			err := svc.UpdateRules(context.Background(), 1, tt.inputs, 0)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

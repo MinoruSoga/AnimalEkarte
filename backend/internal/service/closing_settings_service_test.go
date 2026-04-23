@@ -26,7 +26,7 @@ func (m *mockClinicSettingsRepository) FindByClinicID(ctx context.Context, clini
 	return nil, nil
 }
 
-func (m *mockClinicSettingsRepository) Upsert(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error) {
+func (m *mockClinicSettingsRepository) Save(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error) {
 	if m.upsertFn != nil {
 		return m.upsertFn(ctx, clinicID, s)
 	}
@@ -57,7 +57,7 @@ func (m *mockClosingSpecialPeriodRepository) FindByID(ctx context.Context, clini
 	return nil, nil
 }
 
-func (m *mockClosingSpecialPeriodRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error) {
+func (m *mockClosingSpecialPeriodRepository) FindAllByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error) {
 	if m.findByDateFn != nil {
 		return m.findByDateFn(ctx, clinicID, date)
 	}
@@ -85,7 +85,7 @@ func (m *mockClosingSpecialPeriodRepository) Delete(ctx context.Context, clinicI
 	return nil
 }
 
-func (m *mockClosingSpecialPeriodRepository) HasOverlap(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error) {
+func (m *mockClosingSpecialPeriodRepository) CheckOverlap(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error) {
 	if m.hasOverlapFn != nil {
 		return m.hasOverlapFn(ctx, clinicID, startDate, endDate, excludeID)
 	}
@@ -96,19 +96,20 @@ func (m *mockClosingSpecialPeriodRepository) HasOverlap(ctx context.Context, cli
 
 // mockClosingHolidayRepository は ClinicHolidayRepository のテスト用モック（closing_settings 専用）
 type mockClosingHolidayRepository struct {
+	findByDateFn func(context.Context, uint64, time.Time) (*model.ClinicHoliday, error)
 	findByYearMonthFn func(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
 	upsertFn          func(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
 	deleteFn          func(ctx context.Context, clinicID uint64, date time.Time) error
 }
 
-func (m *mockClosingHolidayRepository) FindByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
+func (m *mockClosingHolidayRepository) FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
 	if m.findByYearMonthFn != nil {
 		return m.findByYearMonthFn(ctx, clinicID, yearMonth)
 	}
 	return nil, nil
 }
 
-func (m *mockClosingHolidayRepository) Upsert(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
+func (m *mockClosingHolidayRepository) Save(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
 	if m.upsertFn != nil {
 		return m.upsertFn(ctx, clinicID, holiday)
 	}
@@ -253,7 +254,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 			},
 		},
 		{
-			name: "periodRepo.FindByDate エラー: エラーを返す",
+			name: "periodRepo.FindAllByDate エラー: エラーを返す",
 			date: monday,
 			periodFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
 				return nil, errors.New("db error")
@@ -377,7 +378,7 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 			wantErrIs: apperrors.ErrInvalidInput,
 		},
 		{
-			name:  "エラー: HasOverlap がエラーを返す",
+			name:  "エラー: CheckOverlap がエラーを返す",
 			input: validInput,
 			hasOverlapFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
 				return false, errors.New("db error")
@@ -466,4 +467,11 @@ func TestClosingSettingsService_ListSpecialPeriods(t *testing.T) {
 			assert.Equal(t, tt.wantResult, got)
 		})
 	}
+}
+
+func (m *mockClosingHolidayRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+	if m.findByDateFn != nil {
+		return m.findByDateFn(ctx, clinicID, date)
+	}
+	return nil, nil
 }

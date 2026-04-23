@@ -12,7 +12,7 @@ import (
 
 // InquiryRepository は医療記録問診の永続化インターフェース
 type InquiryRepository interface {
-	UpsertByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
+	SaveByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
 	CountByChiefComplaintTypeID(ctx context.Context, clinicID, categoryID uint64) (int64, error)
 }
 
@@ -25,14 +25,14 @@ func NewInquiryRepository(db *gorm.DB) InquiryRepository {
 	return &inquiryRepository{db: db}
 }
 
-// UpsertByMedicalRecordID は medical_record_id に対応する Inquiry を upsert する。
+// SaveByMedicalRecordID は medical_record_id に対応する Inquiry を upsert する。
 // レコードが存在しない場合は INSERT、存在する場合は UPDATE する。
 // clinicID により clinic 境界を検証する。
 //
 // BUG-079 修正: FirstOrCreate+Assign に同一ポインタを渡すと既存レコード取得後の
 // Assign が無効になるため、FirstOrCreate でレコードを確保してから
 // map[string]any で明示的に Updates する 2 ステップ方式に変更。
-func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
 	// Verify the medical_record belongs to this clinic before upserting
 	var mrCount int64
 	if err := r.db.WithContext(ctx).

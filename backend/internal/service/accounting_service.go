@@ -247,7 +247,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	// Payment upsert（支払フィールドが含まれている場合）
 	if hasPaymentFields(input) {
 		payment := buildPaymentFromInput(input)
-		if err := s.repo.UpsertPayment(ctx, payment); err != nil {
+		if err := s.repo.SavePayment(ctx, payment); err != nil {
 			return nil, apperrors.Wrap(err, "failed to upsert payment")
 		}
 		slog.InfoContext(ctx, "payment upserted",

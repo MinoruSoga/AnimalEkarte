@@ -79,7 +79,7 @@ func (m *mockDiagnosisNameRepository) FindAll(ctx context.Context, clinicID uint
 	return m.findAllFn(ctx, clinicID, page, limit)
 }
 
-func (m *mockDiagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+func (m *mockDiagnosisNameRepository) FindAllByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	return m.findByCategoryIDFn(ctx, clinicID, categoryID, page, limit)
 }
 
@@ -116,7 +116,7 @@ func (m *mockDiagnosisNameRepository) CountUsageByDiagnosisNameID(ctx context.Co
 	return 0, nil
 }
 
-func (m *mockDiagnosisNameRepository) FindAllActive(_ context.Context, _ uint64, _ *uint64) ([]model.DiagnosisName, error) {
+func (m *mockDiagnosisNameRepository) FindAll(_ context.Context, _ uint64, _ *uint64) ([]model.DiagnosisName, error) {
 	return nil, nil
 }
 
@@ -561,7 +561,7 @@ func TestDiagnosisNameService_List(t *testing.T) {
 			useCategory: true,
 		},
 		{
-			name:        "propagates repository error on FindByCategoryID",
+			name:        "propagates repository error on FindAllByCategoryID",
 			typeID:      func() *uint64 { v := uint64(1); return &v }(),
 			repoData:    nil,
 			repoErr:     errors.New("db error"),

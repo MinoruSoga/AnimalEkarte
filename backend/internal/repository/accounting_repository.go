@@ -17,7 +17,7 @@ type AccountingRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
-	UpsertPayment(ctx context.Context, payment *model.Payment) error
+	SavePayment(ctx context.Context, payment *model.Payment) error
 	// BUG-370: 月末未納者一覧
 	FindUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
 	FindUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
@@ -191,7 +191,7 @@ func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID u
 	return &billing, nil
 }
 
-func (r *accountingRepository) UpsertPayment(ctx context.Context, payment *model.Payment) error {
+func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.Payment) error {
 	// map[string]any を使用してゼロ値（Subtotal=0 等）も確実に更新する。
 	// struct の Assign では GORM がゼロ値フィールドをスキップする問題がある。
 	fields := map[string]any{

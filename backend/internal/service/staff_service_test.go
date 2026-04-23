@@ -195,7 +195,7 @@ func (m *mockPermissionGroupForStaff) Update(_ context.Context, _, _ uint64, _ m
 	return &model.PermissionGroup{}, nil
 }
 func (m *mockPermissionGroupForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mockPermissionGroupForStaff) SetRules(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+func (m *mockPermissionGroupForStaff) UpdateRules(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
 	return nil
 }
 func (m *mockPermissionGroupForStaff) CountUsageByGroupID(_ context.Context, _, _ uint64) (int64, error) {
@@ -204,13 +204,13 @@ func (m *mockPermissionGroupForStaff) CountUsageByGroupID(_ context.Context, _, 
 func (m *mockPermissionGroupForStaff) Reorder(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
 }
-func (m *mockPermissionGroupForStaff) FindEffectivePermissionsByStaffID(_ context.Context, _ uint64) ([]model.PermissionGroupRule, error) {
+func (m *mockPermissionGroupForStaff) FindAllEffectivePermissionsByStaffID(_ context.Context, _ uint64) ([]model.PermissionGroupRule, error) {
 	return nil, nil
 }
-func (m *mockPermissionGroupForStaff) FindGroupIDsByStaffID(_ context.Context, _ uint64) ([]uint64, error) {
+func (m *mockPermissionGroupForStaff) FindAllGroupIDsByStaffID(_ context.Context, _ uint64) ([]uint64, error) {
 	return nil, nil
 }
-func (m *mockPermissionGroupForStaff) ReplaceStaffGroups(_ context.Context, _ uint64, _ []uint64) error {
+func (m *mockPermissionGroupForStaff) UpdateStaffGroups(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
 }
 
@@ -234,13 +234,13 @@ func (m *mockResStaffForStaff) CountUsageByStaffID(_ context.Context, _, _ uint6
 func (m *mockResStaffForStaff) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
-func (m *mockResStaffForStaff) FindExcludedReservationTypes(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockResStaffForStaff) FindAllExcludedReservationTypes(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
 	return nil, nil
 }
-func (m *mockResStaffForStaff) FindExcludedReservationTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockResStaffForStaff) FindAllExcludedReservationTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
 	return nil, nil
 }
-func (m *mockResStaffForStaff) ReplaceExcludedReservationTypes(_ context.Context, _ uint64, _ []uint64) error {
+func (m *mockResStaffForStaff) UpdateExcludedReservationTypes(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
 }
 

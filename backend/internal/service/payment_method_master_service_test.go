@@ -177,14 +177,14 @@ func TestPaymentMethodMasterService_Create(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		input      *CreatePaymentMethodInput
+		input      *CreatePaymentMethodMasterInput
 		createFn   func(ctx context.Context, m *model.PaymentMethodMaster) (*model.PaymentMethodMaster, error)
 		wantErr    bool
 		wantResult *model.PaymentMethodMaster
 	}{
 		{
 			name: "正常: 作成済みレコードを返す",
-			input: &CreatePaymentMethodInput{
+			input: &CreatePaymentMethodMasterInput{
 				Name:         "クレジット",
 				DisplayOrder: 2,
 			},
@@ -195,7 +195,7 @@ func TestPaymentMethodMasterService_Create(t *testing.T) {
 		},
 		{
 			name: "エラー: 名前が空 → ErrInvalidInput",
-			input: &CreatePaymentMethodInput{
+			input: &CreatePaymentMethodMasterInput{
 				Name:         "",
 				DisplayOrder: 1,
 			},
@@ -203,7 +203,7 @@ func TestPaymentMethodMasterService_Create(t *testing.T) {
 		},
 		{
 			name: "エラー: DB エラーを返す",
-			input: &CreatePaymentMethodInput{
+			input: &CreatePaymentMethodMasterInput{
 				Name:         "クレジット",
 				DisplayOrder: 2,
 			},
@@ -319,14 +319,14 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		input          *UpdatePaymentMethodInput
+		input          *UpdatePaymentMethodMasterInput
 		updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
 		wantErr        bool
 		wantResult     *model.PaymentMethodMaster
 	}{
 		{
 			name:  "正常: 名前のみ更新が成功",
-			input: &UpdatePaymentMethodInput{Name: ptrStr("現金")},
+			input: &UpdatePaymentMethodMasterInput{Name: ptrStr("現金")},
 			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PaymentMethodMaster, error) {
 				return updated, nil
 			},
@@ -339,17 +339,17 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 		},
 		{
 			name:    "エラー: 空文字名前はエラー",
-			input:   &UpdatePaymentMethodInput{Name: ptrStr("")},
+			input:   &UpdatePaymentMethodMasterInput{Name: ptrStr("")},
 			wantErr: true,
 		},
 		{
 			name:    "エラー: フィールドなしはエラー",
-			input:   &UpdatePaymentMethodInput{},
+			input:   &UpdatePaymentMethodMasterInput{},
 			wantErr: true,
 		},
 		{
 			name:  "エラー: 存在しないIDはエラー",
-			input: &UpdatePaymentMethodInput{Name: ptrStr("現金")},
+			input: &UpdatePaymentMethodMasterInput{Name: ptrStr("現金")},
 			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PaymentMethodMaster, error) {
 				return nil, apperrors.WrapNotFound("payment_method", "99")
 			},

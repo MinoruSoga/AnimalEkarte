@@ -14,7 +14,7 @@ type mockInquiryRepository struct {
 	upsertFn func(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
 }
 
-func (m *mockInquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+func (m *mockInquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
 	return m.upsertFn(ctx, clinicID, inquiry)
 }
 
@@ -76,7 +76,7 @@ func TestInquiryService_Upsert(t *testing.T) {
 				},
 			}
 			svc := NewInquiryService(repo)
-			result, err := svc.Upsert(context.Background(), tt.input)
+			result, err := svc.Save(context.Background(), tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, result)

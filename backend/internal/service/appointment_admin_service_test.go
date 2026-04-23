@@ -26,10 +26,10 @@ type mockReservationAdminRepository struct {
 	findByIDForNotify  func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 }
 
-func (m *mockReservationAdminRepository) FindByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error) {
+func (m *mockReservationAdminRepository) FindAllByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error) {
 	return m.findByMonthFn(ctx, clinicID, year, month)
 }
-func (m *mockReservationAdminRepository) FindByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
+func (m *mockReservationAdminRepository) FindAllByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
 	return m.findByDayFn(ctx, clinicID, date)
 }
 func (m *mockReservationAdminRepository) Create(ctx context.Context, r *model.Reservation) error {
@@ -41,7 +41,7 @@ func (m *mockReservationAdminRepository) Create(ctx context.Context, r *model.Re
 func (m *mockReservationAdminRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
 	return m.softDeleteFn(ctx, clinicID, id)
 }
-func (m *mockReservationAdminRepository) FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
+func (m *mockReservationAdminRepository) FindAllByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
 	if m.findByCustomerIDFn != nil {
 		return m.findByCustomerIDFn(ctx, clinicID, customerID)
 	}

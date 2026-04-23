@@ -242,7 +242,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 	if input.Notes != nil {
 		inquiry.Notes = *input.Notes
 	}
-	if _, err := s.inquiryRepo.UpsertByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
+	if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
 		slog.WarnContext(ctx, "createSubRecords: failed to upsert inquiry",
 			slog.Uint64("medical_record_id", recordID),
 			slog.String("error", err.Error()))

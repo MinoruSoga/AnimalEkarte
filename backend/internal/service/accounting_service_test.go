@@ -40,7 +40,7 @@ func (m *mockAccountingRepository) Update(ctx context.Context, clinicID, billing
 	return m.updateFieldsFn(ctx, clinicID, billingID, fields)
 }
 
-func (m *mockAccountingRepository) UpsertPayment(_ context.Context, _ *model.Payment) error {
+func (m *mockAccountingRepository) SavePayment(_ context.Context, _ *model.Payment) error {
 	return nil
 }
 

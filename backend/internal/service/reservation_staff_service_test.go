@@ -62,21 +62,21 @@ func (m *mockReservationStaffRepository) SwapSortOrder(ctx context.Context, clin
 	return nil
 }
 
-func (m *mockReservationStaffRepository) FindExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockReservationStaffRepository) FindAllExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
 	if m.findExcludedReservationTypesFn != nil {
 		return m.findExcludedReservationTypesFn(ctx, staffID)
 	}
 	return []model.StaffReservationExclusion{}, nil
 }
 
-func (m *mockReservationStaffRepository) FindExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockReservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
 	if m.findExcludedReservationTypesByStaffIDs != nil {
 		return m.findExcludedReservationTypesByStaffIDs(ctx, staffIDs)
 	}
 	return []model.StaffReservationExclusion{}, nil
 }
 
-func (m *mockReservationStaffRepository) ReplaceExcludedReservationTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error {
+func (m *mockReservationStaffRepository) UpdateExcludedReservationTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error {
 	if m.replaceExcludedReservationTypesFn != nil {
 		return m.replaceExcludedReservationTypesFn(ctx, staffID, courseIDs)
 	}

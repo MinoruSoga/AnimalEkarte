@@ -659,7 +659,7 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 // noopInquiryRepo は CreateSubRecords テスト用の no-op InquiryRepository
 type noopInquiryRepo struct{}
 
-func (n *noopInquiryRepo) UpsertByMedicalRecordID(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+func (n *noopInquiryRepo) SaveByMedicalRecordID(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
 	return inquiry, nil
 }
 func (n *noopInquiryRepo) CountByChiefComplaintTypeID(_ context.Context, _, _ uint64) (int64, error) {

@@ -32,7 +32,7 @@ func (m *mockAccountingRepositoryForReport) Create(_ context.Context, _ uint64, 
 func (m *mockAccountingRepositoryForReport) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
 	return nil, nil
 }
-func (m *mockAccountingRepositoryForReport) UpsertPayment(_ context.Context, _ *model.Payment) error {
+func (m *mockAccountingRepositoryForReport) SavePayment(_ context.Context, _ *model.Payment) error {
 	return nil
 }
 func (m *mockAccountingRepositoryForReport) FindUnpaidByBilling(_ context.Context, _ uint64, _ string, _, _ int) ([]model.Billing, int64, error) {
@@ -187,7 +187,7 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:  "エラー: FindByYearMonth（休診日）がエラーを返す",
+			name:  "エラー: FindAllByYearMonth（休診日）がエラーを返す",
 			year:  2026,
 			month: 4,
 			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {

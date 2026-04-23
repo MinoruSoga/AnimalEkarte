@@ -65,7 +65,7 @@ func (m *mockPermissionGroupService) Delete(ctx context.Context, clinicID, id ui
 	return nil
 }
 
-func (m *mockPermissionGroupService) SetRules(ctx context.Context, groupID uint64, inputs []service.SetPermissionGroupRulesInput, actorStaffID uint64) error {
+func (m *mockPermissionGroupService) UpdateRules(ctx context.Context, groupID uint64, inputs []service.SetPermissionGroupRulesInput, actorStaffID uint64) error {
 	if m.setRulesFn != nil {
 		return m.setRulesFn(ctx, groupID, inputs, actorStaffID)
 	}

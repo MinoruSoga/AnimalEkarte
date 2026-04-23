@@ -22,12 +22,12 @@ import {
   useCreatePermissionGroup,
   useUpdatePermissionGroup,
   useDeletePermissionGroup,
-  useSetPermissionGroupRules,
+  useUpdatePermissionGroupRules,
   useReorderPermissionGroups,
   type PermissionGroup,
   type CreatePermissionGroupRequest,
   type UpdatePermissionGroupRequest,
-  type SetPermissionGroupRulesRequest,
+  type UpdatePermissionGroupRulesRequest,
 } from "../api/permission-groups";
 import { PermissionRuleTable, type PermissionRule } from "../components/PermissionRuleTable";
 import { ResourceMasterPermission } from "@/types/generated/models";
@@ -227,7 +227,7 @@ export function PermissionGroupSettings() {
   const createMutation = useCreatePermissionGroup();
   const updateMutation = useUpdatePermissionGroup();
   const deleteMutation = useDeletePermissionGroup();
-  const setRulesMutation = useSetPermissionGroupRules();
+  const updateRulesMutation = useUpdatePermissionGroupRules();
   const reorderMutation = useReorderPermissionGroups();
 
   const dirty = useSidePeekDirty();
@@ -286,9 +286,9 @@ export function PermissionGroupSettings() {
       is_active: d.isActive,
     }),
     onSuccess: async (saved, formData) => {
-      // Set rules if any
+      // Update rules if any
       if (formData.rules.length > 0) {
-        const rulesReq: SetPermissionGroupRulesRequest = {
+        const rulesReq: UpdatePermissionGroupRulesRequest = {
           rules: formData.rules.map((r) => ({
             resource: r.resource,
             can_view: r.canView,
@@ -297,7 +297,7 @@ export function PermissionGroupSettings() {
             can_delete: r.canDelete,
           })),
         };
-        await setRulesMutation.mutateAsync({ id: saved.id, req: rulesReq });
+        await updateRulesMutation.mutateAsync({ id: saved.id, req: rulesReq });
       }
     },
   });

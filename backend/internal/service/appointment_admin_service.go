@@ -51,7 +51,7 @@ func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM format for month view")
 	}
-	items, err := s.repo.FindByMonth(ctx, clinicID, t.Year(), t.Month())
+	items, err := s.repo.FindAllByMonth(ctx, clinicID, t.Year(), t.Month())
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list reservations by month")
 	}
@@ -59,7 +59,7 @@ func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint
 }
 
 func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
-	items, err := s.repo.FindByDay(ctx, clinicID, date)
+	items, err := s.repo.FindAllByDay(ctx, clinicID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list reservations by day")
 	}

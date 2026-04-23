@@ -424,7 +424,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 
 // GetMyReservations は顧客自身の予約一覧を返す。
 func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
-	items, err := s.adminRepo.FindByCustomerID(ctx, clinicID, customerID)
+	items, err := s.adminRepo.FindAllByCustomerID(ctx, clinicID, customerID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get my reservations")
 	}
@@ -553,7 +553,7 @@ func (s *liffService) filterVisibleStaffsByTypeID(ctx context.Context, typeID ui
 // buildStaffSlotInputs はスタッフ一覧と指定日からStaffSlotInputsを構築する。
 func (s *liffService) buildStaffSlotInputs(ctx context.Context, clinicID uint64, staffs []model.Staff, date time.Time) ([]StaffSlotInput, error) {
 	// 当日の全予約を一括取得（N+1回避）
-	dayResv, err := s.adminRepo.FindByDay(ctx, clinicID, date)
+	dayResv, err := s.adminRepo.FindAllByDay(ctx, clinicID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get day reservations")
 	}
@@ -639,7 +639,7 @@ func (s *liffService) delegateStaff(ctx context.Context, clinicID, typeID uint64
 
 	default: // "first_available"
 		// 空き枠があるスタッフを表示順に探す
-		dayResv, err := s.adminRepo.FindByDay(ctx, clinicID, date)
+		dayResv, err := s.adminRepo.FindAllByDay(ctx, clinicID, date)
 		if err != nil {
 			return 0, nil //nolint:nilerr // 意図的フォールバック: 既存予約取得失敗時は空き確認をスキップして指名なしにする
 		}

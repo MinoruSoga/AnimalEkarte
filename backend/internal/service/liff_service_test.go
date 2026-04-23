@@ -265,7 +265,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 		assert.Equal(t, uint64(1), got[0].ID)
 	})
 
-	t.Run("FindExcludedReservationTypesByStaffIDs がエラーを返す → エラー伝播", func(t *testing.T) {
+	t.Run("FindAllExcludedReservationTypesByStaffIDs がエラーを返す → エラー伝播", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{},
