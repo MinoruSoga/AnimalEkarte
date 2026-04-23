@@ -65,7 +65,7 @@ func (h *Handler) UpsertReservationSchedule(c *gin.Context) {
 		breaks = append(breaks, service.ReservationScheduleBreakInput{Start: b.Start, End: b.End})
 	}
 
-	entry, isNew, err := h.svc.ReservationSchedule.Upsert(c.Request.Context(), clinicID, staffID, date, &service.CreateReservationScheduleInput{
+	entry, isNew, err := h.svc.ReservationSchedule.Save(c.Request.Context(), clinicID, staffID, date, &service.CreateReservationScheduleInput{
 		ShiftType: req.ShiftType,
 		WorkStart: req.WorkStart,
 		WorkEnd:   req.WorkEnd,

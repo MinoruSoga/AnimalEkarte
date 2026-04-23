@@ -28,8 +28,8 @@ func (h *Handler) GetLineReservationSetting(c *gin.Context) {
 	c.JSON(http.StatusOK, toLineReservationSettingResponse(setting))
 }
 
-// UpsertLineReservationSetting godoc
-func (h *Handler) UpsertLineReservationSetting(c *gin.Context) {
+// SaveLineReservationSetting godoc
+func (h *Handler) SaveLineReservationSetting(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -39,7 +39,7 @@ func (h *Handler) UpsertLineReservationSetting(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	setting, isNew, err := h.svc.LineReservationSetting.Upsert(c.Request.Context(), clinicID, &service.UpsertLineReservationSettingInput{
+	setting, isNew, err := h.svc.LineReservationSetting.Save(c.Request.Context(), clinicID, &service.SaveLineReservationSettingInput{
 		Status:                  req.Status,
 		HeaderText:              req.HeaderText,
 		ReservationNotice:       req.ReservationNotice,

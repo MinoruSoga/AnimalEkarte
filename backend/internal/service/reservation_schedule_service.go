@@ -33,7 +33,7 @@ type ScheduleEntry struct {
 // ReservationScheduleService はスタッフスケジュールのビジネスロジックインターフェース
 type ReservationScheduleService interface {
 	ListByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]ScheduleEntry, error)
-	Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error)
+	Save(ctx context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error)
 	Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
@@ -46,7 +46,7 @@ func NewReservationScheduleService(repo repository.ReservationScheduleRepository
 }
 
 func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]ScheduleEntry, error) {
-	entries, err := s.repo.FindByMonth(ctx, clinicID, staffID, month)
+	entries, err := s.repo.FindAllByMonth(ctx, clinicID, staffID, month)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list schedules", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list schedules")
@@ -58,7 +58,7 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 	for i := range entries {
 		entryIDs[i] = entries[i].ID
 	}
-	breaksMap, err := s.repo.FindBreaksByEntryIDs(ctx, entryIDs)
+	breaksMap, err := s.repo.FindAllBreaksByEntryIDs(ctx, entryIDs)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list schedule breaks", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list schedule breaks")
@@ -73,7 +73,7 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 	return result, nil
 }
 
-func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error) {
+func (s *reservationScheduleService) Save(ctx context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error) {
 	shiftType := model.ShiftType(input.ShiftType)
 	startTime := normalizeTimeString(input.WorkStart)
 	endTime := normalizeTimeString(input.WorkEnd)
@@ -82,7 +82,7 @@ func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staff
 	}
 
 	// 既存レコードの有無を確認し、新規作成かどうかを判定する
-	existing, err := s.repo.FindByDate(ctx, clinicID, staffID, date)
+	existing, err := s.repo.FindAllByDate(ctx, clinicID, staffID, date)
 	isNew := err != nil || existing == nil
 	if err != nil && !apperrors.IsNotFound(err) {
 		slog.ErrorContext(ctx, "failed to find schedule before upsert", "error", err, "clinic_id", clinicID)
@@ -106,12 +106,12 @@ func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staff
 		})
 	}
 
-	if err := s.repo.Upsert(ctx, clinicID, entry, breaks); err != nil {
+	if err := s.repo.Save(ctx, clinicID, entry, breaks); err != nil {
 		slog.ErrorContext(ctx, "failed to upsert schedule", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to upsert schedule")
 	}
 	// Upsert後に DB から最新の breaks を取得（ID が振られた状態で返す）
-	savedBreaks, err := s.repo.FindBreaksByEntryID(ctx, entry.ID)
+	savedBreaks, err := s.repo.FindAllBreaksByEntryID(ctx, entry.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load schedule breaks after upsert", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to load schedule breaks after upsert")
@@ -125,7 +125,7 @@ func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staff
 
 func (s *reservationScheduleService) Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
 	// 存在確認（NotFound は FromGORM 経由で伝播）
-	if _, err := s.repo.FindByDate(ctx, clinicID, staffID, date); err != nil {
+	if _, err := s.repo.FindAllByDate(ctx, clinicID, staffID, date); err != nil {
 		slog.ErrorContext(ctx, "failed to find schedule before delete", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to find schedule before delete")
 	}

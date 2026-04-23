@@ -74,8 +74,8 @@ type PermissionGroupService interface {
 	Create(ctx context.Context, clinicID uint64, input *CreatePermissionGroupInput) (*model.PermissionGroup, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePermissionGroupInput) (*model.PermissionGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	// SetRules はグループのルールを全置換する。actorStaffID は自己参照チェックに使用される。
-	SetRules(ctx context.Context, groupID uint64, inputs []SetPermissionGroupRulesInput, actorStaffID uint64) error
+	// UpdateRules はグループのルールを全置換する。actorStaffID は自己参照チェックに使用される。
+	UpdateRules(ctx context.Context, groupID uint64, inputs []SetPermissionGroupRulesInput, actorStaffID uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -189,7 +189,7 @@ func (s *permissionGroupService) Delete(ctx context.Context, clinicID, id uint64
 	return nil
 }
 
-func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, inputs []SetPermissionGroupRulesInput, actorStaffID uint64) error {
+func (s *permissionGroupService) UpdateRules(ctx context.Context, groupID uint64, inputs []SetPermissionGroupRulesInput, actorStaffID uint64) error {
 	// Input DTO を model.PermissionGroupRule に変換
 	rules := make([]model.PermissionGroupRule, 0, len(inputs))
 	for _, inp := range inputs {
@@ -207,7 +207,7 @@ func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, i
 	}
 	// BUG-140: 自分が所属するグループの master-permission edit を削除できないようにする
 	// staffGroupIDs をサービス内で取得する（Handler が外部データを取得する責務を持たない）
-	staffGroupIDs, err := s.repo.FindGroupIDsByStaffID(ctx, actorStaffID)
+	staffGroupIDs, err := s.repo.FindAllGroupIDsByStaffID(ctx, actorStaffID)
 	if err != nil {
 		// エラー時は空にして自己参照チェック不能なら許可方向（ベストエフォート、Handler層がエラーハンドリング）
 		staffGroupIDs = []uint64{}
@@ -215,7 +215,7 @@ func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, i
 	if err := validateNotSelfReference(groupID, rules, staffGroupIDs); err != nil {
 		return err
 	}
-	if err := s.repo.SetRules(ctx, groupID, rules); err != nil {
+	if err := s.repo.UpdateRules(ctx, groupID, rules); err != nil {
 		slog.ErrorContext(ctx, "failed to set permission group rules", "error", err, "id", groupID)
 		return apperrors.Wrap(err, "failed to set permission group rules")
 	}
@@ -283,7 +283,7 @@ func (s *permissionGroupService) Reorder(ctx context.Context, clinicID uint64, i
 }
 
 func (s *permissionGroupService) GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
-	rules, err := s.repo.FindEffectivePermissionsByStaffID(ctx, staffID)
+	rules, err := s.repo.FindAllEffectivePermissionsByStaffID(ctx, staffID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get effective permissions", "error", err, "id", staffID)
 		return nil, apperrors.Wrap(err, "failed to get effective permissions")

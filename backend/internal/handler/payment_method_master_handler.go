@@ -57,7 +57,7 @@ func (h *Handler) CreatePaymentMethod(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	m, err := h.svc.PaymentMethodMaster.Create(c.Request.Context(), clinicID, &service.CreatePaymentMethodInput{
+	m, err := h.svc.PaymentMethodMaster.Create(c.Request.Context(), clinicID, &service.CreatePaymentMethodMasterInput{
 		Name:         req.Name,
 		DisplayOrder: req.DisplayOrder,
 	})
@@ -85,7 +85,7 @@ func (h *Handler) UpdatePaymentMethod(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	m, err := h.svc.PaymentMethodMaster.Update(c.Request.Context(), clinicID, id, &service.UpdatePaymentMethodInput{
+	m, err := h.svc.PaymentMethodMaster.Update(c.Request.Context(), clinicID, id, &service.UpdatePaymentMethodMasterInput{
 		Name:         req.Name,
 		DisplayOrder: req.DisplayOrder,
 		IsActive:     req.IsActive,

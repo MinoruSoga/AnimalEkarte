@@ -252,7 +252,7 @@ func NewDiagnosisNameService(
 
 func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, typeID *uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	if typeID != nil {
-		items, total, err := s.repo.FindByCategoryID(ctx, clinicID, *typeID, page, limit)
+		items, total, err := s.repo.FindAllByCategoryID(ctx, clinicID, *typeID, page, limit)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to list diagnosis names by type", "error", err, "clinic_id", clinicID)
 			return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names by type")
@@ -270,7 +270,7 @@ func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, typeID
 // ListNames はページネーションなしで診断名の一覧を返す (#418)。
 // typeID が非 nil の場合は該当カテゴリのみ、nil の場合は全件を返す。
 func (s *diagnosisNameService) ListNames(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
-	items, err := s.repo.FindAllActive(ctx, clinicID, typeID)
+	items, err := s.repo.FindAllByFilter(ctx, clinicID, typeID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list diagnosis names", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list diagnosis names")

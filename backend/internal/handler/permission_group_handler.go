@@ -235,7 +235,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 		})
 	}
 
-	if err := h.svc.PermissionGroup.SetRules(c.Request.Context(), id, inputRules, staffID); err != nil {
+	if err := h.svc.PermissionGroup.UpdateRules(c.Request.Context(), id, inputRules, staffID); err != nil {
 		RespondError(c, err)
 		return
 	}

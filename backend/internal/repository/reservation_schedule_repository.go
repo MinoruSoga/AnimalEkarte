@@ -14,11 +14,11 @@ import (
 
 // ReservationScheduleRepository はスタッフ個人スケジュール（shift_entries + shift_entry_breaks）のデータアクセスインターフェース
 type ReservationScheduleRepository interface {
-	FindByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error)
-	FindBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
-	FindByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
-	FindBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
-	Upsert(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
+	FindAllByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error)
+	FindAllBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
+	FindAllByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
+	FindAllBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
+	Save(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
 	Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
@@ -28,7 +28,7 @@ func NewReservationScheduleRepository(db *gorm.DB) ReservationScheduleRepository
 	return &reservationScheduleRepository{db: db}
 }
 
-func (r *reservationScheduleRepository) FindByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error) {
+func (r *reservationScheduleRepository) FindAllByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error) {
 	t, err := time.Parse("2006-01", month)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("month must be YYYY-MM format")
@@ -50,7 +50,7 @@ func (r *reservationScheduleRepository) FindByMonth(ctx context.Context, clinicI
 	return entries, nil
 }
 
-func (r *reservationScheduleRepository) FindBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+func (r *reservationScheduleRepository) FindAllBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 	if len(entryIDs) == 0 {
 		return map[uint64][]model.ShiftEntryBreak{}, nil
 	}
@@ -65,7 +65,7 @@ func (r *reservationScheduleRepository) FindBreaksByEntryIDs(ctx context.Context
 	return result, nil
 }
 
-func (r *reservationScheduleRepository) FindBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error) {
+func (r *reservationScheduleRepository) FindAllBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error) {
 	var breaks []model.ShiftEntryBreak
 	if err := r.db.WithContext(ctx).Where("shift_entry_id = ?", entryID).Find(&breaks).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "schedule_entry", "")
@@ -73,7 +73,7 @@ func (r *reservationScheduleRepository) FindBreaksByEntryID(ctx context.Context,
 	return breaks, nil
 }
 
-func (r *reservationScheduleRepository) FindByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error) {
+func (r *reservationScheduleRepository) FindAllByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error) {
 	var entry model.ShiftEntry
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
@@ -86,8 +86,8 @@ func (r *reservationScheduleRepository) FindByDate(ctx context.Context, clinicID
 	return &entry, nil
 }
 
-// Upsert は ShiftEntry と ShiftEntryBreaks をトランザクションで upsert する
-func (r *reservationScheduleRepository) Upsert(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
+// Save は ShiftEntry と ShiftEntryBreaks をトランザクションで upsert する
+func (r *reservationScheduleRepository) Save(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存エントリを検索
 		var existing model.ShiftEntry

@@ -13,7 +13,7 @@ import (
 // LineReservationSettingRepository は予約基本設定のデータアクセスインターフェース
 type LineReservationSettingRepository interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
-	Upsert(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error
+	Save(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error
 }
 
 type lineReservationSettingRepository struct{ db *gorm.DB }
@@ -31,7 +31,7 @@ func (r *lineReservationSettingRepository) FindByClinicID(ctx context.Context, c
 	return &setting, nil
 }
 
-func (r *lineReservationSettingRepository) Upsert(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error {
+func (r *lineReservationSettingRepository) Save(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error {
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Clauses(clause.OnConflict{

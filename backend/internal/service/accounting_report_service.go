@@ -129,7 +129,7 @@ func (s *accountingReportService) GetMonthly(ctx context.Context, clinicID uint6
 
 	// 休診日マスタを取得
 	yearMonth := fmt.Sprintf("%04d-%02d", year, month)
-	holidays, err := s.holidayRepo.FindByYearMonth(ctx, clinicID, yearMonth)
+	holidays, err := s.holidayRepo.FindAllByYearMonth(ctx, clinicID, yearMonth)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get clinic holidays")
 	}

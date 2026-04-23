@@ -126,7 +126,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 			return apperrors.Wrap(err, "failed to create reservation staff")
 		}
 		if len(input.ExcludedTypeIDs) > 0 {
-			if err := s.repo.ReplaceExcludedReservationTypes(txCtx, staff.ID, input.ExcludedTypeIDs); err != nil {
+			if err := s.repo.UpdateExcludedReservationTypes(txCtx, staff.ID, input.ExcludedTypeIDs); err != nil {
 				slog.ErrorContext(txCtx, "failed to set excluded courses", "error", err)
 				return apperrors.Wrap(err, "failed to set excluded courses")
 			}
@@ -138,7 +138,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 	slog.InfoContext(ctx, "reservation staff created",
 		slog.Uint64("staff_id", staff.ID),
 		slog.Uint64("clinic_id", clinicID))
-	excluded, err := s.repo.FindExcludedReservationTypes(ctx, staff.ID)
+	excluded, err := s.repo.FindAllExcludedReservationTypes(ctx, staff.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get excluded reservation types", "error", err, "clinic_id", clinicID)
 		return nil, nil, apperrors.Wrap(err, "failed to get excluded reservation types")
@@ -160,7 +160,7 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 		}
 	}
 	if input.ExcludedTypeIDs != nil {
-		if err := s.repo.ReplaceExcludedReservationTypes(ctx, id, *input.ExcludedTypeIDs); err != nil {
+		if err := s.repo.UpdateExcludedReservationTypes(ctx, id, *input.ExcludedTypeIDs); err != nil {
 			slog.ErrorContext(ctx, "failed to update excluded courses", "error", err, "id", id, "clinic_id", clinicID)
 			return nil, nil, apperrors.Wrap(err, "failed to update excluded courses")
 		}
@@ -173,7 +173,7 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 	slog.InfoContext(ctx, "reservation staff updated",
 		slog.Uint64("staff_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	excluded, err := s.repo.FindExcludedReservationTypes(ctx, id)
+	excluded, err := s.repo.FindAllExcludedReservationTypes(ctx, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get excluded reservation types", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, nil, apperrors.Wrap(err, "failed to get excluded reservation types")
@@ -220,7 +220,7 @@ func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id 
 		slog.Uint64("staff_id", id),
 		slog.Uint64("clinic_id", clinicID),
 		slog.Bool("is_active", isActive))
-	excluded, err := s.repo.FindExcludedReservationTypes(ctx, id)
+	excluded, err := s.repo.FindAllExcludedReservationTypes(ctx, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get excluded reservation types", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, nil, apperrors.Wrap(err, "failed to get excluded reservation types")
@@ -241,7 +241,7 @@ func (s *reservationStaffService) PatchSortOrder(ctx context.Context, clinicID, 
 
 // GetExcludedReservationTypes は指定スタッフの除外コース一覧を返す
 func (s *reservationStaffService) GetExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
-	items, err := s.repo.FindExcludedReservationTypes(ctx, staffID)
+	items, err := s.repo.FindAllExcludedReservationTypes(ctx, staffID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get excluded service types", "error", err, "id", staffID)
 		return nil, apperrors.Wrap(err, "failed to get excluded service types")
@@ -251,7 +251,7 @@ func (s *reservationStaffService) GetExcludedReservationTypes(ctx context.Contex
 
 // ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す
 func (s *reservationStaffService) ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
-	items, err := s.repo.FindExcludedReservationTypesByStaffIDs(ctx, staffIDs)
+	items, err := s.repo.FindAllExcludedReservationTypesByStaffIDs(ctx, staffIDs)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list excluded service types", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list excluded service types")

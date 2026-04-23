@@ -14,8 +14,8 @@ import (
 // ClinicHolidayRepository は個別休診日のデータアクセスインターフェース
 type ClinicHolidayRepository interface {
 	FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
-	FindByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
-	Upsert(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
+	FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
+	Save(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
 	Delete(ctx context.Context, clinicID uint64, date time.Time) error
 }
 
@@ -26,7 +26,7 @@ func NewClinicHolidayRepository(db *gorm.DB) ClinicHolidayRepository {
 	return &clinicHolidayRepository{db: db}
 }
 
-func (r *clinicHolidayRepository) FindByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
+func (r *clinicHolidayRepository) FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
 	var holidays []model.ClinicHoliday
 	q := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
@@ -43,7 +43,7 @@ func (r *clinicHolidayRepository) FindByYearMonth(ctx context.Context, clinicID 
 	return holidays, nil
 }
 
-func (r *clinicHolidayRepository) Upsert(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
+func (r *clinicHolidayRepository) Save(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
 	// (clinic_id, date) のユニーク制約を利用してアトミックな UPSERT を実施する。
 	// 手動の First→Create/Update パターンはレースコンディションを持つため clause.OnConflict を使用する。
 	err := r.db.WithContext(ctx).

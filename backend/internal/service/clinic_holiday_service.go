@@ -27,7 +27,7 @@ func NewClinicHolidayService(repo repository.ClinicHolidayRepository) ClinicHoli
 }
 
 func (s *clinicHolidayService) List(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
-	holidays, err := s.repo.FindByYearMonth(ctx, clinicID, yearMonth)
+	holidays, err := s.repo.FindAllByYearMonth(ctx, clinicID, yearMonth)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list clinic holidays", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list clinic holidays")
@@ -41,7 +41,7 @@ func (s *clinicHolidayService) Set(ctx context.Context, clinicID uint64, date ti
 		Date:     date,
 		Reason:   reason,
 	}
-	result, err := s.repo.Upsert(ctx, clinicID, holiday)
+	result, err := s.repo.Save(ctx, clinicID, holiday)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to set clinic holiday", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to set clinic holiday")

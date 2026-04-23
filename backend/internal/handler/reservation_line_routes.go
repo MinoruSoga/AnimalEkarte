@@ -20,7 +20,7 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 
 	// TASK-RES-010: 基本設定
 	clinics.GET("/line-reservation-settings", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.GetLineReservationSetting)
-	clinics.PUT("/line-reservation-settings", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpsertLineReservationSetting)
+	clinics.PUT("/line-reservation-settings", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.SaveLineReservationSetting)
 
 	// TASK-RES-011: 予約区分（LINE管理用）
 	types := clinics.Group("/reservation-types")

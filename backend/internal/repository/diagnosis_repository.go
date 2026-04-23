@@ -117,8 +117,8 @@ func (r *diagnosisTypeRepository) Reorder(ctx context.Context, clinicID uint64, 
 
 type DiagnosisNameRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
-	FindByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
-	FindAllActive(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
+	FindAllByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	FindAllByFilter(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, name *model.DiagnosisName) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
@@ -151,7 +151,7 @@ func (r *diagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, 
 	return names, total, nil
 }
 
-func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+func (r *diagnosisNameRepository) FindAllByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	buildBase := func() *gorm.DB {
 		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).
 			Scopes(clinicScope(clinicID)).
@@ -171,10 +171,10 @@ func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID
 	return names, total, nil
 }
 
-// FindAllActive はページネーションなしで全件取得する（#418: ListNames 用）。
+// FindAll はページネーションなしで全件取得する（#418: ListNames 用）。
 // typeID が非 nil の場合は該当カテゴリのみ、nil の場合はクリニック全件を返す。
 // is_active = true のレコードのみを返す（CODE-QUALITY-232）。
-func (r *diagnosisNameRepository) FindAllActive(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
+func (r *diagnosisNameRepository) FindAllByFilter(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
 	q := r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(clinicScope(clinicID)).
 		Where("is_active = ?", true)
 	if typeID != nil {

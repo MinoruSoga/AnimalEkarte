@@ -9,14 +9,14 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// CreatePaymentMethodInput は支払方法作成の入力
-type CreatePaymentMethodInput struct {
+// CreatePaymentMethodMasterInput は支払方法作成の入力
+type CreatePaymentMethodMasterInput struct {
 	Name         string
 	DisplayOrder int
 }
 
-// UpdatePaymentMethodInput は支払方法更新の入力
-type UpdatePaymentMethodInput struct {
+// UpdatePaymentMethodMasterInput は支払方法更新の入力
+type UpdatePaymentMethodMasterInput struct {
 	Name         *string
 	DisplayOrder *int
 	IsActive     *bool
@@ -28,7 +28,7 @@ const (
 	colPaymentMethodIsActive     = "is_active"
 )
 
-func buildPaymentMethodUpdate(input *UpdatePaymentMethodInput) map[string]any {
+func buildPaymentMethodUpdate(input *UpdatePaymentMethodMasterInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colPaymentMethodName] = *input.Name
@@ -46,8 +46,8 @@ func buildPaymentMethodUpdate(input *UpdatePaymentMethodInput) map[string]any {
 type PaymentMethodMasterService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
-	Create(ctx context.Context, clinicID uint64, input *CreatePaymentMethodInput) (*model.PaymentMethodMaster, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdatePaymentMethodInput) (*model.PaymentMethodMaster, error)
+	Create(ctx context.Context, clinicID uint64, input *CreatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -79,7 +79,7 @@ func (s *paymentMethodMasterService) GetByID(ctx context.Context, clinicID, id u
 	return result, nil
 }
 
-func (s *paymentMethodMasterService) Create(ctx context.Context, clinicID uint64, input *CreatePaymentMethodInput) (*model.PaymentMethodMaster, error) {
+func (s *paymentMethodMasterService) Create(ctx context.Context, clinicID uint64, input *CreatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (s *paymentMethodMasterService) Create(ctx context.Context, clinicID uint64
 	return result, nil
 }
 
-func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePaymentMethodInput) (*model.PaymentMethodMaster, error) {
+func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}

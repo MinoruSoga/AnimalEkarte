@@ -23,8 +23,8 @@ import (
 type mockPaymentMethodMasterService struct {
 	listFn    func(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
-	createFn  func(ctx context.Context, clinicID uint64, input *service.CreatePaymentMethodInput) (*model.PaymentMethodMaster, error)
-	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdatePaymentMethodInput) (*model.PaymentMethodMaster, error)
+	createFn  func(ctx context.Context, clinicID uint64, input *service.CreatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error)
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error)
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -37,11 +37,11 @@ func (m *mockPaymentMethodMasterService) GetByID(ctx context.Context, clinicID, 
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockPaymentMethodMasterService) Create(ctx context.Context, clinicID uint64, input *service.CreatePaymentMethodInput) (*model.PaymentMethodMaster, error) {
+func (m *mockPaymentMethodMasterService) Create(ctx context.Context, clinicID uint64, input *service.CreatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 	return m.createFn(ctx, clinicID, input)
 }
 
-func (m *mockPaymentMethodMasterService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdatePaymentMethodInput) (*model.PaymentMethodMaster, error) {
+func (m *mockPaymentMethodMasterService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 	return m.updateFn(ctx, clinicID, id, input)
 }
 
@@ -224,7 +224,7 @@ func TestPaymentMethodMasterHandler_Create(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockPaymentMethodMasterService{
-				createFn: func(_ context.Context, clinicID uint64, input *service.CreatePaymentMethodInput) (*model.PaymentMethodMaster, error) {
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "現金", input.Name)
 					assert.Equal(t, 1, input.DisplayOrder)
@@ -260,7 +260,7 @@ func TestPaymentMethodMasterHandler_Create(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockPaymentMethodMasterService{
-				createFn: func(_ context.Context, _ uint64, _ *service.CreatePaymentMethodInput) (*model.PaymentMethodMaster, error) {
+				createFn: func(_ context.Context, _ uint64, _ *service.CreatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			},
@@ -311,7 +311,7 @@ func TestPaymentMethodMasterHandler_Update(t *testing.T) {
 			body:     map[string]any{"name": "クレジットカード"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockPaymentMethodMasterService{
-				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdatePaymentMethodInput) (*model.PaymentMethodMaster, error) {
+				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
 					require.NotNil(t, input.Name)
@@ -352,7 +352,7 @@ func TestPaymentMethodMasterHandler_Update(t *testing.T) {
 			body:     map[string]any{"name": "テスト"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockPaymentMethodMasterService{
-				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdatePaymentMethodInput) (*model.PaymentMethodMaster, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 					return nil, apperrors.WrapNotFound("payment_method", "999")
 				},
 			},

@@ -258,6 +258,7 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 			ReservationImageURL:    input.ReservationImageURL,
 		}
 		if err := s.repo.Create(ctx, staff); err != nil {
+			slog.ErrorContext(ctx, "failed to create staff", "error", err)
 			return apperrors.Wrap(err, "failed to create staff")
 		}
 		if input.ClinicID != 0 {
@@ -266,6 +267,7 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 				ClinicID: input.ClinicID,
 				IsMain:   true,
 			}); err != nil {
+				slog.ErrorContext(ctx, "failed to assign staff to clinic", "error", err, "clinic_id", input.ClinicID)
 				return apperrors.Wrap(err, "failed to assign staff to clinic")
 			}
 		}
@@ -329,9 +331,9 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 			IsActive:     true,
 		}
 		if createErr := s.accountRepo.Create(ctx, account); createErr != nil {
+			slog.ErrorContext(ctx, "failed to create account", "error", createErr)
 			return apperrors.Wrap(createErr, "failed to create account")
 		}
-
 		staff = &model.Staff{
 			Name:                   name,
 			LicenseNumber:          input.LicenseNumber,
@@ -346,6 +348,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 			ReservationImageURL:    input.ReservationImageURL,
 		}
 		if err := s.repo.Create(ctx, staff); err != nil {
+			slog.ErrorContext(ctx, "failed to create staff", "error", err)
 			return apperrors.Wrap(err, "failed to create staff")
 		}
 		if input.ClinicID != 0 {
@@ -354,6 +357,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 				ClinicID: input.ClinicID,
 				IsMain:   true,
 			}); err != nil {
+				slog.ErrorContext(ctx, "failed to assign staff to clinic", "error", err, "clinic_id", input.ClinicID)
 				return apperrors.Wrap(err, "failed to assign staff to clinic")
 			}
 		}
@@ -384,6 +388,7 @@ func (s *staffService) UpdatePassword(ctx context.Context, accountID uint64, new
 func (s *staffService) SetClinicAssignments(ctx context.Context, staffID uint64, clinicIDs []uint64) error {
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if err := s.assignmentRepo.Delete(ctx, staffID); err != nil {
+			slog.ErrorContext(ctx, "failed to delete existing clinic assignments", "error", err, "staff_id", staffID)
 			return apperrors.Wrap(err, "failed to delete existing clinic assignments")
 		}
 		for i, clinicID := range clinicIDs {
@@ -393,6 +398,7 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, staffID uint64,
 				IsMain:   i == 0,
 			}
 			if err := s.assignmentRepo.Create(ctx, assignment); err != nil {
+				slog.ErrorContext(ctx, "failed to create clinic assignment", "error", err, "staff_id", staffID, "clinic_id", clinicID)
 				return apperrors.Wrap(err, "failed to create clinic assignment")
 			}
 		}
@@ -502,7 +508,7 @@ func (s *staffService) Reorder(ctx context.Context, clinicID uint64, ids []uint6
 
 // GetPermissionGroupIDs はスタッフが所属する権限グループIDリストを返す
 func (s *staffService) GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
-	ids, err := s.permissionGroupRepo.FindGroupIDsByStaffID(ctx, staffID)
+	ids, err := s.permissionGroupRepo.FindAllGroupIDsByStaffID(ctx, staffID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get permission group ids", "error", err, "id", staffID)
 		return nil, apperrors.Wrap(err, "failed to get permission group ids")
@@ -512,7 +518,7 @@ func (s *staffService) GetPermissionGroupIDs(ctx context.Context, staffID uint64
 
 // SetPermissionGroupIDs はスタッフの権限グループを全置換する
 func (s *staffService) SetPermissionGroupIDs(ctx context.Context, staffID uint64, groupIDs []uint64) error {
-	if err := s.permissionGroupRepo.ReplaceStaffGroups(ctx, staffID, groupIDs); err != nil {
+	if err := s.permissionGroupRepo.UpdateStaffGroups(ctx, staffID, groupIDs); err != nil {
 		slog.ErrorContext(ctx, "failed to set permission group ids", "error", err, "id", staffID)
 		return apperrors.Wrap(err, "failed to set permission group ids")
 	}
@@ -521,7 +527,7 @@ func (s *staffService) SetPermissionGroupIDs(ctx context.Context, staffID uint64
 
 // GetExcludedReservationTypeIDs はスタッフの除外サービス種別IDリストを返す
 func (s *staffService) GetExcludedReservationTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
-	items, err := s.resStaffRepo.FindExcludedReservationTypes(ctx, staffID)
+	items, err := s.resStaffRepo.FindAllExcludedReservationTypes(ctx, staffID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get excluded service type ids", "error", err, "id", staffID)
 		return nil, apperrors.Wrap(err, "failed to get excluded service type ids")
@@ -535,7 +541,7 @@ func (s *staffService) GetExcludedReservationTypeIDs(ctx context.Context, staffI
 
 // SetExcludedReservationTypeIDs はスタッフの除外サービス種別を全置換する
 func (s *staffService) SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error {
-	if err := s.resStaffRepo.ReplaceExcludedReservationTypes(ctx, staffID, typeIDs); err != nil {
+	if err := s.resStaffRepo.UpdateExcludedReservationTypes(ctx, staffID, typeIDs); err != nil {
 		slog.ErrorContext(ctx, "failed to set excluded service type ids", "error", err, "id", staffID)
 		return apperrors.Wrap(err, "failed to set excluded service type ids")
 	}

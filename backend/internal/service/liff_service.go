@@ -515,7 +515,7 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, typeID,
 }
 
 // filterVisibleStaffsByTypeID は reservation_visible=true かつ typeID を除外していないスタッフを返す。
-// FindExcludedReservationTypesByStaffIDs で一括取得して N+1 クエリを回避する。
+// FindAllExcludedReservationTypesByStaffIDs で一括取得して N+1 クエリを回避する。
 func (s *liffService) filterVisibleStaffsByTypeID(ctx context.Context, typeID uint64, all []model.Staff) ([]model.Staff, error) {
 	visibleIDs := make([]uint64, 0, len(all))
 	for i := range all {
@@ -527,7 +527,7 @@ func (s *liffService) filterVisibleStaffsByTypeID(ctx context.Context, typeID ui
 		return nil, nil
 	}
 
-	allExclusions, err := s.staffRepo.FindExcludedReservationTypesByStaffIDs(ctx, visibleIDs)
+	allExclusions, err := s.staffRepo.FindAllExcludedReservationTypesByStaffIDs(ctx, visibleIDs)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get excluded service types")
 	}
@@ -563,9 +563,9 @@ func (s *liffService) buildStaffSlotInputs(ctx context.Context, clinicID uint64,
 		si := StaffSlotInput{StaffID: staffs[i].ID}
 
 		// シフトエントリを取得
-		entry, err := s.scheduleRepo.FindByDate(ctx, clinicID, staffs[i].ID, date)
+		entry, err := s.scheduleRepo.FindAllByDate(ctx, clinicID, staffs[i].ID, date)
 		if err == nil && entry != nil {
-			breaks, _ := s.scheduleRepo.FindBreaksByEntryID(ctx, entry.ID)
+			breaks, _ := s.scheduleRepo.FindAllBreaksByEntryID(ctx, entry.ID)
 			override := &StaffScheduleOverride{
 				ShiftType: string(entry.ShiftType),
 				WorkStart: entry.StartTime,

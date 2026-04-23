@@ -150,7 +150,7 @@ func (s *closingSettingsService) UpdateStandard(ctx context.Context, clinicID ui
 	if input.ClosedWeekdays != nil {
 		current.ClosedWeekdays = input.ClosedWeekdays
 	}
-	result, err := s.settingsRepo.Upsert(ctx, clinicID, current)
+	result, err := s.settingsRepo.Save(ctx, clinicID, current)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update clinic settings", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update clinic settings")
@@ -173,7 +173,7 @@ func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinic
 	if startDate.After(endDate) {
 		return nil, apperrors.WrapInvalidInput("開始日は終了日以前に設定してください")
 	}
-	overlap, err := s.periodRepo.HasOverlap(ctx, clinicID, startDate, endDate, nil)
+	overlap, err := s.periodRepo.CheckOverlap(ctx, clinicID, startDate, endDate, nil)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check period overlap", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to check period overlap")
@@ -246,7 +246,7 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 	}
 
 	// 重複チェック（自分自身を除外）
-	overlap, err := s.periodRepo.HasOverlap(ctx, clinicID, startDate, endDate, &id)
+	overlap, err := s.periodRepo.CheckOverlap(ctx, clinicID, startDate, endDate, &id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check period overlap", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to check period overlap")
@@ -289,7 +289,7 @@ func (s *closingSettingsService) DeleteSpecialPeriod(ctx context.Context, clinic
 
 func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID uint64, date time.Time) (*DaySchedule, error) {
 	// 特別期間をチェック（優先）
-	special, err := s.periodRepo.FindByDate(ctx, clinicID, date)
+	special, err := s.periodRepo.FindAllByDate(ctx, clinicID, date)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find special period", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to find special period")
@@ -326,7 +326,7 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 	// 個別休診日チェック
 	if !isHoliday {
 		yearMonth := date.Format("2006-01")
-		holidays, err := s.holidayRepo.FindByYearMonth(ctx, clinicID, yearMonth)
+		holidays, err := s.holidayRepo.FindAllByYearMonth(ctx, clinicID, yearMonth)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to find clinic holidays", "error", err, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to find clinic holidays")
