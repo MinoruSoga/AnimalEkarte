@@ -22,20 +22,20 @@ func (m *mockInquiryRepository) CountByChiefComplaintTypeID(_ context.Context, _
 	return 0, nil
 }
 
-func TestInquiryService_Upsert(t *testing.T) {
+func TestInquiryService_Save(t *testing.T) {
 	complaint := "食欲不振"
 	notes := "2日前から"
 	typeID := uint64(3)
 
 	tests := []struct {
 		name      string
-		input     UpsertInquiryInput
+		input     SaveInquiryInput
 		upsertErr error
 		wantErr   bool
 	}{
 		{
 			name: "upserts inquiry successfully",
-			input: UpsertInquiryInput{
+			input: SaveInquiryInput{
 				ClinicID:             1,
 				MedicalRecordID:      10,
 				ChiefComplaintTypeID: &typeID,
@@ -46,7 +46,7 @@ func TestInquiryService_Upsert(t *testing.T) {
 		},
 		{
 			name: "upserts without optional fields",
-			input: UpsertInquiryInput{
+			input: SaveInquiryInput{
 				ClinicID:        1,
 				MedicalRecordID: 10,
 			},
@@ -54,7 +54,7 @@ func TestInquiryService_Upsert(t *testing.T) {
 		},
 		{
 			name: "propagates repository error",
-			input: UpsertInquiryInput{
+			input: SaveInquiryInput{
 				ClinicID:        1,
 				MedicalRecordID: 10,
 				ChiefComplaint:  &complaint,

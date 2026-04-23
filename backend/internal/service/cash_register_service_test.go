@@ -74,6 +74,9 @@ func (m *mockAccountingRepositoryForClose) Update(_ context.Context, _, _ uint64
 func (m *mockAccountingRepositoryForClose) UpsertPayment(_ context.Context, _ *model.Payment) error {
 	return nil
 }
+func (m *mockAccountingRepositoryForClose) SavePayment(_ context.Context, _ *model.Payment) error {
+	return nil
+}
 func (m *mockAccountingRepositoryForClose) FindUnpaidByBilling(_ context.Context, _ uint64, _ string, _, _ int) ([]model.Billing, int64, error) {
 	return nil, 0, nil
 }

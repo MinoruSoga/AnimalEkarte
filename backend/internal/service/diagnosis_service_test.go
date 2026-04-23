@@ -67,6 +67,7 @@ func (m *mockDiagnosisTypeRepository) CountChildrenByParentID(ctx context.Contex
 type mockDiagnosisNameRepository struct {
 	findAllFn                             func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
 	findByCategoryIDFn                    func(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	findAllByFilterFn                     func(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
 	findByIDFn                            func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	createFn                              func(ctx context.Context, name *model.DiagnosisName) error
 	updateFieldsFn                        func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
@@ -81,6 +82,13 @@ func (m *mockDiagnosisNameRepository) FindAll(ctx context.Context, clinicID uint
 
 func (m *mockDiagnosisNameRepository) FindAllByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	return m.findByCategoryIDFn(ctx, clinicID, categoryID, page, limit)
+}
+
+func (m *mockDiagnosisNameRepository) FindAllByFilter(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
+	if m.findAllByFilterFn != nil {
+		return m.findAllByFilterFn(ctx, clinicID, typeID)
+	}
+	return []model.DiagnosisName{}, nil
 }
 
 func (m *mockDiagnosisNameRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
@@ -116,8 +124,8 @@ func (m *mockDiagnosisNameRepository) CountUsageByDiagnosisNameID(ctx context.Co
 	return 0, nil
 }
 
-func (m *mockDiagnosisNameRepository) FindAll(_ context.Context, _ uint64, _ *uint64) ([]model.DiagnosisName, error) {
-	return nil, nil
+func (m *mockDiagnosisNameRepository) FindAllActive(_ context.Context, _ uint64, _ *uint64) ([]model.DiagnosisName, error) {
+	return []model.DiagnosisName{}, nil
 }
 
 // newCategoryService はテスト用ヘルパー
