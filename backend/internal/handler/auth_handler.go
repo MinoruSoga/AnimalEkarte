@@ -612,7 +612,8 @@ func (h *Handler) calculateEffectivePermissions(ctx context.Context, isSystemAdm
 	}
 
 	permMap := make(EffectivePermissions, len(rules))
-	for _, rule := range rules {
+	for i := range rules {
+		rule := &rules[i]
 		permMap[rule.Resource] = ResourcePermission{
 			View:   rule.CanView,
 			Create: rule.CanCreate,

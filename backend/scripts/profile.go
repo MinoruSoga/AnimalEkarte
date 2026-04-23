@@ -14,7 +14,11 @@ func MemoryProfile(filename string) error {
 	if err != nil {
 		return fmt.Errorf("could not create memory profile: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: close error: %v\n", closeErr)
+		}
+	}()
 
 	// GC を実行してから計測
 	runtime.GC()
@@ -33,7 +37,11 @@ func CPUProfile(filename string, duration time.Duration) error {
 	if err != nil {
 		return fmt.Errorf("could not create CPU profile: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: close error: %v\n", closeErr)
+		}
+	}()
 
 	if err := pprof.StartCPUProfile(f); err != nil {
 		return fmt.Errorf("could not start CPU profile: %w", err)
@@ -52,7 +60,11 @@ func GoroutineProfile(filename string) error {
 	if err != nil {
 		return fmt.Errorf("could not create goroutine profile: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: close error: %v\n", closeErr)
+		}
+	}()
 
 	if err := pprof.Lookup("goroutine").WriteTo(f, 0); err != nil {
 		return fmt.Errorf("could not write goroutine profile: %w", err)

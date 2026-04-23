@@ -228,7 +228,8 @@ func (s *permissionGroupService) UpdateRules(ctx context.Context, groupID uint64
 // validateNoDuplicateRules は空文字・存在しないリソース名・重複を検証する（BUG-146）
 func validateNoDuplicateRules(rules []model.PermissionGroupRule) error {
 	seen := make(map[string]bool, len(rules))
-	for _, r := range rules {
+	for i := range rules {
+		r := &rules[i]
 		if r.Resource == "" {
 			return apperrors.WrapInvalidInput(ErrMsgResourceNameEmpty)
 		}
@@ -256,7 +257,8 @@ func validateNotSelfReference(groupID uint64, rules []model.PermissionGroupRule,
 		return nil
 	}
 	hasMasterPermEdit := false
-	for _, r := range rules {
+	for i := range rules {
+		r := &rules[i]
 		if r.Resource == string(model.ResourceMasterPermission) && r.CanEdit {
 			hasMasterPermEdit = true
 			break

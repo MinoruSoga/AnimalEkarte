@@ -64,7 +64,8 @@ func (h *Handler) hasPermission(c *gin.Context, resource, action string) bool {
 	if err != nil {
 		return false
 	}
-	for _, rule := range rules {
+	for i := range rules {
+		rule := &rules[i]
 		if rule.Resource != resource {
 			continue
 		}
