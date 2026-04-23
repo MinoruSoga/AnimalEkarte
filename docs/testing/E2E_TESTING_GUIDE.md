@@ -66,7 +66,7 @@ expectToastMessage / expectFormError / waitForDataDisplay
 
 ```bash
 docker compose up                 # 別ターミナル
-docker compose exec frontend npm run test:e2e
+docker compose exec frontend pnpm test:e2e
 ```
 
 ### 特定テスト実行
@@ -78,13 +78,13 @@ docker compose exec frontend npx playwright test tests/appointment.spec.ts
 ### UI モード (対話的実行)
 
 ```bash
-docker compose exec frontend npm run test:e2e:ui
+docker compose exec frontend pnpm test:e2e:ui
 ```
 
 ### デバッグモード
 
 ```bash
-docker compose exec frontend npm run test:e2e:debug
+docker compose exec frontend pnpm test:e2e:debug
 ```
 
 ## 🔐 認証戦略

@@ -185,7 +185,7 @@ Author: Claude Haiku 4.5
 ## デプロイメント確認
 
 - ✅ Lint: `docker compose exec backend golangci-lint run ./...`
-- ✅ TypeScript Compile: `docker compose exec frontend npm run build`
+- ✅ TypeScript Compile: `docker compose exec frontend pnpm build`
 - ✅ Unit Test: 4 test cases updated + 1 new test added
 - ⏳ Integration Test: Docker 環境整備後実行予定
 

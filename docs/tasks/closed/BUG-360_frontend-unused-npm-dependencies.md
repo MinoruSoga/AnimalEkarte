@@ -1,4 +1,4 @@
-# BUG-360: 未使用 npm 依存パッケージ 11件を削除
+# BUG-360: 未使用 pnpm 依存パッケージ 11件を削除
 
 ## 概要
 
@@ -6,7 +6,7 @@
 
 ## 優先度
 
-**MEDIUM** — `npm install` 時間の短縮 + `node_modules` サイズ削減 + lock ファイルの保守負担軽減。
+**MEDIUM** — `pnpm install` 時間の短縮 + `node_modules` サイズ削減 + lock ファイルの保守負担軽減。
 
 ## 対象パッケージ（11件）
 

@@ -10,9 +10,9 @@ up:
 
 # node_modules をホストにコピー（IDE補完用・初回 or package.json 変更時のみ実行）
 sync-modules:
-	docker compose exec -T frontend npm install
+	docker compose exec -T frontend pnpm install
 	docker compose cp frontend:/app/node_modules ./frontend/
-	docker compose cp frontend:/app/package-lock.json ./frontend/
+	docker compose cp frontend:/app/pnpm-lock.yaml ./frontend/
 
 # 起動（ビルド付き）
 build:
@@ -119,15 +119,15 @@ test-cover:
 
 # リンター実行（フロントエンド）
 lint-front:
-	docker compose exec frontend npm run lint
+	docker compose exec frontend pnpm run lint
 
 # テスト実行（フロントエンド）
 test-front:
-	docker compose exec frontend npm run test:run
+	docker compose exec frontend pnpm run test:run
 
 # フロントエンドビルド
 build-front:
-	docker compose exec frontend npm run build
+	docker compose exec frontend pnpm run build
 
 # 型定義生成（Go model → TypeScript型）
 # backend/internal/model/*.go が single source of truth
@@ -174,9 +174,9 @@ ci-local:
 	$(MAKE) codegen
 	git diff --exit-code frontend/src/types/generated/ || (echo "ERROR: models.ts is out of sync. Commit the updated file." && exit 1)
 	@echo "=== [6/7] Frontend: lint ==="
-	docker compose exec frontend npm run lint
+	docker compose exec frontend pnpm run lint
 	@echo "=== [7/7] Frontend: build ==="
-	docker compose exec frontend npm run build
+	docker compose exec frontend pnpm run build
 	@echo ""
 	@echo "✓ All CI checks passed"
 

@@ -510,9 +510,9 @@
 
 | コマンド | 目的 | 実装状況 |
 |--------|------|---------|
-| `npm run test:e2e` | Headless 実行 | ✅ READY |
-| `npm run test:e2e:ui` | UI モード（ブラウザ表示） | ✅ READY |
-| `npm run test:e2e:debug` | Debug モード（1行ステップ実行） | ✅ READY |
+| `pnpm test:e2e` | Headless 実行 | ✅ READY |
+| `pnpm test:e2e:ui` | UI モード（ブラウザ表示） | ✅ READY |
+| `pnpm test:e2e:debug` | Debug モード（1行ステップ実行） | ✅ READY |
 | GitHub Actions パイプライン | CI/CD 自動実行 (.github/workflows/e2e-tests.yml) | ✅ READY |
 
 ---

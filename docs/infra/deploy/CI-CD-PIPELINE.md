@@ -102,7 +102,7 @@ env:
 ```
 git push to staging (frontend/** 変更)
   → Vercel GitHub Hook
-  → Vercel ビルド (npm install → npm run build)
+  → Vercel ビルド (pnpm install → pnpm build)
   → Production 自動デプロイ
 ```
 
@@ -115,8 +115,8 @@ git push to staging (frontend/** 変更)
 
 ```json
 {
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install",
   "framework": "vite",
   "outputDirectory": "dist"
 }
@@ -280,8 +280,8 @@ aws elbv2 describe-target-health \
 ### Frontend ビルド失敗
 
 ```bash
-docker compose exec frontend npm run build
-docker compose exec frontend npm run lint
+docker compose exec frontend pnpm build
+docker compose exec frontend pnpm lint
 ```
 
 ### CORS エラー

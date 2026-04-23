@@ -65,7 +65,7 @@ cat docs/API_SPEC.md
 
 ```bash
 # インストール
-npm install -g @redocly/cli
+pnpm install -g @redocly/cli
 
 # 仕様検証
 redocly lint docs/openapi.yaml
@@ -221,7 +221,7 @@ git commit -m "docs: API スキーマ更新 — Owner に created_at フィー�
 
 ```bash
 # OpenAPI YAML の検証（npm依存）
-npm install -g swagger-cli
+pnpm install -g swagger-cli
 swagger-cli validate docs/openapi.yaml
 ```
 
@@ -229,7 +229,7 @@ swagger-cli validate docs/openapi.yaml
 
 ```bash
 # リンク切れ検査
-npm install -g markdown-link-check
+pnpm install -g markdown-link-check
 markdown-link-check docs/API_SPEC.md
 ```
 

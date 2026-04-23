@@ -158,7 +158,7 @@ Total: ~0.5s (全レイヤー統合テスト)
 
 ### Frontend テスト
 ```bash
-$ docker compose exec frontend npm run test:run
+$ docker compose exec frontend pnpm test:run
 
 ✅ Test Files: 26 passed
 ✅ Tests: 465 passed
@@ -175,7 +175,7 @@ Coverage Summary:
 
 ### Frontend ビルド
 ```bash
-$ docker compose exec frontend npm run build
+$ docker compose exec frontend pnpm build
 
 ✅ Build success: 7.42s
 ✅ Bundle size: main 157.88 kB (gzip 41.09 kB)

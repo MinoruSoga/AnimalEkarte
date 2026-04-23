@@ -129,7 +129,7 @@
 1. **Verification Phase** (optional, low priority):
    - Spot-check TASK-485 (FA4 reorder hooks) implementation in sortable list files
    - Spot-check TASK-486 (FA3/FA6 query key + staleTime) in remaining API files
-   - Run `docker compose exec frontend npm run type-check` when Docker available (expected: 0 errors)
+   - Run `docker compose exec frontend pnpm type-check` when Docker available (expected: 0 errors)
 
 2. **Code Quality Summary** (ready):
    - Create consolidated FE code quality report card
