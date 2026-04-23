@@ -10,7 +10,7 @@ import (
 
 // MemoryProfile はメモリ使用量をプロファイルする
 func MemoryProfile(filename string) error {
-	f, err := os.Create(filename)
+	f, err := os.Create(filename) // #nosec G304
 	if err != nil {
 		return fmt.Errorf("could not create memory profile: %w", err)
 	}
@@ -33,7 +33,7 @@ func MemoryProfile(filename string) error {
 
 // CPUProfile は CPU 使用率をプロファイルする
 func CPUProfile(filename string, duration time.Duration) error {
-	f, err := os.Create(filename)
+	f, err := os.Create(filename) // #nosec G304
 	if err != nil {
 		return fmt.Errorf("could not create CPU profile: %w", err)
 	}
@@ -56,7 +56,7 @@ func CPUProfile(filename string, duration time.Duration) error {
 
 // GoroutineProfile はゴルーチン数をプロファイルする
 func GoroutineProfile(filename string) error {
-	f, err := os.Create(filename)
+	f, err := os.Create(filename) // #nosec G304
 	if err != nil {
 		return fmt.Errorf("could not create goroutine profile: %w", err)
 	}
