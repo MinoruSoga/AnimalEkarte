@@ -34,19 +34,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: latest
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies (frontend)
-        run: cd frontend && pnpm install --frozen-lockfile
+        run: cd frontend && npm ci
 
       - name: Install Playwright browsers
-        run: cd frontend && pnpm exec playwright install --with-deps
+        run: cd frontend && npx playwright install --with-deps
 
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -57,7 +52,7 @@ jobs:
         run: cd backend && go mod download
 
       - name: Build frontend
-        run: cd frontend && pnpm build
+        run: cd frontend && npm run build
 
       - name: Start Docker services (PostgreSQL + Vite + Go)
         run: |
@@ -101,7 +96,7 @@ jobs:
           exit 1
 
       - name: Run E2E tests
-        run: cd frontend && pnpm test:e2e
+        run: cd frontend && npm run test:e2e
         env:
           TEST_EMAIL: admin@example.com
           TEST_PASSWORD: password
@@ -114,13 +109,6 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 30
-
-      - name: Publish test results
-        uses: actions/publish-unit-test-result-action@v3
-        if: always()
-        with:
-          files: 'frontend/test-results/*.xml'
-          check_name: E2E Test Results
 
       - name: Comment PR with test results
         if: github.event_name == 'pull_request' && always()
