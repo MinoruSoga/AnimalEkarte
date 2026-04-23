@@ -55,7 +55,7 @@ reset:
 	docker compose up -d --build
 	@echo "⏳ Waiting for database to be ready..."
 	@for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if docker compose exec db pg_isready > /dev/null 2>&1; then \
+		if docker compose exec -T db pg_isready > /dev/null 2>&1; then \
 			echo "✓ Database is ready"; \
 			break; \
 		fi; \
@@ -63,8 +63,18 @@ reset:
 		echo "Retrying... ($$i/10)"; \
 		sleep 2; \
 	done
+	@echo "⏳ Waiting for backend to be ready..."
+	@for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do \
+		if docker compose exec -T backend wget -qO- http://localhost:8080/health > /dev/null 2>&1; then \
+			echo "✓ Backend is ready"; \
+			break; \
+		fi; \
+		if [ $$i -eq 15 ]; then echo "✗ Backend startup timeout"; exit 1; fi; \
+		echo "Retrying... ($$i/15)"; \
+		sleep 2; \
+	done
 	@echo "⏳ Running migrations and seeding..."
-	docker compose exec -T backend sh -c "DB_RESET=true go run ./cmd/migrate"
+	docker compose exec -T backend go run ./cmd/migrate
 	@echo "✓ Reset complete — all migrations and seed data applied"
 
 # マイグレーション適用（差分のみ・DBは落とさない）
