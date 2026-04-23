@@ -56,25 +56,30 @@ jobs:
 
       - name: Start Docker services (PostgreSQL + Vite + Go)
         run: |
-          docker compose up -d db frontend backend
+          docker compose up -d db
+          echo "Waiting for database to be ready..."
+          docker compose exec -T db pg_isready -U postgres -d animal_ekarte || sleep 10
+          docker compose up -d backend frontend
           echo "Waiting for services to be ready..."
-          sleep 10
+          sleep 15
 
       - name: Verify backend health
         run: |
-          for i in {1..30}; do
+          for i in {1..60}; do
             if curl -f http://localhost:8080/health 2>/dev/null; then
               echo "Backend is ready"
               exit 0
             fi
-            echo "Attempt $i/30: waiting for backend..."
+            echo "Attempt $i/60: waiting for backend..."
             sleep 2
           done
-          echo "Backend did not become ready"
+          echo "Backend did not become ready after 120s"
+          docker compose logs backend
           exit 1
 
       - name: Run database migrations
         run: |
+          sleep 5
           docker compose exec -T db psql -U postgres -d animal_ekarte << 'EOF'
           \i /docker-entrypoint-initdb.d/001_init.sql
           \i /docker-entrypoint-initdb.d/002_seed_master.sql
