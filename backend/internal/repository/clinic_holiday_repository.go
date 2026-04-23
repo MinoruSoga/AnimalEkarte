@@ -13,6 +13,7 @@ import (
 
 // ClinicHolidayRepository は個別休診日のデータアクセスインターフェース
 type ClinicHolidayRepository interface {
+	FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
 	FindByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
 	Upsert(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
 	Delete(ctx context.Context, clinicID uint64, date time.Time) error
@@ -70,4 +71,16 @@ func (r *clinicHolidayRepository) Delete(ctx context.Context, clinicID uint64, d
 		return apperrors.WrapNotFound("clinic_holiday", date.Format("2006-01-02"))
 	}
 	return nil
+}
+
+func (r *clinicHolidayRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+	var holiday model.ClinicHoliday
+	result := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("date = ?", date.Format("2006-01-02")).
+		First(&holiday)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "clinic_holiday", date.Format("2006-01-02"))
+	}
+	return &holiday, nil
 }

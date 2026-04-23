@@ -41,7 +41,7 @@ func (r *permissionGroupRepository) FindAll(ctx context.Context, clinicID uint64
 	groups := make([]model.PermissionGroup, 0)
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Preload("Rules", "deleted_at IS NULL").
+		Preload("Rules").
 		Order("sort_order ASC, name ASC").
 		Find(&groups).Error
 	if err != nil {
@@ -53,7 +53,7 @@ func (r *permissionGroupRepository) FindAll(ctx context.Context, clinicID uint64
 func (r *permissionGroupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
 	var group model.PermissionGroup
 	err := r.db.WithContext(ctx).
-		Preload("Rules", "deleted_at IS NULL").
+		Preload("Rules").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&group).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
@@ -64,9 +64,6 @@ func (r *permissionGroupRepository) FindByID(ctx context.Context, clinicID, id u
 func (r *permissionGroupRepository) Create(ctx context.Context, group *model.PermissionGroup) error {
 	err := r.db.WithContext(ctx).Create(group).Error
 	if err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "permission_group", "")
 	}
 	return nil
@@ -78,9 +75,6 @@ func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uin
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		if isUniqueConstraintErr(result.Error) {
-			return nil, apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return nil, apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {

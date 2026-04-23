@@ -47,9 +47,6 @@ func (r *trimmingCourseRepository) FindByID(ctx context.Context, clinicID, id ui
 
 func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.TrimmingCourse) error {
 	if err := r.db.WithContext(ctx).Create(course).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "trimming_course", "")
 	}
 	return nil

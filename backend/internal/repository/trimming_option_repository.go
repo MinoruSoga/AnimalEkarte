@@ -47,9 +47,6 @@ func (r *trimmingOptionRepository) FindByID(ctx context.Context, clinicID, id ui
 
 func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.TrimmingOption) error {
 	if err := r.db.WithContext(ctx).Create(option).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "trimming_option", "")
 	}
 	return nil

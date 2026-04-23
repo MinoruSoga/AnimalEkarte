@@ -10,27 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- InquiryTemplateService ----
-
-// CreateInquiryTemplateInput は問診定型文作成の入力DTO
-type CreateInquiryTemplateInput struct {
-	Category  string
-	Title     string
-	Content   string
-	IsActive  bool
-	SortOrder int
-}
-
-// UpdateInquiryTemplateInput holds the fields that can be updated via PATCH.
-// All fields are pointers: nil means "not provided / skip".
-type UpdateInquiryTemplateInput struct {
-	Category  *string
-	Title     *string
-	Content   *string
-	IsActive  *bool
-	SortOrder *int
-}
-
 const (
 	colInquiryTemplateCategory  = "category"
 	colInquiryTemplateTitle     = "title"
@@ -57,6 +36,27 @@ func buildInquiryTemplateUpdate(input *UpdateInquiryTemplateInput) map[string]an
 		fields[colInquiryTemplateSortOrder] = *input.SortOrder
 	}
 	return fields
+}
+
+// ---- InquiryTemplateService ----
+
+// CreateInquiryTemplateInput は問診定型文作成の入力DTO
+type CreateInquiryTemplateInput struct {
+	Category  string
+	Title     string
+	Content   string
+	IsActive  bool
+	SortOrder int
+}
+
+// UpdateInquiryTemplateInput holds the fields that can be updated via PATCH.
+// All fields are pointers: nil means "not provided / skip".
+type UpdateInquiryTemplateInput struct {
+	Category  *string
+	Title     *string
+	Content   *string
+	IsActive  *bool
+	SortOrder *int
 }
 
 type InquiryTemplateService interface {

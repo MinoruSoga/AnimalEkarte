@@ -11,43 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// --- Input DTOs ---
-
-// CreateMedicineInput は薬剤作成の入力DTO
-type CreateMedicineInput struct {
-	Name            string
-	ParentID        *uint64
-	Price           *int64
-	IsActive        bool
-	Description     string
-	DosageForm      *string // nil = 未指定, "tablet" 等 = 値セット
-	MedicineUnit    *string // nil = 未指定, "per_ml" 等 = 値セット
-	InventoryID     *uint64
-	DefaultQuantity float64
-	SortOrder       int
-	TaxType         *string  // nil = "excluded" (default)
-	TaxRate         *float64 // nil = 0.10 (default)
-}
-
-// UpdateMedicineInput は薬剤更新の入力DTO（nil = 未指定）
-type UpdateMedicineInput struct {
-	Name            *string
-	ParentID        *uint64 // nil = 未指定（ClearParentID=false 時）
-	ClearParentID   bool    // true = parent_id を NULL にクリア
-	Price           *int64
-	IsActive        *bool
-	Description     *string
-	DosageForm      *string // nil = 未指定, "" = NULL クリア, "tablet" = 値セット
-	MedicineUnit    *string // nil = 未指定, "" = NULL クリア, "per_ml" = 値セット
-	InventoryID     *uint64 // nil = 未指定, non-nil = 値セット
-	DefaultQuantity *float64
-	SortOrder       *int
-	TaxType         *string
-	TaxRate         *float64
-}
-
-// --- DB column constants ---
-
 const (
 	colMedicineName            = "name"
 	colMedicineParentID        = "parent_id"
@@ -63,8 +26,6 @@ const (
 	colMedicineTaxRate         = "tax_rate"
 )
 
-// buildMedicineUpdate は UpdateMedicineInput から map[string]any を構築する。
-// GORM のゼロ値スキップ問題（bool false が無視される等）を回避するために使用する。
 func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
@@ -115,6 +76,46 @@ func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
 	}
 	return fields
 }
+
+// --- Input DTOs ---
+
+// CreateMedicineInput は薬剤作成の入力DTO
+type CreateMedicineInput struct {
+	Name            string
+	ParentID        *uint64
+	Price           *int64
+	IsActive        bool
+	Description     string
+	DosageForm      *string // nil = 未指定, "tablet" 等 = 値セット
+	MedicineUnit    *string // nil = 未指定, "per_ml" 等 = 値セット
+	InventoryID     *uint64
+	DefaultQuantity float64
+	SortOrder       int
+	TaxType         *string  // nil = "excluded" (default)
+	TaxRate         *float64 // nil = 0.10 (default)
+}
+
+// UpdateMedicineInput は薬剤更新の入力DTO（nil = 未指定）
+type UpdateMedicineInput struct {
+	Name            *string
+	ParentID        *uint64 // nil = 未指定（ClearParentID=false 時）
+	ClearParentID   bool    // true = parent_id を NULL にクリア
+	Price           *int64
+	IsActive        *bool
+	Description     *string
+	DosageForm      *string // nil = 未指定, "" = NULL クリア, "tablet" = 値セット
+	MedicineUnit    *string // nil = 未指定, "" = NULL クリア, "per_ml" = 値セット
+	InventoryID     *uint64 // nil = 未指定, non-nil = 値セット
+	DefaultQuantity *float64
+	SortOrder       *int
+	TaxType         *string
+	TaxRate         *float64
+}
+
+// --- DB column constants ---
+
+// buildMedicineUpdate は UpdateMedicineInput から map[string]any を構築する。
+// GORM のゼロ値スキップ問題（bool false が無視される等）を回避するために使用する。
 
 // ---- MedicineService ----
 

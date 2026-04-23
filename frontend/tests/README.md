@@ -29,43 +29,43 @@ docker compose exec db psql -U postgres animal_ekarte < /docker-entrypoint-initd
 make reset
 
 # フロントエンドテスト実行
-docker compose exec frontend npm run test:e2e
+docker compose exec frontend pnpm test:e2e
 ```
 
 ### 特定のテストスイートのみ実行
 
 ```bash
 # ログインテストのみ
-docker compose exec frontend npx playwright test tests/login.spec.ts
+docker compose exec frontend pnpm exec playwright test tests/login.spec.ts
 
 # 診察フロー テストのみ
-docker compose exec frontend npx playwright test tests/appointment.spec.ts
+docker compose exec frontend pnpm exec playwright test tests/appointment.spec.ts
 
 # 医療記録テストのみ
-docker compose exec frontend npx playwright test tests/medical-records.spec.ts
+docker compose exec frontend pnpm exec playwright test tests/medical-records.spec.ts
 
 # 入院管理テストのみ
-docker compose exec frontend npx playwright test tests/hospitalization.spec.ts
+docker compose exec frontend pnpm exec playwright test tests/hospitalization.spec.ts
 
 # 権限制御テストのみ
-docker compose exec frontend npx playwright test tests/permission-control.spec.ts
+docker compose exec frontend pnpm exec playwright test tests/permission-control.spec.ts
 
 # スタッフ管理テストのみ
-docker compose exec frontend npx playwright test tests/staff-management.spec.ts
+docker compose exec frontend pnpm exec playwright test tests/staff-management.spec.ts
 ```
 
 ### ブラウザモード (対話的実行)
 
 ```bash
 # UI モードで実行（テストを視覚的に確認）
-docker compose exec frontend npx playwright test --ui
+docker compose exec frontend pnpm exec playwright test --ui
 ```
 
 ### テスト結果確認
 
 ```bash
 # HTMLレポート表示
-docker compose exec frontend npx playwright show-report
+docker compose exec frontend pnpm exec playwright show-report
 ```
 
 ## 認証フロー
@@ -122,7 +122,7 @@ docker compose ps
 
 ```bash
 # 失敗レポートを表示
-docker compose exec frontend npx playwright show-report
+docker compose exec frontend pnpm exec playwright show-report
 ```
 
 ## テストケース追加方法
@@ -184,7 +184,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: docker compose up -d
-      - run: docker compose exec frontend npm run test:e2e
+      - run: docker compose exec frontend pnpm test:e2e
       - uses: actions/upload-artifact@v3
         if: always()
         with:

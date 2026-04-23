@@ -62,9 +62,6 @@ func (r *diagnosisTypeRepository) FindByID(ctx context.Context, clinicID, id uin
 func (r *diagnosisTypeRepository) Create(ctx context.Context, category *model.DiagnosisType) error {
 	err := r.db.WithContext(ctx).Create(category).Error
 	if err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "diagnosis_type", "")
 	}
 	return nil
@@ -203,9 +200,6 @@ func (r *diagnosisNameRepository) FindByID(ctx context.Context, clinicID, id uin
 func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.DiagnosisName) error {
 	err := r.db.WithContext(ctx).Create(name).Error
 	if err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "diagnosis_name", "")
 	}
 	return nil

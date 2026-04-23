@@ -27,7 +27,7 @@ alwaysApply: true
 
 - Keep dependencies updated
 - Review security advisories
-- Run `npm audit` regularly
+- Run `ppnpm audit` regularly
 
 ## Logging
 

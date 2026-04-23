@@ -10,29 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- ExaminationTypeService ----
-
-// CreateExamTypeInput は検査種別作成の入力DTO
-type CreateExamTypeInput struct {
-	Name        string
-	Price       *int64
-	IsActive    bool
-	Description string
-	ParentID    *uint64
-	SortOrder   int
-}
-
-// UpdateExamTypeInput は検査種別更新のサービス入力 DTO
-type UpdateExamTypeInput struct {
-	Name          *string
-	Price         *int64
-	IsActive      *bool
-	Description   *string
-	ParentID      *uint64
-	ClearParentID bool
-	SortOrder     *int
-}
-
 const (
 	colExamTypeName        = "name"
 	colExamTypePrice       = "price"
@@ -65,6 +42,29 @@ func buildExamTypeUpdate(input *UpdateExamTypeInput) map[string]any {
 		fields[colExamTypeSortOrder] = *input.SortOrder
 	}
 	return fields
+}
+
+// ---- ExaminationTypeService ----
+
+// CreateExamTypeInput は検査種別作成の入力DTO
+type CreateExamTypeInput struct {
+	Name        string
+	Price       *int64
+	IsActive    bool
+	Description string
+	ParentID    *uint64
+	SortOrder   int
+}
+
+// UpdateExamTypeInput は検査種別更新のサービス入力 DTO
+type UpdateExamTypeInput struct {
+	Name          *string
+	Price         *int64
+	IsActive      *bool
+	Description   *string
+	ParentID      *uint64
+	ClearParentID bool
+	SortOrder     *int
 }
 
 type ExaminationTypeService interface {

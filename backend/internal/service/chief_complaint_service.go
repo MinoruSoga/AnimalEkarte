@@ -10,27 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- ChiefComplaintTypeService ----
-
-// CreateChiefComplaintTypeInput は主訴種別作成の入力DTO
-type CreateChiefComplaintTypeInput struct {
-	Name        string
-	Description string
-	IsActive    bool
-	SortOrder   int
-}
-
-// UpdateChiefComplaintTypeInput holds the fields that can be updated via PATCH.
-// All fields are pointers: nil means "not provided / skip".
-type UpdateChiefComplaintTypeInput struct {
-	Name        *string
-	Description *string
-	SortOrder   *int
-	IsActive    *bool
-}
-
-// --- DB column constants ---
-
 const (
 	colChiefComplaintTypeName        = "name"
 	colChiefComplaintTypeDescription = "description"
@@ -54,6 +33,27 @@ func buildChiefComplaintTypeUpdate(input *UpdateChiefComplaintTypeInput) map[str
 	}
 	return fields
 }
+
+// ---- ChiefComplaintTypeService ----
+
+// CreateChiefComplaintTypeInput は主訴種別作成の入力DTO
+type CreateChiefComplaintTypeInput struct {
+	Name        string
+	Description string
+	IsActive    bool
+	SortOrder   int
+}
+
+// UpdateChiefComplaintTypeInput holds the fields that can be updated via PATCH.
+// All fields are pointers: nil means "not provided / skip".
+type UpdateChiefComplaintTypeInput struct {
+	Name        *string
+	Description *string
+	SortOrder   *int
+	IsActive    *bool
+}
+
+// --- DB column constants ---
 
 type ChiefComplaintTypeService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)

@@ -2,23 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-
-// ─────────────────────────────────────────────────
-// Raw backend response types
-// ─────────────────────────────────────────────────
-
-interface ReservationTypeUnavailableTimeRaw {
-  id: number;
-  clinic_id: number;
-  reservation_type_id: number;
-  unavailable_type: string;
-  day_of_week?: number;
-  specific_date?: string;
-  start_time: string;
-  end_time: string;
-  created_at: string;
-  updated_at: string;
-}
+import type { ReservationTypeUnavailableTime as ReservationTypeUnavailableTimeRaw } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Transform function

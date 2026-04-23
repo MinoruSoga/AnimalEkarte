@@ -47,9 +47,6 @@ func (r *procedureRepository) FindByID(ctx context.Context, clinicID, id uint64)
 
 func (r *procedureRepository) Create(ctx context.Context, procedure *model.Procedure) error {
 	if err := r.db.WithContext(ctx).Create(procedure).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "procedure", "")
 	}
 	return nil

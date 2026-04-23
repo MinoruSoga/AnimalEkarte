@@ -443,8 +443,8 @@ ALTER TABLE xxx ADD COLUMN yyy TYPE;
 
 ## 完了条件
 
-- [ ] 型エラーなし（`npm run build` パス）
-- [ ] ESLint エラーなし（`npm run lint` パス）
+- [ ] 型エラーなし（`ppnpm build` パス）
+- [ ] ESLint エラーなし（`ppnpm lint` パス）
 - [ ] UI が期待通りに動作
 - [ ] 既存機能に影響なし
 ```

@@ -1,7 +1,4 @@
 {
-  "model": {
-    "name": "gemini-3.0-pro"
-  },
   "general": {
     "sessionRetention": {
       "enabled": true,

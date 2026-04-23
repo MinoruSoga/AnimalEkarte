@@ -10,22 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- Input DTOs ----
-
-// CreateAnimalSpeciesInput は動物種類作成の入力DTO
-type CreateAnimalSpeciesInput struct {
-	Name      string
-	IsActive  bool
-	SortOrder int
-}
-
-// UpdateAnimalSpeciesInput は動物種類更新の入力DTO（nil = 未指定 = 更新しない）
-type UpdateAnimalSpeciesInput struct {
-	Name      *string
-	IsActive  *bool
-	SortOrder *int
-}
-
 // 列名定数
 const (
 	colAnimalSpeciesName      = "name"
@@ -46,6 +30,22 @@ func buildAnimalSpeciesUpdate(input *UpdateAnimalSpeciesInput) map[string]any {
 		fields[colAnimalSpeciesSortOrder] = *input.SortOrder
 	}
 	return fields
+}
+
+// ---- Input DTOs ----
+
+// CreateAnimalSpeciesInput は動物種類作成の入力DTO
+type CreateAnimalSpeciesInput struct {
+	Name      string
+	IsActive  bool
+	SortOrder int
+}
+
+// UpdateAnimalSpeciesInput は動物種類更新の入力DTO（nil = 未指定 = 更新しない）
+type UpdateAnimalSpeciesInput struct {
+	Name      *string
+	IsActive  *bool
+	SortOrder *int
 }
 
 // AnimalSpeciesService はペット種類マスタのビジネスロジック層

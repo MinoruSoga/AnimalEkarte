@@ -9,28 +9,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// CreateTrimmingOptionInput はトリミングオプション作成の入力DTO
-type CreateTrimmingOptionInput struct {
-	Name         string
-	Price        *int64
-	IsActive     bool
-	Description  string
-	Duration     *int
-	IsCombinable bool
-	SortOrder    int
-}
-
-// UpdateTrimmingOptionInput はトリミングオプション更新のサービス入力 DTO
-type UpdateTrimmingOptionInput struct {
-	Name         *string
-	Price        *int64
-	IsActive     *bool
-	Description  *string
-	Duration     *int
-	IsCombinable *bool
-	SortOrder    *int
-}
-
 const (
 	colTrimmingOptionName         = "name"
 	colTrimmingOptionPrice        = "price"
@@ -65,6 +43,28 @@ func buildTrimmingOptionUpdate(input *UpdateTrimmingOptionInput) map[string]any 
 		fields[colTrimmingOptionSortOrder] = *input.SortOrder
 	}
 	return fields
+}
+
+// CreateTrimmingOptionInput はトリミングオプション作成の入力DTO
+type CreateTrimmingOptionInput struct {
+	Name         string
+	Price        *int64
+	IsActive     bool
+	Description  string
+	Duration     *int
+	IsCombinable bool
+	SortOrder    int
+}
+
+// UpdateTrimmingOptionInput はトリミングオプション更新のサービス入力 DTO
+type UpdateTrimmingOptionInput struct {
+	Name         *string
+	Price        *int64
+	IsActive     *bool
+	Description  *string
+	Duration     *int
+	IsCombinable *bool
+	SortOrder    *int
 }
 
 // TrimmingOptionService はトリミングオプションのビジネスロジックインターフェース

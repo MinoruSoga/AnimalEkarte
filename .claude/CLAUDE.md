@@ -31,10 +31,10 @@ If execution is needed, inform the user with the command and have them run it ma
 - `docker compose exec backend go test ./...`
 - `docker compose exec backend golangci-lint run ./...`
 - `docker compose exec backend gofmt -w ./...`
-- `docker compose exec frontend npm run lint`
-- `docker compose exec frontend npm run test:run`
-- `docker compose exec frontend npm run build`
-- `docker compose exec frontend npm run type-check`
+- `docker compose exec frontend ppnpm lint`
+- `docker compose exec frontend pppnpm test:run`
+- `docker compose exec frontend ppnpm build`
+- `docker compose exec frontend ppnpm type-check`
 - `make codegen`
 
 ### Docker Startup / Shutdown (large logs)
@@ -48,7 +48,7 @@ If execution is needed, inform the user with the command and have them run it ma
 - `docker compose exec db psql ...` (direct SQL execution)
 
 ### Dependency Installation (verbose and slow)
-- `docker compose exec frontend npm install`
+- `docker compose exec frontend pppnpm install`
 - `docker compose exec backend go mod download`
 
 **Example response:**

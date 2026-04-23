@@ -10,28 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- InsuranceService ----
-
-// CreateInsuranceInput は保険作成の入力DTO
-type CreateInsuranceInput struct {
-	Name         string
-	IsActive     bool
-	Description  string
-	CoverageRate *int // nil = 0 (default), ハンドラから nil をそのまま受け取る (BUG-379)
-	ContactPhone string
-	SortOrder    int
-}
-
-// UpdateInsuranceInput は保険更新のサービス入力 DTO
-type UpdateInsuranceInput struct {
-	Name         *string
-	IsActive     *bool
-	Description  *string
-	CoverageRate *int
-	ContactPhone *string
-	SortOrder    *int
-}
-
 const (
 	colInsuranceName         = "name"
 	colInsuranceIsActive     = "is_active"
@@ -62,6 +40,28 @@ func buildInsuranceUpdate(input *UpdateInsuranceInput) map[string]any {
 		fields[colInsuranceSortOrder] = *input.SortOrder
 	}
 	return fields
+}
+
+// ---- InsuranceService ----
+
+// CreateInsuranceInput は保険作成の入力DTO
+type CreateInsuranceInput struct {
+	Name         string
+	IsActive     bool
+	Description  string
+	CoverageRate *int // nil = 0 (default), ハンドラから nil をそのまま受け取る (BUG-379)
+	ContactPhone string
+	SortOrder    int
+}
+
+// UpdateInsuranceInput は保険更新のサービス入力 DTO
+type UpdateInsuranceInput struct {
+	Name         *string
+	IsActive     *bool
+	Description  *string
+	CoverageRate *int
+	ContactPhone *string
+	SortOrder    *int
 }
 
 type InsuranceService interface {

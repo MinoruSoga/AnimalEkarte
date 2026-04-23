@@ -9,26 +9,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// CreateReservationStaffInput は予約スタッフ作成の入力データ
-type CreateReservationStaffInput struct {
-	Name               string
-	StaffType          string
-	ReservationVisible bool
-	ReservationComment string
-	SortOrder          int
-	ExcludedTypeIDs    []uint64
-}
-
-// UpdateReservationStaffInput は予約スタッフ更新の入力データ（ポインタ型でゼロ値を区別）
-type UpdateReservationStaffInput struct {
-	Name               *string
-	StaffType          *string
-	ReservationVisible *bool
-	ReservationComment *string
-	SortOrder          *int
-	ExcludedTypeIDs    *[]uint64
-}
-
 const (
 	colReservationStaffName               = "name"
 	colReservationStaffStaffType          = "staff_type"
@@ -55,6 +35,26 @@ func buildReservationStaffUpdate(input *UpdateReservationStaffInput) map[string]
 		fields[colReservationStaffSortOrder] = *input.SortOrder
 	}
 	return fields
+}
+
+// CreateReservationStaffInput は予約スタッフ作成の入力データ
+type CreateReservationStaffInput struct {
+	Name               string
+	StaffType          string
+	ReservationVisible bool
+	ReservationComment string
+	SortOrder          int
+	ExcludedTypeIDs    []uint64
+}
+
+// UpdateReservationStaffInput は予約スタッフ更新の入力データ（ポインタ型でゼロ値を区別）
+type UpdateReservationStaffInput struct {
+	Name               *string
+	StaffType          *string
+	ReservationVisible *bool
+	ReservationComment *string
+	SortOrder          *int
+	ExcludedTypeIDs    *[]uint64
 }
 
 // ReservationStaffCoreService は予約スタッフの CRUD・ステータス・並び順操作

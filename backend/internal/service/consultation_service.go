@@ -10,37 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- ConsultationService ----
-
-// CreateConsultationInput は診察種別作成のサービス入力 DTO
-type CreateConsultationInput struct {
-	Name          string
-	Price         *int64
-	IsActive      bool
-	Description   string
-	TimeCondition string
-	Duration      *int
-	ParentID      *uint64
-	SortOrder     int
-	TaxType       *string  // nil = "excluded" (default)
-	TaxRate       *float64 // nil = 0.10 (default)
-}
-
-// UpdateConsultationInput は診察料金更新のサービス入力 DTO
-type UpdateConsultationInput struct {
-	Name          *string
-	Price         *int64
-	IsActive      *bool
-	Description   *string
-	TimeCondition *string
-	Duration      *int
-	ParentID      *uint64
-	ClearParentID bool
-	SortOrder     *int
-	TaxType       *string
-	TaxRate       *float64
-}
-
 const (
 	colConsultationName          = "name"
 	colConsultationPrice         = "price"
@@ -89,6 +58,37 @@ func buildConsultationUpdate(input *UpdateConsultationInput) map[string]any {
 		fields[colConsultationTaxRate] = *input.TaxRate
 	}
 	return fields
+}
+
+// ---- ConsultationService ----
+
+// CreateConsultationInput は診察種別作成のサービス入力 DTO
+type CreateConsultationInput struct {
+	Name          string
+	Price         *int64
+	IsActive      bool
+	Description   string
+	TimeCondition string
+	Duration      *int
+	ParentID      *uint64
+	SortOrder     int
+	TaxType       *string  // nil = "excluded" (default)
+	TaxRate       *float64 // nil = 0.10 (default)
+}
+
+// UpdateConsultationInput は診察料金更新のサービス入力 DTO
+type UpdateConsultationInput struct {
+	Name          *string
+	Price         *int64
+	IsActive      *bool
+	Description   *string
+	TimeCondition *string
+	Duration      *int
+	ParentID      *uint64
+	ClearParentID bool
+	SortOrder     *int
+	TaxType       *string
+	TaxRate       *float64
 }
 
 type ConsultationService interface {

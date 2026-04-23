@@ -12,55 +12,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- Input DTOs ----
-
-// CreateReservationTypeInput はサービス種別作成のための入力データ
-type CreateReservationTypeInput struct {
-	Name        string
-	Color       string
-	IsActive    bool
-	Description string
-	SortOrder   int
-	GroupID     *uint64
-	Category    string
-
-	// LINE予約用フィールド
-	ReservationDisplayName string
-	DurationMinutes        *int
-	ShortName              string
-	ShowShortName          bool
-	ReservationVisible     *bool
-	ReservationComment     string
-	ReservationImageURL    string
-	ReservationDayOption   string
-	IsInternal             bool
-}
-
-// UpdateReservationTypeInput はサービス種別更新のための入力データ（ポインタ型でゼロ値を区別する）
-type UpdateReservationTypeInput struct {
-	Name         *string
-	Color        *string
-	IsActive     *bool
-	Description  *string
-	SortOrder    *int
-	GroupID      *uint64
-	ClearGroupID bool // true のとき group_id を NULL にクリアする
-	Category     *string
-
-	// LINE予約用フィールド
-	ReservationDisplayName *string
-	DurationMinutes        *int
-	ShortName              *string
-	ShowShortName          *bool
-	ReservationVisible     *bool
-	ReservationComment     *string
-	ReservationImageURL    *string
-	ReservationDayOption   *string
-	IsInternal             *bool
-}
-
-// ---- DB column constants ----
-
 const (
 	colReservationTypeName                = "name"
 	colReservationTypeColor               = "color"
@@ -135,6 +86,55 @@ func buildReservationTypeUpdate(input *UpdateReservationTypeInput) map[string]an
 	}
 	return fields
 }
+
+// ---- Input DTOs ----
+
+// CreateReservationTypeInput はサービス種別作成のための入力データ
+type CreateReservationTypeInput struct {
+	Name        string
+	Color       string
+	IsActive    bool
+	Description string
+	SortOrder   int
+	GroupID     *uint64
+	Category    string
+
+	// LINE予約用フィールド
+	ReservationDisplayName string
+	DurationMinutes        *int
+	ShortName              string
+	ShowShortName          bool
+	ReservationVisible     *bool
+	ReservationComment     string
+	ReservationImageURL    string
+	ReservationDayOption   string
+	IsInternal             bool
+}
+
+// UpdateReservationTypeInput はサービス種別更新のための入力データ（ポインタ型でゼロ値を区別する）
+type UpdateReservationTypeInput struct {
+	Name         *string
+	Color        *string
+	IsActive     *bool
+	Description  *string
+	SortOrder    *int
+	GroupID      *uint64
+	ClearGroupID bool // true のとき group_id を NULL にクリアする
+	Category     *string
+
+	// LINE予約用フィールド
+	ReservationDisplayName *string
+	DurationMinutes        *int
+	ShortName              *string
+	ShowShortName          *bool
+	ReservationVisible     *bool
+	ReservationComment     *string
+	ReservationImageURL    *string
+	ReservationDayOption   *string
+	IsInternal             *bool
+}
+
+// ---- DB column constants ----
 
 // ---- ReservationTypeService ----
 

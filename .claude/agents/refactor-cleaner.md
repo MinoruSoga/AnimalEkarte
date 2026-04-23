@@ -79,8 +79,8 @@ make codegen 2>&1 | grep -i error
 - [ ] テストが存在する場合はテストも削除
 
 各バッチ後:
-- [ ] ビルド成功: `docker compose exec frontend npm run build`
-- [ ] テストパス: `docker compose exec frontend npm run test:run`
+- [ ] ビルド成功: `docker compose exec frontend ppnpm build`
+- [ ] テストパス: `docker compose exec frontend pppnpm test:run`
 - [ ] 型エラーなし: `docker compose exec frontend npx tsc --noEmit`
 - [ ] コミット済み（説明的なメッセージで）
 

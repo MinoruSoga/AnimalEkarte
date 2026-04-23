@@ -102,10 +102,10 @@ CMD ["./app"]
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --only=production
+RUN ppnpm install --frozen-lockfile --only=production
 
 COPY . .
-RUN npm run build
+RUN ppnpm build
 
 # 実行ステージ (Nginx)
 FROM nginx:1.25-alpine

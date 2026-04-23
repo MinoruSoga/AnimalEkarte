@@ -57,9 +57,6 @@ func (r *reservationTypeGroupRepository) CountUsageByReservationTypeGroupID(ctx 
 
 func (r *reservationTypeGroupRepository) Create(ctx context.Context, g *model.ReservationTypeGroup) error {
 	if err := r.db.WithContext(ctx).Create(g).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称のグループが既に登録されています")
-		}
 		return apperrors.FromGORM(err, "reservation_type_group", "")
 	}
 	return nil

@@ -52,9 +52,6 @@ func (r *reservationTypeLiffRepository) FindByID(ctx context.Context, clinicID, 
 
 func (r *reservationTypeLiffRepository) Create(ctx context.Context, st *model.ReservationType) error {
 	if err := r.db.WithContext(ctx).Create(st).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "reservation_type_liff", "")
 	}
 	return nil

@@ -114,9 +114,9 @@ CMD ["./app"]
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN ppnpm install --frozen-lockfile
 COPY . .
-RUN npm run build
+RUN ppnpm build
 
 # Runtime stage
 FROM nginx:1.25-alpine
@@ -136,12 +136,12 @@ make logs        # View logs
 make clean       # Clear cache and rebuild
 
 # ✅ Execute commands in containers (npm/go prohibited locally)
-docker compose exec frontend npm run build
+docker compose exec frontend ppnpm build
 docker compose exec backend go test ./... -v
 docker compose exec backend golangci-lint run ./...
 
 # ❌ Prohibited local execution
-npm run build
+ppnpm build
 go test ./...
 ```
 

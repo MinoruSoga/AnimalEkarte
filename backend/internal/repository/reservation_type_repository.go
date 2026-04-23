@@ -52,9 +52,6 @@ func (r *reservationTypeRepository) FindByID(ctx context.Context, clinicID, id u
 
 func (r *reservationTypeRepository) Create(ctx context.Context, reservationType *model.ReservationType) error {
 	if err := r.db.WithContext(ctx).Create(reservationType).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "reservation_type", "")
 	}
 	return nil

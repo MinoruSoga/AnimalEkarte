@@ -10,25 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- OccupationService ----
-
-// CreateOccupationInput は職種作成の入力DTO
-type CreateOccupationInput struct {
-	Name        string
-	Description string
-	SortOrder   int
-	IsActive    bool
-}
-
-// UpdateOccupationInput holds the fields that can be updated via PATCH.
-// All fields are pointers: nil means "not provided / skip".
-type UpdateOccupationInput struct {
-	Name        *string
-	Description *string
-	SortOrder   *int
-	IsActive    *bool
-}
-
 const (
 	colOccupationName        = "name"
 	colOccupationDescription = "description"
@@ -51,6 +32,25 @@ func buildOccupationUpdate(input *UpdateOccupationInput) map[string]any {
 		fields[colOccupationIsActive] = *input.IsActive
 	}
 	return fields
+}
+
+// ---- OccupationService ----
+
+// CreateOccupationInput は職種作成の入力DTO
+type CreateOccupationInput struct {
+	Name        string
+	Description string
+	SortOrder   int
+	IsActive    bool
+}
+
+// UpdateOccupationInput holds the fields that can be updated via PATCH.
+// All fields are pointers: nil means "not provided / skip".
+type UpdateOccupationInput struct {
+	Name        *string
+	Description *string
+	SortOrder   *int
+	IsActive    *bool
 }
 
 type OccupationService interface {

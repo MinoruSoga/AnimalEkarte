@@ -96,11 +96,11 @@ Base branch is **`staging`** (main → staging).
 ```bash
 # Lint check
 docker compose exec backend golangci-lint run ./...
-docker compose exec frontend npm run lint
+docker compose exec frontend ppnpm lint
 
 # Run tests
 docker compose exec backend go test ./... -v
-docker compose exec frontend npm run test:run
+docker compose exec frontend pppnpm test:run
 ```
 
 ### 5. Merge Rules
@@ -125,7 +125,7 @@ git push origin production --tags
 - [ ] Message body: explain why, context
 - [ ] Co-Authored-By: Claude signature (AI-generated)
 - [ ] Tests: all passing
-- [ ] Lint: golangci-lint, npm run lint pass
+- [ ] Lint: golangci-lint, ppnpm lint pass
 - [ ] PR description: Summary + Test Plan
 
 ## Prohibited

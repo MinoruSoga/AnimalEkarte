@@ -53,9 +53,6 @@ func (r *occupationRepository) FindByID(ctx context.Context, clinicID, id uint64
 func (r *occupationRepository) Create(ctx context.Context, occupation *model.Occupation) error {
 	err := r.db.WithContext(ctx).Create(occupation).Error
 	if err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "occupation", "")
 	}
 	return nil

@@ -10,18 +10,18 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// BreakInput は休憩時間の入力データ
-type BreakInput struct {
+// ReservationScheduleBreakInput は休憩時間の入力データ
+type ReservationScheduleBreakInput struct {
 	Start string
 	End   string
 }
 
-// UpsertScheduleInput はスケジュール upsert の入力データ
-type UpsertScheduleInput struct {
+// CreateReservationScheduleInput はスケジュール upsert の入力データ
+type CreateReservationScheduleInput struct {
 	ShiftType string
 	WorkStart *string
 	WorkEnd   *string
-	Breaks    []BreakInput
+	Breaks    []ReservationScheduleBreakInput
 }
 
 // ScheduleEntry はスケジュールレスポンス用の集約データ
@@ -33,7 +33,7 @@ type ScheduleEntry struct {
 // ReservationScheduleService はスタッフスケジュールのビジネスロジックインターフェース
 type ReservationScheduleService interface {
 	ListByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]ScheduleEntry, error)
-	Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *UpsertScheduleInput) (*ScheduleEntry, bool, error)
+	Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error)
 	Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
@@ -73,7 +73,7 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 	return result, nil
 }
 
-func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *UpsertScheduleInput) (*ScheduleEntry, bool, error) {
+func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error) {
 	shiftType := model.ShiftType(input.ShiftType)
 	startTime := normalizeTimeString(input.WorkStart)
 	endTime := normalizeTimeString(input.WorkEnd)

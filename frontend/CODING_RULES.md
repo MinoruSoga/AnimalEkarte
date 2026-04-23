@@ -1365,7 +1365,7 @@ make codegen  # tygo → src/types/generated/models.ts を更新
 #    - api/types.ts の ServerFields を必要に応じて更新
 #    - transforms.ts に新フィールドのマッピングを追加
 #    - types/index.ts の FormData を必要に応じて更新
-docker compose exec frontend npm run build
+docker compose exec frontend pnpm build
 ```
 
 ---
@@ -1877,9 +1877,9 @@ describe("Button", () => {
 - [ ] テストファイル作成
 
 ### PR作成時
-- [ ] `docker compose exec frontend npm run lint` がパス
-- [ ] `docker compose exec frontend npm run build` がパス
-- [ ] `docker compose exec frontend npm run test:run` がパス
+- [ ] `docker compose exec frontend pnpm lint` がパス
+- [ ] `docker compose exec frontend pnpm build` がパス
+- [ ] `docker compose exec frontend pnpm test:run` がパス
 - [ ] any型を使用していない
 - [ ] feature間importがない
 - [ ] 不要なconsole.logがない

@@ -51,9 +51,6 @@ func (r *checkupTypeRepository) FindByID(ctx context.Context, clinicID, id uint6
 func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.CheckupType) error {
 	err := r.db.WithContext(ctx).Create(checkupType).Error
 	if err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "checkup_type", "")
 	}
 	return nil

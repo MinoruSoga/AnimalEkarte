@@ -88,8 +88,8 @@ src/features/owners/
 
 ### Running Tests
 ```bash
-docker compose exec frontend npm run test:run    # Run all tests
-docker compose exec frontend npm run test:coverage  # With coverage
+docker compose exec frontend pppnpm test:run    # Run all tests
+docker compose exec frontend pppnpm test:coverage  # With coverage
 ```
 
 ---

@@ -10,36 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- HospitalizationPlanService ----
-
-// CreateHospitalizationPlanInput は入院プラン作成の入力DTO
-type CreateHospitalizationPlanInput struct {
-	Name        string
-	Price       *int64
-	IsActive    bool
-	Description string
-	SortOrder   int
-	TaxType     string
-	TaxRate     *float64
-	BodySize    string
-	BillingUnit string
-}
-
-// UpdateHospitalizationPlanInput は入院プラン更新のサービス入力 DTO
-type UpdateHospitalizationPlanInput struct {
-	Name        *string
-	Price       *int64
-	IsActive    *bool
-	Description *string
-	BodySize    *string
-	BillingUnit *string
-	SortOrder   *int
-	TaxType     *string
-	TaxRate     *float64
-}
-
-// --- DB column constants ---
-
 const (
 	colHospitalizationPlanName        = "name"
 	colHospitalizationPlanPrice       = "price"
@@ -83,6 +53,36 @@ func buildHospitalizationPlanUpdate(input UpdateHospitalizationPlanInput) map[st
 	}
 	return fields
 }
+
+// ---- HospitalizationPlanService ----
+
+// CreateHospitalizationPlanInput は入院プラン作成の入力DTO
+type CreateHospitalizationPlanInput struct {
+	Name        string
+	Price       *int64
+	IsActive    bool
+	Description string
+	SortOrder   int
+	TaxType     string
+	TaxRate     *float64
+	BodySize    string
+	BillingUnit string
+}
+
+// UpdateHospitalizationPlanInput は入院プラン更新のサービス入力 DTO
+type UpdateHospitalizationPlanInput struct {
+	Name        *string
+	Price       *int64
+	IsActive    *bool
+	Description *string
+	BodySize    *string
+	BillingUnit *string
+	SortOrder   *int
+	TaxType     *string
+	TaxRate     *float64
+}
+
+// --- DB column constants ---
 
 type HospitalizationPlanService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)

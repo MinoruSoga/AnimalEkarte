@@ -51,9 +51,6 @@ func (r *animalSpeciesRepository) FindByID(ctx context.Context, id uint64) (*mod
 
 func (r *animalSpeciesRepository) Create(ctx context.Context, species *model.AnimalSpecies) error {
 	if err := r.db.WithContext(ctx).Create(species).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "animal_species", "")
 	}
 	return nil

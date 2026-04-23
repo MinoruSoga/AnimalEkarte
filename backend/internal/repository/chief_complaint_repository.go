@@ -53,9 +53,6 @@ func (r *chiefComplaintTypeRepository) FindByID(ctx context.Context, clinicID, i
 func (r *chiefComplaintTypeRepository) Create(ctx context.Context, category *model.ChiefComplaintType) error {
 	err := r.db.WithContext(ctx).Create(category).Error
 	if err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "chief_complaint_type", "")
 	}
 	return nil

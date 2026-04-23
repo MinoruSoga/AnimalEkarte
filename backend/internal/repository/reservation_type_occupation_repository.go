@@ -80,9 +80,6 @@ func (r *reservationTypeOccupationRepository) Create(
 	ctx context.Context, o *model.ReservationTypeOccupation,
 ) error {
 	if err := r.db.WithContext(ctx).Create(o).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ職種が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "reservation_type_occupation", "")
 	}
 	return nil

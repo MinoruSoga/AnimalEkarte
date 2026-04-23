@@ -10,6 +10,42 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+const (
+	colMerchandiseItemName      = "name"
+	colMerchandiseItemCategory  = "category"
+	colMerchandiseItemUnitPrice = "unit_price"
+	colMerchandiseItemTaxType   = "tax_type"
+	colMerchandiseItemTaxRate   = "tax_rate"
+	colMerchandiseItemIsActive  = "is_active"
+	colMerchandiseItemSortOrder = "sort_order"
+)
+
+func buildMerchandiseItemUpdate(input *UpdateMerchandiseItemInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colMerchandiseItemName] = *input.Name
+	}
+	if input.Category != nil {
+		fields[colMerchandiseItemCategory] = *input.Category
+	}
+	if input.UnitPrice != nil {
+		fields[colMerchandiseItemUnitPrice] = *input.UnitPrice
+	}
+	if input.TaxType != nil {
+		fields[colMerchandiseItemTaxType] = *input.TaxType
+	}
+	if input.TaxRate != nil {
+		fields[colMerchandiseItemTaxRate] = *input.TaxRate
+	}
+	if input.IsActive != nil {
+		fields[colMerchandiseItemIsActive] = *input.IsActive
+	}
+	if input.SortOrder != nil {
+		fields[colMerchandiseItemSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
 // --- Input DTOs ---
 
 // CreateMerchandiseItemInput は物販品作成の入力DTO
@@ -36,43 +72,8 @@ type UpdateMerchandiseItemInput struct {
 
 // --- DB column constants ---
 
-const (
-	colMerchandiseItemName      = "name"
-	colMerchandiseItemCategory  = "category"
-	colMerchandiseItemUnitPrice = "unit_price"
-	colMerchandiseItemTaxType   = "tax_type"
-	colMerchandiseItemTaxRate   = "tax_rate"
-	colMerchandiseItemIsActive  = "is_active"
-	colMerchandiseItemSortOrder = "sort_order"
-)
-
 // buildMerchandiseItemUpdate は UPDATE 用 map を構築する。
 // GORM のゼロ値スキップ問題（bool false が無視される等）を回避するために使用する。
-func buildMerchandiseItemUpdate(input *UpdateMerchandiseItemInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colMerchandiseItemName] = *input.Name
-	}
-	if input.Category != nil {
-		fields[colMerchandiseItemCategory] = *input.Category
-	}
-	if input.UnitPrice != nil {
-		fields[colMerchandiseItemUnitPrice] = *input.UnitPrice
-	}
-	if input.TaxType != nil {
-		fields[colMerchandiseItemTaxType] = *input.TaxType
-	}
-	if input.TaxRate != nil {
-		fields[colMerchandiseItemTaxRate] = *input.TaxRate
-	}
-	if input.IsActive != nil {
-		fields[colMerchandiseItemIsActive] = *input.IsActive
-	}
-	if input.SortOrder != nil {
-		fields[colMerchandiseItemSortOrder] = *input.SortOrder
-	}
-	return fields
-}
 
 // ---- MerchandiseItemService ----
 

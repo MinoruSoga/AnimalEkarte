@@ -53,9 +53,6 @@ func (r *inquiryTemplateRepository) FindByID(ctx context.Context, clinicID, id u
 func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.InquiryTemplate) error {
 	err := r.db.WithContext(ctx).Create(template).Error
 	if err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "inquiry_template", "")
 	}
 	return nil

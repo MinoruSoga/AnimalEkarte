@@ -1,0 +1,311 @@
+name: Performance Tests (Load & Profiling)
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 毎日 03:00 JST 実行
+  workflow_dispatch
+  push:
+    branches: [main, staging]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'load-tests/**'
+      - '.github/workflows/performance-tests.yml'
+
+jobs:
+  load-test:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    name: Load Testing (k6)
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: animal_ekarte
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install k6
+        run: sudo apt-get install -y gnupg software-properties-common && curl https://dl.k6.io/key.gpg | sudo apt-key add - && sudo add-apt-repository "deb https://dl.k6.io/deb stable main" && sudo apt-get update && sudo apt-get install k6
+
+      - name: Start Docker services
+        run: docker compose up -d db backend
+
+      - name: Wait for backend health
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:8080/health 2>/dev/null; then
+              echo "Backend is ready"
+              exit 0
+            fi
+            echo "Attempt $i/30: waiting for backend..."
+            sleep 2
+          done
+          exit 1
+
+      - name: Run k6 API endpoints load test
+        run: |
+          k6 run load-tests/k6-api-endpoints.js \
+            --out json=load-tests/results-endpoints.json
+        env:
+          BASE_URL: http://localhost:8080
+          TEST_EMAIL: admin@example.com
+          TEST_CRED: test
+        continue-on-error: true
+
+      - name: Run k6 spike test
+        run: |
+          k6 run load-tests/k6-spike-test.js \
+            --out json=load-tests/results-spike.json
+        env:
+          BASE_URL: http://localhost:8080
+          TEST_EMAIL: admin@example.com
+          TEST_CRED: test
+        continue-on-error: true
+
+      - name: Upload load test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-test-results
+          path: load-tests/results-*.json
+          retention-days: 30
+
+      - name: Parse load test results
+        if: always()
+        run: |
+          echo "=== Load Test Results Summary ===" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f load-tests/results-endpoints.json ]; then
+            echo "**API Endpoints Test**" >> $GITHUB_STEP_SUMMARY
+            jq '.metrics | keys' load-tests/results-endpoints.json >> $GITHUB_STEP_SUMMARY || echo "Results parsing failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  profiling:
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    name: Backend Profiling (CPU/Memory)
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: animal_ekarte
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'
+
+      - name: Start Docker services
+        run: docker compose up -d db backend
+
+      - name: Wait for backend health
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:8080/health 2>/dev/null; then
+              echo "Backend is ready"
+              exit 0
+            fi
+            echo "Attempt $i/30: waiting for backend..."
+            sleep 2
+          done
+          exit 1
+
+      - name: Run memory profiling
+        run: |
+          cd backend
+          go run scripts/profile.go memory
+          ls -la profile_memory.pprof
+        continue-on-error: true
+
+      - name: Run CPU profiling (10s)
+        run: |
+          cd backend
+          go run scripts/profile.go cpu 10s
+          ls -la profile_cpu.pprof
+        continue-on-error: true
+
+      - name: Run goroutine profiling
+        run: |
+          cd backend
+          go run scripts/profile.go goroutine
+          ls -la profile_goroutines.pprof
+        continue-on-error: true
+
+      - name: Print memory stats
+        run: |
+          cd backend
+          go run scripts/profile.go stats
+        continue-on-error: true
+
+      - name: Upload profiling results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: profiling-results
+          path: backend/profile_*.pprof
+          retention-days: 30
+
+      - name: Analyze memory profile
+        if: always()
+        run: |
+          if [ -f backend/profile_memory.pprof ]; then
+            go tool pprof -top backend/profile_memory.pprof > backend/memory-analysis.txt || true
+            cat backend/memory-analysis.txt
+          fi
+        continue-on-error: true
+
+  lighthouse:
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    name: Frontend Lighthouse Audit
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: animal_ekarte
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
+      - name: Install Lighthouse
+        run: pnpm install -g lighthouse
+
+      - name: Start Docker services
+        run: docker compose up -d
+
+      - name: Wait for frontend to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:3000 2>/dev/null; then
+              echo "Frontend is ready"
+              exit 0
+            fi
+            echo "Attempt $i/30: waiting for frontend..."
+            sleep 2
+          done
+          exit 1
+
+      - name: Run Lighthouse audit
+        run: |
+          node frontend/scripts/lighthouse-audit.js --url http://localhost:3000
+        continue-on-error: true
+
+      - name: Upload Lighthouse results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-results
+          path: frontend/audit-results/
+          retention-days: 30
+
+      - name: Comment PR with performance results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            let comment = '## 📊 Performance Test Results\n\n';
+
+            // Lighthouse results
+            const auditDir = 'frontend/audit-results';
+            if (fs.existsSync(auditDir)) {
+              const files = fs.readdirSync(auditDir);
+              if (files.length > 0) {
+                const latestFile = files[files.length - 1];
+                const data = JSON.parse(fs.readFileSync(path.join(auditDir, latestFile), 'utf8'));
+
+                comment += '### Lighthouse Audit\n';
+                for (const [name, category] of Object.entries(data.categories)) {
+                  const score = category.score;
+                  const icon = score >= 90 ? '🟢' : score >= 50 ? '🟡' : '🔴';
+                  comment += `- ${icon} ${category.title}: ${score}/100\n`;
+                }
+              }
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  summary:
+    needs: [load-test, profiling, lighthouse]
+    runs-on: ubuntu-latest
+    if: always()
+    name: Performance Test Summary
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## Performance Test Run Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Load Testing: ${{ needs.load-test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend Profiling: ${{ needs.profiling.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Lighthouse Audit: ${{ needs.lighthouse.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Results available in Artifacts" >> $GITHUB_STEP_SUMMARY
+
+      - name: Stop Docker services
+        if: always()
+        run: docker compose down -v 2>/dev/null || true

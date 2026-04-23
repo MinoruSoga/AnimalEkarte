@@ -51,9 +51,6 @@ func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 func (r *examTypeRepository) Create(ctx context.Context, exType *model.ExaminationType) error {
 	err := r.db.WithContext(ctx).Create(exType).Error
 	if err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "examination_type", "")
 	}
 	return nil

@@ -188,7 +188,7 @@ useEffect(() => {
 # axe DevTools (Chrome extension)
 # WAVE (WebAIM)
 # Lighthouse (DevTools)
-npm run audit:lighthouse  # a11y score check
+pppnpm audit:lighthouse  # a11y score check
 ```
 
 ## References

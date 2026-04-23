@@ -1,10 +1,10 @@
 #!/bin/sh
 set -e
 
-# node_modules が存在しない or 空なら npm install
+# node_modules が存在しない or 空なら pnpm install
 if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
   echo "Installing dependencies..."
-  npm install
+  pnpm install --frozen-lockfile
 fi
 
 exec "$@"

@@ -64,13 +64,13 @@ reset:
 		sleep 2; \
 	done
 	@echo "⏳ Waiting for backend to be ready..."
-	@for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do \
+	@for i in 1 2 3 4 5; do \
 		if docker compose exec -T backend wget -qO- http://localhost:8080/health > /dev/null 2>&1; then \
 			echo "✓ Backend is ready"; \
 			break; \
 		fi; \
-		if [ $$i -eq 15 ]; then echo "✗ Backend startup timeout"; exit 1; fi; \
-		echo "Retrying... ($$i/15)"; \
+		if [ $$i -eq 5 ]; then echo "✗ Backend startup timeout"; exit 1; fi; \
+		echo "Retrying... ($$i/5)"; \
 		sleep 2; \
 	done
 	@echo "⏳ Running migrations and seeding..."
