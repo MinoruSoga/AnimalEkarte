@@ -15,7 +15,7 @@ import (
 // ---- ClinicHoliday モック ----
 
 type mockClinicHolidayRepository struct {
-	findByDateFn func(context.Context, uint64, time.Time) (*model.ClinicHoliday, error)
+	findByDateFn      func(context.Context, uint64, time.Time) (*model.ClinicHoliday, error)
 	findByYearMonthFn func(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
 	upsertFn          func(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
 	deleteFn          func(ctx context.Context, clinicID uint64, date time.Time) error
