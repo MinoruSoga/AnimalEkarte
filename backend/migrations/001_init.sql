@@ -662,10 +662,12 @@ CREATE TABLE permission_group_rules (
     can_delete boolean     NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
+    deleted_at timestamptz,
     CONSTRAINT uk_permission_group_rules UNIQUE (group_id, resource)
 );
 
 CREATE INDEX idx_permission_group_rules_group ON permission_group_rules(group_id);
+CREATE INDEX idx_permission_group_rules_deleted_at ON permission_group_rules(deleted_at);
 
 -- ------------------------------------
 -- 31. staff_permission_groups（スタッフ-権限グループ中間テーブル）
