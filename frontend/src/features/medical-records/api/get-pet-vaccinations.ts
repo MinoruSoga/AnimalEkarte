@@ -3,21 +3,6 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Vaccination } from "@/types/generated/models";
 
-export interface PetVaccinationHistoryItem {
-  id: number;
-  name: string;
-  date: string;
-  next: string;
-  // 複製に使う生データ
-  vaccineId: number;
-  lot1: string;
-  lot2: string;
-  lot3: string;
-  lot4: string;
-  nextDate: string;
-  remarks: string;
-}
-
 function formatDate(iso?: string): string {
   if (!iso) return "-";
   const d = new Date(iso);
@@ -28,7 +13,7 @@ function formatDate(iso?: string): string {
   return `${yy}/${m}/${day}`;
 }
 
-function transformToHistoryItem(v: Vaccination): PetVaccinationHistoryItem {
+export function transformToHistoryItem(v: Vaccination) {
   return {
     id: v.id,
     name: v.vaccine?.name ?? `ワクチン(ID:${v.vaccine_id})`,
@@ -43,6 +28,7 @@ function transformToHistoryItem(v: Vaccination): PetVaccinationHistoryItem {
     remarks: v.remarks ?? "",
   };
 }
+export type PetVaccinationHistoryItem = ReturnType<typeof transformToHistoryItem>;
 
 const getPetVaccinations = async (
   petId: string,

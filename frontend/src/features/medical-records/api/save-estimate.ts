@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { Estimate } from "@/types/generated/models";
 
@@ -28,6 +29,8 @@ export const useGetEstimateByRecord = (medicalRecordId?: string) => {
     queryKey: ["estimate", "record", medicalRecordId],
     queryFn: () => getEstimatesByRecord(medicalRecordId!),
     enabled: !!medicalRecordId,
+    staleTime: QUERY_STALE_TIMES.REALTIME,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
 

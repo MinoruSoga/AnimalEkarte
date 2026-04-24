@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { BackendInventoryItem, CreateInventoryItemRequest, UpdateInventoryItemRequest } from "./types";
 
 interface GetInventoryItemsParams {
@@ -24,6 +25,8 @@ export const useGetInventoryItems = (params?: GetInventoryItemsParams) => {
   return useQuery({
     queryKey: ["inventoryItems", params],
     queryFn: () => getInventoryItems(params),
+    staleTime: QUERY_STALE_TIMES.REALTIME,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
 
@@ -37,6 +40,8 @@ export const useGetInventoryItem = (id: string) => {
     queryKey: ["inventoryItem", id],
     queryFn: () => getInventoryItem(id),
     enabled: !!id,
+    staleTime: QUERY_STALE_TIMES.REALTIME,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
 

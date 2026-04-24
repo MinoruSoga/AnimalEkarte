@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { CashRegisterClose } from "@/types/generated/models";
 
 export interface GetCashRegisterClosesParams {
@@ -27,4 +28,6 @@ export const useGetCashRegisterCloses = (params?: GetCashRegisterClosesParams) =
   useQuery({
     queryKey: ["cash-register-closes", params],
     queryFn: () => getCashRegisterCloses(params),
+    staleTime: QUERY_STALE_TIMES.REALTIME,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });

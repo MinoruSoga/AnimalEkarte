@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 
 export const deleteTrimming = async (id: string): Promise<void> => {
   await axios.delete(`/v1/trimmings/${id}`);
@@ -13,5 +14,6 @@ export const useDeleteTrimming = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trimmings"] });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 };

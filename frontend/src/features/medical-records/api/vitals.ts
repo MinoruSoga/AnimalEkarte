@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Internal
 import { axios } from "@/lib/axios";
-import { QUERY_STALE_TIMES } from "@/lib/react-query";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
@@ -24,6 +24,7 @@ export const useGetVitals = (medicalRecordId: string) => {
     queryFn: () => getVitals(medicalRecordId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
 

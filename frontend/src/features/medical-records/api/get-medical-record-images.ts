@@ -3,19 +3,25 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { MedicalRecordImage } from "@/types/generated/models";
 
-export interface ImageGalleryItem {
-  id: number;
-  name: string;
-  src: string | null;
-  label: string;
-  mimeType?: string;
+function transformImageGalleryItem(img: MedicalRecordImage) {
+  return {
+    id: img.id,
+    name: img.file_name || img.description || `画像${img.id}`,
+    src: img.image_url || null,
+    label: img.description || img.file_name || `画像${img.id}`,
+    mimeType: img.mime_type || undefined,
+  };
 }
+export type ImageGalleryItem = ReturnType<typeof transformImageGalleryItem>;
 
-export interface ImageGalleryGroup {
-  id: number;
-  date: string;
-  images: ImageGalleryItem[];
+function transformImageGalleryGroup(g: { groupId: number; date: string; images: ImageGalleryItem[] }) {
+  return {
+    id: g.groupId,
+    date: g.date,
+    images: g.images,
+  };
 }
+export type ImageGalleryGroup = ReturnType<typeof transformImageGalleryGroup>;
 
 function formatGroupDate(iso: string): string {
   if (!iso) return "-";
@@ -36,20 +42,10 @@ function groupImagesByDate(images: MedicalRecordImage[]): ImageGalleryGroup[] {
         images: [],
       });
     }
-    groupMap.get(dateKey)!.images.push({
-      id: img.id,
-      name: img.file_name || img.description || `画像${img.id}`,
-      src: img.image_url || null,
-      label: img.description || img.file_name || `画像${img.id}`,
-      mimeType: img.mime_type || undefined,
-    });
+    groupMap.get(dateKey)!.images.push(transformImageGalleryItem(img));
   });
 
-  return Array.from(groupMap.values()).map((g) => ({
-    id: g.groupId,
-    date: g.date,
-    images: g.images,
-  }));
+  return Array.from(groupMap.values()).map(transformImageGalleryGroup);
 }
 
 const getMedicalRecordImages = async (

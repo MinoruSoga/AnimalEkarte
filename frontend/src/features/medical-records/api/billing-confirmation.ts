@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 // Internal
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 // Relative
 import type { BillingConfirmation, ReturnBillingConfirmationInput } from "../types";
@@ -24,6 +25,8 @@ export function useGetBillingConfirmation(medicalRecordId: string) {
     queryKey: billingConfirmationQueryKey(medicalRecordId),
     queryFn: () => getBillingConfirmation(medicalRecordId),
     enabled: !!medicalRecordId,
+    staleTime: QUERY_STALE_TIMES.REALTIME,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 }
 
