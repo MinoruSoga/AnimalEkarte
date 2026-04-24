@@ -428,6 +428,10 @@ export const C = {
   /** キャンセル / 初診 dot — Red */
   bgStatusRedDot:     "bg-red-500",
 
+  /* ── Tailwind utility backgrounds (FG1 compliance) ── */
+  /** Tailwind gray-100 background — skeleton loading placeholder */
+  bgGray100:      "bg-gray-100",
+
   /* ── Tailwind utility borders (FG1 compliance) ── */
   /** Tailwind blue-400 border — selected state borders */
   borderBlue400:  "border-blue-400",

@@ -103,7 +103,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
             <MasterLink category="examination" label="編集" className="text-[11px]" />
           </div>
           {masterLoading ? (
-            <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+            <div className={`h-10 ${C.bgGray100} rounded-md animate-pulse`} />
           ) : (
             <Select
               value={formData.testTypeId ?? ""}
@@ -128,7 +128,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
             <MasterLink category="staff" label="編集" className="text-[11px]" />
           </div>
           {masterLoading ? (
-            <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+            <div className={`h-10 ${C.bgGray100} rounded-md animate-pulse`} />
           ) : (
             <Select
               value={formData.doctorId ?? ""}

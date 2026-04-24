@@ -232,7 +232,7 @@ function PermissionFilteredSection({
       <div className={`px-1 pb-1.5 text-base ${C.text40} uppercase tracking-wide select-none`}>
         {section.title}
       </div>
-      <div className={`bg-white rounded-lg border ${C.borderLight} overflow-hidden divide-y ${C.divideDivider}`}>
+      <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden divide-y ${C.divideDivider}`}>
         {section.keys.map((key) => (
           <PermissionFilteredCard key={key} cardKey={key} navigate={navigate} />
         ))}
