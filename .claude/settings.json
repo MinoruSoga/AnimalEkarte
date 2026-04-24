@@ -3,12 +3,14 @@
   "alwaysThinkingEnabled": false,
   "attribution": {
     "enabled": true,
-    "format": "Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
+    "format": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
   },
   "outputStyle": "senior-engineer",
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "MAX_THINKING_TOKENS": "10000",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
   },
   "teammateMode": "in-process",
   "enableAllProjectMcpServers": true,

@@ -7,8 +7,8 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 | Category | Location | Purpose |
 |----------|----------|---------|
 | **Configuration** | `.claude/settings.json` | permissions, hooks, env |
-| **Rules** | `.claude/rules/` | 8 enforced rules (自動ロード) |
-| **Hooks** | `.claude/hooks/` | 6 Node.js/shell hooks (ECC準拠 JSON protocol) |
+| **Rules** | `.claude/rules/` | 1 auto-loaded rule file (claude-code-usage.md) |
+| **Hooks** | `.claude/hooks/` | 14 Node.js/shell hooks (ECC準拠 JSON protocol) |
 | **Memory** | `~/.claude/projects/.../memory/` | persistent knowledge files |
 | **Workflows** | `.claude/docs/workflows/` | Development workflow guides |
 | **Patterns** | `.claude/docs/patterns/` | Pattern implementation references |
@@ -19,34 +19,49 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 ┌─────────────────────────────────────┐
 │  Claude Code Session                │
 ├─────────────────────────────────────┤
-│  Agent Team (10 agents)             │
+│  Agent Team (17 agents)             │
 │  - architect (Opus)                 │
-│  - implementer (Sonnet)             │
-│  - reviewer (Haiku)                 │
-│  - debugger (Haiku)                 │
-│  - researcher (Haiku)               │
-│  - formatter (Haiku)                │
-│  - go-expert (Sonnet)               │
-│  - performance-optimizer (Sonnet)   │
+│  - planner (Opus)                   │
 │  - security-analyst (Opus)          │
+│  - implementer (Sonnet)             │
+│  - go-expert (Sonnet)               │
+│  - go-reviewer (Sonnet)             │
+│  - typescript-reviewer (Sonnet)     │
+│  - refactor-cleaner (Sonnet)        │
+│  - database-reviewer (Sonnet)       │
+│  - performance-optimizer (Sonnet)   │
+│  - tdd-guide (Sonnet)               │
 │  - test-strategist (Sonnet)         │
+│  - silent-failure-hunter (Sonnet)   │
+│  - debugger (Haiku)                 │
+│  - formatter (Haiku)                │
+│  - researcher (Haiku)               │
+│  - reviewer (Haiku)                 │
 ├─────────────────────────────────────┤
-│  Rules (8 files, auto-loaded)       │
+│  Rules (1 file, auto-loaded)        │
+│  - claude-code-usage.md             │
+│  Refs (14 files, on-demand)         │
 │  go-language, typescript-react,     │
-│  database-design, docker-rules,     │
-│  git-workflow, performance-rules,   │
-│  accessibility-rules, error-handling│
+│  gin-architecture-compliance,       │
+│  database-design, testing, api,     │
+│  naming-conventions, security, ...  │
 ├─────────────────────────────────────┤
-│  Hooks (ECC JSON stdin/stdout)      │
+│  Hooks (14 scripts, ECC protocol)   │
 │  PreToolUse:                        │
-│    - block-dangerous (Bash, exit 2) │
-│    - git-push-reminder (Bash, warn) │
-│    - large-file-block (Write, exit 2)│
+│    - block-dangerous (exit 2)       │
+│    - block-no-verify (exit 2)       │
+│    - commit-quality (exit 2)        │
+│    - large-file-block (exit 2)      │
+│    - config-protection (warn)       │
+│    - git-push-reminder (warn)       │
 │  PostToolUse:                       │
-│    - console-warn (Edit, warn)      │
-│    - format-go (Edit, gofmt)        │
-│  SessionStart:                      │
-│    - session-init (project detect)  │
+│    - console-warn (warn)            │
+│    - file-size-warn (warn)          │
+│    - format-go (gofmt)              │
+│    - typecheck-ts (tsc)             │
+│  PreCompact / Stop / SessionStart:  │
+│    - save-state, save-progress      │
+│    - desktop-notify, session-init   │
 ├─────────────────────────────────────┤
 │  Memory (persistent knowledge)      │
 │  - project-architecture.md          │
@@ -66,10 +81,18 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 
 ### Hooks (Node.js, JSON protocol)
 - `hooks/pre-bash-block-dangerous.js`: Block rm -rf /, dd, mkfs (exit 2)
+- `hooks/pre-bash-block-no-verify.js`: Block --no-verify / --no-gpg-sign (exit 2)
+- `hooks/pre-bash-commit-quality.js`: Commit quality gate — secrets, commit msg (exit 2)
 - `hooks/pre-bash-git-push-reminder.js`: Warn before git push (stderr)
 - `hooks/pre-write-large-file-block.js`: Block 800+ line files (exit 2)
+- `hooks/pre-edit-config-protection.js`: Warn on linter/formatter config edits
 - `hooks/post-edit-console-warn.js`: Detect console.log (stderr warning)
-- `hooks/post-edit-format-go.js`: Auto gofmt via Docker
+- `hooks/post-edit-file-size-warn.js`: Warn when file exceeds 500/800 lines
+- `hooks/post-edit-format-go.js`: Auto gofmt via Docker (non-blocking)
+- `hooks/post-edit-typecheck-ts.js`: Auto tsc --noEmit via Docker (non-blocking)
+- `hooks/pre-compact-save-state.js`: Save git state before compaction
+- `hooks/stop-save-progress.js`: Save session progress on stop
+- `hooks/stop-desktop-notify.js`: macOS notification when Claude finishes
 - `hooks/session-init.sh`: Session start log
 
 ## Development Workflow
