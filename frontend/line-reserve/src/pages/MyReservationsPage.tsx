@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import type { Reservation } from '../types/models';
 import { liffApi } from '../api/liff-api';
 import { BackButton } from '../components/BackButton';
@@ -43,7 +43,8 @@ export function MyReservationsPage({
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
 
-  const loadReservations = useCallback(() => {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     liffApi.getMyReservations(clinicId, idToken)
       .then(data => {
@@ -58,11 +59,7 @@ export function MyReservationsPage({
       });
   }, [clinicId, idToken]);
 
-  useEffect(() => {
-    loadReservations();
-  }, [loadReservations]);
-
-  const handleCancel = useCallback(async (id: number) => {
+  const handleCancel = async (id: number) => {
     const confirmed = window.confirm('この予約をキャンセルしますか？');
     if (!confirmed) return;
 
@@ -77,7 +74,7 @@ export function MyReservationsPage({
     } finally {
       setCancellingId(null);
     }
-  }, [clinicId, idToken]);
+  };
 
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">

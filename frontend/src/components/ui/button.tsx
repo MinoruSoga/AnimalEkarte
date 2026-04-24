@@ -5,6 +5,7 @@ import { cn } from "./utils";
 import { buttonVariants, type ButtonVariantsProps } from "./button-variants";
 
 // Re-export for compatibility (used by alert-dialog.tsx, etc.)
+// eslint-disable-next-line react-refresh/only-export-components
 export { buttonVariants };
 
 interface ButtonProps

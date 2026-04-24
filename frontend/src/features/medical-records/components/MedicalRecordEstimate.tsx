@@ -48,7 +48,6 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   // Populate form from existing estimate
   useEffect(() => {
     if (!existingEstimate) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 既存見積からフォームを初期化
     setSubject(existingEstimate.title ?? "");
     setComment(existingEstimate.comment ?? "");
     setRemarks(existingEstimate.notes ?? "");

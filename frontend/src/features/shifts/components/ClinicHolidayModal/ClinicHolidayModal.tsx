@@ -33,7 +33,6 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
   // 日付変更・open時にフォームリセット
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ open 時のフォームリセットパターン
       setReason(existing?.reason ?? "");
     }
   }, [open, existing]);

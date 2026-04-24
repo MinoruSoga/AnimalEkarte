@@ -54,7 +54,6 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
   // Sync form state when data loads
   useEffect(() => {
     if (data) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期サーバーデータでフォームを初期化するパターン。React 18 が自動バッチするため実害なし
       setPhysicalExam(data.physical_exam ?? "");
       setDiagnosisTypeId(data.diagnosis_type_id ? Number(data.diagnosis_type_id) : null);
       setDiagnosisNameId(data.diagnosis_name_id ? Number(data.diagnosis_name_id) : null);

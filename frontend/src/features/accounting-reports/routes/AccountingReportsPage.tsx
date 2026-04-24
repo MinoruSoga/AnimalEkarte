@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { C } from "@/lib/design-tokens";
@@ -18,15 +18,15 @@ export function AccountingReportsPage() {
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
 
-  const handleYearChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setYear(Number(e.target.value));
-  }, []);
+  };
 
-  const handleMonthChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setMonth(Number(e.target.value));
-  }, []);
+  };
 
-  const handleExport = useCallback(async () => {
+  const handleExport = async () => {
     setIsExporting(true);
     try {
       await exportMonthlyCSV(year, month);
@@ -36,7 +36,7 @@ export function AccountingReportsPage() {
     } finally {
       setIsExporting(false);
     }
-  }, [year, month]);
+  };
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">

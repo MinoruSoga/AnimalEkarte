@@ -92,7 +92,6 @@ export function useTrimmingForm(id?: string) {
   useEffect(() => {
     if (isEdit && existingTrimming && !serverDataLoadedRef.current) {
       serverDataLoadedRef.current = true;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期サーバーデータでフォームを初期化するパターン（初回1回のみ）
       setLocalOverrides({
         styleRequest: existingTrimming.styleRequest,
         courseId: existingTrimming.courseId ?? "",
@@ -108,6 +107,7 @@ export function useTrimmingForm(id?: string) {
       });
       // 既存画像URLをプレビューとして復元
       if (existingTrimming.styleImage) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setStyleImagePreview(existingTrimming.styleImage);
       }
       if (existingTrimming.completedImage) {

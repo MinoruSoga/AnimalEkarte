@@ -104,16 +104,13 @@ export const ReservationFormModal = memo(function ReservationFormModal({
 
   useEffect(() => {
     if (loadedPet && pendingPetId) {
-      /* eslint-disable react-hooks/set-state-in-effect -- 非同期ペットデータのロード完了後に選択状態を設定するパターン */
       setSelectedPets([loadedPet]);
       setPendingPetId(null);
-      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [loadedPet, pendingPetId, setSelectedPets]);
 
   useEffect(() => {
     if (!isOpen) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- モーダル open 時にフォームをリセット。key prop パターンの代替
     setValidationErrors({});
     setMobilePanel("search");
     setCalendarMonth(dateFnsFormat(new Date(), "yyyy-MM")); // BUG-343: 月またぎ表示リセット

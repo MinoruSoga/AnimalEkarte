@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useBlocker } from "react-router";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 
@@ -82,11 +82,12 @@ export function NavigationBlocker({
 }: NavigationBlockerProps) {
   // Keep the dialog mounted while a block interaction may still be
   // in progress, even if `when` flips to false mid-dialog.
-  const [active, setActive] = useState(false);
-
-  useEffect(() => {
+  const [active, setActive] = useState(when);
+  const [prevWhen, setPrevWhen] = useState(when);
+  if (prevWhen !== when) {
+    setPrevWhen(when);
     setActive(when);
-  }, [when]);
+  }
 
   if (!active) {
     return null;
