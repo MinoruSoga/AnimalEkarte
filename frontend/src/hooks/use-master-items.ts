@@ -94,11 +94,7 @@ export function useGetMasterItemsByCategory(category: string) {
   });
 }
 
-/**
- * Read-only master data hook for cross-feature consumption.
- * Returns filtered items by category. Does not include CRUD mutations.
- * For CRUD, use the master feature's internal useMasterItems hook.
- */
+/** Read-only master data hook for cross-feature consumption. Returns filtered items by category. */
 export function useMasterItems(category?: string, searchTerm?: string) {
   const resolvedCategory = category && category !== "all" ? category : "";
   const { data: categoryItems = [], isLoading } = useGetMasterItemsByCategory(resolvedCategory);
