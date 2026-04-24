@@ -2,22 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { MerchandiseItem, TaxType } from "@/types/generated/models";
+import type { MerchandiseItem } from "@/types/generated/models";
 
 // ─── Transform ────────────────────────────────────────────
 
-interface FrontendMerchandiseItem {
-  id: string;
-  name: string;
-  category: string;
-  unitPrice: number;
-  taxType: TaxType;
-  taxRate: number;
-  isActive: boolean;
-  sortOrder: number;
-}
-
-function transformMerchandiseItem(item: MerchandiseItem): FrontendMerchandiseItem {
+function transformMerchandiseItem(item: MerchandiseItem) {
   return {
     id: String(item.id ?? 0),
     name: item.name,
@@ -30,7 +19,7 @@ function transformMerchandiseItem(item: MerchandiseItem): FrontendMerchandiseIte
   };
 }
 
-export type { FrontendMerchandiseItem };
+export type FrontendMerchandiseItem = ReturnType<typeof transformMerchandiseItem>;
 
 // ─── API Request Types ────────────────────────────────────
 

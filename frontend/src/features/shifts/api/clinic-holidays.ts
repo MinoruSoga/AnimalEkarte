@@ -35,7 +35,7 @@ export function useGetClinicHolidays(yearMonth: string) {
 }
 
 // POST /v1/clinic-holidays
-export function useSetClinicHoliday() {
+export function useCreateClinicHoliday() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: SetClinicHolidayInput) =>

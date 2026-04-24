@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { Accounting } from "../types";
 import { transformToAccounting } from "./transforms";
+import type { Accounting } from "./transforms";
 import type { BackendAccounting } from "./types";
 
 // Accounting 詳細型（明細含む）を取得する hook

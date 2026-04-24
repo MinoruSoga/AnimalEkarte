@@ -25,7 +25,7 @@ export const EstimateForm = memo(function EstimateForm({
       <Input
         value={subject}
         onChange={(e) => onSubjectChange(e.target.value)}
-        className={`bg-white ${C.borderMedium} h-10 text-sm`}
+        className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm`}
         disabled={!canEdit}
       />
     </div>

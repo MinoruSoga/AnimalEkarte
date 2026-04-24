@@ -68,7 +68,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
         days.push(
           <div
             key={day.toString()}
-            className={`h-full min-h-[140px] bg-white border-b border-r ${C.borderLight} p-2 transition-colors ${C.hoverBgPage} cursor-pointer flex flex-col
+            className={`h-full min-h-[140px] ${C.bgWhite} border-b border-r ${C.borderLight} p-2 transition-colors ${C.hoverBgPage} cursor-pointer flex flex-col
               ${!isSameMonth(day, monthStart) ? `${C.bgPage30} ${C.text30}` : C.text}
               ${isSameDay(day, new Date()) ? C.bgAccent8 : ""}
             `}
@@ -135,7 +135,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
   }, [currentDate, appointments, dynamicColorMap, onAppointmentClick, onDateClick]);
 
   return (
-    <div className={`flex flex-col h-full border-l border-t ${C.borderMedium} rounded-lg overflow-hidden bg-white shadow-sm`}>
+    <div className={`flex flex-col h-full border-l border-t ${C.borderMedium} rounded-lg overflow-hidden ${C.bgWhite} shadow-sm`}>
       {HEADER_ROW}
       <div className="flex-1 flex flex-col">
         {rows}

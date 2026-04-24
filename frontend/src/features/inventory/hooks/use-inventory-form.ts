@@ -42,11 +42,11 @@ export function useInventoryForm(id?: string) {
 
   const resolvedExpiry =
     expiryDate ||
-    (existingItem?.expiry_date ? existingItem.expiry_date.slice(0, 10) : "");
+    (existingItem?.expiryDate ? existingItem.expiryDate.slice(0, 10) : "");
   const resolvedLastRestocked =
     lastRestocked ||
-    (existingItem?.last_restocked
-      ? existingItem.last_restocked.slice(0, 10)
+    (existingItem?.lastRestocked
+      ? existingItem.lastRestocked.slice(0, 10)
       : "");
 
   const [formState, formAction, isPending] = useActionState(

@@ -99,7 +99,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
       ) : null}
 
       {/* Filters */}
-      <div className={`flex items-end gap-4 flex-wrap bg-white p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>
+      <div className={`flex items-end gap-4 flex-wrap ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>
         <div className="flex flex-col gap-1.5 w-[300px]">
           <Label htmlFor="image-gallery-search" className={`text-sm font-medium ${C.text60}`}>
             検索単語
@@ -108,7 +108,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
             id="image-gallery-search"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className={`bg-white ${C.borderMedium} h-10 text-sm`}
+            className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm`}
           />
         </div>
 
@@ -137,7 +137,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           <Button
             type="button"
             variant="outline"
-            className={`h-10 bg-white ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm shadow-sm px-3`}
+            className={`h-10 ${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm shadow-sm px-3`}
           >
             クリア
           </Button>
@@ -149,7 +149,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
             検索
           </Button>
           <Select value={sortOrder} onValueChange={onSortOrderChange}>
-            <SelectTrigger className={`w-[80px] h-10 bg-white ${C.borderMedium} text-sm`}>
+            <SelectTrigger className={`w-[80px] h-10 ${C.bgWhite} ${C.borderMedium} text-sm`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>{SORT_ORDER_SELECT_ITEMS}</SelectContent>

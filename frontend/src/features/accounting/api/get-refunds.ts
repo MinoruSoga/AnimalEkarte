@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { BillingRefund } from "@/types/generated/models";
-import type { Refund } from "../types";
 import { transformToRefund } from "./transforms";
+import type { Refund } from "./transforms";
 
 export const getRefunds = async (billingId: string): Promise<Refund[]> => {
   const { data } = await axios.get<BillingRefund[]>(

@@ -532,7 +532,7 @@ export const WeekView = memo(function WeekView({
         return (
           <div
             key={i}
-            className={`flex-1 flex-shrink-0 text-center py-2 border-r border-b ${C.borderMedium} bg-white ${
+            className={`flex-1 flex-shrink-0 text-center py-2 border-r border-b ${C.borderMedium} ${C.bgWhite} ${
               isToday ? C.bgAccentLight30 : ""
             }`}
             style={{ minWidth: "20%" }}
@@ -571,10 +571,10 @@ export const WeekView = memo(function WeekView({
   );
 
   return (
-    <div className={`flex-1 border ${C.borderMedium} rounded-lg bg-white overflow-auto relative`}>
+    <div className={`flex-1 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-auto relative`}>
       <div style={{ minWidth: "100%" }}>
         {/* Week Header */}
-        <div className={`flex border-b ${C.borderMedium} sticky top-0 z-30 bg-white`}>
+        <div className={`flex border-b ${C.borderMedium} sticky top-0 z-30 ${C.bgWhite}`}>
           <div className={`w-12 flex-shrink-0 ${C.bgPage} border-r border-b ${C.borderMedium} sticky left-0 z-40`} />
           <div className="flex flex-1">{headerDays}</div>
         </div>

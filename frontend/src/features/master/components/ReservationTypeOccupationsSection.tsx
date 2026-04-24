@@ -28,7 +28,7 @@ export function ReservationTypeOccupationsSection({ clinicId, reservationTypeId 
   const unlinkMutation = useUnlinkOccupation(clinicId, reservationTypeId);
 
   const linkedOccupationIds = useMemo(
-    () => new Set(linked.map((l) => l.occupation_id)),
+    () => new Set(linked.map((l) => l.occupationId)),
     [linked],
   );
 
@@ -54,7 +54,7 @@ export function ReservationTypeOccupationsSection({ clinicId, reservationTypeId 
   const linkedBadges = useMemo(() => linked.map((item) => (
     <div
       key={item.id}
-      className={`inline-flex items-center gap-1 text-sm px-2 py-0.5 rounded-full border ${C.borderMedium} ${C.text} bg-white`}
+      className={`inline-flex items-center gap-1 text-sm px-2 py-0.5 rounded-full border ${C.borderMedium} ${C.text} ${C.bgWhite}`}
     >
       <span>{item.occupation?.name ?? "—"}</span>
       <button

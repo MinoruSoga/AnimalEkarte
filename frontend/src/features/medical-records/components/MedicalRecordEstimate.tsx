@@ -194,7 +194,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className={`bg-white ${C.borderMedium} min-h-[60px] resize-none p-2 text-sm ${C.text}`}
+            className={`${C.bgWhite} ${C.borderMedium} min-h-[60px] resize-none p-2 text-sm ${C.text}`}
             disabled={!canEdit}
           />
         </div>
@@ -205,7 +205,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
           <Textarea
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
-            className={`bg-white ${C.borderMedium} min-h-[60px] resize-none p-2 text-sm ${C.text}`}
+            className={`${C.bgWhite} ${C.borderMedium} min-h-[60px] resize-none p-2 text-sm ${C.text}`}
             disabled={!canEdit}
           />
         </div>

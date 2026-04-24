@@ -10,7 +10,7 @@ import type { ReservationTypeOccupation as ReservationTypeOccupationRaw } from "
 
 function transformReservationTypeOccupation(
   raw: ReservationTypeOccupationRaw,
-): ReservationTypeOccupation {
+) {
   return {
     id: raw.id,
     clinicId: raw.clinic_id,
@@ -100,8 +100,6 @@ export function useLinkOccupation(clinicId: string, reservationTypeId: string) {
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: occupationsKey(reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "職種の紐付け"),
-    staleTime: QUERY_STALE_TIMES.STATIC,
-    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
@@ -112,7 +110,5 @@ export function useUnlinkOccupation(clinicId: string, reservationTypeId: string)
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: occupationsKey(reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "職種の紐付け解除"),
-    staleTime: QUERY_STALE_TIMES.STATIC,
-    gcTime: QUERY_GC_TIMES.LONG,
   });
 }

@@ -1,6 +1,6 @@
 import { axios } from "@/lib/axios";
-import type { Hospitalization } from "@/types";
 import { transformHospitalization } from "./transforms";
+import type { Hospitalization } from "./transforms";
 import type {
   BackendHospitalization,
   CreateHospitalizationRequest,

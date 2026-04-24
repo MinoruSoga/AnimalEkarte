@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformReservationsToReceptionColumns } from "./transforms";
-import type { Appointment as BackendReceptionReservation } from "@/types/generated/models";
+import type { Reservation as BackendReceptionReservation } from "@/types/generated/models";
 import type { ReceptionColumn } from "./types";
 
 interface ReservationsResponse {

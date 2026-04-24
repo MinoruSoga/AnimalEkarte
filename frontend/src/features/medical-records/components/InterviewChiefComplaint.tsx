@@ -53,7 +53,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
         key={tmpl.label}
         variant="outline"
         size="sm"
-        className={`${LAYOUT.touch.md} text-sm px-3 bg-white ${C.hoverBgPage} ${C.text60} ${C.borderMedium}`}
+        className={`${LAYOUT.touch.md} text-sm px-3 ${C.bgWhite} ${C.hoverBgPage} ${C.text60} ${C.borderMedium}`}
         onClick={() => onInsertTemplate(tmpl.text)}
         disabled={!canEdit}
       >
@@ -91,7 +91,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             onValueChange={(value) => setChiefComplaintTypeId(value ? Number(value) : null)}
             disabled={isLoading || !canEdit}
           >
-            <SelectTrigger className={`w-full ${LAYOUT.touch.md} bg-white ${C.borderMedium} text-sm ${C.text}`}>
+            <SelectTrigger className={`w-full ${LAYOUT.touch.md} ${C.bgWhite} ${C.borderMedium} text-sm ${C.text}`}>
               <SelectValue placeholder={isLoading ? "読み込み中..." : "選択してください"} />
             </SelectTrigger>
             <SelectContent>

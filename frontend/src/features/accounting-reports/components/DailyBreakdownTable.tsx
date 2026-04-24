@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { C, STYLE } from "@/lib/design-tokens";
-import type { DailyReportDetail } from "@/types/generated/models";
+import type { DailyReportDetail } from "../api/get-monthly-report";
 
 interface DailyBreakdownTableProps {
   details: DailyReportDetail[];
@@ -34,20 +34,20 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
           {details.map((detail) => (
             <tr
               key={detail.date}
-              className={`border-b ${C.borderLight} ${detail.is_holiday ? C.bgNotice40 : STYLE.tableRow}`}
+              className={`border-b ${C.borderLight} ${detail.isHoliday ? C.bgNotice40 : STYLE.tableRow}`}
             >
               <td className={`px-3 py-2 ${C.text}`}>{detail.date}</td>
               <td className={`px-3 py-2 ${C.text}`}>{detail.weekday}</td>
-              <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.am_count}件</td>
+              <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.amCount}件</td>
               <td className={`px-3 py-2 text-right ${C.text}`}>
-                ¥{detail.am_net.toLocaleString()}
+                ¥{detail.amNet.toLocaleString()}
               </td>
-              <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.pm_count}件</td>
+              <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.pmCount}件</td>
               <td className={`px-3 py-2 text-right ${C.text}`}>
-                ¥{detail.pm_net.toLocaleString()}
+                ¥{detail.pmNet.toLocaleString()}
               </td>
               <td className={`px-3 py-2 text-right font-medium ${C.text}`}>
-                ¥{detail.day_net.toLocaleString()}
+                ¥{detail.dayNet.toLocaleString()}
               </td>
               <td
                 className={`px-3 py-2 text-right ${detail.refund > 0 ? C.danger : C.text50}`}
@@ -56,12 +56,12 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
               </td>
               <td className="px-3 py-2 text-center">
                 <span
-                  className={`inline-block size-2 rounded-full ${detail.am_closed ? C.bgStatusGreenDot : C.bgInactive}`}
+                  className={`inline-block size-2 rounded-full ${detail.amClosed ? C.bgStatusGreenDot : C.bgInactive}`}
                 />
               </td>
               <td className="px-3 py-2 text-center">
                 <span
-                  className={`inline-block size-2 rounded-full ${detail.pm_closed ? C.bgStatusGreenDot : C.bgInactive}`}
+                  className={`inline-block size-2 rounded-full ${detail.pmClosed ? C.bgStatusGreenDot : C.bgInactive}`}
                 />
               </td>
             </tr>

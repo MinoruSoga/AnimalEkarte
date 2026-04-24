@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { ClosingSpecialPeriod } from "@/types/generated/models";
 
 export interface CreateSpecialPeriodRequest {
@@ -48,6 +49,7 @@ export const useCreateSpecialPeriod = () => {
   return useMutation({
     mutationFn: createSpecialPeriod,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["closing-settings"] }),
+    onError: (error) => handleApiError(error, "特別期間の追加"),
   });
 };
 
@@ -57,6 +59,7 @@ export const useUpdateSpecialPeriod = () => {
     mutationFn: ({ id, data }: { id: number; data: UpdateSpecialPeriodRequest }) =>
       updateSpecialPeriod(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["closing-settings"] }),
+    onError: (error) => handleApiError(error, "特別期間の更新"),
   });
 };
 
@@ -65,5 +68,6 @@ export const useDeleteSpecialPeriod = () => {
   return useMutation({
     mutationFn: (id: number) => deleteSpecialPeriod(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["closing-settings"] }),
+    onError: (error) => handleApiError(error, "特別期間の削除"),
   });
 };

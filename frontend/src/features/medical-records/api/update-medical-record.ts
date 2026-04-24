@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
-import type { MedicalRecord } from "@/types";
 import { transformMedicalRecord } from "./transforms";
+import type { MedicalRecord } from "./transforms";
 import type { BackendMedicalRecord, UpdateMedicalRecordRequest } from "./types";
 
 export const updateMedicalRecord = async (

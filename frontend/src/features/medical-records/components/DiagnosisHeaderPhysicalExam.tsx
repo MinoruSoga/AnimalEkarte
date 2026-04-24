@@ -35,7 +35,7 @@ export const DiagnosisHeaderPhysicalExam = memo(function DiagnosisHeaderPhysical
           <Textarea
             value={policy}
             onChange={(e) => setPolicy(e.target.value)}
-            className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 font-mono ${C.focusRingMedicalBlue}`}
+            className={`flex-1 resize-none ${C.bgWhite} ${C.borderMedium} text-sm p-3 font-mono ${C.focusRingMedicalBlue}`}
             disabled={!canEdit}
           />
         </CardContent>

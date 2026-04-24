@@ -87,7 +87,7 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
   }
 
   return (
-    <div className={`mt-4 bg-white border ${C.borderMedium} rounded-[4px] p-5`}>
+    <div className={`mt-4 ${C.bgWhite} border ${C.borderMedium} rounded-[4px] p-5`}>
       <h2 className={`text-sm font-bold ${C.text} mb-4`}>診察所見・診断・治療方針</h2>
 
       <div className="flex flex-col gap-4">
@@ -117,7 +117,7 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
             }}
             disabled={isTypesLoading || !canEdit}
           >
-            <SelectTrigger className={`bg-white ${C.borderMedium} h-10 text-sm`}>
+            <SelectTrigger className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm`}>
               <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
             </SelectTrigger>
             <SelectContent className="z-[9999]">
@@ -137,7 +137,7 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
             onValueChange={(value) => setDiagnosisNameId(value ? Number(value) : null)}
             disabled={isNamesLoading || !diagnosisTypeId || !canEdit}
           >
-            <SelectTrigger className={`bg-white ${C.borderMedium} h-10 text-sm`}>
+            <SelectTrigger className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm`}>
               <SelectValue placeholder={
                 isNamesLoading ? "読み込み中..." :
                 !diagnosisTypeId ? "先にカテゴリを選択" :

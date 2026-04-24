@@ -104,11 +104,11 @@ export function AccountingReportsPage() {
           <MonthlySummaryCards summary={data.summary} />
 
           {/* 支払方法別集計 */}
-          {Object.keys(data.summary.by_payment_method).length > 0 ? (
+          {Object.keys(data.summary.byPaymentMethod).length > 0 ? (
             <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
               <h2 className={`text-base font-semibold ${C.text} mb-4`}>支払方法別集計</h2>
               <div className="flex flex-wrap gap-4">
-                {Object.entries(data.summary.by_payment_method).map(([method, amount]) => (
+                {Object.entries(data.summary.byPaymentMethod).map(([method, amount]) => (
                   <div key={method} className={`flex flex-col gap-0.5`}>
                     <span className={`text-base ${C.text60}`}>{method}</span>
                     <span className={`text-base font-semibold ${C.text}`}>
@@ -127,19 +127,19 @@ export function AccountingReportsPage() {
               <div>
                 <p className={`text-base ${C.text60} mb-1`}>標準税率 (10%)</p>
                 <p className={`text-base ${C.text}`}>
-                  課税額: ¥{data.summary.tax_breakdown.standard.taxable_amount.toLocaleString()}
+                  課税額: ¥{data.summary.taxBreakdown.standard.taxableAmount.toLocaleString()}
                 </p>
                 <p className={`text-base ${C.text}`}>
-                  税額: ¥{data.summary.tax_breakdown.standard.tax_amount.toLocaleString()}
+                  税額: ¥{data.summary.taxBreakdown.standard.taxAmount.toLocaleString()}
                 </p>
               </div>
               <div>
                 <p className={`text-base ${C.text60} mb-1`}>軽減税率 (8%)</p>
                 <p className={`text-base ${C.text}`}>
-                  課税額: ¥{data.summary.tax_breakdown.reduced.taxable_amount.toLocaleString()}
+                  課税額: ¥{data.summary.taxBreakdown.reduced.taxableAmount.toLocaleString()}
                 </p>
                 <p className={`text-base ${C.text}`}>
-                  税額: ¥{data.summary.tax_breakdown.reduced.tax_amount.toLocaleString()}
+                  税額: ¥{data.summary.taxBreakdown.reduced.taxAmount.toLocaleString()}
                 </p>
               </div>
             </div>
@@ -148,7 +148,7 @@ export function AccountingReportsPage() {
           {/* 日次明細 */}
           <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
             <h2 className={`text-base font-semibold ${C.text} mb-4`}>日次明細</h2>
-            <DailyBreakdownTable details={data.daily_details} />
+            <DailyBreakdownTable details={data.dailyDetails} />
           </section>
         </>
       )}

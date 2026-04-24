@@ -26,20 +26,7 @@ export interface ShiftBreak {
 }
 
 /** UI-facing shift (string IDs — post-transform) */
-export interface Shift {
-  id: string;
-  clinic_id: string;
-  staff_id: string;
-  staff_name?: string;
-  date: string; // YYYY-MM-DD
-  shift_type: ShiftType;
-  start_time: string;
-  end_time: string;
-  notes: string;
-  breaks: ShiftBreak[];
-  created_at: string;
-  updated_at: string;
-}
+export type { Shift } from "../api/transforms";
 
 /** @see {@link import("@/types/generated/models").ShiftEntry} */
 export interface ShiftBreakInput {

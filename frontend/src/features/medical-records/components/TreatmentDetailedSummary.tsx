@@ -30,7 +30,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
   disabled = false,
 }: TreatmentDetailedSummaryProps) {
   return (
-    <div className={`grid grid-cols-2 gap-0 mt-2 border ${C.borderMedium} rounded-lg bg-white text-sm overflow-hidden mb-8 shadow-sm`}>
+    <div className={`grid grid-cols-2 gap-0 mt-2 border ${C.borderMedium} rounded-lg ${C.bgWhite} text-sm overflow-hidden mb-8 shadow-sm`}>
       <div className="col-span-2">
         {/* Summary Headers */}
         <div className={`grid grid-cols-5 border-b ${C.borderMedium} ${C.bgPage}`}>
@@ -52,7 +52,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
         </div>
 
         {/* Summary Values */}
-        <div className={`grid grid-cols-5 border-b ${C.borderMedium} bg-white items-center h-12`}>
+        <div className={`grid grid-cols-5 border-b ${C.borderMedium} ${C.bgWhite} items-center h-12`}>
           <div className={`p-2 text-right ${C.text} border-r ${C.borderMedium} h-full flex items-center justify-end font-mono font-medium`}>
             ￥{subtotal.toLocaleString()}
           </div>
@@ -97,7 +97,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
         </div>
 
         {/* Final Totals */}
-        <div className="grid grid-cols-2 bg-white">
+        <div className={`grid grid-cols-2 ${C.bgWhite}`}>
           <div className={`p-2 border-r ${C.borderMedium} flex justify-between items-center h-10`}>
             <span className={`font-normal ${C.text} text-sm`}>
               保険請求額

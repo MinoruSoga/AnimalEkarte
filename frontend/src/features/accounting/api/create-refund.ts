@@ -1,7 +1,7 @@
 import { axios } from "@/lib/axios";
 import type { BillingRefund } from "@/types/generated/models";
-import type { Refund } from "../types";
 import { transformToRefund } from "./transforms";
+import type { Refund } from "./transforms";
 
 export interface CreateRefundRequest {
   amount: number;

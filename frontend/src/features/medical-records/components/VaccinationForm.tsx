@@ -86,7 +86,7 @@ export const VaccinationForm = memo(function VaccinationForm({
             <MasterLink category="vaccine" label="編集" className="text-[11px]" />
           </div>
           <Select value={vaccineName} onValueChange={setVaccineName}>
-            <SelectTrigger className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}>
+            <SelectTrigger className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm ${C.text}`}>
               <SelectValue placeholder="ワクチンを選択" />
             </SelectTrigger>
             <SelectContent className="z-[9999]">
@@ -110,7 +110,7 @@ export const VaccinationForm = memo(function VaccinationForm({
         <Input
           value={supplemental}
           onChange={(e) => setSupplemental(e.target.value)}
-          className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
+          className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm ${C.text}`}
         />
       </div>
 
@@ -123,7 +123,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <Input
             value={lot1}
             onChange={(e) => setLot1(e.target.value)}
-            className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
+            className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm ${C.text}`}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -133,7 +133,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <Input
             value={lot2}
             onChange={(e) => setLot2(e.target.value)}
-            className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
+            className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm ${C.text}`}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -143,7 +143,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <Input
             value={lot3}
             onChange={(e) => setLot3(e.target.value)}
-            className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
+            className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm ${C.text}`}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -153,7 +153,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <Input
             value={lot4}
             onChange={(e) => setLot4(e.target.value)}
-            className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
+            className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm ${C.text}`}
           />
         </div>
       </div>
@@ -239,7 +239,7 @@ export const VaccinationForm = memo(function VaccinationForm({
         <Textarea
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
-          className={`flex-1 resize-none bg-white ${C.borderMedium} p-3 text-sm ${C.text} leading-relaxed`}
+          className={`flex-1 resize-none ${C.bgWhite} ${C.borderMedium} p-3 text-sm ${C.text} leading-relaxed`}
         />
       </div>
 

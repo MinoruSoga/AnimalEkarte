@@ -1,8 +1,5 @@
 import { ReactNode } from "react";
-import type {
-  InventoryItem as BackendInventoryItem,
-  Resource,
-} from "./generated/models";
+import type { Resource } from "./generated/models";
 
 /**
  * 共有UI型定義 (Single Source of Truth)
@@ -18,6 +15,13 @@ export type { Medicine } from "@/lib/transforms/medicine";
 export type { ExamResult, ExaminationRecord } from "@/features/examinations/api/transforms";
 export type { VaccinationRecord } from "@/features/vaccinations/api/transforms";
 export type { TrimmingUI } from "@/features/trimming/api/transforms";
+export type { InventoryItem } from "@/features/inventory/api/inventory";
+// Feature domain types — sourced from transform ReturnType (FA9)
+export type { Reservation } from "@/features/reservations/api/transforms";
+export type { Hospitalization } from "@/features/hospitalization/api/transforms";
+export type { MedicalRecord } from "@/features/medical-records/api/transforms";
+import type { ReceptionAppointment } from "@/features/reception/api/transforms";
+export type { ReceptionAppointment };
 
 
 export interface MenuItem {
@@ -29,25 +33,7 @@ export interface MenuItem {
 }
 
 // --- Reception（当日の受付）/ Calendar ---
-
-/** 当日の受付カンバンカード用の変換後型 */
-export interface ReceptionAppointment {
-  id: string;
-  time: string; // "HH:mm" 形式
-  ownerName: string;
-  petType: string;
-  petName: string;
-  visitType: "初診" | "再診";
-  reservationType: string;
-  nextAppointment?: "次回予約無" | "次回予約済" | "精算未確認" | "精算確認済";
-  isDesignated: boolean;
-  doctor?: string;
-  petId: string;
-  ownerId: string;
-  status: ReservationStatus;
-  notes?: string;
-  source?: "manual" | "line";
-}
+// ReceptionAppointment は @/features/reception/api/transforms から re-export 済み
 
 export interface ColumnData {
   title: string;
@@ -104,57 +90,8 @@ export interface NavigationState {
 }
 
 // --- Feature UI Types ---
-
-/**
- * フロントエンド予約型（UI 表示用 - id:string, start/end:Date）
- * transforms.ts の変換結果として使用
- */
-export interface Reservation {
-  id: string;
-  start: Date;
-  end: Date;
-  ownerName: string;
-  petName: string;
-  /** LINE予約フォームで入力したペットの種類（犬種等）。カルテ紐付け前のフォールバック用 */
-  petType?: string;
-  visitType: "first" | "revisit";
-  type: string;
-  reservationTypeId?: string;
-  doctor: string;
-  doctorId?: string;
-  isDesignated: boolean;
-  status: ReservationStatus;
-  notes?: string;
-  petId?: string;
-  source: "manual" | "line";
-}
-
-/**
- * フロントエンド入院記録型（UI 表示用 - id:string, 日本語ステータス）
- * transforms.ts の変換結果として使用
- */
-export interface Hospitalization {
-  id: string;
-  hospitalizationNo: string;
-  ownerName: string;
-  petName: string;
-  species: string;
-  hospitalizationType: "入院" | "ホテル";
-  startDate: string;
-  endDate: string;
-  status: "入院中" | "退院済" | "予約" | "一時帰宅";
-  cageId?: string;
-  /** 退院後の会計連携で使用 */
-  petId?: string;
-  /** 担当医 */
-  doctorId?: string;
-  doctorName?: string;
-  /** 臨床安全ガード: ペットが死亡済みの場合 true */
-  petIsDeceased?: boolean;
-  memo?: string;
-  ownerRequest?: string;
-  staffNotes?: string;
-}
+// Reservation は @/features/reservations/api/transforms から re-export 済み
+// Hospitalization は @/features/hospitalization/api/transforms から re-export 済み
 
 /**
  * フロントエンドケアプラン項目型（UI 表示用 - camelCase フィールド）
@@ -222,55 +159,7 @@ export interface DailyRecord {
   }>;
 }
 
-/**
- * フロントエンド電子カルテ型（UI 表示用）
- * transforms.ts の変換結果として使用
- */
-export interface MedicalRecord {
-  id: string;
-  recordNo: string;
-  date: string;
-  ownerId?: string;
-  ownerName: string;
-  petId?: string;
-  petName: string;
-  species: string;
-  chiefComplaint: string;
-  doctor: string;
-  status: "作成中" | "確定済";
-  visitType?: string;
-  subjective?: string;
-  objective?: string;
-  assessment?: string;
-  plan?: string;
-  surgeryNotes?: string;
-  diagnosis?: string;
-  treatment?: string;
-  prescription?: string;
-  notes?: string;
-  accountingId?: string;
-  visitCount?: number;
-  version: number;
-}
-
-
-/**
- * フロントエンド在庫品目型（UI 表示用 - id:string, camelCase フィールド名）
- * use-inventory.ts の transformInventoryItem が返す型
- */
-export interface InventoryItem {
-  id: string;
-  name: string;
-  category: BackendInventoryItem["category"];
-  quantity: number;
-  unit: string;
-  minStockLevel: number;
-  location?: string;
-  expiryDate?: string;
-  supplier?: string;
-  lastRestocked?: string;
-  status: BackendInventoryItem["status"];
-}
+// MedicalRecord は @/features/medical-records/api/transforms から re-export 済み
 
 export interface MasterItem {
   id: string | number;

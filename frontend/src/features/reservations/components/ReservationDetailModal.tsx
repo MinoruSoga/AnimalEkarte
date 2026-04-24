@@ -85,7 +85,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[420px] p-0 gap-0 overflow-hidden bg-white rounded-xl">
+      <DialogContent className={`sm:max-w-[420px] p-0 gap-0 overflow-hidden ${C.bgWhite} rounded-xl`}>
         {/* Accent Header */}
         <div className={`h-1.5 w-full ${visitAccent.dot}`} />
 
@@ -120,7 +120,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                   [...RESERVATION_STATUS_VALUES]
                 )}
               >
-                <SelectTrigger className="h-7 w-auto gap-1 border-0 bg-white/60 hover:bg-white/80 text-sm px-2 shadow-none focus:ring-0">
+                <SelectTrigger className={`h-7 w-auto gap-1 border-0 ${C.bgWhite}/60 hover:${C.bgWhite}/80 text-sm px-2 shadow-none focus:ring-0`}>
                   <SelectValue placeholder="変更" />
                 </SelectTrigger>
                 <SelectContent>
@@ -226,7 +226,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                 variant="outline"
                 size="sm"
                 onClick={() => onEdit(reservation)}
-                className={`h-9 text-sm gap-1.5 ${C.borderMedium} bg-white ${C.text} ${C.hoverBgPage}`}
+                className={`h-9 text-sm gap-1.5 ${C.borderMedium} ${C.bgWhite} ${C.text} ${C.hoverBgPage}`}
               >
                 <Pencil className={`${ICON.xs}`} />
                 編集

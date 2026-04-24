@@ -31,7 +31,7 @@ export function useGetBillingConfirmation(medicalRecordId: string) {
 }
 
 // POST /v1/medical-records/:id/billing-confirmation/confirm
-export function useConfirmBillingConfirmation(medicalRecordId: string) {
+export function useCreateBillingConfirmation(medicalRecordId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -56,7 +56,7 @@ export function useConfirmBillingConfirmation(medicalRecordId: string) {
 
 // POST /v1/medical-records/:id/billing-confirmation/return
 // rerender-defer-reads: userId は呼び出し側で useAuth から取得して渡す（hook 内の useAuth 依存を排除）
-export function useReturnBillingConfirmation(medicalRecordId: string, userId: number) {
+export function useCreateBillingReturn(medicalRecordId: string, userId: number) {
   const queryClient = useQueryClient();
 
   return useMutation({

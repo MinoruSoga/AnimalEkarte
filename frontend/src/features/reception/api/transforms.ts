@@ -1,7 +1,6 @@
 import { format } from "date-fns";
 import type { ReservationStatus } from "@/types";
-import type { Appointment as BackendReceptionReservation } from "@/types/generated/models";
-import type { ReceptionAppointment, ReceptionColumn } from "./types";
+import type { Reservation as BackendReceptionReservation } from "@/types/generated/models";
 
 interface CustomerFieldsJSON {
   customer_name?: string;
@@ -69,7 +68,7 @@ const ANIMAL_SPECIES_MAP: Record<number, string> = {
 /** BackendReceptionReservation → ReceptionAppointment 変換 */
 export function transformReservationToReceptionAppointment(
   reservation: BackendReceptionReservation
-): ReceptionAppointment {
+) {
   const startDate = new Date(reservation.start_time);
   const time = format(startDate, "HH:mm");
   const cf = parseCustomerFields(reservation.customer_fields);
@@ -122,3 +121,10 @@ export function transformReservationsToReceptionColumns(
     }),
   }));
 }
+
+export type ReceptionAppointment = ReturnType<typeof transformReservationToReceptionAppointment>;
+export type ReceptionColumn = {
+  id: string;
+  title: string;
+  appointments: ReceptionAppointment[];
+};

@@ -64,7 +64,7 @@ export const TreatmentTable = memo(function TreatmentTable({
     : "grid-cols-[3fr_2fr_0.8fr_1fr_0.8fr_1fr_1fr_1fr_0.8fr]";
 
   return (
-    <div className={`flex-1 flex flex-col min-h-0 border ${C.borderMedium} rounded-lg bg-white overflow-hidden shadow-sm`}>
+    <div className={`flex-1 flex flex-col min-h-0 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden shadow-sm`}>
       {/* Header */}
       <div
         className={cn(
@@ -92,7 +92,7 @@ export const TreatmentTable = memo(function TreatmentTable({
             <div
               key={item.id}
               className={cn(
-                `grid gap-0 border-b ${C.borderLight} bg-white text-sm ${C.text} items-center ${C.hoverBgPageHalf} transition-colors h-12 group`,
+                `grid gap-0 border-b ${C.borderLight} ${C.bgWhite} text-sm ${C.text} items-center ${C.hoverBgPageHalf} transition-colors h-12 group`,
                 gridColsClass
               )}
             >

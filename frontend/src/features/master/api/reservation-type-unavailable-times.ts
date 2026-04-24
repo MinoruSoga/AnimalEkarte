@@ -10,7 +10,7 @@ import type { ReservationTypeUnavailableTime as ReservationTypeUnavailableTimeRa
 
 function transformUnavailableTime(
   raw: ReservationTypeUnavailableTimeRaw,
-): ReservationTypeUnavailableTime {
+) {
   return {
     id: raw.id,
     clinicId: raw.clinic_id,
@@ -35,10 +35,13 @@ export type ReservationTypeUnavailableTime = ReturnType<typeof transformUnavaila
 // Request types
 // ─────────────────────────────────────────────────
 
-export type CreateUnavailableTimeRequest = Omit<
-  ReservationTypeUnavailableTime,
-  "id" | "clinicId" | "reservationTypeId" | "createdAt" | "updatedAt"
->;
+export type CreateUnavailableTimeRequest = {
+  unavailable_type: string;
+  start_time: string;
+  end_time: string;
+  day_of_week?: number;
+  specific_date?: string;
+};
 
 // ─────────────────────────────────────────────────
 // Query keys
@@ -107,8 +110,6 @@ export function useCreateUnavailableTime(clinicId: string, reservationTypeId: st
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: unavailableTimesKey(reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "予約不可時間の作成"),
-    staleTime: QUERY_STALE_TIMES.STATIC,
-    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
@@ -119,7 +120,5 @@ export function useDeleteUnavailableTime(clinicId: string, reservationTypeId: st
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: unavailableTimesKey(reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "予約不可時間の削除"),
-    staleTime: QUERY_STALE_TIMES.STATIC,
-    gcTime: QUERY_GC_TIMES.LONG,
   });
 }

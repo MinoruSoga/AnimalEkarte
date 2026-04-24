@@ -1,6 +1,7 @@
 import { axios } from "@/lib/axios";
-import type { Shift, UpdateShiftInput } from "../types";
+import type { UpdateShiftInput } from "../types";
 import { transformShift } from "./transforms";
+import type { Shift } from "./transforms";
 import type { BackendShift } from "./types";
 
 export async function updateShift(id: string, input: UpdateShiftInput): Promise<Shift> {

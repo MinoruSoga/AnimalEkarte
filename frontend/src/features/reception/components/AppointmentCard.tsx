@@ -12,8 +12,6 @@ import Clock from "lucide-react/dist/esm/icons/clock";
 import Dog from "lucide-react/dist/esm/icons/dog";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Scissors from "lucide-react/dist/esm/icons/scissors";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
 import Syringe from "lucide-react/dist/esm/icons/syringe";
 import Activity from "lucide-react/dist/esm/icons/activity";
 import FileText from "lucide-react/dist/esm/icons/file-text";
@@ -134,16 +132,6 @@ export const AppointmentCard = memo(function AppointmentCard({
               <Clock className={`${ICON.xs} flex-shrink-0`} />
               <span className="text-base font-medium font-mono tracking-[var(--tracking-notion)]">{appointment.time}</span>
             </div>
-            {appointment.nextAppointment ? (
-              <Badge
-                variant={appointment.nextAppointment === "精算未確認" ? "destructive" : "secondary"}
-                className="text-sm px-[7.5px] h-[22px] flex items-center gap-0.5 flex-shrink-0 tracking-[var(--tracking-notion-sm)]"
-              >
-                {appointment.nextAppointment === "精算未確認" ? <AlertCircle className={ICON.xs} /> : null}
-                {appointment.nextAppointment === "次回予約済" ? <Calendar className={ICON.xs} /> : null}
-                {appointment.nextAppointment}
-              </Badge>
-            ) : null}
           </div>
 
           <div className="space-y-0.5">
@@ -161,13 +149,13 @@ export const AppointmentCard = memo(function AppointmentCard({
             >
               {appointment.visitType}
             </Badge>
-            <Badge variant="outline" className="flex items-center gap-1 text-sm px-[7.5px] h-[22px] bg-white tracking-[var(--tracking-notion-sm)]">
+            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] ${C.bgWhite} tracking-[var(--tracking-notion-sm)]`}>
               <ServiceIcon service={appointment.reservationType} />
               <span className="truncate max-w-[80px]">{appointment.reservationType}</span>
             </Badge>
 
             {/* BUG-037: 担当医バッジ — doctor が未設定でも「担当医未設定」として表示 */}
-            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.isDesignated ? `${C.bgDiscountLight} ${C.textDiscount} ${C.borderDiscount20}` : `bg-white ${C.text60}`}`}>
+            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.isDesignated ? `${C.bgDiscountLight} ${C.textDiscount} ${C.borderDiscount20}` : `${C.bgWhite} ${C.text60}`}`}>
               <Stethoscope className={`${ICON.xs} shrink-0`} />
               <span className="truncate max-w-[80px]">{appointment.doctor ?? "担当医未設定"}</span>
               {appointment.isDesignated ? <span className="text-[10px] ml-0.5 font-bold tracking-[0.12em]">指</span> : null}
