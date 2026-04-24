@@ -186,7 +186,7 @@ jobs:
         continue-on-error: true
 
   lighthouse:
-    timeout-minutes: 20
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     name: Frontend Lighthouse Audit
 
@@ -225,19 +225,19 @@ jobs:
 
       - name: Wait for frontend to be ready
         run: |
-          for i in {1..30}; do
-            if curl -f http://localhost:3000 2>/dev/null; then
+          for i in {1..60}; do
+            if curl -f http://localhost:3003 2>/dev/null; then
               echo "Frontend is ready"
               exit 0
             fi
-            echo "Attempt $i/30: waiting for frontend..."
-            sleep 2
+            echo "Attempt $i/60: waiting for frontend..."
+            sleep 5
           done
           exit 1
 
       - name: Run Lighthouse audit
         run: |
-          node frontend/scripts/lighthouse-audit.js --url http://localhost:3000
+          node frontend/scripts/lighthouse-audit.js --url http://localhost:3003
         continue-on-error: true
 
       - name: Upload Lighthouse results
