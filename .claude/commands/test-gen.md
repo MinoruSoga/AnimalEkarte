@@ -1,5 +1,6 @@
 ---
 description: テスト自動生成（ユニット・統合テスト）
+argument-hint: "<path> (e.g. internal/service/owner_service.go)"
 ---
 
 # /test-gen [path]

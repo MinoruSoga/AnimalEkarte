@@ -1,3 +1,8 @@
+---
+description: バグ調査・根本原因分析・修正提案
+argument-hint: "<症状・再現手順>"
+---
+
 # デバッグ調査
 
 問題を調査してください: $ARGUMENTS

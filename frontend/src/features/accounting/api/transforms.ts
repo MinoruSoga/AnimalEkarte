@@ -1,8 +1,13 @@
 import type { Accounting, AccountingItem, PaymentInfo, Refund } from "../types";
 import type { BackendAccounting, BackendAccountingItem } from "./types";
-import type { BillingRefund } from "@/types/generated/models";
+import type { BillingRefund, Payment } from "@/types/generated/models";
 
-function transformAccountingItem(item: BackendAccountingItem): AccountingItem {
+/** Payment にバックエンドが付与する結合フィールドを加えたローカル拡張型 */
+type PaymentWithStaff = Payment & {
+  paid_by_name?: string;
+};
+
+export function transformAccountingItem(item: BackendAccountingItem): AccountingItem {
   const unitPrice = item.unit_price ?? 0;
   const quantity = item.quantity ?? 1;
   const taxRate = item.tax_rate ?? 0.1;
@@ -22,7 +27,7 @@ function transformAccountingItem(item: BackendAccountingItem): AccountingItem {
 }
 
 function buildPaymentInfo(data: BackendAccounting): PaymentInfo | undefined {
-  const payment = data.payments?.[0];
+  const payment = data.payments?.[0] as PaymentWithStaff | undefined;
   if (data.status !== "completed" || payment == null) {
     return undefined;
   }
@@ -38,7 +43,7 @@ function buildPaymentInfo(data: BackendAccounting): PaymentInfo | undefined {
     receivedAmount: payment.received_amount ?? 0,
     changeAmount: payment.change_amount ?? 0,
     method: (payment.method || "cash") as PaymentInfo["method"],
-    paidByName: (payment as unknown as Record<string, unknown>).paid_by_name as string | undefined,
+    paidByName: payment.paid_by_name,
   };
 }
 

@@ -99,6 +99,7 @@ func NewEstimateService(repo repository.EstimateRepository) EstimateService {
 func (s *estimateService) List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error) {
 	result, total, err := s.repo.FindAll(ctx, clinicID, ownerID, medicalRecordID, status, page, limit)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list estimate", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list estimate")
 	}
 	return result, total, nil
@@ -107,6 +108,7 @@ func (s *estimateService) List(ctx context.Context, clinicID uint64, ownerID, me
 func (s *estimateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get estimate", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get estimate")
 	}
 	return result, nil
@@ -154,6 +156,7 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 
 	if err := s.repo.Create(ctx, estimate); err != nil {
+		slog.ErrorContext(ctx, "failed to create estimate", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create estimate")
 	}
 	slog.InfoContext(ctx, "estimate created",
@@ -161,6 +164,7 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		slog.Uint64("clinic_id", clinicID))
 	created, err := s.repo.FindByID(ctx, clinicID, estimate.ID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get estimate after create", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get estimate after create")
 	}
 	return created, nil
@@ -168,6 +172,7 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 
 func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to find estimate", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find estimate")
 	}
 	if input.Subtotal != nil && *input.Subtotal < 0 {
@@ -190,6 +195,7 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update estimate", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update estimate")
 	}
 	slog.InfoContext(ctx, "estimate updated",
@@ -197,6 +203,7 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 		slog.Uint64("clinic_id", clinicID))
 	updated, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get estimate after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get estimate after update")
 	}
 	return updated, nil

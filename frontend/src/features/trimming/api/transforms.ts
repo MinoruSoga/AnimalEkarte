@@ -1,11 +1,12 @@
-import type { TrimmingUI } from "@/types";
 import type { BackendTrimming } from "@/types/trimming";
+
+type TrimmingStatus = "完了" | "予約" | "進行中" | "キャンセル";
 
 /**
  * reservation_status → トリミング表示ステータス変換
  * BE-119: appointments ベース移行により status 値が変わった
  */
-const STATUS_MAP: Record<string, TrimmingUI["status"]> = {
+const STATUS_MAP: Record<string, TrimmingStatus> = {
   confirmed: "予約",
   checked_in: "予約",
   in_consultation: "進行中",
@@ -15,7 +16,7 @@ const STATUS_MAP: Record<string, TrimmingUI["status"]> = {
   no_show: "キャンセル",
 };
 
-export function transformTrimming(data: BackendTrimming): TrimmingUI {
+export function transformTrimming(data: BackendTrimming) {
   // start_time から日付部分を抽出（"2025-10-10T10:00:00+09:00" → "2025-10-10"）
   const date =
     data.start_time && !String(data.start_time).startsWith("0001")
@@ -34,7 +35,7 @@ export function transformTrimming(data: BackendTrimming): TrimmingUI {
     weight: data.pet?.weight != null ? String(data.pet.weight) : "",
     styleRequest: data.style_request ?? "",
     staff: data.staff?.name ?? "",
-    status: STATUS_MAP[data.status] ?? "予約",
+    status: (STATUS_MAP[data.status] ?? "予約") as TrimmingStatus,
     // Form fields
     staffId: data.staff_id != null ? String(data.staff_id) : "",
     courseId: data.course?.id != null ? String(data.course.id) : "",
@@ -49,3 +50,5 @@ export function transformTrimming(data: BackendTrimming): TrimmingUI {
     completedImage: data.completed_image || undefined,
   };
 }
+
+export type TrimmingUI = ReturnType<typeof transformTrimming>;

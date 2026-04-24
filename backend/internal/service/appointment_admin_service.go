@@ -53,6 +53,7 @@ func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint
 	}
 	items, err := s.repo.FindAllByMonth(ctx, clinicID, t.Year(), t.Month())
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list reservations by month", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list reservations by month")
 	}
 	return items, nil
@@ -61,6 +62,7 @@ func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint
 func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
 	items, err := s.repo.FindAllByDay(ctx, clinicID, date)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list reservations by day", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list reservations by day")
 	}
 	return items, nil
@@ -68,7 +70,7 @@ func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64
 
 func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error) {
 	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate time range")
 	}
 
 	visitType := model.VisitType(input.VisitType)
@@ -110,6 +112,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 		return nil
 	})
 	if err != nil {
+		slog.ErrorContext(ctx, "create reservation appointment (transaction)", "error", err)
 		return nil, apperrors.Wrap(err, "create reservation appointment (transaction)")
 	}
 
@@ -124,6 +127,7 @@ func (s *reservationAdminService) Delete(ctx context.Context, clinicID, id uint6
 		return apperrors.Wrap(err, "failed to find reservation appointment")
 	}
 	if err := s.repo.SoftDelete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete reservation appointment", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete reservation appointment")
 	}
 	slog.InfoContext(ctx, "admin reservation deleted",

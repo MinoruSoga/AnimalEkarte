@@ -140,7 +140,7 @@ RespondError(c, err) // 内部エラーはログに記録、ユーザーには�
 docker compose exec backend gosec ./...
 
 # TypeScript: 依存関係の脆弱性
-docker compose exec frontend ppnpm audit --audit-level=high
+docker compose exec frontend pnpm audit --audit-level=high
 
 # シークレット検出（コミット前）
 grep -rn "sk-\|api_key\|password\s*=" backend/ frontend/src/ --include="*.go" --include="*.ts" --include="*.tsx"
@@ -157,4 +157,4 @@ grep -rn "sk-\|api_key\|password\s*=" backend/ frontend/src/ --include="*.go" --
 - [ ] エラーメッセージに内部詳細が含まれない
 - [ ] ログにパスワード・トークンが含まれない
 - [ ] HTTPS 必須設定
-- [ ] ppnpm audit でクリティカルなし
+- [ ] pnpm audit でクリティカルなし

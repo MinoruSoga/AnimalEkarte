@@ -96,7 +96,7 @@ func (s *inquiryTemplateService) GetByID(ctx context.Context, clinicID, id uint6
 
 func (s *inquiryTemplateService) Create(ctx context.Context, clinicID uint64, input *CreateInquiryTemplateInput) (*model.InquiryTemplate, error) {
 	if err := validateRequiredName(input.Title); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	template := &model.InquiryTemplate{
 		ClinicID:  clinicID,
@@ -121,10 +121,11 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get inquiry template", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get inquiry template")
 	}
 	if err := validateOptionalName(input.Title); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildInquiryTemplateUpdate(input)
 	if len(fields) == 0 {

@@ -128,7 +128,7 @@ func (s *shiftTemplateService) Create(ctx context.Context, clinicID uint64, inpu
 	startTime := normalizeTimeString(startTimePtr)
 	endTime := normalizeTimeString(endTimePtr)
 	if err := validateShiftTimes(shiftType, startTime, endTime); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate shift times")
 	}
 	tpl := &model.ShiftTemplate{
 		ClinicID:  clinicID,
@@ -149,7 +149,7 @@ func (s *shiftTemplateService) Create(ctx context.Context, clinicID uint64, inpu
 		for _, b := range input.Breaks {
 			breaks = append(breaks, model.ShiftTemplateBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
 		}
-		if err := s.repo.ReplaceBreaks(ctx, tpl.ID, breaks); err != nil {
+		if err := s.repo.UpdateBreaks(ctx, tpl.ID, breaks); err != nil {
 			slog.ErrorContext(ctx, "failed to save shift template breaks", "error", err, "id", tpl.ID, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to save shift template breaks")
 		}
@@ -191,7 +191,7 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 		for _, b := range *input.Breaks {
 			breaks = append(breaks, model.ShiftTemplateBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
 		}
-		if err := s.repo.ReplaceBreaks(ctx, id, breaks); err != nil {
+		if err := s.repo.UpdateBreaks(ctx, id, breaks); err != nil {
 			slog.ErrorContext(ctx, "failed to save shift template breaks", "error", err, "id", id, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to save shift template breaks")
 		}

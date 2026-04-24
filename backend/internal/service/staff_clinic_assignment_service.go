@@ -23,8 +23,9 @@ func NewStaffClinicAssignmentService(repo repository.StaffClinicAssignmentReposi
 }
 
 func (s *staffClinicAssignmentService) FindAllByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
-	assignments, err := s.repo.FindAllByStaffID(ctx, staffID)
+	assignments, err := s.repo.FindByStaffID(ctx, staffID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to find clinic assignments for staff", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find clinic assignments for staff")
 	}
 	return assignments, nil

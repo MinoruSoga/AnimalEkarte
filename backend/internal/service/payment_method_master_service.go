@@ -81,7 +81,7 @@ func (s *paymentMethodMasterService) GetByID(ctx context.Context, clinicID, id u
 
 func (s *paymentMethodMasterService) Create(ctx context.Context, clinicID uint64, input *CreatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	m := &model.PaymentMethodMaster{
 		ClinicID:     clinicID,
@@ -108,7 +108,7 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 		return nil, apperrors.Wrap(err, "failed to get payment method")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildPaymentMethodUpdate(input)
 	if len(fields) == 0 {

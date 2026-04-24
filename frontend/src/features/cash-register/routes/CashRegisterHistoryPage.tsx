@@ -70,7 +70,7 @@ export function CashRegisterHistoryPage() {
           <p className={`text-base ${C.danger}`}>データの取得に失敗しました</p>
         </div>
       ) : (
-        <div className={`bg-white rounded-lg border ${C.borderLight}`}>
+        <div className={`${C.bgWhite} rounded-lg border ${C.borderLight}`}>
           {data && data.data.length > 0 ? (
             <table className="w-full text-base">
               <thead>

@@ -126,7 +126,7 @@ func GenerateTimeSlots(input *TimeSlotsInput) ([]TimeSlot, error) {
 	for i := range input.Staffs {
 		slots, err := generateForStaff(input, &input.Staffs[i])
 		if err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to generate time slots")
 		}
 		for _, s := range slots {
 			key := s.StartTime + "-" + s.EndTime
@@ -152,7 +152,7 @@ func generateForStaff(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]Time
 	// 1. 勤務時間を決定
 	workIntervals, err := resolveWorkIntervals(input, staffInput)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to resolve work intervals")
 	}
 	if len(workIntervals) == 0 {
 		return nil, nil // 休日
@@ -161,7 +161,7 @@ func generateForStaff(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]Time
 	// 2. 休憩時間を除外
 	breaks, err := resolveBreakIntervals(input, staffInput)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to resolve break intervals")
 	}
 	available := subtract(workIntervals, breaks)
 
@@ -173,11 +173,11 @@ func generateForStaff(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]Time
 		}
 		s, err := minutesSinceMidnight(r.StartTime)
 		if err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to parse reservation start time")
 		}
 		e, err := minutesSinceMidnight(r.EndTime)
 		if err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to parse reservation end time")
 		}
 		resvIntervals = append(resvIntervals, interval{s, e})
 	}
@@ -295,11 +295,11 @@ func resolveBreakIntervals(input *TimeSlotsInput, staffInput *StaffSlotInput) ([
 	for _, b := range breaks {
 		s, err := minutesSinceMidnight(b.Start)
 		if err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to parse break start time")
 		}
 		e, err := minutesSinceMidnight(b.End)
 		if err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to parse break end time")
 		}
 		result = append(result, interval{s, e})
 	}

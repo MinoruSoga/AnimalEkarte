@@ -1,3 +1,8 @@
+---
+description: イシュー実装（BE-XXX / FE-XXX）→ セルフレビュー → クローズ
+argument-hint: "BE-XXX | FE-XXX"
+---
+
 # イシュー実装
 
 指定されたイシュー（BE-XXX / FE-XXX）を実装する。

@@ -139,7 +139,7 @@ ls frontend/issues/closed/*XXX*.md 2>/dev/null
 
 ```bash
 # モデル変更後の codegen
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && make codegen
+make codegen
 ```
 
 ---
@@ -177,15 +177,15 @@ cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && make codegen
 
 ```bash
 # FE の場合（3段階: lint → 型チェック → テスト）
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec frontend ppnpm lint
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec frontend ppnpm build
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec frontend pppnpm test:run
+docker compose exec frontend pnpm lint
+docker compose exec frontend pnpm build
+docker compose exec frontend pnpm test:run
 
 # BE の場合（3段階: lint → vet/build → テスト）
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec backend golangci-lint run ./...
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec backend go vet ./...
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec backend go build ./...
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec backend go test ./... -v
+docker compose exec backend golangci-lint run ./...
+docker compose exec backend go vet ./...
+docker compose exec backend go build ./...
+docker compose exec backend go test ./... -v
 ```
 
 ### 4.5 問題があれば Phase 3 に戻る（最大3回）

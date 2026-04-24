@@ -44,10 +44,10 @@ func TestValidateInput(t *testing.T) {
 
 ### Running Tests
 ```bash
-go test ./...                    # Run all tests
-go test -v ./...                 # Verbose output
-go test -cover ./...             # With coverage
-go test -race ./...              # Race detection
+docker compose exec backend go test ./...              # Run all tests
+docker compose exec backend go test -v ./...           # Verbose output
+docker compose exec backend go test -cover ./...       # With coverage
+docker compose exec backend go test -race ./...        # Race detection
 ```
 
 ---
@@ -88,8 +88,8 @@ src/features/owners/
 
 ### Running Tests
 ```bash
-docker compose exec frontend pppnpm test:run    # Run all tests
-docker compose exec frontend pppnpm test:coverage  # With coverage
+docker compose exec frontend pnpm test:run    # Run all tests
+docker compose exec frontend pnpm test:coverage  # With coverage
 ```
 
 ---

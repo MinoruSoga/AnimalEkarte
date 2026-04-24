@@ -509,7 +509,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           onClick={() => setIsDeleteConfirmOpen(false)}
         >
           <div
-            className="bg-white rounded-lg shadow-lg p-6 w-[400px]"
+            className={`${C.bgWhite} rounded-lg shadow-lg p-6 w-[400px]`}
             onClick={(e) => e.stopPropagation()}
           >
             <p className={`text-base font-medium ${C.text} mb-2`}>カルテを削除しますか？</p>
@@ -584,7 +584,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
     {/* Print area — hidden on screen, visible on print */}
     {isPrinting && !isNewRecord && selectedPet ? (
-      <div className="hidden print:block fixed inset-0 bg-white z-[9999]">
+      <div className={`hidden print:block fixed inset-0 ${C.bgWhite} z-[9999]`}>
         <style type="text/css" media="print">
           {`@page { size: A4 portrait; margin: 15mm; } body { margin: 0; -webkit-print-color-adjust: exact; }`}
         </style>

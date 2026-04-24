@@ -113,8 +113,7 @@ const memoizedList = useMemo(() => (
 
 ```bash
 # Vite bundle size analysis
-ppnpm build
-ppnpm install -g rollup-plugin-visualizer
+docker compose exec frontend pnpm build
 # Check build output
 
 # Critical JS < 200KB
@@ -129,7 +128,7 @@ ppnpm install -g rollup-plugin-visualizer
 # Target: Performance > 90
 
 # Automated audit
-pppnpm audit:lighthouse
+docker compose exec frontend pnpm lighthouse
 
 # Check items:
 - Unused JavaScript
@@ -176,7 +175,7 @@ EXPLAIN ANALYZE SELECT * FROM owners WHERE name LIKE '%太%';
 make test-backend  # go test ./... -v -cover
 
 # React
-make test-frontend # pppnpm test:run
+make test-frontend # pnpm test:run
 
 # Production monitoring (dashboard)
 make logs          # Docker Compose logs

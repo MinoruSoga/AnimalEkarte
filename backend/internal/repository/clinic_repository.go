@@ -120,7 +120,7 @@ func (r *clinicRepository) CountStaffByClinicID(ctx context.Context, clinicID ui
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Staff{}).
-		Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?", clinicID).
+		Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL", clinicID).
 		Where("staffs.deleted_at IS NULL").
 		Count(&count).Error
 	if err != nil {

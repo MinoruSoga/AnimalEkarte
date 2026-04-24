@@ -1,3 +1,7 @@
+---
+description: features.json から次のタスクを選択して着手
+---
+
 # 次の機能に着手
 
 以下の手順で次の機能の実装を開始してください：
@@ -8,7 +12,7 @@
 4. 完了したら:
    - Gitコミット（メッセージに機能IDを含める）
    - `features.json` の status を "passing" に更新
-   - `claude-progress.txt` を更新
+   - セッション進捗は `stop-save-progress.js` が自動保存
 
 ## 注意事項
 

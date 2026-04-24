@@ -187,7 +187,7 @@ export function ReservationManagement() {
         {/* Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-4">
-            <div className={`flex items-center bg-white rounded-md border ${C.borderMedium} p-1 shadow-sm`}>
+            <div className={`flex items-center ${C.bgWhite} rounded-md border ${C.borderMedium} p-1 shadow-sm`}>
               <Button
                 variant="ghost"
                 size="icon"
@@ -221,7 +221,7 @@ export function ReservationManagement() {
           <div className="flex items-center gap-2">
             {/* Source Filter */}
             <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger className={`w-[140px] bg-white ${C.borderMedium} h-10 text-base`}>
+              <SelectTrigger className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-10 text-base`}>
                 <SelectValue placeholder="予約ソース" />
               </SelectTrigger>
               <SelectContent>{SOURCE_FILTER_SELECT_ITEMS}</SelectContent>
@@ -229,7 +229,7 @@ export function ReservationManagement() {
 
             {/* Doctor Filter */}
             <Select value={doctorFilter} onValueChange={setDoctorFilter}>
-              <SelectTrigger className={`w-[160px] bg-white ${C.borderMedium} h-10 text-base`}>
+              <SelectTrigger className={`w-[160px] ${C.bgWhite} ${C.borderMedium} h-10 text-base`}>
                 <SelectValue placeholder="担当医で絞込" />
               </SelectTrigger>
               <SelectContent>
@@ -242,7 +242,7 @@ export function ReservationManagement() {
               value={view}
               onValueChange={typedSetter(setView, CALENDAR_VIEW_VALUES)}
             >
-              <SelectTrigger className={`w-[140px] bg-white ${C.borderMedium} h-10 text-base`}>
+              <SelectTrigger className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-10 text-base`}>
                 <SelectValue placeholder="表示切替" />
               </SelectTrigger>
               <SelectContent>

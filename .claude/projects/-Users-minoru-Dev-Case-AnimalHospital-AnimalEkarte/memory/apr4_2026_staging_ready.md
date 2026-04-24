@@ -67,7 +67,7 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/ekarte-backend:staging
 ### 4. Frontend Deployment
 ```bash
 # Build and deploy frontend to CloudFront/S3
-ppnpm build
+pnpm build
 # Upload dist/ to S3, invalidate CloudFront
 ```
 

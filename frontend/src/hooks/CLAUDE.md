@@ -1,0 +1,93 @@
+# src/hooks — Shared Global Hooks
+
+## 責務
+
+このディレクトリは**クロスカッティングな共有フック**のみ配置する。
+
+- ✅ ここに置くもの: 複数 feature にまたがる共有フック（認証、権限、ページタイトル、モーダル状態など）
+- ❌ ここに置かないもの: 特定 feature 専用のフック → `features/xxx/hooks/` に配置する
+
+## 命名規則
+
+```
+use-kebab-case.ts   例: use-modal-state.ts, use-pagination.ts
+```
+
+テストファイル: `use-xxx.test.ts` を同ディレクトリに並置する。
+
+## React フックルール (MANDATORY)
+
+```typescript
+// ✅ トップレベルでのみ呼び出す
+function useMyHook() {
+  const [state, setState] = useState(false);  // 常にトップレベル
+}
+
+// ❌ 条件分岐・ループ内での呼び出し禁止
+if (condition) {
+  const [state] = useState(false);
+}
+```
+
+## 安定参照 (useCallback / useMemo)
+
+コールバックを外部コンポーネントへ渡す場合は `useCallback` でラップする。
+依存配列を省略しない。
+
+```typescript
+// ✅
+const handleClose = useCallback(() => setOpen(false), []);
+
+// ❌
+const handleClose = () => setOpen(false);  // 毎レンダーで新しい参照
+```
+
+## Query Cache 共有パターン
+
+複数 feature が同じエンティティを参照する場合、このディレクトリに shared hook を置いて query key を統一する。
+
+```typescript
+// src/hooks/use-pet.ts — 18 feature から参照
+export function useGetPet(petId: string) {
+  return useQuery({
+    queryKey: ["pet", petId],  // features/pets と同じキーでキャッシュ共有
+    ...
+  });
+}
+```
+
+## フック一覧
+
+### ユーティリティ系（汎用）
+
+| ファイル | 用途 |
+|---------|------|
+| `use-auth.ts` | 認証状態・ログインユーザー情報 |
+| `use-permission.ts` | 権限チェック (`can("edit")` 等) |
+| `use-modal-state.ts` | モーダル開閉状態の汎用管理 |
+| `use-pagination.ts` | ページネーション状態管理 |
+| `use-side-peek-dirty.ts` | サイドピーク未保存変更フラグ |
+| `use-unsaved-changes.ts` | 未保存変更の離脱ガード |
+| `use-title.ts` | ページタイトル設定 |
+| `use-sortable-data.ts` | ドラッグ&ドロップ並べ替えデータ管理 |
+| `use-sortable-list.ts` | ソータブルリスト UI ロジック |
+| `use-reduced-motion.ts` | `prefers-reduced-motion` メディアクエリ |
+| `use-postal-code-lookup.ts` | 郵便番号→住所変換 |
+| `use-staff-validation.ts` | スタッフバリデーション共有ロジック |
+| `use-reservation-type-color-map.ts` | 予約タイプカラーマッピング |
+
+### Cross-feature データ系（Query Cache 共有）
+
+| ファイル | 参照元 feature 数 | 用途 |
+|---------|-----------------|------|
+| `use-pet.ts` | 18 | ペット情報取得（accounting / trimming / medical-records 他） |
+| `use-pet-selection.ts` | 4 | ペット選択ロジック（examinations / trimming / hospitalization 他） |
+| `use-pet-selection-page.ts` | 4 | ペット選択ページパターン（accounting / trimming / medical-records 他） |
+| `use-owner.ts` | 3 | オーナー情報取得（medical-records / owners） |
+| `use-master-items.ts` | 6 | マスターアイテム汎用取得（trimming / examinations 他） |
+| `use-treatment-master.ts` | 3 | 診療マスターデータ（medical-records / shared components） |
+| `use-reservation-types.ts` | 1+ | 予約タイプ＋グループ取得（shared/ReservationFormModal） |
+| `use-examinations.ts` | 1+ | 検査 CRUD（medical-records との cross-feature リンク用） |
+| `use-vaccinations.ts` | 2 | ワクチン接種 CRUD（medical-records / vaccinations） |
+| `use-staffs.ts` | 2 | スタッフ一覧取得（reception / medical-records） |
+| `use-clinic-holidays.ts` | 複数 | クリニック休診日取得 |

@@ -181,6 +181,7 @@ func NewOwnerService(repo repository.OwnerRepository) OwnerService {
 func (s *ownerService) List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
 	owners, total, err := s.repo.FindAll(ctx, clinicID, page, limit, search)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list owners", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list owners")
 	}
 	return owners, total, nil
@@ -189,6 +190,7 @@ func (s *ownerService) List(ctx context.Context, clinicID uint64, page, limit in
 func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	owner, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get owner", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get owner")
 	}
 	return owner, nil
@@ -197,31 +199,31 @@ func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model
 func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error) {
 	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
 	if err := validateRequiredName(input.OwnerName); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	input.OwnerName = strings.TrimSpace(input.OwnerName)
 
 	// メールアドレス形式バリデーション（空でない場合）
 	if err := validateEmailFormat(input.Email); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate email format")
 	}
 
 	// 電話番号形式バリデーション（空でない場合）
 	if err := validatePhoneFormat(input.Phone); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate phone format")
 	}
 
 	// 郵便番号形式バリデーション（空でない場合）
 	if err := validatePostalCodeFormat(input.PostalCode); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate postal code format")
 	}
 
 	// ビジネスルールバリデーション
 	if err := validateDiscountRate(input.DiscountRate); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate discount rate")
 	}
 	if err := validateMembershipType(input.MembershipType); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate membership type")
 	}
 	for i := range input.Pets {
 		if err := validatePetGender(input.Pets[i].Gender); err != nil {
@@ -242,6 +244,7 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	if input.Email != "" {
 		existing, err := s.repo.FindByEmail(ctx, clinicID, input.Email)
 		if err != nil {
+			slog.ErrorContext(ctx, "failed to check email uniqueness", "error", err)
 			return nil, apperrors.Wrap(err, "failed to check email uniqueness")
 		}
 		if existing != nil {
@@ -253,6 +256,7 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	if input.Phone != "" {
 		existing, err := s.repo.FindByPhone(ctx, clinicID, input.Phone)
 		if err != nil {
+			slog.ErrorContext(ctx, "failed to check phone uniqueness", "error", err)
 			return nil, apperrors.Wrap(err, "failed to check phone uniqueness")
 		}
 		if existing != nil {
@@ -321,6 +325,7 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	}
 
 	if err := s.repo.CreateWithPets(ctx, owner, pets); err != nil {
+		slog.ErrorContext(ctx, "failed to create owner with pets", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create owner with pets")
 	}
 
@@ -334,12 +339,13 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 
 func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *UpdateOwnerInput) (*model.Owner, error) {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to find owner", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}
 	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
 	if input.OwnerName != nil {
 		if err := validateRequiredName(*input.OwnerName); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate required name")
 		}
 		trimmed := strings.TrimSpace(*input.OwnerName)
 		input.OwnerName = &trimmed
@@ -348,33 +354,33 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	// メールアドレス形式バリデーション（指定されている場合）
 	if input.Email != nil {
 		if err := validateEmailFormat(*input.Email); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate email format")
 		}
 	}
 
 	// 電話番号形式バリデーション（指定されている場合）
 	if input.Phone != nil {
 		if err := validatePhoneFormat(*input.Phone); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate phone format")
 		}
 	}
 
 	// 郵便番号形式バリデーション（指定されている場合）
 	if input.PostalCode != nil {
 		if err := validatePostalCodeFormat(*input.PostalCode); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate postal code format")
 		}
 	}
 
 	// ビジネスルールバリデーション
 	if input.DiscountRate != nil {
 		if err := validateDiscountRate(*input.DiscountRate); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate discount rate")
 		}
 	}
 	if input.MembershipType != nil {
 		if err := validateMembershipType(*input.MembershipType); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate membership type")
 		}
 	}
 
@@ -382,6 +388,7 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	if input.Email != nil && *input.Email != "" {
 		existing, err := s.repo.FindByEmail(ctx, clinicID, *input.Email)
 		if err != nil {
+			slog.ErrorContext(ctx, "failed to check email uniqueness", "error", err)
 			return nil, apperrors.Wrap(err, "failed to check email uniqueness")
 		}
 		if existing != nil && existing.ID != id {
@@ -393,6 +400,7 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	if input.Phone != nil && *input.Phone != "" {
 		existing, err := s.repo.FindByPhone(ctx, clinicID, *input.Phone)
 		if err != nil {
+			slog.ErrorContext(ctx, "failed to check phone uniqueness", "error", err)
 			return nil, apperrors.Wrap(err, "failed to check phone uniqueness")
 		}
 		if existing != nil && existing.ID != id {
@@ -407,6 +415,7 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update owner", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update owner")
 	}
 
@@ -417,6 +426,7 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	// DB の最新状態を返す
 	owner, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get updated owner", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get updated owner")
 	}
 	return owner, nil
@@ -428,6 +438,7 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 	// FK依存チェック: ペットが紐付いている場合は削除を拒否
 	petCount, err := s.repo.CountPetsByOwnerID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check pet dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check pet dependencies")
 	}
 	if petCount > 0 {
@@ -435,6 +446,7 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete owner", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete owner")
 	}
 	slog.InfoContext(ctx, "owner deleted",

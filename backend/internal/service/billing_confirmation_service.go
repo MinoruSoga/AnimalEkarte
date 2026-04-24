@@ -43,6 +43,7 @@ func (s *billingConfirmationService) GetOrCreate(ctx context.Context, clinicID, 
 	review, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
+			slog.ErrorContext(ctx, "failed to get billing review", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get billing review")
 		}
 		// 存在しない場合はpendingで新規作成
@@ -51,6 +52,7 @@ func (s *billingConfirmationService) GetOrCreate(ctx context.Context, clinicID, 
 			Status:          model.ConfirmationStatusPending,
 		}
 		if err := s.repo.Create(ctx, review); err != nil {
+			slog.ErrorContext(ctx, "failed to create billing review", "error", err)
 			return nil, apperrors.Wrap(err, "failed to create billing review")
 		}
 		slog.InfoContext(ctx, "billing_confirmation created",
@@ -64,6 +66,7 @@ func (s *billingConfirmationService) GetOrCreate(ctx context.Context, clinicID, 
 func (s *billingConfirmationService) Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
 	review, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get or create billing review", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get or create billing review")
 	}
 	if review.Status == model.ConfirmationStatusConfirmed {
@@ -78,6 +81,7 @@ func (s *billingConfirmationService) Confirm(ctx context.Context, clinicID, medi
 		"memo":         input.Memo,
 	}
 	if err := s.repo.Update(ctx, clinicID, review.ID, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update billing review", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update billing review")
 	}
 	slog.InfoContext(ctx, "billing_confirmation confirmed",
@@ -87,6 +91,7 @@ func (s *billingConfirmationService) Confirm(ctx context.Context, clinicID, medi
 		slog.Uint64("confirmed_by", input.ConfirmedBy))
 	confirmed, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get confirmed billing review", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get confirmed billing review")
 	}
 	return confirmed, nil
@@ -95,6 +100,7 @@ func (s *billingConfirmationService) Confirm(ctx context.Context, clinicID, medi
 func (s *billingConfirmationService) Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
 	review, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get or create billing review", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get or create billing review")
 	}
 
@@ -111,6 +117,7 @@ func (s *billingConfirmationService) Return(ctx context.Context, clinicID, medic
 		"memo":          input.Memo,
 	}
 	if err := s.repo.Update(ctx, clinicID, review.ID, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update billing review", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update billing review")
 	}
 	slog.InfoContext(ctx, "billing_confirmation returned",
@@ -120,6 +127,7 @@ func (s *billingConfirmationService) Return(ctx context.Context, clinicID, medic
 		slog.Uint64("returned_by", input.ReturnedBy))
 	returned, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get returned billing review", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get returned billing review")
 	}
 	return returned, nil

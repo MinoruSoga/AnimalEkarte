@@ -114,7 +114,7 @@ combined = merge_search_results(results)
 2. 各結果を統合:
    - 認証: JWT + セッション併用
    - API: RESTful、v2エンドポイント
-   - テスト: Jest + Supertest
+   - テスト: Vitest + Testing Library + MSW (FE) / go test + testify (BE)
 
 3. 統合した情報で計画:
    - 新機能は既存パターンに従う

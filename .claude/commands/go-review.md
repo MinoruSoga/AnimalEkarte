@@ -1,5 +1,6 @@
 ---
 description: Go コードレビュー（Idiom・パフォーマンス）
+argument-hint: "[path] (blank for staged Go files)"
 ---
 
 # /go-review [path]

@@ -428,6 +428,26 @@ export const C = {
   /** キャンセル / 初診 dot — Red */
   bgStatusRedDot:     "bg-red-500",
 
+  /* ── Tailwind utility backgrounds (FG1 compliance) ── */
+  /** Tailwind gray-100 background — skeleton loading placeholder */
+  bgGray100:      "bg-gray-100",
+
+  /* ── Tailwind utility borders (FG1 compliance) ── */
+  /** Tailwind blue-400 border — selected state borders */
+  borderBlue400:  "border-blue-400",
+  /** Tailwind blue-500 border — selected checkbox border */
+  borderBlue500:  "border-blue-500",
+  /** Tailwind gray-300 border — unselected checkbox border */
+  borderGray300:  "border-gray-300",
+  /** Tailwind gray-100 border — subtle separator */
+  borderGray100:  "border-gray-100",
+  /** Tailwind red-50 background — warning/error box */
+  bgRed50:        "bg-red-50",
+  /** Tailwind red-300 border — warning/error box */
+  borderRed300:   "border-red-300",
+  /** Tailwind red-700 text — warning/error box */
+  textRed700:     "text-red-700",
+
   /* ── Hover utilities ── */
   hoverBgPage:   "hover:bg-[#F7F6F3]",
   hoverBgPageHalf: "hover:bg-[#F7F6F3]/50",
@@ -930,6 +950,10 @@ export const STYLE = {
 
   /* ── Drag Overlay ── */
   dragOverlayShadow: "shadow-[0_4px_16px_rgba(0,0,0,0.12)]",
+
+  /* ── Table Row Hover (FG1 compliance) ── */
+  /** Standard table row hover — use instead of hardcoded hover:bg-gray-50 */
+  tableRowHover: "hover:bg-gray-50",
 } as const;
 
 /* ================================================================== */

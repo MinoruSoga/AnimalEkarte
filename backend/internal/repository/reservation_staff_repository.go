@@ -19,7 +19,7 @@ type ReservationStaffRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountUsageByStaffID(ctx context.Context, clinicID, staffID uint64) (int64, error)
-	SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
+	UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 	// ExcludedReservationTypes
 	FindAllExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
@@ -121,7 +121,7 @@ func (r *reservationStaffRepository) CountUsageByStaffID(ctx context.Context, cl
 	return count, nil
 }
 
-func (r *reservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
+func (r *reservationStaffRepository) UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var target model.Staff
 		err := tx.

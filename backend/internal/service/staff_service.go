@@ -228,7 +228,7 @@ func (s *staffService) FindByAccountID(ctx context.Context, accountID uint64) (*
 
 func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*model.Staff, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	input.Name = strings.TrimSpace(input.Name)
 
@@ -273,7 +273,8 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 		}
 		return nil
 	}); err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to create staff", "error", err)
+		return nil, apperrors.Wrap(err, "failed to create staff")
 	}
 
 	slog.InfoContext(ctx, "staff created", slog.Uint64("clinic_id", input.ClinicID), slog.Uint64("staff_id", staff.ID))
@@ -284,7 +285,7 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 // email 重複チェック・パスワードバリデーション・bcrypt ハッシュ化・Account 作成・Staff 作成をトランザクション内で一括で行う。
 func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaffWithAccountInput) (*model.Staff, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	name := strings.TrimSpace(input.Name)
 
@@ -294,7 +295,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	}
 	if input.Password != "" {
 		if err := validatePassword(input.Password); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate password")
 		}
 	}
 
@@ -363,7 +364,8 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 		}
 		return nil
 	}); err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to create staff", "error", err)
+		return nil, apperrors.Wrap(err, "failed to create staff")
 	}
 
 	slog.InfoContext(ctx, "staff with account created", slog.Uint64("clinic_id", input.ClinicID), slog.String("email", input.Email), slog.Uint64("staff_id", staff.ID))
@@ -404,7 +406,7 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, staffID uint64,
 		}
 		return nil
 	}); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to set clinic assignments")
 	}
 	slog.InfoContext(ctx, "clinic assignments updated", slog.Uint64("staff_id", staffID), slog.Int("count", len(clinicIDs)))
 	return nil
@@ -417,7 +419,7 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 	}
 	if input.Name != nil {
 		if err := validateRequiredName(*input.Name); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate required name")
 		}
 		trimmed := strings.TrimSpace(*input.Name)
 		input.Name = &trimmed
@@ -452,11 +454,12 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 
 	if hasPasswordUpdate {
 		if err := validatePassword(*input.Password); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate password")
 		}
 		if staff.AccountID != nil {
 			if err := s.UpdatePassword(ctx, *staff.AccountID, *input.Password); err != nil {
-				return nil, err
+				slog.ErrorContext(ctx, "failed to update password staff", "error", err)
+				return nil, apperrors.Wrap(err, "failed to update password staff")
 			}
 		}
 	}
@@ -551,12 +554,12 @@ func (s *staffService) SetExcludedReservationTypeIDs(ctx context.Context, staffI
 // VerifyClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
 // 所属していない場合は ErrNotFound を返す。
 func (s *staffService) VerifyClinicMembership(ctx context.Context, staffID, clinicID uint64) error {
-	exists, err := s.assignmentRepo.ExistsByStaffAndClinic(ctx, staffID, clinicID)
+	count, err := s.assignmentRepo.CountByStaffAndClinic(ctx, staffID, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to verify staff clinic membership", "error", err, "id", staffID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to verify staff clinic membership")
 	}
-	if !exists {
+	if count == 0 {
 		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", staffID))
 	}
 	return nil

@@ -151,9 +151,7 @@ export function MyComponent() {
 
 #### Lighthouse スコア
 ```bash
-docker compose exec frontend ppnpm lighthouse
-# または
-npx lighthouse http://localhost:3000 --view
+docker compose exec frontend pnpm lighthouse
 ```
 
 **Core Web Vitals:**
@@ -164,9 +162,8 @@ npx lighthouse http://localhost:3000 --view
 ### 3. バンドルサイズ分析
 
 ```bash
-docker compose exec frontend ppnpm build
-ppnpm install -g source-map-explorer
-source-map-explorer 'dist/**/*.js'
+docker compose exec frontend pnpm build
+docker compose exec frontend npx source-map-explorer 'dist/**/*.js'
 ```
 
 **最適化:**

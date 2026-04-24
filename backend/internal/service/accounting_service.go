@@ -176,6 +176,7 @@ func NewAccountingService(repo repository.AccountingRepository) AccountingServic
 func (s *accountingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
 	result, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list accounting", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list accounting")
 	}
 	return result, total, nil
@@ -184,6 +185,7 @@ func (s *accountingService) List(ctx context.Context, clinicID uint64, petID, ow
 func (s *accountingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get accounting")
 	}
 	return result, nil
@@ -216,6 +218,7 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		Memo:              input.Memo,
 	}
 	if err := s.repo.Create(ctx, input.ClinicID, billing); err != nil {
+		slog.ErrorContext(ctx, "failed to create accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create accounting")
 	}
 	slog.InfoContext(ctx, "accounting created",
@@ -226,6 +229,7 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 
 func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error) {
 	if _, err := s.repo.FindByID(ctx, input.ClinicID, input.ID); err != nil {
+		slog.ErrorContext(ctx, "failed to find accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find accounting")
 	}
 	// BUG-142: 金額バリデーション
@@ -240,6 +244,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	// Billing 本体の更新
 	if len(fields) > 0 {
 		if _, err := s.repo.Update(ctx, input.ClinicID, input.ID, fields); err != nil {
+			slog.ErrorContext(ctx, "failed to update accounting", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update accounting")
 		}
 	}
@@ -248,6 +253,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	if hasPaymentFields(input) {
 		payment := buildPaymentFromInput(input)
 		if err := s.repo.SavePayment(ctx, payment); err != nil {
+			slog.ErrorContext(ctx, "failed to upsert payment", "error", err)
 			return nil, apperrors.Wrap(err, "failed to upsert payment")
 		}
 		slog.InfoContext(ctx, "payment upserted",
@@ -258,6 +264,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	// 更新後のレコードを返す
 	accounting, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to reload accounting after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to reload accounting after update")
 	}
 
@@ -271,6 +278,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 func (s *accountingService) ListUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error) {
 	result, total, err := s.repo.FindUnpaidByBilling(ctx, clinicID, baseDate, page, limit)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list unpaid billings", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list unpaid billings")
 	}
 	return result, total, nil
@@ -280,6 +288,7 @@ func (s *accountingService) ListUnpaidByBilling(ctx context.Context, clinicID ui
 func (s *accountingService) ListUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
 	result, total, summary, err := s.repo.FindUnpaidByOwner(ctx, clinicID, baseDate, page, limit)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list unpaid by owner", "error", err)
 		return nil, 0, summary, apperrors.Wrap(err, "failed to list unpaid by owner")
 	}
 	return result, total, summary, nil
@@ -324,6 +333,7 @@ func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64
 	}
 	result, err := s.repo.GetDailySummary(ctx, clinicID, date)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get daily summary", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get daily summary")
 	}
 	return result, nil

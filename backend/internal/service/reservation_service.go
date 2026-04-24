@@ -83,6 +83,7 @@ func NewReservationService(repo repository.ReservationRepository, tx repository.
 func (s *reservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
 	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit, date, status, source, petID, ownerID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list reservations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list reservations")
 	}
 	return items, total, nil
@@ -91,6 +92,7 @@ func (s *reservationService) List(ctx context.Context, clinicID uint64, page, li
 func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation")
 	}
 	return result, nil
@@ -233,6 +235,7 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		result = updated
 		return nil
 	}); err != nil {
+		slog.ErrorContext(ctx, "failed to update reservation with conflict check", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update reservation with conflict check")
 	}
 	return result, nil
@@ -243,6 +246,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to find reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find reservation")
 	}
 	fields := buildReservationUpdate(input)
@@ -257,6 +261,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		// 時刻・医師変更なし: トランザクション不要。リポジトリ経由で直接更新
 		updated, err := s.repo.Update(ctx, clinicID, id, fields)
 		if err != nil {
+			slog.ErrorContext(ctx, "failed to update reservation", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update reservation")
 		}
 		slog.InfoContext(ctx, "reservation updated",
@@ -268,6 +273,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	// 時刻・医師変更あり: SELECT FOR UPDATE + トランザクションで競合を防止
 	result, err := s.updateWithConflictCheck(ctx, clinicID, id, fields, input)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update reservation")
 	}
 	slog.InfoContext(ctx, "reservation updated",
@@ -281,12 +287,14 @@ func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) er
 	}
 	count, err := s.repo.CountMedicalRecordsByReservationID(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check reservation dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check reservation dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この予約にはカルテが紐付いているため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete reservation", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete reservation")
 	}
 	slog.InfoContext(ctx, "reservation deleted",

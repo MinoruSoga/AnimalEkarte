@@ -1,5 +1,5 @@
 ---
-description: フルセキュリティスキャン実行（OWASP、gosec、ppnpm audit）
+description: フルセキュリティスキャン実行（OWASP、gosec、pnpm audit）
 ---
 
 # /security-audit
@@ -15,7 +15,7 @@ docker compose exec backend gosec -json ./... | jq
 
 ### Frontend (npm)
 ```bash
-docker compose exec frontend ppnpm audit --json
+docker compose exec frontend pnpm audit --json
 ```
 
 ### 手動確認事項

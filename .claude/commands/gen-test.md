@@ -1,3 +1,8 @@
+---
+description: 指定パスのテスト自動生成（Vitest / go test）
+argument-hint: "<path> (e.g. frontend/src/features/owners)"
+---
+
 # テスト生成
 
 $ARGUMENTS のテストを生成してください。
@@ -11,7 +16,8 @@ $ARGUMENTS のテストを生成してください。
 
 ## フレームワーク
 
-Jest / Vitest
+- Frontend: **Vitest** + Testing Library + MSW
+- Backend: **go test** + testify
 
 ## パターン
 

@@ -85,6 +85,7 @@ func NewTreatmentPlanService(repo repository.TreatmentPlanRepository) TreatmentP
 func (s *treatmentPlanService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
 	plan, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get treatment plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get treatment plan")
 	}
 	return plan, nil
@@ -93,6 +94,7 @@ func (s *treatmentPlanService) GetByID(ctx context.Context, clinicID, id uint64)
 func (s *treatmentPlanService) ListByMedicalRecord(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
 	plans, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list treatment plans by medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list treatment plans by medical record")
 	}
 	return plans, nil
@@ -101,6 +103,7 @@ func (s *treatmentPlanService) ListByMedicalRecord(ctx context.Context, clinicID
 func (s *treatmentPlanService) ListByHospitalization(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
 	plans, err := s.repo.FindByHospitalizationID(ctx, clinicID, hospitalizationID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list treatment plans by hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list treatment plans by hospitalization")
 	}
 	return plans, nil
@@ -130,12 +133,14 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 		SortOrder:         input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, plan); err != nil {
+		slog.ErrorContext(ctx, "failed to create treatment plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan created", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", plan.ID))
 
 	result, err := s.repo.FindByID(ctx, clinicID, plan.ID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to reload treatment plan after create", "error", err)
 		return nil, apperrors.Wrap(err, "failed to reload treatment plan after create")
 	}
 	return result, nil
@@ -143,6 +148,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 
 func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to find treatment plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find treatment plan")
 	}
 	fields := buildTreatmentPlanUpdate(input)
@@ -150,12 +156,14 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update treatment plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", id))
 
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to reload treatment plan after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to reload treatment plan after update")
 	}
 	return result, nil

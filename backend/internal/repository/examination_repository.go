@@ -67,7 +67,7 @@ func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 	var exam model.Examination
 	err := r.db.WithContext(ctx).
 		Where("exams.id = ? AND exams.clinic_id = ?", id, clinicID).
-		Preload("ExaminationType", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
+		Preload("ExaminationType", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
 		First(&exam).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", id))

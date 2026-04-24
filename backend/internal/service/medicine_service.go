@@ -158,7 +158,7 @@ func (s *medicineService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 
 func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *CreateMedicineInput) (*model.Medicine, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 
 	taxType := model.TaxTypeExcluded
@@ -213,7 +213,8 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		}
 		return nil
 	}); err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to create medicine", "error", err)
+		return nil, apperrors.Wrap(err, "failed to create medicine")
 	}
 
 	slog.InfoContext(ctx, "medicine created",
@@ -230,10 +231,11 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "medicine not found", "error", err)
 		return nil, apperrors.Wrap(err, "medicine not found")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildMedicineUpdate(input)
 	if len(fields) == 0 {
@@ -258,7 +260,8 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 			}
 			return nil
 		}); err != nil {
-			return nil, err
+			slog.ErrorContext(ctx, "failed to update medicine", "error", err)
+			return nil, apperrors.Wrap(err, "failed to update medicine")
 		}
 	} else {
 		result, err = s.repo.Update(ctx, clinicID, id, fields)
@@ -329,7 +332,8 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 		}
 		return nil
 	}); err != nil {
-		return err
+		slog.ErrorContext(ctx, "failed to delete medicine", "error", err, "id", id, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to delete medicine")
 	}
 	slog.InfoContext(ctx, "medicine deleted",
 		slog.Uint64("clinic_id", clinicID),

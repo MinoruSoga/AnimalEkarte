@@ -182,7 +182,7 @@ Quick links to coding pattern implementations. Refer to memory files for detaile
 1. **Bundle Size**
    - Code split with React Router lazy()
    - Dynamic import for heavy modals
-   - Check bundle with `ppnpm build`
+   - Check bundle with `pnpm build`
    - Target: < 200KB JS, < 50KB CSS
 
 2. **Render Optimization**

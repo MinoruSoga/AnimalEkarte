@@ -31,10 +31,10 @@ If execution is needed, inform the user with the command and have them run it ma
 - `docker compose exec backend go test ./...`
 - `docker compose exec backend golangci-lint run ./...`
 - `docker compose exec backend gofmt -w ./...`
-- `docker compose exec frontend ppnpm lint`
-- `docker compose exec frontend pppnpm test:run`
-- `docker compose exec frontend ppnpm build`
-- `docker compose exec frontend ppnpm type-check`
+- `docker compose exec frontend pnpm lint`
+- `docker compose exec frontend pnpm test:run`
+- `docker compose exec frontend pnpm build`
+- `docker compose exec frontend pnpm type-check`
 - `make codegen`
 
 ### Docker Startup / Shutdown (large logs)
@@ -48,7 +48,7 @@ If execution is needed, inform the user with the command and have them run it ma
 - `docker compose exec db psql ...` (direct SQL execution)
 
 ### Dependency Installation (verbose and slow)
-- `docker compose exec frontend pppnpm install`
+- `docker compose exec frontend pnpm install`
 - `docker compose exec backend go mod download`
 
 **Example response:**
@@ -102,25 +102,28 @@ $ docker compose exec backend go test ./internal/service/...
 
 ---
 
-## 🏗 Architecture (MANDATORY)
+## 🏗 Architecture (Layer-specific CLAUDE.md)
 
-### Error Handling
-- Repository: `apperrors.FromGORM(err, "resource", id)`
-- Service: `apperrors.Wrap(err, "message")`
-- Handler: `RespondError(c, err)` (direct `c.JSON(http.StatusBadRequest, ...)` prohibited)
+Layer-specific rules are documented close to the code:
 
-### Master Data Deletion
-Dependency check before deletion required. If references exist → `apperrors.WrapConflict(...)` returns 409.
+| Directory | Rules |
+|-----------|-------|
+| `backend/` | Error handling, P1-P18 overview, build commands |
+| `backend/internal/handler/` | P5, P6, P7, P12, P14, P15, P18 |
+| `backend/internal/service/` | P1, P8, P10, P11, P13, P17 |
+| `backend/internal/repository/` | P2, P3, P4 (clinicScope), P9, P16 |
+| `backend/migrations/` | Migration naming, clinic_id, CASCADE DELETE禁止 |
+| `frontend/` | React 19 patterns, design tokens, build commands |
+| `frontend/src/features/` | Feature Indexing, index.ts structure |
+| `frontend/src/hooks/` | Shared global hooks — placement rules, React hook rules |
 
-### Backend Compliance (P1–P18)
-18 fixed patterns enforced across all layers. See `gin-architecture-compliance.md`.
-- **Handler**: P7(toXxxResponse), P12(ShouldBindJSON), P14(no direct repo), P15(201+Location), P18(toXxxResponse naming)
-- **Service**: P1(FindByID first), P8(Wrap), P10(FK check), P11(slog.ErrorContext), P13(def order), P17(Input naming)
-- **Repository**: P2(IS NULL count), P3(IS NULL preload), P4(clinicScope), P9(FromGORM), P16(method naming)
-- **Routes**: P5(RequirePermission), P6("delete" on DELETE)
+## 📚 refs/ との使い分け
 
-### Frontend (MANDATORY Patterns)
-- Forms: `useActionState` + `<form action={formAction}>` + `SubmitButton`
-- Conditional Render: `? (...) : null` (NOT `&&`)
-- Feature Imports: Always via `index.ts` (NO deep imports)
-- Styling: Use `C`, `STYLE` constants (NO hex color direct specification)
+| 種別 | 場所 | 目的 |
+|------|------|------|
+| 各ディレクトリ CLAUDE.md | コードの隣 | 編集時に常時ロード。簡潔なルールサマリー |
+| `.claude/refs/*.md` | `.claude/refs/` | 詳細リファレンス。スキャンプロンプト・完全仕様 |
+
+**原則**: ディレクトリ CLAUDE.md で日常的なルールを把握する。
+P1-P18 の完全スキャンや網羅的な確認が必要な時だけ `refs/gin-architecture-compliance.md` を読む。
+`refs/` は削除しない — ディレクトリ CLAUDE.md の圧縮サマリーと相補的に機能する。

@@ -57,6 +57,7 @@ func (s *clinicHolidayService) Remove(ctx context.Context, clinicID uint64, date
 		if apperrors.IsNotFound(err) {
 			return nil // 冪等: 存在しない場合も成功
 		}
+		slog.ErrorContext(ctx, "failed to find clinic holiday", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to find clinic holiday")
 	}
 	if err := s.repo.Delete(ctx, clinicID, date); err != nil {

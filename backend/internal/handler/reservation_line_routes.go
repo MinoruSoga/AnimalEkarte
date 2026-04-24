@@ -51,7 +51,7 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	// TASK-RES-014: 予約管理
 	reservations := clinics.Group("/reservations")
 	reservations.GET("", h.RequirePermission(string(model.ResourceReservations), "view"), h.ListReservationsAdmin)
-	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "edit"), h.CreateReservationAdmin)
+	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "create"), h.CreateReservationAdmin)
 	reservations.DELETE("/:reservationId", h.RequirePermission(string(model.ResourceReservations), "delete"), h.DeleteReservationAdmin)
 
 	// TASK-RES-015: 顧客管理

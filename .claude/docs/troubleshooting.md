@@ -247,18 +247,18 @@ db.Scopes(ActiveRecords).Where("clinic_id = ?", clinicID).Find(&owners)
 ### Docker Issues
 
 #### npm/go commands fail locally
-**Error**: `bash: npm: command not found` (when running `ppnpm install` locally)
+**Error**: `bash: npm: command not found` (when running `pnpm install` locally)
 
 **Fix**:
 ```bash
 # ❌ Wrong
-ppnpm install
-ppnpm build
+pnpm install
+pnpm build
 go test ./...
 
 # ✅ Correct
-docker compose exec frontend ppnpm install
-docker compose exec frontend ppnpm build
+docker compose exec frontend pnpm install
+docker compose exec frontend pnpm build
 docker compose exec backend go test ./...
 ```
 

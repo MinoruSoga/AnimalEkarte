@@ -1,5 +1,6 @@
 ---
 description: TDD ガイド（Red-Green-Refactor サイクル）
+argument-hint: "<feature> (e.g. BE-123, FE-456)"
 ---
 
 # /tdd-workflow [feature]

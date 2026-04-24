@@ -1,3 +1,8 @@
+---
+description: 指定スコープのテスト実行・カバレッジ確認
+argument-hint: "[path] (blank for full suite)"
+---
+
 # テスト実行
 
 $ARGUMENTS のテストを実行してください。

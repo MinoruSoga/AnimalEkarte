@@ -85,7 +85,7 @@ export function EstimateDetail() {
     >
       <div className="space-y-6">
         {/* 基本情報 */}
-        <div className={`bg-white border ${C.borderLight} rounded-[6px] p-5 space-y-4`}>
+        <div className={`${C.bgWhite} border ${C.borderLight} rounded-[6px] p-5 space-y-4`}>
           <div className="flex items-center justify-between">
             <h2 className={`text-base font-semibold ${C.text}`}>{estimate.title}</h2>
             <EstimateStatusBadge status={estimate.status} />
@@ -127,7 +127,7 @@ export function EstimateDetail() {
         </div>
 
         {/* 見積明細 */}
-        <div className={`bg-white border ${C.borderLight} rounded-[6px] p-5`}>
+        <div className={`${C.bgWhite} border ${C.borderLight} rounded-[6px] p-5`}>
           <h3 className={`text-sm font-medium ${C.text} mb-4`}>見積明細</h3>
           <EstimateLineItems
             items={estimate.items}
@@ -141,7 +141,7 @@ export function EstimateDetail() {
 
         {/* 備考 */}
         {estimate.notes ? (
-          <div className={`bg-white border ${C.borderLight} rounded-[6px] p-5`}>
+          <div className={`${C.bgWhite} border ${C.borderLight} rounded-[6px] p-5`}>
             <h3 className={`text-sm font-medium ${C.text} mb-2`}>備考</h3>
             <p className={`text-sm ${C.text70} whitespace-pre-wrap`}>{estimate.notes}</p>
           </div>

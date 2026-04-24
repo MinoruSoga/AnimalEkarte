@@ -132,6 +132,7 @@ func NewClinicService(repo repository.ClinicRepository, permissionGroupRepo repo
 func (s *clinicService) ListClinics(ctx context.Context) ([]model.Clinic, error) {
 	clinics, err := s.repo.FindAll(ctx)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list clinics", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list clinics")
 	}
 	return clinics, nil
@@ -140,6 +141,7 @@ func (s *clinicService) ListClinics(ctx context.Context) ([]model.Clinic, error)
 func (s *clinicService) ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
 	clinics, err := s.repo.FindByStaffID(ctx, staffID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list clinics by staff", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list clinics by staff")
 	}
 	return clinics, nil
@@ -148,6 +150,7 @@ func (s *clinicService) ListClinicsByStaffID(ctx context.Context, staffID uint64
 func (s *clinicService) GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error) {
 	clinic, err := s.repo.FindByID(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get clinic", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get clinic")
 	}
 	return clinic, nil
@@ -156,6 +159,7 @@ func (s *clinicService) GetClinicByID(ctx context.Context, id uint64) (*model.Cl
 func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInput) (*model.Clinic, error) {
 	company, err := s.repo.GetCompany(ctx)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get company", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get company")
 	}
 	clinic := &model.Clinic{
@@ -173,6 +177,7 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 	}
 
 	if err := s.repo.Create(ctx, clinic); err != nil {
+		slog.ErrorContext(ctx, "failed to create clinic", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create clinic")
 	}
 
@@ -195,6 +200,7 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 			SortOrder:   groupDef.sortOrder,
 		}
 		if err := s.permissionGroupRepo.Create(ctx, group); err != nil {
+			slog.ErrorContext(ctx, "failed to create default permission group", "error", err)
 			return nil, apperrors.Wrap(err, "failed to create default permission group")
 		}
 		slog.InfoContext(ctx, "default permission group created",
@@ -214,25 +220,30 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 	}
 	// 存在確認（NotFound を早期返却）
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		slog.ErrorContext(ctx, "failed to find clinic for update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find clinic for update")
 	}
 	fields, err := buildClinicUpdate(input)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to update clinic clinic", "error", err)
+		return nil, apperrors.Wrap(err, "failed to update clinic clinic")
 	}
 	if len(fields) == 0 {
 		clinic, err := s.repo.FindByID(ctx, id)
 		if err != nil {
+			slog.ErrorContext(ctx, "failed to get clinic", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get clinic")
 		}
 		return clinic, nil
 	}
 	if err := s.repo.Update(ctx, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update clinic", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update clinic")
 	}
 	// 更新後の完全なレコードを DB から取得して返す（created_at 等のサーバー管理フィールドを正しく反映）
 	updated, err := s.repo.FindByID(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get updated clinic", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get updated clinic")
 	}
 	slog.InfoContext(ctx, "clinic updated",
@@ -247,6 +258,7 @@ func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
 	// FK依存チェック: クリニックに関連するオーナーが存在する場合は削除を拒否
 	ownerCount, err := s.repo.CountOwnersByClinicID(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check owner dependencies", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to check owner dependencies")
 	}
 	if ownerCount > 0 {
@@ -256,6 +268,7 @@ func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
 	// FK依存チェック: クリニックに関連するスタッフが存在する場合は削除を拒否
 	staffCount, err := s.repo.CountStaffByClinicID(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check staff dependencies", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to check staff dependencies")
 	}
 	if staffCount > 0 {
@@ -263,6 +276,7 @@ func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
 	}
 
 	if err := s.repo.Delete(ctx, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete clinic", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to delete clinic")
 	}
 

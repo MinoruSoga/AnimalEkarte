@@ -85,6 +85,7 @@ func NewCheckupService(repo repository.CheckupRepository) CheckupService {
 func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
 	result, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list checkups", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list checkups")
 	}
 	return result, nil
@@ -99,6 +100,7 @@ func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByC
 		NextEndDate:   input.NextEndDate,
 	})
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list checkups by clinic", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list checkups by clinic")
 	}
 	return result, nil
@@ -116,6 +118,7 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		Result:          input.Result,
 	}
 	if err := s.repo.Create(ctx, checkup); err != nil {
+		slog.ErrorContext(ctx, "failed to create checkup", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create checkup")
 	}
 	slog.InfoContext(ctx, "checkup created",
@@ -124,6 +127,7 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		slog.Uint64("medical_record_id", medicalRecordID))
 	created, err := s.repo.FindByID(ctx, input.ClinicID, checkup.ID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get checkup after create", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get checkup after create")
 	}
 	return created, nil
@@ -133,6 +137,7 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 	// 親カルテ所属確認（clinic_id スコープ済み）
 	existing, err := s.repo.FindByID(ctx, clinicID, checkupID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get checkup", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get checkup")
 	}
 	if existing.MedicalRecordID != medicalRecordID {
@@ -143,6 +148,7 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, checkupID, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update checkup", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update checkup")
 	}
 	slog.InfoContext(ctx, "checkup updated",
@@ -151,6 +157,7 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 		slog.Uint64("medical_record_id", medicalRecordID))
 	updated, err := s.repo.FindByID(ctx, clinicID, checkupID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get checkup after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get checkup after update")
 	}
 	return updated, nil

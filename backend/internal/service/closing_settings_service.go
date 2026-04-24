@@ -168,7 +168,7 @@ func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinic
 		return nil, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
 	}
 	if err := validateSpecialPeriodTimes(input.AmPmBoundary, input.PmEnd); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate special period times")
 	}
 	if startDate.After(endDate) {
 		return nil, apperrors.WrapInvalidInput("開始日は終了日以前に設定してください")
@@ -218,7 +218,7 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 		pmEnd = *input.PmEnd
 	}
 	if err := validateSpecialPeriodTimes(boundary, pmEnd); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate special period times")
 	}
 
 	// 期間バリデーション（変更がある場合のみ）
@@ -265,6 +265,7 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 			slog.Uint64("clinic_id", clinicID),
 			slog.Uint64("id", id),
 			slog.Any("error", err))
+		slog.ErrorContext(ctx, "failed to update special period", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update special period")
 	}
 	slog.InfoContext(ctx, "closing special period updated",
@@ -289,7 +290,7 @@ func (s *closingSettingsService) DeleteSpecialPeriod(ctx context.Context, clinic
 
 func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID uint64, date time.Time) (*DaySchedule, error) {
 	// 特別期間をチェック（優先）
-	special, err := s.periodRepo.FindAllByDate(ctx, clinicID, date)
+	special, err := s.periodRepo.FindByDate(ctx, clinicID, date)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find special period", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to find special period")

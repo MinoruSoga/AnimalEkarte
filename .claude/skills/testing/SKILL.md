@@ -15,9 +15,9 @@ description: ユニット、統合、E2Eテストの作成と実行
 
 | 種別 | ツール | コマンド |
 |------|--------|---------|
-| ユニット | Jest | `ppnpm test` |
-| 統合 | Jest | `pppnpm test:integration` |
-| E2E | Playwright | `pppnpm test:e2e` |
+| ユニット (FE) | Vitest + Testing Library + MSW | `docker compose exec frontend pnpm test:run` |
+| カバレッジ (FE) | Vitest | `docker compose exec frontend pnpm test:coverage` |
+| ユニット (BE) | go test + testify | `docker compose exec backend go test ./... -v` |
 
 ## テスト作成パターン
 

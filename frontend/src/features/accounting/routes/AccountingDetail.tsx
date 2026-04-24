@@ -376,7 +376,7 @@ const ItemListCard = memo(function ItemListCard({
       </CardHeader>
       <CardContent className="p-0 overflow-auto flex-1">
         <Table>
-          <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+          <TableHeader className={`sticky top-0 ${C.bgWhite} z-10 shadow-sm`}>
             <TableRow>
               <TableHead className="w-[100px]">区分</TableHead>
               <TableHead>項目名</TableHead>
@@ -1285,7 +1285,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
 
       {/* Hidden Print Area */}
       {accounting.payment ? (
-        <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-0 m-0 w-full h-full">
+        <div className={`hidden print:block fixed inset-0 ${C.bgWhite} z-[9999] p-0 m-0 w-full h-full`}>
           <style type="text/css" media="print">
             {`
               @page { size: auto; margin: 0; }

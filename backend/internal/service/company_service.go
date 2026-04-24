@@ -97,6 +97,7 @@ func NewCompanyService(repo repository.CompanyRepository) CompanyService {
 func (s *companyService) Get(ctx context.Context) (*model.Company, error) {
 	result, err := s.repo.FindSingleton(ctx)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get company", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get company")
 	}
 	return result, nil
@@ -109,10 +110,12 @@ func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) 
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	if err := s.repo.Update(ctx, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update company", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update company")
 	}
 	result, err := s.repo.FindSingleton(ctx)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get company after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get company after update")
 	}
 	slog.InfoContext(ctx, "company updated", slog.Uint64("company_id", result.ID))

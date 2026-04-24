@@ -1,7 +1,18 @@
-import type { Estimate, EstimateLineItem, EstimateStatus } from '../types';
 import type { BackendEstimate, BackendEstimateItem } from './types';
+import type {
+  EstimateStatusDraft,
+  EstimateStatusSent,
+  EstimateStatusApproved,
+  EstimateStatusRejected,
+} from "@/types/generated/models";
 
-function transformEstimateItem(item: BackendEstimateItem): EstimateLineItem {
+type EstimateStatus =
+  | typeof EstimateStatusDraft
+  | typeof EstimateStatusSent
+  | typeof EstimateStatusApproved
+  | typeof EstimateStatusRejected;
+
+export function transformEstimateItem(item: BackendEstimateItem) {
   return {
     id: String(item.id ?? 0),
     estimateId: String(item.estimate_id ?? 0),
@@ -19,7 +30,7 @@ function transformEstimateItem(item: BackendEstimateItem): EstimateLineItem {
   };
 }
 
-export function transformEstimate(data: BackendEstimate): Estimate {
+export function transformEstimate(data: BackendEstimate) {
   return {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
@@ -43,3 +54,6 @@ export function transformEstimate(data: BackendEstimate): Estimate {
     updatedAt: data.updated_at,
   };
 }
+
+export type EstimateLineItem = ReturnType<typeof transformEstimateItem>;
+export type Estimate = ReturnType<typeof transformEstimate>;

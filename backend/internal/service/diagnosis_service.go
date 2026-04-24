@@ -144,7 +144,7 @@ func (s *diagnosisTypeService) GetByID(ctx context.Context, clinicID, id uint64)
 
 func (s *diagnosisTypeService) Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisTypeInput) (*model.DiagnosisType, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	diagType := &model.DiagnosisType{
 		ClinicID:    clinicID,
@@ -172,7 +172,7 @@ func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, 
 		return nil, apperrors.Wrap(err, "failed to get diagnosis type")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildDiagnosisTypeUpdate(input)
 	if len(fields) == 0 {
@@ -289,7 +289,7 @@ func (s *diagnosisNameService) GetByID(ctx context.Context, clinicID, id uint64)
 
 func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisNameInput) (*model.DiagnosisName, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	// #020: FK validation — diagnosis_type_id の存在確認
 	if _, err := s.typeRepo.FindByID(ctx, clinicID, input.DiagnosisTypeID); err != nil {
@@ -322,7 +322,7 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 		return nil, apperrors.Wrap(err, "failed to get diagnosis name")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	// #020: FK validation — diagnosis_type_id が変更される場合のみ確認
 	if input.DiagnosisTypeID != nil {

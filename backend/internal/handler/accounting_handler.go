@@ -275,7 +275,7 @@ func (h *Handler) GetDailySummary(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, toDailySummaryResponse(result))
 }
 
 // CancelAccounting は会計を論理削除（status=cancelled）する。

@@ -1,3 +1,8 @@
+---
+description: デプロイ準備チェック（staging / production）
+argument-hint: "staging | production"
+---
+
 # デプロイ準備
 
 $ARGUMENTS 環境へのデプロイを準備してください。
@@ -12,8 +17,13 @@ $ARGUMENTS 環境へのデプロイを準備してください。
 ## デプロイ手順
 
 1. 環境: $ARGUMENTS
-2. ビルド: `ppnpm build`
-3. デプロイ: `./scripts/deploy.sh $ARGUMENTS`
+2. ビルド確認: `docker compose exec frontend pnpm build`
+3. デプロイ: GitHub Actions `backend-deploy.yml` ワークフローをトリガー
+   ```bash
+   # main push で自動実行、または手動トリガー
+   gh workflow run backend-deploy.yml
+   gh run watch
+   ```
 
 ## 注意事項
 

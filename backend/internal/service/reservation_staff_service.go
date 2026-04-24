@@ -94,6 +94,7 @@ func NewReservationStaffService(repo repository.ReservationStaffRepository, tran
 func (s *reservationStaffService) List(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
 	staffs, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list reservation staffs", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list reservation staffs")
 	}
 	return staffs, nil
@@ -102,6 +103,7 @@ func (s *reservationStaffService) List(ctx context.Context, clinicID uint64) ([]
 func (s *reservationStaffService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
 	staff, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation staff", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation staff")
 	}
 	return staff, nil
@@ -133,7 +135,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 		}
 		return nil
 	}); err != nil {
-		return nil, nil, err
+		return nil, nil, apperrors.Wrap(err, "failed to create reservation staff")
 	}
 	slog.InfoContext(ctx, "reservation staff created",
 		slog.Uint64("staff_id", staff.ID),
@@ -149,6 +151,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
 	// clinicID 確認
 	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to verify reservation staff ownership", "error", err)
 		return nil, nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
 
@@ -205,6 +208,7 @@ func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint6
 
 func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error) {
 	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to verify reservation staff ownership", "error", err)
 		return nil, nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
@@ -232,7 +236,11 @@ func (s *reservationStaffService) PatchSortOrder(ctx context.Context, clinicID, 
 	if direction != "up" && direction != "down" {
 		return apperrors.WrapInvalidInput("direction must be 'up' or 'down'")
 	}
-	if err := s.repo.SwapSortOrder(ctx, clinicID, id, direction); err != nil {
+	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to verify reservation staff ownership", "error", err, "id", id, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to verify reservation staff ownership")
+	}
+	if err := s.repo.UpdateSortOrder(ctx, clinicID, id, direction); err != nil {
 		slog.ErrorContext(ctx, "failed to reorder reservation staff", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder reservation staff")
 	}

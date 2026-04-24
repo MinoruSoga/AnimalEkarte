@@ -98,10 +98,10 @@ func (m *mockClinicalPlanService) Delete(ctx context.Context, clinicID, medicalR
 // ---- mock InquiryService ----
 
 type mockInquiryService struct {
-	upsertFn func(ctx context.Context, input service.SaveInquiryInput) (*model.Inquiry, error)
+	upsertFn func(ctx context.Context, input service.UpsertInquiryInput) (*model.Inquiry, error)
 }
 
-func (m *mockInquiryService) Save(ctx context.Context, input service.SaveInquiryInput) (*model.Inquiry, error) {
+func (m *mockInquiryService) Save(ctx context.Context, input service.UpsertInquiryInput) (*model.Inquiry, error) {
 	if m.upsertFn != nil {
 		return m.upsertFn(ctx, input)
 	}

@@ -100,7 +100,7 @@ func (s *examTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 }
 func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *CreateExamTypeInput) (*model.ExaminationType, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	exType := &model.ExaminationType{
 		ClinicID:    clinicID,
@@ -125,10 +125,11 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get exam type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get exam type")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildExamTypeUpdate(input)
 	if len(fields) == 0 {

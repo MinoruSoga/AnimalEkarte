@@ -3,7 +3,7 @@ name: Performance Tests (Load & Profiling)
 on:
   schedule:
     - cron: '0 3 * * *'  # 毎日 03:00 JST 実行
-  workflow_dispatch
+  workflow_dispatch:
   push:
     branches: [main, staging]
     paths:
@@ -18,19 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     name: Load Testing (k6)
 
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: animal_ekarte
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+    env:
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: animal_ekarte
 
     steps:
       - name: Checkout code
@@ -40,11 +31,18 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.25'
+          cache-dependency-path: backend/go.sum
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Create .env.local for CI
+        run: |
+          echo "DB_USER=postgres" > .env.local
+          echo "DB_PASSWORD=postgres" >> .env.local
+          echo "DB_NAME=animal_ekarte" >> .env.local
 
       - name: Install k6
         run: sudo apt-get install -y gnupg software-properties-common && curl https://dl.k6.io/key.gpg | sudo apt-key add - && sudo add-apt-repository "deb https://dl.k6.io/deb stable main" && sudo apt-get update && sudo apt-get install k6
@@ -107,19 +105,10 @@ jobs:
     runs-on: ubuntu-latest
     name: Backend Profiling (CPU/Memory)
 
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: animal_ekarte
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+    env:
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: animal_ekarte
 
     steps:
       - name: Checkout code
@@ -129,6 +118,13 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+
+      - name: Create .env.local for CI
+        run: |
+          echo "DB_USER=postgres" > .env.local
+          echo "DB_PASSWORD=postgres" >> .env.local
+          echo "DB_NAME=animal_ekarte" >> .env.local
 
       - name: Start Docker services
         run: docker compose up -d db backend
@@ -190,27 +186,23 @@ jobs:
         continue-on-error: true
 
   lighthouse:
-    timeout-minutes: 20
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     name: Frontend Lighthouse Audit
 
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: animal_ekarte
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+    env:
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: animal_ekarte
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -219,32 +211,33 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: latest
-
       - name: Install Lighthouse
         run: pnpm install -g lighthouse
+
+      - name: Create .env.local for CI
+        run: |
+          echo "DB_USER=postgres" > .env.local
+          echo "DB_PASSWORD=postgres" >> .env.local
+          echo "DB_NAME=animal_ekarte" >> .env.local
 
       - name: Start Docker services
         run: docker compose up -d
 
       - name: Wait for frontend to be ready
         run: |
-          for i in {1..30}; do
-            if curl -f http://localhost:3000 2>/dev/null; then
+          for i in {1..60}; do
+            if curl -f http://localhost:3003 2>/dev/null; then
               echo "Frontend is ready"
               exit 0
             fi
-            echo "Attempt $i/30: waiting for frontend..."
-            sleep 2
+            echo "Attempt $i/60: waiting for frontend..."
+            sleep 5
           done
           exit 1
 
       - name: Run Lighthouse audit
         run: |
-          node frontend/scripts/lighthouse-audit.js --url http://localhost:3000
+          node frontend/scripts/lighthouse-audit.js --url http://localhost:3003
         continue-on-error: true
 
       - name: Upload Lighthouse results

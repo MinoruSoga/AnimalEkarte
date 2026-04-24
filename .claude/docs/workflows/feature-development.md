@@ -77,10 +77,10 @@ frontend/src/features/xxx/routes/XxxList.tsx (single feature page)
 app/router.tsx (inline lazy with Promise.all)
 
 # 5. Test
-docker compose exec frontend pppnpm test:run
+docker compose exec frontend pnpm test:run
 
 # 6. Lint (pre-commit hook auto-checks)
-docker compose exec frontend ppnpm lint
+docker compose exec frontend pnpm lint
 ```
 
 **Rules to follow:**
@@ -134,7 +134,7 @@ docker compose exec db psql -U ekarte_user -d ekarte_db -c "\\d feature_table"
 
 1. **Self-Review** (10 min)
    - Read the rule files one more time
-   - Run linters: `docker compose exec backend golangci-lint run ./...` + `docker compose exec frontend ppnpm lint`
+   - Run linters: `docker compose exec backend golangci-lint run ./...` + `docker compose exec frontend pnpm lint`
 
 2. **Pre-Push Check** (auto)
    - `pre-bash-git-push-reminder.js` warns before git push
@@ -148,7 +148,7 @@ docker compose exec db psql -U ekarte_user -d ekarte_db -c "\\d feature_table"
 
 1. **Unit Tests**
    - Backend: `docker compose exec backend go test ./internal/service -v`
-   - Frontend: `docker compose exec frontend pppnpm test:run`
+   - Frontend: `docker compose exec frontend pnpm test:run`
 
 2. **Integration Tests** (if applicable)
    - Run full test suite before commit
@@ -167,7 +167,7 @@ git merge --no-ff feature/xxx
 
 # 2. Run linters
 docker compose exec backend golangci-lint run ./...
-docker compose exec frontend ppnpm lint
+docker compose exec frontend pnpm lint
 
 # 3. Push
 git push origin develop
@@ -202,11 +202,11 @@ grep -r "any" frontend/src/ | grep -v "string"   # Check for any type
 
 # Run all linters
 docker compose exec backend golangci-lint run ./...
-docker compose exec frontend ppnpm lint
+docker compose exec frontend pnpm lint
 
 # Run all tests
 docker compose exec backend go test ./... -v
-docker compose exec frontend pppnpm test:run
+docker compose exec frontend pnpm test:run
 
 # View git status
 git status

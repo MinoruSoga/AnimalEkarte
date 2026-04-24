@@ -154,7 +154,7 @@ func (r *reservationRepository) ExistsByReservationTypeID(ctx context.Context, c
 	var count int64
 	err := dbOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Scopes(clinicScope(clinicID)).
-		Where("reservation_type_id = ?", reservationTypeID).
+		Where("reservation_type_id = ? AND deleted_at IS NULL", reservationTypeID).
 		Count(&count).Error
 	if err != nil {
 		return false, apperrors.FromGORM(err, "reservation", "")
@@ -166,7 +166,7 @@ func (r *reservationRepository) ExistsByStaffID(ctx context.Context, clinicID, s
 	var count int64
 	err := dbOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Scopes(clinicScope(clinicID)).
-		Where("doctor_id = ?", staffID).
+		Where("doctor_id = ? AND deleted_at IS NULL", staffID).
 		Count(&count).Error
 	if err != nil {
 		return false, apperrors.FromGORM(err, "reservation", "")

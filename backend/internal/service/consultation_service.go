@@ -126,7 +126,7 @@ func (s *consultationService) GetByID(ctx context.Context, clinicID, id uint64) 
 }
 func (s *consultationService) Create(ctx context.Context, clinicID uint64, input *CreateConsultationInput) (*model.Consultation, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	taxType := model.TaxTypeExcluded
 	if input.TaxType != nil && *input.TaxType != "" {
@@ -161,10 +161,11 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get consultation", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get consultation")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildConsultationUpdate(input)
 	if len(fields) == 0 {

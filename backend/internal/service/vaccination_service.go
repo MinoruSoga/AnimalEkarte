@@ -107,6 +107,7 @@ func NewVaccinationService(repo repository.VaccinationRepository) VaccinationSer
 func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
 	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list vaccinations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list vaccinations")
 	}
 	return items, total, nil
@@ -115,6 +116,7 @@ func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, o
 func (s *vaccinationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get vaccination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get vaccination")
 	}
 	return result, nil
@@ -141,6 +143,7 @@ func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input 
 		Remarks:          input.Remarks,
 	}
 	if err := s.repo.Create(ctx, vaccination); err != nil {
+		slog.ErrorContext(ctx, "failed to create vaccination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create vaccination")
 	}
 	slog.InfoContext(ctx, "vaccination created",
@@ -154,6 +157,7 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to find vaccination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find vaccination")
 	}
 	fields := buildVaccinationUpdate(input)
@@ -162,6 +166,7 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	vaccination, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update vaccination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update vaccination")
 	}
 	slog.InfoContext(ctx, "vaccination updated",

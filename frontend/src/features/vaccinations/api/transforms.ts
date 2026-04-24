@@ -1,9 +1,6 @@
-import type { VaccinationRecord } from "@/types";
 import type { BackendVaccination } from "./types";
 
-export function transformVaccination(
-  data: BackendVaccination
-): VaccinationRecord {
+export function transformVaccination(data: BackendVaccination) {
   return {
     id: String(data.id ?? 0),
     petId: data.pet_id ? String(data.pet_id) : undefined,
@@ -23,3 +20,5 @@ export function transformVaccination(
     remarks: data.remarks || undefined,
   };
 }
+
+export type VaccinationRecord = ReturnType<typeof transformVaccination>;

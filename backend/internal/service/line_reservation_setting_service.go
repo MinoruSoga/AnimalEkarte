@@ -10,8 +10,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// SaveLineReservationSettingInput は予約設定 upsert のための入力データ
-type SaveLineReservationSettingInput struct {
+// UpsertLineReservationSettingInput は予約設定 upsert のための入力データ
+type UpsertLineReservationSettingInput struct {
 	Status                  string
 	HeaderText              string
 	ReservationNotice       string
@@ -45,7 +45,7 @@ type SaveLineReservationSettingInput struct {
 // LineReservationSettingService は予約基本設定のビジネスロジックインターフェース
 type LineReservationSettingService interface {
 	Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
-	Save(ctx context.Context, clinicID uint64, input *SaveLineReservationSettingInput) (*model.LineReservationSetting, bool, error)
+	Save(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error)
 }
 
 type lineReservationSettingService struct {
@@ -78,7 +78,7 @@ func validateJSONFields(fields map[string][]byte) error {
 	return nil
 }
 
-func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint64, input *SaveLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
+func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
 	if err := validateJSONFields(map[string][]byte{
 		"closed_weekdays":           input.ClosedWeekdays,
 		"closed_dates":              input.ClosedDates,

@@ -128,6 +128,7 @@ func NewMedicalRecordService(
 func (s *medicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
 	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list medical records", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list medical records")
 	}
 	return items, total, nil
@@ -136,6 +137,7 @@ func (s *medicalRecordService) List(ctx context.Context, clinicID uint64, petID,
 func (s *medicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get medical record")
 	}
 	return result, nil
@@ -144,6 +146,7 @@ func (s *medicalRecordService) GetByID(ctx context.Context, clinicID, id uint64)
 func (s *medicalRecordService) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
 	count, err := s.repo.CountByPetID(ctx, clinicID, petID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to count medical records by pet", "error", err)
 		return 0, apperrors.Wrap(err, "failed to count medical records by pet")
 	}
 	return count, nil
@@ -155,6 +158,7 @@ func (s *medicalRecordService) Create(ctx context.Context, record *model.Medical
 		record.RecordNo = generateRecordNo(record.Date, record.ClinicID)
 	}
 	if err := s.repo.Create(ctx, record); err != nil {
+		slog.ErrorContext(ctx, "failed to create medical record", "error", err, "clinic_id", record.ClinicID)
 		return apperrors.Wrap(err, "failed to create medical record")
 	}
 	slog.InfoContext(ctx, "medical record created",
@@ -167,6 +171,7 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	// 楽観的ロックチェックのため現在のレコードを取得
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get medical record")
 	}
 
@@ -198,6 +203,7 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 
 	record, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update medical record")
 	}
 	slog.InfoContext(ctx, "medical record updated",
@@ -212,12 +218,14 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 	}
 	estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check estimate dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check estimate dependencies")
 	}
 	if estimateCount > 0 {
 		return apperrors.WrapConflict("この項目は使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete medical record", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete medical record")
 	}
 	slog.InfoContext(ctx, "medical record deleted",

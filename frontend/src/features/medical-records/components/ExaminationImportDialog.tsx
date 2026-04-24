@@ -8,7 +8,7 @@ import { FlaskConical } from "lucide-react";
 // Internal
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useGetExaminations, useUpdateExamination } from "@/hooks/use-examinations";
 
@@ -111,8 +111,8 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
                   onClick={() => handleToggle(exam.id)}
                   className={`w-full text-left p-3 rounded-lg border transition-colors ${
                     isSelected
-                      ? `border-blue-400 bg-blue-50`
-                      : `${C.borderMedium} ${C.bgWhite} hover:bg-gray-50`
+                      ? `${C.borderBlue400} ${C.bgStatusBlueLight}`
+                      : `${C.borderMedium} ${C.bgWhite} ${STYLE.tableRowHover}`
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -127,7 +127,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
                     </div>
                     <div
                       className={`w-4 h-4 rounded border-2 flex-shrink-0 ${
-                        isSelected ? "bg-blue-500 border-blue-500" : `border-gray-300 ${C.bgWhite}`
+                        isSelected ? `${C.bgStatusBlueDot} ${C.borderBlue500}` : `${C.borderGray300} ${C.bgWhite}`
                       }`}
                     />
                   </div>
@@ -138,7 +138,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+        <div className={`flex justify-end gap-3 pt-2 border-t ${C.borderGray100}`}>
           <Button type="button" variant="outline" onClick={handleClose}>
             キャンセル
           </Button>

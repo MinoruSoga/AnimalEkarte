@@ -9,8 +9,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// SaveInquiryInput は問診 upsert の入力 DTO（nil = 未送信フィールド）
-type SaveInquiryInput struct {
+// UpsertInquiryInput は問診 upsert の入力 DTO（nil = 未送信フィールド）
+type UpsertInquiryInput struct {
 	ClinicID             uint64
 	MedicalRecordID      uint64
 	ChiefComplaintTypeID *uint64
@@ -20,7 +20,7 @@ type SaveInquiryInput struct {
 
 // InquiryService は医療記録問診のビジネスロジックインターフェース
 type InquiryService interface {
-	Save(ctx context.Context, input SaveInquiryInput) (*model.Inquiry, error)
+	Save(ctx context.Context, input UpsertInquiryInput) (*model.Inquiry, error)
 }
 
 type inquiryService struct {
@@ -33,7 +33,7 @@ func NewInquiryService(repo repository.InquiryRepository) InquiryService {
 }
 
 // Save は medical_record_id に対応する問診を upsert する。
-func (s *inquiryService) Save(ctx context.Context, input SaveInquiryInput) (*model.Inquiry, error) {
+func (s *inquiryService) Save(ctx context.Context, input UpsertInquiryInput) (*model.Inquiry, error) {
 	inquiry := &model.Inquiry{
 		MedicalRecordID: input.MedicalRecordID,
 	}

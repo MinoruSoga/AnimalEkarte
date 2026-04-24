@@ -111,6 +111,7 @@ func NewHospitalizationService(repos *repository.Repositories) HospitalizationSe
 func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
 	result, total, err := s.repos.Hospitalization.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list hospitalizations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list hospitalizations")
 	}
 	return result, total, nil
@@ -119,6 +120,7 @@ func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petI
 func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	result, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get hospitalization")
 	}
 	return result, nil
@@ -144,6 +146,7 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		StaffNotes:          input.StaffNotes,
 	}
 	if err := s.repos.Hospitalization.Create(ctx, hospitalization); err != nil {
+		slog.ErrorContext(ctx, "failed to create hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create hospitalization")
 	}
 	slog.InfoContext(ctx, "hospitalization created",
@@ -157,6 +160,7 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
 	if _, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to find hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find hospitalization")
 	}
 	fields := buildHospitalizationUpdate(input)
@@ -165,6 +169,7 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	}
 	hosp, err := s.repos.Hospitalization.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update hospitalization")
 	}
 	slog.InfoContext(ctx, "hospitalization updated",
@@ -179,6 +184,7 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 	// FK依存チェック: 入院に紐付く日次記録が存在する場合は削除を拒否
 	dailyCount, err := s.repos.Hospitalization.CountDailyRecordsByHospitalizationID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check daily record dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check daily record dependencies")
 	}
 	if dailyCount > 0 {
@@ -188,6 +194,7 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 	// FK依存チェック: 入院に紐付く治療計画が存在する場合は削除を拒否
 	planCount, err := s.repos.Hospitalization.CountTreatmentPlansByHospitalizationID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check treatment plan dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check treatment plan dependencies")
 	}
 	if planCount > 0 {
@@ -197,6 +204,7 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 	// FK依存チェック: 入院に紐付くケアプラン項目が存在する場合は削除を拒否
 	itemCount, err := s.repos.Hospitalization.CountCarePlanItemsByHospitalizationID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check care plan item dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check care plan item dependencies")
 	}
 	if itemCount > 0 {
@@ -204,6 +212,7 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 	}
 
 	if err := s.repos.Hospitalization.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete hospitalization", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete hospitalization")
 	}
 
@@ -220,6 +229,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 	// 入院レコード取得
 	hosp, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get hospitalization")
 	}
 	if hosp.Status == model.HospitalizationStatusDischarged {
@@ -299,6 +309,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 	})
 
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to discharge hospitalization with billing", "error", err)
 		return nil, apperrors.Wrap(err, "failed to discharge hospitalization with billing")
 	}
 

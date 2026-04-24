@@ -1,5 +1,6 @@
 ---
 description: E2E テスト設計・シナリオ生成
+argument-hint: "<feature> (e.g. owners, medical-records)"
 ---
 
 # /e2e-design [feature]
@@ -20,8 +21,8 @@ E2E テストシナリオを設計・生成します。
 
 - ユーザーフロー分析
 - クリティカルパス特定
-- テストシナリオ設計
-- Playwright スクリプト生成
+- テストシナリオ設計（文書形式）
+- 将来的な Playwright 導入時のスクリプト雛形
 
 ## テストシナリオ例
 
@@ -39,12 +40,12 @@ Scenario 1: Owner 登録→ Pet 追加→ Vaccination 記録
 ## 出力形式
 
 ```
-E2E Tests Generated:
-- owner-flow.spec.ts
-- medical-flow.spec.ts
+E2E Scenarios Designed:
+- owner-flow.md (シナリオ文書)
+- medical-flow.md (シナリオ文書)
 
 Total scenarios: XX
-Estimated execution time: XXm
+※ 実行には Playwright の導入が必要
 ```
 
 ## 使用エージェント

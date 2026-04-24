@@ -41,7 +41,7 @@ func (r *permissionGroupRepository) FindAll(ctx context.Context, clinicID uint64
 	groups := make([]model.PermissionGroup, 0)
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Preload("Rules").
+		Preload("Rules", "deleted_at IS NULL").
 		Order("sort_order ASC, name ASC").
 		Find(&groups).Error
 	if err != nil {
@@ -53,7 +53,7 @@ func (r *permissionGroupRepository) FindAll(ctx context.Context, clinicID uint64
 func (r *permissionGroupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
 	var group model.PermissionGroup
 	err := r.db.WithContext(ctx).
-		Preload("Rules").
+		Preload("Rules", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&group).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))

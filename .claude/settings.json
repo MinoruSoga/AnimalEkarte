@@ -3,12 +3,14 @@
   "alwaysThinkingEnabled": false,
   "attribution": {
     "enabled": true,
-    "format": "Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
+    "format": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
   },
   "outputStyle": "senior-engineer",
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "MAX_THINKING_TOKENS": "10000",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
   },
   "teammateMode": "in-process",
   "enableAllProjectMcpServers": true,
@@ -161,6 +163,16 @@
         "description": "Commit quality gate: block secrets, warn on console.log/debugger, validate commit message format"
       },
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-git-push-reminder.js"
+          }
+        ],
+        "description": "Remind to review changes before git push"
+      },
+      {
         "matcher": "Write",
         "hooks": [
           {
@@ -201,6 +213,36 @@
           }
         ],
         "description": "Warn when file exceeds 500/800 lines after edit (catches gradual growth)"
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-format-go.js"
+          }
+        ],
+        "description": "Auto-format .go files with gofmt via Docker after edits"
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-typecheck-ts.js"
+          }
+        ],
+        "description": "TypeScript type check via Docker after .ts/.tsx edits"
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/after-shell-execution.js"
+          }
+        ],
+        "description": "Log PR URL after gh pr create"
       }
     ],
     "PreCompact": [
@@ -249,6 +291,18 @@
           }
         ],
         "description": "Log session start and detect project type"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/before-submit-prompt.js"
+          }
+        ],
+        "description": "Detect potential secrets (API keys, PATs, private keys) in user prompts"
       }
     ]
   }

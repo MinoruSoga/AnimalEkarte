@@ -629,7 +629,7 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
 
       {/* Owner Information Form */}
       {/* rerender-memo: OwnerInfoSection はペット操作・モーダル開閉では再レンダーしない */}
-      <div className={`mb-4 rounded-lg bg-white p-4 border ${C.borderMedium}`}>
+      <div className={`mb-4 rounded-lg ${C.bgWhite} p-4 border ${C.borderMedium}`}>
         <h2 className={`mb-3 text-sm font-bold ${C.text} flex items-center gap-2`}>
           <User className={`${ICON.action} ${C.text60}`} />
           飼主情報
@@ -666,7 +666,7 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
           ) : null}
         </div>
 
-        <div className={`rounded-lg bg-white overflow-hidden border ${C.borderMedium}`}>
+        <div className={`rounded-lg ${C.bgWhite} overflow-hidden border ${C.borderMedium}`}>
           <Table>
             {PET_TABLE_HEADER}
             <TableBody>
