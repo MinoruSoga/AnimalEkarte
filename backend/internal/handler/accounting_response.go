@@ -7,6 +7,48 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// BUG-368: レジ締め日次集計レスポンス
+
+type paymentMethodTotalResponse struct {
+	Method string `json:"method"`
+	Total  int64  `json:"total"`
+}
+
+type categoryTotalResponse struct {
+	Category string `json:"category"`
+	Total    int64  `json:"total"`
+}
+
+type dailySummaryResponse struct {
+	PaymentTotals  []paymentMethodTotalResponse `json:"payment_totals"`
+	CategoryTotals []categoryTotalResponse      `json:"category_totals"`
+	BillingCount   int64                        `json:"billing_count"`
+	GrandTotal     int64                        `json:"grand_total"`
+}
+
+func toDailySummaryResponse(s *repository.DailySummaryResult) dailySummaryResponse {
+	paymentTotals := make([]paymentMethodTotalResponse, 0, len(s.PaymentTotals))
+	for _, p := range s.PaymentTotals {
+		paymentTotals = append(paymentTotals, paymentMethodTotalResponse{
+			Method: p.Method,
+			Total:  p.Total,
+		})
+	}
+	categoryTotals := make([]categoryTotalResponse, 0, len(s.CategoryTotals))
+	for _, ct := range s.CategoryTotals {
+		categoryTotals = append(categoryTotals, categoryTotalResponse{
+			Category: ct.Category,
+			Total:    ct.Total,
+		})
+	}
+	return dailySummaryResponse{
+		PaymentTotals:  paymentTotals,
+		CategoryTotals: categoryTotals,
+		BillingCount:   s.BillingCount,
+		GrandTotal:     s.GrandTotal,
+	}
+}
+
 // BUG-370: 月末未納者一覧レスポンス
 
 type unpaidOwnerResponse struct {

@@ -82,6 +82,7 @@ func NewExaminationService(repo repository.ExaminationRepository) ExaminationSer
 func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
 	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list examinations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list examinations")
 	}
 	return items, total, nil
@@ -90,6 +91,7 @@ func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, o
 func (s *examinationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get examination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get examination")
 	}
 	return result, nil
@@ -112,6 +114,7 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 		Status:          status,
 	}
 	if err := s.repo.Create(ctx, exam); err != nil {
+		slog.ErrorContext(ctx, "failed to create examination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create examination")
 	}
 	slog.InfoContext(ctx, "examination created", slog.Uint64("clinic_id", clinicID), slog.Uint64("examination_id", exam.ID))
@@ -121,6 +124,7 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error) {
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get examination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get examination")
 	}
 	if existing.Status == model.ExaminationStatusConfirmed {
@@ -133,6 +137,7 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	exam, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update examination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update examination")
 	}
 	slog.InfoContext(ctx, "examination updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("examination_id", id))
@@ -146,6 +151,7 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) er
 	// FK依存チェック: 検査に紐付く検査明細が存在する場合は削除を拒否
 	itemCount, err := s.repo.CountItemsByExamID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check examination item dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check examination item dependencies")
 	}
 	if itemCount > 0 {
@@ -153,6 +159,7 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) er
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete examination", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete examination")
 	}
 

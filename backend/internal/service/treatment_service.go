@@ -145,6 +145,7 @@ func NewTreatmentService(repos *repository.Repositories) TreatmentService {
 func (s *treatmentService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error) {
 	treatment, err := s.repos.Treatment.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get treatment")
 	}
 	return treatment, nil
@@ -153,6 +154,7 @@ func (s *treatmentService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 func (s *treatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
 	treatments, err := s.repos.Treatment.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list treatments", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list treatments")
 	}
 	return treatments, nil
@@ -160,7 +162,7 @@ func (s *treatmentService) List(ctx context.Context, clinicID, medicalRecordID u
 
 func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error) {
 	if err := validateTreatmentItemType(input.ItemType); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate treatment item type")
 	}
 	if input.UnitPrice < 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
@@ -176,7 +178,8 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	if input.Status != "" {
 		s, err := parseTreatmentStatus(input.Status)
 		if err != nil {
-			return nil, err
+			slog.ErrorContext(ctx, "failed to create treatment", "error", err)
+			return nil, apperrors.Wrap(err, "failed to create treatment")
 		}
 		status = s
 	}
@@ -230,6 +233,7 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	})
 
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to create treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create treatment")
 	}
 
@@ -245,6 +249,7 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	// 所属確認（clinic_id + id で検索）
 	existing, err := s.repos.Treatment.FindByID(ctx, clinicID, treatmentID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get treatment")
 	}
 	if existing.MedicalRecordID != medicalRecordID {
@@ -253,12 +258,13 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 
 	if input.ItemType != nil {
 		if err := validateTreatmentItemType(*input.ItemType); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate treatment item type")
 		}
 	}
 	if input.Status != nil {
 		if _, err := parseTreatmentStatus(*input.Status); err != nil {
-			return nil, err
+			slog.ErrorContext(ctx, "failed to update treatment", "error", err)
+			return nil, apperrors.Wrap(err, "failed to update treatment")
 		}
 	}
 	if input.Quantity != nil && *input.Quantity <= 0 {
@@ -277,6 +283,7 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	}
 
 	if err := s.repos.Treatment.Update(ctx, clinicID, treatmentID, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update treatment")
 	}
 
@@ -287,6 +294,7 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 
 	treatment, err := s.repos.Treatment.FindByID(ctx, clinicID, treatmentID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get updated treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get updated treatment")
 	}
 	return treatment, nil
@@ -302,6 +310,7 @@ func (s *treatmentService) Delete(ctx context.Context, clinicID, medicalRecordID
 	}
 
 	if err := s.repos.Treatment.Delete(ctx, clinicID, treatmentID); err != nil {
+		slog.ErrorContext(ctx, "failed to delete treatment", "error", err, "id", treatmentID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete treatment")
 	}
 

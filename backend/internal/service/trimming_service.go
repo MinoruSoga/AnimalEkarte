@@ -84,6 +84,7 @@ func NewTrimmingService(
 func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error) {
 	items, total, err := s.reservation.FindAllByCategory(ctx, clinicID, model.ReservationTypeCategoryTrimming, petID, ownerID, startDate, endDate, page, limit)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list trimming appointments", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list trimming appointments")
 	}
 	return items, total, nil
@@ -92,6 +93,7 @@ func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, owne
 func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	appt, err := s.reservation.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get trimming appointment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get trimming appointment")
 	}
 	// FindByID は汎用メソッドのため TrimmingDetail をプリロードしない。
@@ -161,7 +163,8 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		apptID = appt.ID
 		return nil
 	}); err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to set options trimming", "error", err)
+		return nil, apperrors.Wrap(err, "failed to set options trimming")
 	}
 
 	slog.InfoContext(ctx, "trimming appointment created",
@@ -173,6 +176,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 
 func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
 	if _, err := s.reservation.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get trimming appointment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get trimming appointment")
 	}
 
@@ -248,7 +252,8 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		}
 		return nil
 	}); err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to set options trimming", "error", err)
+		return nil, apperrors.Wrap(err, "failed to set options trimming")
 	}
 
 	slog.InfoContext(ctx, "trimming appointment updated",
@@ -263,6 +268,7 @@ func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64) error
 		return apperrors.Wrap(err, "failed to find trimming appointment")
 	}
 	if err := s.reservation.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete trimming appointment", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete trimming appointment")
 	}
 	slog.InfoContext(ctx, "trimming appointment deleted",

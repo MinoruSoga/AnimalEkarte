@@ -105,6 +105,7 @@ func NewCarePlanItemService(repo repository.CarePlanItemRepository) CarePlanItem
 func (s *carePlanItemService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
 	items, err := s.repo.FindByHospitalizationID(ctx, clinicID, hospitalizationID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list care plan items", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list care plan items")
 	}
 	return items, nil
@@ -113,14 +114,14 @@ func (s *carePlanItemService) List(ctx context.Context, clinicID, hospitalizatio
 func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizationID uint64, input *CreateCarePlanItemInput) (*model.CarePlanItem, error) {
 	planType := model.CarePlanType(input.Type)
 	if err := validateCarePlanType(planType); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate care plan type")
 	}
 
 	status := model.CarePlanStatusActive
 	if input.Status != "" {
 		planStatus := model.CarePlanStatus(input.Status)
 		if err := validateCarePlanStatus(planStatus); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate care plan status")
 		}
 		status = planStatus
 	}
@@ -141,6 +142,7 @@ func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizat
 		SortOrder:             input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, item); err != nil {
+		slog.ErrorContext(ctx, "failed to create care plan item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create care plan item")
 	}
 
@@ -151,6 +153,7 @@ func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizat
 
 	created, err := s.repo.FindByID(ctx, clinicID, item.ID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get created care plan item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get created care plan item")
 	}
 	return created, nil
@@ -160,6 +163,7 @@ func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizat
 	// Verify item belongs to this clinic + hospitalization
 	existing, err := s.repo.FindByID(ctx, clinicID, itemID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get care plan item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get care plan item")
 	}
 	if existing.HospitalizationID != hospitalizationID {
@@ -168,12 +172,12 @@ func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizat
 
 	if input.Type != nil {
 		if err := validateCarePlanType(model.CarePlanType(*input.Type)); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate care plan type")
 		}
 	}
 	if input.Status != nil {
 		if err := validateCarePlanStatus(model.CarePlanStatus(*input.Status)); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate care plan status")
 		}
 	}
 
@@ -183,6 +187,7 @@ func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizat
 	}
 
 	if err := s.repo.Update(ctx, clinicID, itemID, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update care plan item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update care plan item")
 	}
 
@@ -193,6 +198,7 @@ func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizat
 
 	updated, err := s.repo.FindByID(ctx, clinicID, itemID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get updated care plan item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get updated care plan item")
 	}
 	return updated, nil
@@ -208,6 +214,7 @@ func (s *carePlanItemService) Delete(ctx context.Context, clinicID, hospitalizat
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, itemID); err != nil {
+		slog.ErrorContext(ctx, "failed to delete care plan item", "error", err, "id", itemID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete care plan item")
 	}
 

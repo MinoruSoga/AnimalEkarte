@@ -99,7 +99,7 @@ func (s *insuranceService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 }
 func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *CreateInsuranceInput) (*model.Insurance, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	// CoverageRate デフォルト値はサービス層で設定する (BUG-379)
 	coverageRate := 0
@@ -107,7 +107,7 @@ func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *C
 		coverageRate = *input.CoverageRate
 	}
 	if err := validateCoverageRate(coverageRate); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate coverage rate")
 	}
 	insurance := &model.Insurance{
 		ClinicID:     clinicID,
@@ -130,13 +130,14 @@ func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, inpu
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get insurance", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get insurance")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	if err := validateOptionalCoverageRate(input.CoverageRate); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional coverage rate")
 	}
 	fields := buildInsuranceUpdate(input)
 	if len(fields) == 0 {

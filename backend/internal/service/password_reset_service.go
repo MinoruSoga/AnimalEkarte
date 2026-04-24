@@ -69,16 +69,19 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, email string)
 				slog.String("email", email))
 			return nil
 		}
+		slog.ErrorContext(ctx, "failed to find account", "error", err)
 		return apperrors.Wrap(err, "failed to find account")
 	}
 
 	// 既存トークンを削除してから新規発行
 	if err := s.tokenRepo.DeleteByAccountID(ctx, account.ID); err != nil {
+		slog.ErrorContext(ctx, "failed to clean up existing tokens", "error", err, "account_id", account.ID)
 		return apperrors.Wrap(err, "failed to clean up existing tokens")
 	}
 
 	rawToken, tokenHash, err := generateToken()
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to generate token", "error", err)
 		return apperrors.Wrap(err, "failed to generate token")
 	}
 
@@ -88,6 +91,7 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, email string)
 		ExpiresAt: time.Now().Add(passwordResetTokenExpiry),
 	}
 	if err := s.tokenRepo.Create(ctx, prt); err != nil {
+		slog.ErrorContext(ctx, "failed to create reset token", "error", err, "account_id", account.ID)
 		return apperrors.Wrap(err, "failed to create reset token")
 	}
 
@@ -127,12 +131,14 @@ func (s *passwordResetService) ResetPassword(ctx context.Context, rawToken, newP
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), config.BcryptCost)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to hash password", "error", err)
 		return apperrors.Wrap(err, "failed to hash password")
 	}
 
 	if err := s.accountRepo.Update(ctx, prt.AccountID, map[string]any{
 		"password_hash": string(hashedPassword),
 	}); err != nil {
+		slog.ErrorContext(ctx, "failed to update password", "error", err, "account_id", prt.AccountID)
 		return apperrors.Wrap(err, "failed to update password")
 	}
 

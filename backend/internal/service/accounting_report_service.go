@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"log/slog"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -68,77 +69,6 @@ type DailyReportDetail struct {
 type MonthlyCSVResult struct {
 	Filename string
 	Data     []byte
-}
-
-// ---- インターフェース ----
-
-// AccountingReportService は月次売上レポートのビジネスロジックインターフェース
-type AccountingReportService interface {
-	GetMonthly(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResponse, error)
-	ExportMonthlyCSV(ctx context.Context, clinicID uint64, year, month int) (*MonthlyCSVResult, error)
-}
-
-// ---- サービス実装 ----
-
-type accountingReportService struct {
-	repo          repository.AccountingRepository
-	payMethodRepo repository.PaymentMethodMasterRepository
-	holidayRepo   repository.ClinicHolidayRepository
-}
-
-// NewAccountingReportService は AccountingReportService を初期化して返す
-func NewAccountingReportService(
-	repo repository.AccountingRepository,
-	payMethodRepo repository.PaymentMethodMasterRepository,
-	holidayRepo repository.ClinicHolidayRepository,
-) AccountingReportService {
-	return &accountingReportService{
-		repo:          repo,
-		payMethodRepo: payMethodRepo,
-		holidayRepo:   holidayRepo,
-	}
-}
-
-// validateMonth は month 値（1〜12）のバリデーションを行う
-func validateMonth(month int) error {
-	if month < 1 || month > 12 {
-		return apperrors.WrapInvalidInput("month は 1〜12 の範囲で指定してください")
-	}
-	return nil
-}
-
-func (s *accountingReportService) GetMonthly(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResponse, error) {
-	if err := validateMonth(month); err != nil {
-		return nil, err
-	}
-
-	raw, err := s.repo.GetMonthlyReport(ctx, clinicID, year, month)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get monthly report")
-	}
-
-	// 支払方法マスタを取得してID→名前マップを構築
-	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get payment methods")
-	}
-	payMethodNames := make(map[uint64]string, len(payMethods))
-	for i := range payMethods {
-		payMethodNames[payMethods[i].ID] = payMethods[i].Name
-	}
-
-	// 休診日マスタを取得
-	yearMonth := fmt.Sprintf("%04d-%02d", year, month)
-	holidays, err := s.holidayRepo.FindAllByYearMonth(ctx, clinicID, yearMonth)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get clinic holidays")
-	}
-	holidaySet := make(map[string]bool, len(holidays))
-	for _, h := range holidays {
-		holidaySet[h.Date.Format("2006-01-02")] = true
-	}
-
-	return buildMonthlyReportResponse(year, month, raw, payMethodNames, holidaySet), nil
 }
 
 // buildMonthlyReportResponse は生データからフロントエンド向けレスポンスを構築する
@@ -264,11 +194,111 @@ func buildMonthlyReportResponse(
 	}
 }
 
+// buildTaxBreakdown は TaxBreakdownRow スライスを TaxBreakdownSummary に変換する
+// cash_register_service.go からも利用するためパッケージスコープで定義する
+func buildTaxBreakdown(rows []repository.TaxBreakdownRow) TaxBreakdownSummary {
+	var summary TaxBreakdownSummary
+	for _, tr := range rows {
+		if tr.TaxRate > 8 {
+			summary.Standard.TaxableAmount += tr.TaxableAmount
+			summary.Standard.TaxAmount += tr.TaxAmount
+		} else {
+			summary.Reduced.TaxableAmount += tr.TaxableAmount
+			summary.Reduced.TaxAmount += tr.TaxAmount
+		}
+	}
+	return summary
+}
+
+// buildPayMethodNameMap は PaymentMethodMaster スライスから ID→名前マップを構築する
+func buildPayMethodNameMap(methods []model.PaymentMethodMaster) map[uint64]string {
+	m := make(map[uint64]string, len(methods))
+	for i := range methods {
+		m[methods[i].ID] = methods[i].Name
+	}
+	return m
+}
+
+// ---- インターフェース ----
+
+// AccountingReportService は月次売上レポートのビジネスロジックインターフェース
+type AccountingReportService interface {
+	GetMonthly(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResponse, error)
+	ExportMonthlyCSV(ctx context.Context, clinicID uint64, year, month int) (*MonthlyCSVResult, error)
+}
+
+// ---- サービス実装 ----
+
+type accountingReportService struct {
+	repo          repository.AccountingRepository
+	payMethodRepo repository.PaymentMethodMasterRepository
+	holidayRepo   repository.ClinicHolidayRepository
+}
+
+// NewAccountingReportService は AccountingReportService を初期化して返す
+func NewAccountingReportService(
+	repo repository.AccountingRepository,
+	payMethodRepo repository.PaymentMethodMasterRepository,
+	holidayRepo repository.ClinicHolidayRepository,
+) AccountingReportService {
+	return &accountingReportService{
+		repo:          repo,
+		payMethodRepo: payMethodRepo,
+		holidayRepo:   holidayRepo,
+	}
+}
+
+// validateMonth は month 値（1〜12）のバリデーションを行う
+func validateMonth(month int) error {
+	if month < 1 || month > 12 {
+		return apperrors.WrapInvalidInput("month は 1〜12 の範囲で指定してください")
+	}
+	return nil
+}
+
+func (s *accountingReportService) GetMonthly(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResponse, error) {
+	if err := validateMonth(month); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate month")
+	}
+
+	raw, err := s.repo.GetMonthlyReport(ctx, clinicID, year, month)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get monthly report", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get monthly report")
+	}
+
+	// 支払方法マスタを取得してID→名前マップを構築
+	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get payment methods", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get payment methods")
+	}
+	payMethodNames := make(map[uint64]string, len(payMethods))
+	for i := range payMethods {
+		payMethodNames[payMethods[i].ID] = payMethods[i].Name
+	}
+
+	// 休診日マスタを取得
+	yearMonth := fmt.Sprintf("%04d-%02d", year, month)
+	holidays, err := s.holidayRepo.FindAllByYearMonth(ctx, clinicID, yearMonth)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get clinic holidays", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get clinic holidays")
+	}
+	holidaySet := make(map[string]bool, len(holidays))
+	for _, h := range holidays {
+		holidaySet[h.Date.Format("2006-01-02")] = true
+	}
+
+	return buildMonthlyReportResponse(year, month, raw, payMethodNames, holidaySet), nil
+}
+
 // ExportMonthlyCSV は月次売上レポートの CSV バイト列とファイル名を返す
 func (s *accountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID uint64, year, month int) (*MonthlyCSVResult, error) {
 	result, err := s.GetMonthly(ctx, clinicID, year, month)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to get monthly accounting report", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get monthly accounting report")
 	}
 
 	var buf bytes.Buffer
@@ -344,29 +374,4 @@ func resolvePaymentMethodName(id *uint64, names map[uint64]string) string {
 // cash_register_service.go からも利用するためパッケージスコープで定義する
 func paymentMethodNameForClose(id *uint64, names map[uint64]string) string {
 	return resolvePaymentMethodName(id, names)
-}
-
-// buildTaxBreakdown は TaxBreakdownRow スライスを TaxBreakdownSummary に変換する
-// cash_register_service.go からも利用するためパッケージスコープで定義する
-func buildTaxBreakdown(rows []repository.TaxBreakdownRow) TaxBreakdownSummary {
-	var summary TaxBreakdownSummary
-	for _, tr := range rows {
-		if tr.TaxRate > 8 {
-			summary.Standard.TaxableAmount += tr.TaxableAmount
-			summary.Standard.TaxAmount += tr.TaxAmount
-		} else {
-			summary.Reduced.TaxableAmount += tr.TaxableAmount
-			summary.Reduced.TaxAmount += tr.TaxAmount
-		}
-	}
-	return summary
-}
-
-// buildPayMethodNameMap は PaymentMethodMaster スライスから ID→名前マップを構築する
-func buildPayMethodNameMap(methods []model.PaymentMethodMaster) map[uint64]string {
-	m := make(map[uint64]string, len(methods))
-	for i := range methods {
-		m[methods[i].ID] = methods[i].Name
-	}
-	return m
 }

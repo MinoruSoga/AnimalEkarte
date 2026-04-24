@@ -56,6 +56,29 @@ type CloseBillingDetail struct {
 	NetAmount         int64   `json:"net_amount"`
 }
 
+// buildCategoryBreakdown は集計行から CategoryBreakdownSchema を構築する
+func buildCategoryBreakdown(rows []repository.BillingAggregateRow, taxRows []repository.TaxBreakdownRow) model.CategoryBreakdownSchema {
+	cats := make(map[string]map[string]int64)
+	for _, r := range rows {
+		if cats[r.Category] == nil {
+			cats[r.Category] = make(map[string]int64)
+		}
+		key := "cash"
+		if r.PaymentMethodID != nil {
+			key = fmt.Sprintf("method_%d", *r.PaymentMethodID)
+		}
+		cats[r.Category][key] += r.NetAmount
+	}
+	tax := buildTaxBreakdown(taxRows)
+	return model.CategoryBreakdownSchema{
+		Categories: cats,
+		TaxBreakdown: model.TaxBreakdown{
+			Standard: model.TaxBreakdownItem{TaxableAmount: tax.Standard.TaxableAmount, TaxAmount: tax.Standard.TaxAmount},
+			Reduced:  model.TaxBreakdownItem{TaxableAmount: tax.Reduced.TaxableAmount, TaxAmount: tax.Reduced.TaxAmount},
+		},
+	}
+}
+
 // CashRegisterService はレジ締めのビジネスロジックインターフェース
 type CashRegisterService interface {
 	GetPreview(ctx context.Context, clinicID uint64, dateStr, period string) (*CashRegisterPreview, error)
@@ -109,6 +132,7 @@ func validatePeriod(period string) error {
 func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint64, date time.Time, period string) (*periodAggregate, error) {
 	schedule, err := s.closingsSvc.ResolveSchedule(ctx, clinicID, date)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to resolve schedule", "error", err)
 		return nil, apperrors.Wrap(err, "failed to resolve schedule")
 	}
 
@@ -116,7 +140,8 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 
 	periodStart, periodEnd, err := resolvePeriodRange(dateJST, period, schedule)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to fetch aggregate cash register", "error", err)
+		return nil, apperrors.Wrap(err, "failed to fetch aggregate cash register")
 	}
 
 	aggregate, err := s.accountingRepo.GetCloseAggregate(ctx, repository.GetCloseAggregateInput{
@@ -125,6 +150,7 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		PeriodEnd:   periodEnd,
 	})
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to aggregate billings", "error", err)
 		return nil, apperrors.Wrap(err, "failed to aggregate billings")
 	}
 
@@ -151,17 +177,19 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 		return nil, apperrors.WrapInvalidInput("period クエリパラメータは必須です")
 	}
 	if err := validatePeriod(period); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate period")
 	}
 
 	agg, err := s.fetchAggregate(ctx, clinicID, date, period)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to fetch aggregate cash register", "error", err)
+		return nil, apperrors.Wrap(err, "failed to fetch aggregate cash register")
 	}
 
 	// 二重締め確認
 	existing, err := s.closeRepo.FindByDateAndPeriod(ctx, clinicID, date, period)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check existing close", "error", err)
 		return nil, apperrors.Wrap(err, "failed to check existing close")
 	}
 	isAlreadyClosed := existing != nil
@@ -169,6 +197,7 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	// 支払方法マスタを取得
 	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get payment methods", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get payment methods")
 	}
 	payMethodNames := buildPayMethodNameMap(payMethods)
@@ -224,12 +253,13 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 
 func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error) {
 	if err := validatePeriod(input.Period); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate period")
 	}
 
 	// 二重締めチェック
 	existing, err := s.closeRepo.FindByDateAndPeriod(ctx, clinicID, input.Date, input.Period)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check existing close", "error", err)
 		return nil, apperrors.Wrap(err, "failed to check existing close")
 	}
 	if existing != nil {
@@ -238,7 +268,8 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 
 	agg, err := s.fetchAggregate(ctx, clinicID, input.Date, input.Period)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to fetch aggregate cash register", "error", err)
+		return nil, apperrors.Wrap(err, "failed to fetch aggregate cash register")
 	}
 
 	cashDifference := input.ActualCash - agg.TheoreticalCash
@@ -247,6 +278,7 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 	breakdownSchema := buildCategoryBreakdown(agg.AggregateRows, agg.TaxBreakdown)
 	breakdownJSON, err := json.Marshal(breakdownSchema)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to marshal category breakdown", "error", err)
 		return nil, apperrors.Wrap(err, "failed to marshal category breakdown")
 	}
 
@@ -264,6 +296,7 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 	}
 
 	if err := s.closeRepo.Create(ctx, record); err != nil {
+		slog.ErrorContext(ctx, "failed to create cash register close", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create cash register close")
 	}
 
@@ -333,27 +366,4 @@ func calcTheoreticalCash(rows []repository.BillingAggregateRow) int64 {
 		}
 	}
 	return total
-}
-
-// buildCategoryBreakdown は集計行から CategoryBreakdownSchema を構築する
-func buildCategoryBreakdown(rows []repository.BillingAggregateRow, taxRows []repository.TaxBreakdownRow) model.CategoryBreakdownSchema {
-	cats := make(map[string]map[string]int64)
-	for _, r := range rows {
-		if cats[r.Category] == nil {
-			cats[r.Category] = make(map[string]int64)
-		}
-		key := "cash"
-		if r.PaymentMethodID != nil {
-			key = fmt.Sprintf("method_%d", *r.PaymentMethodID)
-		}
-		cats[r.Category][key] += r.NetAmount
-	}
-	tax := buildTaxBreakdown(taxRows)
-	return model.CategoryBreakdownSchema{
-		Categories: cats,
-		TaxBreakdown: model.TaxBreakdown{
-			Standard: model.TaxBreakdownItem{TaxableAmount: tax.Standard.TaxableAmount, TaxAmount: tax.Standard.TaxAmount},
-			Reduced:  model.TaxBreakdownItem{TaxableAmount: tax.Reduced.TaxableAmount, TaxAmount: tax.Reduced.TaxAmount},
-		},
-	}
 }

@@ -93,7 +93,7 @@ func NewShiftEntryService(repo repository.ShiftEntryRepository) ShiftEntryServic
 func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth string, staffID *uint64) ([]model.ShiftEntry, error) {
 	if yearMonth != "" {
 		if err := validateYearMonth(yearMonth); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate year month")
 		}
 	}
 	filter := repository.ShiftEntryFilter{
@@ -102,6 +102,7 @@ func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth
 	}
 	items, err := s.repo.FindAll(ctx, clinicID, filter)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list shift entries", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list shift entries")
 	}
 	return items, nil
@@ -156,14 +157,14 @@ func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) e
 func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error) {
 	shiftType := model.ShiftType(input.ShiftType)
 	if err := validateShiftType(shiftType); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate shift type")
 	}
 	startTime := normalizeTimeString(input.StartTime)
 	endTime := normalizeTimeString(input.EndTime)
 
 	// BUG-028: 時刻バリデーション（off/paid_leave は除外）
 	if err := validateShiftTimes(shiftType, startTime, endTime); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate shift times")
 	}
 
 	entry := &model.ShiftEntry{
@@ -176,6 +177,7 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 		Notes:     input.Notes,
 	}
 	if err := s.repo.Create(ctx, entry); err != nil {
+		slog.ErrorContext(ctx, "failed to create shift entry", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create shift entry")
 	}
 	// 休憩時間を保存
@@ -185,6 +187,7 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 			breaks = append(breaks, model.ShiftEntryBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
 		}
 		if err := s.repo.ReplaceBreaks(ctx, entry.ID, breaks); err != nil {
+			slog.ErrorContext(ctx, "failed to save shift breaks", "error", err)
 			return nil, apperrors.Wrap(err, "failed to save shift breaks")
 		}
 	}
@@ -193,6 +196,7 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 		slog.Uint64("clinic_id", clinicID))
 	result, err := s.repo.FindByID(ctx, clinicID, entry.ID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get shift entry after create", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get shift entry after create")
 	}
 	return result, nil
@@ -202,6 +206,7 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 	// BUG-028: 時刻バリデーション。更新後の start_time/end_time を確定させるために既存レコードを取得する。
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to find shift entry for update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find shift entry for update")
 	}
 	fields := buildShiftEntryUpdate(input)
@@ -213,7 +218,7 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 	if input.ShiftType != nil {
 		st := model.ShiftType(*input.ShiftType)
 		if err := validateShiftType(st); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate shift type")
 		}
 		effectiveShiftType = st
 	}
@@ -227,10 +232,11 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 		effectiveEnd = normalizeTimeString(input.EndTime)
 	}
 	if err := validateShiftTimes(effectiveShiftType, effectiveStart, effectiveEnd); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate shift times")
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update shift entry", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update shift entry")
 	}
 	// 休憩時間の更新（送信された場合のみ）
@@ -240,12 +246,14 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 			breaks = append(breaks, model.ShiftEntryBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
 		}
 		if err := s.repo.ReplaceBreaks(ctx, id, breaks); err != nil {
+			slog.ErrorContext(ctx, "failed to save shift breaks", "error", err)
 			return nil, apperrors.Wrap(err, "failed to save shift breaks")
 		}
 	}
 	slog.InfoContext(ctx, "shift entry updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_entry_id", id))
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get shift entry after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get shift entry after update")
 	}
 	return result, nil
@@ -256,6 +264,7 @@ func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) err
 		return apperrors.Wrap(err, "failed to find shift entry")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete shift entry", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete shift entry")
 	}
 	slog.InfoContext(ctx, "shift entry deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_entry_id", id))
@@ -279,6 +288,7 @@ func validateYearMonth(yearMonth string) error {
 func (s *shiftEntryService) GetOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
 	staffs, err := s.repo.FindOnDutyStaffs(ctx, clinicID, date)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get on-duty staffs", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get on-duty staffs")
 	}
 	return staffs, nil

@@ -98,19 +98,20 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 
 	// テナント所有権確認: billing が同一クリニックに属することを確認
 	if _, err := s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID); err != nil {
+		slog.ErrorContext(ctx, "billing not found or belongs to different clinic", "error", err)
 		return nil, apperrors.Wrap(err, "billing not found or belongs to different clinic")
 	}
 
 	// カテゴリバリデーション
 	if err := validateItemCategory(input.Category); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate item category")
 	}
 
 	// TaxType デフォルト設定とバリデーション
 	taxType := model.TaxTypeExcluded
 	if input.TaxType != "" {
 		if err := validateTaxType(input.TaxType); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate tax type")
 		}
 		taxType = model.TaxType(input.TaxType)
 	}
@@ -125,7 +126,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	source := model.ItemSourceManual
 	if input.Source != "" {
 		if err := validateItemSource(input.Source); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate item source")
 		}
 		source = model.ItemSource(input.Source)
 	}
@@ -144,6 +145,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	}
 
 	if err := s.repo.Create(ctx, item); err != nil {
+		slog.ErrorContext(ctx, "failed to create billing item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create billing item")
 	}
 
@@ -165,6 +167,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
 	item, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get billing item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get billing item")
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
@@ -177,6 +180,7 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update billing item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update billing item")
 	}
 
@@ -194,6 +198,7 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 	)
 	updated, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get billing item after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get billing item after update")
 	}
 	return updated, nil
@@ -207,6 +212,7 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 	billingID := item.BillingID
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete billing item", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete billing item")
 	}
 

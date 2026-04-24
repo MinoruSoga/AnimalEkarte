@@ -183,6 +183,7 @@ func NewPetService(
 func (s *petService) List(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
 	pets, total, err := s.repo.FindAll(ctx, clinicID, ownerID, page, limit, search)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list pets", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list pets")
 	}
 	return pets, total, nil
@@ -191,6 +192,7 @@ func (s *petService) List(ctx context.Context, clinicID uint64, ownerID *uint64,
 func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
 	pet, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get pet")
 	}
 	return pet, nil
@@ -199,7 +201,7 @@ func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.P
 func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreatePetInput) (*model.Pet, error) {
 	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	input.Name = strings.TrimSpace(input.Name)
 
@@ -208,16 +210,16 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 		return nil, apperrors.WrapInvalidInput(ErrMsgWeightZeroOrMore)
 	}
 	if err := validatePetGender(input.Gender); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate pet gender")
 	}
 	if err := validatePetStatus(input.Status); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate pet status")
 	}
 	if err := validatePetAcquisitionType(input.AcquisitionType); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate pet acquisition type")
 	}
 	if err := validatePetDangerLevel(input.DangerLevel); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate pet danger level")
 	}
 
 	// owner_id の clinic 所属確認
@@ -235,6 +237,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 	// ペット番号を自動採番: 「飼主ID-連番」形式
 	count, err := s.repo.CountByOwner(ctx, clinicID, input.OwnerID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to count pets by owner", "error", err)
 		return nil, apperrors.Wrap(err, "failed to count pets by owner")
 	}
 	petNumber := fmt.Sprintf("%d-%d", input.OwnerID, count+1)
@@ -273,6 +276,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 	}
 
 	if err := s.repo.Create(ctx, pet); err != nil {
+		slog.ErrorContext(ctx, "failed to create pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create pet")
 	}
 
@@ -286,12 +290,13 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 
 func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error) {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to find pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find pet")
 	}
 	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
 	if input.Name != nil {
 		if err := validateRequiredName(*input.Name); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate required name")
 		}
 		trimmed := strings.TrimSpace(*input.Name)
 		input.Name = &trimmed
@@ -303,22 +308,22 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 	}
 	if input.Gender != nil {
 		if err := validatePetGender(*input.Gender); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate pet gender")
 		}
 	}
 	if input.Status != nil {
 		if err := validatePetStatus(*input.Status); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate pet status")
 		}
 	}
 	if input.AcquisitionType != nil {
 		if err := validatePetAcquisitionType(*input.AcquisitionType); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate pet acquisition type")
 		}
 	}
 	if input.DangerLevel != nil {
 		if err := validatePetDangerLevel(*input.DangerLevel); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate pet danger level")
 		}
 	}
 
@@ -342,6 +347,7 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update pet")
 	}
 
@@ -351,6 +357,7 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 
 	pet, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get updated pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get updated pet")
 	}
 	return pet, nil
@@ -362,6 +369,7 @@ func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
 	// FK依存チェック: カルテが紐付いている場合は削除を拒否
 	recordCount, err := s.medicalRecordRepo.CountByPetID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check medical record dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check medical record dependencies")
 	}
 	if recordCount > 0 {
@@ -369,6 +377,7 @@ func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete pet", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete pet")
 	}
 	slog.InfoContext(ctx, "pet deleted",

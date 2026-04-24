@@ -126,17 +126,17 @@ func (s *procedureService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 }
 func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *CreateProcedureInput) (*model.Procedure, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	if err := validateNonNegativePrice(input.Price); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
 	if err := validateAnesthesiaType(input.Anesthesia); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate anesthesia type")
 	}
 	if input.TaxType != "" {
 		if err := validateTaxType(input.TaxType); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate tax type")
 		}
 	}
 	// TaxType 変換: "" の場合はデフォルト "excluded" を使用 (BUG-379)
@@ -181,19 +181,19 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 		return nil, apperrors.Wrap(err, "failed to get procedure")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	if err := validateNonNegativePrice(input.Price); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
 	if input.Anesthesia != nil {
 		if err := validateAnesthesiaType(*input.Anesthesia); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate anesthesia type")
 		}
 	}
 	if input.TaxType != nil {
 		if err := validateTaxType(*input.TaxType); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate tax type")
 		}
 	}
 	fields := buildProcedureUpdate(input)
