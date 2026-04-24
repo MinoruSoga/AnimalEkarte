@@ -66,7 +66,7 @@ func (h *Handler) ListExaminations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(exams, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(exams, toExaminationResponse), total, page, limit))
 }
 
 // GetExamination godoc
