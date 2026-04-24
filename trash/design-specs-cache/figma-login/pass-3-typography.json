@@ -1,0 +1,153 @@
+{
+  "pass": 3,
+  "title": "Typography",
+  "description": "All font sizes, weights, line-heights, and text styles",
+  "font-family": {
+    "primary": "system-ui / -apple-system / sans-serif (Japanese-compatible)",
+    "notes": "No custom font detected. Standard system font stack rendering Japanese characters."
+  },
+  "text-styles": [
+    {
+      "id": "clinic-name",
+      "element": "ノア動物病院",
+      "role": "Page heading / clinic name",
+      "font-size": "28px",
+      "font-weight": "700 (bold)",
+      "color": "#1F2937",
+      "letter-spacing": "normal",
+      "line-height": "1.2",
+      "alignment": "center",
+      "notes": "Largest text on page. Bold weight."
+    },
+    {
+      "id": "subtitle",
+      "element": "管理システムにログイン",
+      "role": "Page subtitle",
+      "font-size": "14px",
+      "font-weight": "400 (regular)",
+      "color": "#6B7280",
+      "letter-spacing": "normal",
+      "line-height": "1.5",
+      "alignment": "center",
+      "notes": "Sits below clinic name"
+    },
+    {
+      "id": "input-label",
+      "element": "メールアドレス / パスワード",
+      "role": "Form field label",
+      "font-size": "13px",
+      "font-weight": "500 (medium)",
+      "color": "#374151",
+      "letter-spacing": "normal",
+      "line-height": "1.4",
+      "alignment": "left",
+      "notes": "Labels sit above their respective inputs"
+    },
+    {
+      "id": "input-placeholder",
+      "element": "例: admin@example.com / パスワードを入力",
+      "role": "Input placeholder text",
+      "font-size": "15px",
+      "font-weight": "400 (regular)",
+      "color": "#9CA3AF",
+      "letter-spacing": "normal",
+      "line-height": "1.5",
+      "alignment": "left",
+      "notes": "Placeholder inside input field"
+    },
+    {
+      "id": "button-label",
+      "element": "ログイン",
+      "role": "Primary button text",
+      "font-size": "15px",
+      "font-weight": "600 (semibold)",
+      "color": "#FFFFFF",
+      "letter-spacing": "0.02em (slightly wide)",
+      "line-height": "1",
+      "alignment": "center",
+      "notes": "White text on teal background"
+    },
+    {
+      "id": "demo-section-label",
+      "element": "デモアカウント",
+      "role": "Divider section label",
+      "font-size": "12px",
+      "font-weight": "400 (regular)",
+      "color": "#6B7280",
+      "letter-spacing": "normal",
+      "line-height": "1.4",
+      "alignment": "center",
+      "notes": "Flanked by horizontal lines"
+    },
+    {
+      "id": "demo-password-hint",
+      "element": "パスワード: password",
+      "role": "Demo password caption",
+      "font-size": "12px",
+      "font-weight": "400 (regular)",
+      "color": "#6B7280",
+      "letter-spacing": "normal",
+      "line-height": "1.4",
+      "alignment": "center",
+      "notes": "Small hint text, same style as section label"
+    },
+    {
+      "id": "demo-account-name",
+      "element": "田中 太郎 / 山田 花子 / etc.",
+      "role": "Demo account full name",
+      "font-size": "14px",
+      "font-weight": "500 (medium)",
+      "color": "#374151",
+      "letter-spacing": "normal",
+      "line-height": "1.4",
+      "alignment": "left",
+      "notes": "Name and role badge are on the same line"
+    },
+    {
+      "id": "demo-role-badge",
+      "element": "医院管理者 / 医師 / 看護師 / 受付 / トリマー / 運営管理者",
+      "role": "Role badge text",
+      "font-size": "11px",
+      "font-weight": "400 (regular)",
+      "color": "#6B7280",
+      "letter-spacing": "normal",
+      "line-height": "1",
+      "alignment": "left",
+      "notes": "Inside a pill/badge shape, appears inline after name"
+    },
+    {
+      "id": "demo-email",
+      "element": "admin@example.com / vet@example.com / etc.",
+      "role": "Demo account email",
+      "font-size": "12px",
+      "font-weight": "400 (regular)",
+      "color": "#9CA3AF",
+      "letter-spacing": "normal",
+      "line-height": "1.4",
+      "alignment": "left",
+      "notes": "Below the name line, lighter gray"
+    },
+    {
+      "id": "avatar-char",
+      "element": "田 / 山 / 佐 / 鈴 / 高 / 本",
+      "role": "Avatar initial character",
+      "font-size": "14px",
+      "font-weight": "500 (medium)",
+      "color": "#6B7280",
+      "letter-spacing": "normal",
+      "line-height": "1",
+      "alignment": "center",
+      "notes": "Single kanji character inside circular avatar"
+    }
+  ],
+  "type-scale-summary": {
+    "28px-bold": "clinic-name",
+    "15px-semibold": "button-label",
+    "15px-regular": "input-placeholder",
+    "14px-medium": "demo-account-name, avatar-char",
+    "14px-regular": "subtitle",
+    "13px-medium": "input-label",
+    "12px-regular": "demo-section-label, demo-password-hint, demo-email",
+    "11px-regular": "role-badge-text"
+  }
+}

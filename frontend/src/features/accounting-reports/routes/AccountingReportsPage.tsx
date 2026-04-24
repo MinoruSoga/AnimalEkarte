@@ -46,7 +46,7 @@ export function AccountingReportsPage() {
           type="button"
           onClick={handleExport}
           disabled={isExporting}
-          className={`flex items-center gap-2 px-4 h-10 text-base rounded-[4px] bg-white border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors disabled:opacity-50`}
+          className={`flex items-center gap-2 px-4 h-10 text-base rounded-[4px] ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors disabled:opacity-50`}
         >
           <Download className="size-4" />
           {isExporting ? "エクスポート中..." : "CSV出力"}
@@ -63,7 +63,7 @@ export function AccountingReportsPage() {
             id="report_year"
             value={year}
             onChange={handleYearChange}
-            className={`h-10 text-base bg-white border ${C.borderMedium} ${C.text} rounded-[4px] px-3`}
+            className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-[4px] px-3`}
           >
             {yearOptions.map((y) => (
               <option key={y} value={y}>
@@ -80,7 +80,7 @@ export function AccountingReportsPage() {
             id="report_month"
             value={month}
             onChange={handleMonthChange}
-            className={`h-10 text-base bg-white border ${C.borderMedium} ${C.text} rounded-[4px] px-3`}
+            className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-[4px] px-3`}
           >
             {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
               <option key={m} value={m}>
@@ -105,7 +105,7 @@ export function AccountingReportsPage() {
 
           {/* 支払方法別集計 */}
           {Object.keys(data.summary.by_payment_method).length > 0 ? (
-            <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+            <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
               <h2 className={`text-base font-semibold ${C.text} mb-4`}>支払方法別集計</h2>
               <div className="flex flex-wrap gap-4">
                 {Object.entries(data.summary.by_payment_method).map(([method, amount]) => (
@@ -121,7 +121,7 @@ export function AccountingReportsPage() {
           ) : null}
 
           {/* 消費税内訳 */}
-          <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+          <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
             <h2 className={`text-base font-semibold ${C.text} mb-4`}>消費税内訳</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -146,7 +146,7 @@ export function AccountingReportsPage() {
           </section>
 
           {/* 日次明細 */}
-          <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+          <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
             <h2 className={`text-base font-semibold ${C.text} mb-4`}>日次明細</h2>
             <DailyBreakdownTable details={data.daily_details} />
           </section>

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { formatCurrency } from "@/utils/format/number";
 
@@ -105,7 +105,7 @@ export function UnpaidTab() {
 
       {/* サマリーカード */}
       {summary ? (
-        <div className={`rounded-lg border ${C.borderLight} p-4 bg-white`}>
+        <div className={`rounded-lg border ${C.borderLight} p-4 ${C.bgWhite}`}>
           <p className={`text-xs ${C.text50} mb-1`}>売掛金総額</p>
           <p className="text-2xl font-bold">{formatCurrency(summary.total_amount)}</p>
           <p className={`text-xs ${C.text60} mt-1`}>
@@ -121,7 +121,7 @@ export function UnpaidTab() {
         ownerRows.length === 0 ? (
           <p className={`text-sm ${C.text50} py-8 text-center`}>未納者はいません</p>
         ) : (
-          <div className={`rounded-lg border ${C.borderLight} bg-white overflow-hidden`}>
+          <div className={`rounded-lg border ${C.borderLight} ${C.bgWhite} overflow-hidden`}>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -137,7 +137,7 @@ export function UnpaidTab() {
                 {ownerRows.map((row) => (
                   <TableRow
                     key={row.owner_id}
-                    className="cursor-pointer hover:bg-gray-50"
+                    className={`cursor-pointer ${STYLE.tableRowHover}`}
                     onClick={() => navigate(paths.owners.detail.getHref(String(row.owner_id)))}
                   >
                     <TableCell className="font-medium">{row.owner_name}</TableCell>
@@ -162,7 +162,7 @@ export function UnpaidTab() {
         (billingQuery.data?.data ?? []).length === 0 ? (
           <p className={`text-sm ${C.text50} py-8 text-center`}>未納会計はありません</p>
         ) : (
-          <div className={`rounded-lg border ${C.borderLight} bg-white overflow-hidden`}>
+          <div className={`rounded-lg border ${C.borderLight} ${C.bgWhite} overflow-hidden`}>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -179,7 +179,7 @@ export function UnpaidTab() {
                   return (
                     <TableRow
                       key={b.id}
-                      className="cursor-pointer hover:bg-gray-50"
+                      className={`cursor-pointer ${STYLE.tableRowHover}`}
                       onClick={() => navigate(paths.accounting.detail.getHref(b.id))}
                     >
                       <TableCell className="font-medium">{b.ownerName}</TableCell>

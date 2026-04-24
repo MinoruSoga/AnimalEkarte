@@ -75,7 +75,7 @@ export function CashRegisterClosePage() {
       <h1 className={`text-xl font-bold ${C.text}`}>レジ締め</h1>
 
       {/* 対象日・区分選択 */}
-      <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+      <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
         <h2 className={`text-base font-semibold ${C.text} mb-4`}>対象日時の選択</h2>
         <div className="flex flex-wrap items-end gap-4">
           <div>
@@ -100,8 +100,8 @@ export function CashRegisterClosePage() {
                   onClick={() => handlePeriodChange(p)}
                   className={`px-4 h-11 text-base rounded-[4px] border transition-colors ${
                     period === p
-                      ? `${C.bgAccent} text-white border-transparent`
-                      : `bg-white ${C.borderMedium} ${C.text} ${C.hoverBgLight}`
+                      ? `${C.bgAccent} ${C.textWhite} border-transparent`
+                      : `${C.bgWhite} ${C.borderMedium} ${C.text} ${C.hoverBgLight}`
                   }`}
                 >
                   {p === "am" ? "午前" : "午後"}
@@ -112,7 +112,7 @@ export function CashRegisterClosePage() {
           <button
             type="button"
             onClick={enablePreview}
-            className={`h-11 px-5 text-base rounded-[4px] ${C.bgBrand} text-white ${C.hoverBgBrand} transition-colors`}
+            className={`h-11 px-5 text-base rounded-[4px] ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} transition-colors`}
           >
             プレビュー
           </button>
@@ -142,7 +142,7 @@ export function CashRegisterClosePage() {
           ) : (
             <>
               {/* カテゴリ×支払方法マトリクス */}
-              <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+              <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
                 <h2 className={`text-base font-semibold ${C.text} mb-4`}>部門別集計</h2>
                 <CategoryPaymentMatrix
                   categories={preview.aggregate.categories}
@@ -151,7 +151,7 @@ export function CashRegisterClosePage() {
               </section>
 
               {/* 消費税内訳 */}
-              <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+              <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
                 <h2 className={`text-base font-semibold ${C.text} mb-4`}>消費税内訳</h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-lg">
                   <div>
@@ -197,7 +197,7 @@ export function CashRegisterClosePage() {
               </section>
 
               {/* 締めフォーム */}
-              <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+              <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
                 <h2 className={`text-base font-semibold ${C.text} mb-4`}>レジ締め実行</h2>
                 <form action={formAction} className="space-y-4">
                   <input type="hidden" name="close_date" value={date} />
@@ -243,7 +243,7 @@ export function CashRegisterClosePage() {
               </section>
 
               {/* 個別会計明細 */}
-              <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+              <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
                 <h2 className={`text-base font-semibold ${C.text} mb-4`}>
                   個別会計明細（{preview.billing_details.length}件）
                 </h2>
@@ -266,7 +266,7 @@ export function CashRegisterClosePage() {
             <AlertDialogCancel onClick={handleCancelConfirm}>キャンセル</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmClose}
-              className={`${C.bgAccent} text-white ${C.bgAccentHover}`}
+              className={`${C.bgAccent} ${C.textWhite} ${C.bgAccentHover}`}
             >
               締める
             </AlertDialogAction>

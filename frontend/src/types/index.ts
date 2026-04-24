@@ -15,6 +15,9 @@ import type {
 export type { Owner, CreateOwnerRequest, UpdateOwnerRequest } from './owner';
 export type { Pet } from "@/lib/transforms/pet";
 export type { Medicine } from "@/lib/transforms/medicine";
+export type { ExamResult, ExaminationRecord } from "@/features/examinations/api/transforms";
+export type { VaccinationRecord } from "@/features/vaccinations/api/transforms";
+export type { TrimmingUI } from "@/features/trimming/api/transforms";
 
 
 export interface MenuItem {
@@ -250,95 +253,6 @@ export interface MedicalRecord {
   version: number;
 }
 
-/**
- * フロントエンド検査項目型（UI 表示用）
- * transforms.ts の変換結果として使用
- */
-export interface ExamResult {
-  id: string;
-  name: string;
-  result: string;
-  unit: string;
-  referenceRange: string;
-  isAbnormal: boolean;
-}
-
-/**
- * フロントエンド検査記録型（UI 表示用）
- * transforms.ts の変換結果として使用
- */
-export interface ExaminationRecord {
-  id: string;
-  date: string;
-  ownerName: string;
-  petName: string;
-  petId?: string;
-  medicalRecordId?: string;
-  testType: string;
-  testTypeId: string;
-  doctor: string;
-  doctorId: string;
-  status: "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定";
-  resultSummary?: string;
-  machine?: string;
-  items?: ExamResult[];
-}
-
-/**
- * フロントエンドワクチン接種記録型（UI 表示用）
- * transforms.ts の変換結果として使用
- */
-export interface VaccinationRecord {
-  id: string;
-  petId?: string;
-  ownerName: string;
-  petName: string;
-  vaccineId: string;
-  vaccineName: string;
-  doctor: string;
-  date: string;
-  nextDate: string;
-  nextScheduleType?: string;
-  lot1?: string;
-  lot2?: string;
-  lot3?: string;
-  lot4?: string;
-  supplemental?: string;
-  remarks?: string;
-}
-
-/**
- * フロントエンドトリミング記録型（UI 表示用）
- * transforms.ts の変換結果として使用
- */
-export interface TrimmingUI {
-  id: string;
-  date: string;
-  petId?: string;
-  ownerId?: string;
-  petNumber: string;
-  petName: string;
-  ownerName: string;
-  species: string;
-  weight: string;
-  styleRequest: string;
-  staff: string;
-  status: "完了" | "予約" | "進行中" | "キャンセル";
-  /** 施術前スタイル参考画像 URL */
-  styleImage?: string;
-  /** 施術後完成画像 URL */
-  completedImage?: string;
-  // Form fields
-  staffId: string;
-  courseId: string;
-  optionIds: string[];
-  bw: string;
-  bwUnit: "Kg" | "g";
-  bt: string;
-  usedShampoo: string;
-  usedRibbon: string;
-  remarks: string;
-}
 
 /**
  * フロントエンド在庫品目型（UI 表示用 - id:string, camelCase フィールド名）

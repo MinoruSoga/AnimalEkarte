@@ -348,7 +348,7 @@ export function Reception() {
                         <PermissionBadges resource={ResourceReception} />
                         <Button
                             variant={isFilterOpen ? "secondary" : "outline"}
-                            className={`gap-2 bg-white h-11 text-base tracking-[var(--tracking-notion)] ${C.text} ${C.borderMedium}`}
+                            className={`gap-2 ${C.bgWhite} h-11 text-base tracking-[var(--tracking-notion)] ${C.text} ${C.borderMedium}`}
                             onClick={() => setIsFilterOpen(prev => !prev)}
                         >
                             <Filter className="size-[17.5px]" />
@@ -367,7 +367,7 @@ export function Reception() {
             />
 
             {isFilterOpen ? (
-                <div className="bg-white border-b border-border px-6 py-4 animate-in slide-in-from-top-1 fade-in duration-200">
+                <div className={`${C.bgWhite} border-b border-border px-6 py-4 animate-in slide-in-from-top-1 fade-in duration-200`}>
                     <div className="flex flex-wrap gap-8">
                         {/* Visit Type */}
                         <div className="space-y-2">
@@ -391,7 +391,7 @@ export function Reception() {
                         <div className="space-y-2">
                             <h4 className={`font-bold text-base ${C.text}`}>指名</h4>
                             <Select value={filters.selectedDoctor} onValueChange={filters.setSelectedDoctor}>
-                                <SelectTrigger className="w-[200px] h-10 text-base bg-white border-input">
+                                <SelectTrigger className={`w-[200px] h-10 text-base ${C.bgWhite} border-input`}>
                                     <SelectValue placeholder="指名を選択" />
                                 </SelectTrigger>
                                 <SelectContent>

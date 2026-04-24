@@ -89,7 +89,7 @@ const LeftColumn = memo(function LeftColumn({
   const optionIdSet = useMemo(() => new Set(formData.optionIds), [formData.optionIds]);
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
+    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
       <div>
         <div className="flex items-center gap-2 mb-2">
           <Label className={`text-sm ${C.text60}`}>コース</Label>
@@ -163,7 +163,7 @@ const LeftColumn = memo(function LeftColumn({
             />
             <button
               onClick={onRemoveStyleImage}
-              className={`absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm ${C.hoverBgPage}`}
+              className={`absolute top-1 right-1 p-1 ${C.bgWhite} rounded-full shadow-sm ${C.hoverBgPage}`}
             >
               <X className={`${ICON.action} ${C.text}`} />
             </button>
@@ -198,7 +198,7 @@ const MiddleColumn = memo(function MiddleColumn({
   onRemoveCompletedImage,
 }: MiddleColumnProps) {
   return (
-    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
+    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
       <div>
         <Label className={`text-sm ${C.text60} mb-2 block`}>体重 (BW)</Label>
         <div className="flex gap-2">
@@ -276,7 +276,7 @@ const MiddleColumn = memo(function MiddleColumn({
             />
             <button
               onClick={onRemoveCompletedImage}
-              className={`absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm ${C.hoverBgPage}`}
+              className={`absolute top-1 right-1 p-1 ${C.bgWhite} rounded-full shadow-sm ${C.hoverBgPage}`}
             >
               <X className={`${ICON.action} ${C.text}`} />
             </button>
@@ -336,7 +336,7 @@ const RightColumn = memo(function RightColumn({
       sortedHistory.map((hist) => (
         <div
           key={hist.id}
-          className={`p-3 border ${C.borderMedium} rounded-lg bg-white ${C.hoverBgPage} transition-colors cursor-pointer`}
+          className={`p-3 border ${C.borderMedium} rounded-lg ${C.bgWhite} ${C.hoverBgPage} transition-colors cursor-pointer`}
           onClick={() => onHistoryClick({ styleRequest: hist.styleRequest, staffName: hist.staff })}
         >
           <div className="flex items-start justify-between">
@@ -352,7 +352,7 @@ const RightColumn = memo(function RightColumn({
   );
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
+    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
       <div>
         <Label className={`text-sm ${C.text60} mb-2 block`}>施術履歴</Label>
         <HistoryFilterPanel

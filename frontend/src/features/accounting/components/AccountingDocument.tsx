@@ -73,10 +73,10 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
   const hasRegistrationNumber = registrationNumber !== "";
 
   return (
-    <div className="bg-white p-8 text-sm font-sans flex flex-col gap-6 border mx-auto max-w-2xl print:max-w-none print:w-full print:border-none print:p-0">
+    <div className={`${C.bgWhite} p-8 text-sm font-sans flex flex-col gap-6 border mx-auto max-w-2xl print:max-w-none print:w-full print:border-none print:p-0`}>
       {/* AC-6: 登録番号未設定警告 */}
       {!hasRegistrationNumber ? (
-        <div className={`border border-red-300 bg-red-50 text-red-700 p-2 text-xs rounded print:hidden`}>
+        <div className={`border ${C.borderRed300} ${C.bgRed50} ${C.textRed700} p-2 text-xs rounded print:hidden`}>
           登録番号が未設定です。病院設定から登録してください。適格請求書として無効となります。
         </div>
       ) : null}

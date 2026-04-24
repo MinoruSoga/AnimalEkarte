@@ -1,0 +1,167 @@
+{
+  "pass": 6,
+  "title": "States & Accessibility",
+  "description": "Interactive states, error states, loading states, and accessibility requirements",
+  "interactive-states": {
+    "email-input": {
+      "default": {
+        "border": "#D1D5DB",
+        "bg": "#FFFFFF",
+        "text": "#1F2937",
+        "placeholder": "#9CA3AF"
+      },
+      "focus": {
+        "border": "transparent",
+        "ring": "2px solid #038B94",
+        "bg": "#FFFFFF",
+        "notes": "Focus ring using brand teal color"
+      },
+      "filled": {
+        "text": "#1F2937",
+        "notes": "Normal dark text when typed"
+      },
+      "error": {
+        "border": "#EF4444 (red-500)",
+        "ring": "2px solid #EF4444",
+        "error-message": "text-[12px] text-[#EF4444] mt-1",
+        "notes": "Not visible in screenshot but should be implemented"
+      },
+      "disabled": {
+        "bg": "#F9FAFB",
+        "text": "#9CA3AF",
+        "border": "#E5E7EB",
+        "cursor": "not-allowed"
+      }
+    },
+    "password-input": {
+      "default": "same as email-input",
+      "focus": "same as email-input",
+      "toggle-button": {
+        "default": { "color": "#9CA3AF" },
+        "hover": { "color": "#6B7280" },
+        "active-toggled": {
+          "icon": "EyeOff (eye with slash)",
+          "color": "#038B94",
+          "notes": "When password is visible, icon changes to EyeOff and may use brand color"
+        }
+      }
+    },
+    "login-button": {
+      "default": {
+        "bg": "#038B94",
+        "text": "#FFFFFF"
+      },
+      "hover": {
+        "bg": "#027880",
+        "notes": "Slightly darker teal on hover"
+      },
+      "active-pressed": {
+        "bg": "#026870",
+        "notes": "Even darker on press"
+      },
+      "loading": {
+        "bg": "#038B94",
+        "opacity": "0.8",
+        "content": "Spinner icon + 'ログイン中...' or disabled with spinner",
+        "cursor": "not-allowed",
+        "notes": "Should show loading state during API call"
+      },
+      "disabled": {
+        "bg": "#9CA3AF",
+        "cursor": "not-allowed",
+        "opacity": "0.6"
+      },
+      "focus-visible": {
+        "ring": "2px offset 2px solid #038B94"
+      }
+    },
+    "demo-account-row": {
+      "default": {
+        "bg": "transparent"
+      },
+      "hover": {
+        "bg": "rgba(255,255,255,0.6) or #FFFFFF with opacity",
+        "notes": "Subtle white wash on hover to indicate clickability"
+      },
+      "active-pressed": {
+        "bg": "rgba(255,255,255,0.9)"
+      },
+      "focus-visible": {
+        "ring": "2px solid #038B94",
+        "border-radius": "8px"
+      },
+      "click-behavior": "Auto-fills email input with selected account's email address"
+    }
+  },
+  "error-states": {
+    "empty-email": {
+      "trigger": "Submit with empty email",
+      "display": "Red border on input + error message below",
+      "message": "メールアドレスを入力してください"
+    },
+    "invalid-email-format": {
+      "trigger": "Submit with invalid email format",
+      "display": "Red border + error message",
+      "message": "有効なメールアドレスを入力してください"
+    },
+    "empty-password": {
+      "trigger": "Submit with empty password",
+      "display": "Red border on password input + error message",
+      "message": "パスワードを入力してください"
+    },
+    "auth-failure": {
+      "trigger": "Incorrect credentials",
+      "display": "Toast notification or form-level error above button",
+      "message": "メールアドレスまたはパスワードが正しくありません",
+      "style": "bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] rounded-md px-3 py-2 text-[13px]"
+    }
+  },
+  "accessibility": {
+    "semantic-html": {
+      "form": "Use <form> element with onSubmit handler",
+      "labels": "Use <label htmlFor> linked to input id",
+      "heading": "<h1> for clinic name",
+      "list": "<ul>/<li> for demo account list or role='list'"
+    },
+    "aria-attributes": {
+      "email-input": "aria-label='メールアドレス' or linked label",
+      "password-input": "aria-label='パスワード', aria-describedby for toggle button",
+      "toggle-button": "aria-label='パスワードを表示' / 'パスワードを非表示' (toggles with state)",
+      "login-button": "aria-busy='true' when loading",
+      "demo-rows": "role='button' aria-label='田中 太郎 としてログイン' etc.",
+      "error-messages": "aria-live='polite' for dynamic error messages",
+      "form-error": "aria-describedby linking input to error message"
+    },
+    "keyboard-navigation": {
+      "tab-order": "Logo (skip) → Email input → Password input → Toggle button → Login button → Demo rows",
+      "enter-key": "Submits form when focus is on input or button",
+      "space-key": "Activates focused button/demo-row"
+    },
+    "focus-indicators": {
+      "inputs": "2px solid #038B94 ring",
+      "buttons": "2px solid #038B94 ring with 2px offset",
+      "demo-rows": "2px solid #038B94 ring"
+    },
+    "color-contrast": {
+      "clinic-name": "Passes AA: #1F2937 on #F1F0EE (~14:1)",
+      "subtitle": "Passes AA: #6B7280 on #F1F0EE (~4.6:1)",
+      "label": "Passes AA: #374151 on #FFFFFF (~10:1)",
+      "placeholder": "May fail AA: #9CA3AF on #FFFFFF (~2.9:1) — consider #6B7280 for better compliance",
+      "button-text": "Passes AAA: #FFFFFF on #038B94 (~4.5:1+)",
+      "demo-name": "Passes AA: #374151 on #F1F0EE",
+      "demo-email": "Borderline: #9CA3AF on #F1F0EE (~3.0:1)"
+    },
+    "responsive": {
+      "min-width": "320px",
+      "mobile": "Full width with 16px horizontal padding",
+      "desktop": "Centered, max-width 400px"
+    }
+  },
+  "loading-ux": {
+    "form-submission": {
+      "button-state": "Show spinner, disable button, text changes to ログイン中...",
+      "inputs": "Optionally disable during submission",
+      "duration": "Typical API call <2s, no skeleton needed"
+    }
+  }
+}

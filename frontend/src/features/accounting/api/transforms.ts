@@ -2,7 +2,7 @@ import type { Accounting, AccountingItem, PaymentInfo, Refund } from "../types";
 import type { BackendAccounting, BackendAccountingItem } from "./types";
 import type { BillingRefund } from "@/types/generated/models";
 
-function transformAccountingItem(item: BackendAccountingItem): AccountingItem {
+export function transformAccountingItem(item: BackendAccountingItem): AccountingItem {
   const unitPrice = item.unit_price ?? 0;
   const quantity = item.quantity ?? 1;
   const taxRate = item.tax_rate ?? 0.1;

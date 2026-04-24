@@ -1,5 +1,7 @@
 import { axios } from "@/lib/axios";
+import type { AccountingItem } from "../types";
 import type { BackendAccountingItem } from "./types";
+import { transformAccountingItem } from "./transforms";
 
 export interface CreateBillingItemRequest {
   billing_id: number;
@@ -15,7 +17,7 @@ export interface CreateBillingItemRequest {
 
 export const createBillingItem = async (
   req: CreateBillingItemRequest,
-): Promise<BackendAccountingItem> => {
+): Promise<AccountingItem> => {
   const { data } = await axios.post<BackendAccountingItem>("/v1/billing-items", req);
-  return data;
+  return transformAccountingItem(data);
 };

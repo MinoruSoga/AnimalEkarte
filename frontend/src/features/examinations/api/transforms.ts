@@ -1,4 +1,3 @@
-import type { ExaminationRecord, ExamResult } from "@/types";
 import type { BackendExamination, BackendExamResult } from "./types";
 
 const EXAM_STATUS_EN_TO_JA: Record<string, "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定"> = {
@@ -9,9 +8,7 @@ const EXAM_STATUS_EN_TO_JA: Record<string, "依頼中" | "検査中" | "結果�
   confirmed: "確定",
 };
 
-function transformExamResult(
-  item: BackendExamResult
-): ExamResult {
+export function transformExamResult(item: BackendExamResult) {
   return {
     id: String(item.id ?? 0),
     name: item.name ?? "",
@@ -22,9 +19,7 @@ function transformExamResult(
   };
 }
 
-export function transformExamination(
-  data: BackendExamination
-): ExaminationRecord {
+export function transformExamination(data: BackendExamination) {
   return {
     id: String(data.id ?? 0),
     date: data.date ? data.date.split("T")[0] : "",
@@ -42,3 +37,6 @@ export function transformExamination(
     items: data.items?.map(transformExamResult),
   };
 }
+
+export type ExamResult = ReturnType<typeof transformExamResult>;
+export type ExaminationRecord = ReturnType<typeof transformExamination>;

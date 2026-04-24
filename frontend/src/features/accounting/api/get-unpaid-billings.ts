@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { axios } from "@/lib/axios";
-import { QUERY_STALE_TIMES } from "@/lib/react-query";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Accounting } from "../types";
 import type { BackendAccounting } from "./types";
 import { transformToAccounting } from "./transforms";
@@ -53,6 +53,7 @@ export const useGetUnpaidByOwner = (params: UnpaidQueryParams) => {
     },
     enabled: params.groupBy === "owner",
     staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
 
@@ -91,5 +92,6 @@ export const useGetUnpaidByBilling = (params: UnpaidQueryParams) => {
     },
     enabled: params.groupBy === "billing",
     staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
