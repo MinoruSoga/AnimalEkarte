@@ -307,7 +307,7 @@ func (r *accountingRepository) GetDailySummary(ctx context.Context, clinicID uin
 	}
 	if err := r.db.WithContext(ctx).
 		Table("billings").
-		Joins("JOIN payments ON payments.billing_id = billings.id").
+		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
 		Where("DATE(billings.completed_at AT TIME ZONE 'Asia/Tokyo') = ?", jstDate).
@@ -320,7 +320,7 @@ func (r *accountingRepository) GetDailySummary(ctx context.Context, clinicID uin
 	paymentTotals := make([]PaymentMethodTotal, 0)
 	if err := r.db.WithContext(ctx).
 		Table("billings").
-		Joins("JOIN payments ON payments.billing_id = billings.id").
+		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
 		Where("DATE(billings.completed_at AT TIME ZONE 'Asia/Tokyo') = ?", jstDate).

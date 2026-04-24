@@ -120,7 +120,7 @@ func (s *permissionGroupService) GetByID(ctx context.Context, clinicID, id uint6
 
 func (s *permissionGroupService) Create(ctx context.Context, clinicID uint64, input *CreatePermissionGroupInput) (*model.PermissionGroup, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	group := &model.PermissionGroup{
 		ClinicID:    clinicID,
@@ -150,7 +150,7 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.Wrap(err, "failed to get permission group")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildPermissionGroupUpdate(input)
 	if len(fields) == 0 {

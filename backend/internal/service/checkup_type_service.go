@@ -114,7 +114,7 @@ func (s *checkupTypeService) GetByID(ctx context.Context, clinicID, id uint64) (
 }
 func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input *CreateCheckupTypeInput) (*model.CheckupType, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	checkupType := &model.CheckupType{
 		ClinicID:    clinicID,
@@ -145,7 +145,7 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.Wrap(err, "failed to get checkup type")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildCheckupTypeUpdate(input)
 	if len(fields) == 0 {

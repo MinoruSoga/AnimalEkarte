@@ -105,14 +105,14 @@ func (s *cageService) GetByID(ctx context.Context, clinicID, id uint64) (*model.
 }
 func (s *cageService) Create(ctx context.Context, clinicID uint64, input *CreateCageInput) (*model.Cage, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	// Service は Handler 以外から直接呼ばれる可能性があるため防御的バリデーションを維持する
 	if err := validateCageType(input.CageType); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate cage type")
 	}
 	if err := validateCageSize(input.CageSize); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate cage size")
 	}
 	cage := &model.Cage{
 		ClinicID:    clinicID,
@@ -142,17 +142,17 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 		return nil, apperrors.Wrap(err, "failed to get cage")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	// Service は Handler 以外から直接呼ばれる可能性があるため防御的バリデーションを維持する
 	if input.CageType != nil {
 		if err := validateCageType(*input.CageType); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate cage type")
 		}
 	}
 	if input.CageSize != nil {
 		if err := validateCageSize(*input.CageSize); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate cage size")
 		}
 	}
 	fields := buildCageUpdate(input)

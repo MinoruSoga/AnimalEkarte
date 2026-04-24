@@ -157,11 +157,11 @@ type mockAssignmentForStaff struct {
 	createFn          func(ctx context.Context, a *model.StaffClinicAssignment) error
 }
 
-func (m *mockAssignmentForStaff) FindAllByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
+func (m *mockAssignmentForStaff) FindByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
 	return nil, nil
 }
-func (m *mockAssignmentForStaff) ExistsByStaffAndClinic(_ context.Context, _, _ uint64) (bool, error) {
-	return true, nil
+func (m *mockAssignmentForStaff) CountByStaffAndClinic(_ context.Context, _, _ uint64) (int64, error) {
+	return 1, nil
 }
 func (m *mockAssignmentForStaff) FindByClinicID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
 	return nil, nil
@@ -231,7 +231,7 @@ func (m *mockResStaffForStaff) Delete(_ context.Context, _, _ uint64) error { re
 func (m *mockResStaffForStaff) CountUsageByStaffID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
-func (m *mockResStaffForStaff) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
+func (m *mockResStaffForStaff) UpdateSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
 func (m *mockResStaffForStaff) FindAllExcludedReservationTypes(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {

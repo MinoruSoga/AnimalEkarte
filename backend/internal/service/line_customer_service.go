@@ -26,6 +26,7 @@ func NewLineCustomerService(repo repository.LineCustomerRepository) LineCustomer
 func (s *lineCustomerService) List(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list reservation customers", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list reservation customers")
 	}
 	return items, nil
@@ -33,9 +34,11 @@ func (s *lineCustomerService) List(ctx context.Context, clinicID uint64) ([]mode
 
 func (s *lineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error) {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to find line customer", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find line customer")
 	}
 	if err := s.repo.UpdateOwnerLink(ctx, clinicID, id, ownerID); err != nil {
+		slog.ErrorContext(ctx, "failed to link owner to reservation customer", "error", err)
 		return nil, apperrors.Wrap(err, "failed to link owner to reservation customer")
 	}
 	slog.InfoContext(ctx, "line customer owner linked",
@@ -44,6 +47,7 @@ func (s *lineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64
 	)
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation customer", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation customer")
 	}
 	return result, nil

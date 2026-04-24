@@ -62,7 +62,7 @@ func (m *mockLiffTypeRepository) Update(_ context.Context, clinicID, id uint64, 
 
 func (m *mockLiffTypeRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
 
-func (m *mockLiffTypeRepository) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
+func (m *mockLiffTypeRepository) UpdateSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
 
@@ -102,7 +102,7 @@ func (m *mockLiffStaffRepository) CountUsageByStaffID(_ context.Context, _, _ ui
 	return 0, nil
 }
 
-func (m *mockLiffStaffRepository) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
+func (m *mockLiffStaffRepository) UpdateSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
 

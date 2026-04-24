@@ -16,7 +16,7 @@ import (
 type ClosingSpecialPeriodRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error)
-	FindAllByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error)
+	FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error)
 	Create(ctx context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error)
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -54,7 +54,7 @@ func (r *closingSpecialPeriodRepository) FindByID(ctx context.Context, clinicID,
 	return &p, nil
 }
 
-func (r *closingSpecialPeriodRepository) FindAllByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error) {
+func (r *closingSpecialPeriodRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error) {
 	var p model.ClosingSpecialPeriod
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).

@@ -18,7 +18,7 @@ type ShiftTemplateRepository interface {
 	Create(ctx context.Context, tpl *model.ShiftTemplate) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	ReplaceBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
+	UpdateBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByShiftTemplateID(ctx context.Context, clinicID, id uint64) (int64, error)
 }
@@ -33,7 +33,7 @@ func NewShiftTemplateRepository(db *gorm.DB) ShiftTemplateRepository {
 func (r *shiftTemplateRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error) {
 	items := make([]model.ShiftTemplate, 0)
 	err := r.db.WithContext(ctx).
-		Preload("Breaks", "deleted_at IS NULL").
+		Preload("Breaks").
 		Scopes(clinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&items).Error
@@ -46,7 +46,7 @@ func (r *shiftTemplateRepository) FindAll(ctx context.Context, clinicID uint64) 
 func (r *shiftTemplateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error) {
 	var tpl model.ShiftTemplate
 	err := r.db.WithContext(ctx).
-		Preload("Breaks", "deleted_at IS NULL").
+		Preload("Breaks").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		First(&tpl).Error
 	if err != nil {
@@ -89,7 +89,7 @@ func (r *shiftTemplateRepository) Delete(ctx context.Context, clinicID, id uint6
 	return nil
 }
 
-func (r *shiftTemplateRepository) ReplaceBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error {
+func (r *shiftTemplateRepository) UpdateBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error {
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("shift_template_id = ?", templateID).Delete(&model.ShiftTemplateBreak{}).Error; err != nil {
 			return apperrors.FromGORM(err, "shift_template_break", fmt.Sprintf("%d", templateID))

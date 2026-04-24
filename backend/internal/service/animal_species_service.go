@@ -88,7 +88,7 @@ func (s *animalSpeciesService) GetByID(ctx context.Context, id uint64) (*model.A
 
 func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	species := &model.AnimalSpecies{
 		Name:      input.Name,
@@ -109,10 +109,11 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get animal species", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get animal species")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildAnimalSpeciesUpdate(input)
 	if len(fields) == 0 {

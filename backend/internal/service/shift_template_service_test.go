@@ -19,7 +19,7 @@ type mockShiftTemplateRepository struct {
 	createFn               func(ctx context.Context, tpl *model.ShiftTemplate) error
 	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
 	deleteFn               func(ctx context.Context, clinicID, id uint64) error
-	replaceBreaksFn        func(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
+	updateBreaksFn         func(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
 	reorderFn              func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countUsageByTemplateID func(ctx context.Context, clinicID, id uint64) (int64, error)
 }
@@ -59,9 +59,9 @@ func (m *mockShiftTemplateRepository) Delete(ctx context.Context, clinicID, id u
 	return nil
 }
 
-func (m *mockShiftTemplateRepository) ReplaceBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error {
-	if m.replaceBreaksFn != nil {
-		return m.replaceBreaksFn(ctx, templateID, breaks)
+func (m *mockShiftTemplateRepository) UpdateBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error {
+	if m.updateBreaksFn != nil {
+		return m.updateBreaksFn(ctx, templateID, breaks)
 	}
 	return nil
 }

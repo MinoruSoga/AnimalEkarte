@@ -112,14 +112,14 @@ func (s *vaccineService) GetByID(ctx context.Context, clinicID, id uint64) (*mod
 }
 func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	if err := validateNonNegativePrice(input.Price); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
 	if input.Species != nil {
 		if err := validateVaccineSpecies(*input.Species); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate vaccine species")
 		}
 	}
 	var species *model.VaccineSpecies
@@ -154,14 +154,14 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 		return nil, apperrors.Wrap(err, "failed to get vaccine")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	if err := validateNonNegativePrice(input.Price); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
 	if input.Species != nil {
 		if err := validateVaccineSpecies(*input.Species); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to validate vaccine species")
 		}
 	}
 	fields := buildVaccineUpdate(input)

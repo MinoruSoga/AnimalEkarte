@@ -28,6 +28,7 @@ func NewAccountService(repo repository.AccountRepository) AccountService {
 func (s *accountService) FindByEmail(ctx context.Context, email string) (*model.Account, error) {
 	account, err := s.repo.FindByEmail(ctx, email)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to find account by email", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find account by email")
 	}
 	return account, nil

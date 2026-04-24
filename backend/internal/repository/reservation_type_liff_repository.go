@@ -18,9 +18,9 @@ type ReservationTypeLiffRepository interface {
 	Create(ctx context.Context, st *model.ReservationType) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	// SwapSortOrder は隣接するレコードとの sort_order をスワップする。
+	// UpdateSortOrder は隣接するレコードとの sort_order をスワップする。
 	// direction は "up"（sort_order 小さい方）または "down"（sort_order 大きい方）。
-	SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
+	UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
 type reservationTypeLiffRepository struct{ db *gorm.DB }
@@ -87,7 +87,7 @@ func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id
 	return nil
 }
 
-func (r *reservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
+func (r *reservationTypeLiffRepository) UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var target model.ReservationType
 		if err := tx.Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&target).Error; err != nil {

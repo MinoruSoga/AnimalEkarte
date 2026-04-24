@@ -57,7 +57,7 @@ func (m *mockClosingSpecialPeriodRepository) FindByID(ctx context.Context, clini
 	return nil, nil
 }
 
-func (m *mockClosingSpecialPeriodRepository) FindAllByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error) {
+func (m *mockClosingSpecialPeriodRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error) {
 	if m.findByDateFn != nil {
 		return m.findByDateFn(ctx, clinicID, date)
 	}
@@ -254,7 +254,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 			},
 		},
 		{
-			name: "periodRepo.FindAllByDate エラー: エラーを返す",
+			name: "periodRepo.FindByDate エラー: エラーを返す",
 			date: monday,
 			periodFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
 				return nil, errors.New("db error")

@@ -89,7 +89,7 @@ func (s *reservationTypeGroupService) GetByID(ctx context.Context, clinicID, id 
 
 func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeGroupInput) (*model.ReservationTypeGroup, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	color := input.Color
 	if color == "" {
@@ -122,7 +122,7 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 		return nil, apperrors.Wrap(err, "failed to get reservation type group")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildReservationTypeGroupUpdate(input)
 	if len(fields) == 0 {

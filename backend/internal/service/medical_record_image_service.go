@@ -44,6 +44,7 @@ func NewMedicalRecordImageService(repo repository.MedicalRecordImageRepository) 
 func (s *medicalRecordImageService) List(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
 	result, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list record images", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list record images")
 	}
 	return result, nil
@@ -51,7 +52,7 @@ func (s *medicalRecordImageService) List(ctx context.Context, medicalRecordID ui
 
 func (s *medicalRecordImageService) Create(ctx context.Context, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
 	if err := validateMedicalImageType(string(input.ImageType)); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate medical image type")
 	}
 	imageType := input.ImageType
 	if imageType == "" {
@@ -73,6 +74,7 @@ func (s *medicalRecordImageService) Create(ctx context.Context, medicalRecordID 
 		SortOrder:       input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, image); err != nil {
+		slog.ErrorContext(ctx, "failed to create record image", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create record image")
 	}
 	slog.InfoContext(ctx, "record image created",

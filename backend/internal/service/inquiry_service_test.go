@@ -29,13 +29,13 @@ func TestInquiryService_Save(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		input     SaveInquiryInput
+		input     UpsertInquiryInput
 		upsertErr error
 		wantErr   bool
 	}{
 		{
 			name: "upserts inquiry successfully",
-			input: SaveInquiryInput{
+			input: UpsertInquiryInput{
 				ClinicID:             1,
 				MedicalRecordID:      10,
 				ChiefComplaintTypeID: &typeID,
@@ -46,7 +46,7 @@ func TestInquiryService_Save(t *testing.T) {
 		},
 		{
 			name: "upserts without optional fields",
-			input: SaveInquiryInput{
+			input: UpsertInquiryInput{
 				ClinicID:        1,
 				MedicalRecordID: 10,
 			},
@@ -54,7 +54,7 @@ func TestInquiryService_Save(t *testing.T) {
 		},
 		{
 			name: "propagates repository error",
-			input: SaveInquiryInput{
+			input: UpsertInquiryInput{
 				ClinicID:        1,
 				MedicalRecordID: 10,
 				ChiefComplaint:  &complaint,

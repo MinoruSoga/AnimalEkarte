@@ -66,6 +66,7 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medical
 	plan, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
+			slog.ErrorContext(ctx, "failed to get clinical plan", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get clinical plan")
 		}
 		// 存在しない場合は空レコードを自動作成
@@ -73,6 +74,7 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medical
 			MedicalRecordID: medicalRecordID,
 		}
 		if err := s.repo.Create(ctx, plan); err != nil {
+			slog.ErrorContext(ctx, "failed to create clinical plan", "error", err)
 			return nil, apperrors.Wrap(err, "failed to create clinical plan")
 		}
 		slog.InfoContext(ctx, "clinical_plan created",
@@ -87,6 +89,7 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medical
 func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
 	plan, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get or create clinical plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get or create clinical plan")
 	}
 	fields := buildClinicalPlanUpdate(input)
@@ -95,6 +98,7 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 		return plan, nil
 	}
 	if err := s.repo.Update(ctx, clinicID, plan.ID, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update clinical plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update clinical plan")
 	}
 	slog.InfoContext(ctx, "clinical_plan updated",
@@ -103,6 +107,7 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 		slog.Uint64("medical_record_id", medicalRecordID))
 	updated, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get updated clinical plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get updated clinical plan")
 	}
 	return updated, nil

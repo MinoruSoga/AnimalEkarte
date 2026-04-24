@@ -55,7 +55,7 @@ func (m *mockReservationStaffRepository) CountUsageByStaffID(_ context.Context, 
 	return 0, nil
 }
 
-func (m *mockReservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
+func (m *mockReservationStaffRepository) UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
 	if m.swapSortOrderFn != nil {
 		return m.swapSortOrderFn(ctx, clinicID, id, direction)
 	}

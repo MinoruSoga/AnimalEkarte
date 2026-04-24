@@ -85,6 +85,7 @@ func NewVitalService(repo repository.VitalRepository) VitalService {
 func (s *vitalService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	items, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list vital records", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list vital records")
 	}
 	return items, nil
@@ -111,6 +112,7 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		Notes:           input.Notes,
 	}
 	if err := s.repo.Create(ctx, vital); err != nil {
+		slog.ErrorContext(ctx, "failed to create vital record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create vital record")
 	}
 	slog.InfoContext(ctx, "vital created",
@@ -123,6 +125,7 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 	// 所属確認: このvitalIDがclinicID・medicalRecordIDに属しているか検証
 	existing, err := s.repo.FindByID(ctx, clinicID, vitalID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get vital record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get vital record")
 	}
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
@@ -134,6 +137,7 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, vitalID, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update vital record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update vital record")
 	}
 	slog.InfoContext(ctx, "vital updated",
@@ -142,6 +146,7 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 		slog.Uint64("medical_record_id", medicalRecordID))
 	result, err := s.repo.FindByID(ctx, clinicID, vitalID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get vital record after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get vital record after update")
 	}
 	return result, nil

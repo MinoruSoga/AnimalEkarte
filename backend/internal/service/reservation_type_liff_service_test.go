@@ -14,12 +14,12 @@ import (
 
 // mockReservationTypeLiffRepository は ReservationTypeLiffRepository のテスト用モック実装
 type mockReservationTypeLiffRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
-	createFn       func(ctx context.Context, st *model.ReservationType) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
-	swapSortOrder  func(ctx context.Context, clinicID, id uint64, direction string) error
+	findAllFn       func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
+	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
+	createFn        func(ctx context.Context, st *model.ReservationType) error
+	updateFieldsFn  func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
+	deleteFn        func(ctx context.Context, clinicID, id uint64) error
+	updateSortOrder func(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
 func (m *mockReservationTypeLiffRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
@@ -48,9 +48,9 @@ func (m *mockReservationTypeLiffRepository) Delete(ctx context.Context, clinicID
 	return nil
 }
 
-func (m *mockReservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
-	if m.swapSortOrder != nil {
-		return m.swapSortOrder(ctx, clinicID, id, direction)
+func (m *mockReservationTypeLiffRepository) UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
+	if m.updateSortOrder != nil {
+		return m.updateSortOrder(ctx, clinicID, id, direction)
 	}
 	return nil
 }

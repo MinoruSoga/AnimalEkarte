@@ -119,7 +119,7 @@ func (s *hospitalizationPlanService) GetByID(ctx context.Context, clinicID, id u
 }
 func (s *hospitalizationPlanService) Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	taxType := model.TaxTypeExcluded
 	if input.TaxType != "" {
@@ -161,10 +161,11 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get hospitalization plan", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get hospitalization plan")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildHospitalizationPlanUpdate(*input)
 	if len(fields) == 0 {

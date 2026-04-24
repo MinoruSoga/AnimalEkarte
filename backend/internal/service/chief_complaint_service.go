@@ -92,7 +92,7 @@ func (s *chiefComplaintTypeService) GetByID(ctx context.Context, clinicID, id ui
 
 func (s *chiefComplaintTypeService) Create(ctx context.Context, clinicID uint64, input *CreateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
 	if err := validateRequiredName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	category := &model.ChiefComplaintType{
 		ClinicID:    clinicID,
@@ -116,10 +116,11 @@ func (s *chiefComplaintTypeService) Update(ctx context.Context, clinicID, id uin
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get chief complaint type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get chief complaint type")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildChiefComplaintTypeUpdate(input)
 	if len(fields) == 0 {

@@ -12,8 +12,8 @@ import (
 
 // StaffClinicAssignmentRepository はスタッフ-クリニック中間テーブルのインターフェース
 type StaffClinicAssignmentRepository interface {
-	FindAllByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
-	ExistsByStaffAndClinic(ctx context.Context, staffID, clinicID uint64) (bool, error)
+	FindByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
+	CountByStaffAndClinic(ctx context.Context, staffID, clinicID uint64) (int64, error)
 	Create(ctx context.Context, assignment *model.StaffClinicAssignment) error
 	Delete(ctx context.Context, staffID uint64) error
 }
@@ -28,10 +28,10 @@ func NewStaffClinicAssignmentRepository(db *gorm.DB) StaffClinicAssignmentReposi
 	return &staffClinicAssignmentRepository{db: db}
 }
 
-// FindAllByStaffID はスタッフIDでクリニック所属を取得する（複数件）
+// FindByStaffID はスタッフIDでクリニック所属を取得する（複数件）
 // NOTE: model.StaffClinicAssignment は gorm.DeletedAt を持つため、GORM SoftDelete スコープにより
 // deleted_at IS NULL フィルタは自動適用される。明示的な条件追加は不要。
-func (r *staffClinicAssignmentRepository) FindAllByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
+func (r *staffClinicAssignmentRepository) FindByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
 	var assignments []model.StaffClinicAssignment
 	if err := dbOrTx(ctx, r.db).Where("staff_id = ?", staffID).Find(&assignments).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff_id=%d", staffID))
@@ -39,16 +39,16 @@ func (r *staffClinicAssignmentRepository) FindAllByStaffID(ctx context.Context, 
 	return assignments, nil
 }
 
-// ExistsByStaffAndClinic はスタッフが指定クリニックに所属しているかを確認する
+// CountByStaffAndClinic はスタッフが指定クリニックに所属しているレコード数を返す
 // NOTE: GORM SoftDelete スコープにより deleted_at IS NULL は自動適用される。
-func (r *staffClinicAssignmentRepository) ExistsByStaffAndClinic(ctx context.Context, staffID, clinicID uint64) (bool, error) {
+func (r *staffClinicAssignmentRepository) CountByStaffAndClinic(ctx context.Context, staffID, clinicID uint64) (int64, error) {
 	var count int64
 	if err := dbOrTx(ctx, r.db).Model(&model.StaffClinicAssignment{}).
 		Where("staff_id = ? AND clinic_id = ?", staffID, clinicID).
 		Count(&count).Error; err != nil {
-		return false, apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff=%d,clinic=%d", staffID, clinicID))
+		return 0, apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff=%d,clinic=%d", staffID, clinicID))
 	}
-	return count > 0, nil
+	return count, nil
 }
 
 // Create は新規クリニック所属を作成する

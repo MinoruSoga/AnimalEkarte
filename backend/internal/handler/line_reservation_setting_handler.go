@@ -39,7 +39,7 @@ func (h *Handler) SaveLineReservationSetting(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	setting, isNew, err := h.svc.LineReservationSetting.Save(c.Request.Context(), clinicID, &service.SaveLineReservationSettingInput{
+	setting, isNew, err := h.svc.LineReservationSetting.Save(c.Request.Context(), clinicID, &service.UpsertLineReservationSettingInput{
 		Status:                  req.Status,
 		HeaderText:              req.HeaderText,
 		ReservationNotice:       req.ReservationNotice,

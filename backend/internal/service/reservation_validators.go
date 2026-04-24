@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	holiday "github.com/holiday-jp/holiday_jp-go"
@@ -83,7 +84,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 	// GET /available-times は正しく除外しているが、POST /reservations は素通りしていた。
 	// 直接 API を叩かれても無効な予約を受け付けないようにする。
 	if err := validateBusinessRules(settings, input.Date, input.StartTime, input.EndTime); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate business rules")
 	}
 
 	var result *model.Reservation
@@ -204,6 +205,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		result = appt
 		return nil
 	}); err != nil {
+		slog.ErrorContext(ctx, "failed to create line reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create line reservation")
 	}
 	return result, nil
@@ -320,7 +322,8 @@ func toDateTime(date time.Time, hhmm string) (time.Time, error) {
 func generateConfirmationNumber(ctx context.Context, repo repository.ReservationRepository, clinicID uint64, date time.Time) (string, error) {
 	count, err := repo.CountByDateAndSource(ctx, clinicID, date, model.ReservationSourceLine)
 	if err != nil {
-		return "", err
+		slog.ErrorContext(ctx, "failed to count reservations by date and source", "error", err)
+		return "", apperrors.Wrap(err, "failed to count reservations by date and source")
 	}
 	seq := int(count) + 1
 	return fmt.Sprintf("R-%s-%04d", date.Format("20060102"), seq), nil

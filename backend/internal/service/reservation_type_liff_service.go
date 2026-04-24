@@ -204,6 +204,7 @@ func (s *reservationTypeLiffService) Delete(ctx context.Context, clinicID, id ui
 
 func (s *reservationTypeLiffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationType, error) {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation type")
 	}
 	result, err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive})
@@ -218,7 +219,11 @@ func (s *reservationTypeLiffService) PatchSortOrder(ctx context.Context, clinicI
 	if direction != "up" && direction != "down" {
 		return apperrors.WrapInvalidInput("direction must be 'up' or 'down'")
 	}
-	if err := s.repo.SwapSortOrder(ctx, clinicID, id, direction); err != nil {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation type", "error", err, "id", id, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get reservation type")
+	}
+	if err := s.repo.UpdateSortOrder(ctx, clinicID, id, direction); err != nil {
 		slog.ErrorContext(ctx, "failed to reorder reservation course", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder reservation course")
 	}
