@@ -554,13 +554,13 @@ export function DiagnosisSettings() {
     crud: catCrud,
     createMutation: createCategoryMutation,
     updateMutation: updateCategoryMutation,
-    validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data): CreateDiagnosisTypeRequest => ({
+    validate: (data: DiagnosisTypeFormData) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data: DiagnosisTypeFormData): CreateDiagnosisTypeRequest => ({
       name: data.name,
       description: data.description || undefined,
       is_active: true,
     }),
-    toUpdateRequest: (data): UpdateDiagnosisTypeRequest => ({
+    toUpdateRequest: (data: DiagnosisTypeFormData): UpdateDiagnosisTypeRequest => ({
       name: data.name,
       description: data.description || undefined,
       is_active: data.isActive,
@@ -571,18 +571,18 @@ export function DiagnosisSettings() {
     crud: nameCrud,
     createMutation: createNameMutation,
     updateMutation: updateNameMutation,
-    validate: (data) => {
+    validate: (data: DiagnosisNameFormData) => {
       if (!data.name.trim()) return "診断病名を入力してください";
       if (!data.diagnosisTypeId) return "カテゴリを選択してください";
       return null;
     },
-    toCreateRequest: (data): CreateDiagnosisNameRequest => ({
+    toCreateRequest: (data: DiagnosisNameFormData): CreateDiagnosisNameRequest => ({
       name: data.name,
       diagnosis_type_id: Number(data.diagnosisTypeId),
       description: data.description || undefined,
       is_active: true,
     }),
-    toUpdateRequest: (data): UpdateDiagnosisNameRequest => ({
+    toUpdateRequest: (data: DiagnosisNameFormData): UpdateDiagnosisNameRequest => ({
       name: data.name,
       diagnosis_type_id: Number(data.diagnosisTypeId),
       description: data.description || undefined,

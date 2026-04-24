@@ -1,21 +1,6 @@
 import type { BackendCheckupGlobal } from "./types";
 
-export interface CheckupRecord {
-  id: string;
-  medicalRecordId: string;
-  checkupTypeId: string;
-  petId?: string;
-  date: string;
-  nextDate?: string;
-  result: string;
-  checkupTypeName: string;
-  doctorName: string;
-  petName: string;
-  ownerName: string;
-  ownerId?: string;
-}
-
-export function transformCheckupGlobal(data: BackendCheckupGlobal): CheckupRecord {
+export function transformCheckupGlobal(data: BackendCheckupGlobal) {
   return {
     id: data.id,
     medicalRecordId: data.medical_record_id,
@@ -31,3 +16,5 @@ export function transformCheckupGlobal(data: BackendCheckupGlobal): CheckupRecor
     ownerId: data.owner_id,
   };
 }
+
+export type CheckupRecord = ReturnType<typeof transformCheckupGlobal>;

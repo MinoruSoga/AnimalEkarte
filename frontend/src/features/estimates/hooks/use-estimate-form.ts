@@ -1,4 +1,4 @@
-import { useState, useCallback, useActionState, useEffect } from 'react';
+import { useState, useCallback, useActionState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from "sonner";
 import { paths } from "@/config/paths";
@@ -52,15 +52,14 @@ export function useEstimateForm(estimate?: Estimate) {
 
   const [form, setForm] = useState<EstimateFormState>(() => buildInitialState(estimate));
 
-  // Sync with estimate data if it loads later
-  // rerender-dependencies: estimate（オブジェクト）の代わりに estimate?.id（primitive）を deps に使用
-  // estimate は id 変更時点で必ず最新参照のため、exhaustive-deps 警告を抑制
-  useEffect(() => {
+  // Sync with estimate data if it loads later — previous-value pattern
+  const [prevEstimateId, setPrevEstimateId] = useState(estimate?.id);
+  if (prevEstimateId !== estimate?.id) {
+    setPrevEstimateId(estimate?.id);
     if (estimate) {
       setForm(buildInitialState(estimate));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- estimate?.id で変更を検知。id が変わる時 estimate は必ず最新
-  }, [estimate?.id]);
+  }
 
   const { mutateAsync: createEstimate } = useCreateEstimate();
   const { mutateAsync: updateEstimate } = useUpdateEstimate();

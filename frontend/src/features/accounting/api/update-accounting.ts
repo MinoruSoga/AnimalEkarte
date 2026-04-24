@@ -1,6 +1,6 @@
 import { axios } from "@/lib/axios";
-import type { Accounting } from "../types";
 import { transformToAccounting } from "./transforms";
+import type { Accounting } from "./transforms";
 import type { BackendAccounting, UpdateAccountingRequest } from "./types";
 
 export const updateAccounting = async (

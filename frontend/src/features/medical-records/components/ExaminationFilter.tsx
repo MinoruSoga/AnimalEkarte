@@ -49,7 +49,7 @@ export const ExaminationFilter = memo(function ExaminationFilter({
       </div>
 
       {/* Filters */}
-      <div className={`flex flex-col md:flex-row items-end gap-4 bg-white p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>
+      <div className={`flex flex-col md:flex-row items-end gap-4 ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>
         <div className="flex flex-col gap-1.5 w-full md:w-[300px]">
           <Label className={`text-sm font-medium ${C.text60}`}>
             検査項目検索
@@ -57,7 +57,7 @@ export const ExaminationFilter = memo(function ExaminationFilter({
           <Input
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className={`bg-white ${C.borderMedium} h-10 text-sm`}
+            className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm`}
             placeholder="WBC, Cre, etc..."
           />
         </div>

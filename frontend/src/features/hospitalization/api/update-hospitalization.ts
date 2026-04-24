@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
-import type { Hospitalization } from "@/types";
 import { transformHospitalization } from "./transforms";
+import type { Hospitalization } from "./transforms";
 import type {
   BackendHospitalization,
   UpdateHospitalizationRequest,

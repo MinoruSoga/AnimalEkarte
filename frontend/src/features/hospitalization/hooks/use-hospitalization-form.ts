@@ -134,8 +134,10 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
     error: hospitalizationError,
   } = useGetHospitalizationRaw(id);
 
-  useEffect(() => {
-    if (!hospitalizationData) return;
+  // Sync form when hospitalization data loads — previous-value pattern
+  const [prevHospId, setPrevHospId] = useState(hospitalizationData?.id);
+  if (prevHospId !== hospitalizationData?.id && hospitalizationData) {
+    setPrevHospId(hospitalizationData.id);
     setFormData((prev) => ({
       ...prev,
       hospitalizationType:
@@ -166,10 +168,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
         } as Pet,
       ]);
     }
-  // rerender-dependencies: hospitalizationData（オブジェクト）の代わりに id（primitive）を deps に使用
-  // setFormData, setSelectedPets は useState setter で安定参照のため deps 省略
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hospitalizationData?.id]);
+  }
 
   useEffect(() => {
     if (isError) {

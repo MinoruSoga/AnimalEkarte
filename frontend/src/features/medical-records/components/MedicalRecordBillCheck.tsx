@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
-import { useGetBillingConfirmation, useConfirmBillingConfirmation, useReturnBillingConfirmation } from "../api/billing-confirmation";
+import { useGetBillingConfirmation, useCreateBillingConfirmation, useCreateBillingReturn } from "../api/billing-confirmation";
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
@@ -37,9 +37,9 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   const { data: billingConfirmation } = useGetBillingConfirmation(medicalRecordId);
   const createTreatmentMutation = useCreateTreatment(medicalRecordId);
   const { mutate: updateTreatment } = useUpdateTreatment(medicalRecordId);
-  const confirmMutation = useConfirmBillingConfirmation(medicalRecordId);
+  const confirmMutation = useCreateBillingConfirmation(medicalRecordId);
   const userId = Number(user?.id ?? 0);
-  const returnMutation = useReturnBillingConfirmation(medicalRecordId, userId);
+  const returnMutation = useCreateBillingReturn(medicalRecordId, userId);
 
   const [isConfirmPending, startConfirmTransition] = useTransition();
 

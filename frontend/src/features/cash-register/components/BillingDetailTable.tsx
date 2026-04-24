@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { C, STYLE } from "@/lib/design-tokens";
-import type { CloseBillingDetail } from "@/types/generated/models";
+import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 import { CATEGORY_LABELS } from "../constants";
 
 interface BillingDetailTableProps {
@@ -33,31 +33,31 @@ export const BillingDetailTable = memo(function BillingDetailTable({
         <tbody>
           {details.map((detail) => (
             <tr
-              key={detail.billing_id}
+              key={detail.billingId}
               className={`border-b ${C.borderLight} ${STYLE.tableRow}`}
             >
               <td className={`px-3 py-2 ${C.text60} whitespace-nowrap`}>
-                {detail.paid_at ? new Date(detail.paid_at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                {detail.paidAt ? new Date(detail.paidAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) : "—"}
               </td>
               <td className={`px-3 py-2 ${C.text}`}>
-                <div>{detail.owner_name}</div>
+                <div>{detail.ownerName}</div>
                 <div className={`text-sm ${C.text60}`}>
-                  {detail.pet_name}
-                  {detail.is_hospitalization ? " (入院)" : ""}
+                  {detail.petName}
+                  {detail.isHospitalization ? " (入院)" : ""}
                 </div>
               </td>
               <td className={`px-3 py-2 ${C.text}`}>
                 {CATEGORY_LABELS[detail.category] ?? detail.category}
               </td>
-              <td className={`px-3 py-2 ${C.text}`}>{detail.payment_method_name}</td>
+              <td className={`px-3 py-2 ${C.text}`}>{detail.paymentMethodName}</td>
               <td className={`px-3 py-2 text-right ${C.text}`}>
-                ¥{detail.billing_amount.toLocaleString()}
+                ¥{detail.billingAmount.toLocaleString()}
               </td>
-              <td className={`px-3 py-2 text-right ${detail.refund_amount > 0 ? C.danger : C.text50}`}>
-                {detail.refund_amount > 0 ? `-¥${detail.refund_amount.toLocaleString()}` : "—"}
+              <td className={`px-3 py-2 text-right ${detail.refundAmount > 0 ? C.danger : C.text50}`}>
+                {detail.refundAmount > 0 ? `-¥${detail.refundAmount.toLocaleString()}` : "—"}
               </td>
               <td className={`px-3 py-2 text-right font-medium ${C.text}`}>
-                ¥{detail.net_amount.toLocaleString()}
+                ¥{detail.netAmount.toLocaleString()}
               </td>
             </tr>
           ))}

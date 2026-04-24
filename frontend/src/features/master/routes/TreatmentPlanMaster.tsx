@@ -13,6 +13,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 // Shared hooks
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useMasterSave } from "../hooks/use-master-save";
+import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
 
 // External
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
@@ -49,9 +50,9 @@ import { useGetAllProcedures, useCreateProcedure, useUpdateProcedure, useReorder
 import { useGetAllVaccinesMaster, useCreateVaccineMaster, useUpdateVaccineMaster, useReorderVaccinesMaster } from "../api/vaccines-master";
 import { useGetAllCheckupTypes, useCreateCheckupType, useUpdateCheckupType, useReorderCheckupTypes } from "../api/checkup-types";
 import type { CreateConsultationRequest, UpdateConsultationRequest } from "@/types/treatment";
-import type { CreateExaminationRequest, UpdateExaminationRequest } from "@/types/treatment";
+import type { CreateExaminationTypeRequest as CreateExaminationRequest, UpdateExaminationTypeRequest as UpdateExaminationRequest } from "@/types/treatment";
 import type { CreateProcedureRequest, UpdateProcedureRequest } from "@/types/treatment";
-import type { CreateVaccineMasterRequest, UpdateVaccineMasterRequest } from "@/types/treatment";
+import type { CreateVaccineRequest as CreateVaccineMasterRequest, UpdateVaccineRequest as UpdateVaccineMasterRequest } from "@/types/treatment";
 import type { CreateCheckupTypeRequest, UpdateCheckupTypeRequest } from "@/types/treatment";
 
 // Types
@@ -84,9 +85,9 @@ interface TreatmentTabConfig {
   entityLabel: string;
   emptyMessage: string;
   searchPlaceholder: string;
-  onCreate: (data: TreatmentFormData, callbacks: MutateCallbacks) => void;
-  onUpdate: (id: string, data: TreatmentFormData, callbacks: MutateCallbacks) => void;
-  onDelete: (id: string, callbacks: MutateCallbacks) => void;
+  onCreate?: (data: TreatmentFormData, callbacks: MutateCallbacks) => void;
+  onUpdate?: (id: string, data: TreatmentFormData, callbacks: MutateCallbacks) => void;
+  onDelete?: (id: string, callbacks: MutateCallbacks) => void;
   onReorder: (ids: number[]) => void;
 }
 
@@ -358,7 +359,7 @@ function TreatmentTabContent({
   }, [onEditTargetChange]);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDelete) return;
+    if (!pendingDelete || !onDelete) return;
     onDelete(pendingDelete.id, {
       onSuccess: () => {
         onPendingDeleteChange(null);
@@ -587,11 +588,12 @@ export function TreatmentPlanMaster() {
   }, [dirty]);
 
   // Minimal CRUD object for useMasterSave (FR2 only, skip editTarget management)
+  // useMasterSave only accesses editTarget, handleClose, startSaveTransition — cast is safe
   const minimalCrud = useMemo(() => ({
     editTarget,
     handleClose,
     startSaveTransition,
-  }), [editTarget, handleClose, startSaveTransition]);
+  }) as UseMasterCRUDReturn<TreatmentItem>, [editTarget, handleClose, startSaveTransition]);
 
   // ── FR2: useMasterSave hooks (5 tabs) ──────────────────────
   const consultationSave = useMasterSave<TreatmentItem, TreatmentFormData, CreateConsultationRequest, UpdateConsultationRequest>({

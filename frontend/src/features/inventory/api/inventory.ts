@@ -16,9 +16,30 @@ interface InventoryListResponse {
   limit: number;
 }
 
-export const getInventoryItems = async (params?: GetInventoryItemsParams): Promise<BackendInventoryItem[]> => {
+export function transformInventoryItem(raw: BackendInventoryItem) {
+  return {
+    id: String(raw.id ?? 0),
+    clinicId: String(raw.clinic_id ?? 0),
+    name: raw.name,
+    category: raw.category,
+    quantity: raw.quantity,
+    unit: raw.unit,
+    minStockLevel: raw.min_stock_level,
+    location: raw.location || undefined,
+    expiryDate: raw.expiry_date ?? undefined,
+    supplier: raw.supplier || undefined,
+    lastRestocked: raw.last_restocked ?? undefined,
+    status: raw.status,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  };
+}
+
+export type InventoryItem = ReturnType<typeof transformInventoryItem>;
+
+export const getInventoryItems = async (params?: GetInventoryItemsParams): Promise<InventoryItem[]> => {
   const { data } = await axios.get<InventoryListResponse>("/v1/inventory", { params });
-  return data.data;
+  return data.data.map(transformInventoryItem);
 };
 
 export const useGetInventoryItems = (params?: GetInventoryItemsParams) => {
@@ -30,9 +51,9 @@ export const useGetInventoryItems = (params?: GetInventoryItemsParams) => {
   });
 };
 
-export const getInventoryItem = async (id: string): Promise<BackendInventoryItem> => {
+export const getInventoryItem = async (id: string): Promise<InventoryItem> => {
   const { data } = await axios.get<BackendInventoryItem>(`/v1/inventory/${id}`);
-  return data;
+  return transformInventoryItem(data);
 };
 
 export const useGetInventoryItem = (id: string) => {
@@ -45,9 +66,9 @@ export const useGetInventoryItem = (id: string) => {
   });
 };
 
-export const createInventoryItem = async (req: CreateInventoryItemRequest): Promise<BackendInventoryItem> => {
+export const createInventoryItem = async (req: CreateInventoryItemRequest): Promise<InventoryItem> => {
   const { data } = await axios.post<BackendInventoryItem>("/v1/inventory", req);
-  return data;
+  return transformInventoryItem(data);
 };
 
 export const useCreateInventoryItem = () => {
@@ -61,9 +82,9 @@ export const useCreateInventoryItem = () => {
   });
 };
 
-export const updateInventoryItem = async (id: string, req: UpdateInventoryItemRequest): Promise<BackendInventoryItem> => {
+export const updateInventoryItem = async (id: string, req: UpdateInventoryItemRequest): Promise<InventoryItem> => {
   const { data } = await axios.patch<BackendInventoryItem>(`/v1/inventory/${id}`, req);
-  return data;
+  return transformInventoryItem(data);
 };
 
 export const useUpdateInventoryItem = () => {

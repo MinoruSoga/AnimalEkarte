@@ -1,19 +1,19 @@
-import type { Accounting, AccountingItem, PaymentInfo, Refund } from "../types";
 import type { BackendAccounting, BackendAccountingItem } from "./types";
 import type { BillingRefund, Payment } from "@/types/generated/models";
+import type { ItemCategory, AccountingStatus, PaymentMethod } from "../types";
 
 /** Payment にバックエンドが付与する結合フィールドを加えたローカル拡張型 */
 type PaymentWithStaff = Payment & {
   paid_by_name?: string;
 };
 
-export function transformAccountingItem(item: BackendAccountingItem): AccountingItem {
+export function transformAccountingItem(item: BackendAccountingItem) {
   const unitPrice = item.unit_price ?? 0;
   const quantity = item.quantity ?? 1;
   const taxRate = item.tax_rate ?? 0.1;
   return {
     id: String(item.id ?? 0),
-    category: item.category as AccountingItem["category"],
+    category: item.category as ItemCategory,
     name: item.name,
     unitPrice,
     quantity,
@@ -26,7 +26,9 @@ export function transformAccountingItem(item: BackendAccountingItem): Accounting
   };
 }
 
-function buildPaymentInfo(data: BackendAccounting): PaymentInfo | undefined {
+export type AccountingItem = ReturnType<typeof transformAccountingItem>;
+
+function buildPaymentInfo(data: BackendAccounting) {
   const payment = data.payments?.[0] as PaymentWithStaff | undefined;
   if (data.status !== "completed" || payment == null) {
     return undefined;
@@ -42,12 +44,14 @@ function buildPaymentInfo(data: BackendAccounting): PaymentInfo | undefined {
     billingAmount: payment.billing_amount ?? 0,
     receivedAmount: payment.received_amount ?? 0,
     changeAmount: payment.change_amount ?? 0,
-    method: (payment.method || "cash") as PaymentInfo["method"],
+    method: (payment.method || "cash") as PaymentMethod,
     paidByName: payment.paid_by_name,
   };
 }
 
-export function transformToRefund(r: BillingRefund & { refunded_by_name?: string }): Refund {
+export type PaymentInfo = NonNullable<ReturnType<typeof buildPaymentInfo>>;
+
+export function transformToRefund(r: BillingRefund & { refunded_by_name?: string }) {
   return {
     id: String(r.id ?? 0),
     billingId: String(r.billing_id ?? 0),
@@ -60,8 +64,10 @@ export function transformToRefund(r: BillingRefund & { refunded_by_name?: string
   };
 }
 
+export type Refund = ReturnType<typeof transformToRefund>;
+
 // Backend → フロントエンド Accounting 型（一覧・詳細共通）
-export function transformToAccounting(data: BackendAccounting): Accounting {
+export function transformToAccounting(data: BackendAccounting) {
   return {
     id: String(data.id ?? 0),
     medicalRecordId: data.medical_record_id ? String(data.medical_record_id) : undefined,
@@ -70,7 +76,7 @@ export function transformToAccounting(data: BackendAccounting): Accounting {
     petId: String(data.pet_id ?? 0),
     petName: data.pet?.name ?? "",
     petSpecies: data.pet?.animal_species?.name,
-    status: data.status as Accounting["status"],
+    status: data.status as AccountingStatus,
     scheduledDate: data.scheduled_date ? data.scheduled_date.slice(0, 10) : "",
     completedAt: data.completed_at ?? undefined,
     items: (data.items ?? []).map(transformAccountingItem),
@@ -79,3 +85,5 @@ export function transformToAccounting(data: BackendAccounting): Accounting {
     memo: data.memo || undefined,
   };
 }
+
+export type Accounting = ReturnType<typeof transformToAccounting>;

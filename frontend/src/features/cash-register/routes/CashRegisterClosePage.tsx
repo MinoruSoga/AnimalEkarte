@@ -127,13 +127,13 @@ export function CashRegisterClosePage() {
 
       {preview !== undefined && !previewLoading ? (
         <>
-          {preview.is_holiday ? (
+          {preview.isHoliday ? (
             <div className={`p-4 rounded-lg ${C.bgNotice} border ${C.borderNotice}`}>
               <p className={`text-base ${C.textNotice}`}>この日は休診日として設定されています</p>
             </div>
           ) : null}
 
-          {preview.is_already_closed ? (
+          {preview.isAlreadyClosed ? (
             <div className={`p-4 rounded-lg ${C.bgStatusGreen} border ${C.borderStatusGreen}`}>
               <p className={`text-base font-medium ${C.textStatusGreen}`}>
                 {date} {periodLabel} はすでに締め済みです
@@ -146,7 +146,7 @@ export function CashRegisterClosePage() {
                 <h2 className={`text-base font-semibold ${C.text} mb-4`}>部門別集計</h2>
                 <CategoryPaymentMatrix
                   categories={preview.aggregate.categories}
-                  paymentMethods={preview.aggregate.payment_methods}
+                  paymentMethods={preview.aggregate.paymentMethods}
                 />
               </section>
 
@@ -159,13 +159,13 @@ export function CashRegisterClosePage() {
                     <div className="flex justify-between text-sm py-1">
                       <span className={C.text60}>課税対象額</span>
                       <span className={C.text}>
-                        ¥{preview.aggregate.tax_breakdown.standard.taxable_amount.toLocaleString()}
+                        ¥{preview.aggregate.taxBreakdown.standard.taxableAmount.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm py-1">
                       <span className={C.text60}>消費税額</span>
                       <span className={C.text}>
-                        ¥{preview.aggregate.tax_breakdown.standard.tax_amount.toLocaleString()}
+                        ¥{preview.aggregate.taxBreakdown.standard.taxAmount.toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -174,13 +174,13 @@ export function CashRegisterClosePage() {
                     <div className="flex justify-between text-sm py-1">
                       <span className={C.text60}>課税対象額</span>
                       <span className={C.text}>
-                        ¥{preview.aggregate.tax_breakdown.reduced.taxable_amount.toLocaleString()}
+                        ¥{preview.aggregate.taxBreakdown.reduced.taxableAmount.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm py-1">
                       <span className={C.text60}>消費税額</span>
                       <span className={C.text}>
-                        ¥{preview.aggregate.tax_breakdown.reduced.tax_amount.toLocaleString()}
+                        ¥{preview.aggregate.taxBreakdown.reduced.taxAmount.toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -189,8 +189,8 @@ export function CashRegisterClosePage() {
                   <span className={C.text70}>消費税合計</span>
                   <span className={C.text}>
                     ¥{(
-                      preview.aggregate.tax_breakdown.standard.tax_amount +
-                      preview.aggregate.tax_breakdown.reduced.tax_amount
+                      preview.aggregate.taxBreakdown.standard.taxAmount +
+                      preview.aggregate.taxBreakdown.reduced.taxAmount
                     ).toLocaleString()}
                   </span>
                 </div>
@@ -220,7 +220,7 @@ export function CashRegisterClosePage() {
                   </div>
                   {actualCash !== "" ? (
                     <CashReconciliationCard
-                      theoreticalCash={preview.aggregate.theoretical_cash}
+                      theoreticalCash={preview.aggregate.theoreticalCash}
                       actualCash={Number(actualCash)}
                     />
                   ) : null}
@@ -245,9 +245,9 @@ export function CashRegisterClosePage() {
               {/* 個別会計明細 */}
               <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
                 <h2 className={`text-base font-semibold ${C.text} mb-4`}>
-                  個別会計明細（{preview.billing_details.length}件）
+                  個別会計明細（{preview.billingDetails.length}件）
                 </h2>
-                <BillingDetailTable details={preview.billing_details} />
+                <BillingDetailTable details={preview.billingDetails} />
               </section>
             </>
           )}

@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { Reservation } from "@/types";
 import { transformReservation } from "./transforms";
-import type { Appointment as BackendReservation } from "@/types/generated/models";
+import type { Reservation } from "./transforms";
+import type { Reservation as BackendReservation } from "@/types/generated/models";
 
 interface ReservationsListResponse {
   data: BackendReservation[];

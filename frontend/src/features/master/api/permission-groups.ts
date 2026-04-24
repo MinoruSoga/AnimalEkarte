@@ -18,7 +18,15 @@ export type CreatePermissionGroupRequest = Pick<PermissionGroupRequestBase, "nam
 
 export type UpdatePermissionGroupRequest = Partial<PermissionGroupRequestBase>;
 
-export type UpdatePermissionGroupRulesRequest = Pick<ModelPermissionGroup, "rules">;
+export type UpdatePermissionGroupRulesRequest = {
+  rules: {
+    resource: string;
+    can_view: boolean;
+    can_create: boolean;
+    can_edit: boolean;
+    can_delete: boolean;
+  }[];
+};
 
 // ─────────────────────────────────────────────────
 // Transform

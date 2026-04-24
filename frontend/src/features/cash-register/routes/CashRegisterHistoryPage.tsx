@@ -86,21 +86,21 @@ export function CashRegisterHistoryPage() {
               </thead>
               <tbody>
                 {data.data.map((close) => {
-                  const diff = close.actual_cash - close.theoretical_cash;
+                  const diff = (close.actualCash ?? 0) - (close.theoreticalCash ?? 0);
                   return (
                     <tr
                       key={close.id}
                       className={`border-b ${C.borderLight} ${STYLE.tableRow}`}
                     >
-                      <td className={`px-4 py-3 ${C.text}`}>{close.close_date}</td>
+                      <td className={`px-4 py-3 ${C.text}`}>{close.closeDate}</td>
                       <td className={`px-4 py-3 ${C.text}`}>
                         {close.period === "am" ? "午前" : "午後"}
                       </td>
                       <td className={`px-4 py-3 text-right ${C.text}`}>
-                        ¥{close.theoretical_cash.toLocaleString()}
+                        ¥{(close.theoreticalCash ?? 0).toLocaleString()}
                       </td>
                       <td className={`px-4 py-3 text-right ${C.text}`}>
-                        ¥{close.actual_cash.toLocaleString()}
+                        ¥{(close.actualCash ?? 0).toLocaleString()}
                       </td>
                       <td
                         className={`px-4 py-3 text-right font-medium ${diff === 0 ? C.textStatusGreen : C.danger}`}
@@ -109,13 +109,11 @@ export function CashRegisterHistoryPage() {
                         {diff.toLocaleString()}
                       </td>
                       <td className={`px-4 py-3 ${C.text}`}>
-                        {close.closed_by_staff
-                          ? `${close.closed_by_staff.last_name} ${close.closed_by_staff.first_name}`
-                          : "—"}
+                        {close.closedByStaffName ?? "—"}
                       </td>
                       <td className={`px-4 py-3 ${C.text60}`}>
-                        {close.closed_at
-                          ? new Date(close.closed_at).toLocaleString("ja-JP", {
+                        {close.closedAt
+                          ? new Date(close.closedAt).toLocaleString("ja-JP", {
                               month: "2-digit",
                               day: "2-digit",
                               hour: "2-digit",

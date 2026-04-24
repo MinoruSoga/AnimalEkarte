@@ -1,12 +1,13 @@
-import type { MedicalRecord } from "@/types";
 import { formatDate } from "@/utils/format/date";
 import type { BackendMedicalRecord } from "./types";
 import type { InterviewHistoryItem } from "../types";
 
+type MedicalRecordStatus = "作成中" | "確定済";
+
 export const transformMedicalRecord = (
   record: BackendMedicalRecord
-): MedicalRecord => {
-  const statusMap: Record<string, MedicalRecord["status"]> = {
+) => {
+  const statusMap: Record<string, MedicalRecordStatus> = {
     draft: "作成中",
     finalized: "確定済",
   };
@@ -22,7 +23,7 @@ export const transformMedicalRecord = (
     species: record.pet?.animal_species?.name ?? "",
     chiefComplaint: record.inquiry?.chief_complaint ?? "",
     doctor: record.doctor?.name ?? String(record.doctor_id ?? ""),
-    status: statusMap[record.status] ?? "作成中",
+    status: (statusMap[record.status] ?? "作成中") as MedicalRecordStatus,
     visitType: undefined,
     subjective: undefined,
     objective: record.clinical_plan?.physical_exam,
@@ -38,6 +39,8 @@ export const transformMedicalRecord = (
     version: record.version ?? 1,
   };
 };
+
+export type MedicalRecord = ReturnType<typeof transformMedicalRecord>;
 
 /** FEAT-003: BackendMedicalRecord → InterviewHistoryItem 変換 */
 export const transformToHistoryItem = (record: BackendMedicalRecord): InterviewHistoryItem => {

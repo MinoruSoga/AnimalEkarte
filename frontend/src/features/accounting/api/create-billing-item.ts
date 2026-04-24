@@ -1,7 +1,7 @@
 import { axios } from "@/lib/axios";
-import type { AccountingItem } from "../types";
 import type { BackendAccountingItem } from "./types";
 import { transformAccountingItem } from "./transforms";
+import type { AccountingItem } from "./transforms";
 
 export interface CreateBillingItemRequest {
   billing_id: number;

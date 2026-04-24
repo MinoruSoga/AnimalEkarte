@@ -63,7 +63,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
       <h2 className={`text-sm font-bold ${C.text}`}>予防接種履歴</h2>
 
       {/* Filters */}
-      <div className={`space-y-3 bg-white p-3 rounded-lg border ${C.borderMedium} shadow-sm`}>
+      <div className={`space-y-3 ${C.bgWhite} p-3 rounded-lg border ${C.borderMedium} shadow-sm`}>
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm ${C.text60}`}>実施日</Label>
           <div className="flex items-center gap-2">
@@ -88,18 +88,18 @@ export const VaccinationHistory = memo(function VaccinationHistory({
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}
+              className={`flex-1 ${C.bgWhite} ${C.borderMedium} h-10 text-sm`}
               placeholder="検索..."
             />
             <Button
               variant="outline"
-              className={`h-10 bg-white ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm shadow-sm px-3`}
+              className={`h-10 ${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm shadow-sm px-3`}
               onClick={() => setSearchTerm("")}
             >
               クリア
             </Button>
             <Select value={sortOrder} onValueChange={setSortOrder}>
-              <SelectTrigger className={`w-[80px] h-10 bg-white ${C.borderMedium} text-sm`}>
+              <SelectTrigger className={`w-[80px] h-10 ${C.bgWhite} ${C.borderMedium} text-sm`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>{SORT_ORDER_SELECT_ITEMS}</SelectContent>
@@ -109,7 +109,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
       </div>
 
       {/* Table */}
-      <div className={`border ${C.borderMedium} rounded-lg bg-white overflow-hidden flex-1 flex flex-col shadow-sm`}>
+      <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden flex-1 flex flex-col shadow-sm`}>
         {/* Header */}
         <div className={`flex items-center border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} h-12 shrink-0`}>
           <div className="flex-1 px-3 text-center">予防接種名</div>
@@ -138,7 +138,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
           {!isLoading ? filteredItems.map((item) => (
             <div
               key={item.id}
-              className={`flex items-center border-b ${C.borderMedium} bg-white text-sm ${C.text} h-12 ${C.hoverBgPageHalf} transition-colors`}
+              className={`flex items-center border-b ${C.borderMedium} ${C.bgWhite} text-sm ${C.text} h-12 ${C.hoverBgPageHalf} transition-colors`}
             >
               <div className="flex-1 px-3 truncate font-medium">{item.name}</div>
               <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono text-sm`}>

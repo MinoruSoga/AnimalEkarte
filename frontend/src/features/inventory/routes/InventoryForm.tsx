@@ -359,7 +359,7 @@ export function InventoryForm() {
 
         <StockInfoSection
           defaultQuantity={existingItem?.quantity}
-          defaultMinStockLevel={existingItem?.min_stock_level}
+          defaultMinStockLevel={existingItem?.minStockLevel}
           defaultLocation={existingItem?.location}
           resolvedExpiry={resolvedExpiry}
           onExpiryChange={handleExpiryChange}

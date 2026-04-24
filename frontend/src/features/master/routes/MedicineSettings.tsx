@@ -37,6 +37,7 @@ import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useMasterCRUD } from "../hooks/use-master-crud";
+import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 
 // Internal – feature API (direct import, no barrel)
@@ -718,7 +719,7 @@ export function MedicineSettings() {
       editTarget,
       handleClose: handleCloseEdit,
       startSaveTransition: startSaveTransitionWrapper,
-    },
+    } as UseMasterCRUDReturn<Medicine>,
     createMutation,
     updateMutation,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",

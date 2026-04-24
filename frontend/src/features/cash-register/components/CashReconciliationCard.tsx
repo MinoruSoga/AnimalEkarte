@@ -13,7 +13,7 @@ export const CashReconciliationCard = memo(function CashReconciliationCard({
   const difference = actualCash - theoreticalCash;
 
   return (
-    <div className={`rounded-lg border ${C.borderLight} bg-white p-4 space-y-3`}>
+    <div className={`rounded-lg border ${C.borderLight} ${C.bgWhite} p-4 space-y-3`}>
       <div className="flex justify-between items-center">
         <span className={`text-base ${C.text70}`}>理論現金</span>
         <span className={`text-base font-semibold ${C.text}`}>

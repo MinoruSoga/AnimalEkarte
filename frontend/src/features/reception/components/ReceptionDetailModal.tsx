@@ -7,7 +7,6 @@ import Clock from "lucide-react/dist/esm/icons/clock";
 import User from "lucide-react/dist/esm/icons/user";
 import Dog from "lucide-react/dist/esm/icons/dog";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
-import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import CreditCard from "lucide-react/dist/esm/icons/credit-card";
 import Scissors from "lucide-react/dist/esm/icons/scissors";
@@ -368,7 +367,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${LAYOUT.modal.sm} p-0 gap-0 overflow-hidden bg-white`}>
+      <DialogContent className={`${LAYOUT.modal.sm} p-0 gap-0 overflow-hidden ${C.bgWhite}`}>
         {/* Header */}
         <DialogHeader className={`p-5 pb-4 border-b ${C.borderLight} pr-12`}>
           <div className="flex items-center justify-between gap-4">
@@ -399,15 +398,6 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
           <div className={`flex items-center gap-3 p-3 ${C.bgPage} rounded-lg`}>
             <Clock className={`${ICON.page} ${C.text60} shrink-0`} />
             <span className={`font-mono text-xl font-medium ${C.text}`}>{appointment.time}</span>
-            {appointment.nextAppointment ? (
-              <Badge
-                variant={appointment.nextAppointment === "精算未確認" ? "destructive" : "secondary"}
-                className="ml-auto flex items-center gap-1"
-              >
-                {appointment.nextAppointment === "精算未確認" ? <AlertCircle className={ICON.xs} /> : null}
-                {appointment.nextAppointment}
-              </Badge>
-            ) : null}
           </div>
 
           {/* 患者情報 */}

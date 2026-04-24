@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { MedicalRecord } from "@/types";
 import { transformMedicalRecord } from "./transforms";
+import type { MedicalRecord } from "./transforms";
 import type { BackendMedicalRecord } from "./types";
 
 export const getMedicalRecord = async (id: string): Promise<MedicalRecord> => {

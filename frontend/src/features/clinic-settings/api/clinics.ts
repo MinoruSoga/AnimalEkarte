@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformClinic } from "./transforms";
 
 // Types
@@ -88,6 +89,8 @@ export function useGetClinics() {
   return useQuery({
     queryKey: CLINICS_QUERY_KEY,
     queryFn: listClinics,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 

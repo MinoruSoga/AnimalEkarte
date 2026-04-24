@@ -309,7 +309,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
                 setAddItemType(e.target.value as TreatmentItemType);
                 setAddAdminRoute("");
               }}
-              className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} bg-white px-2 ${C.text}`}
+              className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
             >
               {ITEM_TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -321,7 +321,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
               <select
                 value={addAdminRoute}
                 onChange={(e) => setAddAdminRoute(e.target.value)}
-                className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} bg-white px-2 ${C.text}`}
+                className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
               >
                 {ADMIN_ROUTE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -340,7 +340,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
                 if (e.key === "Enter") handleAddSubmit();
                 if (e.key === "Escape") handleAddCancel();
               }}
-              className={`flex-1 h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent}`}
+              className={`flex-1 h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
             />
             <Button
               size="sm"
@@ -390,7 +390,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
       </Suspense>
 
       {/* フッター: 合計金額 */}
-      <div className={`bg-white border ${C.borderLight} rounded-[4px] px-4 py-3`}>
+      <div className={`${C.bgWhite} border ${C.borderLight} rounded-[4px] px-4 py-3`}>
         <div className="flex flex-col gap-1.5">
           {/* 全明細合計 */}
           <div className={`flex items-center justify-between text-sm ${C.text60}`}>

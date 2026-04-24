@@ -92,7 +92,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                   }}
                   disabled={isTypesLoading || !canEdit}
                 >
-                  <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
+                  <SelectTrigger className={`flex-1 ${C.bgWhite} ${C.borderMedium} h-10 text-sm`}>
                     <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
                   </SelectTrigger>
                   <SelectContent className="z-[9999]">
@@ -104,7 +104,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                   onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
                   disabled={isNames1Loading || !diagnosis1CategoryId || !canEdit}
                 >
-                  <SelectTrigger className={`flex-1 bg-white ${diagnosis1NameIdError ? C.borderDanger : C.borderMedium} h-10 text-sm`}>
+                  <SelectTrigger className={`flex-1 ${C.bgWhite} ${diagnosis1NameIdError ? C.borderDanger : C.borderMedium} h-10 text-sm`}>
                     <SelectValue placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"} />
                   </SelectTrigger>
                   <SelectContent className="z-[9999]">
@@ -127,7 +127,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                 }}
                 disabled={isTypesLoading || !canEdit}
               >
-                <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
+                <SelectTrigger className={`flex-1 ${C.bgWhite} ${C.borderMedium} h-10 text-sm`}>
                   <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
@@ -139,7 +139,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                 onValueChange={(value) => setDiagnosis2NameId?.(value ? Number(value) : null)}
                 disabled={isNames2Loading || !diagnosis2CategoryId || !canEdit}
               >
-                <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
+                <SelectTrigger className={`flex-1 ${C.bgWhite} ${C.borderMedium} h-10 text-sm`}>
                   <SelectValue placeholder={isNames2Loading ? "読み込み中..." : "病名を選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
@@ -156,7 +156,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
             <Textarea
               value={diagnosisDetails}
               onChange={(e) => setDiagnosisDetails(e.target.value)}
-              className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 font-mono ${C.focusRingMedicalBlue}`}
+              className={`flex-1 resize-none ${C.bgWhite} ${C.borderMedium} text-sm p-3 font-mono ${C.focusRingMedicalBlue}`}
               disabled={!canEdit}
             />
           </div>

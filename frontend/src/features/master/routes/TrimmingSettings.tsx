@@ -614,8 +614,8 @@ export function TrimmingSettings() {
     crud: courseCrud,
     createMutation: createCourseMutation,
     updateMutation: updateCourseMutation,
-    validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data): CreateTrimmingCourseRequest => ({
+    validate: (data: CourseFormData) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data: CourseFormData): CreateTrimmingCourseRequest => ({
       name: data.name,
       price: data.price !== "" ? Number(data.price) : null,
       target_size: data.targetSize !== "" ? data.targetSize : null,
@@ -623,7 +623,7 @@ export function TrimmingSettings() {
       description: data.description || undefined,
       is_active: true,
     }),
-    toUpdateRequest: (data): UpdateTrimmingCourseRequest => ({
+    toUpdateRequest: (data: CourseFormData): UpdateTrimmingCourseRequest => ({
       name: data.name,
       price: data.price !== "" ? Number(data.price) : null,
       target_size: data.targetSize !== "" ? data.targetSize : null,
@@ -637,8 +637,8 @@ export function TrimmingSettings() {
     crud: optionCrud,
     createMutation: createOptionMutation,
     updateMutation: updateOptionMutation,
-    validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data): CreateTrimmingOptionRequest => ({
+    validate: (data: OptionFormData) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data: OptionFormData): CreateTrimmingOptionRequest => ({
       name: data.name,
       price: data.price !== "" ? Number(data.price) : null,
       duration: data.duration !== "" ? Number(data.duration) : null,
@@ -646,7 +646,7 @@ export function TrimmingSettings() {
       description: data.description || undefined,
       is_active: true,
     }),
-    toUpdateRequest: (data): UpdateTrimmingOptionRequest => ({
+    toUpdateRequest: (data: OptionFormData): UpdateTrimmingOptionRequest => ({
       name: data.name,
       price: data.price !== "" ? Number(data.price) : null,
       duration: data.duration !== "" ? Number(data.duration) : null,

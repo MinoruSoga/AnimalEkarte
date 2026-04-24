@@ -182,7 +182,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       <div className="flex-1 min-h-0 flex flex-col">
         <h2 className={`text-sm font-bold ${C.text} mb-1.5`}>治療プラン</h2>
 
-        <div className={`flex-1 min-h-0 flex flex-col bg-white rounded-lg border ${C.borderLight} overflow-hidden`}>
+        <div className={`flex-1 min-h-0 flex flex-col ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden`}>
           {isNewRecord ? (
             <div className={`flex-1 flex items-center justify-center border border-dashed rounded-lg text-sm ${C.text40}`}>
               カルテを保存してから治療プランを作成できます

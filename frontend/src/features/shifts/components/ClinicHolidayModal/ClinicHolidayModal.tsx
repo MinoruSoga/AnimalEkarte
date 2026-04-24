@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { C } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
-import { useSetClinicHoliday, useDeleteClinicHoliday } from "../../api/clinic-holidays";
+import { useCreateClinicHoliday, useDeleteClinicHoliday } from "../../api/clinic-holidays";
 import type { ClinicHoliday } from "../../api/clinic-holidays";
 
 interface ClinicHolidayModalProps {
@@ -27,13 +27,12 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
   const [isSaving, startSaveTransition] = useTransition();
   const [isRemoving, startRemoveTransition] = useTransition();
 
-  const setMutation = useSetClinicHoliday();
+  const setMutation = useCreateClinicHoliday();
   const deleteMutation = useDeleteClinicHoliday();
 
   // 日付変更・open時にフォームリセット
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ open 時のフォームリセットパターン
       setReason(existing?.reason ?? "");
     }
   }, [open, existing]);

@@ -39,22 +39,26 @@ export function useMedicalRecordForm(recordId?: string) {
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
 
   // --- Focus Management (Accessibility) ---
+  // Tab switching: previous-value pattern (no side effects during render)
+  const [prevManualErrors, setPrevManualErrors] = useState(manualErrors);
+  if (prevManualErrors !== manualErrors) {
+    setPrevManualErrors(manualErrors);
+    const errorFields = Object.keys(manualErrors);
+    if (errorFields.length > 0) {
+      const firstError = MEDICAL_RECORD_PRIORITY_FIELDS.find(f => errorFields.includes(f)) || errorFields[0];
+      if (["treatment_policy"].includes(firstError)) {
+        setActiveTab("問診");
+      } else if (["diagnosis1_category_id", "diagnosis1_name_id"].includes(firstError)) {
+        setActiveTab("診察/治療プラン");
+      }
+    }
+  }
+
+  // DOM focus side effect (no setState)
   useEffect(() => {
     const errorFields = Object.keys(manualErrors);
     if (errorFields.length === 0) return;
-
-    // 優先順位に基づいたエラーフィールドの特定
-    // key は API のフィールド名、value は DOM ID またはタブ切り替えロジック
     const firstError = MEDICAL_RECORD_PRIORITY_FIELDS.find(f => errorFields.includes(f)) || errorFields[0];
-
-    // 治療方針にエラーがある場合は「問診」タブへ強制移動
-    if (["treatment_policy"].includes(firstError)) {
-      setActiveTab("問診");
-    } else if (["diagnosis1_category_id", "diagnosis1_name_id"].includes(firstError)) {
-      setActiveTab("診察/治療プラン");
-    }
-
-    // DOMへのフォーカス（少し遅延させてタブ切り替えを待つ）
     setTimeout(() => {
       const element = document.getElementById(firstError);
       if (element) {
@@ -93,6 +97,7 @@ export function useMedicalRecordForm(recordId?: string) {
     if (saved) {
       try {
         const draft = JSON.parse(saved);
+        /* eslint-disable react-hooks/set-state-in-effect */
         if (draft.chiefComplaint) setChiefComplaint(draft.chiefComplaint);
         if (draft.treatmentPolicy) setTreatmentPolicy(draft.treatmentPolicy);
         if (draft.plan) setPlan(draft.plan);
@@ -102,6 +107,7 @@ export function useMedicalRecordForm(recordId?: string) {
         if (draft.diagnosis1NameId) setDiagnosis1NameId(draft.diagnosis1NameId);
         if (draft.diagnosis2CategoryId) setDiagnosis2CategoryId(draft.diagnosis2CategoryId);
         if (draft.diagnosis2NameId) setDiagnosis2NameId(draft.diagnosis2NameId);
+        /* eslint-enable react-hooks/set-state-in-effect */
         toast.info("未保存の下書きを復元しました", { duration: 2000 });
       } catch {
         // localStorage の下書きが破損している場合は静かにスキップ（復元失敗は非致命的）
@@ -128,14 +134,15 @@ export function useMedicalRecordForm(recordId?: string) {
   // 編集モード: カルテからpetIdを取得
   const { data: existingRecord } = useGetMedicalRecord(recordId ?? "");
 
-  // 既存カルテデータをフォームに反映
-  useEffect(() => {
-    if (!existingRecord) return;
+  // 既存カルテデータをフォームに反映 — previous-value pattern
+  const [prevExistingRecord, setPrevExistingRecord] = useState(existingRecord);
+  if (prevExistingRecord !== existingRecord && existingRecord) {
+    setPrevExistingRecord(existingRecord);
     if (existingRecord.chiefComplaint) setChiefComplaint(existingRecord.chiefComplaint);
     if (existingRecord.plan) setPlan(existingRecord.plan);
     if (existingRecord.assessment) setAssessment(existingRecord.assessment);
     if (existingRecord.notes) setTreatmentPolicy(existingRecord.notes);
-  }, [existingRecord]);
+  }
 
   // petIdを決定: 新規作成時はURLパラメータ、編集時はカルテのpetId
   const resolvedPetId = isNewRecord ? (petId ?? "") : (existingRecord?.petId ?? "");
@@ -233,26 +240,23 @@ export function useMedicalRecordForm(recordId?: string) {
   }, [location.state, navigate, recordId]);
 
   // 担当医変更ハンドラ
-  const handleChangeDoctor = useCallback(
-    (newDoctorId: string, newDoctorName: string) => {
-      if (!recordId) return;
-      startSaveTransition(async () => {
-        try {
-          await updateMutation.mutateAsync({
-            id: recordId,
-            req: {
-              doctor_id: Number(newDoctorId),
-              version: existingRecord?.version,
-            } as UpdateMedicalRecordRequest,
-          });
-          toast.success(`担当医を ${newDoctorName} に変更しました`);
-        } catch (error) {
-          handleApiError(error, "担当医変更");
-        }
-      });
-    },
-    [recordId, updateMutation, existingRecord?.version],
-  );
+  const handleChangeDoctor = (newDoctorId: string, newDoctorName: string) => {
+    if (!recordId) return;
+    startSaveTransition(async () => {
+      try {
+        await updateMutation.mutateAsync({
+          id: recordId,
+          req: {
+            doctor_id: Number(newDoctorId),
+            version: existingRecord?.version,
+          } as UpdateMedicalRecordRequest,
+        });
+        toast.success(`担当医を ${newDoctorName} に変更しました`);
+      } catch (error) {
+        handleApiError(error, "担当医変更");
+      }
+    });
+  };
 
   // BUG-373: 飼主変更 — 確認モーダル経由で実行
   const [pendingOwnerChange, setPendingOwnerChange] = useState<{
@@ -267,7 +271,7 @@ export function useMedicalRecordForm(recordId?: string) {
     [],
   );
 
-  const confirmOwnerChange = useCallback(() => {
+  const confirmOwnerChange = () => {
     if (!pendingOwnerChange || !recordId) return;
     const newOwner = pendingOwnerChange;
     setPendingOwnerChange(null);
@@ -285,7 +289,7 @@ export function useMedicalRecordForm(recordId?: string) {
         handleApiError(error, "飼主変更");
       }
     });
-  }, [pendingOwnerChange, recordId, updateMutation, existingRecord?.version]);
+  };
 
   const cancelOwnerChange = useCallback(() => setPendingOwnerChange(null), []);
 

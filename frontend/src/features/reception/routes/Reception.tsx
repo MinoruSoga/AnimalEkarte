@@ -283,6 +283,8 @@ export function Reception() {
             petId: selectedPets[0]?.id || data.petId || "",
             ownerId: "",
             status: "confirmed",
+            notes: undefined,
+            source: "manual" as const,
         };
 
         updateAppointment(updatedAppointment);

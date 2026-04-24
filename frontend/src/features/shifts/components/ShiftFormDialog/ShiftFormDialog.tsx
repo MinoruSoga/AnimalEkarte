@@ -85,7 +85,6 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
 
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ open 時のフォームリセットパターン
       setShiftType(editShift?.shift_type ?? "full");
       setStartTime(normalizeTimeToHHmm(editShift?.start_time ?? ""));
       setEndTime(normalizeTimeToHHmm(editShift?.end_time ?? ""));

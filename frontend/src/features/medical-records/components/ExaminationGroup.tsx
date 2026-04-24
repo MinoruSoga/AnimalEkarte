@@ -53,7 +53,7 @@ export const ExaminationGroup = memo(function ExaminationGroup({
         </Button>
       </div>
 
-      <div className={`border ${C.borderMedium} rounded-lg bg-white overflow-hidden shadow-sm overflow-x-auto`}>
+      <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden shadow-sm overflow-x-auto`}>
         <div className={`min-w-[600px] grid grid-cols-[2fr_1.5fr_1.5fr_2fr_1.5fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} h-12 items-center`}>
           <div className={`p-2 border-r ${C.borderMedium} pl-3`}>
             項目名
@@ -76,7 +76,7 @@ export const ExaminationGroup = memo(function ExaminationGroup({
               idx !== group.items.length - 1
                 ? `border-b ${C.borderMedium}`
                 : ""
-            } bg-white text-sm ${C.text} items-center ${C.hoverBgPageHalf} h-12 transition-colors`}
+            } ${C.bgWhite} text-sm ${C.text} items-center ${C.hoverBgPageHalf} h-12 transition-colors`}
           >
             <div className={`p-2 border-r ${C.borderMedium} pl-3 font-medium`}>
               {item.name}

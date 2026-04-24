@@ -111,9 +111,9 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
   }, [deleteMutation]);
 
   const itemList = useMemo(() => items.map((item) => {
-    const label = item.unavailable_type === UnavailableTypeWeekly
-      ? `毎週${DAY_OF_WEEK_LABELS[item.day_of_week ?? 0]}曜日`
-      : item.specific_date ?? "";
+    const label = item.unavailableType === UnavailableTypeWeekly
+      ? `毎週${DAY_OF_WEEK_LABELS[item.dayOfWeek ?? 0]}曜日`
+      : item.specificDate ?? "";
 
     return (
       <div
@@ -122,7 +122,7 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
       >
         <Clock className={`${ICON.smXs} ${C.text40} shrink-0`} />
         <span className={`flex-1 text-sm ${C.text}`}>{label}</span>
-        <span className={`text-sm ${C.text50} tabular-nums`}>{item.start_time}〜{item.end_time}</span>
+        <span className={`text-sm ${C.text50} tabular-nums`}>{item.startTime}〜{item.endTime}</span>
         <button
           type="button"
           onClick={() => handleDelete(item.id)}
@@ -182,7 +182,7 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
               type="date"
               value={form.specificDate}
               onChange={(e) => handleFieldChange("specificDate", e.target.value)}
-              className={`rounded-[3px] border ${C.borderMedium} px-2 py-1 text-sm ${C.text} bg-white`}
+              className={`rounded-[3px] border ${C.borderMedium} px-2 py-1 text-sm ${C.text} ${C.bgWhite}`}
             />
           )}
         </div>

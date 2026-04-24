@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
-import type { CashRegisterClose } from "@/types/generated/models";
+import type { CashRegisterClose as BackendCashRegisterClose } from "@/types/generated/models";
+import { transformCashRegisterClose } from "./transforms";
+import type { CashRegisterClose } from "./transforms";
 
 export interface CreateCashRegisterCloseRequest {
   date: string;
@@ -10,11 +12,13 @@ export interface CreateCashRegisterCloseRequest {
   memo?: string;
 }
 
+export type { CashRegisterClose };
+
 export const createCashRegisterClose = async (
   data: CreateCashRegisterCloseRequest,
 ): Promise<CashRegisterClose> => {
-  const { data: res } = await axios.post<CashRegisterClose>("/v1/cash-register/closes", data);
-  return res;
+  const { data: res } = await axios.post<BackendCashRegisterClose>("/v1/cash-register/closes", data);
+  return transformCashRegisterClose(res);
 };
 
 export const useCreateCashRegisterClose = () => {

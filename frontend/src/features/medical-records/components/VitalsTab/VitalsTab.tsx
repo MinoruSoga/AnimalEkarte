@@ -14,8 +14,8 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { ErrorFallback } from "@/components/shared/DataStates";
 
 // rendering-hoist-jsx: design token は定数なので module-level に巻き上げ
-const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`;
-const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent}`;
+const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`;
+const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`;
 
 // Relative
 import { VitalsGraph } from "./VitalsGraph";
@@ -262,7 +262,7 @@ function DeleteConfirmDialog({ onConfirm, onCancel, isPending }: DeleteConfirmPr
       onClick={onCancel}
     >
       <div
-        className="bg-white rounded-lg shadow-lg p-6 w-[380px]"
+        className={`${C.bgWhite} rounded-lg shadow-lg p-6 w-[380px]`}
         onClick={(e) => e.stopPropagation()}
       >
         <p className={`text-base font-medium ${C.text} mb-2`}>バイタルを削除しますか？</p>
@@ -446,7 +446,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
               className={[
                 "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors",
                 !showGraph
-                  ? `bg-white ${C.text} border-r ${C.borderLight}`
+                  ? `${C.bgWhite} ${C.text} border-r ${C.borderLight}`
                   : `${C.text60} ${C.hoverBgLight} border-r ${C.borderLight}`,
               ].join(" ")}
               title="テーブル表示"
@@ -459,7 +459,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
               onClick={() => setShowGraph(true)}
               className={[
                 "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors",
-                showGraph ? `bg-white ${C.text}` : `${C.text60} ${C.hoverBgLight}`,
+                showGraph ? `${C.bgWhite} ${C.text}` : `${C.text60} ${C.hoverBgLight}`,
               ].join(" ")}
               title="グラフ表示"
             >
@@ -640,7 +640,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
 
       {/* フッター: 件数表示 */}
       {sortedVitals.length > 0 ? (
-        <div className={`bg-white border ${C.borderLight} rounded-[4px] px-4 py-3`}>
+        <div className={`${C.bgWhite} border ${C.borderLight} rounded-[4px] px-4 py-3`}>
           <span className={`text-sm ${C.text60}`}>
             バイタル記録 {sortedVitals.length} 件
           </span>

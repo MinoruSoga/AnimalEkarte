@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, use } from "react";
+import { useState, useCallback, useMemo, use } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -70,11 +70,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // /me の定期ポーリング結果でユーザー情報（権限含む）を同期
   // 認証済みかつローディング完了後のみポーリングを有効化
   const { data: meData } = useGetMe(user !== null);
-  useEffect(() => {
+  const [prevMeData, setPrevMeData] = useState(meData);
+  if (prevMeData !== meData) {
+    setPrevMeData(meData);
     if (meData) {
       setUser(meData);
     }
-  }, [meData]);
+  }
 
   const queryClient = useQueryClient();
 
