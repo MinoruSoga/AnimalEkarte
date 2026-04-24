@@ -169,3 +169,8 @@ func (s *OwnerService) Create(ctx context.Context, input CreateOwnerInput) (*Own
 - [ ] PATCH uses pointer types + buildUpdateFields()
 - [ ] errgroup for parallel processing
 - [ ] Interfaces minimized (3-5 methods)
+
+## Architecture Compliance
+
+Layer-specific rules (P1–P18) are defined in `gin-architecture-compliance.md`.
+Run compliance checks when implementing or reviewing handler/service/repository code.

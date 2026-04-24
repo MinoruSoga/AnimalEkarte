@@ -86,6 +86,7 @@ $ docker compose exec backend go test ./internal/service/...
 | File | Read When |
 |------|-----------|
 | `go-language.md` | Go code implementation/review |
+| `gin-architecture-compliance.md` | Gin/GORM P1-P18 compliance check (handler/service/repository) |
 | `error-handling.md` | Error handling implementation (Go/TS both) |
 | `typescript-react.md` | Frontend implementation/review |
 | `testing.md` | Test implementation |
@@ -110,6 +111,13 @@ $ docker compose exec backend go test ./internal/service/...
 
 ### Master Data Deletion
 Dependency check before deletion required. If references exist → `apperrors.WrapConflict(...)` returns 409.
+
+### Backend Compliance (P1–P18)
+18 fixed patterns enforced across all layers. See `gin-architecture-compliance.md`.
+- **Handler**: P7(toXxxResponse), P12(ShouldBindJSON), P14(no direct repo), P15(201+Location), P18(toXxxResponse naming)
+- **Service**: P1(FindByID first), P8(Wrap), P10(FK check), P11(slog.ErrorContext), P13(def order), P17(Input naming)
+- **Repository**: P2(IS NULL count), P3(IS NULL preload), P4(clinicScope), P9(FromGORM), P16(method naming)
+- **Routes**: P5(RequirePermission), P6("delete" on DELETE)
 
 ### Frontend (MANDATORY Patterns)
 - Forms: `useActionState` + `<form action={formAction}>` + `SubmitButton`
