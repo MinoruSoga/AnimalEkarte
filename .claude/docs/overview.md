@@ -10,6 +10,7 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 | **Rules** | `.claude/rules/` | 1 auto-loaded rule file (claude-code-usage.md) |
 | **Hooks** | `.claude/hooks/` | 14 Node.js/shell hooks (ECC準拠 JSON protocol) |
 | **Memory** | `~/.claude/projects/.../memory/` | persistent knowledge files |
+| **Commands** | `.claude/docs/commands-guide.md` | Slash commands usage guide & use cases |
 | **Workflows** | `.claude/docs/workflows/` | Development workflow guides |
 | **Patterns** | `.claude/docs/patterns/` | Pattern implementation references |
 

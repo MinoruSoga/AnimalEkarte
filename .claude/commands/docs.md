@@ -1,5 +1,6 @@
 ---
 description: 関数・クラス・API のドキュメント生成（JSDoc/TSDoc）
+argument-hint: "<path> (e.g. src/features/owners/api)"
 ---
 
 # ドキュメント生成

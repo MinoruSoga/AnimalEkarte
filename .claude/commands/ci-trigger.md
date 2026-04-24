@@ -1,5 +1,6 @@
 ---
 description: CI パイプライン確認・トリガー
+argument-hint: "[--local | --watch]"
 ---
 
 # /ci-trigger [--watch]

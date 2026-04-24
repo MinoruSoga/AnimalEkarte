@@ -1,5 +1,6 @@
 ---
 description: デプロイ準備チェック（staging / production）
+argument-hint: "staging | production"
 ---
 
 # デプロイ準備

@@ -1,5 +1,6 @@
 ---
 description: E2E テスト設計・シナリオ生成
+argument-hint: "<feature> (e.g. owners, medical-records)"
 ---
 
 # /e2e-design [feature]
