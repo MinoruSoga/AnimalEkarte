@@ -3,7 +3,7 @@ name: Performance Tests (Load & Profiling)
 on:
   schedule:
     - cron: '0 3 * * *'  # 毎日 03:00 JST 実行
-  workflow_dispatch
+  workflow_dispatch:
   push:
     branches: [main, staging]
     paths:
