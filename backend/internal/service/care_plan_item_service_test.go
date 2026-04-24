@@ -20,7 +20,7 @@ type mockCarePlanItemRepository struct {
 	deleteFn                  func(ctx context.Context, clinicID, itemID uint64) error
 }
 
-func (m *mockCarePlanItemRepository) ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
+func (m *mockCarePlanItemRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
 	return m.listByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
 }
 

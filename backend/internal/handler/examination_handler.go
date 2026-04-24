@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -65,7 +66,7 @@ func (h *Handler) ListExaminations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(exams, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(exams, toExaminationResponse), total, page, limit))
 }
 
 // GetExamination godoc
@@ -83,7 +84,7 @@ func (h *Handler) GetExamination(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, exam)
+	c.JSON(http.StatusOK, toExaminationResponse(exam))
 }
 
 // CreateExamination godoc
@@ -99,36 +100,23 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 		return
 	}
 
-	exam := &model.Examination{
-		ClinicID:        clinicID,
-		MedicalRecordID: input.MedicalRecordID, // nil if not provided (standalone examination)
+	svcInput := &service.CreateExaminationInput{
+		MedicalRecordID: input.MedicalRecordID,
 		PetID:           input.PetID,
 		ExamTypeID:      input.ExamTypeID,
 		DoctorID:        input.DoctorID,
 		Date:            input.Date,
 		ResultSummary:   input.ResultSummary,
 		Machine:         input.Machine,
+		Status:          model.ExaminationStatus(input.Status),
 	}
-	if input.Status != "" {
-		status, err := validateEnum(input.Status,
-			model.ExaminationStatusPending,
-			model.ExaminationStatusInProgress,
-			model.ExaminationStatusResultEntered,
-			model.ExaminationStatusCompleted,
-			model.ExaminationStatusConfirmed,
-		)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
-			return
-		}
-		exam.Status = status
-	}
-
-	if err := h.svc.Examination.Create(c.Request.Context(), exam); err != nil {
+	exam, err := h.svc.Examination.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, exam)
+	c.Header("Location", fmt.Sprintf("/api/v1/examinations/%d", exam.ID))
+	c.JSON(http.StatusCreated, toExaminationResponse(exam))
 }
 
 // UpdateExamination godoc
@@ -149,17 +137,7 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 
 	var status *model.ExaminationStatus
 	if input.Status != nil {
-		s, err := validateEnum(*input.Status,
-			model.ExaminationStatusPending,
-			model.ExaminationStatusInProgress,
-			model.ExaminationStatusResultEntered,
-			model.ExaminationStatusCompleted,
-			model.ExaminationStatusConfirmed,
-		)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
-			return
-		}
+		s := model.ExaminationStatus(*input.Status)
 		status = &s
 	}
 	var examTypeID *uint64
@@ -184,7 +162,7 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, exam)
+	c.JSON(http.StatusOK, toExaminationResponse(exam))
 }
 
 // DeleteExamination godoc

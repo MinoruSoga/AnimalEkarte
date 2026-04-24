@@ -411,15 +411,15 @@ describe('MedicalRecordForm', () => {
 
 ```bash
 # ローカル開発
-npm run test:watch              # Watch mode
-npm run test:run                # Single run
-npm run test:coverage           # Coverage report
+pnpm test:watch              # Watch mode
+pnpm test:run                # Single run
+pnpm test:coverage           # Coverage report
 
 # CI/CD
-npm run test:ci                 # Strict mode (--no-coverage は除外)
+pnpm test:ci                 # Strict mode (--no-coverage は除外)
 
 # Lighthouse
-npm run audit:lighthouse        # Desktop audit
+pnpm audit:lighthouse        # Desktop audit
 ```
 
 ---

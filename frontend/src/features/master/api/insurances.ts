@@ -4,25 +4,21 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Insurance as ModelInsurance } from "@/types/generated/models";
 
+const INSURANCES_QUERY_KEY = ["masters", "insurances"] as const;
+
 // ─────────────────────────────────────────────────
-// Types
+// Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export interface CreateInsuranceRequest {
-  name: string;
-  is_active?: boolean;
-  description?: string;
-  coverage_rate?: number;
-  contact_phone?: string;
-}
+type InsuranceRequestBase = Omit<
+  ModelInsurance,
+  "id" | "clinic_id" | "created_at" | "updated_at"
+>;
 
-export interface UpdateInsuranceRequest {
-  name?: string;
-  is_active?: boolean;
-  description?: string;
-  coverage_rate?: number;
-  contact_phone?: string;
-}
+export type CreateInsuranceRequest = Pick<InsuranceRequestBase, "name"> &
+  Partial<Omit<InsuranceRequestBase, "name">>;
+
+export type UpdateInsuranceRequest = Partial<InsuranceRequestBase>;
 
 // ─────────────────────────────────────────────────
 // Transform
@@ -73,7 +69,7 @@ const deleteInsurance = async (id: string): Promise<void> => {
 
 export const useGetAllInsurances = () => {
   return useQuery({
-    queryKey: ["masters", "insurances"],
+    queryKey: INSURANCES_QUERY_KEY,
     queryFn: getAllInsurances,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -85,7 +81,7 @@ export const useCreateInsurance = () => {
   return useMutation({
     mutationFn: createInsurance,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "insurances"] });
+      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -97,7 +93,7 @@ export const useUpdateInsurance = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateInsuranceRequest }) =>
       updateInsurance(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "insurances"] });
+      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -108,9 +104,25 @@ export const useDeleteInsurance = () => {
   return useMutation({
     mutationFn: deleteInsurance,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "insurances"] });
+      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
 };
 
+
+
+const reorderInsurances = async (ids: number[]): Promise<void> => {
+  await axios.patch("/v1/masters/insurances/reorder", { ids });
+};
+
+export const useReorderInsurances = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderInsurances(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
+  });
+};

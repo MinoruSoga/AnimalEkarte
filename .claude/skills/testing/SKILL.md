@@ -15,9 +15,9 @@ description: ユニット、統合、E2Eテストの作成と実行
 
 | 種別 | ツール | コマンド |
 |------|--------|---------|
-| ユニット | Jest | `npm test` |
-| 統合 | Jest | `npm run test:integration` |
-| E2E | Playwright | `npm run test:e2e` |
+| ユニット | Jest | `ppnpm test` |
+| 統合 | Jest | `pppnpm test:integration` |
+| E2E | Playwright | `pppnpm test:e2e` |
 
 ## テスト作成パターン
 

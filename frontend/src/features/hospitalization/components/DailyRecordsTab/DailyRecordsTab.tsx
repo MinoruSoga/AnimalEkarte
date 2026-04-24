@@ -11,15 +11,16 @@ import { Separator } from "@/components/ui/separator";
 import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
-import { DailyDateNav } from "@/features/hospitalization/components/DailyRecordsTab/DailyDateNav";
-import { DailyVitalsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyVitalsSection";
-import { DailyCareLogsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyCareLogsSection";
-import { DailyStaffNotesSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyStaffNotesSection";
-import { useDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "@/features/hospitalization/api/daily-records";
-import { usePermission, useAuth } from "@/features/auth";
+import { DailyDateNav } from "../../components/DailyRecordsTab/DailyDateNav";
+import { DailyVitalsSection } from "../../components/DailyRecordsTab/DailyVitalsSection";
+import { DailyCareLogsSection } from "../../components/DailyRecordsTab/DailyCareLogsSection";
+import { DailyStaffNotesSection } from "../../components/DailyRecordsTab/DailyStaffNotesSection";
+import { useGetDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "../../api/daily-records";
+import { useAuth } from "@/hooks/use-auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Types
-import type { CreateVitalRecordRequest, CreateCareLogRequest, CreateStaffNoteRequest } from "@/features/hospitalization/api/daily-records-types";
+import type { CreateVitalRecordRequest, CreateCareLogRequest, CreateStaffNoteRequest } from "../../api/daily-records-types";
 
 interface DailyRecordsTabProps {
     hospitalizationId: string;
@@ -65,7 +66,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
         [admissionDate, effectiveMax]
     );
 
-    const { data: record, isLoading, isError } = useDailyRecord(hospitalizationId, selectedDate);
+    const { data: record, isLoading, isError } = useGetDailyRecord(hospitalizationId, selectedDate);
 
     const createDailyRecord = useCreateDailyRecord(hospitalizationId);
     const createVital = useCreateDailyVital(hospitalizationId, selectedDate);

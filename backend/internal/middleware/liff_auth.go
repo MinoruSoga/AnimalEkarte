@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,9 +20,7 @@ import (
 
 const (
 	liffCustomerIDKey = "liff_customer_id"
-	liffClinicIDKey   = "liff_clinic_id"
 	liffLineUserIDKey = "liff_line_user_id"
-	liffDisplayName   = "liff_display_name"
 )
 
 // lineVerifyResponse は LINE ID Token 検証 API のレスポンス。
@@ -49,17 +48,15 @@ type LineReservationSettingLookup interface {
 // settingLookup でクリニックの LiffID を取得し、LINE API の client_id 照合に使用する。
 func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// ローカル開発用: LIFF_MOCK=true で認証バイパス
-		if os.Getenv("LIFF_MOCK") == "true" {
+		// ローカル開発用: LIFF_MOCK=true で認証バイパス（release モードでは無効）
+		if os.Getenv("LIFF_MOCK") == "true" && gin.Mode() != gin.ReleaseMode {
 			clinicIDStr := c.Param("clinicId")
 			var clinicID uint64
 			if _, err := fmt.Sscanf(clinicIDStr, "%d", &clinicID); err == nil && clinicID > 0 {
 				customer, err := lookup.FindOrCreateByLineUserID(c.Request.Context(), clinicID, "mock-line-user-id", "テストユーザー")
 				if err == nil {
 					c.Set(liffCustomerIDKey, customer.ID)
-					c.Set(liffClinicIDKey, clinicID)
 					c.Set(liffLineUserIDKey, "mock-line-user-id")
-					c.Set(liffDisplayName, "テストユーザー")
 					c.Next()
 					return
 				}
@@ -69,14 +66,12 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 		// Authorization: Bearer {ID Token}
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
-			c.Abort()
+			respondError(c, http.StatusUnauthorized, "missing authorization header")
 			return
 		}
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header"})
-			c.Abort()
+			respondError(c, http.StatusUnauthorized, "invalid authorization header")
 			return
 		}
 		idToken := parts[1]
@@ -85,8 +80,7 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 		clinicIDStr := c.Param("clinicId")
 		var clinicID uint64
 		if _, err := fmt.Sscanf(clinicIDStr, "%d", &clinicID); err != nil || clinicID == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid clinic id"})
-			c.Abort()
+			respondError(c, http.StatusBadRequest, "invalid clinic id")
 			return
 		}
 
@@ -95,17 +89,14 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 		setting, err := settingLookup.FindByClinicID(c.Request.Context(), clinicID)
 		if err != nil {
 			if apperrors.IsNotFound(err) {
-				c.JSON(http.StatusNotFound, gin.H{"error": "clinic setting not found"})
-				c.Abort()
+				respondError(c, http.StatusNotFound, "clinic setting not found")
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load clinic setting"})
-			c.Abort()
+			respondError(c, http.StatusInternalServerError, "failed to load clinic setting")
 			return
 		}
 		if setting.LiffID == "" {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "LINE reservation not configured for this clinic"})
-			c.Abort()
+			respondError(c, http.StatusServiceUnavailable, "LINE reservation not configured for this clinic")
 			return
 		}
 
@@ -116,24 +107,21 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 		// LINE API でトークン検証（client_id にクリニックのチャンネル ID を使用）
 		lineUser, err := verifyLiffIDToken(c.Request.Context(), idToken, liffChannelID)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid ID token: " + err.Error()})
-			c.Abort()
+			slog.WarnContext(c.Request.Context(), "invalid LINE ID token", slog.String("error", err.Error()))
+			respondError(c, http.StatusUnauthorized, "invalid ID token")
 			return
 		}
 
 		// line_customers から顧客を特定（なければ新規作成）
 		customer, err := lookup.FindOrCreateByLineUserID(c.Request.Context(), clinicID, lineUser.Sub, lineUser.Name)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve customer"})
-			c.Abort()
+			respondError(c, http.StatusInternalServerError, "failed to resolve customer")
 			return
 		}
 
 		// context にセット
 		c.Set(liffCustomerIDKey, customer.ID)
-		c.Set(liffClinicIDKey, clinicID)
 		c.Set(liffLineUserIDKey, lineUser.Sub)
-		c.Set(liffDisplayName, lineUser.Name)
 		c.Next()
 	}
 }
@@ -192,21 +180,4 @@ func ExtractLiffCustomerID(c *gin.Context) (uint64, bool) {
 	}
 	id, ok := v.(uint64)
 	return id, ok
-}
-
-// ExtractLiffClinicID はコンテキストから liff_clinic_id を取得する。
-func ExtractLiffClinicID(c *gin.Context) (uint64, bool) {
-	v, exists := c.Get(liffClinicIDKey)
-	if !exists {
-		return 0, false
-	}
-	id, ok := v.(uint64)
-	return id, ok
-}
-
-// ExtractLiffDisplayName はコンテキストから LINE 表示名を取得する。
-func ExtractLiffDisplayName(c *gin.Context) string {
-	v, _ := c.Get(liffDisplayName)
-	s, _ := v.(string)
-	return s
 }

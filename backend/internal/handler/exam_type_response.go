@@ -12,6 +12,7 @@ type examTypeItemResponse struct {
 	Name            string    `json:"name"`
 	InspectionValue string    `json:"inspection_value"`
 	NormalValue     string    `json:"normal_value"`
+	Unit            string    `json:"unit"`
 	SortOrder       int       `json:"sort_order"`
 	CreatedAt       time.Time `json:"created_at"`
 }
@@ -23,6 +24,7 @@ type examTypeResponse struct {
 	Price       *int64                 `json:"price,omitempty"`
 	IsActive    bool                   `json:"is_active"`
 	Description string                 `json:"description"`
+	ParentID    *uint64                `json:"parent_id,omitempty"`
 	SortOrder   int                    `json:"sort_order"`
 	Items       []examTypeItemResponse `json:"items,omitempty"`
 	CreatedAt   time.Time              `json:"created_at"`
@@ -36,12 +38,13 @@ func toExamTypeItemResponse(item *model.ExamTypeField) examTypeItemResponse {
 		Name:            item.Name,
 		InspectionValue: item.InspectionValue,
 		NormalValue:     item.NormalValue,
+		Unit:            item.Unit,
 		SortOrder:       item.SortOrder,
 		CreatedAt:       item.CreatedAt,
 	}
 }
 
-func toExamTypeResponse(et *model.ExaminationType) examTypeResponse {
+func toExaminationTypeResponse(et *model.ExaminationType) examTypeResponse {
 	items := make([]examTypeItemResponse, 0, len(et.Items))
 	for i := range et.Items {
 		items = append(items, toExamTypeItemResponse(&et.Items[i]))
@@ -53,17 +56,10 @@ func toExamTypeResponse(et *model.ExaminationType) examTypeResponse {
 		Price:       et.Price,
 		IsActive:    et.IsActive,
 		Description: et.Description,
+		ParentID:    et.ParentID,
 		SortOrder:   et.SortOrder,
 		Items:       items,
 		CreatedAt:   et.CreatedAt,
 		UpdatedAt:   et.UpdatedAt,
 	}
-}
-
-func toExamTypeResponseList(items []model.ExaminationType) []examTypeResponse {
-	list := make([]examTypeResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toExamTypeResponse(&items[i]))
-	}
-	return list
 }

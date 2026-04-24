@@ -22,12 +22,15 @@ type mockVitalRepository struct {
 	deleteFn                func(ctx context.Context, clinicID, vitalID uint64) error
 }
 
-func (m *mockVitalRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
+func (m *mockVitalRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
 func (m *mockVitalRepository) FindByID(ctx context.Context, clinicID, vitalID uint64) (*model.VitalRecord, error) {
-	return m.findByIDFn(ctx, clinicID, vitalID)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, vitalID)
+	}
+	return nil, nil
 }
 
 func (m *mockVitalRepository) Create(ctx context.Context, vital *model.VitalRecord) error {

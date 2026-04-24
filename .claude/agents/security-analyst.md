@@ -29,7 +29,7 @@ model: opus
 
 - Backend: Go 1.25 / Gin / GORM
 - Frontend: React 19 / TypeScript 5.7
-- Security Tools: gosec, npm audit, GitHub Advanced Security
+- Security Tools: gosec, ppnpm audit, GitHub Advanced Security
 - Standards: OWASP Top 10, CWE, CVE
 
 ## セキュリティチェックリスト

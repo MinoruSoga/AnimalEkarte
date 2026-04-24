@@ -43,9 +43,9 @@ type UpdateTrimmingInput struct {
 	Status          *model.ReservationStatus
 	CourseID        *uint64
 	StyleRequest    *string
-	BodyWeight      **float64
+	BodyWeight      *float64
 	BWUnit          *model.BodyWeightUnit
-	BodyTemperature **float64
+	BodyTemperature *float64
 	UsedShampoo     *string
 	UsedRibbon      *string
 	Remarks         *string
@@ -56,10 +56,10 @@ type UpdateTrimmingInput struct {
 
 // TrimmingService はトリミング管理のビジネスロジックインターフェース（BE-119）
 type TrimmingService interface {
-	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Appointment, int64, error)
-	GetByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Appointment, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Appointment, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -81,7 +81,7 @@ func NewTrimmingService(
 	}
 }
 
-func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Appointment, int64, error) {
+func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error) {
 	items, total, err := s.reservation.FindAllByCategory(ctx, clinicID, model.ReservationTypeCategoryTrimming, petID, ownerID, startDate, endDate, page, limit)
 	if err != nil {
 		return nil, 0, apperrors.Wrap(err, "failed to list trimming appointments")
@@ -89,7 +89,7 @@ func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, owne
 	return items, total, nil
 }
 
-func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
+func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	appt, err := s.reservation.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get trimming appointment")
@@ -107,7 +107,7 @@ func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 	return appt, nil
 }
 
-func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Appointment, error) {
+func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error) {
 	status := model.ReservationStatusPending
 	if input.Status != "" {
 		status = input.Status
@@ -121,7 +121,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	// appointment → trimming_detail → options の3書き込みを単一トランザクションで実行する。
 	// 中間でエラーが発生した場合はロールバックされ、孤立レコードは残らない。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		appt := &model.Appointment{
+		appt := &model.Reservation{
 			ClinicID:          clinicID,
 			ReservationTypeID: input.ReservationTypeID,
 			StartTime:         input.StartTime,
@@ -165,13 +165,17 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 
 	slog.InfoContext(ctx, "trimming appointment created",
-		slog.Uint64("appointment_id", apptID),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("appointment_id", apptID))
 
 	return s.GetByID(ctx, clinicID, apptID)
 }
 
-func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Appointment, error) {
+func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
+	if _, err := s.reservation.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming appointment")
+	}
+
 	apptFields := map[string]any{}
 	if input.StartTime != nil {
 		apptFields["start_time"] = *input.StartTime
@@ -194,7 +198,7 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	// Create と対称なアトミック性を保証する。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if len(apptFields) > 0 {
-			if _, err := s.reservation.UpdateFields(txCtx, clinicID, id, apptFields); err != nil {
+			if _, err := s.reservation.Update(txCtx, clinicID, id, apptFields); err != nil {
 				return apperrors.Wrap(err, "failed to update trimming appointment")
 			}
 		}
@@ -211,13 +215,13 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 			detail.StyleRequest = *input.StyleRequest
 		}
 		if input.BodyWeight != nil {
-			detail.BodyWeight = *input.BodyWeight
+			detail.BodyWeight = input.BodyWeight
 		}
 		if input.BWUnit != nil {
 			detail.BWUnit = *input.BWUnit
 		}
 		if input.BodyTemperature != nil {
-			detail.BodyTemperature = *input.BodyTemperature
+			detail.BodyTemperature = input.BodyTemperature
 		}
 		if input.UsedShampoo != nil {
 			detail.UsedShampoo = *input.UsedShampoo
@@ -248,13 +252,16 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 
 	slog.InfoContext(ctx, "trimming appointment updated",
-		slog.Uint64("appointment_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("appointment_id", id))
 
 	return s.GetByID(ctx, clinicID, id)
 }
 
 func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.reservation.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find trimming appointment")
+	}
 	if err := s.reservation.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete trimming appointment")
 	}

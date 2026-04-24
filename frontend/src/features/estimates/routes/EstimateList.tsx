@@ -2,7 +2,7 @@ import { ICON, C } from "@/lib/design-tokens";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { useState, useMemo, useDeferredValue, useCallback, useTransition } from "react";
 import { useNavigate } from "react-router";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { useModalState } from "@/hooks/use-modal-state";
 import { usePagination } from "@/hooks/use-pagination";
 import { formatCurrency } from "@/utils/format/number";

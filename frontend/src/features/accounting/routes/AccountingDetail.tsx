@@ -22,7 +22,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Separator } from "@/components/ui/separator";
 
 // Shared Hooks
-import { useAuth, usePermission } from "@/features/auth";
+import { useAuth } from "@/hooks/use-auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
@@ -79,7 +80,8 @@ interface ItemListCardProps {
   onNewItemOpenChange: (open: boolean) => void;
   onAddItem: (name: string, price: string, category: string, taxRate?: number) => void;
   onDeleteItem: (id: string) => void;
-  billingId?: string;
+  /** 既存会計の ID（billing_id）。未設定の場合は新規作成モード */
+  accountingId?: string;
   onUpdateItemTax?: (itemId: string, taxType: TaxType, taxRate: number) => void;
   canEdit: boolean;
   canDelete: boolean;
@@ -106,7 +108,7 @@ const ItemListCard = memo(function ItemListCard({
   onNewItemOpenChange,
   onAddItem,
   onDeleteItem,
-  billingId,
+  accountingId,
   onUpdateItemTax,
   canEdit,
   canDelete,
@@ -168,7 +170,7 @@ const ItemListCard = memo(function ItemListCard({
             </div>
           </TableCell>
           <TableCell className="text-center">
-            {billingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
+            {accountingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
               <TaxTypeSelector
                 value={item.taxType}
                 onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
@@ -180,7 +182,7 @@ const ItemListCard = memo(function ItemListCard({
             )}
           </TableCell>
           <TableCell className="text-center">
-            {billingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
+            {accountingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
               <TaxRateSelector
                 value={item.taxRate}
                 onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
@@ -209,7 +211,7 @@ const ItemListCard = memo(function ItemListCard({
           </TableCell>
         </TableRow>
       )),
-    [items, billingId, onDeleteItem, onUpdateItemTax, canEdit, canDelete],
+    [items, accountingId, onDeleteItem, onUpdateItemTax, canEdit, canDelete],
   );
 
   return (
@@ -625,7 +627,8 @@ const PaymentCard = memo(function PaymentCard({
 
 // ── 返金セクション ──────────────────────────────────────
 interface RefundSectionProps {
-  billingId: string;
+  /** 会計 ID（バックエンドの billing_id に対応） */
+  accountingId: string;
   totalAmount: number;
   isRefunding: boolean;
   onRefund: (amount: number, reason: string) => void;
@@ -633,7 +636,7 @@ interface RefundSectionProps {
 }
 
 const RefundSection = memo(function RefundSection({
-  billingId,
+  accountingId,
   totalAmount,
   isRefunding,
   onRefund,
@@ -642,7 +645,7 @@ const RefundSection = memo(function RefundSection({
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState("");
   const [refundReason, setRefundReason] = useState("");
-  const { data: refunds = [] } = useGetRefunds(billingId);
+  const { data: refunds = [] } = useGetRefunds(accountingId);
 
   const totalRefunded = refunds.reduce((sum, r) => sum + r.amount, 0);
   const refundableAmount = totalAmount - totalRefunded;
@@ -1174,7 +1177,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               onNewItemOpenChange={setNewItemOpen}
               onAddItem={handleAddItem}
               onDeleteItem={handleDeleteItem}
-              billingId={id}
+              accountingId={id}
               onUpdateItemTax={handleUpdateItemTax}
               canEdit={canEdit}
               canDelete={canDelete}
@@ -1207,7 +1210,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
 
             {id && accounting.status === "completed" ? (
               <RefundSection
-                billingId={id}
+                accountingId={id}
                 totalAmount={accounting.payment?.totalAmount ?? 0}
                 isRefunding={isRefunding}
                 onRefund={handleRefund}

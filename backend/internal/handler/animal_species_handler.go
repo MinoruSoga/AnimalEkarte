@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +18,7 @@ func (h *Handler) ListAnimalSpecies(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toAnimalSpeciesResponseList(species))
+	c.JSON(http.StatusOK, mapSlice(species, toAnimalSpeciesResponse))
 }
 
 // GetAnimalSpecies godoc
@@ -51,6 +52,7 @@ func (h *Handler) CreateAnimalSpecies(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/animal-species/%d", species.ID))
 	c.JSON(http.StatusCreated, toAnimalSpeciesResponse(species))
 }
 
@@ -92,9 +94,10 @@ func (h *Handler) DeleteAnimalSpecies(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// ReorderAnimalSpecies godoc
+// ReorderAnimalSpecies は動物種マスタの表示順を更新する。
+// AnimalSpecies はシステム共通マスタ（clinic_id なし）のため clinicID パラメータは不要。
 func (h *Handler) ReorderAnimalSpecies(c *gin.Context) {
-	var req reorderAnimalSpeciesRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -103,5 +106,5 @@ func (h *Handler) ReorderAnimalSpecies(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }

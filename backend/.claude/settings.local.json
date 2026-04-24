@@ -1,0 +1,10 @@
+{
+  "disabledMcpjsonServers": [
+    "github",
+    "chrome-devtools",
+    "context7-mcp",
+    "postgresql",
+    "figma",
+    "notion"
+  ]
+}

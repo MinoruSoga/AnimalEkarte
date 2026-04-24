@@ -7,7 +7,7 @@ import { toast } from "sonner";
 // Shared modules
 import { handleApiError } from "@/lib/handle-api-error";
 import { C } from "@/lib/design-tokens";
-import { useAuth } from "@/features/auth";
+import { useAuth } from "@/hooks/use-auth";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Input } from "@/components/ui/input";

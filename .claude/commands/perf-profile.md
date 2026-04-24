@@ -15,7 +15,7 @@ docker compose exec backend go tool pprof http://localhost:6060/debug/pprof/prof
 
 ### Frontend Lighthouse
 ```bash
-docker compose exec frontend npm run lighthouse
+docker compose exec frontend ppnpm lighthouse
 ```
 
 ### 分析対象

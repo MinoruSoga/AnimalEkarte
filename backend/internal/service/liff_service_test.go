@@ -209,7 +209,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
-				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
 						{ID: 1, Name: "林先生", ReservationVisible: true},
 						{ID: 2, Name: "スタッフ山田", ReservationVisible: false}, // 非公開 → 除外
@@ -239,7 +239,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
-				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
 						{ID: 1, Name: "林先生", ReservationVisible: true},
 						{ID: 2, Name: "トリマー田中", ReservationVisible: true},
@@ -265,12 +265,12 @@ func TestLiffService_GetStaffs(t *testing.T) {
 		assert.Equal(t, uint64(1), got[0].ID)
 	})
 
-	t.Run("FindExcludedReservationTypesByStaffIDs がエラーを返す → エラー伝播", func(t *testing.T) {
+	t.Run("FindAllExcludedReservationTypesByStaffIDs がエラーを返す → エラー伝播", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
-				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
 				},
 				findExcludedReservationTypesByStaffIDsFn: func(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
@@ -324,9 +324,9 @@ func TestLiffService_CreateReservation(t *testing.T) {
 				},
 			},
 			&mockLiffValidators{
-				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Appointment, error) {
+				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Reservation, error) {
 					capturedStaffID = input.StaffID
-					return &model.Appointment{ID: 99, ClinicID: 3}, nil
+					return &model.Reservation{ID: 99, ClinicID: 3}, nil
 				},
 			},
 			&mockLiffNotifier{},
@@ -350,7 +350,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			},
 			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
-				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
 						{ID: 5, Name: "林先生", ReservationVisible: true},
 						{ID: 6, Name: "三井先生", ReservationVisible: true},
@@ -368,9 +368,9 @@ func TestLiffService_CreateReservation(t *testing.T) {
 				},
 			},
 			&mockLiffValidators{
-				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Appointment, error) {
+				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Reservation, error) {
 					assignedStaffID = input.StaffID
-					return &model.Appointment{ID: 1}, nil
+					return &model.Reservation{ID: 1}, nil
 				},
 			},
 			&mockLiffNotifier{},
@@ -398,7 +398,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			},
 			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
-				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
 						{ID: 5, Name: "林先生", ReservationVisible: true},
 						{ID: 6, Name: "三井先生", ReservationVisible: true},
@@ -410,9 +410,9 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByDayFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.Appointment, error) {
+				findByDayFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.Reservation, error) {
 					// ID=5（林先生）は 10:00-10:15 に既存予約あり
-					return []model.Appointment{
+					return []model.Reservation{
 						{
 							DoctorID:  &doctorID5,
 							StartTime: date.Add(10 * time.Hour),
@@ -428,9 +428,9 @@ func TestLiffService_CreateReservation(t *testing.T) {
 				},
 			},
 			&mockLiffValidators{
-				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Appointment, error) {
+				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Reservation, error) {
 					assignedStaffID = input.StaffID
-					return &model.Appointment{ID: 1}, nil
+					return &model.Reservation{ID: 1}, nil
 				},
 			},
 			&mockLiffNotifier{},
@@ -524,12 +524,12 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
 			&mockLiffReservationRepository{
-				updateFieldsFn: func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error) {
+				updateFieldsFn: func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 					assert.Equal(t, uint64(3), clinicID)
 					assert.Equal(t, uint64(77), id)
 					assert.Equal(t, uint64(200), fields["owner_id"])
 					assert.Equal(t, uint64(300), fields["pet_id"])
-					return &model.Appointment{ID: id, ClinicID: clinicID, OwnerID: ptrUint64(200), PetID: ptrUint64(300)}, nil
+					return &model.Reservation{ID: id, ClinicID: clinicID, OwnerID: ptrUint64(200), PetID: ptrUint64(300)}, nil
 				},
 			},
 			&mockLiffCustomerRepository{
@@ -570,8 +570,8 @@ func TestLiffService_CreateReservation(t *testing.T) {
 				},
 			},
 			&mockLiffValidators{
-				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Appointment, error) {
-					return &model.Appointment{ID: 77, ClinicID: input.ClinicID}, nil
+				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Reservation, error) {
+					return &model.Reservation{ID: 77, ClinicID: input.ClinicID}, nil
 				},
 			},
 			&mockLiffNotifier{},
@@ -606,7 +606,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			},
 			&mockLiffValidators{},
 			&mockLiffNotifier{
-				notifyCreatedFn: func(_ context.Context, _ *model.Appointment, _ *model.LineCustomer) {
+				notifyCreatedFn: func(_ context.Context, _ *model.Reservation, _ *model.LineCustomer) {
 					notifyCh <- struct{}{}
 				},
 			},
@@ -637,7 +637,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			&mockLiffAdminRepository{},
 			&mockLiffCustomerRepository{},
 			&mockLiffValidators{
-				validateAndCreateFn: func(_ context.Context, _ *CreateReservationInput) (*model.Appointment, error) {
+				validateAndCreateFn: func(_ context.Context, _ *CreateReservationInput) (*model.Reservation, error) {
 					return nil, limitErr
 				},
 			},
@@ -661,14 +661,14 @@ func TestLiffService_GetMyReservations(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: 顧客の予約一覧を返す", func(t *testing.T) {
-		want := []model.Appointment{{ID: 1, ClinicID: 3}, {ID: 2, ClinicID: 3}}
+		want := []model.Reservation{{ID: 1, ClinicID: 3}, {ID: 2, ClinicID: 3}}
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByCustomerIDFn: func(_ context.Context, clinicID, customerID uint64) ([]model.Appointment, error) {
+				findByCustomerIDFn: func(_ context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
 					assert.Equal(t, uint64(3), clinicID)
 					assert.Equal(t, uint64(1), customerID)
 					return want, nil
@@ -691,7 +691,7 @@ func TestLiffService_GetMyReservations(t *testing.T) {
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByCustomerIDFn: func(_ context.Context, _, _ uint64) ([]model.Appointment, error) {
+				findByCustomerIDFn: func(_ context.Context, _, _ uint64) ([]model.Reservation, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -720,8 +720,8 @@ func TestLiffService_CancelReservation(t *testing.T) {
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Appointment, error) {
-					return &model.Appointment{ID: 10, ClinicID: 3}, nil
+				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+					return &model.Reservation{ID: 10, ClinicID: 3}, nil
 				},
 				cancelByIDFn: func(_ context.Context, clinicID, customerID, id uint64) error {
 					cancelCalled = true
@@ -738,7 +738,7 @@ func TestLiffService_CancelReservation(t *testing.T) {
 			},
 			&mockLiffValidators{},
 			&mockLiffNotifier{
-				notifyCancelledFn: func(_ context.Context, _ *model.Appointment, _ *model.LineCustomer) {},
+				notifyCancelledFn: func(_ context.Context, _ *model.Reservation, _ *model.LineCustomer) {},
 			},
 		)
 
@@ -754,7 +754,7 @@ func TestLiffService_CancelReservation(t *testing.T) {
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 					return nil, apperrors.ErrNotFound
 				},
 				cancelByIDFn: func(_ context.Context, _, _, _ uint64) error {
@@ -779,8 +779,8 @@ func TestLiffService_CancelReservation(t *testing.T) {
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Appointment, error) {
-					return &model.Appointment{ID: 10}, nil
+				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+					return &model.Reservation{ID: 10}, nil
 				},
 				cancelByIDFn: func(_ context.Context, _, _, _ uint64) error { return nil },
 			},
@@ -791,7 +791,7 @@ func TestLiffService_CancelReservation(t *testing.T) {
 			},
 			&mockLiffValidators{},
 			&mockLiffNotifier{
-				notifyCancelledFn: func(_ context.Context, _ *model.Appointment, _ *model.LineCustomer) {
+				notifyCancelledFn: func(_ context.Context, _ *model.Reservation, _ *model.LineCustomer) {
 					notifyCh <- struct{}{}
 				},
 			},
@@ -823,7 +823,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		staffID   uint64
 		startMin  int
 		endMin    int
-		dayResv   []model.Appointment
+		dayResv   []model.Reservation
 		wantAvail bool
 	}{
 		{
@@ -835,7 +835,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		{
 			name:    "完全に重複する予約あり → 埋まり",
 			staffID: 1, startMin: 600, endMin: 615,
-			dayResv: []model.Appointment{
+			dayResv: []model.Reservation{
 				{DoctorID: &doctorID, StartTime: base.Add(10 * time.Hour), EndTime: base.Add(10*time.Hour + 15*time.Minute), Status: model.ReservationStatusConfirmed},
 			},
 			wantAvail: false,
@@ -843,7 +843,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		{
 			name:    "キャンセル済みの予約は無視",
 			staffID: 1, startMin: 600, endMin: 615,
-			dayResv: []model.Appointment{
+			dayResv: []model.Reservation{
 				{DoctorID: &doctorID, StartTime: base.Add(10 * time.Hour), EndTime: base.Add(10*time.Hour + 15*time.Minute), Status: model.ReservationStatusCancelled},
 			},
 			wantAvail: true,
@@ -851,7 +851,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		{
 			name:    "別スタッフの予約は無視",
 			staffID: 1, startMin: 600, endMin: 615,
-			dayResv: []model.Appointment{
+			dayResv: []model.Reservation{
 				{DoctorID: &otherDoctorID, StartTime: base.Add(10 * time.Hour), EndTime: base.Add(10*time.Hour + 15*time.Minute), Status: model.ReservationStatusConfirmed},
 			},
 			wantAvail: true,
@@ -859,7 +859,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		{
 			name:    "直前に終わる予約は重複しない",
 			staffID: 1, startMin: 615, endMin: 630,
-			dayResv: []model.Appointment{
+			dayResv: []model.Reservation{
 				{DoctorID: &doctorID, StartTime: base.Add(10 * time.Hour), EndTime: base.Add(10*time.Hour + 15*time.Minute), Status: model.ReservationStatusConfirmed},
 			},
 			wantAvail: true,
@@ -867,7 +867,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		{
 			name:    "直後から始まる予約は重複しない",
 			staffID: 1, startMin: 575, endMin: 600,
-			dayResv: []model.Appointment{
+			dayResv: []model.Reservation{
 				{DoctorID: &doctorID, StartTime: base.Add(10 * time.Hour), EndTime: base.Add(10*time.Hour + 15*time.Minute), Status: model.ReservationStatusConfirmed},
 			},
 			wantAvail: true,

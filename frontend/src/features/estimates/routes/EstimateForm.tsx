@@ -24,7 +24,7 @@ import { FormFieldError } from '@/components/shared/FormFieldError';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useGetEstimate } from '../api/get-estimate';
 import { useEstimateForm } from '../hooks/use-estimate-form';
-import { usePermission } from '@/features/auth';
+import { usePermission } from "@/hooks/use-permission";
 import type { EstimateStatus } from '../types';
 import { ResourceEstimates } from "@/types/generated/models";
 

@@ -1,7 +1,7 @@
 package handler
 
 type createTreatmentRequest struct {
-	ItemType       string  `json:"item_type"       binding:"required"`
+	ItemType       string  `json:"item_type"       binding:"required,oneof=consultation procedure medicine other"`
 	ConsultationID *uint64 `json:"consultation_id"`
 	ProcedureID    *uint64 `json:"procedure_id"`
 	MedicineID     *uint64 `json:"medicine_id"`
@@ -9,7 +9,7 @@ type createTreatmentRequest struct {
 	UnitPrice      int64   `json:"unit_price"`
 	Quantity       float64 `json:"quantity"`
 	IsSelected     bool    `json:"is_selected"`
-	Status         string  `json:"status"`
+	Status         string  `json:"status"          binding:"omitempty,oneof=pending completed not_applicable"`
 	Content        string  `json:"content"`
 	Memo           string  `json:"memo"`
 	AdminRoute     string  `json:"admin_route"`
@@ -20,7 +20,7 @@ type createTreatmentRequest struct {
 }
 
 type updateTreatmentRequest struct {
-	ItemType       *string  `json:"item_type"`
+	ItemType       *string  `json:"item_type"       binding:"omitempty,oneof=consultation procedure medicine other"`
 	ConsultationID *uint64  `json:"consultation_id"`
 	ProcedureID    *uint64  `json:"procedure_id"`
 	MedicineID     *uint64  `json:"medicine_id"`
@@ -28,7 +28,7 @@ type updateTreatmentRequest struct {
 	UnitPrice      *int64   `json:"unit_price"`
 	Quantity       *float64 `json:"quantity"`
 	IsSelected     *bool    `json:"is_selected"`
-	Status         *string  `json:"status"`
+	Status         *string  `json:"status"          binding:"omitempty,oneof=pending completed not_applicable"`
 	Content        *string  `json:"content"`
 	Memo           *string  `json:"memo"`
 	AdminRoute     *string  `json:"admin_route"`

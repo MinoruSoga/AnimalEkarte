@@ -13,13 +13,13 @@ import (
 
 // mockPetRepository は PetRepository のテスト用モック実装
 type mockPetRepository struct {
-	findAllFn                func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
-	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
-	countByOwnerFn           func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	countByAnimalSpeciesIDFn func(ctx context.Context, speciesID uint64) (int64, error)
-	createFn                 func(ctx context.Context, pet *model.Pet) error
-	updateFn                 func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
+	findAllFn                     func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
+	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	countByOwnerFn                func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	countUsageByAnimalSpeciesIDFn func(ctx context.Context, speciesID uint64) (int64, error)
+	createFn                      func(ctx context.Context, pet *model.Pet) error
+	updateFn                      func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockPetRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
@@ -27,7 +27,10 @@ func (m *mockPetRepository) FindAll(ctx context.Context, clinicID uint64, ownerI
 }
 
 func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockPetRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
@@ -37,9 +40,9 @@ func (m *mockPetRepository) CountByOwner(ctx context.Context, clinicID, ownerID 
 	return 0, nil
 }
 
-func (m *mockPetRepository) CountByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {
-	if m.countByAnimalSpeciesIDFn != nil {
-		return m.countByAnimalSpeciesIDFn(ctx, speciesID)
+func (m *mockPetRepository) CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {
+	if m.countUsageByAnimalSpeciesIDFn != nil {
+		return m.countUsageByAnimalSpeciesIDFn(ctx, speciesID)
 	}
 	return 0, nil
 }
@@ -468,6 +471,9 @@ func TestPetService_Update(t *testing.T) {
 			id:       999,
 			input: UpdatePetInput{
 				Name: ptrString("存在しないペット"),
+			},
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+				return nil, apperrors.WrapNotFound("pet", "999")
 			},
 			updateErr: apperrors.WrapNotFound("pet", "999"),
 			wantErr:   true,

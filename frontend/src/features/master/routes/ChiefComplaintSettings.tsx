@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useEffect } from "react";
 import { MessageSquareText } from "lucide-react";
+import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -7,16 +8,16 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow, StatusToggleButton, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
-import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
-import { useMasterSave } from "@/features/master/hooks/use-master-save";
-import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import { useGetChiefComplaintTypes, useCreateChiefComplaintType, useUpdateChiefComplaintType, useDeleteChiefComplaintType } from "@/features/master/api/chief-complaint-types";
+import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "../constants/styles";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
+import { useGetChiefComplaintTypes, useCreateChiefComplaintType, useUpdateChiefComplaintType, useDeleteChiefComplaintType } from "../api/chief-complaint-types";
 import type {
   ChiefComplaintType,
   CreateChiefComplaintTypeRequest,
   UpdateChiefComplaintTypeRequest,
-} from "@/features/master/api/chief-complaint-types";
+} from "../api/chief-complaint-types";
 import { ResourceMasterMedical } from "@/types/generated/models";
 
 const COLUMNS = [
@@ -92,6 +93,7 @@ const SidePanel = memo(function SidePanel({
 });
 
 export function ChiefComplaintSettings() {
+  usePermission(ResourceMasterMedical);
   const { data } = useGetChiefComplaintTypes();
   const createMutation = useCreateChiefComplaintType();
   const updateMutation = useUpdateChiefComplaintType();

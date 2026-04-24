@@ -5,34 +5,20 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { PermissionGroup as ModelPermissionGroup } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Request types
+// Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export interface CreatePermissionGroupRequest {
-  name: string;
-  description?: string;
-  color: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
+type PermissionGroupRequestBase = Omit<
+  ModelPermissionGroup,
+  "id" | "clinic_id" | "created_at" | "updated_at" | "rules" | "staffs"
+>;
 
-export interface UpdatePermissionGroupRequest {
-  name?: string;
-  description?: string;
-  color?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
+export type CreatePermissionGroupRequest = Pick<PermissionGroupRequestBase, "name" | "color"> &
+  Partial<Omit<PermissionGroupRequestBase, "name" | "color">>;
 
-export interface SetPermissionGroupRulesRequest {
-  rules: Array<{
-    resource: string;
-    can_view: boolean;
-    can_create: boolean;
-    can_edit: boolean;
-    can_delete: boolean;
-  }>;
-}
+export type UpdatePermissionGroupRequest = Partial<PermissionGroupRequestBase>;
+
+export type UpdatePermissionGroupRulesRequest = Pick<ModelPermissionGroup, "rules">;
 
 // ─────────────────────────────────────────────────
 // Transform
@@ -100,9 +86,9 @@ async function deletePermissionGroup(id: string): Promise<void> {
   await axios.delete(`/v1/masters/permission-groups/${id}`);
 }
 
-async function setPermissionGroupRules(
+async function updatePermissionGroupRules(
   id: string,
-  req: SetPermissionGroupRulesRequest,
+  req: UpdatePermissionGroupRulesRequest,
 ): Promise<PermissionGroup> {
   const { data } = await axios.put<ModelPermissionGroup>(
     `/v1/masters/permission-groups/${id}/rules`,
@@ -164,11 +150,11 @@ export function useDeletePermissionGroup() {
   });
 }
 
-export function useSetPermissionGroupRules() {
+export function useUpdatePermissionGroupRules() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: SetPermissionGroupRulesRequest }) =>
-      setPermissionGroupRules(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdatePermissionGroupRulesRequest }) =>
+      updatePermissionGroupRules(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PERMISSION_GROUPS_QUERY_KEY });
     },

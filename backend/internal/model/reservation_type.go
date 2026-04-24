@@ -2,6 +2,8 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // ReservationDayOption defines which weekdays a service type is available for LINE reservation.
@@ -32,15 +34,16 @@ const (
 
 // ReservationType はサービス種別（予約区分）マスタ
 type ReservationType struct {
-	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`
-	Name        string    `gorm:"not null"                                       json:"name"`
-	IsActive    bool      `gorm:"default:true"                                   json:"is_active"`
-	Description string    `gorm:"default:''"                              json:"description"`
-	Color       string    `gorm:"default:'#3B82F6'"                              json:"color"`
-	SortOrder   int       `gorm:"type:integer;default:0"                         json:"sort_order"`
-	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID          uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID    uint64         `gorm:"not null"                                       json:"clinic_id"`
+	Name        string         `gorm:"not null"                                       json:"name"`
+	IsActive    bool           `gorm:"default:true"                                   json:"is_active"`
+	Description string         `gorm:"default:''"                              json:"description"`
+	Color       string         `gorm:"default:'#3B82F6'"                              json:"color"`
+	SortOrder   int            `gorm:"type:integer;default:0"                         json:"sort_order"`
+	CreatedAt   time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt   time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `                                                      json:"-"`
 
 	// LINE予約用フィールド
 	ReservationDisplayName string               `gorm:"not null;default:''"                    json:"reservation_display_name"`

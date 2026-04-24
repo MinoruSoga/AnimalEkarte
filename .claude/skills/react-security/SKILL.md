@@ -104,8 +104,8 @@ let authToken: string | null = null
 ### 5. Dependency チェック
 
 ```bash
-docker compose exec frontend npm audit
-docker compose exec frontend npm audit --production
+docker compose exec frontend ppnpm audit
+docker compose exec frontend ppnpm audit --production
 ```
 
 **脆弱性対応:**
@@ -170,7 +170,7 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
 - [ ] リフレッシュトークンメカニズム
 
 ### 依存関係
-- [ ] npm audit 実行
+- [ ] ppnpm audit 実行
 - [ ] 脆弱性パッチ適用
 - [ ] 定期更新スケジュール
 
@@ -195,7 +195,7 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
 
 ### 🟡 Medium Issues
 - Missing CSP headers
-- npm audit warnings: 2
+- ppnpm audit warnings: 2
 
 ### ✅ Passed
 - XSS protection: ✅

@@ -28,7 +28,7 @@ function transformInventoryItem(data: BackendInventoryItem): InventoryItem {
   };
 }
 
-export function useInventory({
+export function useInventoryList({
   searchTerm,
   category = "all",
   statusFilter = "all",

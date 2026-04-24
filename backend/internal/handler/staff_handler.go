@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -11,6 +12,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// staffListMaxLimit は全スタッフ一括取得の上限。スタッフ数は現実的に数十〜数百名程度のため全件返却で問題ない。
+const staffListMaxLimit = 1000
 
 // ---- Staff ----
 
@@ -24,12 +28,12 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 
 	// NOTE: pagination パラメータは無視（全件返却）
 	// 将来的にページネーション対応が必要な場合は、別エンドポイント化を検討
-	staffs, _, err := h.svc.Staff.List(c.Request.Context(), clinicID, 1, 1000)
+	staffs, _, err := h.svc.Staff.List(c.Request.Context(), clinicID, 1, staffListMaxLimit)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toStaffResponseList(staffs))
+	c.JSON(http.StatusOK, mapSlice(staffs, toStaffResponse))
 }
 
 // CreateStaff godoc
@@ -48,24 +52,12 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// BUG-145: email が指定されている場合は重複チェックを行い、Account を作成してスタッフに紐づける。
-	// Account 作成・bcrypt ハッシュ化はすべて StaffService.CreateWithAccount に委譲する。
+	// Account 作成・bcrypt ハッシュ化・パスワードバリデーションはすべて StaffService に委譲する。
 	email := strings.TrimSpace(req.Email)
 	var staff *model.Staff
 	var err error
 
 	if email != "" {
-		if req.Password == "" {
-			RespondError(c, apperrors.WrapInvalidInput("password is required when email is provided"))
-			return
-		}
-		if err := validatePassword(req.Password); err != nil {
-			RespondError(c, err)
-			return
-		}
-		reservationVisible := true
-		if req.ReservationVisible != nil {
-			reservationVisible = *req.ReservationVisible
-		}
 		staff, err = h.svc.Staff.CreateWithAccount(ctx, &service.CreateStaffWithAccountInput{
 			ClinicID:               clinicID,
 			Name:                   req.Name,
@@ -76,15 +68,11 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 			Password:               req.Password,
 			StaffType:              req.StaffType,
 			ReservationDisplayName: req.ReservationDisplayName,
-			ReservationVisible:     reservationVisible,
+			ReservationVisible:     req.ReservationVisible,
 			ReservationComment:     req.ReservationComment,
 			ReservationImageURL:    req.ReservationImageURL,
 		})
 	} else {
-		reservationVisible := true
-		if req.ReservationVisible != nil {
-			reservationVisible = *req.ReservationVisible
-		}
 		staff, err = h.svc.Staff.Create(ctx, &service.CreateStaffInput{
 			ClinicID:               clinicID,
 			Name:                   req.Name,
@@ -93,7 +81,7 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 			SortOrder:              req.SortOrder,
 			StaffType:              req.StaffType,
 			ReservationDisplayName: req.ReservationDisplayName,
-			ReservationVisible:     reservationVisible,
+			ReservationVisible:     req.ReservationVisible,
 			ReservationComment:     req.ReservationComment,
 			ReservationImageURL:    req.ReservationImageURL,
 		})
@@ -103,20 +91,11 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 		return
 	}
 
-	// BUG-153: 現在のクリニックに自動割り当て
-	if asgErr := h.svc.StaffClinicAssignment.Create(ctx, &model.StaffClinicAssignment{
-		StaffID:  staff.ID,
-		ClinicID: clinicID,
-		IsMain:   true,
-	}); asgErr != nil {
-		RespondError(c, apperrors.Wrap(asgErr, "failed to assign staff to clinic"))
-		return
-	}
-
 	// NOTE: Best-effort reload for Preload data. Create already succeeded.
 	if reloaded, reloadErr := h.svc.Staff.GetByID(ctx, staff.ID); reloadErr == nil {
 		staff = reloaded
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/staffs/%d", staff.ID))
 	c.JSON(http.StatusCreated, toStaffResponse(staff))
 }
 
@@ -136,58 +115,22 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 		return
 	}
 
-	// パスワードのみの更新かどうかを判定（BUG-131）
-	hasProfileUpdate := req.Name != nil || req.LicenseNumber != nil || req.OccupationID != nil || req.SortOrder != nil || req.IsActive != nil ||
-		req.StaffType != nil || req.ReservationDisplayName != nil || req.ReservationVisible != nil || req.ReservationComment != nil || req.ReservationImageURL != nil
-	hasPasswordUpdate := req.Password != nil && *req.Password != ""
-
-	if !hasProfileUpdate && !hasPasswordUpdate {
-		RespondError(c, apperrors.WrapInvalidInput("at least one field must be provided"))
+	staff, err := h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
+		Name:                   req.Name,
+		LicenseNumber:          req.LicenseNumber,
+		OccupationID:           req.OccupationID,
+		SortOrder:              req.SortOrder,
+		IsActive:               req.IsActive,
+		Password:               req.Password,
+		StaffType:              req.StaffType,
+		ReservationDisplayName: req.ReservationDisplayName,
+		ReservationVisible:     req.ReservationVisible,
+		ReservationComment:     req.ReservationComment,
+		ReservationImageURL:    req.ReservationImageURL,
+	})
+	if err != nil {
+		RespondError(c, err)
 		return
-	}
-
-	var staff *model.Staff
-	if hasProfileUpdate {
-		var svcErr error
-		staff, svcErr = h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
-			Name:                   req.Name,
-			LicenseNumber:          req.LicenseNumber,
-			OccupationID:           req.OccupationID,
-			SortOrder:              req.SortOrder,
-			IsActive:               req.IsActive,
-			StaffType:              req.StaffType,
-			ReservationDisplayName: req.ReservationDisplayName,
-			ReservationVisible:     req.ReservationVisible,
-			ReservationComment:     req.ReservationComment,
-			ReservationImageURL:    req.ReservationImageURL,
-		})
-		if svcErr != nil {
-			RespondError(c, svcErr)
-			return
-		}
-	} else {
-		// パスワードのみ更新の場合、既存スタッフを取得
-		var findErr error
-		staff, findErr = h.svc.Staff.GetByID(c.Request.Context(), id)
-		if findErr != nil {
-			RespondError(c, findErr)
-			return
-		}
-	}
-
-	// パスワード変更（任意）: password フィールドが送信された場合のみ
-	// bcrypt ハッシュ化・Account 更新は StaffService.UpdatePassword に委譲する。
-	if hasPasswordUpdate {
-		if err := validatePassword(*req.Password); err != nil {
-			RespondError(c, err)
-			return
-		}
-		if staff.AccountID != nil {
-			if updErr := h.svc.Staff.UpdatePassword(c.Request.Context(), *staff.AccountID, *req.Password); updErr != nil {
-				RespondError(c, updErr)
-				return
-			}
-		}
 	}
 
 	c.JSON(http.StatusOK, toStaffResponse(staff))
@@ -267,9 +210,7 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
-	var req struct {
-		GroupIDs []uint64 `json:"group_ids"`
-	}
+	var req setStaffPermissionGroupsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -298,14 +239,14 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
-	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(c.Request.Context(), id)
+	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 	clinicIDs := make([]uint64, 0, len(assignments))
-	for _, a := range assignments {
-		clinicIDs = append(clinicIDs, a.ClinicID)
+	for i := range assignments {
+		clinicIDs = append(clinicIDs, assignments[i].ClinicID)
 	}
 	c.JSON(http.StatusOK, gin.H{"clinic_ids": clinicIDs})
 }
@@ -324,9 +265,7 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
-	var req struct {
-		ClinicIDs []uint64 `json:"clinic_ids"`
-	}
+	var req setStaffClinicAssignmentsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -379,9 +318,7 @@ func (h *Handler) SetStaffExcludedReservationTypes(c *gin.Context) {
 	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
-	var req struct {
-		ReservationTypeIDs []uint64 `json:"reservation_type_ids"`
-	}
+	var req setStaffExcludedReservationTypesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -402,7 +339,7 @@ func (h *Handler) ReorderStaffs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderStaffRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -411,7 +348,7 @@ func (h *Handler) ReorderStaffs(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // RegisterMasterRoutes はマスタ関連の全ルートを登録する（BUG-122: RBAC権限チェック適用）
@@ -492,6 +429,14 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.GET("/reservation-types/:id", h.GetReservationType)
 	masters.PATCH("/reservation-types/:id", perm(model.ResourceMasterReservationType, "edit"), h.UpdateReservationType)
 	masters.DELETE("/reservation-types/:id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteReservationType)
+	// 予約不可時間
+	masters.GET("/reservation-types/:id/unavailable-times", h.ListUnavailableTimes)
+	masters.POST("/reservation-types/:id/unavailable-times", perm(model.ResourceMasterReservationType, "edit"), h.CreateUnavailableTime)
+	masters.DELETE("/reservation-types/:id/unavailable-times/:unavailable_time_id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteUnavailableTime)
+	// 職種紐付け
+	masters.GET("/reservation-types/:id/occupations", h.ListReservationTypeOccupations)
+	masters.POST("/reservation-types/:id/occupations", perm(model.ResourceMasterReservationType, "edit"), h.LinkReservationTypeOccupation)
+	masters.DELETE("/reservation-types/:id/occupations/:occupation_id", perm(model.ResourceMasterReservationType, "delete"), h.UnlinkReservationTypeOccupation)
 
 	// Consultations
 	masters.GET("/consultations", h.ListConsultations)
@@ -551,6 +496,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	// Diagnosis Names
 	masters.GET("/diagnosis-names", h.ListDiagnosisNames)
+	masters.GET("/diagnosis-names/all", h.ListDiagnosisNamesAll)
 	masters.POST("/diagnosis-names", perm(model.ResourceMasterMedical, "create"), h.CreateDiagnosisName)
 	masters.PATCH("/diagnosis-names/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderDiagnosisNames)
 	masters.GET("/diagnosis-names/:id", h.GetDiagnosisName)
@@ -577,7 +523,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.GET("/permission-groups", h.ListPermissionGroups)
 	masters.GET("/permission-groups/:id", h.GetPermissionGroup)
 	masters.POST("/permission-groups", perm(model.ResourceMasterPermission, "create"), h.CreatePermissionGroup)
-	masters.PATCH("/permission-groups", perm(model.ResourceMasterPermission, "edit"), h.ReorderPermissionGroups)
+	masters.PATCH("/permission-groups/reorder", perm(model.ResourceMasterPermission, "edit"), h.ReorderPermissionGroups)
 	masters.PATCH("/permission-groups/:id", perm(model.ResourceMasterPermission, "edit"), h.UpdatePermissionGroup)
 	masters.DELETE("/permission-groups/:id", perm(model.ResourceMasterPermission, "delete"), h.DeletePermissionGroup)
 	masters.PUT("/permission-groups/:id/rules", perm(model.ResourceMasterPermission, "edit"), h.SetPermissionGroupRules)
@@ -585,6 +531,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// Chief Complaint Categories
 	masters.GET("/chief-complaint-types", h.ListChiefComplaints)
 	masters.POST("/chief-complaint-types", perm(model.ResourceMasterMedical, "create"), h.CreateChiefComplaint)
+	masters.PATCH("/chief-complaint-types/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderChiefComplaints)
 	masters.GET("/chief-complaint-types/:id", h.GetChiefComplaint)
 	masters.PATCH("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateChiefComplaint)
 	masters.DELETE("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteChiefComplaint)
@@ -592,6 +539,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// Inquiry Templates
 	masters.GET("/inquiry-templates", h.ListInquiryTemplates)
 	masters.POST("/inquiry-templates", perm(model.ResourceMasterMedical, "create"), h.CreateInquiryTemplate)
+	masters.PATCH("/inquiry-templates/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderInquiryTemplates)
 	masters.GET("/inquiry-templates/:id", h.GetInquiryTemplate)
 	masters.PATCH("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateInquiryTemplate)
 	masters.DELETE("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteInquiryTemplate)
@@ -599,7 +547,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// Merchandise Items
 	masters.GET("/merchandise-items", h.ListMerchandiseItems)
 	masters.POST("/merchandise-items", perm(model.ResourceMasterMerchandise, "create"), h.CreateMerchandiseItem)
-	masters.POST("/merchandise-items/reorder", perm(model.ResourceMasterMerchandise, "edit"), h.ReorderMerchandiseItems)
+	masters.PATCH("/merchandise-items/reorder", perm(model.ResourceMasterMerchandise, "edit"), h.ReorderMerchandiseItems)
 	masters.GET("/merchandise-items/:id", h.GetMerchandiseItem)
 	masters.PATCH("/merchandise-items/:id", perm(model.ResourceMasterMerchandise, "edit"), h.UpdateMerchandiseItem)
 	masters.DELETE("/merchandise-items/:id", perm(model.ResourceMasterMerchandise, "delete"), h.DeleteMerchandiseItem)

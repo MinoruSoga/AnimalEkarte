@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -10,9 +10,9 @@ up:
 
 # node_modules をホストにコピー（IDE補完用・初回 or package.json 変更時のみ実行）
 sync-modules:
-	docker compose exec -T frontend npm install
+	docker compose exec -T frontend pnpm install
 	docker compose cp frontend:/app/node_modules ./frontend/
-	docker compose cp frontend:/app/package-lock.json ./frontend/
+	docker compose cp frontend:/app/pnpm-lock.yaml ./frontend/
 
 # 起動（ビルド付き）
 build:
@@ -47,10 +47,45 @@ clean:
 	docker compose down --rmi local --volumes --remove-orphans
 	docker compose build --no-cache
 
-# 完全リセット（データ含む）
+# 完全リセット（スキーマ・シーダー含む）
+# 環境ファイルから DB_USER を読み込み（デフォルト: postgres）
 reset:
+	@echo "🔄 Resetting database..."
 	docker compose down -v
 	docker compose up -d --build
+	@echo "⏳ Waiting for database to be ready..."
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if docker compose exec -T db pg_isready > /dev/null 2>&1; then \
+			echo "✓ Database is ready"; \
+			break; \
+		fi; \
+		if [ $$i -eq 10 ]; then echo "✗ Database startup timeout"; exit 1; fi; \
+		echo "Retrying... ($$i/10)"; \
+		sleep 2; \
+	done
+	@echo "⏳ Waiting for backend to be ready..."
+	@for i in 1 2 3 4 5; do \
+		if docker compose exec -T backend wget -qO- http://localhost:8080/health > /dev/null 2>&1; then \
+			echo "✓ Backend is ready"; \
+			break; \
+		fi; \
+		if [ $$i -eq 5 ]; then echo "✗ Backend startup timeout"; exit 1; fi; \
+		echo "Retrying... ($$i/5)"; \
+		sleep 2; \
+	done
+	@echo "⏳ Running migrations and seeding..."
+	docker compose exec -T backend go run ./cmd/migrate
+	@echo "✓ Reset complete — all migrations and seed data applied"
+
+# マイグレーション適用（差分のみ・DBは落とさない）
+migrate:
+	docker compose exec -T backend sh -c "go run ./cmd/migrate"
+	@echo "✓ Migrations applied"
+
+# シーダー適用（マイグレーションと同じコマンド — seed は SQL ファイルとして管理されているため差分のみ適用）
+seed:
+	docker compose exec -T backend sh -c "go run ./cmd/migrate"
+	@echo "✓ Seed data applied"
 
 # バックエンドのみ再起動
 restart-api:
@@ -94,15 +129,15 @@ test-cover:
 
 # リンター実行（フロントエンド）
 lint-front:
-	docker compose exec frontend npm run lint
+	docker compose exec frontend pnpm run lint
 
 # テスト実行（フロントエンド）
 test-front:
-	docker compose exec frontend npm run test:run
+	docker compose exec frontend pnpm run test:run
 
 # フロントエンドビルド
 build-front:
-	docker compose exec frontend npm run build
+	docker compose exec frontend pnpm run build
 
 # 型定義生成（Go model → TypeScript型）
 # backend/internal/model/*.go が single source of truth
@@ -133,22 +168,25 @@ mod-tidy:
 # CI と同等のチェックをローカル Docker で実行
 # 実行前に make up でコンテナを起動しておくこと
 ci-local:
-	@echo "=== [1/6] Backend: build ==="
+	@echo "=== [1/7] Backend: build ==="
 	docker compose exec backend go build ./...
-	@echo "=== [2/6] Backend: test ==="
+	@echo "=== [2/7] Backend: test ==="
 	docker compose exec backend go test ./... -count=1 -race -timeout 120s
-	@echo "=== [3/6] Backend: lint ==="
+	@echo "=== [3/7] Backend: lint ==="
 	docker run --rm \
 		-v $(PWD)/backend:/app \
 		-w /app \
 		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) \
 		golangci-lint run
-	@echo "=== [4/6] Backend: schema drift ==="
+	@echo "=== [4/7] Backend: schema drift ==="
 	docker compose exec backend go test ./internal/model/ -run TestSchemaDrift -v
-	@echo "=== [5/6] Frontend: lint ==="
-	docker compose exec frontend npm run lint
-	@echo "=== [6/6] Frontend: build ==="
-	docker compose exec frontend npm run build
+	@echo "=== [5/7] Codegen: sync check ==="
+	$(MAKE) codegen
+	git diff --exit-code frontend/src/types/generated/ || (echo "ERROR: models.ts is out of sync. Commit the updated file." && exit 1)
+	@echo "=== [6/7] Frontend: lint ==="
+	docker compose exec frontend pnpm run lint
+	@echo "=== [7/7] Frontend: build ==="
+	docker compose exec frontend pnpm run build
 	@echo ""
 	@echo "✓ All CI checks passed"
 
@@ -174,7 +212,9 @@ help:
 	@echo "  ps            コンテナ状態確認"
 	@echo "  db            DB接続（psql）"
 	@echo "  clean         キャッシュクリア＆再ビルド"
-	@echo "  reset         完全リセット（データ削除）"
+	@echo "  reset         完全リセット（ボリューム削除→マイグレーション＋シーダー全適用）"
+	@echo "  migrate       差分マイグレーションのみ適用（DBは落とさない）"
+	@echo "  seed          シーダーのみ適用（差分のみ・べき等）"
 	@echo "  restart-api   API再起動"
 	@echo "  restart-front フロントエンド再起動"
 	@echo "  build-prod    本番ビルド"

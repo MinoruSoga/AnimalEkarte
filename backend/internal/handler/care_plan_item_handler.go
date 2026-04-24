@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -73,6 +74,7 @@ func (h *Handler) CreateCarePlanItem(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/care-plan-items/%d", hospitalizationID, item.ID))
 	c.JSON(http.StatusCreated, toCarePlanItemResponse(item))
 }
 

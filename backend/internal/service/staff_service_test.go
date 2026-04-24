@@ -55,71 +55,36 @@ func (m *mockStaffRepository) Reorder(_ context.Context, _ uint64, _ []uint64) e
 	return m.reorderErr
 }
 
-// mockReservationForStaff は Staff テストで使用する ReservationRepository のスタブ
+// mockReservationForStaff は Staff テストで使用する ReservationQueryRepository のスタブ
 type mockReservationForStaff struct {
-	existsByStaffIDFn func(ctx context.Context, staffID uint64) (bool, error)
+	existsByStaffIDFn func(ctx context.Context, clinicID, staffID uint64) (bool, error)
 }
 
-func (m *mockReservationForStaff) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Appointment, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockReservationForStaff) FindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
-	return nil, nil
-}
-func (m *mockReservationForStaff) Create(_ context.Context, _ *model.Appointment) error {
-	return nil
-}
-func (m *mockReservationForStaff) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Appointment, error) {
-	return nil, nil
-}
-func (m *mockReservationForStaff) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *mockReservationForStaff) ExistsByReservationTypeID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockReservationForStaff) ExistsByReservationTypeID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
-func (m *mockReservationForStaff) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+func (m *mockReservationForStaff) ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error) {
 	if m.existsByStaffIDFn != nil {
-		return m.existsByStaffIDFn(ctx, staffID)
+		return m.existsByStaffIDFn(ctx, clinicID, staffID)
 	}
 	return false, nil
 }
-
 func (m *mockReservationForStaff) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }
-
-func (m *mockReservationForStaff) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
-	return nil, nil
-}
-
-func (m *mockReservationForStaff) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
-	return false, nil
-}
-
-func (m *mockReservationForStaff) CountOnDutyDoctors(_ context.Context, _ uint64, _ time.Time) (int64, error) {
-	return 1, nil
-}
-
-func (m *mockReservationForStaff) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
-	return 0, nil
-}
-
 func (m *mockReservationForStaff) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
 	return 0, nil
 }
-
 func (m *mockReservationForStaff) CountByDateAndSource(_ context.Context, _ uint64, _ time.Time, _ model.ReservationSource) (int64, error) {
 	return 0, nil
 }
-
-func (m *mockReservationForStaff) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Appointment, int64, error) {
+func (m *mockReservationForStaff) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
 }
 
 // mockShiftEntryForStaff は Staff テストで使用する ShiftEntryRepository のスタブ
 type mockShiftEntryForStaff struct {
-	existsByStaffIDFn func(ctx context.Context, staffID uint64) (bool, error)
+	existsByStaffIDFn func(ctx context.Context, clinicID, staffID uint64) (bool, error)
 }
 
 func (m *mockShiftEntryForStaff) FindAll(_ context.Context, _ uint64, _ repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
@@ -140,9 +105,9 @@ func (m *mockShiftEntryForStaff) Delete(_ context.Context, _, _ uint64) error {
 func (m *mockShiftEntryForStaff) ReplaceBreaks(_ context.Context, _ uint64, _ []model.ShiftEntryBreak) error {
 	return nil
 }
-func (m *mockShiftEntryForStaff) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+func (m *mockShiftEntryForStaff) ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error) {
 	if m.existsByStaffIDFn != nil {
-		return m.existsByStaffIDFn(ctx, staffID)
+		return m.existsByStaffIDFn(ctx, clinicID, staffID)
 	}
 	return false, nil
 }
@@ -153,10 +118,10 @@ func (m *mockShiftEntryForStaff) FindOnDutyStaffs(_ context.Context, _ uint64, _
 
 // mockAccountForStaff は Staff テストで使用する AccountRepository のスタブ
 type mockAccountForStaff struct {
-	findByEmailFn func(ctx context.Context, email string) (*model.Account, error)
-	getByIDFn     func(ctx context.Context, id uint64) (*model.Account, error)
-	createFn      func(ctx context.Context, account *model.Account) error
-	updateFn      func(ctx context.Context, id uint64, fields map[string]any) error
+	findByEmailFn  func(ctx context.Context, email string) (*model.Account, error)
+	getByIDFn      func(ctx context.Context, id uint64) (*model.Account, error)
+	createFn       func(ctx context.Context, account *model.Account) error
+	updateFieldsFn func(ctx context.Context, id uint64, fields map[string]any) error
 }
 
 func (m *mockAccountForStaff) FindByID(ctx context.Context, id uint64) (*model.Account, error) {
@@ -179,8 +144,8 @@ func (m *mockAccountForStaff) Create(ctx context.Context, account *model.Account
 	return nil
 }
 func (m *mockAccountForStaff) Update(ctx context.Context, id uint64, fields map[string]any) error {
-	if m.updateFn != nil {
-		return m.updateFn(ctx, id, fields)
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, id, fields)
 	}
 	return nil
 }
@@ -192,7 +157,7 @@ type mockAssignmentForStaff struct {
 	createFn          func(ctx context.Context, a *model.StaffClinicAssignment) error
 }
 
-func (m *mockAssignmentForStaff) FindByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
+func (m *mockAssignmentForStaff) FindAllByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
 	return nil, nil
 }
 func (m *mockAssignmentForStaff) ExistsByStaffAndClinic(_ context.Context, _, _ uint64) (bool, error) {
@@ -207,11 +172,7 @@ func (m *mockAssignmentForStaff) Create(ctx context.Context, a *model.StaffClini
 	}
 	return nil
 }
-func (m *mockAssignmentForStaff) Update(_ context.Context, _ *model.StaffClinicAssignment) error {
-	return nil
-}
-func (m *mockAssignmentForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mockAssignmentForStaff) DeleteByStaffID(ctx context.Context, staffID uint64) error {
+func (m *mockAssignmentForStaff) Delete(ctx context.Context, staffID uint64) error {
 	if m.deleteByStaffIDFn != nil {
 		return m.deleteByStaffIDFn(ctx, staffID)
 	}
@@ -230,56 +191,56 @@ func (m *mockPermissionGroupForStaff) FindByID(_ context.Context, _, _ uint64) (
 func (m *mockPermissionGroupForStaff) Create(_ context.Context, _ *model.PermissionGroup) error {
 	return nil
 }
-func (m *mockPermissionGroupForStaff) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
-	return nil
+func (m *mockPermissionGroupForStaff) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.PermissionGroup, error) {
+	return &model.PermissionGroup{}, nil
 }
 func (m *mockPermissionGroupForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mockPermissionGroupForStaff) SetRules(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+func (m *mockPermissionGroupForStaff) UpdateRules(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
 	return nil
 }
-func (m *mockPermissionGroupForStaff) CountStaffsByGroupID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockPermissionGroupForStaff) CountUsageByGroupID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *mockPermissionGroupForStaff) Reorder(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
 }
-func (m *mockPermissionGroupForStaff) GetEffectivePermissionsByStaffID(_ context.Context, _ uint64) ([]model.PermissionGroupRule, error) {
+func (m *mockPermissionGroupForStaff) FindAllEffectivePermissionsByStaffID(_ context.Context, _ uint64) ([]model.PermissionGroupRule, error) {
 	return nil, nil
 }
-func (m *mockPermissionGroupForStaff) GetGroupIDsByStaffID(_ context.Context, _ uint64) ([]uint64, error) {
+func (m *mockPermissionGroupForStaff) FindAllGroupIDsByStaffID(_ context.Context, _ uint64) ([]uint64, error) {
 	return nil, nil
 }
-func (m *mockPermissionGroupForStaff) SetStaffGroups(_ context.Context, _ uint64, _ []uint64) error {
+func (m *mockPermissionGroupForStaff) UpdateStaffGroups(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
 }
 
 // mockResStaffForStaff は Staff テストで使用する ReservationStaffRepository のスタブ
 type mockResStaffForStaff struct{}
 
-func (m *mockResStaffForStaff) FindAllByClinicID(_ context.Context, _ uint64) ([]model.Staff, error) {
+func (m *mockResStaffForStaff) FindAll(_ context.Context, _ uint64) ([]model.Staff, error) {
 	return nil, nil
 }
-func (m *mockResStaffForStaff) FindByID(_ context.Context, _ uint64) (*model.Staff, error) {
-	return nil, nil
-}
-func (m *mockResStaffForStaff) FindByIDAndClinicID(_ context.Context, _, _ uint64) (*model.Staff, error) {
+func (m *mockResStaffForStaff) FindByID(_ context.Context, _, _ uint64) (*model.Staff, error) {
 	return nil, nil
 }
 func (m *mockResStaffForStaff) Create(_ context.Context, _ *model.Staff, _ uint64) error { return nil }
-func (m *mockResStaffForStaff) Update(_ context.Context, _ uint64, _ map[string]any) error {
+func (m *mockResStaffForStaff) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
 	return nil
 }
-func (m *mockResStaffForStaff) SoftDelete(_ context.Context, _ uint64) error { return nil }
+func (m *mockResStaffForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *mockResStaffForStaff) CountUsageByStaffID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
 func (m *mockResStaffForStaff) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
-func (m *mockResStaffForStaff) FindExcludedReservationTypes(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockResStaffForStaff) FindAllExcludedReservationTypes(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
 	return nil, nil
 }
-func (m *mockResStaffForStaff) FindExcludedReservationTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockResStaffForStaff) FindAllExcludedReservationTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
 	return nil, nil
 }
-func (m *mockResStaffForStaff) ReplaceExcludedReservationTypes(_ context.Context, _ uint64, _ []uint64) error {
+func (m *mockResStaffForStaff) UpdateExcludedReservationTypes(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
 }
 
@@ -629,6 +590,7 @@ func TestStaffService_Delete(t *testing.T) {
 		name                string
 		clinicID            uint64
 		id                  uint64
+		findByIDErr         error
 		reservationExists   bool
 		shiftExists         bool
 		checkReservationErr error
@@ -648,6 +610,14 @@ func TestStaffService_Delete(t *testing.T) {
 			checkShiftErr:       nil,
 			repoErr:             nil,
 			wantErr:             false,
+		},
+		{
+			name:        "returns not found error when staff does not exist",
+			clinicID:    1,
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("staff", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:                "returns conflict error when staff has reservations",
@@ -707,34 +677,28 @@ func TestStaffService_Delete(t *testing.T) {
 			repoErr:             nil,
 			wantErr:             true,
 		},
-		{
-			name:                "returns not found error when staff does not exist",
-			clinicID:            1,
-			id:                  999,
-			reservationExists:   false,
-			shiftExists:         false,
-			checkReservationErr: nil,
-			checkShiftErr:       nil,
-			repoErr:             apperrors.WrapNotFound("staff", "999"),
-			wantErr:             true,
-			wantNF:              true,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockStaffRepository{
+				findByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Staff{ID: tt.id}, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			reservationRepo := &mockReservationForStaff{
-				existsByStaffIDFn: func(_ context.Context, _ uint64) (bool, error) {
+				existsByStaffIDFn: func(_ context.Context, _, _ uint64) (bool, error) {
 					return tt.reservationExists, tt.checkReservationErr
 				},
 			}
 			shiftRepo := &mockShiftEntryForStaff{
-				existsByStaffIDFn: func(_ context.Context, _ uint64) (bool, error) {
+				existsByStaffIDFn: func(_ context.Context, _, _ uint64) (bool, error) {
 					return tt.shiftExists, tt.checkShiftErr
 				},
 			}

@@ -2,16 +2,30 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- CheckupType ----
+
+// ListCheckupTypes godoc
+func (h *Handler) ListCheckupTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	checkupTypes, err := h.svc.CheckupType.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(checkupTypes, toCheckupTypeResponse))
+}
 
 // GetCheckupType godoc
 func (h *Handler) GetCheckupType(c *gin.Context) {
@@ -28,21 +42,7 @@ func (h *Handler) GetCheckupType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, checkupType)
-}
-
-// ListCheckupTypes godoc
-func (h *Handler) ListCheckupTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	checkupTypes, err := h.svc.CheckupType.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, checkupTypes)
+	c.JSON(http.StatusOK, toCheckupTypeResponse(checkupType))
 }
 
 // CreateCheckupType godoc
@@ -58,8 +58,7 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 		return
 	}
 
-	checkupType := &model.CheckupType{
-		ClinicID:    clinicID,
+	svcInput := &service.CreateCheckupTypeInput{
 		Name:        input.Name,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
@@ -70,11 +69,13 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 		SortOrder:   input.SortOrder,
 	}
 
-	if err := h.svc.CheckupType.Create(c.Request.Context(), checkupType); err != nil {
+	checkupType, err := h.svc.CheckupType.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, checkupType)
+	c.Header("Location", fmt.Sprintf("/v1/masters/checkup-types/%d", checkupType.ID))
+	c.JSON(http.StatusCreated, toCheckupTypeResponse(checkupType))
 }
 
 // UpdateCheckupType godoc
@@ -93,7 +94,7 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 		return
 	}
 
-	svcInput := service.UpdateCheckupTypeInput{
+	svcInput := &service.UpdateCheckupTypeInput{
 		Name:          input.Name,
 		Price:         input.Price,
 		IsActive:      input.IsActive,
@@ -110,7 +111,7 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, checkupType)
+	c.JSON(http.StatusOK, toCheckupTypeResponse(checkupType))
 }
 
 // ReorderCheckupTypes godoc
@@ -119,7 +120,7 @@ func (h *Handler) ReorderCheckupTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderCheckupTypeRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -128,7 +129,7 @@ func (h *Handler) ReorderCheckupTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // DeleteCheckupType godoc

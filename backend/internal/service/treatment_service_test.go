@@ -25,7 +25,7 @@ func (m *mockMedicalRecordRepoForTreatment) FindByID(_ context.Context, _, _ uin
 func (m *mockMedicalRecordRepoForTreatment) Create(_ context.Context, _ *model.MedicalRecord) error {
 	return nil
 }
-func (m *mockMedicalRecordRepoForTreatment) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+func (m *mockMedicalRecordRepoForTreatment) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
 	return &model.MedicalRecord{}, nil
 }
 func (m *mockMedicalRecordRepoForTreatment) Delete(_ context.Context, _, _ uint64) error {
@@ -49,12 +49,15 @@ type mockTreatmentRepository struct {
 	bulkUpdateSortOrderFn   func(ctx context.Context, updates []repository.TreatmentSortUpdate) error
 }
 
-func (m *mockTreatmentRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
+func (m *mockTreatmentRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
 	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
 func (m *mockTreatmentRepository) FindByID(ctx context.Context, clinicID, treatmentID uint64) (*model.Treatment, error) {
-	return m.findByIDFn(ctx, clinicID, treatmentID)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, treatmentID)
+	}
+	return nil, nil
 }
 
 func (m *mockTreatmentRepository) Create(ctx context.Context, treatment *model.Treatment) error {

@@ -36,12 +36,17 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 		return nil, apperrors.Wrap(err, "failed to get billing")
 	}
 
+	// 支払済みの請求のみ返金可能
+	if billing.Status != model.BillingStatusCompleted {
+		return nil, apperrors.WrapInvalidInput("支払済みの請求のみ返金できます")
+	}
+
 	// BUG-142: 返金可能残額チェック（過剰返金防止）— Payment 有無に関わらず常にチェック
 	alreadyRefunded, sumErr := s.repo.SumByBillingID(ctx, clinicID, billingID)
 	if sumErr != nil {
 		return nil, apperrors.Wrap(sumErr, "sum refunds")
 	}
-	totalAmount := int64(billing.TotalAmount)
+	totalAmount := billing.TotalAmount
 	if len(billing.Payments) > 0 {
 		totalAmount = billing.Payments[0].TotalAmount
 	}
@@ -62,6 +67,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 	}
 
 	slog.InfoContext(ctx, "refund created",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("billing_id", billingID),
 		slog.Int64("amount", amount))
 	return refund, nil

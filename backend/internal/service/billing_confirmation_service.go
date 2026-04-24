@@ -98,6 +98,10 @@ func (s *billingConfirmationService) Return(ctx context.Context, clinicID, medic
 		return nil, apperrors.Wrap(err, "failed to get or create billing review")
 	}
 
+	if review.Status != model.ConfirmationStatusConfirmed {
+		return nil, apperrors.WrapInvalidInput("差し戻しは確認済みの場合のみ可能です")
+	}
+
 	now := time.Now()
 	fields := map[string]any{
 		"status":        model.ConfirmationStatusReturned,

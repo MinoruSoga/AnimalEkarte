@@ -16,10 +16,11 @@ type ShiftTemplateRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
 	Create(ctx context.Context, tpl *model.ShiftTemplate) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ReplaceBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountUsageByShiftTemplateID(ctx context.Context, clinicID, id uint64) (int64, error)
 }
 
 type shiftTemplateRepository struct{ db *gorm.DB }
@@ -32,9 +33,9 @@ func NewShiftTemplateRepository(db *gorm.DB) ShiftTemplateRepository {
 func (r *shiftTemplateRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error) {
 	items := make([]model.ShiftTemplate, 0)
 	err := r.db.WithContext(ctx).
-		Preload("Breaks").
+		Preload("Breaks", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
-		Order("sort_order ASC, id ASC").
+		Order("sort_order ASC, name ASC").
 		Find(&items).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "shift_template", "")
@@ -45,7 +46,7 @@ func (r *shiftTemplateRepository) FindAll(ctx context.Context, clinicID uint64) 
 func (r *shiftTemplateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error) {
 	var tpl model.ShiftTemplate
 	err := r.db.WithContext(ctx).
-		Preload("Breaks").
+		Preload("Breaks", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		First(&tpl).Error
 	if err != nil {
@@ -56,29 +57,23 @@ func (r *shiftTemplateRepository) FindByID(ctx context.Context, clinicID, id uin
 
 func (r *shiftTemplateRepository) Create(ctx context.Context, tpl *model.ShiftTemplate) error {
 	if err := r.db.WithContext(ctx).Omit("Breaks").Create(tpl).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("shift_template", tpl.Name)
-		}
 		return apperrors.FromGORM(err, "shift_template", "")
 	}
 	return nil
 }
 
-func (r *shiftTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *shiftTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ShiftTemplate{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		if isUniqueConstraintErr(result.Error) {
-			return apperrors.WrapAlreadyExists("shift_template", fmt.Sprintf("%d", id))
-		}
-		return apperrors.FromGORM(result.Error, "shift_template", strconv.FormatUint(id, 10))
+		return nil, apperrors.FromGORM(result.Error, "shift_template", strconv.FormatUint(id, 10))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("shift_template", strconv.FormatUint(id, 10))
+		return nil, apperrors.WrapNotFound("shift_template", strconv.FormatUint(id, 10))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *shiftTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -116,21 +111,18 @@ func (r *shiftTemplateRepository) ReplaceBreaks(ctx context.Context, templateID 
 }
 
 func (r *shiftTemplateRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.ShiftTemplate{}).
-				Scopes(clinicScope(clinicID)).Where("id = ?", id).
-				Update("sort_order", i)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "shift_template", strconv.FormatUint(id, 10))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("shift_template id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to reorder shift templates")
+	return reorderByClinicID(ctx, r.db, &model.ShiftTemplate{}, "shift_template", clinicID, ids)
+}
+
+// CountUsageByShiftTemplateID はシフトテンプレートを参照している shift_template_breaks の件数を返す。
+func (r *shiftTemplateRepository) CountUsageByShiftTemplateID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.ShiftTemplateBreak{}).
+		Joins("JOIN shift_templates ON shift_templates.id = shift_template_breaks.shift_template_id AND shift_templates.deleted_at IS NULL").
+		Where("shift_templates.clinic_id = ? AND shift_template_breaks.shift_template_id = ?", clinicID, id).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "shift_template_break", "")
 	}
-	return nil
+	return count, nil
 }

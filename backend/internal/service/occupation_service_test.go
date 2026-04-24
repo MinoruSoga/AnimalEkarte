@@ -14,12 +14,13 @@ import (
 // ---- Occupation モック ----
 
 type mockOccupationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
-	createFn   func(ctx context.Context, occupation *model.Occupation) error
-	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
-	reorderErr error
+	findAllFn                  func(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
+	findByIDFn                 func(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
+	createFn                   func(ctx context.Context, occupation *model.Occupation) error
+	updateFieldsFn             func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error)
+	deleteFn                   func(ctx context.Context, clinicID, id uint64) error
+	reorderErr                 error
+	countUsageByOccupationIDFn func(ctx context.Context, clinicID, occupationID uint64) (int64, error)
 }
 
 func (m *mockOccupationRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Occupation, error) {
@@ -27,15 +28,18 @@ func (m *mockOccupationRepository) FindAll(ctx context.Context, clinicID uint64)
 }
 
 func (m *mockOccupationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.Occupation{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockOccupationRepository) Create(ctx context.Context, occupation *model.Occupation) error {
 	return m.createFn(ctx, occupation)
 }
 
-func (m *mockOccupationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockOccupationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockOccupationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -46,7 +50,10 @@ func (m *mockOccupationRepository) Reorder(_ context.Context, _ uint64, _ []uint
 	return m.reorderErr
 }
 
-func (m *mockOccupationRepository) CountStaffsByOccupationID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockOccupationRepository) CountUsageByOccupationID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	if m.countUsageByOccupationIDFn != nil {
+		return m.countUsageByOccupationIDFn(ctx, clinicID, id)
+	}
 	return 0, nil
 }
 
@@ -178,14 +185,13 @@ func TestOccupationService_GetByID(t *testing.T) {
 func TestOccupationService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.Occupation
+		input   *CreateOccupationInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates occupation successfully",
-			input: &model.Occupation{
-				ClinicID:    1,
+			input: &CreateOccupationInput{
 				Name:        "新規職種",
 				Description: "新しい職種の説明",
 				SortOrder:   4,
@@ -196,18 +202,16 @@ func TestOccupationService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when occupation already exists",
-			input: &model.Occupation{
-				ClinicID: 1,
-				Name:     "獣医師",
+			input: &CreateOccupationInput{
+				Name: "獣医師",
 			},
 			repoErr: apperrors.WrapAlreadyExists("occupation", "獣医師"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			input: &model.Occupation{
-				ClinicID: 1,
-				Name:     "エラー職種",
+			input: &CreateOccupationInput{
+				Name: "エラー職種",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -223,12 +227,14 @@ func TestOccupationService_Create(t *testing.T) {
 			}
 			svc := NewOccupationService(repo)
 
-			err := svc.Create(context.Background(), tt.input)
+			occ, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, occ)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, occ)
 			}
 		})
 	}
@@ -300,11 +306,8 @@ func TestOccupationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockOccupationRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-					return tt.repoErr
-				},
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Occupation, error) {
-					if tt.repoErr != nil && apperrors.IsNotFound(tt.repoErr) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Occupation, error) {
+					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
 					return tt.repoOccupation, nil
@@ -326,11 +329,14 @@ func TestOccupationService_Update(t *testing.T) {
 
 func TestOccupationService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name         string
+		id           uint64
+		staffCount   int64
+		countErr     error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
 			name:    "deletes occupation successfully",
@@ -352,11 +358,21 @@ func TestOccupationService_Delete(t *testing.T) {
 			wantErr: true,
 			wantNF:  false,
 		},
+		{
+			name:         "スタッフが所属している職種は削除できない",
+			id:           2,
+			staffCount:   5,
+			wantErr:      true,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockOccupationRepository{
+				countUsageByOccupationIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.staffCount, tt.countErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -369,6 +385,9 @@ func TestOccupationService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

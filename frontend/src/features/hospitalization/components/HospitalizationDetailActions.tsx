@@ -6,7 +6,7 @@ import { Settings, LogOut } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { H_STYLES } from "../styles";

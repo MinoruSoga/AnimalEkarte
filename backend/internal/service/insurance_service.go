@@ -10,13 +10,65 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+const (
+	colInsuranceName         = "name"
+	colInsuranceIsActive     = "is_active"
+	colInsuranceDescription  = "description"
+	colInsuranceCoverageRate = "coverage_rate"
+	colInsuranceContactPhone = "contact_phone"
+	colInsuranceSortOrder    = "sort_order"
+)
+
+func buildInsuranceUpdate(input *UpdateInsuranceInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colInsuranceName] = *input.Name
+	}
+	if input.IsActive != nil {
+		fields[colInsuranceIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colInsuranceDescription] = *input.Description
+	}
+	if input.CoverageRate != nil {
+		fields[colInsuranceCoverageRate] = *input.CoverageRate
+	}
+	if input.ContactPhone != nil {
+		fields[colInsuranceContactPhone] = *input.ContactPhone
+	}
+	if input.SortOrder != nil {
+		fields[colInsuranceSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
 // ---- InsuranceService ----
+
+// CreateInsuranceInput は保険作成の入力DTO
+type CreateInsuranceInput struct {
+	Name         string
+	IsActive     bool
+	Description  string
+	CoverageRate *int // nil = 0 (default), ハンドラから nil をそのまま受け取る (BUG-379)
+	ContactPhone string
+	SortOrder    int
+}
+
+// UpdateInsuranceInput は保険更新のサービス入力 DTO
+type UpdateInsuranceInput struct {
+	Name         *string
+	IsActive     *bool
+	Description  *string
+	CoverageRate *int
+	ContactPhone *string
+	SortOrder    *int
+}
 
 type InsuranceService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
-	Create(ctx context.Context, insurance *model.Insurance) error
-	Update(ctx context.Context, clinicID, id uint64, input UpdateInsuranceInput) (*model.Insurance, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateInsuranceInput) (*model.Insurance, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateInsuranceInput) (*model.Insurance, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -32,6 +84,7 @@ func NewInsuranceService(repo repository.InsuranceRepository) InsuranceService {
 func (s *insuranceService) List(ctx context.Context, clinicID uint64) ([]model.Insurance, error) {
 	result, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list insurance", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list insurance")
 	}
 	return result, nil
@@ -39,89 +92,94 @@ func (s *insuranceService) List(ctx context.Context, clinicID uint64) ([]model.I
 func (s *insuranceService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get insurance", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get insurance")
 	}
 	return result, nil
 }
-func (s *insuranceService) Create(ctx context.Context, insurance *model.Insurance) error {
-	if err := validateMasterName(insurance.Name); err != nil {
-		return err
-	}
-	if err := s.repo.Create(ctx, insurance); err != nil {
-		return apperrors.Wrap(err, "failed to create insurance")
-	}
-	slog.InfoContext(ctx, "insurance created", slog.Uint64("insurance_id", insurance.ID))
-	return nil
-}
-func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, input UpdateInsuranceInput) (*model.Insurance, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *CreateInsuranceInput) (*model.Insurance, error) {
+	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildInsuranceUpdateFields(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+	// CoverageRate デフォルト値はサービス層で設定する (BUG-379)
+	coverageRate := 0
+	if input.CoverageRate != nil {
+		coverageRate = *input.CoverageRate
 	}
-	insurance, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	if err := validateCoverageRate(coverageRate); err != nil {
+		return nil, err
+	}
+	insurance := &model.Insurance{
+		ClinicID:     clinicID,
+		Name:         input.Name,
+		IsActive:     input.IsActive,
+		Description:  input.Description,
+		CoverageRate: coverageRate,
+		ContactPhone: input.ContactPhone,
+		SortOrder:    input.SortOrder,
+	}
+	if err := s.repo.Create(ctx, insurance); err != nil {
+		slog.ErrorContext(ctx, "failed to create insurance", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to create insurance")
+	}
+	slog.InfoContext(ctx, "insurance created", slog.Uint64("clinic_id", clinicID), slog.Uint64("insurance_id", insurance.ID))
+	return insurance, nil
+}
+func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, input *UpdateInsuranceInput) (*model.Insurance, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get insurance")
+	}
+	if err := validateOptionalName(input.Name); err != nil {
+		return nil, err
+	}
+	if err := validateOptionalCoverageRate(input.CoverageRate); err != nil {
+		return nil, err
+	}
+	fields := buildInsuranceUpdate(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
+	}
+	insurance, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update insurance", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update insurance")
 	}
-	slog.InfoContext(ctx, "insurance updated", slog.Uint64("insurance_id", id))
+	slog.InfoContext(ctx, "insurance updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("insurance_id", id))
 	return insurance, nil
 }
 func (s *insuranceService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountPetsByInsuranceID(ctx, id)
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get insurance")
+	}
+	count, err := s.repo.CountUsageByInsuranceID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check insurance dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check insurance dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この保険はペット情報で使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete insurance", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete insurance")
 	}
-	slog.InfoContext(ctx, "insurance deleted", slog.Uint64("insurance_id", id), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "insurance deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("insurance_id", id))
 	return nil
 }
 
 func (s *insuranceService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder insurances", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder insurances")
 	}
+	slog.InfoContext(ctx, "insurances reordered",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Int("count", len(ids)))
 	return nil
-}
-
-// UpdateInsuranceInput は保険更新のサービス入力 DTO
-type UpdateInsuranceInput struct {
-	Name         *string
-	IsActive     *bool
-	Description  *string
-	CoverageRate *int
-	ContactPhone *string
-	SortOrder    *int
-}
-
-func buildInsuranceUpdateFields(input UpdateInsuranceInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields["name"] = *input.Name
-	}
-	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields["description"] = *input.Description
-	}
-	if input.CoverageRate != nil {
-		fields["coverage_rate"] = *input.CoverageRate
-	}
-	if input.ContactPhone != nil {
-		fields["contact_phone"] = *input.ContactPhone
-	}
-	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
-	}
-	return fields
 }

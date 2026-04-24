@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/middleware"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // RegisterLineReservationRoutes はLINE予約管理APIのルートを登録する
@@ -18,45 +19,45 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics/:id")
 
 	// TASK-RES-010: 基本設定
-	clinics.GET("/line-reservation-settings", h.GetLineReservationSetting)
-	clinics.PUT("/line-reservation-settings", h.UpsertLineReservationSetting)
+	clinics.GET("/line-reservation-settings", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.GetLineReservationSetting)
+	clinics.PUT("/line-reservation-settings", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.SaveLineReservationSetting)
 
 	// TASK-RES-011: 予約区分（LINE管理用）
 	types := clinics.Group("/reservation-types")
-	types.GET("", h.ListReservationTypeLiffs)
-	types.POST("", h.CreateReservationTypeLiff)
-	types.PUT("/:typeId", h.UpdateReservationTypeLiff)
-	types.DELETE("/:typeId", h.DeleteReservationTypeLiff)
-	types.PATCH("/:typeId/status", h.PatchReservationTypeLiffStatus)
-	types.PATCH("/:typeId/sort-order", h.PatchReservationTypeLiffSortOrder)
-	types.POST("/:typeId/image", h.UploadReservationTypeLiffImage)
+	types.GET("", h.RequirePermission(string(model.ResourceMasterReservationType), "view"), h.ListReservationTypeLiffs)
+	types.POST("", h.RequirePermission(string(model.ResourceMasterReservationType), "create"), h.CreateReservationTypeLiff)
+	types.PUT("/:id", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.UpdateReservationTypeLiff)
+	types.DELETE("/:id", h.RequirePermission(string(model.ResourceMasterReservationType), "delete"), h.DeleteReservationTypeLiff)
+	types.PATCH("/:id/status", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.PatchReservationTypeLiffStatus)
+	types.PATCH("/:id/sort-order", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.PatchReservationTypeLiffSortOrder)
+	types.POST("/:id/image", h.RequirePermission(string(model.ResourceMasterReservationType), "create"), h.UploadReservationTypeLiffImage)
 
 	// TASK-RES-012: スタッフ
 	staffs := clinics.Group("/reservation-staffs")
-	staffs.GET("", h.ListReservationStaffs)
-	staffs.POST("", h.CreateReservationStaff)
-	staffs.PUT("/:staffId", h.UpdateReservationStaff)
-	staffs.DELETE("/:staffId", h.DeleteReservationStaff)
-	staffs.PATCH("/:staffId/status", h.PatchReservationStaffStatus)
-	staffs.PATCH("/:staffId/sort-order", h.PatchReservationStaffSortOrder)
-	staffs.POST("/:staffId/image", h.UploadReservationStaffImage)
+	staffs.GET("", h.RequirePermission(string(model.ResourceMasterStaff), "view"), h.ListReservationStaffs)
+	staffs.POST("", h.RequirePermission(string(model.ResourceMasterStaff), "create"), h.CreateReservationStaff)
+	staffs.PUT("/:staffId", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.UpdateReservationStaff)
+	staffs.DELETE("/:staffId", h.RequirePermission(string(model.ResourceMasterStaff), "delete"), h.DeleteReservationStaff)
+	staffs.PATCH("/:staffId/status", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.PatchReservationStaffStatus)
+	staffs.PATCH("/:staffId/sort-order", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.PatchReservationStaffSortOrder)
+	staffs.POST("/:staffId/image", h.RequirePermission(string(model.ResourceMasterStaff), "create"), h.UploadReservationStaffImage)
 
 	// TASK-RES-013: スタッフ個人スケジュール
 	schedules := clinics.Group("/reservation-staffs/:staffId/schedules")
-	schedules.GET("", h.ListReservationSchedules)
-	schedules.PUT("/:date", h.UpsertReservationSchedule)
-	schedules.DELETE("/:date", h.DeleteReservationSchedule)
+	schedules.GET("", h.RequirePermission(string(model.ResourceMasterStaff), "view"), h.ListReservationSchedules)
+	schedules.PUT("/:date", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.UpsertReservationSchedule)
+	schedules.DELETE("/:date", h.RequirePermission(string(model.ResourceMasterStaff), "delete"), h.DeleteReservationSchedule)
 
 	// TASK-RES-014: 予約管理
 	reservations := clinics.Group("/reservations")
-	reservations.GET("", h.ListReservationsAdmin)
-	reservations.POST("", h.CreateReservationAdmin)
-	reservations.DELETE("/:reservationId", h.DeleteReservationAdmin)
+	reservations.GET("", h.RequirePermission(string(model.ResourceReservations), "view"), h.ListReservationsAdmin)
+	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "edit"), h.CreateReservationAdmin)
+	reservations.DELETE("/:reservationId", h.RequirePermission(string(model.ResourceReservations), "delete"), h.DeleteReservationAdmin)
 
 	// TASK-RES-015: 顧客管理
 	customers := clinics.Group("/line-customers")
-	customers.GET("", h.ListLineCustomers)
-	customers.PATCH("/:customerId/link-owner", h.LinkOwnerToLineCustomer)
+	customers.GET("", h.RequirePermission(string(model.ResourceOwners), "view"), h.ListLineCustomers)
+	customers.PATCH("/:customerId/link-owner", h.RequirePermission(string(model.ResourceOwners), "edit"), h.LinkOwnerToLineCustomer)
 }
 
 // RegisterLiffRoutes はLIFF公開APIのルートを登録する（LINE IDトークン認証）。
@@ -74,6 +75,8 @@ func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
 
 	authed.GET("/profile", h.GetLiffProfile)
 	authed.GET("/courses", h.GetLiffTypes)
+	authed.GET("/trimming-courses", h.GetLiffTrimmingCourses) // BE-120
+	authed.GET("/trimming-options", h.GetLiffTrimmingOptions) // BE-120
 	authed.GET("/staffs", h.GetLiffStaffs)
 	authed.GET("/available-dates", h.GetLiffAvailableDates)
 	authed.GET("/available-times", h.GetLiffAvailableTimes)

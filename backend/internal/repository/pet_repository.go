@@ -14,7 +14,7 @@ type PetRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	CountByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
+	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
 	Create(ctx context.Context, pet *model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -59,7 +59,7 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
-	if err := buildBase().Preload("Owner").Preload("AnimalSpecies").Preload("Insurance").
+	if err := buildBase().Preload("Owner", "deleted_at IS NULL").Preload("AnimalSpecies", "deleted_at IS NULL").Preload("Insurance", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("pets.created_at DESC").Find(&pets).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
@@ -69,9 +69,9 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
 	var pet model.Pet
 	err := r.db.WithContext(ctx).
-		Preload("Owner").
-		Preload("AnimalSpecies").
-		Preload("Insurance").
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("AnimalSpecies", "deleted_at IS NULL").
+		Preload("Insurance", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&pet).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
@@ -83,14 +83,14 @@ func (r *petRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
 		Scopes(clinicScope(clinicID)).
-		Where("owner_id = ?", ownerID).
+		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return count, nil
 }
 
-func (r *petRepository) CountByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {
+func (r *petRepository) CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
 		Where("animal_species_id = ? AND deleted_at IS NULL", speciesID).

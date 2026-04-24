@@ -65,9 +65,64 @@ type BulkTreatmentItem struct {
 
 // ─── Interface ────────────────────────────────────────────────────────────────
 
+// GORMのzero-value問題（false/0/"" がスキップされる）を回避するために使用する。
+func buildTreatmentUpdate(input *UpdateTreatmentInput) map[string]any {
+	fields := map[string]any{}
+	if input.ItemType != nil {
+		fields["item_type"] = *input.ItemType
+	}
+	if input.ConsultationID != nil {
+		fields["consultation_id"] = *input.ConsultationID
+	}
+	if input.ProcedureID != nil {
+		fields["procedure_id"] = *input.ProcedureID
+	}
+	if input.MedicineID != nil {
+		fields["medicine_id"] = *input.MedicineID
+	}
+	if input.InventoryID != nil {
+		fields["inventory_id"] = *input.InventoryID
+	}
+	if input.UnitPrice != nil {
+		fields["unit_price"] = *input.UnitPrice
+	}
+	if input.Quantity != nil {
+		fields["quantity"] = *input.Quantity
+	}
+	if input.IsSelected != nil {
+		fields["is_selected"] = *input.IsSelected
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	if input.Content != nil {
+		fields["content"] = *input.Content
+	}
+	if input.Memo != nil {
+		fields["memo"] = *input.Memo
+	}
+	if input.AdminRoute != nil {
+		fields["admin_route"] = *input.AdminRoute
+	}
+	if input.IsInsurance != nil {
+		fields["is_insurance"] = *input.IsInsurance
+	}
+	if input.DiscountRate != nil {
+		fields["discount_rate"] = *input.DiscountRate
+	}
+	if input.DiscountAmount != nil {
+		fields["discount_amount"] = *input.DiscountAmount
+	}
+	if input.SortOrder != nil {
+		fields["sort_order"] = *input.SortOrder
+	}
+	return fields
+}
+
 // TreatmentService は治療項目のビジネスロジックインターフェース
 type TreatmentService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error)
 	Delete(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error
@@ -87,8 +142,16 @@ func NewTreatmentService(repos *repository.Repositories) TreatmentService {
 	}
 }
 
+func (s *treatmentService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error) {
+	treatment, err := s.repos.Treatment.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get treatment")
+	}
+	return treatment, nil
+}
+
 func (s *treatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
-	treatments, err := s.repos.Treatment.ListByMedicalRecordID(ctx, clinicID, medicalRecordID)
+	treatments, err := s.repos.Treatment.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list treatments")
 	}
@@ -100,10 +163,10 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		return nil, err
 	}
 	if input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 	if input.Quantity <= 0 {
-		return nil, apperrors.WrapInvalidInput("数量は0より大きい値を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgQuantityPositive)
 	}
 	if input.DiscountRate < 0 || input.DiscountRate > 100 {
 		return nil, apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
@@ -199,18 +262,18 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 		}
 	}
 	if input.Quantity != nil && *input.Quantity <= 0 {
-		return nil, apperrors.WrapInvalidInput("quantity must be greater than 0")
+		return nil, apperrors.WrapInvalidInput(ErrMsgQuantityPositive)
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 	if input.DiscountRate != nil && (*input.DiscountRate < 0 || *input.DiscountRate > 100) {
 		return nil, apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
 	}
 
-	fields := buildTreatmentUpdateFields(input)
+	fields := buildTreatmentUpdate(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
 	if err := s.repos.Treatment.Update(ctx, clinicID, treatmentID, fields); err != nil {
@@ -260,6 +323,7 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 	for _, item := range input.Treatments {
 		updates = append(updates, repository.TreatmentSortUpdate{
 			ID:        item.ID,
+			ClinicID:  clinicID,
 			SortOrder: item.SortOrder,
 		})
 	}
@@ -269,6 +333,7 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 	}
 
 	slog.InfoContext(ctx, "treatments bulk sort_order updated",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Int("count", len(updates)))
 
@@ -277,61 +342,7 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// buildTreatmentUpdateFields は非nilポインタフィールドだけをGORM向けmapに変換する。
-// GORMのzero-value問題（false/0/"" がスキップされる）を回避するために使用する。
-func buildTreatmentUpdateFields(input *UpdateTreatmentInput) map[string]any {
-	fields := map[string]any{}
-	if input.ItemType != nil {
-		fields["item_type"] = *input.ItemType
-	}
-	if input.ConsultationID != nil {
-		fields["consultation_id"] = *input.ConsultationID
-	}
-	if input.ProcedureID != nil {
-		fields["procedure_id"] = *input.ProcedureID
-	}
-	if input.MedicineID != nil {
-		fields["medicine_id"] = *input.MedicineID
-	}
-	if input.InventoryID != nil {
-		fields["inventory_id"] = *input.InventoryID
-	}
-	if input.UnitPrice != nil {
-		fields["unit_price"] = *input.UnitPrice
-	}
-	if input.Quantity != nil {
-		fields["quantity"] = *input.Quantity
-	}
-	if input.IsSelected != nil {
-		fields["is_selected"] = *input.IsSelected
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	if input.Content != nil {
-		fields["content"] = *input.Content
-	}
-	if input.Memo != nil {
-		fields["memo"] = *input.Memo
-	}
-	if input.AdminRoute != nil {
-		fields["admin_route"] = *input.AdminRoute
-	}
-	if input.IsInsurance != nil {
-		fields["is_insurance"] = *input.IsInsurance
-	}
-	if input.DiscountRate != nil {
-		fields["discount_rate"] = *input.DiscountRate
-	}
-	if input.DiscountAmount != nil {
-		fields["discount_amount"] = *input.DiscountAmount
-	}
-	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
-	}
-	return fields
-}
-
+// buildTreatmentUpdate は非nilポインタフィールドだけをGORM向けmapに変換する。
 func validateTreatmentItemType(t model.TreatmentItemType) error {
 	switch t {
 	case model.TreatmentItemTypeConsultation,

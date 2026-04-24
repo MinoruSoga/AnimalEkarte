@@ -12,10 +12,10 @@ import (
 
 // StaffClinicAssignmentRepository はスタッフ-クリニック中間テーブルのインターフェース
 type StaffClinicAssignmentRepository interface {
-	FindByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
+	FindAllByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
 	ExistsByStaffAndClinic(ctx context.Context, staffID, clinicID uint64) (bool, error)
 	Create(ctx context.Context, assignment *model.StaffClinicAssignment) error
-	DeleteByStaffID(ctx context.Context, staffID uint64) error
+	Delete(ctx context.Context, staffID uint64) error
 }
 
 // staffClinicAssignmentRepository は StaffClinicAssignmentRepository の実装
@@ -28,8 +28,10 @@ func NewStaffClinicAssignmentRepository(db *gorm.DB) StaffClinicAssignmentReposi
 	return &staffClinicAssignmentRepository{db: db}
 }
 
-// FindByStaffID はスタッフIDでクリニック所属を取得する
-func (r *staffClinicAssignmentRepository) FindByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
+// FindAllByStaffID はスタッフIDでクリニック所属を取得する（複数件）
+// NOTE: model.StaffClinicAssignment は gorm.DeletedAt を持つため、GORM SoftDelete スコープにより
+// deleted_at IS NULL フィルタは自動適用される。明示的な条件追加は不要。
+func (r *staffClinicAssignmentRepository) FindAllByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
 	var assignments []model.StaffClinicAssignment
 	if err := dbOrTx(ctx, r.db).Where("staff_id = ?", staffID).Find(&assignments).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff_id=%d", staffID))
@@ -38,6 +40,7 @@ func (r *staffClinicAssignmentRepository) FindByStaffID(ctx context.Context, sta
 }
 
 // ExistsByStaffAndClinic はスタッフが指定クリニックに所属しているかを確認する
+// NOTE: GORM SoftDelete スコープにより deleted_at IS NULL は自動適用される。
 func (r *staffClinicAssignmentRepository) ExistsByStaffAndClinic(ctx context.Context, staffID, clinicID uint64) (bool, error) {
 	var count int64
 	if err := dbOrTx(ctx, r.db).Model(&model.StaffClinicAssignment{}).
@@ -56,8 +59,8 @@ func (r *staffClinicAssignmentRepository) Create(ctx context.Context, assignment
 	return nil
 }
 
-// DeleteByStaffID はスタッフの全クリニック所属を削除する
-func (r *staffClinicAssignmentRepository) DeleteByStaffID(ctx context.Context, staffID uint64) error {
+// Delete はスタッフの全クリニック所属を削除する
+func (r *staffClinicAssignmentRepository) Delete(ctx context.Context, staffID uint64) error {
 	if err := dbOrTx(ctx, r.db).Where("staff_id = ?", staffID).Delete(&model.StaffClinicAssignment{}).Error; err != nil {
 		return apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff_id=%d", staffID))
 	}

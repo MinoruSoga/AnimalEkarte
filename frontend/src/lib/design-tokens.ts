@@ -746,6 +746,18 @@ export const LAYOUT = {
     size:          "size-[38px]",
     innerIcon:     "size-5",
   },
+
+  /* ── Input / Color Picker compact patterns ── */
+  /** Compact padding + rounded for small inline inputs and buttons */
+  inputCompact:     "px-1.5 py-0.5 rounded-[3px]",
+  /** Standard padding + rounded for number/text inputs in side panels */
+  inputStandard:    "px-2 py-1 rounded-[3px]",
+  /** Small color-picker input (w-7 h-7) */
+  colorInputSmall:  "w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0",
+  /** Medium color-picker input (w-12 h-12) */
+  colorInputMedium: "w-12 h-12 rounded border",
+  /** Small select-width input */
+  selectInputSmall: "w-20 rounded-[3px]",
 } as const;
 
 /* ================================================================== */

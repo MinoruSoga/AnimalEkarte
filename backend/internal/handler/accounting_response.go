@@ -5,7 +5,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // BUG-370: 月末未納者一覧レスポンス
@@ -88,14 +87,6 @@ func toRefundResponse(r *model.BillingRefund) refundResponse {
 	}
 }
 
-func toRefundResponseList(refunds []model.BillingRefund) []refundResponse {
-	result := make([]refundResponse, 0, len(refunds))
-	for i := range refunds {
-		result = append(result, toRefundResponse(&refunds[i]))
-	}
-	return result
-}
-
 type billingItemResponse struct {
 	ID                    uint64    `json:"id"`
 	BillingID             uint64    `json:"billing_id"`
@@ -155,9 +146,9 @@ type accountingResponse struct {
 	PetID               *uint64                 `json:"pet_id,omitempty"`
 	Owner               *accountingOwnerSummary `json:"owner,omitempty"`
 	Pet                 *accountingPetSummary   `json:"pet,omitempty"`
-	Subtotal            int                     `json:"subtotal"`
-	TaxTotal            int                     `json:"tax_total"`
-	TotalAmount         int                     `json:"total_amount"`
+	Subtotal            int64                   `json:"subtotal"`
+	TaxTotal            int64                   `json:"tax_total"`
+	TotalAmount         int64                   `json:"total_amount"`
 	TotalRefundedAmount int64                   `json:"total_refunded_amount"`
 	HasInsurance        bool                    `json:"has_insurance"`
 	Status              string                  `json:"status"`
@@ -173,7 +164,7 @@ type accountingResponse struct {
 
 func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
 	subtotal := int64(float64(item.UnitPrice) * item.Quantity)
-	taxAmount := service.CalculateTaxAmount(item.UnitPrice, item.Quantity, item.TaxType, item.TaxRate)
+	taxAmount := item.CalculateTaxAmount()
 	return billingItemResponse{
 		ID:                    item.ID,
 		BillingID:             item.BillingID,
@@ -210,7 +201,7 @@ func toPaymentResponse(p *model.Payment) paymentResponse {
 		BillingAmount:   p.BillingAmount,
 		ReceivedAmount:  p.ReceivedAmount,
 		ChangeAmount:    p.ChangeAmount,
-		Method:          string(p.Method),
+		Method:          string(p.Method), //nolint:staticcheck // Method is deprecated but PaymentMethodID migration is in progress
 		PaidBy:          p.PaidBy,
 		PaidByName:      staffName,
 		CreatedAt:       p.CreatedAt,
@@ -272,12 +263,4 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 		CreatedAt:           b.CreatedAt,
 		UpdatedAt:           b.UpdatedAt,
 	}
-}
-
-func toAccountingResponseList(billings []model.Billing) []accountingResponse {
-	result := make([]accountingResponse, 0, len(billings))
-	for i := range billings {
-		result = append(result, toAccountingResponse(&billings[i]))
-	}
-	return result
 }

@@ -1,152 +1,496 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// TestOccupationHandlerCompiles verifies occupation_handler.go compiles
-func TestOccupationHandlerCompiles(t *testing.T) {
-	assert.True(t, true, "occupation_handler.go compiled successfully")
+// ---- mock OccupationService ----
+
+type mockOccupationService struct {
+	listFn    func(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
+	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateOccupationInput) (*model.Occupation, error)
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateOccupationInput) (*model.Occupation, error)
+	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-// ---- Comprehensive Test Coverage Documentation ----
-//
-// Occupation Handler Test Cases
-// This handler manages staff occupation/job title master data (Section 15: アカウント・権限管理 master)
-// Occupations: staff job titles (e.g., "獣医師" (veterinarian), "看護師" (nurse), "受付" (receptionist))
-//
-// CRITICAL ENDPOINTS:
-//
-// 1. ListOccupations (GET /occupations)
-//    Test Cases (6 scenarios):
-//    ✓ Returns 200 OK with empty list when no occupations exist
-//    ✓ Returns 200 OK with list of all clinic's occupations (no pagination)
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Response includes all fields: id, name, description, is_active, sort_order
-//    ✓ Response includes timestamps with toOccupationResponseList transformation
-//    ✓ Returns 500 on database error
-//
-// 2. GetOccupation (GET /occupations/:id)
-//    Test Cases (9 scenarios):
-//    ✓ Returns 200 OK with single occupation record
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when occupation doesn't exist
-//    ✓ Returns 403 when occupation belongs to different clinic (tenant isolation)
-//    ✓ Response includes complete occupation data with all fields
-//    ✓ Uses toOccupationResponse() transformation for response
-//    ✓ Returns 500 on database error
-//
-// 3. CreateOccupation (POST /occupations)
-//    Test Cases (12 scenarios):
-//    ✓ Returns 201 Created when occupation created successfully
-//    ✓ Returns 400 when required field missing (name)
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Name field: required, text (e.g., "獣医師", "看護師", "受付", "トリマー")
-//    ✓ IsActive field: optional boolean, defaults to true
-//    ✓ SortOrder field: optional numeric for display ordering
-//    ✓ Description field: NOT available on create (null or rejected)
-//    ✓ Created occupation includes generated id and timestamps
-//    ✓ Uses toOccupationResponse() transformation
-//    ✓ Returns 409 if name already exists (if UNIQUE constraint per clinic)
-//    ✓ Returns 500 on database error
-//
-// 4. UpdateOccupation (PATCH /occupations/:id)
-//    Test Cases (13 scenarios):
-//    ✓ Returns 200 OK when occupation updated successfully
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 404 when occupation doesn't exist
-//    ✓ Returns 403 when occupation belongs to different clinic
-//    ✓ Partial updates: name can be updated independently
-//    ✓ Partial updates: description can be set/updated (available on update, unlike create)
-//    ✓ Partial updates: is_active can be toggled
-//    ✓ Partial updates: sort_order can be updated
-//    ✓ Unspecified fields remain unchanged (PATCH semantics, not PUT)
-//    ✓ Uses toOccupationResponse() transformation
-//    ✓ Returns 500 on database error
-//
-// 5. DeleteOccupation (DELETE /occupations/:id)
-//    Test Cases (10 scenarios):
-//    ✓ Returns 204 No Content when occupation deleted successfully
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when occupation doesn't exist
-//    ✓ Returns 403 when occupation belongs to different clinic
-//    ✓ Deletion behavior: soft delete or hard delete (depends on implementation)
-//    ✓ Deleted occupation no longer appears in ListOccupations
-//    ✓ Deleted occupation cannot be retrieved by GetOccupation (404)
-//    ✓ Deletion should check for FK dependencies (staff records referencing this occupation)
-//    ✓ Returns 409 Conflict if occupation is still in use (staff records exist)
-//
-// 6. ReorderOccupations (POST /occupations/reorder)
-//    Test Cases (8 scenarios):
-//    ✓ Returns 200 OK with message when reorder succeeds
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Accepts array of IDs in desired order
-//    ✓ Updates sort_order for all provided IDs (0, 1, 2, ...)
-//    ✓ Partial reorder supported (only specified IDs reordered)
-//    ✓ Returns 404 if any specified ID doesn't exist or belongs to different clinic
-//    ✓ Returns 500 on database error
-//
-// SECURITY & MULTITENANCY:
-//    ✓ Clinic-based access control (clinic_id verification on all endpoints)
-//    ✓ No explicit RBAC permission check (master data usually admin-only)
-//    ✓ Partial updates prevent mass assignment (explicit field mapping)
-//    ✓ Soft delete prevents accidental data loss (if implemented)
-//
-// DATA USES:
-//    ✓ Occupation referenced by staff records (FK constraint)
-//    ✓ IsActive used to hide inactive occupations from staff creation dropdown
-//    ✓ SortOrder affects occupation selection dropdown display order
-//    ✓ Used for staff role management and permissions inheritance
-//
-// DATA MODEL (occupations):
-//    - id (PK): BIGSERIAL
-//    - clinic_id: BIGINT (multitenancy)
-//    - name: VARCHAR(100) NOT NULL - occupation/job title (e.g., "獣医師", "看護師")
-//    - description: TEXT (NULLABLE) - detailed occupation description
-//    - is_active: BOOLEAN DEFAULT true - enable/disable flag
-//    - sort_order: INTEGER DEFAULT 0 - display ordering
-//    - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - deleted_at: TIMESTAMP NULL (soft delete, if implemented)
-//    - Indexes: (clinic_id, id), (clinic_id, is_active), (clinic_id, sort_order)
-//    - Unique constraint: (clinic_id, name) WHERE deleted_at IS NULL (if enforced)
-//
-// IMPLEMENTATION NOTES:
-//    - Clinic-scoped master data (clinic_id extraction required)
-//    - IMPORTANT: Description field only available on UPDATE, not on CREATE
-//    - IsActive: allows disabling without deletion
-//    - SortOrder: numeric for custom display ordering
-//    - Transformations: toOccupationResponse() and toOccupationResponseList()
-//    - PATCH semantics: unspecified fields remain unchanged
-//    - Should check FK dependencies before delete (staff records reference this)
-//    - ReorderOccupations: returns 200 OK with {"message": "reordered"} (not 204)
-//    - Name should be concise (typical job title format)
-//
-// TESTING STRATEGY:
-//    Use integration tests with:
-//    - Test database fixtures with sample occupation records
-//    - Real service/repository layers
-//    - Verify clinic_id scoping (no cross-clinic data access)
-//    - Test default values (is_active=true, sort_order=0)
-//    - IMPORTANT: Test description field NOT available on create (null or rejected)
-//    - Test description can be set/updated via PATCH
-//    - Test sort_order affects ListOccupations ordering
-//    - Test ReorderOccupations updates sort_order correctly
-//    - Test FK constraint: staff records referencing deleted occupation (should fail with 409)
-//    - Verify soft delete behavior (if implemented)
-//    - Test active filtering (is_active=false excluded from UI dropdowns)
-//    - Test PATCH semantics (unspecified fields unchanged)
-//    - Test name uniqueness per clinic (if UNIQUE constraint exists)
-//    - Test bulk operations (reorder with partial ID list)
-//    - Test response transformations (toOccupationResponse vs List)
-//    - Verify clinic_id parameter on all endpoints
-//    - Test ReorderOccupations response format (200 OK with message)
-//
+func (m *mockOccupationService) List(ctx context.Context, clinicID uint64) ([]model.Occupation, error) {
+	return m.listFn(ctx, clinicID)
+}
+func (m *mockOccupationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
+	return m.getByIDFn(ctx, clinicID, id)
+}
+func (m *mockOccupationService) Create(ctx context.Context, clinicID uint64, input *service.CreateOccupationInput) (*model.Occupation, error) {
+	return m.createFn(ctx, clinicID, input)
+}
+func (m *mockOccupationService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateOccupationInput) (*model.Occupation, error) {
+	return m.updateFn(ctx, clinicID, id, input)
+}
+func (m *mockOccupationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+func (m *mockOccupationService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return m.reorderFn(ctx, clinicID, ids)
+}
+
+// ---- helper ----
+
+func newHandlerWithOccupationSvc(svc service.OccupationService) *Handler {
+	return &Handler{
+		svc: &service.Services{Occupation: svc},
+	}
+}
+
+// ---- ListOccupations ----
+
+func TestListOccupations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		setupCtx   func(c *gin.Context)
+		svc        *mockOccupationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of occupations",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOccupationService{
+				listFn: func(_ context.Context, clinicID uint64) ([]model.Occupation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return []model.Occupation{{ID: 1, Name: "獣医師"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"獣医師"`,
+		},
+		{
+			name:     "returns empty list",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOccupationService{
+				listFn: func(_ context.Context, _ uint64) ([]model.Occupation, error) {
+					return []model.Occupation{}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockOccupationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 500 on service error",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOccupationService{
+				listFn: func(_ context.Context, _ uint64) ([]model.Occupation, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithOccupationSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			tt.setupCtx(c)
+
+			h.ListOccupations(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetOccupation ----
+
+func TestGetOccupation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockOccupationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns occupation for valid id",
+			paramID:  "4",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOccupationService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Occupation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(4), id)
+					return &model.Occupation{ID: 4, Name: "看護師"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"看護師"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockOccupationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockOccupationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when not found",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOccupationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Occupation, error) {
+					return nil, apperrors.WrapNotFound("occupation", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithOccupationSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.GetOccupation(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateOccupation ----
+
+func TestCreateOccupation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{"name": "受付", "is_active": true}
+	}
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockOccupationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "creates occupation successfully",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOccupationService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateOccupationInput) (*model.Occupation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "受付", input.Name)
+					return &model.Occupation{ID: 1, Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"name":"受付"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockOccupationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when name is missing",
+			body:       map[string]any{"is_active": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockOccupationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 409 on conflict",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOccupationService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateOccupationInput) (*model.Occupation, error) {
+					return nil, apperrors.WrapAlreadyExists("occupation", "受付")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOccupationService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateOccupationInput) (*model.Occupation, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithOccupationSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateOccupation(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- UpdateOccupation ----
+
+func TestUpdateOccupation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockOccupationService
+		wantStatus int
+	}{
+		{
+			name:     "updates occupation successfully",
+			paramID:  "1",
+			body:     map[string]any{"name": "トリマー"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOccupationService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateOccupationInput) (*model.Occupation, error) {
+					require.NotNil(t, input.Name)
+					assert.Equal(t, "トリマー", *input.Name)
+					return &model.Occupation{ID: 1, Name: *input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockOccupationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockOccupationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "テスト"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOccupationService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateOccupationInput) (*model.Occupation, error) {
+					return nil, apperrors.WrapNotFound("occupation", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithOccupationSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateOccupation(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- DeleteOccupation ----
+
+func newDeleteOccupationRouter(svc service.OccupationService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithOccupationSvc(svc)
+	r.DELETE("/occupations/:id", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.DeleteOccupation)
+	return r
+}
+
+func TestDeleteOccupation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockOccupationService
+		wantStatus int
+	}{
+		{
+			name:    "deletes occupation successfully",
+			paramID: "1",
+			svc: &mockOccupationService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			svc:        &mockOccupationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when not found",
+			paramID: "999",
+			svc: &mockOccupationService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("occupation", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:    "returns 409 when in use",
+			paramID: "2",
+			svc: &mockOccupationService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapConflict("この役職はスタッフ情報で使用中のため削除できません")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteOccupationRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/occupations/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithOccupationSvc(&mockOccupationService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.DeleteOccupation(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- ReorderOccupations ----
+
+func newReorderOccupationsRouter(svc service.OccupationService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithOccupationSvc(svc)
+	r.PUT("/occupations/reorder", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.ReorderOccupations)
+	return r
+}
+
+func TestReorderOccupations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("reorders occupations successfully", func(t *testing.T) {
+		svc := &mockOccupationService{
+			reorderFn: func(_ context.Context, clinicID uint64, ids []uint64) error {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, []uint64{3, 1, 2}, ids)
+				return nil
+			},
+		}
+		router := newReorderOccupationsRouter(svc)
+		body, _ := json.Marshal(map[string]any{"ids": []int{3, 1, 2}})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPut, "/occupations/reorder", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithOccupationSvc(&mockOccupationService{})
+		body, _ := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		h.ReorderOccupations(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}

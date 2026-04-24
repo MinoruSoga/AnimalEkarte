@@ -37,7 +37,7 @@ type ShiftBreakInput struct {
 type CreateShiftEntryInput struct {
 	StaffID   uint64
 	Date      time.Time
-	ShiftType model.ShiftType
+	ShiftType string
 	StartTime *string
 	EndTime   *string
 	Notes     string
@@ -46,7 +46,7 @@ type CreateShiftEntryInput struct {
 
 // UpdateShiftEntryInput はシフト更新の入力DTO（nil = 未変更）
 type UpdateShiftEntryInput struct {
-	ShiftType *model.ShiftType
+	ShiftType *string
 	StartTime *string
 	EndTime   *string
 	Notes     *string
@@ -54,6 +54,24 @@ type UpdateShiftEntryInput struct {
 }
 
 // ShiftEntryService はシフト管理のビジネスロジックインターフェース
+
+func buildShiftEntryUpdate(input *UpdateShiftEntryInput) map[string]any {
+	fields := map[string]any{}
+	if input.ShiftType != nil {
+		fields["shift_type"] = *input.ShiftType
+	}
+	if input.StartTime != nil {
+		fields["start_time"] = normalizeTimeString(input.StartTime)
+	}
+	if input.EndTime != nil {
+		fields["end_time"] = normalizeTimeString(input.EndTime)
+	}
+	if input.Notes != nil {
+		fields["notes"] = *input.Notes
+	}
+	return fields
+}
+
 type ShiftEntryService interface {
 	List(ctx context.Context, clinicID uint64, yearMonth string, staffID *uint64) ([]model.ShiftEntry, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error)
@@ -87,6 +105,17 @@ func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth
 		return nil, apperrors.Wrap(err, "failed to list shift entries")
 	}
 	return items, nil
+}
+
+// validateShiftType は入力文字列が有効な ShiftType 値かどうかを検証する。
+func validateShiftType(s model.ShiftType) error {
+	switch s {
+	case model.ShiftTypeFull, model.ShiftTypeMorning, model.ShiftTypeAfternoon,
+		model.ShiftTypeOff, model.ShiftTypePaidLeave:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid shift_type: %s", s))
+	}
 }
 
 // requiresTimeSlot は時刻（start_time/end_time）が必要なシフト種別かどうかを返す。
@@ -125,11 +154,15 @@ func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) e
 }
 
 func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error) {
+	shiftType := model.ShiftType(input.ShiftType)
+	if err := validateShiftType(shiftType); err != nil {
+		return nil, err
+	}
 	startTime := normalizeTimeString(input.StartTime)
 	endTime := normalizeTimeString(input.EndTime)
 
 	// BUG-028: 時刻バリデーション（off/paid_leave は除外）
-	if err := validateShiftTimes(input.ShiftType, startTime, endTime); err != nil {
+	if err := validateShiftTimes(shiftType, startTime, endTime); err != nil {
 		return nil, err
 	}
 
@@ -137,7 +170,7 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 		ClinicID:  clinicID,
 		StaffID:   input.StaffID,
 		Date:      input.Date,
-		ShiftType: input.ShiftType,
+		ShiftType: shiftType,
 		StartTime: startTime,
 		EndTime:   endTime,
 		Notes:     input.Notes,
@@ -166,20 +199,23 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 }
 
 func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateShiftEntryInput) (*model.ShiftEntry, error) {
-	fields := buildShiftEntryUpdateFields(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-
 	// BUG-028: 時刻バリデーション。更新後の start_time/end_time を確定させるために既存レコードを取得する。
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find shift entry for update")
 	}
+	fields := buildShiftEntryUpdate(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+	}
 	// 更新後の shiftType を決定（input に値があれば上書き、なければ既存値）
 	effectiveShiftType := existing.ShiftType
 	if input.ShiftType != nil {
-		effectiveShiftType = *input.ShiftType
+		st := model.ShiftType(*input.ShiftType)
+		if err := validateShiftType(st); err != nil {
+			return nil, err
+		}
+		effectiveShiftType = st
 	}
 	// 更新後の start_time/end_time を決定
 	effectiveStart := existing.StartTime
@@ -207,7 +243,7 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 			return nil, apperrors.Wrap(err, "failed to save shift breaks")
 		}
 	}
-	slog.InfoContext(ctx, "shift entry updated", slog.Uint64("shift_entry_id", id))
+	slog.InfoContext(ctx, "shift entry updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_entry_id", id))
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get shift entry after update")
@@ -216,28 +252,14 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 }
 
 func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find shift entry")
+	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete shift entry")
 	}
-	slog.InfoContext(ctx, "shift entry deleted", slog.Uint64("shift_entry_id", id))
+	slog.InfoContext(ctx, "shift entry deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_entry_id", id))
 	return nil
-}
-
-func buildShiftEntryUpdateFields(input *UpdateShiftEntryInput) map[string]any {
-	fields := map[string]any{}
-	if input.ShiftType != nil {
-		fields["shift_type"] = *input.ShiftType
-	}
-	if input.StartTime != nil {
-		fields["start_time"] = normalizeTimeString(input.StartTime)
-	}
-	if input.EndTime != nil {
-		fields["end_time"] = normalizeTimeString(input.EndTime)
-	}
-	if input.Notes != nil {
-		fields["notes"] = *input.Notes
-	}
-	return fields
 }
 
 // validateYearMonth は "YYYY-MM" 形式を検証する

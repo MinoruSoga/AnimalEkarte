@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   transformReservationToReceptionAppointment,
   transformReservationsToReceptionColumns,
-  COLUMN_ID_TO_TITLE,
   RECEPTION_COLUMNS,
 } from "./transforms";
 import type { Appointment as BackendReservation } from "@/types/generated/models";
@@ -156,16 +155,3 @@ describe("transformReservationsToReceptionColumns", () => {
   });
 });
 
-describe("COLUMN_ID_TO_TITLE", () => {
-  it("pending → '受付予約'", () => {
-    expect(COLUMN_ID_TO_TITLE.pending).toBe("受付予約");
-  });
-
-  it("checked_in → '受付済'", () => {
-    expect(COLUMN_ID_TO_TITLE.checked_in).toBe("受付済");
-  });
-
-  it("completed → '会計済'", () => {
-    expect(COLUMN_ID_TO_TITLE.completed).toBe("会計済");
-  });
-});

@@ -54,11 +54,12 @@ func main() {
 
 	// サービス初期化
 	svcs := service.NewServices(repos, &service.ReservationNotificationConfig{
-		SMTPHost: cfg.SMTPHost,
-		SMTPPort: cfg.SMTPPort,
-		SMTPUser: cfg.SMTPUser,
-		SMTPPass: cfg.SMTPPass,
-		SMTPFrom: cfg.SMTPFrom,
+		SMTPHost:    cfg.SMTPHost,
+		SMTPPort:    cfg.SMTPPort,
+		SMTPUser:    cfg.SMTPUser,
+		SMTPPass:    cfg.SMTPPass,
+		SMTPFrom:    cfg.SMTPFrom,
+		FrontendURL: cfg.FrontendURL,
 	})
 
 	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）

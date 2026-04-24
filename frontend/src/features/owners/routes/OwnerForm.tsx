@@ -27,7 +27,7 @@ import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { useOwnerForm } from "../hooks/use-owner-form";
@@ -482,6 +482,10 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
     id: string;
     name: string;
   } | null>(null);
+  const [pendingOwnerChange, setPendingOwnerChange] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const loaderData = useLoaderData() as OwnerLoaderData | undefined;
   const initialOwner = loaderData?.owner;
@@ -540,23 +544,33 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
     navigate(paths.owners.getHref());
   };
 
-  // FE-085: ペットの飼主変更ハンドラ
+  // BUG-373: 飼主変更 — 確認モーダルを経由してから実行
   const handlePetChangeOwner = useCallback(
     (newOwner: { id: string; name: string }) => {
       if (!editingPet?.id || !petMutations) return;
-      petMutations.updatePetMutate(
-        { id: editingPet.id, req: { owner_id: Number(newOwner.id) } },
-        {
-          onSuccess: () => {
-            toast.success(`飼主を ${newOwner.name} に変更しました`);
-            setPetModalOpen(false);
-          },
-          onError: (error) => handleApiError(error, "飼主変更"),
-        },
-      );
+      setPendingOwnerChange(newOwner);
     },
-    [editingPet, petMutations, setPetModalOpen],
+    [editingPet, petMutations],
   );
+
+  const handleConfirmOwnerChange = useCallback(() => {
+    if (!pendingOwnerChange || !editingPet?.id || !petMutations) return;
+    const newOwner = pendingOwnerChange;
+    petMutations.updatePetMutate(
+      { id: editingPet.id, req: { owner_id: Number(newOwner.id) } },
+      {
+        onSuccess: () => {
+          toast.success(`飼主を ${newOwner.name} に変更しました`);
+          setPendingOwnerChange(null);
+          setPetModalOpen(false);
+        },
+        onError: (error) => {
+          handleApiError(error, "飼主変更");
+          setPendingOwnerChange(null);
+        },
+      },
+    );
+  }, [pendingOwnerChange, editingPet, petMutations, setPetModalOpen]);
 
   // rerender-functional-setstate: setOwnerData・markDirty は両方安定した参照なので
   // useCallback で handleInputChange を安定化できる → MembershipTypeButtons memo の前提条件
@@ -716,6 +730,17 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
         confirmLabel="削除"
         cancelLabel="キャンセル"
         variant="destructive"
+      />
+
+      {/* BUG-373: 飼主変更 確認ダイアログ */}
+      <ConfirmDialog
+        open={!!pendingOwnerChange}
+        onClose={() => setPendingOwnerChange(null)}
+        onConfirm={handleConfirmOwnerChange}
+        title="飼主を変更しますか？"
+        description={`飼主を「${pendingOwnerChange?.name}」に変更します。飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。`}
+        confirmLabel="変更する"
+        cancelLabel="キャンセル"
       />
     </PageLayout>
     </form>

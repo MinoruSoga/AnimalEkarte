@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -98,6 +99,11 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 		return
 	}
 
+	if req.ReservationTypeID == 0 {
+		RespondError(c, apperrors.WrapInvalidInput("reservation_type_id は必須です"))
+		return
+	}
+
 	input := &service.CreateTrimmingInput{
 		ReservationTypeID: req.ReservationTypeID,
 		PetID:             req.PetID,
@@ -131,6 +137,7 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/trimmings/%d", appt.ID))
 	c.JSON(http.StatusCreated, toTrimmingResponse(appt))
 }
 

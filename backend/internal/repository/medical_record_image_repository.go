@@ -12,7 +12,7 @@ import (
 
 // MedicalRecordImageRepository は診療画像のデータアクセス層
 type MedicalRecordImageRepository interface {
-	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
+	FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
 	Create(ctx context.Context, image *model.MedicalRecordImage) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*model.MedicalRecordImage, error)
@@ -27,11 +27,11 @@ func NewMedicalRecordImageRepository(db *gorm.DB) MedicalRecordImageRepository {
 	return &medicalRecordImageRepository{db: db}
 }
 
-func (r *medicalRecordImageRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+func (r *medicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
 	images := make([]model.MedicalRecordImage, 0)
 	if err := r.db.WithContext(ctx).
 		Where("medical_record_id = ?", medicalRecordID).
-		Preload("Staff").
+		Preload("Staff", "deleted_at IS NULL").
 		Order("sort_order ASC, created_at ASC").
 		Find(&images).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record_image", "")
@@ -62,7 +62,7 @@ func (r *medicalRecordImageRepository) Delete(ctx context.Context, id uint64) er
 func (r *medicalRecordImageRepository) FindByID(ctx context.Context, id uint64) (*model.MedicalRecordImage, error) {
 	var image model.MedicalRecordImage
 	err := r.db.WithContext(ctx).
-		Preload("Staff").
+		Preload("Staff", "deleted_at IS NULL").
 		First(&image, id).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record_image", fmt.Sprintf("%d", id))

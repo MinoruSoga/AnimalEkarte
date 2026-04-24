@@ -3,23 +3,7 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Examination } from "@/types/generated/models";
 
-export interface ExamGroupItem {
-  id: number;
-  name: string;
-  result: string;
-  unit: string;
-  reference_value: string;
-  status: string;
-}
-
-export interface ExamGroup {
-  id: number;
-  date: string;
-  machine: string;
-  items: ExamGroupItem[];
-}
-
-function transformExamination(exam: Examination): ExamGroup {
+export function transformExamination(exam: Examination) {
   return {
     id: exam.id,
     date: exam.date ? exam.date.slice(0, 16).replace("T", " ") : "-",
@@ -34,6 +18,8 @@ function transformExamination(exam: Examination): ExamGroup {
     })),
   };
 }
+export type ExamGroup = ReturnType<typeof transformExamination>;
+export type ExamGroupItem = ExamGroup["items"][number];
 
 const getRecordExaminations = async (
   petId: string,

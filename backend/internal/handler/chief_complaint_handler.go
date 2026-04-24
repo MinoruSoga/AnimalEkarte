@@ -2,16 +2,30 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- ChiefComplaintType ----
+
+// ListChiefComplaints godoc
+func (h *Handler) ListChiefComplaints(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	categories, err := h.svc.ChiefComplaintType.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(categories, toChiefComplaintResponse))
+}
 
 // GetChiefComplaint godoc
 func (h *Handler) GetChiefComplaint(c *gin.Context) {
@@ -31,20 +45,6 @@ func (h *Handler) GetChiefComplaint(c *gin.Context) {
 	c.JSON(http.StatusOK, toChiefComplaintResponse(category))
 }
 
-// ListChiefComplaints godoc
-func (h *Handler) ListChiefComplaints(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	categories, err := h.svc.ChiefComplaintType.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toChiefComplaintResponseList(categories))
-}
-
 // CreateChiefComplaint godoc
 func (h *Handler) CreateChiefComplaint(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -58,17 +58,19 @@ func (h *Handler) CreateChiefComplaint(c *gin.Context) {
 		return
 	}
 
-	category := &model.ChiefComplaintType{
-		ClinicID:  clinicID,
-		Name:      req.Name,
-		IsActive:  req.IsActive,
-		SortOrder: req.SortOrder,
+	svcInput := &service.CreateChiefComplaintTypeInput{
+		Name:        req.Name,
+		Description: req.Description,
+		IsActive:    req.IsActive,
+		SortOrder:   req.SortOrder,
 	}
 
-	if err := h.svc.ChiefComplaintType.Create(c.Request.Context(), category); err != nil {
+	category, err := h.svc.ChiefComplaintType.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/chief-complaint-types/%d", category.ID))
 	c.JSON(http.StatusCreated, toChiefComplaintResponse(category))
 }
 
@@ -102,6 +104,24 @@ func (h *Handler) UpdateChiefComplaint(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toChiefComplaintResponse(updated))
+}
+
+// ReorderChiefComplaints godoc
+func (h *Handler) ReorderChiefComplaints(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if err := h.svc.ChiefComplaintType.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 // DeleteChiefComplaint godoc

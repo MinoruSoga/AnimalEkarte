@@ -2,16 +2,30 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- ExaminationType ----
+
+// ListExaminationTypes godoc
+func (h *Handler) ListExaminationTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	exTypes, err := h.svc.ExaminationType.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(exTypes, toExaminationTypeResponse))
+}
 
 // GetExaminationType godoc
 func (h *Handler) GetExaminationType(c *gin.Context) {
@@ -28,21 +42,7 @@ func (h *Handler) GetExaminationType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toExamTypeResponse(et))
-}
-
-// ListExaminationTypes godoc
-func (h *Handler) ListExaminationTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	exTypes, err := h.svc.ExaminationType.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toExamTypeResponseList(exTypes))
+	c.JSON(http.StatusOK, toExaminationTypeResponse(et))
 }
 
 // CreateExaminationType godoc
@@ -58,8 +58,7 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 		return
 	}
 
-	examType := &model.ExaminationType{
-		ClinicID:    clinicID,
+	svcInput := &service.CreateExamTypeInput{
 		Name:        req.Name,
 		Price:       req.Price,
 		IsActive:    req.IsActive,
@@ -68,11 +67,13 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 		SortOrder:   req.SortOrder,
 	}
 
-	if err := h.svc.ExaminationType.Create(c.Request.Context(), examType); err != nil {
+	examType, err := h.svc.ExaminationType.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, toExamTypeResponse(examType))
+	c.Header("Location", fmt.Sprintf("/v1/masters/examination-types/%d", examType.ID))
+	c.JSON(http.StatusCreated, toExaminationTypeResponse(examType))
 }
 
 // UpdateExaminationType godoc
@@ -101,12 +102,12 @@ func (h *Handler) UpdateExaminationType(c *gin.Context) {
 		SortOrder:     req.SortOrder,
 	}
 
-	exType, err := h.svc.ExaminationType.Update(c.Request.Context(), clinicID, id, svcInput)
+	exType, err := h.svc.ExaminationType.Update(c.Request.Context(), clinicID, id, &svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toExamTypeResponse(exType))
+	c.JSON(http.StatusOK, toExaminationTypeResponse(exType))
 }
 
 // ReorderExaminationTypes godoc
@@ -115,7 +116,7 @@ func (h *Handler) ReorderExaminationTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderExaminationTypeRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -124,7 +125,7 @@ func (h *Handler) ReorderExaminationTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // DeleteExaminationType godoc

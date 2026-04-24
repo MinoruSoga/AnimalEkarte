@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "alwaysThinkingEnabled": true,
+  "alwaysThinkingEnabled": false,
   "attribution": {
     "enabled": true,
     "format": "Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
@@ -48,7 +48,6 @@
       "Read(./**/*.log)",
       "Read(./logs/**)",
       "Read(./.git/**)",
-      "Read(./tmp/**)",
       "Read(./temp/**)",
       "Write(./.env)",
       "Write(./.env.*)",
@@ -104,6 +103,7 @@
       "Read(public/**)",
       "Read(tests/**)",
       "Read(docs/**)",
+      "Read(tmp/**)",
       "Write(.claude/rules/**)",
       "Write(.claude/hooks/**)",
       "Write(frontend/src/**)",
@@ -139,16 +139,6 @@
           }
         ],
         "description": "Block destructive shell commands (rm -rf /, dd, mkfs)"
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-git-push-reminder.js"
-          }
-        ],
-        "description": "Remind to review changes before git push"
       },
       {
         "matcher": "Bash",
@@ -203,16 +193,6 @@
         "description": "Warn about console.log statements after edits or new file creation"
       },
       {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-format-go.js"
-          }
-        ],
-        "description": "Auto-format Go files with gofmt after edits or new file creation"
-      },
-      {
         "matcher": "Edit",
         "hooks": [
           {
@@ -221,17 +201,6 @@
           }
         ],
         "description": "Warn when file exceeds 500/800 lines after edit (catches gradual growth)"
-      },
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-typecheck-ts.js",
-            "timeout": 35000
-          }
-        ],
-        "description": "TypeScript type check via Docker after editing .ts/.tsx files (non-blocking warning)"
       }
     ],
     "PreCompact": [

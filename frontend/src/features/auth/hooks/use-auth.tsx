@@ -1,12 +1,16 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, use } from "react";
+import { useState, useCallback, useEffect, useMemo, use } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "../types";
+import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "@/types/auth";
+import { AuthContext } from "@/contexts/auth-context";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
 import { useGetMe } from "../api/get-me";
+
+// Re-export useAuth from shared hooks for backward compatibility within this feature
+export { useAuth } from "@/hooks/use-auth";
 
 /* セッション情報は httpOnly Cookie で管理するため localStorage への保存は不要。
  * 選択中のクリニック ID のみ localStorage に残す（権限情報ではないためリスク低） */
@@ -36,8 +40,6 @@ function removeClinicFromStorage(): void {
   }
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null);
-
 /**
  * Initial session restoration promise.
  * Module-level で一度だけ作成する（アプリ起動時に 1 回だけ /v1/me を呼ぶ）。
@@ -61,7 +63,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const validClinic = initialResult.user.clinics.some((c) => c.clinicId === storedClinic);
     return validClinic ? storedClinic : initialResult.user.mainClinicId;
   });
-  
+
   // isSwitchingClinic: クリニック切替はフルリロードで行うため常に false
   const isSwitchingClinic = false;
 
@@ -157,13 +159,4 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-// eslint-disable-next-line react-refresh/only-export-components -- AuthProvider と useAuth は同一コンテキストを共有するため同一ファイルで定義
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return ctx;
 }

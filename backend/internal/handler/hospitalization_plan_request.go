@@ -6,10 +6,10 @@ type createHospitalizationPlanRequest struct {
 	Price       *int64   `json:"price"`
 	IsActive    bool     `json:"is_active"`
 	Description string   `json:"description"`
-	BodySize    string   `json:"body_size"`
-	BillingUnit string   `json:"billing_unit"`
+	BodySize    string   `json:"body_size"    binding:"omitempty,oneof=small medium large"`
+	BillingUnit string   `json:"billing_unit" binding:"omitempty,oneof=per_day per_night"`
 	SortOrder   int      `json:"sort_order"`
-	TaxType     string   `json:"tax_type"`
+	TaxType     string   `json:"tax_type"     binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate     *float64 `json:"tax_rate"`
 }
 
@@ -24,9 +24,4 @@ type updateHospitalizationPlanRequest struct {
 	SortOrder   *int     `json:"sort_order"`
 	TaxType     *string  `json:"tax_type"`
 	TaxRate     *float64 `json:"tax_rate"`
-}
-
-// reorderHospitalizationPlanRequest は入院プラン並び替えリクエスト。
-type reorderHospitalizationPlanRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
 }

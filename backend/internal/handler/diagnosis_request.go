@@ -29,13 +29,3 @@ type updateDiagnosisNameRequest struct {
 	Description     *string `json:"description"`
 	SortOrder       *int    `json:"sort_order"`
 }
-
-// reorderDiagnosisTypeRequest (#019)
-type reorderDiagnosisTypeRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}
-
-// reorderDiagnosisNameRequest (#019)
-type reorderDiagnosisNameRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

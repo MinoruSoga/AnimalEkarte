@@ -69,7 +69,7 @@ func allModels() []any {
 		&model.Vaccination{},
 		&model.Checkup{},
 		&model.MedicalRecordImage{},
-		&model.Appointment{},
+		&model.Reservation{},
 		&model.Inquiry{},
 		&model.InquiryTemplate{},
 		&model.Hospitalization{},
@@ -108,6 +108,11 @@ func allModels() []any {
 		&model.ReservationTypeGroup{},
 		// クリニック休診日
 		&model.ClinicHoliday{},
+		// FEAT-368: 集計・締め機能
+		&model.ClinicSettings{},
+		&model.ClosingSpecialPeriod{},
+		&model.PaymentMethodMaster{},
+		&model.CashRegisterClose{},
 	}
 }
 
@@ -152,8 +157,8 @@ func goTypeCategory(goType reflect.Type, gormTag string) string {
 		goType = goType.Elem()
 	}
 
-	// pq.StringArray 等の配列型
-	if goType.Name() == "StringArray" {
+	// pq.StringArray / pq.Int64Array 等の配列型
+	if goType.Name() == "StringArray" || goType.Name() == "Int64Array" {
 		return "array"
 	}
 
@@ -275,7 +280,7 @@ func TestSchemaDrift(t *testing.T) {
 			if fieldType.Kind() == reflect.Ptr {
 				fieldType = fieldType.Elem()
 			}
-			isStringArray := fieldType.Name() == "StringArray"
+			isStringArray := fieldType.Name() == "StringArray" || fieldType.Name() == "Int64Array"
 			isByteSlice := fieldType.Kind() == reflect.Slice && fieldType.Elem().Kind() == reflect.Uint8
 			if fieldType.Kind() == reflect.Slice && !isStringArray && !isByteSlice {
 				continue

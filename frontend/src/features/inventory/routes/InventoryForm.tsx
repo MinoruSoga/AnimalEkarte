@@ -21,7 +21,7 @@ import { useEffect } from "react";
 
 // Relative
 import { useInventoryForm } from "../hooks/use-inventory-form";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type { InventoryItem } from "@/types";

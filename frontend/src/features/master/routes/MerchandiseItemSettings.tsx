@@ -13,10 +13,10 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
-import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
-import { useMasterSave } from "@/features/master/hooks/use-master-save";
-import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
+import { MASTER_STATUS_FILTER } from "../constants/styles";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { useGetAllMerchandiseItems, useCreateMerchandiseItem, useUpdateMerchandiseItem, useDeleteMerchandiseItem, useReorderMerchandiseItems } from "../api/merchandise-items";
 import type {
   FrontendMerchandiseItem,
@@ -25,7 +25,7 @@ import type {
 } from "../api/merchandise-items";
 import type { TaxType } from "@/types/generated/models";
 import { ResourceMasterMerchandise } from "@/types/generated/models";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // ─── Constants ───
 

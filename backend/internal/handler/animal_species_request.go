@@ -11,7 +11,3 @@ type updateAnimalSpeciesRequest struct {
 	IsActive  *bool   `json:"is_active"`
 	SortOrder *int    `json:"sort_order"`
 }
-
-type reorderAnimalSpeciesRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

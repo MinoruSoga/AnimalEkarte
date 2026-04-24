@@ -17,6 +17,21 @@ const (
 	colAnimalSpeciesSortOrder = "sort_order"
 )
 
+// buildAnimalSpeciesUpdate はポインタが非 nil のフィールドのみ map に追加する
+func buildAnimalSpeciesUpdate(input *UpdateAnimalSpeciesInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colAnimalSpeciesName] = *input.Name
+	}
+	if input.IsActive != nil {
+		fields[colAnimalSpeciesIsActive] = *input.IsActive
+	}
+	if input.SortOrder != nil {
+		fields[colAnimalSpeciesSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
 // ---- Input DTOs ----
 
 // CreateAnimalSpeciesInput は動物種類作成の入力DTO
@@ -56,6 +71,7 @@ func NewAnimalSpeciesService(repo repository.AnimalSpeciesRepository, petRepo re
 func (s *animalSpeciesService) List(ctx context.Context) ([]model.AnimalSpecies, error) {
 	items, err := s.repo.FindAll(ctx)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list animal species", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list animal species")
 	}
 	return items, nil
@@ -64,13 +80,14 @@ func (s *animalSpeciesService) List(ctx context.Context) ([]model.AnimalSpecies,
 func (s *animalSpeciesService) GetByID(ctx context.Context, id uint64) (*model.AnimalSpecies, error) {
 	result, err := s.repo.FindByID(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get animal species", "error", err, "id", id)
 		return nil, apperrors.Wrap(err, "failed to get animal species")
 	}
 	return result, nil
 }
 
 func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
-	if err := validateMasterName(input.Name); err != nil {
+	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
 	species := &model.AnimalSpecies{
@@ -79,70 +96,66 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 		SortOrder: input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, species); err != nil {
+		slog.ErrorContext(ctx, "failed to create animal species", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create animal species")
 	}
 	slog.InfoContext(ctx, "animal species created",
-		slog.Uint64("species_id", species.ID),
-		slog.String("name", species.Name))
+		slog.Uint64("animal_species_id", species.ID))
 	return species, nil
 }
 
 func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
+	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get animal species")
+	}
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildAnimalSpeciesUpdateFields(input)
+	fields := buildAnimalSpeciesUpdate(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	if err := s.repo.Update(ctx, id, fields); err != nil {
+	result, err := s.repo.Update(ctx, id, fields)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update animal species", "error", err, "id", id)
 		return nil, apperrors.Wrap(err, "failed to update animal species")
 	}
 	slog.InfoContext(ctx, "animal species updated",
-		slog.Uint64("species_id", id))
-	result, err := s.repo.FindByID(ctx, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get animal species after update")
-	}
+		slog.Uint64("animal_species_id", id))
 	return result, nil
 }
 
 func (s *animalSpeciesService) Delete(ctx context.Context, id uint64) error {
-	count, err := s.petRepo.CountByAnimalSpeciesID(ctx, id)
+	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		return apperrors.Wrap(err, "failed to find animal species")
+	}
+	count, err := s.petRepo.CountUsageByAnimalSpeciesID(ctx, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check animal species dependencies", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to check animal species dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この動物種はペット情報で使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete animal species", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to delete animal species")
 	}
-	slog.InfoContext(ctx, "animal species deleted", slog.Uint64("species_id", id))
+	slog.InfoContext(ctx, "animal species deleted", slog.Uint64("animal_species_id", id))
 	return nil
 }
 
 func (s *animalSpeciesService) Reorder(ctx context.Context, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder animal species", "error", err)
 		return apperrors.Wrap(err, "failed to reorder animal species")
 	}
+	slog.InfoContext(ctx, "animal species reordered", slog.Int("count", len(ids)))
 	return nil
-}
-
-// buildAnimalSpeciesUpdateFields はポインタが非 nil のフィールドのみ map に追加する
-func buildAnimalSpeciesUpdateFields(input *UpdateAnimalSpeciesInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colAnimalSpeciesName] = *input.Name
-	}
-	if input.IsActive != nil {
-		fields[colAnimalSpeciesIsActive] = *input.IsActive
-	}
-	if input.SortOrder != nil {
-		fields[colAnimalSpeciesSortOrder] = *input.SortOrder
-	}
-	return fields
 }

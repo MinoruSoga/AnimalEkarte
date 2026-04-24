@@ -84,7 +84,7 @@ rm aspect-ratio.tsx breadcrumb.tsx carousel.tsx chart.tsx collapsible.tsx \
    resizable.tsx slider.tsx
 ```
 
-### 3. 不要な npm 依存のチェック（オプション）
+### 3. 不要な pnpm 依存のチェック（オプション）
 削除後、以下のパッケージが他で使われていない場合は `package.json` から削除を検討:
 - `recharts`（chart.tsx のみで使用の場合）
 - `vaul`（drawer.tsx のみで使用の場合）
@@ -101,7 +101,7 @@ grep -r "recharts\|vaul\|input-otp\|react-resizable-panels" frontend/src \
 ### `.claude/rules/performance-rules.md` — Bundle Size
 > Bundle Size: < 200KB (JS)
 
-未使用コンポーネントは Tree-shaking で除外されるが、依存ライブラリ（recharts, vaul等）が package.json に残ると npm install 時にダウンロードされる。CI/CD のビルド時間にも影響。
+未使用コンポーネントは Tree-shaking で除外されるが、依存ライブラリ（recharts, vaul等）が package.json に残ると pnpm install 時にダウンロードされる。CI/CD のビルド時間にも影響。
 
 ### プロジェクト内参照実装
 - `components/ui/button.tsx`, `components/ui/input.tsx` — 実際に使用されているコンポーネントの例

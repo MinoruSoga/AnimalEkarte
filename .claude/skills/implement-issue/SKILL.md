@@ -177,9 +177,9 @@ cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && make codegen
 
 ```bash
 # FE の場合（3段階: lint → 型チェック → テスト）
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec frontend npm run lint
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec frontend npm run build
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec frontend npm run test:run
+cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec frontend ppnpm lint
+cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec frontend ppnpm build
+cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec frontend pppnpm test:run
 
 # BE の場合（3段階: lint → vet/build → テスト）
 cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte && docker compose exec backend golangci-lint run ./...

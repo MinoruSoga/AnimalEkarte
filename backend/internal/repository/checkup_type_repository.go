@@ -17,10 +17,11 @@ type CheckupTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error)
 	Create(ctx context.Context, checkupType *model.CheckupType) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountUsageByCheckupTypeID(ctx context.Context, checkupTypeID uint64) (int64, error)
+	CountUsageByCheckupTypeID(ctx context.Context, clinicID, checkupTypeID uint64) (int64, error)
+	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
 
 type checkupTypeRepository struct{ db *gorm.DB }
@@ -50,15 +51,12 @@ func (r *checkupTypeRepository) FindByID(ctx context.Context, clinicID, id uint6
 func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.CheckupType) error {
 	err := r.db.WithContext(ctx).Create(checkupType).Error
 	if err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "checkup_type", "")
 	}
 	return nil
 }
 
-func (r *checkupTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
+func (r *checkupTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.CheckupType{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -87,14 +85,29 @@ func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, id
 	return reorderByClinicID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, ids)
 }
 
-// CountUsageByCheckupTypeID は定期健診種別を参照している checkup_records の件数を返す（BUG-107）
-func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, checkupTypeID uint64) (int64, error) {
+// CountUsageByCheckupTypeID は定期健診種別を参照している checkups の件数を返す（BUG-107）
+// checkups テーブルは直接 clinic_id を持つためテナント分離を直接適用する
+func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, clinicID, checkupTypeID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Checkup{}).
-		Where("checkup_type_id = ?", checkupTypeID).
+		Scopes(clinicScope(clinicID)).
+		Where("checkup_type_id = ? AND deleted_at IS NULL", checkupTypeID).
 		Count(&count).Error; err != nil {
-		return 0, apperrors.FromGORM(err, "checkup_record", "")
+		return 0, apperrors.FromGORM(err, "checkup_type", "")
+	}
+	return count, nil
+}
+
+// CountChildrenByParentID は指定した親 ID を持つ子健診種別の件数を返す。
+func (r *checkupTypeRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.CheckupType{}).
+		Scopes(clinicScope(clinicID)).
+		Where("parent_id = ? AND deleted_at IS NULL", parentID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "checkup_type", "")
 	}
 	return count, nil
 }

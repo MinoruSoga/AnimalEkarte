@@ -9,6 +9,22 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// --- DB column constants ---
+
+const (
+	colCompanyName                      = "name"
+	colCompanyPostalCode                = "postal_code"
+	colCompanyAddress                   = "address"
+	colCompanyPhoneNumber               = "phone_number"
+	colCompanyFaxNumber                 = "fax_number"
+	colCompanyEmail                     = "email"
+	colCompanyWebsite                   = "website"
+	colCompanyDirectorName              = "director_name"
+	colCompanyRegistrationNumber        = "registration_number"
+	colCompanyInvoiceRegistrationNumber = "invoice_registration_number"
+	colCompanyLogoURL                   = "logo_url"
+)
+
 // UpdateCompanyInput は法人情報部分更新の入力DTO
 type UpdateCompanyInput struct {
 	Name                      *string
@@ -22,6 +38,44 @@ type UpdateCompanyInput struct {
 	RegistrationNumber        *string
 	InvoiceRegistrationNumber *string
 	LogoURL                   *string
+}
+
+func buildCompanyUpdate(input *UpdateCompanyInput) map[string]any {
+	fields := map[string]any{}
+	if input.Name != nil {
+		fields[colCompanyName] = *input.Name
+	}
+	if input.PostalCode != nil {
+		fields[colCompanyPostalCode] = *input.PostalCode
+	}
+	if input.Address != nil {
+		fields[colCompanyAddress] = *input.Address
+	}
+	if input.PhoneNumber != nil {
+		fields[colCompanyPhoneNumber] = *input.PhoneNumber
+	}
+	if input.FaxNumber != nil {
+		fields[colCompanyFaxNumber] = *input.FaxNumber
+	}
+	if input.Email != nil {
+		fields[colCompanyEmail] = *input.Email
+	}
+	if input.Website != nil {
+		fields[colCompanyWebsite] = *input.Website
+	}
+	if input.DirectorName != nil {
+		fields[colCompanyDirectorName] = *input.DirectorName
+	}
+	if input.RegistrationNumber != nil {
+		fields[colCompanyRegistrationNumber] = *input.RegistrationNumber
+	}
+	if input.InvoiceRegistrationNumber != nil {
+		fields[colCompanyInvoiceRegistrationNumber] = *input.InvoiceRegistrationNumber
+	}
+	if input.LogoURL != nil {
+		fields[colCompanyLogoURL] = *input.LogoURL
+	}
+	return fields
 }
 
 // CompanyService は法人情報のビジネスロジックインターフェース
@@ -41,7 +95,7 @@ func NewCompanyService(repo repository.CompanyRepository) CompanyService {
 
 // Get は法人情報シングルトンを取得する
 func (s *companyService) Get(ctx context.Context) (*model.Company, error) {
-	result, err := s.repo.Get(ctx)
+	result, err := s.repo.FindSingleton(ctx)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get company")
 	}
@@ -50,55 +104,17 @@ func (s *companyService) Get(ctx context.Context) (*model.Company, error) {
 
 // Update は法人情報を部分更新する
 func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) (*model.Company, error) {
-	fields := buildCompanyUpdateFields(input)
+	fields := buildCompanyUpdate(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	if err := s.repo.Update(ctx, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update company")
 	}
-	slog.InfoContext(ctx, "company updated")
-	result, err := s.repo.Get(ctx)
+	result, err := s.repo.FindSingleton(ctx)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get company after update")
 	}
+	slog.InfoContext(ctx, "company updated", slog.Uint64("company_id", result.ID))
 	return result, nil
-}
-
-func buildCompanyUpdateFields(input *UpdateCompanyInput) map[string]any {
-	fields := map[string]any{}
-	if input.Name != nil {
-		fields["name"] = *input.Name
-	}
-	if input.PostalCode != nil {
-		fields["postal_code"] = *input.PostalCode
-	}
-	if input.Address != nil {
-		fields["address"] = *input.Address
-	}
-	if input.PhoneNumber != nil {
-		fields["phone_number"] = *input.PhoneNumber
-	}
-	if input.FaxNumber != nil {
-		fields["fax_number"] = *input.FaxNumber
-	}
-	if input.Email != nil {
-		fields["email"] = *input.Email
-	}
-	if input.Website != nil {
-		fields["website"] = *input.Website
-	}
-	if input.DirectorName != nil {
-		fields["director_name"] = *input.DirectorName
-	}
-	if input.RegistrationNumber != nil {
-		fields["registration_number"] = *input.RegistrationNumber
-	}
-	if input.InvoiceRegistrationNumber != nil {
-		fields["invoice_registration_number"] = *input.InvoiceRegistrationNumber
-	}
-	if input.LogoURL != nil {
-		fields["logo_url"] = *input.LogoURL
-	}
-	return fields
 }

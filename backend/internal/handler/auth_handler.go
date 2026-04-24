@@ -11,6 +11,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -22,13 +23,14 @@ const (
 	legacyCookieName       = "auth_token"
 )
 
-// buildMeResponse はスタッフデータと補助情報からMeResponseを構築する。
+// toMeResponse はスタッフデータと補助情報からMeResponseを構築する。
 // effectivePerms は事前に計算された実効権限マップ。nil の場合はデフォルト（全権限なし）。
-func buildMeResponse(staff *model.Staff, account *model.Account, mainClinicID string, clinicNameMap map[string]string, allClinics []model.Clinic, effectivePerms EffectivePermissions) *MeResponse {
+func toMeResponse(staff *model.Staff, account *model.Account, mainClinicID string, clinicNameMap map[string]string, allClinics []model.Clinic, effectivePerms EffectivePermissions) *MeResponse {
 	meClinicList := make([]MeClinicMembership, 0)
 	isSystemAdmin := account != nil && account.IsSystemAdmin
 	if staff != nil && len(staff.ClinicAssignments) > 0 {
-		for _, asg := range staff.ClinicAssignments {
+		for i := range staff.ClinicAssignments {
+			asg := &staff.ClinicAssignments[i]
 			clIDStr := strconv.FormatUint(asg.ClinicID, 10)
 			meClinicList = append(meClinicList, MeClinicMembership{
 				ClinicID:   clIDStr,
@@ -134,7 +136,8 @@ func (h *Handler) authenticateUser(ctx context.Context, email, password, clientI
 // メインクリニックが未設定の場合は最初の割り当てを使用する。
 func resolveClinicInfo(assignments []model.StaffClinicAssignment) (mainClinicID string, clinicIDs []uint64) {
 	clinicIDs = make([]uint64, 0, len(assignments))
-	for _, asg := range assignments {
+	for i := range assignments {
+		asg := &assignments[i]
 		if asg.IsMain && mainClinicID == "" {
 			mainClinicID = strconv.FormatUint(asg.ClinicID, 10)
 		}
@@ -233,7 +236,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(ctx, staff.ID)
 	if err != nil {
 		RespondError(c, apperrors.Wrap(err, "所属クリニック情報の取得に失敗しました"))
 		return
@@ -270,7 +273,7 @@ func (h *Handler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, LoginResponse{
 		IsSystemAdmin: account.IsSystemAdmin,
-		User:          buildMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap),
+		User:          toMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap),
 	})
 }
 
@@ -382,16 +385,13 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	}
 
 	// 所属クリニック再取得（assignment 変更があった場合に最新を反映）
-	assignments, asgErr := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	assignments, asgErr := h.svc.StaffClinicAssignment.FindAllByStaffID(ctx, staff.ID)
 	if asgErr != nil {
 		RespondError(c, apperrors.Wrap(asgErr, "failed to get clinic assignments"))
 		return
 	}
-	clinicIDs := make([]uint64, 0, len(assignments))
-	mainClinicID := claims.ClinicID
-	for _, a := range assignments {
-		clinicIDs = append(clinicIDs, a.ClinicID)
-	}
+	// resolveClinicInfo で最新割り当てから mainClinicID を再計算（旧 claims の値を引き継がない）
+	mainClinicID, clinicIDs := resolveClinicInfo(assignments)
 
 	// 新しい access_token（15分）
 	expiresAt := time.Now().Add(15 * time.Minute)
@@ -504,7 +504,7 @@ func (h *Handler) ChangeMyPassword(c *gin.Context) {
 	}
 
 	// 新しいパスワードをハッシュ化して更新
-	hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), config.BcryptCost)
 	if err != nil {
 		RespondError(c, apperrors.Wrap(err, "failed to hash password"))
 		return
@@ -558,7 +558,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 
 	// clinic assignments を取得
-	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(ctx, staff.ID)
 	if err == nil {
 		staff.ClinicAssignments = assignments
 	}
@@ -582,7 +582,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 	permMap := h.calculateEffectivePermissions(ctx, isSystemAdmin, staff.ID)
 
-	c.JSON(http.StatusOK, buildMeResponse(staff, account, mainClinicIDStr, clinicNameMap, allClinics, permMap))
+	c.JSON(http.StatusOK, toMeResponse(staff, account, mainClinicIDStr, clinicNameMap, allClinics, permMap))
 }
 
 // buildAllPermissions は全リソースに対して全CRUD true のマップを返す。
@@ -604,15 +604,16 @@ func (h *Handler) calculateEffectivePermissions(ctx context.Context, isSystemAdm
 		return buildAllPermissions()
 	}
 
-	// staff: DB から実効権限を取得
-	rules, err := h.repos.PermissionGroup.GetEffectivePermissionsByStaffID(ctx, staffID)
+	// staff: service 経由で実効権限を取得（handler → repository 直接呼び出し禁止）
+	rules, err := h.svc.EffectivePermission.GetEffectivePermissions(ctx, staffID)
 	if err != nil {
 		// エラー時は空の権限（最小権限の原則）
 		return make(EffectivePermissions)
 	}
 
 	permMap := make(EffectivePermissions, len(rules))
-	for _, rule := range rules {
+	for i := range rules {
+		rule := &rules[i]
 		permMap[rule.Resource] = ResourcePermission{
 			View:   rule.CanView,
 			Create: rule.CanCreate,
@@ -621,4 +622,55 @@ func (h *Handler) calculateEffectivePermissions(ctx context.Context, isSystemAdm
 		}
 	}
 	return permMap
+}
+
+// ---- パスワードリセット ----
+
+type forgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type resetPasswordRequest struct {
+	Token    string `json:"token"    binding:"required"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+// ForgotPassword はパスワードリセットメールを送信する。
+// アカウントが存在しない場合も 200 を返す（メール存在有無の漏洩防止）。
+func (h *Handler) ForgotPassword(c *gin.Context) {
+	var req forgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	ctx := c.Request.Context()
+	if err := h.svc.PasswordReset.ForgotPassword(ctx, req.Email); err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "If the email exists, a reset link has been sent."})
+}
+
+// ResetPassword は rawToken と新パスワードでパスワードを更新する。
+func (h *Handler) ResetPassword(c *gin.Context) {
+	var req resetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	if err := validatePassword(req.Password); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		return
+	}
+
+	ctx := c.Request.Context()
+	if err := h.svc.PasswordReset.ResetPassword(ctx, req.Token, req.Password); err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password has been reset successfully."})
 }

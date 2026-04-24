@@ -8,7 +8,7 @@ import { BackButton } from '../components/BackButton';
 interface CourseSelectPageProps {
   clinicId: string;
   idToken: string;
-  onSelect: (courseId: number, courseName: string) => void;
+  onSelect: (courseId: number, courseName: string, category?: 'general' | 'trimming') => void;
   onBack: () => void;
 }
 
@@ -61,7 +61,7 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
               {courses.map(course => (
                 <ListItem
                   key={course.id}
-                  onClick={() => onSelect(course.id, course.name)}
+                  onClick={() => onSelect(course.id, course.name, course.category)}
                   subtitle={formatDuration(course.duration_minutes)}
                   description={course.reservation_comment || undefined}
                   imageUrl={course.reservation_image_url || undefined}

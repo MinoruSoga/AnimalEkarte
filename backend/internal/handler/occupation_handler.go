@@ -2,16 +2,30 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Occupation ----
+
+// ListOccupations godoc
+func (h *Handler) ListOccupations(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	occupations, err := h.svc.Occupation.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(occupations, toOccupationResponse))
+}
 
 // GetOccupation godoc
 func (h *Handler) GetOccupation(c *gin.Context) {
@@ -31,20 +45,6 @@ func (h *Handler) GetOccupation(c *gin.Context) {
 	c.JSON(http.StatusOK, toOccupationResponse(occ))
 }
 
-// ListOccupations godoc
-func (h *Handler) ListOccupations(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	occupations, err := h.svc.Occupation.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toOccupationResponseList(occupations))
-}
-
 // CreateOccupation godoc
 func (h *Handler) CreateOccupation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -58,16 +58,18 @@ func (h *Handler) CreateOccupation(c *gin.Context) {
 		return
 	}
 
-	occ := &model.Occupation{
-		ClinicID:  clinicID,
-		Name:      req.Name,
-		IsActive:  req.IsActive,
-		SortOrder: req.SortOrder,
+	svcInput := &service.CreateOccupationInput{
+		Name:        req.Name,
+		Description: req.Description,
+		IsActive:    req.IsActive,
+		SortOrder:   req.SortOrder,
 	}
-	if err := h.svc.Occupation.Create(c.Request.Context(), occ); err != nil {
+	occ, err := h.svc.Occupation.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/occupations/%d", occ.ID))
 	c.JSON(http.StatusCreated, toOccupationResponse(occ))
 }
 
@@ -126,7 +128,7 @@ func (h *Handler) ReorderOccupations(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderOccupationRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -135,5 +137,5 @@ func (h *Handler) ReorderOccupations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }

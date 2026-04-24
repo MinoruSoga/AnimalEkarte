@@ -2,12 +2,12 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -24,7 +24,7 @@ func (h *Handler) ListInsurances(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toInsuranceResponseList(insurances))
+	c.JSON(http.StatusOK, mapSlice(insurances, toInsuranceResponse))
 }
 
 // GetInsurance godoc
@@ -58,24 +58,21 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 		return
 	}
 
-	coverageRate := 0
-	if req.CoverageRate != nil {
-		coverageRate = *req.CoverageRate
-	}
-	insurance := &model.Insurance{
-		ClinicID:     clinicID,
+	svcInput := &service.CreateInsuranceInput{
 		Name:         req.Name,
 		IsActive:     req.IsActive,
 		Description:  req.Description,
-		CoverageRate: coverageRate,
+		CoverageRate: req.CoverageRate,
 		ContactPhone: req.ContactPhone,
 		SortOrder:    req.SortOrder,
 	}
 
-	if err := h.svc.Insurance.Create(c.Request.Context(), insurance); err != nil {
+	insurance, err := h.svc.Insurance.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/insurances/%d", insurance.ID))
 	c.JSON(http.StatusCreated, toInsuranceResponse(insurance))
 }
 
@@ -104,7 +101,7 @@ func (h *Handler) UpdateInsurance(c *gin.Context) {
 		SortOrder:    req.SortOrder,
 	}
 
-	insurance, err := h.svc.Insurance.Update(c.Request.Context(), clinicID, id, svcInput)
+	insurance, err := h.svc.Insurance.Update(c.Request.Context(), clinicID, id, &svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -135,7 +132,7 @@ func (h *Handler) ReorderInsurances(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderInsuranceRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -144,5 +141,5 @@ func (h *Handler) ReorderInsurances(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }

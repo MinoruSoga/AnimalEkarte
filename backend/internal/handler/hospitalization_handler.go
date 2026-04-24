@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -81,7 +82,7 @@ func (h *Handler) GetHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, hospitalization)
+	c.JSON(http.StatusOK, toHospitalizationResponse(hospitalization))
 }
 
 // CreateHospitalization godoc
@@ -105,21 +106,9 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 		return
 	}
 
-	hospitalization := &model.Hospitalization{
-		ClinicID:            clinicID,
-		OwnerID:             input.OwnerID,
-		PetID:               input.PetID,
-		HospitalizationType: hospType,
-		StartDate:           input.StartDate,
-		EndDate:             input.EndDate,
-		CageID:              input.CageID,
-		DoctorID:            input.DoctorID,
-		Memo:                input.Memo,
-		OwnerRequest:        input.OwnerRequest,
-		StaffNotes:          input.StaffNotes,
-	}
+	var status model.HospitalizationStatus
 	if input.Status != "" {
-		status, err := validateEnum(input.Status,
+		s, err := validateEnum(input.Status,
 			model.HospitalizationStatusAdmitted,
 			model.HospitalizationStatusDischarged,
 			model.HospitalizationStatusReserved,
@@ -128,15 +117,30 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
-		hospitalization.Status = status
+		status = s
 	}
 
+	svcInput := &service.CreateHospitalizationInput{
+		OwnerID:             input.OwnerID,
+		PetID:               input.PetID,
+		HospitalizationType: hospType,
+		StartDate:           input.StartDate,
+		EndDate:             input.EndDate,
+		Status:              status,
+		CageID:              input.CageID,
+		DoctorID:            input.DoctorID,
+		Memo:                input.Memo,
+		OwnerRequest:        input.OwnerRequest,
+		StaffNotes:          input.StaffNotes,
+	}
 	ctx := c.Request.Context()
-	if err := h.svc.Hospitalization.Create(ctx, hospitalization); err != nil {
+	hospitalization, err := h.svc.Hospitalization.Create(ctx, clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, hospitalization)
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d", hospitalization.ID))
+	c.JSON(http.StatusCreated, toHospitalizationResponse(hospitalization))
 }
 
 // UpdateHospitalization godoc
@@ -196,7 +200,7 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, hosp)
+	c.JSON(http.StatusOK, toHospitalizationResponse(hosp))
 }
 
 // DischargeWithBilling godoc
@@ -225,7 +229,7 @@ func (h *Handler) DischargeWithBilling(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, toDischargeWithBillingResponse(result))
 }
 
 // DeleteHospitalization godoc

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,7 +21,7 @@ func (h *Handler) ListReservationTypeLiffs(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationTypeLiffResponseList(items))
+	c.JSON(http.StatusOK, mapSlice(items, toReservationTypeLiffResponse))
 }
 
 // CreateReservationTypeLiff godoc
@@ -51,6 +52,7 @@ func (h *Handler) CreateReservationTypeLiff(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/clinics/%d/reservation-types/%d", clinicID, st.ID))
 	c.JSON(http.StatusCreated, toReservationTypeLiffResponse(st))
 }
 
@@ -60,7 +62,7 @@ func (h *Handler) UpdateReservationTypeLiff(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "typeId")
+	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -95,7 +97,7 @@ func (h *Handler) DeleteReservationTypeLiff(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "typeId")
+	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -112,7 +114,7 @@ func (h *Handler) PatchReservationTypeLiffStatus(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "typeId")
+	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -135,7 +137,7 @@ func (h *Handler) PatchReservationTypeLiffSortOrder(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "typeId")
+	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -153,5 +155,5 @@ func (h *Handler) PatchReservationTypeLiffSortOrder(c *gin.Context) {
 
 // UploadReservationTypeLiffImage godoc — v2 スコープ：未実装
 func (h *Handler) UploadReservationTypeLiffImage(c *gin.Context) {
-	RespondError(c, apperrors.WrapInternalServerError("この機能は未実装です"))
+	RespondError(c, apperrors.WrapNotImplemented("この機能は未実装です"))
 }

@@ -29,7 +29,7 @@ func NewLineCustomerRepository(db *gorm.DB) LineCustomerRepository {
 func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
 	items := make([]model.LineCustomer, 0)
 	err := r.db.WithContext(ctx).
-		Preload("Owner").
+		Preload("Owner", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		Order("created_at DESC").
 		Find(&items).Error
@@ -42,9 +42,9 @@ func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) (
 func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error) {
 	var c model.LineCustomer
 	err := r.db.WithContext(ctx).
-		Preload("Owner").
-		Preload("Owner.Pets").
-		Preload("Owner.Pets.AnimalSpecies").
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("Owner.Pets", "deleted_at IS NULL").
+		Preload("Owner.Pets.AnimalSpecies", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&c).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "line_customer", fmt.Sprintf("%d", id))

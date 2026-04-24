@@ -1,15 +1,14 @@
 package handler
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 type permissionGroupResponse struct {
-	ID          string                        `json:"id"`
-	ClinicID    string                        `json:"clinic_id"`
+	ID          uint64                        `json:"id"`
+	ClinicID    uint64                        `json:"clinic_id"`
 	Name        string                        `json:"name"`
 	Description string                        `json:"description"`
 	Color       string                        `json:"color"`
@@ -21,8 +20,8 @@ type permissionGroupResponse struct {
 }
 
 type permissionGroupRuleResponse struct {
-	ID        string    `json:"id"`
-	GroupID   string    `json:"group_id"`
+	ID        uint64    `json:"id"`
+	GroupID   uint64    `json:"group_id"`
 	Resource  string    `json:"resource"`
 	CanView   bool      `json:"can_view"`
 	CanCreate bool      `json:"can_create"`
@@ -40,8 +39,8 @@ func toPermissionGroupResponse(pg *model.PermissionGroup) permissionGroupRespons
 		}
 	}
 	return permissionGroupResponse{
-		ID:          strconv.FormatUint(pg.ID, 10),
-		ClinicID:    strconv.FormatUint(pg.ClinicID, 10),
+		ID:          pg.ID,
+		ClinicID:    pg.ClinicID,
 		Name:        pg.Name,
 		Description: pg.Description,
 		Color:       pg.Color,
@@ -53,18 +52,10 @@ func toPermissionGroupResponse(pg *model.PermissionGroup) permissionGroupRespons
 	}
 }
 
-func toPermissionGroupResponseList(items []model.PermissionGroup) []permissionGroupResponse {
-	list := make([]permissionGroupResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toPermissionGroupResponse(&items[i]))
-	}
-	return list
-}
-
 func toPermissionGroupRuleResponse(rule *model.PermissionGroupRule) permissionGroupRuleResponse {
 	return permissionGroupRuleResponse{
-		ID:        strconv.FormatUint(rule.ID, 10),
-		GroupID:   strconv.FormatUint(rule.GroupID, 10),
+		ID:        rule.ID,
+		GroupID:   rule.GroupID,
 		Resource:  rule.Resource,
 		CanView:   rule.CanView,
 		CanCreate: rule.CanCreate,

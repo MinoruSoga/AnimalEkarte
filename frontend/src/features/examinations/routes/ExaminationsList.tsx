@@ -29,7 +29,7 @@ import { FilteringIndicator } from "@/components/shared/FilteringIndicator/Filte
 // Relative
 import { useFilterExaminationRecords } from "../hooks/use-examination-records";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type {

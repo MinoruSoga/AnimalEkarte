@@ -13,12 +13,13 @@ import (
 
 // mockVaccineRepository は VaccineRepository のテスト用モック実装
 type mockVaccineRepository struct {
-	findAllFn               func(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
-	findByIDFn              func(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
-	createFn                func(ctx context.Context, vaccine *model.Vaccine) error
-	updateFieldsFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
-	deleteFn                func(ctx context.Context, clinicID, id uint64) error
-	countUsageByVaccineIDFn func(ctx context.Context, vaccineID uint64) (int64, error)
+	findAllFn                 func(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
+	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
+	createFn                  func(ctx context.Context, vaccine *model.Vaccine) error
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
+	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
+	countUsageByVaccineIDFn   func(ctx context.Context, clinicID, vaccineID uint64) (int64, error)
+	countChildrenByParentIDFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
 
 func (m *mockVaccineRepository) FindAll(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
@@ -33,7 +34,7 @@ func (m *mockVaccineRepository) Create(ctx context.Context, vaccine *model.Vacci
 	return m.createFn(ctx, vaccine)
 }
 
-func (m *mockVaccineRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
+func (m *mockVaccineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
@@ -45,11 +46,18 @@ func (m *mockVaccineRepository) Reorder(ctx context.Context, clinicID uint64, id
 	return nil
 }
 
-func (m *mockVaccineRepository) CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error) {
+func (m *mockVaccineRepository) CountUsageByVaccineID(ctx context.Context, clinicID, vaccineID uint64) (int64, error) {
 	if m.countUsageByVaccineIDFn == nil {
 		return 0, nil
 	}
-	return m.countUsageByVaccineIDFn(ctx, vaccineID)
+	return m.countUsageByVaccineIDFn(ctx, clinicID, vaccineID)
+}
+
+func (m *mockVaccineRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn == nil {
+		return 0, nil
+	}
+	return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
 }
 
 func TestVaccineService_List(t *testing.T) {
@@ -184,35 +192,51 @@ func TestVaccineService_GetByID(t *testing.T) {
 }
 
 func TestVaccineService_Create(t *testing.T) {
+	negativePrice := int64(-1)
 	tests := []struct {
 		name    string
-		vaccine *model.Vaccine
+		input   *CreateVaccineInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates vaccine successfully",
-			vaccine: &model.Vaccine{
+			input: &CreateVaccineInput{
 				Name:     "新規ワクチン",
-				ClinicID: 1,
+				IsActive: true,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
+			name: "returns error when name is empty (BUG-396)",
+			input: &CreateVaccineInput{
+				Name: "",
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error when price is negative (BUG-380)",
+			input: &CreateVaccineInput{
+				Name:  "価格エラーワクチン",
+				Price: &negativePrice,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
 			name: "returns error when vaccine already exists",
-			vaccine: &model.Vaccine{
-				Name:     "重複ワクチン",
-				ClinicID: 1,
+			input: &CreateVaccineInput{
+				Name: "重複ワクチン",
 			},
 			repoErr: apperrors.WrapAlreadyExists("vaccine", "重複ワクチン"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			vaccine: &model.Vaccine{
-				Name:     "エラーワクチン",
-				ClinicID: 1,
+			input: &CreateVaccineInput{
+				Name: "エラーワクチン",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -228,12 +252,14 @@ func TestVaccineService_Create(t *testing.T) {
 			}
 			svc := NewVaccineService(repo)
 
-			err := svc.Create(context.Background(), tt.vaccine)
+			vaccine, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, vaccine)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, vaccine)
 			}
 		})
 	}
@@ -282,6 +308,12 @@ func TestVaccineService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccineRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccine, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.Vaccine{ID: 1, ClinicID: 1}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Vaccine, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
@@ -291,7 +323,7 @@ func TestVaccineService_Update(t *testing.T) {
 			}
 			svc := NewVaccineService(repo)
 
-			vaccine, err := svc.Update(context.Background(), 1, 1, tt.input)
+			vaccine, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -306,63 +338,102 @@ func TestVaccineService_Update(t *testing.T) {
 
 func TestVaccineService_Delete(t *testing.T) {
 	tests := []struct {
-		name          string
-		id            uint64
-		usageCount    int64
-		countUsageErr error
-		repoErr       error
-		wantErr       bool
-		wantNF        bool
-		wantConflict  bool
+		name             string
+		id               uint64
+		childCount       int64
+		countChildrenErr error
+		usageCount       int64
+		countUsageErr    error
+		findByIDErr      error
+		repoErr          error
+		wantErr          bool
+		wantNF           bool
+		wantConflict     bool
 	}{
 		{
-			name:          "deletes vaccine successfully when no vaccinations use it",
-			id:            1,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       nil,
-			wantErr:       false,
+			name:             "deletes vaccine successfully when no children and no vaccinations use it",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          false,
 		},
 		{
-			name:          "returns conflict error when vaccine is used in vaccination records",
-			id:            1,
-			usageCount:    5,
-			countUsageErr: nil,
-			repoErr:       nil,
-			wantErr:       true,
-			wantConflict:  true,
+			name:             "returns conflict error when vaccine has children (BUG-390)",
+			id:               1,
+			childCount:       2,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          true,
+			wantConflict:     true,
 		},
 		{
-			name:          "returns error when usage count check fails",
-			id:            1,
-			usageCount:    0,
-			countUsageErr: errors.New("db error"),
-			repoErr:       nil,
-			wantErr:       true,
+			name:             "returns error when children count check fails (BUG-390)",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: errors.New("db error"),
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          true,
 		},
 		{
-			name:          "returns not found error when vaccine does not exist",
-			id:            999,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       apperrors.WrapNotFound("vaccine", "999"),
-			wantErr:       true,
-			wantNF:        true,
+			name:             "returns conflict error when vaccine is used in vaccination records",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       5,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          true,
+			wantConflict:     true,
 		},
 		{
-			name:          "returns error on repository failure",
-			id:            1,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       errors.New("db error"),
-			wantErr:       true,
+			name:             "returns error when usage count check fails",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    errors.New("db error"),
+			repoErr:          nil,
+			wantErr:          true,
+		},
+		{
+			name:        "returns not found error when vaccine does not exist",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("vaccine", "999"),
+			wantErr:     true,
+			wantNF:      true,
+		},
+		{
+			name:             "returns error on repository failure",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          errors.New("db error"),
+			wantErr:          true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccineRepository{
-				countUsageByVaccineIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccine, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Vaccine{ID: id}, nil
+				},
+				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.childCount, tt.countChildrenErr
+				},
+				countUsageByVaccineIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

@@ -1,5 +1,4 @@
 import { C } from "@/lib/design-tokens";
-import type { ReactNode } from "react";
 
 /**
  * ローディング・エラー・空状態の共有フォールバックコンポーネント。
@@ -26,24 +25,6 @@ export function ErrorFallback({
   return (
     <div className={`p-4 ${C.danger} ${className ?? ""}`}>
       {message}
-    </div>
-  );
-}
-
-/** アイコン + テキストを表示する空状態フォールバック */
-export function EmptyStateFallback({
-  icon,
-  message,
-  className,
-}: {
-  icon?: ReactNode;
-  message: string;
-  className?: string;
-}) {
-  return (
-    <div className={`flex flex-col items-center gap-2 p-8 ${C.text50} ${className ?? ""}`}>
-      {icon ? <div className="opacity-40">{icon}</div> : null}
-      <span className="text-sm">{message}</span>
     </div>
   );
 }

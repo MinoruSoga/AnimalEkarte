@@ -35,6 +35,36 @@ type UpdateVitalInput struct {
 	Notes           *string
 }
 
+// buildVitalUpdate はnilでないフィールドのみmap[string]anyに変換する
+func buildVitalUpdate(input *UpdateVitalInput) map[string]any {
+	fields := map[string]any{}
+	if input.RecordedAt != nil {
+		fields["recorded_at"] = *input.RecordedAt
+	}
+	if input.StaffID != nil {
+		fields["staff_id"] = *input.StaffID
+	}
+	if input.Temperature != nil {
+		fields["temperature"] = *input.Temperature
+	}
+	if input.HeartRate != nil {
+		fields["heart_rate"] = *input.HeartRate
+	}
+	if input.RespirationRate != nil {
+		fields["respiration_rate"] = *input.RespirationRate
+	}
+	if input.Weight != nil {
+		fields["weight"] = *input.Weight
+	}
+	if input.WeightUnit != nil {
+		fields["weight_unit"] = *input.WeightUnit
+	}
+	if input.Notes != nil {
+		fields["notes"] = *input.Notes
+	}
+	return fields
+}
+
 // VitalService はバイタル記録のビジネスロジックインターフェース
 type VitalService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
@@ -53,7 +83,7 @@ func NewVitalService(repo repository.VitalRepository) VitalService {
 }
 
 func (s *vitalService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
-	items, err := s.repo.ListByMedicalRecordID(ctx, clinicID, medicalRecordID)
+	items, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list vital records")
 	}
@@ -65,7 +95,7 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		return nil, apperrors.WrapInvalidInput("pet_id is required")
 	}
 	if input.Temperature == nil && input.HeartRate == nil && input.RespirationRate == nil && input.Weight == nil {
-		return nil, apperrors.WrapInvalidInput("少なくとも1つのバイタル値を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
 	vital := &model.VitalRecord{
@@ -99,7 +129,7 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 		return nil, apperrors.WrapNotFound("vital", "not found in medical record")
 	}
 
-	fields := buildVitalUpdateFields(input)
+	fields := buildVitalUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -107,6 +137,7 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 		return nil, apperrors.Wrap(err, "failed to update vital record")
 	}
 	slog.InfoContext(ctx, "vital updated",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("vital_id", vitalID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	result, err := s.repo.FindByID(ctx, clinicID, vitalID)
@@ -129,6 +160,7 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 		return apperrors.Wrap(err, "failed to delete vital record")
 	}
 	slog.InfoContext(ctx, "vital deleted",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("vital_id", vitalID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	return nil
@@ -140,34 +172,4 @@ func weightUnitOrDefault(u *model.BodyWeightUnit) model.BodyWeightUnit {
 		return *u
 	}
 	return model.BodyWeightUnitKg
-}
-
-// buildVitalUpdateFields はnilでないフィールドのみmap[string]anyに変換する
-func buildVitalUpdateFields(input *UpdateVitalInput) map[string]any {
-	fields := map[string]any{}
-	if input.RecordedAt != nil {
-		fields["recorded_at"] = *input.RecordedAt
-	}
-	if input.StaffID != nil {
-		fields["staff_id"] = *input.StaffID
-	}
-	if input.Temperature != nil {
-		fields["temperature"] = *input.Temperature
-	}
-	if input.HeartRate != nil {
-		fields["heart_rate"] = *input.HeartRate
-	}
-	if input.RespirationRate != nil {
-		fields["respiration_rate"] = *input.RespirationRate
-	}
-	if input.Weight != nil {
-		fields["weight"] = *input.Weight
-	}
-	if input.WeightUnit != nil {
-		fields["weight_unit"] = *input.WeightUnit
-	}
-	if input.Notes != nil {
-		fields["notes"] = *input.Notes
-	}
-	return fields
 }

@@ -3,17 +3,17 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ChiefComplaintType as ModelChiefComplaintType } from "@/types/generated/models";
 
-export interface ChiefComplaintType {
-  id: number;
-  name: string;
+function transformChiefComplaintType(item: ModelChiefComplaintType) {
+  return {
+    id: Number(item.id ?? 0),
+    name: item.name,
+  };
 }
+export type ChiefComplaintType = ReturnType<typeof transformChiefComplaintType>;
 
 export const getChiefComplaintTypes = async (): Promise<ChiefComplaintType[]> => {
   const { data } = await axios.get<ModelChiefComplaintType[]>("/v1/masters/chief-complaint-types");
-  return data.map((item) => ({
-    id: Number(item.id ?? 0),
-    name: item.name,
-  }));
+  return data.map(transformChiefComplaintType);
 };
 
 export const useGetChiefComplaintTypes = () =>

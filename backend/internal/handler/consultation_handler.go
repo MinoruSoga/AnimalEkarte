@@ -2,12 +2,12 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -28,7 +28,7 @@ func (h *Handler) GetConsultation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, consultation)
+	c.JSON(http.StatusOK, toConsultationResponse(consultation))
 }
 
 // ListConsultations godoc
@@ -42,7 +42,7 @@ func (h *Handler) ListConsultations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, consultations)
+	c.JSON(http.StatusOK, mapSlice(consultations, toConsultationResponse))
 }
 
 // CreateConsultation godoc
@@ -58,16 +58,7 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		return
 	}
 
-	taxType := model.TaxTypeExcluded
-	if input.TaxType != "" {
-		taxType = model.TaxType(input.TaxType)
-	}
-	taxRate := 0.10
-	if input.TaxRate != nil {
-		taxRate = *input.TaxRate
-	}
-	consultation := &model.Consultation{
-		ClinicID:      clinicID,
+	svcInput := &service.CreateConsultationInput{
 		Name:          input.Name,
 		Price:         input.Price,
 		IsActive:      input.IsActive,
@@ -76,15 +67,17 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		Duration:      input.Duration,
 		ParentID:      input.ParentID,
 		SortOrder:     input.SortOrder,
-		TaxType:       taxType,
-		TaxRate:       taxRate,
+		TaxType:       nilIfEmpty(input.TaxType),
+		TaxRate:       input.TaxRate,
 	}
 
-	if err := h.svc.Consultation.Create(c.Request.Context(), consultation); err != nil {
+	consultation, err := h.svc.Consultation.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, consultation)
+	c.Header("Location", fmt.Sprintf("/v1/masters/consultations/%d", consultation.ID))
+	c.JSON(http.StatusCreated, toConsultationResponse(consultation))
 }
 
 // UpdateConsultation godoc
@@ -103,12 +96,6 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 		return
 	}
 
-	var taxType *model.TaxType
-	if input.TaxType != nil {
-		tt := model.TaxType(*input.TaxType)
-		taxType = &tt
-	}
-
 	svcInput := service.UpdateConsultationInput{
 		Name:          input.Name,
 		Price:         input.Price,
@@ -119,7 +106,7 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 		ParentID:      input.ParentID,
 		ClearParentID: input.ClearParentID,
 		SortOrder:     input.SortOrder,
-		TaxType:       taxType,
+		TaxType:       input.TaxType,
 		TaxRate:       input.TaxRate,
 	}
 
@@ -128,7 +115,7 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, consultation)
+	c.JSON(http.StatusOK, toConsultationResponse(consultation))
 }
 
 // ReorderConsultations godoc
@@ -137,7 +124,7 @@ func (h *Handler) ReorderConsultations(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderConsultationRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -146,7 +133,7 @@ func (h *Handler) ReorderConsultations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // DeleteConsultation godoc

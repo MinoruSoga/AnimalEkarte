@@ -19,7 +19,8 @@ type mockProcedureRepository struct {
 	createFn                  func(ctx context.Context, procedure *model.Procedure) error
 	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
-	countUsageByProcedureIDFn func(ctx context.Context, procedureID uint64) (int64, error)
+	countUsageByProcedureIDFn func(ctx context.Context, clinicID, procedureID uint64) (int64, error)
+	countChildrenByParentIDFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -35,7 +36,7 @@ func (m *mockProcedureRepository) Create(ctx context.Context, procedure *model.P
 	return m.createFn(ctx, procedure)
 }
 
-func (m *mockProcedureRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
+func (m *mockProcedureRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}
@@ -50,11 +51,18 @@ func (m *mockProcedureRepository) Reorder(ctx context.Context, clinicID uint64, 
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockProcedureRepository) CountUsageByProcedureID(ctx context.Context, procedureID uint64) (int64, error) {
+func (m *mockProcedureRepository) CountUsageByProcedureID(ctx context.Context, clinicID, procedureID uint64) (int64, error) {
 	if m.countUsageByProcedureIDFn == nil {
 		return 0, nil
 	}
-	return m.countUsageByProcedureIDFn(ctx, procedureID)
+	return m.countUsageByProcedureIDFn(ctx, clinicID, procedureID)
+}
+
+func (m *mockProcedureRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn == nil {
+		return 0, nil
+	}
+	return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
 }
 
 // ---- Tests ----
@@ -168,13 +176,13 @@ func TestProcedureService_GetByID(t *testing.T) {
 func TestProcedureService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.Procedure
+		input   *CreateProcedureInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates procedure successfully",
-			input: &model.Procedure{
+			input: &CreateProcedureInput{
 				Name:     "New Procedure",
 				IsActive: true,
 			},
@@ -182,8 +190,16 @@ func TestProcedureService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "creates procedure with tax defaults applied",
+			input: &CreateProcedureInput{
+				Name: "Default Tax Procedure",
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
 			name: "returns error when repository fails",
-			input: &model.Procedure{
+			input: &CreateProcedureInput{
 				Name: "Failed Procedure",
 			},
 			repoErr: errors.New("db error"),
@@ -200,12 +216,14 @@ func TestProcedureService_Create(t *testing.T) {
 			}
 			svc := NewProcedureService(repo)
 
-			err := svc.Create(context.Background(), tt.input)
+			procedure, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, procedure)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, procedure)
 			}
 		})
 	}
@@ -258,6 +276,9 @@ func TestProcedureService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockProcedureRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Procedure, error) {
+					return &model.Procedure{ID: id}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Procedure, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
@@ -283,65 +304,112 @@ func TestProcedureService_Update(t *testing.T) {
 	}
 }
 
+func TestProcedureService_Update_NilInput(t *testing.T) {
+	repo := &mockProcedureRepository{}
+	svc := NewProcedureService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
 func TestProcedureService_Delete(t *testing.T) {
 	tests := []struct {
-		name          string
-		id            uint64
-		usageCount    int64
-		countUsageErr error
-		repoErr       error
-		wantErr       bool
-		wantNotFound  bool
-		wantConflict  bool
+		name             string
+		id               uint64
+		childCount       int64
+		countChildrenErr error
+		usageCount       int64
+		countUsageErr    error
+		findByIDErr      error
+		repoErr          error
+		wantErr          bool
+		wantNotFound     bool
+		wantConflict     bool
 	}{
 		{
-			name:          "deletes procedure successfully when no medical records use it",
-			id:            1,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       nil,
-			wantErr:       false,
+			name:             "deletes procedure successfully when no children and no medical records use it",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          false,
 		},
 		{
-			name:          "returns conflict error when procedure is used in medical records",
-			id:            1,
-			usageCount:    2,
-			countUsageErr: nil,
-			repoErr:       nil,
-			wantErr:       true,
-			wantConflict:  true,
+			name:             "returns conflict error when procedure has children (BUG-390)",
+			id:               1,
+			childCount:       3,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          true,
+			wantConflict:     true,
 		},
 		{
-			name:          "returns error when usage count check fails",
-			id:            1,
-			usageCount:    0,
-			countUsageErr: errors.New("db error"),
-			repoErr:       nil,
-			wantErr:       true,
+			name:             "returns error when children count check fails (BUG-390)",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: errors.New("db error"),
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          true,
 		},
 		{
-			name:          "returns not found error when procedure does not exist",
-			id:            999,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       apperrors.WrapNotFound("procedure", "999"),
-			wantErr:       true,
-			wantNotFound:  true,
+			name:             "returns conflict error when procedure is used in medical records",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       2,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          true,
+			wantConflict:     true,
 		},
 		{
-			name:          "returns error on repository failure",
-			id:            1,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       errors.New("db error"),
-			wantErr:       true,
+			name:             "returns error when usage count check fails",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    errors.New("db error"),
+			repoErr:          nil,
+			wantErr:          true,
+		},
+		{
+			name:         "returns not found error when procedure does not exist",
+			id:           999,
+			findByIDErr:  apperrors.WrapNotFound("procedure", "999"),
+			wantErr:      true,
+			wantNotFound: true,
+		},
+		{
+			name:             "returns error on repository failure",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          errors.New("db error"),
+			wantErr:          true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockProcedureRepository{
-				countUsageByProcedureIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Procedure, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Procedure{ID: id}, nil
+				},
+				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.childCount, tt.countChildrenErr
+				},
+				countUsageByProcedureIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

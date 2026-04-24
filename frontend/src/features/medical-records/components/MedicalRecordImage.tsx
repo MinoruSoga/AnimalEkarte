@@ -3,10 +3,10 @@ import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
 
 // Relative
 import { useGetMedicalRecordImages } from "../api/get-medical-record-images";
-import { useUploadImages, useDeleteImage } from "../api/medical-record-images";
+import { useCreateMedicalRecordImages, useDeleteImage } from "../api/medical-record-images";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { C } from "@/lib/design-tokens";
 
 interface MedicalRecordImageProps {
@@ -30,7 +30,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
   const { data: apiImageGroups = [], isLoading } = useGetMedicalRecordImages(resolvedId);
 
-  const uploadMutation = useUploadImages(resolvedId ?? "");
+  const uploadMutation = useCreateMedicalRecordImages(resolvedId ?? "");
   const deleteMutation = useDeleteImage(resolvedId ?? "");
 
   const imageGroups = useMemo(

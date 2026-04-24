@@ -14,11 +14,12 @@ import (
 // ---- InquiryTemplate モック ----
 
 type mockInquiryTemplateRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
-	createFn   func(ctx context.Context, template *model.InquiryTemplate) error
-	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
+	createFn       func(ctx context.Context, template *model.InquiryTemplate) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error)
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
+	reorderErr     error
 }
 
 func (m *mockInquiryTemplateRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error) {
@@ -26,19 +27,30 @@ func (m *mockInquiryTemplateRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (m *mockInquiryTemplateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.InquiryTemplate{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockInquiryTemplateRepository) Create(ctx context.Context, template *model.InquiryTemplate) error {
 	return m.createFn(ctx, template)
 }
 
-func (m *mockInquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockInquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockInquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockInquiryTemplateRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
+	return m.reorderErr
+}
+
+func (m *mockInquiryTemplateRepository) CountUsageByInquiryTemplateID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
 }
 
 // ---- Tests ----
@@ -168,14 +180,13 @@ func TestInquiryTemplateService_GetByID(t *testing.T) {
 func TestInquiryTemplateService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.InquiryTemplate
+		input   *CreateInquiryTemplateInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates inquiry template successfully",
-			input: &model.InquiryTemplate{
-				ClinicID: 1,
+			input: &CreateInquiryTemplateInput{
 				Category: "新規カテゴリ",
 				Title:    "新規テンプレート",
 				Content:  "テンプレートの内容",
@@ -186,18 +197,16 @@ func TestInquiryTemplateService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when template already exists",
-			input: &model.InquiryTemplate{
-				ClinicID: 1,
-				Title:    "既存テンプレート",
+			input: &CreateInquiryTemplateInput{
+				Title: "既存テンプレート",
 			},
 			repoErr: apperrors.WrapAlreadyExists("inquiry_template", "既存テンプレート"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			input: &model.InquiryTemplate{
-				ClinicID: 1,
-				Title:    "エラーテンプレート",
+			input: &CreateInquiryTemplateInput{
+				Title: "エラーテンプレート",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -213,12 +222,14 @@ func TestInquiryTemplateService_Create(t *testing.T) {
 			}
 			svc := NewInquiryTemplateService(repo)
 
-			err := svc.Create(context.Background(), tt.input)
+			tmpl, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, tmpl)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, tmpl)
 			}
 		})
 	}
@@ -306,11 +317,8 @@ func TestInquiryTemplateService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInquiryTemplateRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-					return tt.repoErr
-				},
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.InquiryTemplate, error) {
-					if tt.repoErr != nil && apperrors.IsNotFound(tt.repoErr) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.InquiryTemplate, error) {
+					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
 					return tt.repoTemplate, nil
@@ -325,6 +333,47 @@ func TestInquiryTemplateService_Update(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.repoTemplate, template)
+			}
+		})
+	}
+}
+
+func TestInquiryTemplateService_Reorder(t *testing.T) {
+	tests := []struct {
+		name       string
+		ids        []uint64
+		reorderErr error
+		wantErr    bool
+	}{
+		{
+			name:    "reorders templates successfully",
+			ids:     []uint64{3, 1, 2},
+			wantErr: false,
+		},
+		{
+			name:    "returns error for empty ids",
+			ids:     []uint64{},
+			wantErr: true,
+		},
+		{
+			name:       "propagates repository error",
+			ids:        []uint64{1, 2},
+			reorderErr: errors.New("reorder failed"),
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockInquiryTemplateRepository{
+				reorderErr: tt.reorderErr,
+			}
+			svc := NewInquiryTemplateService(repo)
+			err := svc.Reorder(context.Background(), 1, tt.ids)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

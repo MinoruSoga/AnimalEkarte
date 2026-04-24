@@ -12,11 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Relative
-import { useGetCarePlanItems, useCreateCarePlanItem, useUpdateCarePlanItem, useDeleteCarePlanItem } from "@/features/hospitalization/api/care-plan-items";
-import { usePermission } from "@/features/auth";
+import { useGetCarePlanItems, useCreateCarePlanItem, useUpdateCarePlanItem, useDeleteCarePlanItem } from "../../api/care-plan-items";
+import { usePermission } from "@/hooks/use-permission";
 
 // Types
-import type { CarePlanItem, CarePlanItemType, CarePlanTiming, UpdateCarePlanItemInput } from "@/features/hospitalization/api/care-plan-items";
+import type { CarePlanItem, CarePlanItemType, CarePlanTiming, UpdateCarePlanItemInput } from "../../api/care-plan-items";
 
 // ---- Static constants ----
 

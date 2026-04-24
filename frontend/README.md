@@ -21,25 +21,25 @@
 
 ## ⚠️ コマンド実行ルール
 
-**npmコマンドはローカル実行禁止。必ずDocker経由で実行する。**
+**pnpmコマンドはローカル実行禁止。必ずDocker経由で実行する。**
 
 ```bash
 # ❌ NG — ローカル実行禁止
-npm run dev
-npm run build
+pnpm dev
+pnpm build
 
 # ✅ OK — Docker経由
-docker compose exec frontend npm run build
-docker compose exec frontend npm run lint
-docker compose exec frontend npm run test:run
+docker compose exec frontend pnpm build
+docker compose exec frontend pnpm lint
+docker compose exec frontend pnpm test:run
 ```
 
 | タスク | コマンド |
 |--------|---------|
-| ビルド | `docker compose exec frontend npm run build` |
-| Lint | `docker compose exec frontend npm run lint` |
-| テスト | `docker compose exec frontend npm run test:run` |
-| テスト (watch) | `docker compose exec frontend npm test` |
+| ビルド | `docker compose exec frontend pnpm build` |
+| Lint | `docker compose exec frontend pnpm lint` |
+| テスト | `docker compose exec frontend pnpm test:run` |
+| テスト (watch) | `docker compose exec frontend pnpm test` |
 
 ---
 

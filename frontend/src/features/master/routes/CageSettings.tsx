@@ -11,14 +11,14 @@ import { PropertyRow, StatusToggleButton, MoneyInput, PropertyInput, MasterSideP
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
-import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
-import { useMasterSave } from "@/features/master/hooks/use-master-save";
-import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import { useGetAllCages, useCreateCage, useUpdateCage, useDeleteCage, useReorderCages } from "@/features/master/api/cages";
-import type { Cage, CageType, CageSize, CreateCageRequest, UpdateCageRequest } from "@/features/master/api/cages";
+import { MASTER_STATUS_FILTER } from "../constants/styles";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
+import { useGetAllCages, useCreateCage, useUpdateCage, useDeleteCage, useReorderCages } from "../api/cages";
+import type { Cage, CageType, CageSize, CreateCageRequest, UpdateCageRequest } from "../api/cages";
 import { ResourceMasterHospitalization } from "@/types/generated/models";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // ─── Constants ───
 const CAGE_TYPE_LABELS: Record<CageType, string> = { icu: "ICU", dog: "犬舎", cat: "猫舎", general: "汎用" };

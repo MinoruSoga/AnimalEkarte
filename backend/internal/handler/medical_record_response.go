@@ -32,18 +32,6 @@ type inquirySummaryResponse struct {
 	ChiefComplaint string `json:"chief_complaint"`
 }
 
-func toMedicalRecordResponseList(records []model.MedicalRecord) []medicalRecordResponse {
-	list := make([]medicalRecordResponse, 0, len(records))
-	for i := range records {
-		list = append(list, toMedicalRecordResponse(&records[i]))
-	}
-	return list
-}
-
-func toMedicalRecordResponse(r *model.MedicalRecord) medicalRecordResponse {
-	return toMedicalRecordResponseWithVisitCount(r, 0)
-}
-
 func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount int64) medicalRecordResponse {
 	resp := medicalRecordResponse{
 		ID:            r.ID,
@@ -72,4 +60,8 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 		}
 	}
 	return resp
+}
+
+func toMedicalRecordResponse(r *model.MedicalRecord) medicalRecordResponse {
+	return toMedicalRecordResponseWithVisitCount(r, 0)
 }

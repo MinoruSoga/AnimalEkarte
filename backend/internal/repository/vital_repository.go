@@ -12,7 +12,7 @@ import (
 
 // VitalRepository はバイタル記録のデータアクセスインターフェース
 type VitalRepository interface {
-	ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.VitalRecord, error)
 	Create(ctx context.Context, vital *model.VitalRecord) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -28,7 +28,7 @@ func NewVitalRepository(db *gorm.DB) VitalRepository {
 	return &vitalRepository{db: db}
 }
 
-func (r *vitalRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
+func (r *vitalRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	vitals := make([]model.VitalRecord, 0)
 	if err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = vital_records.medical_record_id AND medical_records.deleted_at IS NULL").
@@ -60,13 +60,10 @@ func (r *vitalRepository) Create(ctx context.Context, vital *model.VitalRecord) 
 }
 
 func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	// Verify clinic ownership before mutating
-	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
-		return err
-	}
 	result := r.db.WithContext(ctx).
 		Model(&model.VitalRecord{}).
-		Where("id = ?", id).
+		Where("vital_records.id = ? AND vital_records.medical_record_id IN "+
+			"(SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "vital", fmt.Sprintf("%d", id))
@@ -78,12 +75,9 @@ func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, field
 }
 
 func (r *vitalRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	// Verify clinic ownership before mutating
-	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
-		return err
-	}
 	result := r.db.WithContext(ctx).
-		Where("id = ?", id).
+		Where("vital_records.id = ? AND vital_records.medical_record_id IN "+
+			"(SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Delete(&model.VitalRecord{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "vital", fmt.Sprintf("%d", id))

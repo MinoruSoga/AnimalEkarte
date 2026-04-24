@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -59,12 +60,12 @@ func (h *Handler) UpsertReservationSchedule(c *gin.Context) {
 		return
 	}
 
-	breaks := make([]service.BreakInput, 0, len(req.Breaks))
+	breaks := make([]service.ReservationScheduleBreakInput, 0, len(req.Breaks))
 	for _, b := range req.Breaks {
-		breaks = append(breaks, service.BreakInput{Start: b.Start, End: b.End})
+		breaks = append(breaks, service.ReservationScheduleBreakInput{Start: b.Start, End: b.End})
 	}
 
-	entry, err := h.svc.ReservationSchedule.Upsert(c.Request.Context(), clinicID, staffID, date, &service.UpsertScheduleInput{
+	entry, isNew, err := h.svc.ReservationSchedule.Save(c.Request.Context(), clinicID, staffID, date, &service.CreateReservationScheduleInput{
 		ShiftType: req.ShiftType,
 		WorkStart: req.WorkStart,
 		WorkEnd:   req.WorkEnd,
@@ -72,6 +73,11 @@ func (h *Handler) UpsertReservationSchedule(c *gin.Context) {
 	})
 	if err != nil {
 		RespondError(c, err)
+		return
+	}
+	if isNew {
+		c.Header("Location", fmt.Sprintf("/v1/clinics/%d/reservation-staffs/%d/schedules/%s", clinicID, staffID, dateStr))
+		c.JSON(http.StatusCreated, toScheduleEntryResponse(entry))
 		return
 	}
 	c.JSON(http.StatusOK, toScheduleEntryResponse(entry))

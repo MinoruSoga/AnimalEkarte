@@ -29,7 +29,7 @@ GitHub Actions によるテスト・ビルド・デプロイ自動化。
 │ Unit Tests                                      │
 ├─────────────────────────────────────────────────┤
 │ - Backend: go test ./... -cover                 │
-│ - Frontend: npm run test:run                    │
+│ - Frontend: pppnpm test:run                    │
 │ ⏱️ ~5分                                          │
 └────────────┬────────────────────────────────────┘
              │
@@ -38,7 +38,7 @@ GitHub Actions によるテスト・ビルド・デプロイ自動化。
 │ Security Scan                                   │
 ├─────────────────────────────────────────────────┤
 │ - Go: gosec ./...                               │
-│ - Deps: npm audit                               │
+│ - Deps: ppnpm audit                               │
 │ ⏱️ ~2分                                          │
 └────────────┬────────────────────────────────────┘
              │
@@ -96,7 +96,7 @@ jobs:
       - uses: node-actions/setup-node@v3
         with:
           node-version: '20'
-      - run: cd frontend && npm ci && npm run lint
+      - run: cd frontend && ppnpm install --frozen-lockfile && ppnpm lint
 
       # YAML Lint
       - uses: ibiqlik/action-yamllint@v3
@@ -150,7 +150,7 @@ jobs:
         with:
           node-version: '20'
 
-      - run: cd frontend && npm ci && npm run test:run
+      - run: cd frontend && ppnpm install --frozen-lockfile && pppnpm test:run
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
@@ -179,7 +179,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: node-actions/setup-node@v3
-      - run: cd frontend && npm ci && npm audit --audit-level=moderate
+      - run: cd frontend && ppnpm install --frozen-lockfile && ppnpm audit --audit-level=moderate
 ```
 
 ### .github/workflows/docker-build.yml
@@ -238,7 +238,7 @@ make docker-build
 
 | 失敗箇所 | 対応 |
 |---------|------|
-| Lint 失敗 | `npm run lint:fix`, `go fmt` |
+| Lint 失敗 | `ppnpm lint:fix`, `go fmt` |
 | Test 失敗 | ローカルで `go test -v` 実行 |
 | Build 失敗 | Docker ログ確認、キャッシュクリア |
 | Deploy 失敗 | K8s/ECS ログ確認 |

@@ -3,12 +3,12 @@ import { lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Shift } from "@/features/shifts/types";
-import { ShiftCell } from "@/features/shifts/components/ShiftCell/ShiftCell";
-import type { ClinicHoliday } from "@/features/shifts/api/clinic-holidays";
+import type { Shift } from "../../types";
+import { ShiftCell } from "../../components/ShiftCell/ShiftCell";
+import type { ClinicHoliday } from "../../api/clinic-holidays";
 
 const ShiftFormDialog = lazy(() =>
-  import("@/features/shifts/components/ShiftFormDialog/ShiftFormDialog").then((m) => ({ default: m.ShiftFormDialog }))
+  import("../../components/ShiftFormDialog/ShiftFormDialog").then((m) => ({ default: m.ShiftFormDialog }))
 );
 
 export interface StaffItem {

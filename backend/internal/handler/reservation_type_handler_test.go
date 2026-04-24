@@ -1,180 +1,828 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// TestReservationTypeHandlerCompiles verifies reservation_type_handler.go compiles
-func TestReservationTypeHandlerCompiles(t *testing.T) {
-	assert.True(t, true, "reservation_type_handler.go compiled successfully")
+// ---- mock ReservationTypeService ----
+
+type mockReservationTypeService struct {
+	listFn              func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
+	getByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
+	createFn            func(ctx context.Context, clinicID uint64, input *service.CreateReservationTypeInput) (*model.ReservationType, error)
+	updateFn            func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationTypeInput) (*model.ReservationType, error)
+	deleteFn            func(ctx context.Context, clinicID, id uint64) error
+	reorderFn           func(ctx context.Context, clinicID uint64, ids []uint64) error
+	listUnavailableFn   func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
+	createUnavailableFn func(ctx context.Context, clinicID, reservationTypeID uint64, input service.CreateUnavailableTimeInput) (*model.ReservationTypeUnavailableTime, error)
+	deleteUnavailableFn func(ctx context.Context, clinicID, reservationTypeID, id uint64) error
+	listOccupationsFn   func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
+	linkOccupationFn    func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error)
+	unlinkOccupationFn  func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
 }
 
-// ---- Comprehensive Test Coverage Documentation ----
-//
-// Reservation Type Handler Test Cases
-// This handler manages reservation type master data for appointment scheduling (Section 2: 予約管理 master)
-//
-// CRITICAL ENDPOINTS:
-//
-// 1. ListReservationTypes (GET /reservation-types)
-//    Test Cases (6 scenarios):
-//    ✓ Returns 200 OK with empty list when no types exist
-//    ✓ Returns 200 OK with list of all clinic's reservation types (no pagination)
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Response includes all fields: id, name, color, description, sort_order
-//    ✓ Response includes: duration_minutes, display_name, short_name, visibility
-//    ✓ Returns 500 on database error
-//
-// 2. GetReservationType (GET /reservation-types/:id)
-//    Test Cases (9 scenarios):
-//    ✓ Returns 200 OK with single reservation type
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric
-//    ✓ Returns 404 when type doesn't exist
-//    ✓ Returns 403 when type belongs to different clinic (tenant isolation)
-//    ✓ Response includes complete type data with all fields
-//    ✓ Uses toReservationTypeResponse() transformation
-//    ✓ Returns 500 on database error
-//
-// 3. CreateReservationType (POST /reservation-types)
-//    Test Cases (20 scenarios):
-//    ✓ Returns 201 Created when type created successfully
-//    ✓ Returns 400 when required field missing (name)
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Name field: required, text (e.g., "初診", "定期健診", "ワクチン")
-//    ✓ Color field: optional, hex color for UI display (e.g., "#FF5733")
-//    ✓ Description field: optional, text for internal notes
-//    ✓ SortOrder field: optional numeric for display ordering
-//    ✓ DurationMinutes field: optional, defaults to 15 if not provided
-//    ✓ DurationMinutes: affects appointment slot duration
-//    ✓ ReservationDisplayName field: optional, name shown to customers
-//    ✓ ShortName field: optional, abbreviated name for compact display
-//    ✓ ShowShortName field: optional boolean, toggles short name display
-//    ✓ ReservationVisible field: optional, defaults to true if not provided
-//    ✓ ReservationVisible: controls public API visibility
-//    ✓ ReservationComment field: optional, text shown to customers during booking
-//    ✓ ReservationImageURL field: optional, URL to branding image
-//    ✓ ReservationDayOption field: optional, scheduling day restrictions
-//    ✓ IsInternal field: optional boolean, hides from public API if true
-//    ✓ GroupID field: optional, for grouping related types
-//    ✓ IsActive defaults to true during creation
-//    ✓ Returns 409 if name conflicts (if UNIQUE constraint exists)
-//    ✓ Returns 500 on database error
-//
-// 4. UpdateReservationType (PATCH /reservation-types/:id)
-//    Test Cases (18 scenarios):
-//    ✓ Returns 200 OK when type updated successfully
-//    ✓ Returns 400 when id is non-numeric
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 404 when type doesn't exist
-//    ✓ Returns 403 when type belongs to different clinic
-//    ✓ Partial updates: name can be updated independently
-//    ✓ Partial updates: color can be updated independently
-//    ✓ Partial updates: description can be updated or cleared
-//    ✓ Partial updates: sort_order can be updated
-//    ✓ Partial updates: duration_minutes can be updated
-//    ✓ Partial updates: is_active can be toggled (enable/disable without deleting)
-//    ✓ Partial updates: reservation_display_name can be updated
-//    ✓ Partial updates: reservation_visible can be toggled
-//    ✓ Partial updates: reservation_comment can be updated or cleared
-//    ✓ Partial updates: group_id can be updated or null'd
-//    ✓ Unspecified fields remain unchanged (PATCH semantics, not PUT)
-//    ✓ Returns 500 on database error
-//
-// 5. DeleteReservationType (DELETE /reservation-types/:id)
-//    Test Cases (11 scenarios):
-//    ✓ Returns 204 No Content when type deleted successfully
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric
-//    ✓ Returns 404 when type doesn't exist
-//    ✓ Returns 403 when type belongs to different clinic
-//    ✓ Deletion behavior: soft delete or hard delete (depends on implementation)
-//    ✓ Deleted type no longer appears in ListReservationTypes
-//    ✓ Deleted type cannot be retrieved by GetReservationType (404)
-//    ✓ Deletion should check for FK dependencies (appointments referencing this type)
-//    ✓ Returns 409 Conflict if type is still in use (appointments exist)
-//    ✓ Returns 500 on database error
-//
-// 6. ReorderReservationTypes (POST /reservation-types/reorder)
-//    Test Cases (8 scenarios):
-//    ✓ Returns 204 No Content when reorder succeeds
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Accepts array of IDs in desired order
-//    ✓ Updates sort_order for all provided IDs (0, 1, 2, ...)
-//    ✓ Partial reorder supported (only specified IDs reordered)
-//    ✓ Returns 404 if any specified ID doesn't exist or belongs to different clinic
-//    ✓ Returns 500 on database error
-//
-// SECURITY & MULTITENANCY:
-//    ✓ Clinic-based access control (clinic_id verification on all endpoints)
-//    ✓ No explicit RBAC permission check (master data usually admin-only at UI level)
-//    ✓ Partial updates prevent mass assignment (explicit field mapping)
-//    ✓ Soft delete prevents accidental data loss (if implemented)
-//
-// DATA USES:
-//    ✓ ReservationType referenced by appointments (FK constraint)
-//    ✓ DurationMinutes used for appointment slot calculation
-//    ✓ ReservationVisible controls public API exposure
-//    ✓ Color used for UI calendar rendering
-//    ✓ IsActive used to hide disabled types from dropdowns
-//    ✓ GroupID supports logical grouping for UI organization
-//
-// DATA MODEL (reservation_types):
-//    - id (PK): BIGSERIAL
-//    - clinic_id: BIGINT (multitenancy)
-//    - name: VARCHAR(100) NOT NULL - type name (e.g., "初診", "定期健診")
-//    - color: VARCHAR(7) (NULLABLE) - hex color for UI (#RRGGBB)
-//    - description: TEXT (NULLABLE) - internal description
-//    - sort_order: INTEGER DEFAULT 0 - display ordering
-//    - is_active: BOOLEAN DEFAULT true - enable/disable flag
-//    - duration_minutes: INTEGER DEFAULT 15 - appointment slot duration
-//    - reservation_display_name: VARCHAR(100) (NULLABLE) - customer-facing name
-//    - short_name: VARCHAR(50) (NULLABLE) - abbreviated name
-//    - show_short_name: BOOLEAN DEFAULT false - show abbreviated name
-//    - reservation_visible: BOOLEAN DEFAULT true - public API visibility
-//    - reservation_comment: TEXT (NULLABLE) - customer info during booking
-//    - reservation_image_url: VARCHAR(255) (NULLABLE) - branding image
-//    - reservation_day_option: VARCHAR(100) (NULLABLE) - day scheduling rules
-//    - is_internal: BOOLEAN DEFAULT false - hide from public API
-//    - group_id (FK, NULLABLE): BIGINT → reservation_type_groups(id)
-//    - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - deleted_at: TIMESTAMP NULL (soft delete, if implemented)
-//    - Indexes: (clinic_id, id), (clinic_id, is_active), (clinic_id, sort_order)
-//    - Unique constraint: (clinic_id, name) WHERE deleted_at IS NULL (if enforced)
-//
-// IMPLEMENTATION NOTES:
-//    - Master data pattern: clinic-scoped, typically managed by admins
-//    - DurationMinutes: default 15 minutes for appointment slots
-//    - ReservationVisible: controls visibility in customer-facing booking portal
-//    - IsActive: allows disabling without deletion
-//    - Color: Hex format for UI rendering (calendar, dropdowns)
-//    - SortOrder: numeric for custom ordering (not alphabetical)
-//    - ReorderReservationTypes: bulk operation for drag-drop UI support
-//    - PATCH semantics: unspecified fields remain unchanged
-//    - Should validate DurationMinutes > 0 if provided
-//    - Should check FK dependencies before delete (appointments reference this)
-//    - GroupID support for logical grouping (e.g., "健診グループ", "ワクチングループ")
-//
-// TESTING STRATEGY:
-//    Use integration tests with:
-//    - Test database fixtures with sample reservation types
-//    - Real service/repository layers
-//    - Verify clinic_id scoping (no cross-clinic data access)
-//    - Test default values (is_active=true, reservation_visible=true, duration_minutes=15)
-//    - Test color format validation (hex #RRGGBB)
-//    - Test sort_order affects ListReservationTypes ordering
-//    - Test ReorderReservationTypes updates sort_order correctly
-//    - Test FK constraint: appointments referencing deleted type (should fail with 409)
-//    - Verify soft delete behavior (if implemented)
-//    - Test visibility filtering (reservation_visible=false excluded from public list)
-//    - Test active filtering (is_active=false excluded from UI dropdowns)
-//    - Test PATCH semantics (unspecified fields unchanged, including nullable fields)
-//    - Test name uniqueness per clinic (if UNIQUE constraint exists)
-//    - Test bulk operations work correctly (reorder with partial ID list)
-//
+func (m *mockReservationTypeService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, clinicID)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, clinicID, id)
+	}
+	return &model.ReservationType{ID: id}, nil
+}
+
+func (m *mockReservationTypeService) Create(ctx context.Context, clinicID uint64, input *service.CreateReservationTypeInput) (*model.ReservationType, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, input)
+	}
+	return &model.ReservationType{ID: 1, Name: input.Name}, nil
+}
+
+func (m *mockReservationTypeService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationTypeInput) (*model.ReservationType, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, input)
+	}
+	return &model.ReservationType{ID: id}, nil
+}
+
+func (m *mockReservationTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (m *mockReservationTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, clinicID, ids)
+	}
+	return nil
+}
+
+func (m *mockReservationTypeService) ListUnavailableTimes(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error) {
+	if m.listUnavailableFn != nil {
+		return m.listUnavailableFn(ctx, clinicID, reservationTypeID)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationTypeService) CreateUnavailableTime(ctx context.Context, clinicID, reservationTypeID uint64, input service.CreateUnavailableTimeInput) (*model.ReservationTypeUnavailableTime, error) {
+	if m.createUnavailableFn != nil {
+		return m.createUnavailableFn(ctx, clinicID, reservationTypeID, input)
+	}
+	return &model.ReservationTypeUnavailableTime{ID: 1}, nil
+}
+
+func (m *mockReservationTypeService) DeleteUnavailableTime(ctx context.Context, clinicID, reservationTypeID, id uint64) error {
+	if m.deleteUnavailableFn != nil {
+		return m.deleteUnavailableFn(ctx, clinicID, reservationTypeID, id)
+	}
+	return nil
+}
+
+func (m *mockReservationTypeService) ListOccupations(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error) {
+	if m.listOccupationsFn != nil {
+		return m.listOccupationsFn(ctx, clinicID, reservationTypeID)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationTypeService) LinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error) {
+	if m.linkOccupationFn != nil {
+		return m.linkOccupationFn(ctx, clinicID, reservationTypeID, occupationID)
+	}
+	return &model.ReservationTypeOccupation{ID: 1, OccupationID: occupationID}, nil
+}
+
+func (m *mockReservationTypeService) UnlinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error {
+	if m.unlinkOccupationFn != nil {
+		return m.unlinkOccupationFn(ctx, clinicID, reservationTypeID, occupationID)
+	}
+	return nil
+}
+
+// ---- helper ----
+
+func newHandlerWithReservationTypeSvc(svc service.ReservationTypeService) *Handler {
+	return &Handler{svc: &service.Services{
+		ReservationType:                svc,
+		ReservationTypeUnavailableTime: svc,
+		ReservationTypeOccupation:      svc,
+	}}
+}
+
+// ---- ListReservationTypes ----
+
+func TestListReservationTypes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationTypeService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of reservation types",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				listFn: func(_ context.Context, clinicID uint64) ([]model.ReservationType, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return []model.ReservationType{{ID: 1, Name: "初診"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"初診"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 500 on service error",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				listFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationTypeSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			tt.setupCtx(c)
+			h.ListReservationTypes(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetReservationType ----
+
+func TestGetReservationType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationTypeService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns reservation type for valid id",
+			paramID:  "3",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				getByIDFn: func(_ context.Context, _, id uint64) (*model.ReservationType, error) {
+					return &model.ReservationType{ID: id, Name: "定期健診"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"定期健診"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when not found",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+					return nil, apperrors.WrapNotFound("reservation_type", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationTypeSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.GetReservationType(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateReservationType ----
+
+func TestCreateReservationType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{"name": "ワクチン接種"}
+	}
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationTypeService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "creates reservation type successfully",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateReservationTypeInput) (*model.ReservationType, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "ワクチン接種", input.Name)
+					return &model.ReservationType{ID: 1, Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"name":"ワクチン接種"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when name is missing",
+			body:       map[string]any{"color": "#FF0000"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateReservationTypeInput) (*model.ReservationType, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationTypeSvc(tt.svc)
+			b, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+			h.CreateReservationType(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- UpdateReservationType ----
+
+func TestUpdateReservationType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	name := "更新済み種別"
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationTypeService
+		wantStatus int
+	}{
+		{
+			name:     "updates reservation type successfully",
+			paramID:  "1",
+			body:     map[string]any{"name": "更新済み種別"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				updateFn: func(_ context.Context, _, id uint64, input *service.UpdateReservationTypeInput) (*model.ReservationType, error) {
+					require.NotNil(t, input.Name)
+					assert.Equal(t, "更新済み種別", *input.Name)
+					return &model.ReservationType{ID: id, Name: name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "1",
+			body:       map[string]any{"name": "test"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"name": "test"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "test"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateReservationTypeInput) (*model.ReservationType, error) {
+					return nil, apperrors.WrapNotFound("reservation_type", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 400 when empty body (no fields)",
+			paramID:  "1",
+			body:     map[string]any{},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateReservationTypeInput) (*model.ReservationType, error) {
+					return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationTypeSvc(tt.svc)
+			b, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(b))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.UpdateReservationType(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- DeleteReservationType ----
+
+func newDeleteReservationTypeRouter(svc service.ReservationTypeService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithReservationTypeSvc(svc)
+	r.DELETE("/reservation-types/:id", func(c *gin.Context) { setClinicID(c) }, h.DeleteReservationType)
+	return r
+}
+
+func TestDeleteReservationType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockReservationTypeService
+		wantStatus int
+	}{
+		{
+			name:    "deletes successfully",
+			paramID: "1",
+			svc: &mockReservationTypeService{
+				deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:    "returns 409 when type is in use",
+			paramID: "2",
+			svc: &mockReservationTypeService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapConflict("この項目は予約データで使用中のため削除できません")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+		{
+			name:    "returns 404 when not found",
+			paramID: "999",
+			svc: &mockReservationTypeService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("reservation_type", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteReservationTypeRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/reservation-types/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id missing", func(t *testing.T) {
+		h := newHandlerWithReservationTypeSvc(&mockReservationTypeService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.DeleteReservationType(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- ReorderReservationTypes ----
+
+func newReorderReservationTypesRouter(svc service.ReservationTypeService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithReservationTypeSvc(svc)
+	r.POST("/reservation-types/reorder", func(c *gin.Context) { setClinicID(c) }, h.ReorderReservationTypes)
+	return r
+}
+
+func TestReorderReservationTypes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("reorders successfully", func(t *testing.T) {
+		svc := &mockReservationTypeService{
+			reorderFn: func(_ context.Context, clinicID uint64, ids []uint64) error {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, []uint64{3, 1, 2}, ids)
+				return nil
+			},
+		}
+		router := newReorderReservationTypesRouter(svc)
+		body, _ := json.Marshal(map[string]any{"ids": []int{3, 1, 2}})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/reservation-types/reorder", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("returns 401 when clinic_id missing", func(t *testing.T) {
+		h := newHandlerWithReservationTypeSvc(&mockReservationTypeService{})
+		body, _ := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		h.ReorderReservationTypes(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- CreateUnavailableTime (sub-resource) ----
+
+func TestCreateUnavailableTime(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	dow := int8(1)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationTypeService
+		wantStatus int
+	}{
+		{
+			name:    "creates unavailable time successfully",
+			paramID: "1",
+			body: map[string]any{
+				"unavailable_type": "weekly",
+				"day_of_week":      1,
+				"start_time":       "09:00",
+				"end_time":         "10:00",
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				createUnavailableFn: func(_ context.Context, clinicID, reservationTypeID uint64, input service.CreateUnavailableTimeInput) (*model.ReservationTypeUnavailableTime, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), reservationTypeID)
+					assert.Equal(t, "weekly", input.UnavailableType)
+					assert.Equal(t, &dow, input.DayOfWeek)
+					return &model.ReservationTypeUnavailableTime{
+						ID:                1,
+						ReservationTypeID: reservationTypeID,
+						UnavailableType:   model.UnavailableTypeWeekly,
+						DayOfWeek:         &dow,
+						StartTime:         "09:00",
+						EndTime:           "10:00",
+					}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "1",
+			body:       map[string]any{"unavailable_type": "weekly", "day_of_week": 1, "start_time": "09:00", "end_time": "10:00"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when required fields missing",
+			paramID:    "1",
+			body:       map[string]any{"day_of_week": 1},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when reservation type not found",
+			paramID: "999",
+			body: map[string]any{
+				"unavailable_type": "weekly",
+				"day_of_week":      1,
+				"start_time":       "09:00",
+				"end_time":         "10:00",
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeService{
+				createUnavailableFn: func(_ context.Context, _, _ uint64, _ service.CreateUnavailableTimeInput) (*model.ReservationTypeUnavailableTime, error) {
+					return nil, apperrors.WrapNotFound("reservation_type", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationTypeSvc(tt.svc)
+			b, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.CreateUnavailableTime(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- ListUnavailableTimes ----
+
+func TestListUnavailableTimes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("returns array of unavailable times", func(t *testing.T) {
+		dow := int8(2)
+		h := newHandlerWithReservationTypeSvc(&mockReservationTypeService{
+			listUnavailableFn: func(_ context.Context, _, _ uint64) ([]model.ReservationTypeUnavailableTime, error) {
+				return []model.ReservationTypeUnavailableTime{
+					{ID: 1, DayOfWeek: &dow, StartTime: "10:00", EndTime: "11:00"},
+				}, nil
+			},
+		})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c)
+		h.ListUnavailableTimes(c)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"start_time":"10:00"`)
+	})
+
+	t.Run("returns 401 when clinic_id missing", func(t *testing.T) {
+		h := newHandlerWithReservationTypeSvc(&mockReservationTypeService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.ListUnavailableTimes(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- DeleteUnavailableTime ----
+
+func newDeleteUnavailableTimeRouter(svc service.ReservationTypeService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithReservationTypeSvc(svc)
+	r.DELETE("/reservation-types/:id/unavailable-times/:unavailable_time_id",
+		func(c *gin.Context) { setClinicID(c) },
+		h.DeleteUnavailableTime)
+	return r
+}
+
+func TestDeleteUnavailableTime(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("deletes unavailable time successfully", func(t *testing.T) {
+		svc := &mockReservationTypeService{
+			deleteUnavailableFn: func(_ context.Context, _, reservationTypeID, id uint64) error {
+				assert.Equal(t, uint64(1), reservationTypeID)
+				assert.Equal(t, uint64(5), id)
+				return nil
+			},
+		}
+		router := newDeleteUnavailableTimeRouter(svc)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/reservation-types/1/unavailable-times/5", http.NoBody)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("returns 404 when not found", func(t *testing.T) {
+		svc := &mockReservationTypeService{
+			deleteUnavailableFn: func(_ context.Context, _, _, _ uint64) error {
+				return apperrors.WrapNotFound("unavailable_time", "999")
+			},
+		}
+		router := newDeleteUnavailableTimeRouter(svc)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/reservation-types/1/unavailable-times/999", http.NoBody)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+}
+
+// ---- LinkReservationTypeOccupation ----
+
+func TestLinkReservationTypeOccupation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("links occupation and returns 201 with Location header", func(t *testing.T) {
+		h := newHandlerWithReservationTypeSvc(&mockReservationTypeService{
+			linkOccupationFn: func(_ context.Context, _, _, occupationID uint64) (*model.ReservationTypeOccupation, error) {
+				return &model.ReservationTypeOccupation{ID: 10, OccupationID: occupationID, CreatedAt: time.Time{}}, nil
+			},
+		})
+		body, _ := json.Marshal(map[string]any{"occupation_id": 7})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c)
+		h.LinkReservationTypeOccupation(c)
+		assert.Equal(t, http.StatusCreated, w.Code)
+		assert.Contains(t, w.Header().Get("Location"), "/occupations/")
+	})
+
+	t.Run("returns 400 when occupation_id missing", func(t *testing.T) {
+		h := newHandlerWithReservationTypeSvc(&mockReservationTypeService{})
+		body, _ := json.Marshal(map[string]any{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c)
+		h.LinkReservationTypeOccupation(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+// ---- ListReservationTypeOccupations ----
+
+func TestListReservationTypeOccupations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("returns array of occupations", func(t *testing.T) {
+		h := newHandlerWithReservationTypeSvc(&mockReservationTypeService{
+			listOccupationsFn: func(_ context.Context, _, _ uint64) ([]model.ReservationTypeOccupation, error) {
+				return []model.ReservationTypeOccupation{{ID: 1, OccupationID: 3}}, nil
+			},
+		})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c)
+		h.ListReservationTypeOccupations(c)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("returns 401 when clinic_id missing", func(t *testing.T) {
+		h := newHandlerWithReservationTypeSvc(&mockReservationTypeService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.ListReservationTypeOccupations(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- UnlinkReservationTypeOccupation ----
+
+func newUnlinkOccupationRouter(svc service.ReservationTypeService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithReservationTypeSvc(svc)
+	r.DELETE("/reservation-types/:id/occupations/:occupation_id",
+		func(c *gin.Context) { setClinicID(c) },
+		h.UnlinkReservationTypeOccupation)
+	return r
+}
+
+func TestUnlinkReservationTypeOccupation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("unlinks occupation successfully", func(t *testing.T) {
+		svc := &mockReservationTypeService{
+			unlinkOccupationFn: func(_ context.Context, _, rtID, occID uint64) error {
+				assert.Equal(t, uint64(1), rtID)
+				assert.Equal(t, uint64(7), occID)
+				return nil
+			},
+		}
+		router := newUnlinkOccupationRouter(svc)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/reservation-types/1/occupations/7", http.NoBody)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("returns 404 when occupation link not found", func(t *testing.T) {
+		svc := &mockReservationTypeService{
+			unlinkOccupationFn: func(_ context.Context, _, _, _ uint64) error {
+				return apperrors.WrapNotFound("occupation", "7")
+			},
+		}
+		router := newUnlinkOccupationRouter(svc)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/reservation-types/1/occupations/7", http.NoBody)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+}

@@ -2,17 +2,29 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// marshalAuditJSON は監査ログ用に値をJSONバイト列にシリアライズするヘルパー。
+// nil の場合は nil を返す。エラー時は nil を返す（監査ログはベストエフォート）。
+func marshalAuditJSON(v any) []byte {
+	if v == nil {
+		return nil
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	return b
+}
 
 // ---- PermissionGroup ----
 
@@ -45,7 +57,7 @@ func (h *Handler) ListPermissionGroups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toPermissionGroupResponseList(groups))
+	c.JSON(http.StatusOK, mapSlice(groups, toPermissionGroupResponse))
 }
 
 // CreatePermissionGroup godoc
@@ -61,36 +73,35 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 		return
 	}
 
-	pg := &model.PermissionGroup{
-		ClinicID:    clinicID,
+	createInput := service.CreatePermissionGroupInput{
 		Name:        req.Name,
 		Description: req.Description,
 		Color:       req.Color,
 		IsActive:    req.IsActive,
 		SortOrder:   req.SortOrder,
 	}
-	if err := h.svc.PermissionGroup.Create(c.Request.Context(), pg); err != nil {
+	pg, err := h.svc.PermissionGroup.Create(c.Request.Context(), clinicID, &createInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
 
 	// 監査ログ: 権限グループ作成
 	if staffID, ok := extractStaffID(c); ok {
-		if auditErr := h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+		_ = h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionPermissionGroupCreate,
 			Resource:   "permission_group",
 			ResourceID: &pg.ID,
-			NewValue:   repository.MarshalAuditJSON(pg),
+			NewValue:   marshalAuditJSON(pg),
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
-		}); auditErr != nil {
-			slog.ErrorContext(c.Request.Context(), "failed to log permission group creation", slog.String("error", auditErr.Error()))
-		}
+		})
 	}
 
+	c.Header("Location", fmt.Sprintf("/v1/masters/permission-groups/%d", pg.ID))
 	c.JSON(http.StatusCreated, toPermissionGroupResponse(pg))
 }
 
@@ -127,19 +138,17 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 
 	// 監査ログ: 権限グループ更新
 	if staffID, ok := extractStaffID(c); ok {
-		if auditErr := h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+		_ = h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionPermissionGroupUpdate,
 			Resource:   "permission_group",
 			ResourceID: &id,
-			NewValue:   repository.MarshalAuditJSON(updated),
+			NewValue:   marshalAuditJSON(updated),
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
-		}); auditErr != nil {
-			slog.ErrorContext(c.Request.Context(), "failed to log permission group update", slog.String("error", auditErr.Error()))
-		}
+		})
 	}
 
 	c.JSON(http.StatusOK, toPermissionGroupResponse(updated))
@@ -176,11 +185,9 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 		}
 		if oldPG != nil {
 			auditLog.ClinicID = &oldPG.ClinicID
-			auditLog.OldValue = repository.MarshalAuditJSON(oldPG)
+			auditLog.OldValue = marshalAuditJSON(oldPG)
 		}
-		if auditErr := h.svc.Audit.Log(c.Request.Context(), auditLog); auditErr != nil {
-			slog.ErrorContext(c.Request.Context(), "failed to log permission group deletion", slog.String("error", auditErr.Error()))
-		}
+		_ = h.svc.Audit.Log(c.Request.Context(), auditLog)
 	}
 
 	c.Status(http.StatusNoContent)
@@ -189,8 +196,18 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 // SetPermissionGroupRules godoc
 // PUTメソッドで全ルールを置き換える
 func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, ok := parseIDParam(c, "id")
 	if !ok {
+		return
+	}
+
+	// TASK-016: グループがこのクリニックに属することを確認（横断テナント書き換え防止）
+	if _, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id); err != nil {
+		RespondError(c, err)
 		return
 	}
 
@@ -200,57 +217,16 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 		return
 	}
 
-	// BUG-140: 自分が所属するグループの master-permission edit を削除できないようにする
+	// BUG-140 / BUG-146: バリデーションは service 層に委譲
 	staffID, ok := extractStaffID(c)
 	if !ok {
 		return
 	}
-	myGroupIDs, groupErr := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), staffID)
-	if groupErr == nil {
-		isSelfGroup := false
-		for _, gid := range myGroupIDs {
-			if gid == id {
-				isSelfGroup = true
-				break
-			}
-		}
-		if isSelfGroup {
-			hasMasterPermEdit := false
-			for _, r := range req.Rules {
-				if r.Resource == string(model.ResourceMasterPermission) && r.CanEdit {
-					hasMasterPermEdit = true
-					break
-				}
-			}
-			if !hasMasterPermEdit {
-				RespondError(c, apperrors.WrapInvalidInput("自分が所属するグループの権限管理権限（master-permission edit）を削除することはできません"))
-				return
-			}
-		}
-	}
 
-	// BUG-146: 入力バリデーション — 空文字・存在しないリソース名・重複を拒否
-	seen := make(map[string]bool, len(req.Rules))
+	// Convert request rules to service Input DTO
+	inputRules := make([]service.SetPermissionGroupRulesInput, 0, len(req.Rules))
 	for _, r := range req.Rules {
-		if r.Resource == "" {
-			RespondError(c, apperrors.WrapInvalidInput("リソース名が空です"))
-			return
-		}
-		if !model.IsValidResource(r.Resource) {
-			RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("無効なリソース名: %s", r.Resource)))
-			return
-		}
-		if seen[r.Resource] {
-			RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("リソース名が重複しています: %s", r.Resource)))
-			return
-		}
-		seen[r.Resource] = true
-	}
-
-	// Convert request rules to model
-	rules := make([]model.PermissionGroupRule, 0, len(req.Rules))
-	for _, r := range req.Rules {
-		rules = append(rules, model.PermissionGroupRule{
+		inputRules = append(inputRules, service.SetPermissionGroupRulesInput{
 			Resource:  r.Resource,
 			CanView:   r.CanView,
 			CanCreate: r.CanCreate,
@@ -259,30 +235,25 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 		})
 	}
 
-	if err := h.svc.PermissionGroup.SetRules(c.Request.Context(), id, rules); err != nil {
+	if err := h.svc.PermissionGroup.UpdateRules(c.Request.Context(), id, inputRules, staffID); err != nil {
 		RespondError(c, err)
 		return
 	}
 
 	// 監査ログ: 権限ルール更新
-	if auditStaffID, auditOK := extractStaffID(c); auditOK {
-		if auditErr := h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
-			ActorID:    &auditStaffID,
-			ActorType:  "staff",
-			Action:     model.AuditActionPermissionRulesUpdate,
-			Resource:   "permission_group_rules",
-			ResourceID: &id,
-			NewValue:   repository.MarshalAuditJSON(rules),
-			IPAddress:  c.ClientIP(),
-			UserAgent:  c.Request.Header.Get("User-Agent"),
-		}); auditErr != nil {
-			slog.ErrorContext(c.Request.Context(), "failed to log permission rules update", slog.String("error", auditErr.Error()))
-		}
-	}
+	_ = h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+		ActorID:    &staffID,
+		ActorType:  "staff",
+		Action:     model.AuditActionPermissionRulesUpdate,
+		Resource:   "permission_group_rules",
+		ResourceID: &id,
+		NewValue:   marshalAuditJSON(inputRules),
+		IPAddress:  c.ClientIP(),
+		UserAgent:  c.Request.Header.Get("User-Agent"),
+	})
 
 	// Return updated group with rules
-	setClinicID, _ := extractClinicID(c)
-	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), setClinicID, id)
+	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -296,7 +267,7 @@ func (h *Handler) ReorderPermissionGroups(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderPermissionGroupRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -305,5 +276,5 @@ func (h *Handler) ReorderPermissionGroups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }

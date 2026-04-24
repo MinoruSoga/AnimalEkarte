@@ -262,13 +262,3 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     namePlaceholder: "獣医師権限", codePlaceholder: "",
   },
 };
-
-// Mapping from camelCase route category names to CATEGORY_CONFIG keys
-export const CATEGORY_ALIAS_MAP: Record<string, MasterSettingsCategory> = {
-  trimmingCourse: "trimming_course",
-  trimmingOption: "trimming_option",
-  diagnosisType: "diagnosis_type",
-  diagnosisName: "diagnosis_name",
-  inquiryTemplate: "inquiry_template",
-  merchandiseItem: "merchandise_item",
-};

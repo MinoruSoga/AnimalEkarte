@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -9,26 +10,6 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-type clinicHolidayResponse struct {
-	ID        uint64 `json:"id"`
-	ClinicID  uint64 `json:"clinic_id"`
-	Date      string `json:"date"` // YYYY-MM-DD
-	Reason    string `json:"reason"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
-}
-
-func toClinicHolidayResponse(h *model.ClinicHoliday) clinicHolidayResponse {
-	return clinicHolidayResponse{
-		ID:        h.ID,
-		ClinicID:  h.ClinicID,
-		Date:      h.Date.Format("2006-01-02"),
-		Reason:    h.Reason,
-		CreatedAt: h.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: h.UpdatedAt.Format(time.RFC3339),
-	}
-}
 
 // ListClinicHolidays godoc
 // GET /v1/clinic-holidays?year_month=YYYY-MM
@@ -46,11 +27,7 @@ func (h *Handler) ListClinicHolidays(c *gin.Context) {
 		return
 	}
 
-	resp := make([]clinicHolidayResponse, 0, len(holidays))
-	for i := range holidays {
-		resp = append(resp, toClinicHolidayResponse(&holidays[i]))
-	}
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mapSlice(holidays, toClinicHolidayResponse))
 }
 
 type setClinicHolidayRequest struct {
@@ -83,7 +60,8 @@ func (h *Handler) SetClinicHoliday(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toClinicHolidayResponse(holiday))
+	c.Header("Location", fmt.Sprintf("/v1/clinic-holidays/%s", holiday.Date.Format("2006-01-02")))
+	c.JSON(http.StatusCreated, toClinicHolidayResponse(holiday))
 }
 
 // DeleteClinicHoliday godoc

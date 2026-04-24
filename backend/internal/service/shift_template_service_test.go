@@ -14,13 +14,14 @@ import (
 // ---- mockShiftTemplateRepository ----
 
 type mockShiftTemplateRepository struct {
-	findAllFn       func(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
-	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
-	createFn        func(ctx context.Context, tpl *model.ShiftTemplate) error
-	updateFn        func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn        func(ctx context.Context, clinicID, id uint64) error
-	replaceBreaksFn func(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
-	reorderFn       func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn              func(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
+	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
+	createFn               func(ctx context.Context, tpl *model.ShiftTemplate) error
+	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
+	deleteFn               func(ctx context.Context, clinicID, id uint64) error
+	replaceBreaksFn        func(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
+	reorderFn              func(ctx context.Context, clinicID uint64, ids []uint64) error
+	countUsageByTemplateID func(ctx context.Context, clinicID, id uint64) (int64, error)
 }
 
 func (m *mockShiftTemplateRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error) {
@@ -44,11 +45,11 @@ func (m *mockShiftTemplateRepository) Create(ctx context.Context, tpl *model.Shi
 	return nil
 }
 
-func (m *mockShiftTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (m *mockShiftTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, fields)
 	}
-	return nil
+	return &model.ShiftTemplate{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockShiftTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -70,6 +71,13 @@ func (m *mockShiftTemplateRepository) Reorder(ctx context.Context, clinicID uint
 		return m.reorderFn(ctx, clinicID, ids)
 	}
 	return nil
+}
+
+func (m *mockShiftTemplateRepository) CountUsageByShiftTemplateID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	if m.countUsageByTemplateID != nil {
+		return m.countUsageByTemplateID(ctx, clinicID, id)
+	}
+	return 0, nil
 }
 
 // ---- Tests: List ----
@@ -136,10 +144,10 @@ func TestShiftTemplateService_Create(t *testing.T) {
 			name: "正常: 通常シフト(morning)で startTime/endTime あり → repo.Create が呼ばれる",
 			input: &CreateShiftTemplateInput{
 				Name:      "早番",
-				ShiftType: model.ShiftTypeMorning,
-				StartTime: strPtr("08:00"),
-				EndTime:   strPtr("13:00"),
-				IsActive:  true,
+				ShiftType: string(model.ShiftTypeMorning),
+				StartTime: "08:00",
+				EndTime:   "13:00",
+				IsActive:  boolPtr(true),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.createFn = func(_ context.Context, tpl *model.ShiftTemplate) error {
@@ -156,10 +164,10 @@ func TestShiftTemplateService_Create(t *testing.T) {
 			name: "正常: 終日シフト(off)で時刻なし → バリデーションエラーなし",
 			input: &CreateShiftTemplateInput{
 				Name:      "公休",
-				ShiftType: model.ShiftTypeOff,
-				StartTime: nil,
-				EndTime:   nil,
-				IsActive:  true,
+				ShiftType: string(model.ShiftTypeOff),
+				StartTime: "",
+				EndTime:   "",
+				IsActive:  boolPtr(true),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.createFn = func(_ context.Context, tpl *model.ShiftTemplate) error {
@@ -176,10 +184,10 @@ func TestShiftTemplateService_Create(t *testing.T) {
 			name: "エラー: endTime が startTime より前 → InvalidInput エラー",
 			input: &CreateShiftTemplateInput{
 				Name:      "不正シフト",
-				ShiftType: model.ShiftTypeMorning,
-				StartTime: strPtr("13:00"),
-				EndTime:   strPtr("08:00"),
-				IsActive:  true,
+				ShiftType: string(model.ShiftTypeMorning),
+				StartTime: "13:00",
+				EndTime:   "08:00",
+				IsActive:  boolPtr(true),
 			},
 			setupFn: func(_ *mockShiftTemplateRepository) {},
 			wantErr: true,
@@ -189,10 +197,10 @@ func TestShiftTemplateService_Create(t *testing.T) {
 			name: "エラー: repo.Create がエラー → error を返す",
 			input: &CreateShiftTemplateInput{
 				Name:      "早番",
-				ShiftType: model.ShiftTypeMorning,
-				StartTime: strPtr("08:00"),
-				EndTime:   strPtr("13:00"),
-				IsActive:  true,
+				ShiftType: string(model.ShiftTypeMorning),
+				StartTime: "08:00",
+				EndTime:   "13:00",
+				IsActive:  boolPtr(true),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.createFn = func(_ context.Context, _ *model.ShiftTemplate) error {
@@ -253,14 +261,8 @@ func TestShiftTemplateService_Update(t *testing.T) {
 				Name: strPtr("新しい早番"),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
-				updateCalled := false
-				repo.updateFn = func(_ context.Context, clinicID, id uint64, fields map[string]any) error {
-					updateCalled = true
+				repo.updateFn = func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
 					assert.Equal(t, "新しい早番", fields["name"])
-					return nil
-				}
-				repo.findByIDFn = func(_ context.Context, _, id uint64) (*model.ShiftTemplate, error) {
-					_ = updateCalled // 参照のみ
 					return &model.ShiftTemplate{ID: id, Name: "新しい早番"}, nil
 				}
 			},
@@ -291,33 +293,63 @@ func TestShiftTemplateService_Update(t *testing.T) {
 
 func TestShiftTemplateService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
+		name             string
+		id               uint64
+		findByIDErr      error
+		countUsageResult int64
+		countUsageErr    error
+		repoErr          error
+		wantErr          bool
+		errIs            error
 	}{
 		{
-			name:    "正常: repo.Delete が呼ばれる",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
+			name:             "正常: 使用中なし → repo.Delete が呼ばれる",
+			id:               1,
+			countUsageResult: 0,
+			repoErr:          nil,
+			wantErr:          false,
 		},
 		{
-			name:    "エラー: repo.Delete がエラー → error を返す",
-			id:      99,
-			repoErr: errors.New("not found in db"),
-			wantErr: true,
+			name:        "エラー: FindByID が not found → error を返す",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("shift_template", "999"),
+			wantErr:     true,
+		},
+		{
+			name:          "エラー: CountUsage がエラー → error を返す",
+			id:            1,
+			countUsageErr: errors.New("db error"),
+			wantErr:       true,
+		},
+		{
+			name:             "エラー: 使用中のテンプレート → 409 Conflict",
+			id:               1,
+			countUsageResult: 1,
+			wantErr:          true,
+			errIs:            apperrors.ErrConflict,
+		},
+		{
+			name:             "エラー: repo.Delete がエラー → error を返す",
+			id:               99,
+			countUsageResult: 0,
+			repoErr:          errors.New("not found in db"),
+			wantErr:          true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			deleteCalled := false
 			repo := &mockShiftTemplateRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftTemplate, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.ShiftTemplate{ID: id}, nil
+				},
+				countUsageByTemplateID: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.countUsageResult, tt.countUsageErr
+				},
 				deleteFn: func(_ context.Context, clinicID, id uint64) error {
-					deleteCalled = true
-					assert.Equal(t, uint64(10), clinicID)
-					assert.Equal(t, tt.id, id)
 					return tt.repoErr
 				},
 			}
@@ -325,9 +357,11 @@ func TestShiftTemplateService_Delete(t *testing.T) {
 
 			err := svc.Delete(context.Background(), 10, tt.id)
 
-			assert.True(t, deleteCalled, "repo.Delete should have been called")
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.errIs != nil {
+					assert.True(t, errors.Is(err, tt.errIs), "expected error to wrap %v, got %v", tt.errIs, err)
+				}
 			} else {
 				assert.NoError(t, err)
 			}
@@ -389,3 +423,6 @@ func TestShiftTemplateService_Reorder(t *testing.T) {
 		})
 	}
 }
+
+// boolPtr はテスト用のヘルパー関数
+func boolPtr(b bool) *bool { return &b }

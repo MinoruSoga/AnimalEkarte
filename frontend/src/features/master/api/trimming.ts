@@ -29,48 +29,35 @@ export const TARGET_SIZE_OPTIONS: { value: string; label: string }[] = [
 ];
 
 // ─────────────────────────────────────────────────
-// Request types
+// Request types (derived from models.ts, with nullable price/target_size/duration overrides)
 // ─────────────────────────────────────────────────
 
-export interface CreateTrimmingCourseRequest {
-  name: string;
+type TrimmingCourseBase = Omit<
+  ModelTrimmingCourse,
+  "id" | "clinic_id" | "created_at" | "updated_at" | "price" | "target_size" | "duration"
+> & {
   price?: number | null;
-  description?: string;
   target_size?: TargetSize | null;
   duration?: number | null;
-  is_active?: boolean;
-  sort_order?: number;
-}
+};
 
-export interface UpdateTrimmingCourseRequest {
-  name?: string;
-  price?: number | null;
-  description?: string;
-  target_size?: TargetSize | null;
-  duration?: number | null;
-  is_active?: boolean;
-  sort_order?: number;
-}
+export type CreateTrimmingCourseRequest = Pick<TrimmingCourseBase, "name"> &
+  Partial<Omit<TrimmingCourseBase, "name">>;
 
-export interface CreateTrimmingOptionRequest {
-  name: string;
-  price?: number | null;
-  description?: string;
-  duration?: number | null;
-  is_combinable?: boolean;
-  is_active?: boolean;
-  sort_order?: number;
-}
+export type UpdateTrimmingCourseRequest = Partial<TrimmingCourseBase>;
 
-export interface UpdateTrimmingOptionRequest {
-  name?: string;
+type TrimmingOptionBase = Omit<
+  ModelTrimmingOption,
+  "id" | "clinic_id" | "created_at" | "updated_at" | "price" | "duration"
+> & {
   price?: number | null;
-  description?: string;
   duration?: number | null;
-  is_combinable?: boolean;
-  is_active?: boolean;
-  sort_order?: number;
-}
+};
+
+export type CreateTrimmingOptionRequest = Pick<TrimmingOptionBase, "name"> &
+  Partial<Omit<TrimmingOptionBase, "name">>;
+
+export type UpdateTrimmingOptionRequest = Partial<TrimmingOptionBase>;
 
 // ─────────────────────────────────────────────────
 // Transform functions
@@ -155,6 +142,10 @@ export async function deleteTrimmingCourse(id: string): Promise<void> {
   await axios.delete(`/v1/masters/trimming-courses/${id}`);
 }
 
+export async function reorderTrimmingCourses(ids: number[]): Promise<void> {
+  await axios.patch("/v1/masters/trimming-courses/reorder", { ids });
+}
+
 // ─────────────────────────────────────────────────
 // API functions - TrimmingOption
 // ─────────────────────────────────────────────────
@@ -189,6 +180,10 @@ export async function updateTrimmingOption(
 
 export async function deleteTrimmingOption(id: string): Promise<void> {
   await axios.delete(`/v1/masters/trimming-options/${id}`);
+}
+
+export async function reorderTrimmingOptions(ids: number[]): Promise<void> {
+  await axios.patch("/v1/masters/trimming-options/reorder", { ids });
 }
 
 // ─────────────────────────────────────────────────
@@ -238,6 +233,17 @@ export function useDeleteTrimmingCourse() {
   });
 }
 
+export function useReorderTrimmingCourses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderTrimmingCourses(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
+  });
+}
+
 // ─────────────────────────────────────────────────
 // TanStack Query hooks - TrimmingOption
 // ─────────────────────────────────────────────────
@@ -282,5 +288,16 @@ export function useDeleteTrimmingOption() {
       queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
     },
     onError: (error) => handleApiError(error, "削除"),
+  });
+}
+
+export function useReorderTrimmingOptions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderTrimmingOptions(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 }

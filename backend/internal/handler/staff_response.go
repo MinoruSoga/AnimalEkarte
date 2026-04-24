@@ -73,14 +73,6 @@ func toStaffResponse(s *model.Staff) staffResponse {
 	}
 }
 
-func toStaffResponseList(staffs []model.Staff) []staffResponse {
-	result := make([]staffResponse, 0, len(staffs))
-	for i := range staffs {
-		result = append(result, toStaffResponse(&staffs[i]))
-	}
-	return result
-}
-
 // staffSummaryResponse はネストされたレスポンスで使用するスタッフの要約型
 type staffSummaryResponse struct {
 	ID   uint64 `json:"id"`

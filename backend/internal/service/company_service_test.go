@@ -17,7 +17,7 @@ type mockCompanyRepository struct {
 	updateFn func(ctx context.Context, fields map[string]any) error
 }
 
-func (m *mockCompanyRepository) Get(ctx context.Context) (*model.Company, error) {
+func (m *mockCompanyRepository) FindSingleton(ctx context.Context) (*model.Company, error) {
 	return m.getFn(ctx)
 }
 

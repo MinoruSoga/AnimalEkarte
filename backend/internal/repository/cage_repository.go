@@ -16,8 +16,9 @@ import (
 type CageRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+	CountUsageByCageID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Create(ctx context.Context, cage *model.Cage) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -49,15 +50,12 @@ func (r *cageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*mo
 
 func (r *cageRepository) Create(ctx context.Context, cage *model.Cage) error {
 	if err := r.db.WithContext(ctx).Create(cage).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "cage", "")
 	}
 	return nil
 }
 
-func (r *cageRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
+func (r *cageRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Cage{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -80,6 +78,20 @@ func (r *cageRepository) Delete(ctx context.Context, clinicID, id uint64) error 
 		return apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountUsageByCageID はケージを参照している hospitalizations の件数を返す。
+// hospitalizations テーブルは直接 clinic_id を持つためテナント分離を直接適用する。
+func (r *cageRepository) CountUsageByCageID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Hospitalization{}).
+		Scopes(clinicScope(clinicID)).
+		Where("cage_id = ? AND deleted_at IS NULL", id).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "hospitalization", "")
+	}
+	return count, nil
 }
 
 func (r *cageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

@@ -28,14 +28,17 @@ func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint
 }
 
 func (m *mockMedicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockMedicalRecordRepository) Create(ctx context.Context, record *model.MedicalRecord) error {
 	return m.createFn(ctx, record)
 }
 
-func (m *mockMedicalRecordRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
+func (m *mockMedicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}
@@ -103,7 +106,7 @@ func (m *mrMockPetRepo) FindByID(ctx context.Context, clinicID, id uint64) (*mod
 	return m.findByIDFn(ctx, clinicID, id)
 }
 func (m *mrMockPetRepo) CountByOwner(_ context.Context, _, _ uint64) (int64, error) { return 0, nil }
-func (m *mrMockPetRepo) CountByAnimalSpeciesID(_ context.Context, _ uint64) (int64, error) {
+func (m *mrMockPetRepo) CountUsageByAnimalSpeciesID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *mrMockPetRepo) Create(_ context.Context, _ *model.Pet) error { return nil }
@@ -383,7 +386,7 @@ func TestMedicalRecordService_Update(t *testing.T) {
 		name        string
 		input       UpdateMedicalRecordInput
 		findByIDErr error // FindByID のエラー（nil = 正常レコード返却）
-		updateErr   error // UpdateFields のエラー
+		updateErr   error // Update のエラー
 		wantErr     bool
 		wantNF      bool
 	}{
@@ -621,6 +624,12 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
+				},
 				countEstimatesByMedicalRecordIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.estimateCount, tt.estimateErr
 				},
@@ -650,10 +659,10 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 // noopInquiryRepo は CreateSubRecords テスト用の no-op InquiryRepository
 type noopInquiryRepo struct{}
 
-func (n *noopInquiryRepo) UpsertByMedicalRecordID(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+func (n *noopInquiryRepo) SaveByMedicalRecordID(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
 	return inquiry, nil
 }
-func (n *noopInquiryRepo) CountByChiefComplaintTypeID(_ context.Context, _ uint64) (int64, error) {
+func (n *noopInquiryRepo) CountByChiefComplaintTypeID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -708,7 +717,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 			},
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
-		appt := &model.Appointment{
+		appt := &model.Reservation{
 			ID:        1,
 			ClinicID:  1,
 			StartTime: now,
@@ -745,7 +754,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, &noopInquiryRepo{}, &noopClinicalPlanRepo{}, lineCustomerRepo)
 
-		appt := &model.Appointment{
+		appt := &model.Reservation{
 			ID:             1,
 			ClinicID:       1,
 			StartTime:      now,
@@ -783,7 +792,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, lineCustomerRepo)
 
-		appt := &model.Appointment{
+		appt := &model.Reservation{
 			ID:             1,
 			ClinicID:       1,
 			StartTime:      now,

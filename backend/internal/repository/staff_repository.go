@@ -36,8 +36,8 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		// staffs テーブルに clinic_id は存在しない。
 		// staff_clinic_assignments を経由して clinic_id でフィルタ
 		q := dbOrTx(ctx, r.db).Model(&model.Staff{}).
-			Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id").
-			Where("staff_clinic_assignments.clinic_id = ?", clinicID).
+			Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id"+
+				" AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL", clinicID).
 			Where("staffs.deleted_at IS NULL")
 		return q
 	}
@@ -46,8 +46,8 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		return nil, 0, apperrors.FromGORM(err, "staff", "")
 	}
 	if err := buildBase().
-		Preload("Account").
-		Preload("Occupation").
+		Preload("Account", "deleted_at IS NULL").
+		Preload("Occupation", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).
 		Order("staffs.sort_order ASC, staffs.name ASC").
 		Distinct("staffs.*").
@@ -59,7 +59,7 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 
 func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	var staff model.Staff
-	err := dbOrTx(ctx, r.db).Preload("Account").Preload("Occupation").First(&staff, "id = ?", id).Error
+	err := dbOrTx(ctx, r.db).Preload("Account", "deleted_at IS NULL").Preload("Occupation", "deleted_at IS NULL").First(&staff, "id = ?", id).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", id))
 	}
@@ -91,7 +91,7 @@ func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, field
 	result := dbOrTx(ctx, r.db).
 		Model(&model.Staff{}).
 		Where("staffs.id = ?", id).
-		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?)", clinicID).
+		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)", clinicID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "staff", fmt.Sprintf("%d", id))
@@ -108,7 +108,7 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 	result := dbOrTx(ctx, r.db).
 		Model(&model.Staff{}).
 		Where("id = ?", id).
-		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?)", clinicID).
+		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)", clinicID).
 		Update("deleted_at", gorm.Expr("now()"))
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "staff", fmt.Sprintf("%d", id))
@@ -126,7 +126,7 @@ func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []ui
 		for i, id := range ids {
 			result := tx.Model(&model.Staff{}).
 				Where("staffs.id = ?", id).
-				Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?)", clinicID).
+				Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)", clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, "staff", fmt.Sprintf("%d", id))

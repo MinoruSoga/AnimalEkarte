@@ -2,8 +2,8 @@
 import { memo, useMemo, useState, useCallback, useTransition } from "react";
 
 // Internal
-import { useGetAllVaccinesMaster } from "@/features/master";
-import { useCreateVaccination } from "@/features/vaccinations";
+import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
+import { useCreateVaccination } from "@/hooks/use-vaccinations";
 import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative

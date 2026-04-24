@@ -2,34 +2,16 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Vaccine ----
-
-// GetVaccine godoc
-func (h *Handler) GetVaccine(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	vaccine, err := h.svc.Vaccine.GetByID(c.Request.Context(), clinicID, id)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, vaccine)
-}
 
 // ListVaccines godoc
 func (h *Handler) ListVaccines(c *gin.Context) {
@@ -46,7 +28,25 @@ func (h *Handler) ListVaccines(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, vaccines)
+	c.JSON(http.StatusOK, mapSlice(vaccines, toVaccineResponse))
+}
+
+// GetVaccine godoc
+func (h *Handler) GetVaccine(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	vaccine, err := h.svc.Vaccine.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toVaccineResponse(vaccine))
 }
 
 // CreateVaccine godoc
@@ -62,8 +62,7 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 		return
 	}
 
-	vaccine := &model.Vaccine{
-		ClinicID:    clinicID,
+	svcInput := &service.CreateVaccineInput{
 		Name:        input.Name,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
@@ -72,16 +71,15 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 		ParentID:    input.ParentID,
 		SortOrder:   input.SortOrder,
 	}
-	if input.Species != "" {
-		s := model.VaccineSpecies(input.Species)
-		vaccine.Species = &s
-	}
+	svcInput.Species = nilIfEmpty(input.Species)
 
-	if err := h.svc.Vaccine.Create(c.Request.Context(), vaccine); err != nil {
+	vaccine, err := h.svc.Vaccine.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, vaccine)
+	c.Header("Location", fmt.Sprintf("/v1/masters/vaccines/%d", vaccine.ID))
+	c.JSON(http.StatusCreated, toVaccineResponse(vaccine))
 }
 
 // UpdateVaccine godoc
@@ -105,22 +103,19 @@ func (h *Handler) UpdateVaccine(c *gin.Context) {
 		Price:         input.Price,
 		IsActive:      input.IsActive,
 		Description:   input.Description,
+		Species:       input.Species,
 		Interval:      input.Interval,
 		ParentID:      input.ParentID,
 		ClearParentID: input.ClearParentID,
 		SortOrder:     input.SortOrder,
 	}
-	if input.Species != nil {
-		s := model.VaccineSpecies(*input.Species)
-		svcInput.Species = &s
-	}
 
-	vaccine, err := h.svc.Vaccine.Update(c.Request.Context(), clinicID, id, svcInput)
+	vaccine, err := h.svc.Vaccine.Update(c.Request.Context(), clinicID, id, &svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, vaccine)
+	c.JSON(http.StatusOK, toVaccineResponse(vaccine))
 }
 
 // ReorderVaccines godoc
@@ -129,7 +124,7 @@ func (h *Handler) ReorderVaccines(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderVaccineRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -138,7 +133,7 @@ func (h *Handler) ReorderVaccines(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // DeleteVaccine godoc

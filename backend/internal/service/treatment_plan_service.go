@@ -33,9 +33,42 @@ type UpdateTreatmentPlanInput struct {
 	SortOrder        *int
 }
 
+func buildTreatmentPlanUpdate(input *UpdateTreatmentPlanInput) map[string]any {
+	fields := map[string]any{}
+	if input.TreatmentContent != nil {
+		fields["treatment_content"] = *input.TreatmentContent
+	}
+	if input.Memo != nil {
+		fields["memo"] = *input.Memo
+	}
+	if input.IsInsurance != nil {
+		fields["is_insurance"] = *input.IsInsurance
+	}
+	if input.UnitPrice != nil {
+		fields["unit_price"] = *input.UnitPrice
+	}
+	if input.Quantity != nil {
+		fields["quantity"] = *input.Quantity
+	}
+	if input.DiscountRate != nil {
+		fields["discount_rate"] = *input.DiscountRate
+	}
+	if input.DiscountAmount != nil {
+		fields["discount_amount"] = *input.DiscountAmount
+	}
+	if input.Subtotal != nil {
+		fields["subtotal"] = *input.Subtotal
+	}
+	if input.SortOrder != nil {
+		fields["sort_order"] = *input.SortOrder
+	}
+	return fields
+}
+
 type TreatmentPlanService interface {
 	ListByMedicalRecord(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error)
 	ListByHospitalization(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	Create(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64, input *CreateTreatmentPlanInput) (*model.TreatmentPlan, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -49,8 +82,16 @@ func NewTreatmentPlanService(repo repository.TreatmentPlanRepository) TreatmentP
 	return &treatmentPlanService{repo: repo}
 }
 
+func (s *treatmentPlanService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
+	plan, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get treatment plan")
+	}
+	return plan, nil
+}
+
 func (s *treatmentPlanService) ListByMedicalRecord(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
-	plans, err := s.repo.ListByMedicalRecordID(ctx, clinicID, medicalRecordID)
+	plans, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list treatment plans by medical record")
 	}
@@ -58,7 +99,7 @@ func (s *treatmentPlanService) ListByMedicalRecord(ctx context.Context, clinicID
 }
 
 func (s *treatmentPlanService) ListByHospitalization(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
-	plans, err := s.repo.ListByHospitalizationID(ctx, clinicID, hospitalizationID)
+	plans, err := s.repo.FindByHospitalizationID(ctx, clinicID, hospitalizationID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list treatment plans by hospitalization")
 	}
@@ -91,7 +132,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 	if err := s.repo.Create(ctx, plan); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create treatment plan")
 	}
-	slog.InfoContext(ctx, "treatment plan created", slog.Uint64("treatment_plan_id", plan.ID))
+	slog.InfoContext(ctx, "treatment plan created", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", plan.ID))
 
 	result, err := s.repo.FindByID(ctx, clinicID, plan.ID)
 	if err != nil {
@@ -101,14 +142,17 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 }
 
 func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
-	fields := buildTreatmentPlanUpdateFields(input)
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find treatment plan")
+	}
+	fields := buildTreatmentPlanUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update treatment plan")
 	}
-	slog.InfoContext(ctx, "treatment plan updated", slog.Uint64("treatment_plan_id", id))
+	slog.InfoContext(ctx, "treatment plan updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", id))
 
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
@@ -118,43 +162,14 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (s *treatmentPlanService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find treatment plan")
+	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete treatment plan")
 	}
-	slog.InfoContext(ctx, "treatment plan deleted", slog.Uint64("treatment_plan_id", id))
+	slog.InfoContext(ctx, "treatment plan deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", id))
 	return nil
-}
-
-func buildTreatmentPlanUpdateFields(input *UpdateTreatmentPlanInput) map[string]any {
-	fields := map[string]any{}
-	if input.TreatmentContent != nil {
-		fields["treatment_content"] = *input.TreatmentContent
-	}
-	if input.Memo != nil {
-		fields["memo"] = *input.Memo
-	}
-	if input.IsInsurance != nil {
-		fields["is_insurance"] = *input.IsInsurance
-	}
-	if input.UnitPrice != nil {
-		fields["unit_price"] = *input.UnitPrice
-	}
-	if input.Quantity != nil {
-		fields["quantity"] = *input.Quantity
-	}
-	if input.DiscountRate != nil {
-		fields["discount_rate"] = *input.DiscountRate
-	}
-	if input.DiscountAmount != nil {
-		fields["discount_amount"] = *input.DiscountAmount
-	}
-	if input.Subtotal != nil {
-		fields["subtotal"] = *input.Subtotal
-	}
-	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
-	}
-	return fields
 }
 
 // compile-time check

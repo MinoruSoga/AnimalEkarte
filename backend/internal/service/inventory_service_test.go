@@ -18,7 +18,7 @@ type mockInventoryRepository struct {
 	createFn         func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	updateFieldsFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
-	countUsageByIDFn func(ctx context.Context, inventoryID uint64) (int64, error)
+	countUsageByIDFn func(ctx context.Context, clinicID, inventoryID uint64) (int64, error)
 }
 
 func (m *mockInventoryRepository) FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
@@ -26,14 +26,17 @@ func (m *mockInventoryRepository) FindAll(ctx context.Context, clinicID uint64, 
 }
 
 func (m *mockInventoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockInventoryRepository) Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
 	return m.createFn(ctx, clinicID, item)
 }
 
-func (m *mockInventoryRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
+func (m *mockInventoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
@@ -45,14 +48,18 @@ func (m *mockInventoryRepository) DecreaseStock(_ context.Context, _ uint64, _ f
 	return nil
 }
 
-func (m *mockInventoryRepository) CountUsageByInventoryID(ctx context.Context, inventoryID uint64) (int64, error) {
+func (m *mockInventoryRepository) CountUsageByInventoryID(ctx context.Context, clinicID, inventoryID uint64) (int64, error) {
 	if m.countUsageByIDFn != nil {
-		return m.countUsageByIDFn(ctx, inventoryID)
+		return m.countUsageByIDFn(ctx, clinicID, inventoryID)
 	}
 	return 0, nil
 }
 
 func (m *mockInventoryRepository) DeleteByNameAndMedicineCategory(_ context.Context, _ uint64, _ string) error {
+	return nil
+}
+
+func (m *mockInventoryRepository) UpdateNameByMedicineCategory(_ context.Context, _ uint64, _, _ string) error {
 	return nil
 }
 
@@ -235,20 +242,19 @@ func TestInventoryService_Create(t *testing.T) {
 	tests := []struct {
 		name     string
 		clinicID uint64
-		item     *model.InventoryItem
+		input    *CreateInventoryInput
 		repoErr  error
 		wantErr  bool
 	}{
 		{
 			name:     "creates inventory item successfully",
 			clinicID: 1,
-			item: &model.InventoryItem{
+			input: &CreateInventoryInput{
 				Name:          "新規薬剤",
-				Category:      model.InventoryCategoryMedicine,
+				Category:      string(model.InventoryCategoryMedicine),
 				Quantity:      100,
 				Unit:          "本",
 				MinStockLevel: 10,
-				Status:        model.InventoryStatusSufficient,
 			},
 			repoErr: nil,
 			wantErr: false,
@@ -256,22 +262,16 @@ func TestInventoryService_Create(t *testing.T) {
 		{
 			name:     "returns error when item already exists",
 			clinicID: 1,
-			item: &model.InventoryItem{
-				Name:     "既存薬剤",
-				Category: model.InventoryCategoryMedicine,
-			},
-			repoErr: apperrors.WrapAlreadyExists("inventory_item", "既存薬剤"),
-			wantErr: true,
+			input:    &CreateInventoryInput{Name: "既存薬剤", Category: string(model.InventoryCategoryMedicine)},
+			repoErr:  apperrors.WrapAlreadyExists("inventory_item", "既存薬剤"),
+			wantErr:  true,
 		},
 		{
 			name:     "returns error on repository failure",
 			clinicID: 1,
-			item: &model.InventoryItem{
-				Name:     "エラー薬剤",
-				Category: model.InventoryCategoryOther,
-			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			input:    &CreateInventoryInput{Name: "エラー薬剤", Category: string(model.InventoryCategoryOther)},
+			repoErr:  errors.New("db error"),
+			wantErr:  true,
 		},
 	}
 
@@ -284,12 +284,14 @@ func TestInventoryService_Create(t *testing.T) {
 			}
 			svc := NewInventoryService(repo)
 
-			err := svc.Create(context.Background(), tt.clinicID, tt.item)
+			item, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, item)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, item)
 			}
 		})
 	}
@@ -426,7 +428,7 @@ func TestInventoryService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInventoryRepository{
-				countUsageByIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				countUsageByIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.usageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

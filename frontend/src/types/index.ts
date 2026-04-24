@@ -16,19 +16,6 @@ export type { Owner, CreateOwnerRequest, UpdateOwnerRequest } from './owner';
 export type { Pet } from "@/lib/transforms/pet";
 export type { Medicine } from "@/lib/transforms/medicine";
 
-// --- Clinic / App Shell ---
-export interface ClinicInfo {
-  name: string;
-  postalCode: string;
-  address: string;
-  phoneNumber: string;
-  faxNumber?: string;
-  registrationNumber?: string;
-  directorName?: string;
-  email?: string;
-  website?: string;
-  logoUrl?: string;
-}
 
 export interface MenuItem {
     icon?: ReactNode;
@@ -39,11 +26,25 @@ export interface MenuItem {
 }
 
 // --- Reception（当日の受付）/ Calendar ---
-// Note: ReceptionAppointment（受付カンバン用、visitType: "初診"|"再診"）は
-//       features/reception/api/types.ts で定義。
-//       ColumnData は reception feature 内でのみ使用するため、
-//       Appointment の型は ReceptionAppointment を参照する。
-import type { ReceptionAppointment } from "@/features/reception/api/types";
+
+/** 当日の受付カンバンカード用の変換後型 */
+export interface ReceptionAppointment {
+  id: string;
+  time: string; // "HH:mm" 形式
+  ownerName: string;
+  petType: string;
+  petName: string;
+  visitType: "初診" | "再診";
+  reservationType: string;
+  nextAppointment?: "次回予約無" | "次回予約済" | "精算未確認" | "精算確認済";
+  isDesignated: boolean;
+  doctor?: string;
+  petId: string;
+  ownerId: string;
+  status: ReservationStatus;
+  notes?: string;
+  source?: "manual" | "line";
+}
 
 export interface ColumnData {
   title: string;
@@ -93,10 +94,6 @@ export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
   cancelled: "キャンセル",
 };
 
-export const RESERVATION_TYPE_VALUES = ["診療", "検診", "手術", "トリミング", "ワクチン", "入院"] as const;
-
-/** 予約種別 */
-export type ReservationType = (typeof RESERVATION_TYPE_VALUES)[number];
 
 /** ナビゲーション遷移元情報（react-router location.state で使用） */
 export interface NavigationState {
@@ -106,10 +103,10 @@ export interface NavigationState {
 // --- Feature UI Types ---
 
 /**
- * フロントエンド予約アポイントメント型（UI 表示用 - id:string, start/end:Date）
+ * フロントエンド予約型（UI 表示用 - id:string, start/end:Date）
  * transforms.ts の変換結果として使用
  */
-export interface Appointment {
+export interface Reservation {
   id: string;
   start: Date;
   end: Date;

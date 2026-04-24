@@ -2,16 +2,30 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Procedure ----
+
+// ListProcedures godoc
+func (h *Handler) ListProcedures(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	procedures, err := h.svc.Procedure.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(procedures, toProcedureResponse))
+}
 
 // GetProcedure godoc
 func (h *Handler) GetProcedure(c *gin.Context) {
@@ -28,21 +42,7 @@ func (h *Handler) GetProcedure(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, procedure)
-}
-
-// ListProcedures godoc
-func (h *Handler) ListProcedures(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	procedures, err := h.svc.Procedure.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, procedures)
+	c.JSON(http.StatusOK, toProcedureResponse(procedure))
 }
 
 // CreateProcedure godoc
@@ -58,35 +58,27 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		return
 	}
 
-	taxType := model.TaxTypeExcluded
-	if input.TaxType != "" {
-		taxType = model.TaxType(input.TaxType)
-	}
-	taxRate := 0.10
-	if input.TaxRate != nil {
-		taxRate = *input.TaxRate
-	}
-	procedure := &model.Procedure{
-		ClinicID:    clinicID,
+	// TaxType 変換はサービス層で行う (BUG-379)
+	svcInput := &service.CreateProcedureInput{
 		Name:        input.Name,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
 		Description: input.Description,
 		Duration:    input.Duration,
+		Anesthesia:  input.Anesthesia,
 		ParentID:    input.ParentID,
 		SortOrder:   input.SortOrder,
-		TaxType:     taxType,
-		TaxRate:     taxRate,
-	}
-	if input.Anesthesia != "" {
-		procedure.Anesthesia = model.AnesthesiaType(input.Anesthesia)
+		TaxType:     input.TaxType,
+		TaxRate:     input.TaxRate,
 	}
 
-	if err := h.svc.Procedure.Create(c.Request.Context(), procedure); err != nil {
+	procedure, err := h.svc.Procedure.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, procedure)
+	c.Header("Location", fmt.Sprintf("/v1/masters/procedures/%d", procedure.ID))
+	c.JSON(http.StatusCreated, toProcedureResponse(procedure))
 }
 
 // UpdateProcedure godoc
@@ -111,18 +103,12 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 		IsActive:      input.IsActive,
 		Description:   input.Description,
 		Duration:      input.Duration,
+		Anesthesia:    input.Anesthesia,
 		ParentID:      input.ParentID,
 		ClearParentID: input.ClearParentID,
 		SortOrder:     input.SortOrder,
+		TaxType:       input.TaxType,
 		TaxRate:       input.TaxRate,
-	}
-	if input.Anesthesia != nil {
-		a := model.AnesthesiaType(*input.Anesthesia)
-		svcInput.Anesthesia = &a
-	}
-	if input.TaxType != nil {
-		t := model.TaxType(*input.TaxType)
-		svcInput.TaxType = &t
 	}
 
 	procedure, err := h.svc.Procedure.Update(c.Request.Context(), clinicID, id, &svcInput)
@@ -130,7 +116,7 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, procedure)
+	c.JSON(http.StatusOK, toProcedureResponse(procedure))
 }
 
 // ReorderProcedures godoc
@@ -139,7 +125,7 @@ func (h *Handler) ReorderProcedures(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderProcedureRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -148,7 +134,7 @@ func (h *Handler) ReorderProcedures(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // DeleteProcedure godoc

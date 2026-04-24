@@ -2,8 +2,8 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -12,6 +12,27 @@ import (
 )
 
 // ---- DiagnosisType ----
+
+// ListDiagnosisTypes godoc
+func (h *Handler) ListDiagnosisTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	categories, total, err := h.svc.DiagnosisType.List(c.Request.Context(), clinicID, page, limit)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(categories, toDiagnosisTypeResponse), total, page, limit))
+}
 
 // GetDiagnosisType godoc
 func (h *Handler) GetDiagnosisType(c *gin.Context) {
@@ -29,27 +50,6 @@ func (h *Handler) GetDiagnosisType(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toDiagnosisTypeResponse(category))
-}
-
-// ListDiagnosisTypes godoc
-func (h *Handler) ListDiagnosisTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-
-	page, limit, err := parsePagination(c)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-
-	categories, _, err := h.svc.DiagnosisType.List(c.Request.Context(), clinicID, page, limit)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toDiagnosisTypeResponseList(categories))
 }
 
 // CreateDiagnosisType godoc
@@ -75,6 +75,7 @@ func (h *Handler) CreateDiagnosisType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/diagnosis-types/%d", category.ID))
 	c.JSON(http.StatusCreated, toDiagnosisTypeResponse(category))
 }
 
@@ -131,7 +132,7 @@ func (h *Handler) ReorderDiagnosisTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderDiagnosisTypeRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -140,7 +141,7 @@ func (h *Handler) ReorderDiagnosisTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // ---- DiagnosisName ----
@@ -170,35 +171,45 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 		return
 	}
 
-	page, limit, err := parsePagination(c)
+	page, limit, paginationErr := parsePagination(c)
+	if paginationErr != nil {
+		RespondError(c, paginationErr)
+		return
+	}
+
+	typeID, ok2 := parseOptionalUint64Query(c, "type_id")
+	if !ok2 {
+		return
+	}
+
+	names, total, err := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, typeID, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(names, toDiagnosisNameResponse), total, page, limit))
+}
 
-	var resp any
-	if typeIDStr := c.Query("type_id"); typeIDStr != "" {
-		catID, parseErr := strconv.ParseUint(typeIDStr, 10, 64)
-		if parseErr != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid type_id"))
-			return
-		}
-		names, _, svcErr := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
-		if svcErr != nil {
-			RespondError(c, svcErr)
-			return
-		}
-		resp = toDiagnosisNameResponseList(names)
-	} else {
-		names, _, svcErr := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
-		if svcErr != nil {
-			RespondError(c, svcErr)
-			return
-		}
-		resp = toDiagnosisNameResponseList(names)
+// ListDiagnosisNamesAll godoc
+// ページネーションなしで有効な診断名の一覧を返す。
+// type_id クエリパラメータが指定された場合は該当カテゴリのみ、未指定の場合は全件を返す。
+func (h *Handler) ListDiagnosisNamesAll(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	typeID, ok := parseOptionalUint64Query(c, "type_id")
+	if !ok {
+		return
+	}
+
+	names, err := h.svc.DiagnosisName.ListNames(c.Request.Context(), clinicID, typeID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(names, toDiagnosisNameResponse))
 }
 
 // CreateDiagnosisName godoc
@@ -225,6 +236,7 @@ func (h *Handler) CreateDiagnosisName(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/diagnosis-names/%d", diagnosisName.ID))
 	c.JSON(http.StatusCreated, toDiagnosisNameResponse(diagnosisName))
 }
 
@@ -282,7 +294,7 @@ func (h *Handler) ReorderDiagnosisNames(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderDiagnosisNameRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -291,5 +303,5 @@ func (h *Handler) ReorderDiagnosisNames(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }

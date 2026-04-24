@@ -4,14 +4,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
 import { useUpdateInquiry } from "../api/inquiries";
-import { useUpdateTreatmentPlan } from "../api/treatment-plans";
+import { useUpdateClinicalPlan } from "../api/clinical-plan";
 import type { UpdateMedicalRecordRequest } from "../api/types";
 import type { TreatmentItem } from "../components/TreatmentTable";
 import type { ActionState } from "@/types/form";
@@ -145,14 +145,14 @@ export function useMedicalRecordForm(recordId?: string) {
 
   // Ownerデータを取得（飼主割引率用）
   const resolvedOwnerId = selectedPet?.ownerId ?? "";
-  const { owner } = useGetOwner(resolvedOwnerId);
+  const { data: owner } = useGetOwner(resolvedOwnerId);
   const ownerDiscountRate = owner?.discountRate ?? 0;
 
   const queryClient = useQueryClient();
   const createMutation = useCreateMedicalRecord();
   const updateMutation = useUpdateMedicalRecord();
   const updateInquiryMutation = useUpdateInquiry(recordId ?? "");
-  const updateTreatmentPlanMutation = useUpdateTreatmentPlan(recordId ?? "");
+  const updateTreatmentPlanMutation = useUpdateClinicalPlan(recordId ?? "");
 
   // useTransition: save の pending 管理 (rerender-transitions)
   const [isSavingTransition, startSaveTransition] = useTransition();
@@ -254,27 +254,40 @@ export function useMedicalRecordForm(recordId?: string) {
     [recordId, updateMutation, existingRecord?.version],
   );
 
-  // 飼主変更ハンドラ
-  const handleChangeOwner = useCallback(
+  // BUG-373: 飼主変更 — 確認モーダル経由で実行
+  const [pendingOwnerChange, setPendingOwnerChange] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  const requestOwnerChange = useCallback(
     (newOwner: { id: string; name: string }) => {
-      if (!recordId) return;
-      startSaveTransition(async () => {
-        try {
-          await updateMutation.mutateAsync({
-            id: recordId,
-            req: {
-              owner_id: Number(newOwner.id),
-              version: existingRecord?.version,
-            } as UpdateMedicalRecordRequest,
-          });
-          toast.success(`飼主を ${newOwner.name} に変更しました`);
-        } catch (error) {
-          handleApiError(error, "飼主変更");
-        }
-      });
+      setPendingOwnerChange(newOwner);
     },
-    [recordId, updateMutation, existingRecord?.version],
+    [],
   );
+
+  const confirmOwnerChange = useCallback(() => {
+    if (!pendingOwnerChange || !recordId) return;
+    const newOwner = pendingOwnerChange;
+    setPendingOwnerChange(null);
+    startSaveTransition(async () => {
+      try {
+        await updateMutation.mutateAsync({
+          id: recordId,
+          req: {
+            owner_id: Number(newOwner.id),
+            version: existingRecord?.version,
+          } as UpdateMedicalRecordRequest,
+        });
+        toast.success(`飼主を ${newOwner.name} に変更しました`);
+      } catch (error) {
+        handleApiError(error, "飼主変更");
+      }
+    });
+  }, [pendingOwnerChange, recordId, updateMutation, existingRecord?.version]);
+
+  const cancelOwnerChange = useCallback(() => setPendingOwnerChange(null), []);
 
   // 新規作成時: ページ表示と同時にカルテを自動作成
   useEffect(() => {
@@ -348,7 +361,10 @@ export function useMedicalRecordForm(recordId?: string) {
     // 担当医変更
     handleChangeDoctor,
     // 飼主変更
-    handleChangeOwner,
+    pendingOwnerChange,
+    requestOwnerChange,
+    confirmOwnerChange,
+    cancelOwnerChange,
     fieldErrors: manualErrors,
   };
 }

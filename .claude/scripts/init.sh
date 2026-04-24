@@ -5,7 +5,7 @@ echo "=== 環境セットアップ開始 ==="
 
 # 依存関係のインストール
 echo "→ 依存関係をインストール中..."
-npm install
+docker compose exec frontend pnpm install
 
 # 環境変数の確認
 echo "→ 環境変数を確認中..."
@@ -16,11 +16,11 @@ fi
 
 # ビルド確認
 echo "→ ビルドを確認中..."
-npm run build
+docker compose exec frontend pnpm build
 
 # テスト確認
 echo "→ 基本テストを実行中..."
-npm run test:basic || echo "  基本テストがスキップされました"
+docker compose exec frontend pnpm test:basic || echo "  基本テストがスキップされました"
 
 # 進捗ファイルの初期化
 echo "→ 進捗ファイルを初期化中..."

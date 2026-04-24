@@ -1,27 +1,11 @@
 /**
  * Reception API types
- * Backend source: {@link import("@/types/generated/models").Appointment}
- * ReservationStatus は src/types の union 型を使用（models.ts は string 型のため型安全性維持）
+ * ReceptionAppointment は @/types に移動済み（shared layer）。
+ * このファイルは後方互換のため re-export を維持する。
  */
-import type { ReservationStatus } from "@/types";
-/** 当日の受付カンバンカード用の変換後型 */
-export interface ReceptionAppointment {
-  id: string;
-  time: string; // "HH:mm" 形式
-  ownerName: string;
-  petType: string;
-  petName: string;
-  visitType: "初診" | "再診";
-  reservationType: string;
-  nextAppointment?: "次回予約無" | "次回予約済" | "精算未確認" | "精算確認済";
-  isDesignated: boolean;
-  doctor?: string;
-  petId: string;
-  ownerId: string;
-  status: ReservationStatus;
-  notes?: string;
-  source?: "manual" | "line";
-}
+import type { ReservationStatus, ReceptionAppointment } from "@/types";
+
+export type { ReceptionAppointment };
 
 /** 当日の受付カンバンカラム */
 export interface ReceptionColumn {
@@ -30,7 +14,3 @@ export interface ReceptionColumn {
   appointments: ReceptionAppointment[];
 }
 
-/** ステータス更新リクエスト */
-export interface UpdateAppointmentStatusRequest {
-  status: ReservationStatus;
-}

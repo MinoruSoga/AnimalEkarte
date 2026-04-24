@@ -17,10 +17,11 @@ type ExamTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
 	Create(ctx context.Context, exType *model.ExaminationType) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountUsageByExamTypeID(ctx context.Context, examTypeID uint64) (int64, error)
+	CountUsageByExamTypeID(ctx context.Context, clinicID, examTypeID uint64) (int64, error)
+	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
 
 type examTypeRepository struct{ db *gorm.DB }
@@ -31,7 +32,7 @@ func NewExamTypeRepository(db *gorm.DB) ExamTypeRepository {
 
 func (r *examTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
 	exTypes := make([]model.ExaminationType, 0)
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Preload("Items").Order("sort_order ASC, name ASC").Find(&exTypes).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Preload("Items", "deleted_at IS NULL").Order("sort_order ASC, name ASC").Find(&exTypes).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "examination_type", "")
 	}
@@ -40,7 +41,7 @@ func (r *examTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]mo
 
 func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
 	var exType model.ExaminationType
-	err := r.db.WithContext(ctx).Preload("Items").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&exType).Error
+	err := r.db.WithContext(ctx).Preload("Items", "deleted_at IS NULL").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&exType).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "examination_type", fmt.Sprintf("%d", id))
 	}
@@ -50,15 +51,12 @@ func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 func (r *examTypeRepository) Create(ctx context.Context, exType *model.ExaminationType) error {
 	err := r.db.WithContext(ctx).Create(exType).Error
 	if err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "examination_type", "")
 	}
 	return nil
 }
 
-func (r *examTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error) {
+func (r *examTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ExaminationType{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -84,17 +82,33 @@ func (r *examTypeRepository) Delete(ctx context.Context, clinicID, id uint64) er
 }
 
 func (r *examTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.ExaminationType{}, "exam_type", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.ExaminationType{}, "examination_type", clinicID, ids)
 }
 
-// CountUsageByExamTypeID は検査種別を参照している examination_records の件数を返す（BUG-107）
-func (r *examTypeRepository) CountUsageByExamTypeID(ctx context.Context, examTypeID uint64) (int64, error) {
+// CountUsageByExamTypeID は検査種別を参照している exams の件数を返す（BUG-107）
+// exams テーブルは直接 clinic_id を持つためテナント分離を直接適用する
+func (r *examTypeRepository) CountUsageByExamTypeID(ctx context.Context, clinicID, examTypeID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Examination{}).
-		Where("exam_type_id = ?", examTypeID).
+		Scopes(clinicScope(clinicID)).
+		Where("exam_type_id = ? AND deleted_at IS NULL", examTypeID).
 		Count(&count).Error; err != nil {
-		return 0, apperrors.FromGORM(err, "examination_record", "")
+		return 0, apperrors.FromGORM(err, "exam_type", "")
+	}
+	return count, nil
+}
+
+// CountChildrenByParentID は指定した親 ID を持つ子検査種別の件数を返す。
+// 親を削除する前に孤立子が残らないことを確認するために使用する。
+func (r *examTypeRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.ExaminationType{}).
+		Scopes(clinicScope(clinicID)).
+		Where("parent_id = ? AND deleted_at IS NULL", parentID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "examination_type", "")
 	}
 	return count, nil
 }

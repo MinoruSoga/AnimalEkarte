@@ -28,8 +28,3 @@ type permissionGroupRuleInput struct {
 	CanEdit   bool   `json:"can_edit"`
 	CanDelete bool   `json:"can_delete"`
 }
-
-// reorderPermissionGroupRequest は権限グループ並び替えリクエスト
-type reorderPermissionGroupRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

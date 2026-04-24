@@ -29,7 +29,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 // Relative
 import { useFilterVaccinations } from "../hooks/use-vaccinations";
 import { useDeleteVaccination } from "../api/delete-vaccination";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 

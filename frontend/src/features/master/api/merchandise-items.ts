@@ -34,33 +34,22 @@ export type { FrontendMerchandiseItem };
 
 // ─── API Request Types ────────────────────────────────────
 
-interface CreateMerchandiseItemRequest {
-  name: string;
-  category: string;
-  unit_price: number;
-  tax_type: TaxType;
-  tax_rate: number;
-  is_active?: boolean;
-}
+export type CreateMerchandiseItemRequest = Omit<
+  MerchandiseItem,
+  'id' | 'clinic_id' | 'sort_order' | 'created_at' | 'updated_at'
+>;
 
-interface UpdateMerchandiseItemRequest {
-  name?: string;
-  category?: string;
-  unit_price?: number;
-  tax_type?: TaxType;
-  tax_rate?: number;
-  is_active?: boolean;
-}
+export type UpdateMerchandiseItemRequest = Partial<CreateMerchandiseItemRequest>;
 
 interface ReorderMerchandiseItemsRequest {
   ids: number[];
 }
 
-export type { CreateMerchandiseItemRequest, UpdateMerchandiseItemRequest, ReorderMerchandiseItemsRequest };
+export type { ReorderMerchandiseItemsRequest };
 
 // ─── Queries ──────────────────────────────────────────────
 
-const QUERY_KEY = ["masters", "merchandise-items"] as const;
+const MERCHANDISE_ITEMS_QUERY_KEY = ["masters", "merchandise-items"] as const;
 
 export const getAllMerchandiseItems = async (): Promise<FrontendMerchandiseItem[]> => {
   const { data } = await axios.get<MerchandiseItem[] | { data: MerchandiseItem[] }>("/v1/masters/merchandise-items");
@@ -70,7 +59,7 @@ export const getAllMerchandiseItems = async (): Promise<FrontendMerchandiseItem[
 
 export const useGetAllMerchandiseItems = () => {
   return useQuery({
-    queryKey: [...QUERY_KEY],
+    queryKey: [...MERCHANDISE_ITEMS_QUERY_KEY],
     queryFn: getAllMerchandiseItems,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -87,7 +76,7 @@ export const useCreateMerchandiseItem = () => {
       return transformMerchandiseItem(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [...MERCHANDISE_ITEMS_QUERY_KEY] });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -101,7 +90,7 @@ export const useUpdateMerchandiseItem = () => {
       return transformMerchandiseItem(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [...MERCHANDISE_ITEMS_QUERY_KEY] });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -114,7 +103,7 @@ export const useDeleteMerchandiseItem = () => {
       await axios.delete(`/v1/masters/merchandise-items/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [...MERCHANDISE_ITEMS_QUERY_KEY] });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -124,10 +113,10 @@ export const useReorderMerchandiseItems = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (req: ReorderMerchandiseItemsRequest) => {
-      await axios.put("/v1/masters/merchandise-items/reorder", req);
+      await axios.patch("/v1/masters/merchandise-items/reorder", req);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [...MERCHANDISE_ITEMS_QUERY_KEY] });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });

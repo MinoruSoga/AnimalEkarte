@@ -9,14 +9,14 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import type { Shift, ShiftType, ShiftBreakInput, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
-import { SHIFT_TYPE_LABELS } from "@/features/shifts/types";
+import type { Shift, ShiftType, ShiftBreakInput, CreateShiftInput, UpdateShiftInput } from "../../types";
+import { SHIFT_TYPE_LABELS } from "../../types";
 import { ShiftTypeOff } from "@/types/generated/models";
 import { C, ICON } from "@/lib/design-tokens";
-import { createShift } from "@/features/shifts/api/create-shift";
-import { updateShift } from "@/features/shifts/api/update-shift";
-import { useDeleteShift } from "@/features/shifts/api/delete-shift";
-import { useGetShiftTemplates } from "@/features/shifts/api/get-shift-templates";
+import { createShift } from "../../api/create-shift";
+import { updateShift } from "../../api/update-shift";
+import { useDeleteShift } from "../../api/delete-shift";
+import { useGetShiftTemplates } from "../../api/get-shift-templates";
 import { handleApiError } from "@/lib/handle-api-error";
 
 /**

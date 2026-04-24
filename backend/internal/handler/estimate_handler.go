@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -54,7 +55,7 @@ func (h *Handler) ListEstimates(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(toEstimateResponseList(estimates), total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(estimates, toEstimateResponse), total, page, limit))
 }
 
 // GetEstimate godoc
@@ -119,6 +120,7 @@ func (h *Handler) CreateEstimate(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/estimates/%d", estimate.ID))
 	c.JSON(http.StatusCreated, toEstimateResponse(estimate))
 }
 

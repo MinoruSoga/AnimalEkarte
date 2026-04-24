@@ -23,65 +23,19 @@ type DischargeWithBillingResult struct {
 	Status            string
 }
 
-type HospitalizationService interface {
-	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
-	GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
-	Create(ctx context.Context, hospitalization *model.Hospitalization) error
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
-	DischargeWithBilling(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
-}
-
-type hospitalizationService struct {
-	repos *repository.Repositories
-}
-
-func NewHospitalizationService(repos *repository.Repositories) HospitalizationService {
-	return &hospitalizationService{repos: repos}
-}
-
-func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
-	result, total, err := s.repos.Hospitalization.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
-	if err != nil {
-		return nil, 0, apperrors.Wrap(err, "failed to list hospitalizations")
-	}
-	return result, total, nil
-}
-
-func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
-	result, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get hospitalization")
-	}
-	return result, nil
-}
-
-func (s *hospitalizationService) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
-	if err := s.repos.Hospitalization.Create(ctx, hospitalization); err != nil {
-		return apperrors.Wrap(err, "failed to create hospitalization")
-	}
-	slog.InfoContext(ctx, "hospitalization created",
-		slog.Uint64("hospitalization_id", hospitalization.ID),
-		slog.Uint64("clinic_id", hospitalization.ClinicID))
-	return nil
-}
-
-func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {
-	if input == nil {
-		return nil, apperrors.WrapInvalidInput("input must not be nil")
-	}
-	fields := buildHospitalizationUpdateFields(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-	hosp, err := s.repos.Hospitalization.UpdateFields(ctx, clinicID, id, fields)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to update hospitalization")
-	}
-	slog.InfoContext(ctx, "hospitalization updated",
-		slog.Uint64("hospitalization_id", id),
-		slog.Uint64("clinic_id", clinicID))
-	return hosp, nil
+// CreateHospitalizationInput は入院作成の入力DTO
+type CreateHospitalizationInput struct {
+	OwnerID             uint64
+	PetID               uint64
+	HospitalizationType model.HospitalizationType
+	StartDate           time.Time
+	EndDate             time.Time
+	Status              model.HospitalizationStatus
+	CageID              *uint64
+	DoctorID            *uint64
+	Memo                string
+	OwnerRequest        string
+	StaffNotes          string
 }
 
 // UpdateHospitalizationInput は入院更新のサービス入力 DTO
@@ -99,7 +53,7 @@ type UpdateHospitalizationInput struct {
 	StaffNotes          *string
 }
 
-func buildHospitalizationUpdateFields(input *UpdateHospitalizationInput) map[string]any {
+func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]any {
 	fields := make(map[string]any)
 	if input.OwnerID != nil {
 		fields["owner_id"] = *input.OwnerID
@@ -137,7 +91,109 @@ func buildHospitalizationUpdateFields(input *UpdateHospitalizationInput) map[str
 	return fields
 }
 
+type HospitalizationService interface {
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
+	DischargeWithBilling(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
+}
+
+type hospitalizationService struct {
+	repos *repository.Repositories
+}
+
+func NewHospitalizationService(repos *repository.Repositories) HospitalizationService {
+	return &hospitalizationService{repos: repos}
+}
+
+func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
+	result, total, err := s.repos.Hospitalization.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list hospitalizations")
+	}
+	return result, total, nil
+}
+
+func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+	result, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get hospitalization")
+	}
+	return result, nil
+}
+
+func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
+	status := input.Status
+	if status == "" {
+		status = model.HospitalizationStatusReserved
+	}
+	hospitalization := &model.Hospitalization{
+		ClinicID:            clinicID,
+		OwnerID:             input.OwnerID,
+		PetID:               input.PetID,
+		HospitalizationType: input.HospitalizationType,
+		StartDate:           input.StartDate,
+		EndDate:             input.EndDate,
+		Status:              status,
+		CageID:              input.CageID,
+		DoctorID:            input.DoctorID,
+		Memo:                input.Memo,
+		OwnerRequest:        input.OwnerRequest,
+		StaffNotes:          input.StaffNotes,
+	}
+	if err := s.repos.Hospitalization.Create(ctx, hospitalization); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create hospitalization")
+	}
+	slog.InfoContext(ctx, "hospitalization created",
+		slog.Uint64("hospitalization_id", hospitalization.ID),
+		slog.Uint64("clinic_id", hospitalization.ClinicID))
+	return hospitalization, nil
+}
+
+func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input must not be nil")
+	}
+	if _, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find hospitalization")
+	}
+	fields := buildHospitalizationUpdate(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+	}
+	hosp, err := s.repos.Hospitalization.Update(ctx, clinicID, id, fields)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to update hospitalization")
+	}
+	slog.InfoContext(ctx, "hospitalization updated",
+		slog.Uint64("hospitalization_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return hosp, nil
+}
 func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find hospitalization")
+	}
+	// FK依存チェック: 入院に紐付く日次記録が存在する場合は削除を拒否
+	dailyCount, err := s.repos.Hospitalization.CountDailyRecordsByHospitalizationID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check daily record dependencies")
+	}
+	if dailyCount > 0 {
+		return apperrors.WrapConflict("日次記録が紐付いているため削除できません。先に日次記録を削除してください")
+	}
+
+	// FK依存チェック: 入院に紐付く治療計画が存在する場合は削除を拒否
+	planCount, err := s.repos.Hospitalization.CountTreatmentPlansByHospitalizationID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check treatment plan dependencies")
+	}
+	if planCount > 0 {
+		return apperrors.WrapConflict("治療計画が紐付いているため削除できません。先に治療計画を削除してください")
+	}
+
 	// FK依存チェック: 入院に紐付くケアプラン項目が存在する場合は削除を拒否
 	itemCount, err := s.repos.Hospitalization.CountCarePlanItemsByHospitalizationID(ctx, clinicID, id)
 	if err != nil {
@@ -182,7 +238,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			"status":   dischargedStatus,
 			"end_date": input.DischargeDate,
 		}
-		if _, err := txRepos.Hospitalization.UpdateFields(ctx, clinicID, id, dischargeFields); err != nil {
+		if _, err := txRepos.Hospitalization.Update(ctx, clinicID, id, dischargeFields); err != nil {
 			return apperrors.Wrap(err, "failed to discharge hospitalization")
 		}
 
@@ -191,7 +247,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		}
 
 		// 2. ケアプラン取得
-		carePlanItems, err := txRepos.CarePlanItem.ListByHospitalizationID(ctx, clinicID, id)
+		carePlanItems, err := txRepos.CarePlanItem.FindByHospitalizationID(ctx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get care plan items")
 		}

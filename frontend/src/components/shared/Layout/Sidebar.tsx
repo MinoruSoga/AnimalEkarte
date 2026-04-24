@@ -4,9 +4,11 @@ import { useState, useEffect, memo, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Link, useLocation, useNavigate } from "react-router";
-import { useAuth, ChangePasswordDialog, usePermission } from "@/features/auth";
+import { useAuth } from "@/hooks/use-auth";
+import { usePermission } from "@/hooks/use-permission";
+import { ChangePasswordDialog } from "@/components/shared/ChangePasswordDialog/ChangePasswordDialog";
 import { paths } from "@/config/paths";
-import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise } from "@/types/generated/models";
+import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCashRegisterClose, ResourceClosingSettings, ResourcePaymentMethod } from "@/types/generated/models";
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */
@@ -303,7 +305,7 @@ export const Sidebar = memo(function Sidebar() {
           {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>運用・管理</p> : null}
           {[
             { icon: <CreditCard    className={ICON.toolbar} />, label: "会計管理",     path: paths.accounting.getHref(),      resource: ResourceAccounting },
-            { icon: <CreditCard    className={ICON.toolbar} />, label: "未納者一覧",   path: paths.accounting.unpaid.getHref(), resource: ResourceAccounting },
+            { icon: <CreditCard    className={ICON.toolbar} />, label: "レジ締め",     path: paths.accounting.close.getHref(), resource: ResourceCashRegisterClose },
             { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref(), resource: ResourceHospitalization },
             { icon: <Package       className={ICON.toolbar} />, label: "在庫管理",     path: paths.inventory.getHref(),       resource: ResourceInventory },
             { icon: <CalendarDays  className={ICON.toolbar} />, label: "シフト管理",   path: paths.shifts.getHref(),          resource: ResourceShifts },
@@ -360,6 +362,8 @@ export const Sidebar = memo(function Sidebar() {
                 { icon: <Users        className={ICON.toolbar} />, label: "スタッフ管理", path: paths.settings.staff.getHref(), resource: ResourceMasterStaff },
                 { icon: <ShieldCheck  className={ICON.toolbar} />, label: "保険マスタ", path: paths.settings.insurance.getHref(), resource: ResourceMasterInsurance },
                 { icon: <Package      className={ICON.toolbar} />, label: "物販・フード", path: paths.settings.merchandiseItems.getHref(), resource: ResourceMasterMerchandise },
+                { icon: <CreditCard   className={ICON.toolbar} />, label: "支払方法",     path: paths.settings.paymentMethods.getHref(), resource: ResourcePaymentMethod },
+                { icon: <CalendarDays className={ICON.toolbar} />, label: "締め時間設定", path: paths.settings.closingTime.getHref(), resource: ResourceClosingSettings },
               ]
             } as MenuItem} 
             collapsed={collapsed} 

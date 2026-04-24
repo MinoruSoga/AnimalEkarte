@@ -19,7 +19,8 @@ type mockConsultationRepository struct {
 	createFn                     func(ctx context.Context, consultation *model.Consultation) error
 	updateFieldsFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
 	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
-	countUsageByConsultationIDFn func(ctx context.Context, consultationID uint64) (int64, error)
+	countUsageByConsultationIDFn func(ctx context.Context, clinicID, consultationID uint64) (int64, error)
+	countChildrenByParentIDFn    func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	reorderErr                   error
 }
 
@@ -35,7 +36,7 @@ func (m *mockConsultationRepository) Create(ctx context.Context, consultation *m
 	return m.createFn(ctx, consultation)
 }
 
-func (m *mockConsultationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
+func (m *mockConsultationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
@@ -47,11 +48,18 @@ func (m *mockConsultationRepository) Reorder(_ context.Context, _ uint64, _ []ui
 	return m.reorderErr
 }
 
-func (m *mockConsultationRepository) CountUsageByConsultationID(ctx context.Context, consultationID uint64) (int64, error) {
+func (m *mockConsultationRepository) CountUsageByConsultationID(ctx context.Context, clinicID, consultationID uint64) (int64, error) {
 	if m.countUsageByConsultationIDFn == nil {
 		return 0, nil
 	}
-	return m.countUsageByConsultationIDFn(ctx, consultationID)
+	return m.countUsageByConsultationIDFn(ctx, clinicID, consultationID)
+}
+
+func (m *mockConsultationRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn == nil {
+		return 0, nil
+	}
+	return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
 }
 
 // ---- Tests ----
@@ -180,14 +188,13 @@ func TestConsultationService_GetByID(t *testing.T) {
 func TestConsultationService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.Consultation
+		input   *CreateConsultationInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates consultation successfully",
-			input: &model.Consultation{
-				ClinicID:  1,
+			input: &CreateConsultationInput{
 				Name:      "新規相談",
 				SortOrder: 3,
 				IsActive:  true,
@@ -196,19 +203,25 @@ func TestConsultationService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "applies default tax type and rate",
+			input: &CreateConsultationInput{
+				Name: "デフォルト税率相談",
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
 			name: "returns error when consultation already exists",
-			input: &model.Consultation{
-				ClinicID: 1,
-				Name:     "既存相談",
+			input: &CreateConsultationInput{
+				Name: "既存相談",
 			},
 			repoErr: apperrors.WrapAlreadyExists("consultation", "既存相談"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			input: &model.Consultation{
-				ClinicID: 1,
-				Name:     "エラー相談",
+			input: &CreateConsultationInput{
+				Name: "エラー相談",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -224,12 +237,14 @@ func TestConsultationService_Create(t *testing.T) {
 			}
 			svc := NewConsultationService(repo)
 
-			err := svc.Create(context.Background(), tt.input)
+			consultation, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, consultation)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, consultation)
 			}
 		})
 	}
@@ -239,10 +254,12 @@ func TestConsultationService_Update(t *testing.T) {
 	name := "更新後相談"
 	isActive := true
 	tests := []struct {
-		name    string
-		input   UpdateConsultationInput
-		repoErr error
-		wantErr bool
+		name         string
+		input        UpdateConsultationInput
+		findByIDErr  error
+		repoErr      error
+		wantErr      bool
+		wantNotFound bool
 	}{
 		{
 			name: "updates consultation successfully",
@@ -250,8 +267,9 @@ func TestConsultationService_Update(t *testing.T) {
 				Name:     &name,
 				IsActive: &isActive,
 			},
-			repoErr: nil,
-			wantErr: false,
+			findByIDErr: nil,
+			repoErr:     nil,
+			wantErr:     false,
 		},
 		{
 			name:    "returns error when no fields provided",
@@ -264,22 +282,30 @@ func TestConsultationService_Update(t *testing.T) {
 			input: UpdateConsultationInput{
 				Name: &name,
 			},
-			repoErr: apperrors.WrapNotFound("consultation", "999"),
-			wantErr: true,
+			findByIDErr:  apperrors.WrapNotFound("consultation", "999"),
+			wantErr:      true,
+			wantNotFound: true,
 		},
 		{
 			name: "returns error on repository failure",
 			input: UpdateConsultationInput{
 				Name: &name,
 			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			findByIDErr: nil,
+			repoErr:     errors.New("db error"),
+			wantErr:     true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockConsultationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Consultation, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Consultation{ID: 1, ClinicID: 1}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Consultation, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
@@ -294,6 +320,9 @@ func TestConsultationService_Update(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, consultation)
+				if tt.wantNotFound {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, consultation)
@@ -304,26 +333,52 @@ func TestConsultationService_Update(t *testing.T) {
 
 func TestConsultationService_Delete(t *testing.T) {
 	tests := []struct {
-		name          string
-		id            uint64
-		usageCount    int64
-		countUsageErr error
-		repoErr       error
-		wantErr       bool
-		wantNF        bool
-		wantConflict  bool
+		name             string
+		id               uint64
+		findByIDErr      error
+		childCount       int64
+		countChildrenErr error
+		usageCount       int64
+		countUsageErr    error
+		repoErr          error
+		wantErr          bool
+		wantNF           bool
+		wantConflict     bool
 	}{
 		{
-			name:          "deletes consultation successfully when no medical records use it",
-			id:            1,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       nil,
-			wantErr:       false,
+			name:       "deletes consultation successfully when no children and no medical records",
+			id:         1,
+			childCount: 0,
+			usageCount: 0,
+			repoErr:    nil,
+			wantErr:    false,
+		},
+		{
+			name:        "returns not found error when FindByID fails",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("consultation", "999"),
+			wantErr:     true,
+			wantNF:      true,
+		},
+		{
+			name:         "returns conflict error when consultation has children",
+			id:           1,
+			childCount:   2,
+			usageCount:   0,
+			repoErr:      nil,
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name:             "returns error when children count check fails",
+			id:               1,
+			countChildrenErr: errors.New("db error"),
+			wantErr:          true,
 		},
 		{
 			name:          "returns conflict error when consultation is used in medical records",
 			id:            1,
+			childCount:    0,
 			usageCount:    2,
 			countUsageErr: nil,
 			repoErr:       nil,
@@ -333,34 +388,35 @@ func TestConsultationService_Delete(t *testing.T) {
 		{
 			name:          "returns error when usage count check fails",
 			id:            1,
+			childCount:    0,
 			usageCount:    0,
 			countUsageErr: errors.New("db error"),
 			repoErr:       nil,
 			wantErr:       true,
 		},
 		{
-			name:          "returns not found error when consultation does not exist",
-			id:            999,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       apperrors.WrapNotFound("consultation", "999"),
-			wantErr:       true,
-			wantNF:        true,
-		},
-		{
-			name:          "returns error on repository failure",
-			id:            1,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       errors.New("db error"),
-			wantErr:       true,
+			name:       "returns error on repository delete failure",
+			id:         1,
+			childCount: 0,
+			usageCount: 0,
+			repoErr:    errors.New("db error"),
+			wantErr:    true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockConsultationRepository{
-				countUsageByConsultationIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Consultation, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Consultation{ID: id}, nil
+				},
+				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.childCount, tt.countChildrenErr
+				},
+				countUsageByConsultationIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

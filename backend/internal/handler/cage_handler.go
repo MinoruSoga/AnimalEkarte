@@ -2,12 +2,12 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -28,7 +28,7 @@ func (h *Handler) ListCages(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, cages)
+	c.JSON(http.StatusOK, mapSlice(cages, toCageResponse))
 }
 
 // GetCage godoc
@@ -46,7 +46,7 @@ func (h *Handler) GetCage(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, cage)
+	c.JSON(http.StatusOK, toCageResponse(cage))
 }
 
 // CreateCage godoc
@@ -61,22 +61,23 @@ func (h *Handler) CreateCage(c *gin.Context) {
 		return
 	}
 
-	cage := &model.Cage{
-		ClinicID:    clinicID,
+	svcInput := &service.CreateCageInput{
 		Name:        input.Name,
-		CageType:    model.CageType(input.CageType),
-		CageSize:    model.CageSize(input.CageSize),
+		CageType:    input.CageType,
+		CageSize:    input.CageSize,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
 		Description: input.Description,
 		SortOrder:   input.SortOrder,
 	}
 
-	if err := h.svc.Cage.Create(c.Request.Context(), cage); err != nil {
+	cage, err := h.svc.Cage.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, cage)
+	c.Header("Location", fmt.Sprintf("/v1/masters/cages/%d", cage.ID))
+	c.JSON(http.StatusCreated, toCageResponse(cage))
 }
 
 // UpdateCage godoc
@@ -95,21 +96,10 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 		return
 	}
 
-	var cageType *model.CageType
-	if input.CageType != nil {
-		ct := model.CageType(*input.CageType)
-		cageType = &ct
-	}
-	var cageSize *model.CageSize
-	if input.CageSize != nil {
-		cs := model.CageSize(*input.CageSize)
-		cageSize = &cs
-	}
-
-	svcInput := service.UpdateCageInput{
+	svcInput := &service.UpdateCageInput{
 		Name:        input.Name,
-		CageType:    cageType,
-		CageSize:    cageSize,
+		CageType:    input.CageType,
+		CageSize:    input.CageSize,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
 		Description: input.Description,
@@ -121,7 +111,7 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, cage)
+	c.JSON(http.StatusOK, toCageResponse(cage))
 }
 
 // ReorderCages godoc
@@ -130,7 +120,7 @@ func (h *Handler) ReorderCages(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderCageRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

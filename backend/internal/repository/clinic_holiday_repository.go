@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -12,8 +13,9 @@ import (
 
 // ClinicHolidayRepository は個別休診日のデータアクセスインターフェース
 type ClinicHolidayRepository interface {
-	FindByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
-	Upsert(ctx context.Context, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
+	FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
+	FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
+	Save(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
 	Delete(ctx context.Context, clinicID uint64, date time.Time) error
 }
 
@@ -24,7 +26,7 @@ func NewClinicHolidayRepository(db *gorm.DB) ClinicHolidayRepository {
 	return &clinicHolidayRepository{db: db}
 }
 
-func (r *clinicHolidayRepository) FindByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
+func (r *clinicHolidayRepository) FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
 	var holidays []model.ClinicHoliday
 	q := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
@@ -41,30 +43,19 @@ func (r *clinicHolidayRepository) FindByYearMonth(ctx context.Context, clinicID 
 	return holidays, nil
 }
 
-func (r *clinicHolidayRepository) Upsert(ctx context.Context, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
-	// map を使用してゼロ値（Reason=""）も確実に更新する
-	var existing model.ClinicHoliday
+func (r *clinicHolidayRepository) Save(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
+	// (clinic_id, date) のユニーク制約を利用してアトミックな UPSERT を実施する。
+	// 手動の First→Create/Update パターンはレースコンディションを持つため clause.OnConflict を使用する。
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND date = ?", holiday.ClinicID, holiday.Date).
-		First(&existing).Error
-
+		Scopes(clinicScope(clinicID)).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "date"}},
+			DoUpdates: clause.AssignmentColumns([]string{"reason", "updated_at"}),
+		}).
+		Create(holiday).Error
 	if err != nil {
-		// レコードなし → 新規作成
-		if err := r.db.WithContext(ctx).Create(holiday).Error; err != nil {
-			return nil, apperrors.FromGORM(err, "clinic_holiday", holiday.Date.Format("2006-01-02"))
-		}
-		return holiday, nil
-	}
-
-	// 既存レコード → reason を更新
-	if err := r.db.WithContext(ctx).
-		Model(&model.ClinicHoliday{}).
-		Where("id = ?", existing.ID).
-		Update("reason", holiday.Reason).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "clinic_holiday", holiday.Date.Format("2006-01-02"))
 	}
-	existing.Reason = holiday.Reason
-	*holiday = existing
 	return holiday, nil
 }
 
@@ -77,7 +68,19 @@ func (r *clinicHolidayRepository) Delete(ctx context.Context, clinicID uint64, d
 		return apperrors.FromGORM(result.Error, "clinic_holiday", date.Format("2006-01-02"))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.FromGORM(gorm.ErrRecordNotFound, "clinic_holiday", date.Format("2006-01-02"))
+		return apperrors.WrapNotFound("clinic_holiday", date.Format("2006-01-02"))
 	}
 	return nil
+}
+
+func (r *clinicHolidayRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+	var holiday model.ClinicHoliday
+	result := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("date = ?", date.Format("2006-01-02")).
+		First(&holiday)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "clinic_holiday", date.Format("2006-01-02"))
+	}
+	return &holiday, nil
 }

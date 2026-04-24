@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useCallback } from "react";
+import { memo, useState, useCallback } from "react";
 
 // External
 import { Activity, Plus, Thermometer, Heart, Wind, Weight } from "lucide-react";
@@ -13,7 +13,7 @@ import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 // Types
-import type { ApiVitalRecord, CreateVitalRecordRequest } from "@/features/hospitalization/api/daily-records-types";
+import type { ApiVitalRecord, CreateVitalRecordRequest } from "../../api/daily-records-types";
 
 interface DailyVitalsSectionProps {
     vitals: ApiVitalRecord[];
@@ -45,7 +45,7 @@ function getCurrentTime(): string {
     return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-export function DailyVitalsSection({ vitals, onAddVital, isPending, canCreate = false }: DailyVitalsSectionProps) {
+export const DailyVitalsSection = memo(function DailyVitalsSection({ vitals, onAddVital, isPending, canCreate = false }: DailyVitalsSectionProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [form, setForm] = useState<VitalFormState>(INITIAL_FORM);
 
@@ -254,4 +254,4 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending, canCreate = 
             </Dialog>
         </div>
     );
-}
+});

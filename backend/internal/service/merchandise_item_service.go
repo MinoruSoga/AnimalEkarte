@@ -10,8 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// --- DB column constants ---
-
 const (
 	colMerchandiseItemName      = "name"
 	colMerchandiseItemCategory  = "category"
@@ -22,33 +20,7 @@ const (
 	colMerchandiseItemSortOrder = "sort_order"
 )
 
-// --- Input DTOs ---
-
-// CreateMerchandiseItemInput は物販品作成の入力DTO
-type CreateMerchandiseItemInput struct {
-	Name      string
-	Category  string
-	UnitPrice int64
-	TaxType   string  // "" → "excluded" (default)
-	TaxRate   float64 // 0 → 0.10 (default)
-	IsActive  bool
-	SortOrder int
-}
-
-// UpdateMerchandiseItemInput は物販品更新の入力DTO（nil = 未指定）
-type UpdateMerchandiseItemInput struct {
-	Name      *string
-	Category  *string
-	UnitPrice *int64
-	TaxType   *string
-	TaxRate   *float64
-	IsActive  *bool
-	SortOrder *int
-}
-
-// buildMerchandiseItemUpdateFields は UPDATE 用 map を構築する。
-// GORM のゼロ値スキップ問題（bool false が無視される等）を回避するために使用する。
-func buildMerchandiseItemUpdateFields(input *UpdateMerchandiseItemInput) map[string]any {
+func buildMerchandiseItemUpdate(input *UpdateMerchandiseItemInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colMerchandiseItemName] = *input.Name
@@ -74,11 +46,40 @@ func buildMerchandiseItemUpdateFields(input *UpdateMerchandiseItemInput) map[str
 	return fields
 }
 
+// --- Input DTOs ---
+
+// CreateMerchandiseItemInput は物販品作成の入力DTO
+type CreateMerchandiseItemInput struct {
+	Name      string
+	Category  string
+	UnitPrice int64
+	TaxType   string   // "" → "excluded" (default)
+	TaxRate   *float64 // nil → 0.10 (default)
+	IsActive  bool
+	SortOrder int
+}
+
+// UpdateMerchandiseItemInput は物販品更新の入力DTO（nil = 未指定）
+type UpdateMerchandiseItemInput struct {
+	Name      *string
+	Category  *string
+	UnitPrice *int64
+	TaxType   *string
+	TaxRate   *float64
+	IsActive  *bool
+	SortOrder *int
+}
+
+// --- DB column constants ---
+
+// buildMerchandiseItemUpdate は UPDATE 用 map を構築する。
+// GORM のゼロ値スキップ問題（bool false が無視される等）を回避するために使用する。
+
 // ---- MerchandiseItemService ----
 
 // MerchandiseItemService は物販品マスタのビジネスロジック
 type MerchandiseItemService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error)
+	List(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateMerchandiseItemInput) (*model.MerchandiseItem, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error)
@@ -95,28 +96,30 @@ func NewMerchandiseItemService(repo repository.MerchandiseItemRepository) Mercha
 	return &merchandiseItemService{repo: repo}
 }
 
-func (s *merchandiseItemService) List(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error) {
-	result, total, err := s.repo.FindAll(ctx, clinicID, page, limit, category)
+func (s *merchandiseItemService) List(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
+	result, err := s.repo.FindAll(ctx, clinicID, category)
 	if err != nil {
-		return nil, 0, apperrors.Wrap(err, "failed to list merchandise items")
+		slog.ErrorContext(ctx, "failed to list merchandise items", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to list merchandise items")
 	}
-	return result, total, nil
+	return result, nil
 }
 
 func (s *merchandiseItemService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get merchandise item", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get merchandise item")
 	}
 	return result, nil
 }
 
 func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, input *CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
-	if err := validateMasterName(input.Name); err != nil {
+	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
 	if input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 
 	taxType := model.TaxTypeExcluded
@@ -124,8 +127,8 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 		taxType = model.TaxType(input.TaxType)
 	}
 	taxRate := 0.10
-	if input.TaxRate != 0 {
-		taxRate = input.TaxRate
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
 	}
 	item := &model.MerchandiseItem{
 		ClinicID:  clinicID,
@@ -139,56 +142,56 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 	}
 
 	if err := s.repo.Create(ctx, item); err != nil {
+		slog.ErrorContext(ctx, "failed to create merchandise item", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create merchandise item")
 	}
 
 	slog.InfoContext(ctx, "merchandise item created",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("item_id", item.ID),
-		slog.String("name", item.Name),
+		slog.Uint64("merchandise_item_id", item.ID),
 	)
 	return item, nil
 }
 
 func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get merchandise item")
+	}
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
-	fields := buildMerchandiseItemUpdateFields(input)
+	fields := buildMerchandiseItemUpdate(input)
 	if len(fields) == 0 {
-		result, err := s.repo.FindByID(ctx, clinicID, id)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to get merchandise item")
-		}
-		return result, nil
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	result, err := s.repo.Update(ctx, clinicID, id, fields)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update merchandise item", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update merchandise item")
 	}
-
 	slog.InfoContext(ctx, "merchandise item updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("merchandise_item_id", id),
 	)
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get merchandise item after update")
-	}
 	return result, nil
 }
 
 func (s *merchandiseItemService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder merchandise items", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder merchandise items")
 	}
-	slog.InfoContext(ctx, "merchandise items reordered", slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "merchandise items reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
 }
 
@@ -197,8 +200,9 @@ func (s *merchandiseItemService) Delete(ctx context.Context, clinicID, id uint64
 		return apperrors.Wrap(err, "failed to get merchandise item")
 	}
 
-	count, err := s.repo.CountUsageByMerchandiseItemID(ctx, id)
+	count, err := s.repo.CountUsageByMerchandiseItemID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check merchandise item dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check merchandise item dependencies")
 	}
 	if count > 0 {
@@ -206,6 +210,7 @@ func (s *merchandiseItemService) Delete(ctx context.Context, clinicID, id uint64
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete merchandise item", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete merchandise item")
 	}
 	slog.InfoContext(ctx, "merchandise item deleted",

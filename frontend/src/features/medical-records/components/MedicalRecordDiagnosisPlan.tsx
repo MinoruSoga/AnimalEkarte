@@ -12,7 +12,7 @@ import { ClinicalPlanSection } from "./ClinicalPlanSection/ClinicalPlanSection";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import type { TreatmentItemType, UpdateTreatmentInput } from "../types";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { calculateBillingTotals } from "@/lib/calculations";
 

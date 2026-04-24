@@ -15,7 +15,7 @@ export function usePetSelection(
     [selectedPets]
   );
 
-  const togglePetSelection = (pet: Pet) => {
+  const togglePetSelection = useCallback((pet: Pet) => {
     setSelectedPets((prev) => {
       const isSelected = prev.some((p) => p.id === pet.id);
 
@@ -34,7 +34,7 @@ export function usePetSelection(
         }
       }
     });
-  };
+  }, [mode]);
 
   const isPetSelected = useCallback(
     (pet: Pet) => selectedPetIdSet.has(pet.id),

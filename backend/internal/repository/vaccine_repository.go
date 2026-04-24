@@ -17,10 +17,11 @@ type VaccineRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
 	Create(ctx context.Context, vaccine *model.Vaccine) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error)
+	CountUsageByVaccineID(ctx context.Context, clinicID, vaccineID uint64) (int64, error)
+	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
 
 type vaccineRepository struct{ db *gorm.DB }
@@ -33,7 +34,7 @@ func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, specie
 	if species != nil {
 		q = q.Where("species = ?", *species)
 	}
-	if err := q.Order("sort_order ASC, name ASC").Find(&vaccines).Error; err != nil {
+	if err := q.Order("sort_order ASC, name ASC").Limit(10000).Find(&vaccines).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "vaccine", "")
 	}
 	return vaccines, nil
@@ -50,15 +51,12 @@ func (r *vaccineRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 
 func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {
 	if err := r.db.WithContext(ctx).Create(vaccine).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "vaccine", "")
 	}
 	return nil
 }
 
-func (r *vaccineRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
+func (r *vaccineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccine{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -87,14 +85,29 @@ func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []
 	return reorderByClinicID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, ids)
 }
 
-// CountUsageByVaccineID はワクチンマスタを参照している vaccination_records の件数を返す（BUG-107）
-func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error) {
+// CountUsageByVaccineID はワクチンマスタを参照している vaccinations の件数を返す（BUG-107）
+// vaccinations テーブルは直接 clinic_id を持つためテナント分離を直接適用する
+func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, clinicID, vaccineID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
-		Where("vaccine_id = ?", vaccineID).
+		Scopes(clinicScope(clinicID)).
+		Where("vaccine_id = ? AND deleted_at IS NULL", vaccineID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "vaccination_record", "")
+	}
+	return count, nil
+}
+
+// CountChildrenByParentID は指定したワクチンの子ワクチン数を返す (BUG-390)
+func (r *vaccineRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Vaccine{}).
+		Scopes(clinicScope(clinicID)).
+		Where("parent_id = ? AND deleted_at IS NULL", parentID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", parentID))
 	}
 	return count, nil
 }

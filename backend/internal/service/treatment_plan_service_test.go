@@ -21,16 +21,19 @@ type mockTreatmentPlanRepository struct {
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockTreatmentPlanRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
+func (m *mockTreatmentPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
 	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockTreatmentPlanRepository) ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
+func (m *mockTreatmentPlanRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
 	return m.listByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
 }
 
 func (m *mockTreatmentPlanRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockTreatmentPlanRepository) Create(ctx context.Context, plan *model.TreatmentPlan) error {

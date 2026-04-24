@@ -10,7 +10,7 @@ import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedica
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
 const Login = lazy(() =>
-  import("@/features/auth/routes/Login").then((m) => ({ default: m.Login })),
+  import("@/features/auth").then((m) => ({ default: m.Login })),
 );
 
 export const router = createBrowserRouter([
@@ -414,12 +414,28 @@ export const router = createBrowserRouter([
               },
             }],
           },
+          // FEAT-368: レジ締め
           {
-            // BUG-370: 月末未納者一覧
-            path: "unpaid",
+            path: "close",
             lazy: async () => {
-              const { UnpaidCustomerList } = await import("@/features/accounting/routes/UnpaidCustomerList");
-              return { Component: UnpaidCustomerList };
+              const { CashRegisterClosePage } = await import("@/features/cash-register");
+              return { Component: CashRegisterClosePage };
+            },
+          },
+          // FEAT-368: 締め履歴
+          {
+            path: "close/history",
+            lazy: async () => {
+              const { CashRegisterHistoryPage } = await import("@/features/cash-register");
+              return { Component: CashRegisterHistoryPage };
+            },
+          },
+          // FEAT-368: 月次集計レポート
+          {
+            path: "reports",
+            lazy: async () => {
+              const { AccountingReportsPage } = await import("@/features/accounting-reports");
+              return { Component: AccountingReportsPage };
             },
           },
           {
@@ -867,10 +883,26 @@ export const router = createBrowserRouter([
             children: [{
               index: true,
               lazy: async () => {
-                const { ShiftTemplateSettings } = await import("@/features/master");
+                const { ShiftTemplateSettings } = await import("@/features/shifts");
                 return { Component: ShiftTemplateSettings };
               },
             }],
+          },
+          // FEAT-368: 締め時間設定
+          {
+            path: "closing-time",
+            lazy: async () => {
+              const { ClosingSettingsPage } = await import("@/features/closing-settings");
+              return { Component: ClosingSettingsPage };
+            },
+          },
+          // FEAT-368: 支払方法マスタ
+          {
+            path: "payment-methods",
+            lazy: async () => {
+              const { PaymentMethodSettings } = await import("@/features/master");
+              return { Component: PaymentMethodSettings };
+            },
           },
         ],
       },
@@ -909,7 +941,7 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // ── Hospital Settings（hospital-settings: 独立リソース） ───────
+      // ── Clinic Settings（clinic-settings: 独立リソース） ───────
       {
         path: "/settings/clinic",
         element: (
@@ -922,7 +954,7 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { ClinicMasterSettings } = await import("@/features/hospital-settings");
+              const { ClinicMasterSettings } = await import("@/features/clinic-settings");
               return { Component: ClinicMasterSettings };
             },
           },

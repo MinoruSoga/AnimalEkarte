@@ -1,9 +1,21 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestCompanyHandlerCompiles verifies company_handler.go compiles
@@ -122,3 +134,256 @@ func TestCompanyHandlerCompiles(t *testing.T) {
 //    - Test malformed JSON handling (400 Bad Request)
 //    - Test database error handling (500)
 //
+
+// ---- mock CompanyService ----
+
+type mockCompanyService struct {
+	getFn    func(ctx context.Context) (*model.Company, error)
+	updateFn func(ctx context.Context, input *service.UpdateCompanyInput) (*model.Company, error)
+}
+
+func (m *mockCompanyService) Get(ctx context.Context) (*model.Company, error) {
+	return m.getFn(ctx)
+}
+
+func (m *mockCompanyService) Update(ctx context.Context, input *service.UpdateCompanyInput) (*model.Company, error) {
+	return m.updateFn(ctx, input)
+}
+
+// ---- test helper ----
+
+func newHandlerWithCompanySvc(svc service.CompanyService) *Handler {
+	return &Handler{
+		svc: &service.Services{Company: svc},
+	}
+}
+
+// ---- GetCompany ----
+
+func TestGetCompany_ReturnsOK(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockCompanyService{
+		getFn: func(_ context.Context) (*model.Company, error) {
+			return &model.Company{
+				ID:                        1,
+				Name:                      "ノア動物病院ホールディングス株式会社",
+				PostalCode:                "123-4567",
+				Address:                   "東京都渋谷区1-1-1",
+				PhoneNumber:               "03-1234-5678",
+				FaxNumber:                 "03-1234-5679",
+				Email:                     "info@noah-animal.jp",
+				Website:                   "https://noah-animal.jp",
+				DirectorName:              "山田 太郎",
+				RegistrationNumber:        "1234567890",
+				InvoiceRegistrationNumber: "T1234567890123",
+				LogoURL:                   "https://example.com/logo.png",
+			}, nil
+		},
+	}
+	h := newHandlerWithCompanySvc(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/company", http.NoBody)
+
+	h.GetCompany(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "ノア動物病院ホールディングス株式会社")
+	assert.Contains(t, w.Body.String(), "T1234567890123")
+	assert.Contains(t, w.Body.String(), "山田 太郎")
+}
+
+func TestGetCompany_ServiceError_Returns500(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockCompanyService{
+		getFn: func(_ context.Context) (*model.Company, error) {
+			return nil, fmt.Errorf("db connection lost")
+		},
+	}
+	h := newHandlerWithCompanySvc(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/company", http.NoBody)
+
+	h.GetCompany(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+// ---- UpdateCompany ----
+
+func TestUpdateCompany_Valid_Returns200(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	updatedName := "ノア動物病院グループ株式会社"
+
+	svc := &mockCompanyService{
+		updateFn: func(_ context.Context, input *service.UpdateCompanyInput) (*model.Company, error) {
+			require.NotNil(t, input.Name)
+			assert.Equal(t, updatedName, *input.Name)
+			return &model.Company{
+				ID:   1,
+				Name: *input.Name,
+			}, nil
+		},
+	}
+	h := newHandlerWithCompanySvc(svc)
+
+	body := map[string]any{"name": updatedName}
+	bodyBytes, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/company", bytes.NewReader(bodyBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	h.UpdateCompany(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), updatedName)
+}
+
+func TestUpdateCompany_AllFields_Returns200(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockCompanyService{
+		updateFn: func(_ context.Context, input *service.UpdateCompanyInput) (*model.Company, error) {
+			require.NotNil(t, input.Name)
+			require.NotNil(t, input.InvoiceRegistrationNumber)
+			assert.Equal(t, "T9999999999999", *input.InvoiceRegistrationNumber)
+			return &model.Company{
+				ID:                        1,
+				Name:                      *input.Name,
+				InvoiceRegistrationNumber: *input.InvoiceRegistrationNumber,
+			}, nil
+		},
+	}
+	h := newHandlerWithCompanySvc(svc)
+
+	body := map[string]any{
+		"name":                        "テスト法人",
+		"postal_code":                 "100-0001",
+		"address":                     "東京都千代田区1-1",
+		"phone_number":                "03-9999-9999",
+		"fax_number":                  "03-9999-9998",
+		"email":                       "test@example.com",
+		"website":                     "https://test.example.com",
+		"director_name":               "テスト 太郎",
+		"registration_number":         "9999999999",
+		"invoice_registration_number": "T9999999999999",
+		"logo_url":                    "https://example.com/test-logo.png",
+	}
+	bodyBytes, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/company", bytes.NewReader(bodyBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	h.UpdateCompany(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "T9999999999999")
+}
+
+func TestUpdateCompany_InvalidJSON_Returns400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := newHandlerWithCompanySvc(&mockCompanyService{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/company", bytes.NewBufferString("not-valid-json"))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	h.UpdateCompany(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateCompany_ServiceError_Returns500(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockCompanyService{
+		updateFn: func(_ context.Context, _ *service.UpdateCompanyInput) (*model.Company, error) {
+			return nil, fmt.Errorf("unexpected db error")
+		},
+	}
+	h := newHandlerWithCompanySvc(svc)
+
+	body := map[string]any{"name": "テスト法人"}
+	bodyBytes, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/company", bytes.NewReader(bodyBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	h.UpdateCompany(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestUpdateCompany_PartialUpdate_OnlyInvoiceNumber_Returns200(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockCompanyService{
+		updateFn: func(_ context.Context, input *service.UpdateCompanyInput) (*model.Company, error) {
+			// 他フィールドは nil（PATCH セマンティクス）
+			assert.Nil(t, input.Name)
+			assert.Nil(t, input.Address)
+			require.NotNil(t, input.InvoiceRegistrationNumber)
+			assert.Equal(t, "T0000000000001", *input.InvoiceRegistrationNumber)
+			return &model.Company{
+				ID:                        1,
+				InvoiceRegistrationNumber: *input.InvoiceRegistrationNumber,
+			}, nil
+		},
+	}
+	h := newHandlerWithCompanySvc(svc)
+
+	body := map[string]any{"invoice_registration_number": "T0000000000001"}
+	bodyBytes, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/company", bytes.NewReader(bodyBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	h.UpdateCompany(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestUpdateCompany_NoFields_Returns400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// サービス層が「最低1フィールド必要」エラーを返す → 400
+	svc := &mockCompanyService{
+		updateFn: func(_ context.Context, _ *service.UpdateCompanyInput) (*model.Company, error) {
+			return nil, apperrors.WrapInvalidInput("最低1つのフィールドを指定してください")
+		},
+	}
+	h := newHandlerWithCompanySvc(svc)
+
+	// 空オブジェクトを送信 → サービスが 400 相当エラーを返す
+	bodyBytes, err := json.Marshal(map[string]any{})
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/company", bytes.NewReader(bodyBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	h.UpdateCompany(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}

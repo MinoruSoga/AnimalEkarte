@@ -5,38 +5,33 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Staff as ModelStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Request types - api.yaml StaffRegistrationRequest 準拠
+// Request types (derived from models.ts, extended for api.yaml StaffRegistrationRequest)
 // ─────────────────────────────────────────────────
 
-export interface CreateStaffRequest {
-  name: string;
-  email: string;
-  password: string;
-  license_number?: string;
-  occupation_id?: string | null;
-  sort_order?: number;
-  // LINE予約用
-  staff_type?: string;
-  reservation_display_name?: string;
-  reservation_visible?: boolean;
-  reservation_comment?: string;
-  reservation_image_url?: string;
-}
+// ModelStaff fields usable in Create/Update (excludes system + relations + occupation_id which is overridden below as string|null)
+type StaffModelFields = Omit<
+  ModelStaff,
+  | "id"
+  | "account_id"
+  | "account"
+  | "occupation"
+  | "clinic_assignments"
+  | "occupation_id"
+  | "created_at"
+  | "updated_at"
+>;
 
-export interface UpdateStaffRequest {
-  name?: string;
-  license_number?: string;
-  is_active?: boolean;
-  occupation_id?: string | null;
-  sort_order?: number;
+export type CreateStaffRequest = Pick<StaffModelFields, "name"> &
+  Partial<Omit<StaffModelFields, "name">> & {
+    email: string;
+    password: string;
+    occupation_id?: string | null;
+  };
+
+export type UpdateStaffRequest = Partial<StaffModelFields> & {
   password?: string;
-  // LINE予約用
-  staff_type?: string;
-  reservation_display_name?: string;
-  reservation_visible?: boolean;
-  reservation_comment?: string;
-  reservation_image_url?: string;
-}
+  occupation_id?: string | null;
+};
 
 // ─────────────────────────────────────────────────
 // Transform
@@ -79,6 +74,9 @@ export type Staff = ReturnType<typeof transformStaff>;
 
 const STAFFS_QUERY_KEY = ["masters", "staffs"] as const;
 
+const getAllPermissionGroupMapKey = (staffIds: string[]) =>
+  [...STAFFS_QUERY_KEY, "all-permission-group-map", ...staffIds] as const;
+
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
@@ -114,6 +112,10 @@ export async function updateStaff(
 
 export async function deleteStaff(id: string): Promise<void> {
   await axios.delete(`/v1/masters/staffs/${id}`);
+}
+
+export async function reorderStaffs(ids: number[]): Promise<void> {
+  await axios.patch("/v1/masters/staffs/reorder", { ids });
 }
 
 // ─────────────────────────────────────────────────
@@ -163,6 +165,17 @@ export function useDeleteStaff() {
   });
 }
 
+export function useReorderStaffs() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderStaffs(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
+  });
+}
+
 // ─────────────────────────────────────────────────
 // Staff Permission Groups API
 // ─────────────────────────────────────────────────
@@ -176,7 +189,7 @@ const STAFF_PERM_GROUPS_KEY = (staffId: string) =>
  */
 export function useGetAllStaffPermissionGroupMap(staffIds: string[]) {
   return useQuery({
-    queryKey: [...STAFFS_QUERY_KEY, "all-permission-group-map", ...staffIds],
+    queryKey: getAllPermissionGroupMapKey(staffIds),
     queryFn: async (): Promise<Map<string, string[]>> => {
       const map = new Map<string, string[]>();
       await Promise.all(
@@ -215,7 +228,7 @@ export function useGetStaffPermissionGroups(staffId: string | null) {
   });
 }
 
-export function useSetStaffPermissionGroups() {
+export function useUpdateStaffPermissionGroups() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -247,9 +260,12 @@ export interface ClinicSummary {
   name: string;
 }
 
+const getClinicsListKey = (scope?: "all") =>
+  ["clinics-list", scope ?? "assigned"] as const;
+
 export function useGetClinicsList(scope?: "all") {
   return useQuery({
-    queryKey: ["clinics-list", scope ?? "assigned"],
+    queryKey: getClinicsListKey(scope),
     queryFn: async (): Promise<ClinicSummary[]> => {
       const params = scope ? { scope } : undefined;
       const { data } = await axios.get<Array<{ id: number; name: string }>>(
@@ -285,7 +301,7 @@ export function useGetStaffClinics(staffId: string | null) {
   });
 }
 
-export function useSetStaffClinics() {
+export function useUpdateStaffClinics() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -330,7 +346,7 @@ export function useGetStaffExcludedReservationTypes(staffId: string | null) {
   });
 }
 
-export function useSetStaffExcludedReservationTypes() {
+export function useUpdateStaffExcludedReservationTypes() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({

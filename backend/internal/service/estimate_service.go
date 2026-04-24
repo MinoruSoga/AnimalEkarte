@@ -12,15 +12,6 @@ import (
 
 // ---- EstimateService ----
 
-// EstimateService は見積書のビジネスロジックインターフェース
-type EstimateService interface {
-	List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
-	GetByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
-}
-
 // CreateEstimateInput は見積書作成のサービス入力DTO
 type CreateEstimateInput struct {
 	MedicalRecordID *uint64
@@ -51,6 +42,52 @@ type UpdateEstimateInput struct {
 	ClearValidUntil bool
 	Comment         *string
 	Notes           *string
+}
+
+func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
+	fields := map[string]any{}
+	if input.Title != nil {
+		fields["title"] = *input.Title
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	if input.Subtotal != nil {
+		fields["subtotal"] = *input.Subtotal
+	}
+	if input.TaxTotal != nil {
+		fields["tax_total"] = *input.TaxTotal
+	}
+	if input.TotalAmount != nil {
+		fields["total_amount"] = *input.TotalAmount
+	}
+	if input.InsuranceAmount != nil {
+		fields["insurance_amount"] = *input.InsuranceAmount
+	}
+	if input.DiscountAmount != nil {
+		fields["discount_amount"] = *input.DiscountAmount
+	}
+	if input.ClearValidUntil {
+		fields["valid_until"] = nil
+	} else if input.ValidUntil != nil {
+		fields["valid_until"] = *input.ValidUntil
+	}
+	if input.Comment != nil {
+		fields["comment"] = *input.Comment
+	}
+	if input.Notes != nil {
+		fields["notes"] = *input.Notes
+	}
+	return fields
+}
+
+// EstimateService は見積書のビジネスロジックインターフェース
+type EstimateService interface {
+	List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type estimateService struct{ repo repository.EstimateRepository }
@@ -130,6 +167,9 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 }
 
 func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find estimate")
+	}
 	if input.Subtotal != nil && *input.Subtotal < 0 {
 		return nil, apperrors.WrapInvalidInput("subtotal must be 0 or greater")
 	}
@@ -145,7 +185,7 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 	if input.DiscountAmount != nil && *input.DiscountAmount < 0 {
 		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
 	}
-	fields := buildEstimateUpdateFields(input)
+	fields := buildEstimateUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -163,6 +203,9 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 }
 
 func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find estimate")
+	}
 	count, err := s.repo.CountItemsByEstimateID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check estimate item dependencies")
@@ -177,41 +220,4 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error
 		slog.Uint64("estimate_id", id),
 		slog.Uint64("clinic_id", clinicID))
 	return nil
-}
-
-func buildEstimateUpdateFields(input *UpdateEstimateInput) map[string]any {
-	fields := map[string]any{}
-	if input.Title != nil {
-		fields["title"] = *input.Title
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	if input.Subtotal != nil {
-		fields["subtotal"] = *input.Subtotal
-	}
-	if input.TaxTotal != nil {
-		fields["tax_total"] = *input.TaxTotal
-	}
-	if input.TotalAmount != nil {
-		fields["total_amount"] = *input.TotalAmount
-	}
-	if input.InsuranceAmount != nil {
-		fields["insurance_amount"] = *input.InsuranceAmount
-	}
-	if input.DiscountAmount != nil {
-		fields["discount_amount"] = *input.DiscountAmount
-	}
-	if input.ClearValidUntil {
-		fields["valid_until"] = nil
-	} else if input.ValidUntil != nil {
-		fields["valid_until"] = *input.ValidUntil
-	}
-	if input.Comment != nil {
-		fields["comment"] = *input.Comment
-	}
-	if input.Notes != nil {
-		fields["notes"] = *input.Notes
-	}
-	return fields
 }

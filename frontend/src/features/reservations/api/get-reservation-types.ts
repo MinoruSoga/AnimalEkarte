@@ -51,7 +51,8 @@ export function useGetReservationTypesGrouped() {
         const key = t.group_id != null ? String(t.group_id) : "__other__";
         const label = t.group?.name ?? "その他";
         if (!map.has(key)) map.set(key, { label, types: [] });
-        map.get(key)!.types.push(t);
+        const entry = map.get(key);
+        if (entry) entry.types.push(t);
       }
       return [...map.values()];
     },

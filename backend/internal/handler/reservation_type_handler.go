@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,20 @@ import (
 )
 
 // ---- ReservationType ----
+
+// ListReservationTypes godoc
+func (h *Handler) ListReservationTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	reservationTypes, err := h.svc.ReservationType.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(reservationTypes, toReservationTypeResponse))
+}
 
 // GetReservationType godoc
 func (h *Handler) GetReservationType(c *gin.Context) {
@@ -30,20 +45,6 @@ func (h *Handler) GetReservationType(c *gin.Context) {
 	c.JSON(http.StatusOK, toReservationTypeResponse(st))
 }
 
-// ListReservationTypes godoc
-func (h *Handler) ListReservationTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	reservationTypes, err := h.svc.ReservationType.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toReservationTypeResponseList(reservationTypes))
-}
-
 // CreateReservationType godoc
 func (h *Handler) CreateReservationType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -55,25 +56,18 @@ func (h *Handler) CreateReservationType(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	reservationVisible := true
-	if req.ReservationVisible != nil {
-		reservationVisible = *req.ReservationVisible
-	}
-	durationMinutes := 15
-	if req.DurationMinutes != nil {
-		durationMinutes = *req.DurationMinutes
-	}
 	st, err := h.svc.ReservationType.Create(c.Request.Context(), clinicID, &service.CreateReservationTypeInput{
 		Name:                   req.Name,
 		Color:                  req.Color,
-		IsActive:               true,
+		IsActive:               req.IsActive,
 		Description:            req.Description,
 		SortOrder:              req.SortOrder,
+		Category:               req.Category,
 		ReservationDisplayName: req.ReservationDisplayName,
-		DurationMinutes:        durationMinutes,
+		DurationMinutes:        req.DurationMinutes,
 		ShortName:              req.ShortName,
 		ShowShortName:          req.ShowShortName,
-		ReservationVisible:     reservationVisible,
+		ReservationVisible:     req.ReservationVisible,
 		ReservationComment:     req.ReservationComment,
 		ReservationImageURL:    req.ReservationImageURL,
 		ReservationDayOption:   req.ReservationDayOption,
@@ -84,6 +78,7 @@ func (h *Handler) CreateReservationType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-types/%d", st.ID))
 	c.JSON(http.StatusCreated, toReservationTypeResponse(st))
 }
 
@@ -108,6 +103,7 @@ func (h *Handler) UpdateReservationType(c *gin.Context) {
 		IsActive:               req.IsActive,
 		Description:            req.Description,
 		SortOrder:              req.SortOrder,
+		Category:               req.Category,
 		ReservationDisplayName: req.ReservationDisplayName,
 		DurationMinutes:        req.DurationMinutes,
 		ShortName:              req.ShortName,
@@ -118,6 +114,7 @@ func (h *Handler) UpdateReservationType(c *gin.Context) {
 		ReservationDayOption:   req.ReservationDayOption,
 		IsInternal:             req.IsInternal,
 		GroupID:                req.GroupID,
+		ClearGroupID:           req.ClearGroupID,
 	})
 	if err != nil {
 		RespondError(c, err)
@@ -143,13 +140,169 @@ func (h *Handler) DeleteReservationType(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// ListUnavailableTimes godoc
+func (h *Handler) ListUnavailableTimes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	items, err := h.svc.ReservationTypeUnavailableTime.ListUnavailableTimes(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(items, toUnavailableTimeResponse))
+}
+
+// CreateUnavailableTime godoc
+func (h *Handler) CreateUnavailableTime(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req createUnavailableTimeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	// 相互依存バリデーション
+	switch req.UnavailableType {
+	case "weekly":
+		if req.DayOfWeek == nil {
+			RespondError(c, apperrors.WrapInvalidInput("weekly タイプでは day_of_week が必要です"))
+			return
+		}
+	case "specific":
+		if req.SpecificDate == nil {
+			RespondError(c, apperrors.WrapInvalidInput("specific タイプでは specific_date が必要です"))
+			return
+		}
+	}
+
+	input := service.CreateUnavailableTimeInput{
+		UnavailableType: req.UnavailableType,
+		DayOfWeek:       req.DayOfWeek,
+		StartTime:       req.StartTime,
+		EndTime:         req.EndTime,
+	}
+	if req.SpecificDate != nil {
+		t, err := parseDate(req.SpecificDate)
+		if err != nil {
+			RespondError(c, apperrors.WrapInvalidInput("specific_date は YYYY-MM-DD 形式で入力してください"))
+			return
+		}
+		input.SpecificDate = t
+	}
+	result, err := h.svc.ReservationTypeUnavailableTime.CreateUnavailableTime(c.Request.Context(), clinicID, id, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	resp := toUnavailableTimeResponse(result)
+	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-types/%d/unavailable-times/%d", id, result.ID))
+	c.JSON(http.StatusCreated, resp)
+}
+
+// DeleteUnavailableTime godoc
+func (h *Handler) DeleteUnavailableTime(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	reservationTypeID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	unavailableTimeID, ok := parseIDParam(c, "unavailable_time_id")
+	if !ok {
+		return
+	}
+	if err := h.svc.ReservationTypeUnavailableTime.DeleteUnavailableTime(c.Request.Context(), clinicID, reservationTypeID, unavailableTimeID); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// ListReservationTypeOccupations godoc
+func (h *Handler) ListReservationTypeOccupations(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	items, err := h.svc.ReservationTypeOccupation.ListOccupations(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(items, toReservationTypeOccupationResponse))
+}
+
+// LinkOccupation godoc
+func (h *Handler) LinkReservationTypeOccupation(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req linkOccupationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	result, err := h.svc.ReservationTypeOccupation.LinkOccupation(c.Request.Context(), clinicID, id, req.OccupationID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-types/%d/occupations/%d", id, result.ID))
+	c.JSON(http.StatusCreated, toReservationTypeOccupationResponse(result))
+}
+
+// UnlinkOccupation godoc
+func (h *Handler) UnlinkReservationTypeOccupation(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	occupationID, ok := parseIDParam(c, "occupation_id")
+	if !ok {
+		return
+	}
+	if err := h.svc.ReservationTypeOccupation.UnlinkOccupation(c.Request.Context(), clinicID, id, occupationID); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 // ReorderReservationTypes godoc
 func (h *Handler) ReorderReservationTypes(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	var req reorderReservationTypeRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

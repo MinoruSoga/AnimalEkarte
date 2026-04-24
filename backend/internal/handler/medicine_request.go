@@ -7,24 +7,19 @@ type createMedicineRequest struct {
 	Price           *int64   `json:"price"`
 	IsActive        bool     `json:"is_active"`
 	Description     string   `json:"description"`
-	DosageForm      *string  `json:"dosage_form"`
+	DosageForm      *string  `json:"dosage_form"      binding:"omitempty,oneof=tablet liquid injection topical powder"`
 	MedicineUnit    *string  `json:"medicine_unit"`
 	InventoryID     *uint64  `json:"inventory_id"`
 	DefaultQuantity float64  `json:"default_quantity"`
 	SortOrder       int      `json:"sort_order"`
-	TaxType         *string  `json:"tax_type"`
-	TaxRate         *float64 `json:"tax_rate"`
-}
-
-// reorderMedicineRequest は薬剤並び替えのバインド struct
-type reorderMedicineRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
+	TaxType         *string  `json:"tax_type"         binding:"omitempty,oneof=included excluded exempt"`
+	TaxRate         *float64 `json:"tax_rate"         binding:"omitempty,min=0,max=1"`
 }
 
 // updateMedicineRequest は薬剤更新のバインド struct（全フィールドポインタ型）
 // DosageForm/MedicineUnit: nil = 未指定, "" = NULL クリア, "value" = 値セット
 // ParentID: nil = 未指定, clear_parent_id = true = NULL クリア, non-nil = 値セット
-// InventoryID: nil = 未指定, &nil = NULL クリア, &&val = 値セット
+// InventoryID: nil = 未指定, non-nil = 値セット
 type updateMedicineRequest struct {
 	Name            *string  `json:"name"`
 	ParentID        *uint64  `json:"parent_id"`
@@ -32,11 +27,11 @@ type updateMedicineRequest struct {
 	Price           *int64   `json:"price"`
 	IsActive        *bool    `json:"is_active"`
 	Description     *string  `json:"description"`
-	DosageForm      *string  `json:"dosage_form"`
+	DosageForm      *string  `json:"dosage_form"      binding:"omitempty,oneof=tablet liquid injection topical powder"`
 	MedicineUnit    *string  `json:"medicine_unit"`
-	InventoryID     **uint64 `json:"inventory_id"`
+	InventoryID     *uint64  `json:"inventory_id"`
 	DefaultQuantity *float64 `json:"default_quantity"`
 	SortOrder       *int     `json:"sort_order"`
-	TaxType         *string  `json:"tax_type"`
-	TaxRate         *float64 `json:"tax_rate"`
+	TaxType         *string  `json:"tax_type"         binding:"omitempty,oneof=included excluded exempt"`
+	TaxRate         *float64 `json:"tax_rate"         binding:"omitempty,min=0,max=1"`
 }

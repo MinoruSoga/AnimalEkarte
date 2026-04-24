@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { UseMutationResult } from "@tanstack/react-query";
-import type { UseMasterCRUDReturn } from "@/features/master/hooks/use-master-crud";
+import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
 
 // ─────────────────────────────────────────────────
 // Types

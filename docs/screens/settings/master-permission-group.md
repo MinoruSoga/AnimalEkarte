@@ -14,19 +14,29 @@
   - **権限マトリクス**: 各リソース（飼主、カルテ、入院、会計、マスタ等）に対するアクション（view, create, edit, delete）の許可/拒否をチェックボックスで設定。
 
 ## 権限設定対象リソース
+- **Reception**: 当日の受付
 - **Owners**: 飼主・ペット情報
+- **Reservations**: 予約管理
 - **MedicalRecords**: 電子カルテ
-- **Hospitalization**: 入院管理
-- **Accounting**: 会計・精算
-- **Estimates**: 見積書
+- **Hospitalization**: 入院・ホテル
+- **Trimming**: トリミング
+- **Examinations**: 検査管理
+- **Accounting**: 会計管理
+- **Vaccinations**: 予防接種
+- **Checkups**: 定期健診
 - **Inventory**: 在庫管理
+- **Estimates**: 見積書
 - **Shifts**: シフト管理
-- **MasterMedical**: 診療項目・診断等の医療系マスタ
-- **MasterTrimming**: トリミングマスタ
-- **MasterHospitalization**: 入院・ケージマスタ
-- **MasterMerchandise**: 商品・保険マスタ
-- **MasterStaff**: スタッフ・職種・権限マスタ
 - **HospitalSettings**: 医院基本情報
+- **MasterAnimalSpecies**: 動物種類マスタ
+- **MasterMedical**: カルテ関連マスタ（診療項目・診断等）
+- **MasterReservationType**: 予約区分マスタ
+- **MasterHospitalization**: 入院・ケージマスタ
+- **MasterTrimming**: トリミングマスタ
+- **MasterPermission**: 権限グループマスタ
+- **MasterStaff**: スタッフ・職種マスタ
+- **MasterInsurance**: 保険マスタ
+- **MasterMerchandise**: 物販・フードマスタ
 
 ## 主要機能
 - **カラーコーディング**: グループごとに色を設定でき、スタッフ一覧等での識別性を高める。

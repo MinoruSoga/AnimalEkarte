@@ -17,9 +17,9 @@ type CreateAccountingInput struct {
 	HospitalizationID *uint64
 	OwnerID           *uint64
 	PetID             *uint64
-	Subtotal          int
-	TaxTotal          int
-	TotalAmount       int
+	Subtotal          int64
+	TaxTotal          int64
+	TotalAmount       int64
 	HasInsurance      bool
 	Status            model.BillingStatus
 	ScheduledDate     time.Time
@@ -37,9 +37,9 @@ type UpdateAccountingInput struct {
 	HospitalizationID *uint64
 	OwnerID           *uint64
 	PetID             *uint64
-	Subtotal          *int
-	TaxTotal          *int
-	TotalAmount       *int
+	Subtotal          *int64
+	TaxTotal          *int64
+	TotalAmount       *int64
 	HasInsurance      *bool
 	Status            *model.BillingStatus
 	ScheduledDate     *time.Time
@@ -56,8 +56,61 @@ type UpdateAccountingInput struct {
 	ChangeAmount    *int64
 }
 
-// buildBillingUpdateFields は UpdateAccountingInput から nil でないフィールドのみ抽出する。
-func buildBillingUpdateFields(input *UpdateAccountingInput) map[string]any {
+// hasPaymentFields は UpdateAccountingInput に Payment 関連フィールドが含まれているか判定する。
+func hasPaymentFields(input *UpdateAccountingInput) bool {
+	return input.PaymentMethod != nil ||
+		input.InsuranceRatio != nil ||
+		input.InsuranceAmount != nil ||
+		input.BillingAmount != nil ||
+		input.ReceivedAmount != nil ||
+		input.ChangeAmount != nil ||
+		input.DiscountAmount != nil
+}
+
+// buildPaymentFromInput は UpdateAccountingInput から Payment モデルを構築する。
+func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
+	p := &model.Payment{
+		BillingID: input.ID,
+		PaidBy:    input.StaffID,
+	}
+	if input.Subtotal != nil {
+		p.Subtotal = *input.Subtotal
+	}
+	if input.TaxTotal != nil {
+		p.TaxTotal = *input.TaxTotal
+	}
+	if input.TotalAmount != nil {
+		p.TotalAmount = *input.TotalAmount
+	}
+	if input.InsuranceName != nil {
+		p.InsuranceName = *input.InsuranceName
+	}
+	if input.InsuranceRatio != nil {
+		p.InsuranceRatio = *input.InsuranceRatio
+	}
+	if input.InsuranceAmount != nil {
+		p.InsuranceAmount = *input.InsuranceAmount
+	}
+	if input.DiscountAmount != nil {
+		p.DiscountAmount = *input.DiscountAmount
+	}
+	if input.BillingAmount != nil {
+		p.BillingAmount = *input.BillingAmount
+	}
+	if input.ReceivedAmount != nil {
+		p.ReceivedAmount = *input.ReceivedAmount
+	}
+	if input.ChangeAmount != nil {
+		p.ChangeAmount = *input.ChangeAmount
+	}
+	if input.PaymentMethod != nil {
+		p.Method = *input.PaymentMethod //nolint:staticcheck // Method is deprecated but PaymentMethodID migration is in progress
+	}
+	return p
+}
+
+// buildAccountingUpdate は UpdateAccountingInput から nil でないフィールドのみ抽出する。
+func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
 	fields := make(map[string]any)
 	if input.MedicalRecordID != nil {
 		fields["medical_record_id"] = *input.MedicalRecordID
@@ -108,6 +161,8 @@ type AccountingService interface {
 	// BUG-370: 月末未納者一覧
 	ListUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
 	ListUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error)
+	// BUG-368: レジ締め日次集計
+	GetDailySummary(ctx context.Context, clinicID uint64, dateStr string) (*repository.DailySummaryResult, error)
 }
 
 type accountingService struct {
@@ -140,7 +195,10 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	}
 	// BUG-142: 金額バリデーション
 	if input.TotalAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上で指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
+	}
+	if input.Subtotal+input.TaxTotal != input.TotalAmount {
+		return nil, apperrors.WrapInvalidInput("小計と税額の合計が請求合計と一致しません")
 	}
 	billing := &model.Billing{
 		ClinicID:          input.ClinicID,
@@ -167,18 +225,21 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 }
 
 func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error) {
+	if _, err := s.repo.FindByID(ctx, input.ClinicID, input.ID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find accounting")
+	}
 	// BUG-142: 金額バリデーション
 	if input.TotalAmount != nil && *input.TotalAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上で指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
-	fields := buildBillingUpdateFields(input)
+	fields := buildAccountingUpdate(input)
 	if len(fields) == 0 && !hasPaymentFields(input) {
 		return nil, apperrors.WrapInvalidInput("no fields to update")
 	}
 
 	// Billing 本体の更新
 	if len(fields) > 0 {
-		if _, err := s.repo.UpdateFields(ctx, input.ClinicID, input.ID, fields); err != nil {
+		if _, err := s.repo.Update(ctx, input.ClinicID, input.ID, fields); err != nil {
 			return nil, apperrors.Wrap(err, "failed to update accounting")
 		}
 	}
@@ -186,76 +247,24 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	// Payment upsert（支払フィールドが含まれている場合）
 	if hasPaymentFields(input) {
 		payment := buildPaymentFromInput(input)
-		if err := s.repo.UpsertPayment(ctx, payment); err != nil {
+		if err := s.repo.SavePayment(ctx, payment); err != nil {
 			return nil, apperrors.Wrap(err, "failed to upsert payment")
 		}
 		slog.InfoContext(ctx, "payment upserted",
+			slog.Uint64("clinic_id", input.ClinicID),
 			slog.Uint64("billing_id", input.ID))
 	}
 
 	// 更新後のレコードを返す
-	billing, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
+	accounting, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to reload accounting after update")
 	}
 
 	slog.InfoContext(ctx, "accounting updated",
-		slog.Uint64("billing_id", billing.ID),
+		slog.Uint64("billing_id", accounting.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
-	return billing, nil
-}
-
-// hasPaymentFields は UpdateAccountingInput に Payment 関連フィールドが含まれているか判定する。
-func hasPaymentFields(input *UpdateAccountingInput) bool {
-	return input.PaymentMethod != nil ||
-		input.InsuranceRatio != nil ||
-		input.InsuranceAmount != nil ||
-		input.BillingAmount != nil ||
-		input.ReceivedAmount != nil ||
-		input.ChangeAmount != nil ||
-		input.DiscountAmount != nil
-}
-
-// buildPaymentFromInput は UpdateAccountingInput から Payment モデルを構築する。
-func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
-	p := &model.Payment{
-		BillingID: input.ID,
-		PaidBy:    input.StaffID,
-	}
-	if input.Subtotal != nil {
-		p.Subtotal = int64(*input.Subtotal)
-	}
-	if input.TaxTotal != nil {
-		p.TaxTotal = int64(*input.TaxTotal)
-	}
-	if input.TotalAmount != nil {
-		p.TotalAmount = int64(*input.TotalAmount)
-	}
-	if input.InsuranceName != nil {
-		p.InsuranceName = *input.InsuranceName
-	}
-	if input.InsuranceRatio != nil {
-		p.InsuranceRatio = *input.InsuranceRatio
-	}
-	if input.InsuranceAmount != nil {
-		p.InsuranceAmount = *input.InsuranceAmount
-	}
-	if input.DiscountAmount != nil {
-		p.DiscountAmount = *input.DiscountAmount
-	}
-	if input.BillingAmount != nil {
-		p.BillingAmount = *input.BillingAmount
-	}
-	if input.ReceivedAmount != nil {
-		p.ReceivedAmount = *input.ReceivedAmount
-	}
-	if input.ChangeAmount != nil {
-		p.ChangeAmount = *input.ChangeAmount
-	}
-	if input.PaymentMethod != nil {
-		p.Method = *input.PaymentMethod
-	}
-	return p
+	return accounting, nil
 }
 
 // BUG-370: 月末未納者一覧（会計単位）
@@ -292,7 +301,7 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64) err
 	fields := map[string]any{
 		"status": model.BillingStatusCancelled,
 	}
-	if _, err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
+	if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return apperrors.Wrap(err, "failed to cancel accounting")
 	}
 
@@ -301,4 +310,21 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64) err
 		slog.Uint64("clinic_id", clinicID))
 
 	return nil
+}
+
+// GetDailySummary は指定日のレジ締め集計を返す。BUG-368
+func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64, dateStr string) (*repository.DailySummaryResult, error) {
+	if dateStr == "" {
+		dateStr = time.Now().Format("2006-01-02")
+	}
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	date, err := time.ParseInLocation("2006-01-02", dateStr, jst)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM-DD")
+	}
+	result, err := s.repo.GetDailySummary(ctx, clinicID, date)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get daily summary")
+	}
+	return result, nil
 }

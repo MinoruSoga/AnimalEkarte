@@ -19,8 +19,8 @@ type CheckupFilters struct {
 }
 
 type CheckupRepository interface {
-	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error)
-	ListByClinic(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error)
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
+	FindByClinicID(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error)
 	Create(ctx context.Context, checkup *model.Checkup) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -35,13 +35,15 @@ func NewCheckupRepository(db *gorm.DB) CheckupRepository {
 	return &checkupRepository{db: db}
 }
 
-func (r *checkupRepository) ListByClinic(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error) {
+func (r *checkupRepository) FindByClinicID(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error) {
 	checkups := make([]model.Checkup, 0)
 	q := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Preload("CheckupType").
-		Preload("Doctor").
-		Preload("MedicalRecord.Pet.Owner")
+		Preload("CheckupType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
+		Preload("MedicalRecord", "deleted_at IS NULL").
+		Preload("MedicalRecord.Pet", "deleted_at IS NULL").
+		Preload("MedicalRecord.Pet.Owner", "deleted_at IS NULL")
 	if filters.StartDate != nil {
 		q = q.Where("date >= ?", *filters.StartDate)
 	}
@@ -61,13 +63,16 @@ func (r *checkupRepository) ListByClinic(ctx context.Context, clinicID uint64, f
 	return checkups, nil
 }
 
-func (r *checkupRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error) {
+func (r *checkupRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
 	checkups := make([]model.Checkup, 0)
 	err := r.db.WithContext(ctx).
-		Where("medical_record_id = ?", medicalRecordID).
-		Preload("CheckupType").
-		Preload("Doctor").
-		Order("date ASC").
+		Joins("JOIN medical_records ON medical_records.id = checkups.medical_record_id"+
+			" AND medical_records.clinic_id = ?"+
+			" AND medical_records.deleted_at IS NULL", clinicID).
+		Where("checkups.medical_record_id = ?", medicalRecordID).
+		Preload("CheckupType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
+		Order("checkups.date ASC").
 		Find(&checkups).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup", "")
@@ -78,8 +83,8 @@ func (r *checkupRepository) ListByMedicalRecordID(ctx context.Context, medicalRe
 func (r *checkupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error) {
 	var checkup model.Checkup
 	err := r.db.WithContext(ctx).
-		Preload("CheckupType").
-		Preload("Doctor").
+		Preload("CheckupType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&checkup).Error

@@ -14,7 +14,7 @@ type ExaminationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	Create(ctx context.Context, exam *model.Examination) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountItemsByExamID(ctx context.Context, clinicID, examID uint64) (int64, error)
 }
@@ -55,7 +55,7 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 	}
 
 	exams := make([]model.Examination, 0)
-	if err := buildBase().Preload("ExaminationType").Preload("Pet.Owner").Preload("Doctor").Preload("Items").
+	if err := buildBase().Preload("ExaminationType", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("exams.date DESC, exams.created_at DESC").
 		Find(&exams).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "exam", "")
@@ -67,7 +67,7 @@ func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 	var exam model.Examination
 	err := r.db.WithContext(ctx).
 		Where("exams.id = ? AND exams.clinic_id = ?", id, clinicID).
-		Preload("ExaminationType").Preload("Pet.Owner").Preload("Doctor").Preload("Items").
+		Preload("ExaminationType", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
 		First(&exam).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", id))
@@ -83,7 +83,7 @@ func (r *examinationRepository) Create(ctx context.Context, exam *model.Examinat
 	return nil
 }
 
-func (r *examinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
+func (r *examinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Examination{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -114,8 +114,8 @@ func (r *examinationRepository) CountItemsByExamID(ctx context.Context, clinicID
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.ExamResult{}).
-		Joins("JOIN exams ON exam_results.exam_id = exams.id").
-		Where("exams.clinic_id = ? AND exam_results.exam_id = ?", clinicID, examID).
+		Joins("JOIN exams ON exam_results.exam_id = exams.id AND exams.deleted_at IS NULL").
+		Where("exams.clinic_id = ? AND exam_results.exam_id = ? AND exam_results.deleted_at IS NULL", clinicID, examID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "exam_item", fmt.Sprintf("exam_id=%d", examID))

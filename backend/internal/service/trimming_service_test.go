@@ -16,40 +16,40 @@ import (
 // --- mock: ReservationRepository（FindAllByCategory 特化） ---
 
 type mockTrimmingReservationRepository struct {
-	findAllByCategoryFn func(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Appointment, int64, error)
-	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Appointment, error)
-	createFn            func(ctx context.Context, appt *model.Appointment) error
-	updateFieldsFn      func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error)
+	findAllByCategoryFn func(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
+	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	createFn            func(ctx context.Context, appt *model.Reservation) error
+	updateFieldsFn      func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	deleteFn            func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockTrimmingReservationRepository) FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Appointment, int64, error) {
+func (m *mockTrimmingReservationRepository) FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error) {
 	return m.findAllByCategoryFn(ctx, clinicID, category, petID, ownerID, startDate, endDate, page, limit)
 }
 
-func (m *mockTrimmingReservationRepository) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Appointment, int64, error) {
+func (m *mockTrimmingReservationRepository) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
 }
 
-func (m *mockTrimmingReservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
+func (m *mockTrimmingReservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return nil, apperrors.WrapNotFound("appointment", "0")
 }
 
-func (m *mockTrimmingReservationRepository) Create(ctx context.Context, appt *model.Appointment) error {
+func (m *mockTrimmingReservationRepository) Create(ctx context.Context, appt *model.Reservation) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, appt)
 	}
 	return nil
 }
 
-func (m *mockTrimmingReservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error) {
+func (m *mockTrimmingReservationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}
-	return &model.Appointment{ID: id, ClinicID: clinicID}, nil
+	return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockTrimmingReservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -59,11 +59,11 @@ func (m *mockTrimmingReservationRepository) Delete(ctx context.Context, clinicID
 	return nil
 }
 
-func (m *mockTrimmingReservationRepository) ExistsByReservationTypeID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockTrimmingReservationRepository) ExistsByReservationTypeID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
 
-func (m *mockTrimmingReservationRepository) ExistsByStaffID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockTrimmingReservationRepository) ExistsByStaffID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
 
@@ -71,7 +71,7 @@ func (m *mockTrimmingReservationRepository) CountMedicalRecordsByReservationID(_
 	return 0, nil
 }
 
-func (m *mockTrimmingReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+func (m *mockTrimmingReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, nil
 }
 
@@ -139,9 +139,14 @@ var _ repository.AppointmentTrimmingDetailRepository = (*mockTrimmingDetailRepos
 
 // --- mock: Transactor（テスト用：fn を同一コンテキストで直接実行） ---
 
-type mockTransactor struct{}
+type mockTransactor struct {
+	withTxErr error
+}
 
 func (m *mockTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if m.withTxErr != nil {
+		return m.withTxErr
+	}
 	return fn(ctx)
 }
 
@@ -162,7 +167,7 @@ func TestTrimmingService_List(t *testing.T) {
 		clinicID  uint64
 		petID     *uint64
 		ownerID   *uint64
-		repoData  []model.Appointment
+		repoData  []model.Reservation
 		repoTotal int64
 		repoErr   error
 		wantLen   int
@@ -172,7 +177,7 @@ func TestTrimmingService_List(t *testing.T) {
 		{
 			name:      "returns trimming list with total count",
 			clinicID:  1,
-			repoData:  []model.Appointment{{ID: 1, ClinicID: 1}, {ID: 2, ClinicID: 1}},
+			repoData:  []model.Reservation{{ID: 1, ClinicID: 1}, {ID: 2, ClinicID: 1}},
 			repoTotal: 2,
 			wantLen:   2,
 			wantTotal: 2,
@@ -181,7 +186,7 @@ func TestTrimmingService_List(t *testing.T) {
 			name:      "filters by pet ID",
 			clinicID:  1,
 			petID:     &petID,
-			repoData:  []model.Appointment{{ID: 1, ClinicID: 1, PetID: &petID}},
+			repoData:  []model.Reservation{{ID: 1, ClinicID: 1, PetID: &petID}},
 			repoTotal: 1,
 			wantLen:   1,
 			wantTotal: 1,
@@ -190,7 +195,7 @@ func TestTrimmingService_List(t *testing.T) {
 			name:      "filters by owner ID",
 			clinicID:  1,
 			ownerID:   &ownerID,
-			repoData:  []model.Appointment{{ID: 1, ClinicID: 1}},
+			repoData:  []model.Reservation{{ID: 1, ClinicID: 1}},
 			repoTotal: 1,
 			wantLen:   1,
 			wantTotal: 1,
@@ -198,7 +203,7 @@ func TestTrimmingService_List(t *testing.T) {
 		{
 			name:      "returns empty list when no records exist",
 			clinicID:  1,
-			repoData:  []model.Appointment{},
+			repoData:  []model.Reservation{},
 			repoTotal: 0,
 			wantLen:   0,
 			wantTotal: 0,
@@ -214,7 +219,7 @@ func TestTrimmingService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reserv := &mockTrimmingReservationRepository{
-				findAllByCategoryFn: func(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Appointment, int64, error) {
+				findAllByCategoryFn: func(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
 					return tt.repoData, tt.repoTotal, tt.repoErr
 				},
 			}
@@ -238,7 +243,7 @@ func TestTrimmingService_GetByID(t *testing.T) {
 		name     string
 		clinicID uint64
 		id       uint64
-		repoAppt *model.Appointment
+		repoAppt *model.Reservation
 		repoErr  error
 		wantErr  bool
 		wantNF   bool
@@ -247,7 +252,7 @@ func TestTrimmingService_GetByID(t *testing.T) {
 			name:     "returns appointment when found",
 			clinicID: 1,
 			id:       10,
-			repoAppt: &model.Appointment{ID: 10, ClinicID: 1},
+			repoAppt: &model.Reservation{ID: 10, ClinicID: 1},
 			wantErr:  false,
 		},
 		{
@@ -263,7 +268,7 @@ func TestTrimmingService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reserv := &mockTrimmingReservationRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 					return tt.repoAppt, tt.repoErr
 				},
 			}
@@ -341,12 +346,12 @@ func TestTrimmingService_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reserv := &mockTrimmingReservationRepository{
-				createFn: func(_ context.Context, a *model.Appointment) error {
+				createFn: func(_ context.Context, a *model.Reservation) error {
 					a.ID = 1
 					return tt.createErr
 				},
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Appointment, error) {
-					return &model.Appointment{ID: 1, ClinicID: 1}, nil
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+					return &model.Reservation{ID: 1, ClinicID: 1}, nil
 				},
 			}
 			detail := &mockTrimmingDetailRepository{
@@ -417,7 +422,7 @@ func TestTrimmingService_Update(t *testing.T) {
 			clinicID: 1,
 			id:       10,
 			input: UpdateTrimmingInput{
-				// Status を含めることで apptFields が非空になり UpdateFields が呼ばれる
+				// Status を含めることで apptFields が非空になり Update が呼ばれる
 				Status: func() *model.ReservationStatus { s := model.ReservationStatusConfirmed; return &s }(),
 			},
 			updateFieldsErr: errors.New("db error"),
@@ -452,14 +457,14 @@ func TestTrimmingService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reserv := &mockTrimmingReservationRepository{
-				updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Appointment, error) {
+				updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Reservation, error) {
 					if tt.updateFieldsErr != nil {
 						return nil, tt.updateFieldsErr
 					}
-					return &model.Appointment{ID: id}, nil
+					return &model.Reservation{ID: id}, nil
 				},
-				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Appointment, error) {
-					return &model.Appointment{ID: id, ClinicID: clinicID}, nil
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+					return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 				},
 			}
 			detail := &mockTrimmingDetailRepository{
@@ -525,6 +530,12 @@ func TestTrimmingService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reserv := &mockTrimmingReservationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.Reservation{ID: 1, ClinicID: 1}, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},

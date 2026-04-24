@@ -22,6 +22,8 @@
 | 保険 | [master-insurance.md](./master-insurance.md) | ペット保険会社の補償率・連絡先管理 |
 | シフトテンプレート | [master-shift-template.md](./master-shift-template.md) | シフト入力パターンの管理 |
 | 基礎マスタ | [master-basics.md](./master-basics.md) | 動物種、職能、予約区分、入院プラン等の共通設定 |
+| 支払方法 | [payment-methods.md](./payment-methods.md) | 現金・カード等の支払区分管理 |
+| 締め時間 | [closing-time-settings.md](./closing-time-settings.md) | AM/PM境界・休診日・特別期間の設定（管理者のみ） |
 
 ---
 

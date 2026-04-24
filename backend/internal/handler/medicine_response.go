@@ -28,13 +28,13 @@ type medicineResponse struct {
 func toMedicineResponse(m *model.Medicine) medicineResponse {
 	var dosageForm *string
 	if m.DosageForm != nil {
-		s := string(*m.DosageForm)
-		dosageForm = &s
+		v := string(*m.DosageForm)
+		dosageForm = &v
 	}
 	var medicineUnit *string
 	if m.MedicineUnit != nil {
-		s := string(*m.MedicineUnit)
-		medicineUnit = &s
+		v := string(*m.MedicineUnit)
+		medicineUnit = &v
 	}
 	return medicineResponse{
 		ID:              m.ID,
@@ -54,12 +54,4 @@ func toMedicineResponse(m *model.Medicine) medicineResponse {
 		CreatedAt:       m.CreatedAt,
 		UpdatedAt:       m.UpdatedAt,
 	}
-}
-
-func toMedicineResponseList(medicines []model.Medicine) []medicineResponse {
-	list := make([]medicineResponse, 0, len(medicines))
-	for i := range medicines {
-		list = append(list, toMedicineResponse(&medicines[i]))
-	}
-	return list
 }

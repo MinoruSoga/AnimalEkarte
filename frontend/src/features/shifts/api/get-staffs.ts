@@ -16,7 +16,7 @@ export async function getStaffsForShift(): Promise<ShiftStaff[]> {
     .map((s) => ({ id: String(s.id), name: s.name }));
 }
 
-export function useStaffsForShift() {
+export function useGetStaffsForShift() {
   return useQuery({
     queryKey: ["staffs-for-shift"],
     queryFn: getStaffsForShift,

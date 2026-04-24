@@ -10,7 +10,39 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+const (
+	colOccupationName        = "name"
+	colOccupationDescription = "description"
+	colOccupationIsActive    = "is_active"
+	colOccupationSortOrder   = "sort_order"
+)
+
+func buildOccupationUpdate(input *UpdateOccupationInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colOccupationName] = *input.Name
+	}
+	if input.Description != nil {
+		fields[colOccupationDescription] = *input.Description
+	}
+	if input.SortOrder != nil {
+		fields[colOccupationSortOrder] = *input.SortOrder
+	}
+	if input.IsActive != nil {
+		fields[colOccupationIsActive] = *input.IsActive
+	}
+	return fields
+}
+
 // ---- OccupationService ----
+
+// CreateOccupationInput は職種作成の入力DTO
+type CreateOccupationInput struct {
+	Name        string
+	Description string
+	SortOrder   int
+	IsActive    bool
+}
 
 // UpdateOccupationInput holds the fields that can be updated via PATCH.
 // All fields are pointers: nil means "not provided / skip".
@@ -24,7 +56,7 @@ type UpdateOccupationInput struct {
 type OccupationService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
-	Create(ctx context.Context, occupation *model.Occupation) error
+	Create(ctx context.Context, clinicID uint64, input *CreateOccupationInput) (*model.Occupation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateOccupationInput) (*model.Occupation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -41,6 +73,7 @@ func NewOccupationService(repo repository.OccupationRepository) OccupationServic
 func (s *occupationService) List(ctx context.Context, clinicID uint64) ([]model.Occupation, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list occupations", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list occupations")
 	}
 	return items, nil
@@ -49,85 +82,90 @@ func (s *occupationService) List(ctx context.Context, clinicID uint64) ([]model.
 func (s *occupationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get occupation", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get occupation")
 	}
 	return result, nil
 }
 
-func (s *occupationService) Create(ctx context.Context, occupation *model.Occupation) error {
-	if err := validateMasterName(occupation.Name); err != nil {
-		return err
+func (s *occupationService) Create(ctx context.Context, clinicID uint64, input *CreateOccupationInput) (*model.Occupation, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	occupation := &model.Occupation{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Description: input.Description,
+		SortOrder:   input.SortOrder,
+		IsActive:    input.IsActive,
 	}
 	if err := s.repo.Create(ctx, occupation); err != nil {
-		return apperrors.Wrap(err, "failed to create occupation")
+		slog.ErrorContext(ctx, "failed to create occupation", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to create occupation")
 	}
 	slog.InfoContext(ctx, "occupation created",
-		slog.Uint64("occupation_id", occupation.ID),
-		slog.Uint64("clinic_id", occupation.ClinicID))
-	return nil
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("occupation_id", occupation.ID))
+	return occupation, nil
 }
 
 func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateOccupationInput) (*model.Occupation, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get occupation")
+	}
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildOccupationUpdateFields(input)
+	fields := buildOccupationUpdate(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	result, err := s.repo.Update(ctx, clinicID, id, fields)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update occupation", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update occupation")
 	}
 	slog.InfoContext(ctx, "occupation updated",
-		slog.Uint64("occupation_id", id),
-		slog.Uint64("clinic_id", clinicID))
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get occupation after update")
-	}
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("occupation_id", id))
 	return result, nil
 }
 
 func (s *occupationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountStaffsByOccupationID(ctx, id)
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find occupation")
+	}
+	count, err := s.repo.CountUsageByOccupationID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check occupation dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check occupation dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この役職はスタッフ情報で使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete occupation", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete occupation")
 	}
 	slog.InfoContext(ctx, "occupation deleted",
-		slog.Uint64("occupation_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("occupation_id", id))
 	return nil
 }
 
 func (s *occupationService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		slog.ErrorContext(ctx, "failed to reorder occupations", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder occupations")
 	}
+	slog.InfoContext(ctx, "occupations reordered",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Int("count", len(ids)))
 	return nil
-}
-
-func buildOccupationUpdateFields(input *UpdateOccupationInput) map[string]any {
-	fields := map[string]any{}
-	if input.Name != nil {
-		fields["name"] = *input.Name
-	}
-	if input.Description != nil {
-		fields["description"] = *input.Description
-	}
-	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
-	}
-	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
-	}
-	return fields
 }

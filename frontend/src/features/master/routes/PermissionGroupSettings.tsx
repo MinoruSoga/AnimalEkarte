@@ -8,28 +8,28 @@ import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow, StatusToggleButton, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
-import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "../constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
-import { useMasterSave } from "@/features/master/hooks/use-master-save";
-import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import {
   useGetPermissionGroups,
   useCreatePermissionGroup,
   useUpdatePermissionGroup,
   useDeletePermissionGroup,
-  useSetPermissionGroupRules,
+  useUpdatePermissionGroupRules,
   useReorderPermissionGroups,
   type PermissionGroup,
   type CreatePermissionGroupRequest,
   type UpdatePermissionGroupRequest,
-  type SetPermissionGroupRulesRequest,
-} from "@/features/master/api/permission-groups";
-import { PermissionRuleTable, type PermissionRule } from "@/features/master/components/PermissionRuleTable";
+  type UpdatePermissionGroupRulesRequest,
+} from "../api/permission-groups";
+import { PermissionRuleTable, type PermissionRule } from "../components/PermissionRuleTable";
 import { ResourceMasterPermission } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -199,7 +199,7 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
         <div className="flex items-center gap-3">
           <input
             type="color"
-            className="w-12 h-12 rounded border"
+            className={`${LAYOUT.colorInputMedium} ${C.borderMedium}`}
             value={formData.color}
             onChange={(e) => handleColorChange(e.target.value)}
           />
@@ -227,7 +227,7 @@ export function PermissionGroupSettings() {
   const createMutation = useCreatePermissionGroup();
   const updateMutation = useUpdatePermissionGroup();
   const deleteMutation = useDeletePermissionGroup();
-  const setRulesMutation = useSetPermissionGroupRules();
+  const updateRulesMutation = useUpdatePermissionGroupRules();
   const reorderMutation = useReorderPermissionGroups();
 
   const dirty = useSidePeekDirty();
@@ -286,9 +286,9 @@ export function PermissionGroupSettings() {
       is_active: d.isActive,
     }),
     onSuccess: async (saved, formData) => {
-      // Set rules if any
+      // Update rules if any
       if (formData.rules.length > 0) {
-        const rulesReq: SetPermissionGroupRulesRequest = {
+        const rulesReq: UpdatePermissionGroupRulesRequest = {
           rules: formData.rules.map((r) => ({
             resource: r.resource,
             can_view: r.canView,
@@ -297,7 +297,7 @@ export function PermissionGroupSettings() {
             can_delete: r.canDelete,
           })),
         };
-        await setRulesMutation.mutateAsync({ id: saved.id, req: rulesReq });
+        await updateRulesMutation.mutateAsync({ id: saved.id, req: rulesReq });
       }
     },
   });

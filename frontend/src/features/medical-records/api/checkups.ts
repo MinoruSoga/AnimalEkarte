@@ -3,25 +3,39 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Internal
 import { axios } from "@/lib/axios";
-import { QUERY_STALE_TIMES } from "@/lib/react-query";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-export interface Checkup {
+function transformCheckup(item: {
   id: string;
   medical_record_id: string;
   checkup_type_id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   next_date?: string | null;
   doctor_id?: string | null;
   result: string;
   created_at: string;
   updated_at: string;
-  // nested
   checkup_type?: { id: string; name: string } | null;
   doctor?: { id: string; name: string } | null;
+}) {
+  return {
+    id: item.id,
+    medical_record_id: item.medical_record_id,
+    checkup_type_id: item.checkup_type_id,
+    date: item.date,
+    next_date: item.next_date,
+    doctor_id: item.doctor_id,
+    result: item.result,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    checkup_type: item.checkup_type,
+    doctor: item.doctor,
+  };
 }
+export type Checkup = ReturnType<typeof transformCheckup>;
 
 export interface CreateCheckupInput {
   checkup_type_id: number;
@@ -42,10 +56,10 @@ export interface UpdateCheckupInput {
 // ── Fetch ──────────────────────────────────────────────────────────────
 
 const getCheckups = async (medicalRecordId: string): Promise<Checkup[]> => {
-  const { data } = await axios.get<Checkup[]>(
+  const { data } = await axios.get<Parameters<typeof transformCheckup>[0][]>(
     `/v1/medical-records/${medicalRecordId}/checkups`
   );
-  return data;
+  return data.map(transformCheckup);
 };
 
 export const useGetCheckups = (medicalRecordId: string) => {
@@ -54,6 +68,7 @@ export const useGetCheckups = (medicalRecordId: string) => {
     queryFn: () => getCheckups(medicalRecordId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
 

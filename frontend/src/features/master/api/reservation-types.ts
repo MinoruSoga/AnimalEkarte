@@ -52,7 +52,7 @@ export type {
 // Query keys
 // ─────────────────────────────────────────────────
 
-export const SERVICE_TYPES_QUERY_KEY = ["masters", "reservation-types"] as const;
+const SERVICE_TYPES_QUERY_KEY = ["masters", "reservation-types"] as const;
 
 // ─────────────────────────────────────────────────
 // API functions

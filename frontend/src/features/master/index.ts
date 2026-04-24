@@ -1,5 +1,4 @@
 export { MasterSettingsIndex } from "./routes/MasterSettingsIndex";
-export { ShiftTemplateSettings } from "./routes/ShiftTemplateSettings";
 export { AnimalSpeciesSettings } from "./routes/AnimalSpeciesSettings";
 export { CageSettings } from "./routes/CageSettings";
 export { ChiefComplaintSettings } from "./routes/ChiefComplaintSettings";
@@ -8,6 +7,7 @@ export { HospitalizationSettings } from "./routes/HospitalizationSettings";
 export { InsuranceSettings } from "./routes/InsuranceSettings";
 export { InterviewTemplateSettings } from "./routes/InterviewTemplateSettings";
 export { OccupationSettings } from "./routes/OccupationSettings";
+export { PaymentMethodSettings } from "./routes/PaymentMethodSettings";
 export { PermissionGroupSettings } from "./routes/PermissionGroupSettings";
 export { MedicineSettings } from "./routes/MedicineSettings";
 export { MerchandiseItemSettings } from "./routes/MerchandiseItemSettings";

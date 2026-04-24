@@ -101,6 +101,63 @@ type UpdateOwnerInput struct {
 	MembershipType *model.MembershipType
 }
 
+// buildOwnerUpdate はポインタが非 nil のフィールドのみ map に追加する
+func buildOwnerUpdate(input *UpdateOwnerInput) map[string]any {
+	fields := make(map[string]any)
+	if input.OwnerName != nil {
+		fields[colOwnerName] = *input.OwnerName
+	}
+	if input.OwnerNameKana != nil {
+		fields[colOwnerNameKana] = *input.OwnerNameKana
+	}
+	if input.BirthDate != nil {
+		fields[colBirthDate] = *input.BirthDate
+	}
+	if input.Company != nil {
+		fields[colCompany] = *input.Company
+	}
+	if input.PostalCode != nil {
+		fields[colPostalCode] = *input.PostalCode
+	}
+	if input.Address1 != nil {
+		fields[colAddress1] = *input.Address1
+	}
+	if input.Address2 != nil {
+		fields[colAddress2] = *input.Address2
+	}
+	if input.HomePostalCode != nil {
+		fields[colHomePostalCode] = *input.HomePostalCode
+	}
+	if input.HomeAddress1 != nil {
+		fields[colHomeAddress1] = *input.HomeAddress1
+	}
+	if input.HomeAddress2 != nil {
+		fields[colHomeAddress2] = *input.HomeAddress2
+	}
+	if input.Phone != nil {
+		fields[colPhone] = *input.Phone
+	}
+	if input.CompanyPhone != nil {
+		fields[colCompanyPhone] = *input.CompanyPhone
+	}
+	if input.Email != nil {
+		fields[colEmail] = *input.Email
+	}
+	if input.Remarks != nil {
+		fields[colRemarks] = *input.Remarks
+	}
+	if input.IsDangerous != nil {
+		fields[colIsDangerous] = *input.IsDangerous
+	}
+	if input.DiscountRate != nil {
+		fields[colDiscountRate] = *input.DiscountRate
+	}
+	if input.MembershipType != nil {
+		fields[colMembershipType] = *input.MembershipType
+	}
+	return fields
+}
+
 // --- Interface ---
 
 type OwnerService interface {
@@ -139,7 +196,7 @@ func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model
 
 func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error) {
 	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
-	if err := validateOwnerName(input.OwnerName); err != nil {
+	if err := validateRequiredName(input.OwnerName); err != nil {
 		return nil, err
 	}
 	input.OwnerName = strings.TrimSpace(input.OwnerName)
@@ -276,9 +333,12 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *UpdateOwnerInput) (*model.Owner, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find owner")
+	}
 	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
 	if input.OwnerName != nil {
-		if err := validateOwnerName(*input.OwnerName); err != nil {
+		if err := validateRequiredName(*input.OwnerName); err != nil {
 			return nil, err
 		}
 		trimmed := strings.TrimSpace(*input.OwnerName)
@@ -341,7 +401,7 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	}
 
 	// 更新フィールドマップ構築（nil フィールドはスキップ）
-	fields := buildOwnerUpdateFields(input)
+	fields := buildOwnerUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -361,65 +421,10 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	}
 	return owner, nil
 }
-
-// buildOwnerUpdateFields はポインタが非 nil のフィールドのみ map に追加する
-func buildOwnerUpdateFields(input *UpdateOwnerInput) map[string]any {
-	fields := make(map[string]any)
-	if input.OwnerName != nil {
-		fields[colOwnerName] = *input.OwnerName
-	}
-	if input.OwnerNameKana != nil {
-		fields[colOwnerNameKana] = *input.OwnerNameKana
-	}
-	if input.BirthDate != nil {
-		fields[colBirthDate] = *input.BirthDate
-	}
-	if input.Company != nil {
-		fields[colCompany] = *input.Company
-	}
-	if input.PostalCode != nil {
-		fields[colPostalCode] = *input.PostalCode
-	}
-	if input.Address1 != nil {
-		fields[colAddress1] = *input.Address1
-	}
-	if input.Address2 != nil {
-		fields[colAddress2] = *input.Address2
-	}
-	if input.HomePostalCode != nil {
-		fields[colHomePostalCode] = *input.HomePostalCode
-	}
-	if input.HomeAddress1 != nil {
-		fields[colHomeAddress1] = *input.HomeAddress1
-	}
-	if input.HomeAddress2 != nil {
-		fields[colHomeAddress2] = *input.HomeAddress2
-	}
-	if input.Phone != nil {
-		fields[colPhone] = *input.Phone
-	}
-	if input.CompanyPhone != nil {
-		fields[colCompanyPhone] = *input.CompanyPhone
-	}
-	if input.Email != nil {
-		fields[colEmail] = *input.Email
-	}
-	if input.Remarks != nil {
-		fields[colRemarks] = *input.Remarks
-	}
-	if input.IsDangerous != nil {
-		fields[colIsDangerous] = *input.IsDangerous
-	}
-	if input.DiscountRate != nil {
-		fields[colDiscountRate] = *input.DiscountRate
-	}
-	if input.MembershipType != nil {
-		fields[colMembershipType] = *input.MembershipType
-	}
-	return fields
-}
-
 func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find owner")
+	}
 	// FK依存チェック: ペットが紐付いている場合は削除を拒否
 	petCount, err := s.repo.CountPetsByOwnerID(ctx, clinicID, id)
 	if err != nil {

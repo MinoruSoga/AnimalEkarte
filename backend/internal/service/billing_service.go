@@ -34,7 +34,7 @@ func CalculateBillingTotals(items []model.BillingItem) (subtotal, taxTotal, tota
 	var excludedTax int64
 	for i := range items {
 		itemSubtotal := int64(float64(items[i].UnitPrice) * items[i].Quantity)
-		taxAmount := CalculateTaxAmount(items[i].UnitPrice, items[i].Quantity, items[i].TaxType, items[i].TaxRate)
+		taxAmount := items[i].CalculateTaxAmount()
 		subtotal += itemSubtotal
 		taxTotal += taxAmount
 		if items[i].TaxType == model.TaxTypeExcluded {

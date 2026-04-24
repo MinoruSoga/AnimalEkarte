@@ -13,12 +13,13 @@ import (
 // TreatmentSortUpdate は並び順一括更新に使う軽量DTO
 type TreatmentSortUpdate struct {
 	ID        uint64
+	ClinicID  uint64
 	SortOrder int
 }
 
 // TreatmentRepository は治療項目の永続化インターフェース
 type TreatmentRepository interface {
-	ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	Create(ctx context.Context, treatment *model.Treatment) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -35,14 +36,14 @@ func NewTreatmentRepository(db *gorm.DB) TreatmentRepository {
 	return &treatmentRepository{db: db}
 }
 
-func (r *treatmentRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
+func (r *treatmentRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
 	treatments := make([]model.Treatment, 0)
 	if err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND treatments.medical_record_id = ? AND treatments.deleted_at IS NULL", clinicID, medicalRecordID).
-		Preload("Consultation").
-		Preload("Procedure").
-		Preload("Medicine").
+		Preload("Consultation", "deleted_at IS NULL").
+		Preload("Procedure", "deleted_at IS NULL").
+		Preload("Medicine", "deleted_at IS NULL").
 		Order("treatments.sort_order ASC").
 		Find(&treatments).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "treatment", "")
@@ -102,7 +103,8 @@ func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates [
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, u := range updates {
 			result := tx.Model(&model.Treatment{}).
-				Where("id = ? AND deleted_at IS NULL", u.ID).
+				Joins("JOIN medical_records ON treatments.medical_record_id = medical_records.id").
+				Where("treatments.id = ? AND treatments.deleted_at IS NULL AND medical_records.clinic_id = ?", u.ID, u.ClinicID).
 				Update("sort_order", u.SortOrder)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", u.ID))

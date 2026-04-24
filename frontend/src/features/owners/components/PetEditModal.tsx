@@ -15,7 +15,7 @@ import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { PET_GENDER_VALUES, ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES, PetFormData } from "../types";
 import { useAnimalSpecies } from "../hooks/use-animal-species";
 import { useGetInsurances } from "../api/get-insurances";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 import { isOneOf } from "@/lib/type-utils";
 

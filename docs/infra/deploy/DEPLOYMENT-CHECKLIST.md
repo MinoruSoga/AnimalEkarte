@@ -6,19 +6,19 @@
 
 ```bash
 # Lint
-docker compose exec frontend npm run lint
+docker compose exec frontend pnpm lint
 docker compose exec backend golangci-lint run ./...
 
 # テスト
-docker compose exec frontend npm run test:run
+docker compose exec frontend pnpm test:run
 docker compose exec backend go test ./... -v
 
 # ビルド確認
-docker compose exec frontend npm run build
+docker compose exec frontend pnpm build
 docker compose exec backend go build ./cmd/api
 
 # TypeScript エラーなし
-docker compose exec frontend npm run type-check
+docker compose exec frontend pnpm type-check
 
 # console.log が残っていないか
 grep -r "console\.log\|console\.error" frontend/src --include="*.ts" --include="*.tsx"

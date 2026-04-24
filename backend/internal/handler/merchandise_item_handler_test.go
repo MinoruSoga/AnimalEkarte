@@ -1,157 +1,602 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// TestMerchandiseItemHandlerCompiles verifies merchandise_item_handler.go compiles
-func TestMerchandiseItemHandlerCompiles(t *testing.T) {
-	assert.True(t, true, "merchandise_item_handler.go compiled successfully")
+// ---- mock MerchandiseItemService ----
+
+type mockMerchandiseItemService struct {
+	listFn    func(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error)
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
+	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateMerchandiseItemInput) (*model.MerchandiseItem, error)
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error)
+	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-// ---- Comprehensive Test Coverage Documentation ----
-//
-// Merchandise Item Handler Test Cases
-// This handler manages merchandise/product inventory (Section 14: マスタ設定 - products)
-// MerchandiseItem: billable merchandise/retail products (food, toys, medications, etc.)
-//
-// CRITICAL ENDPOINTS:
-//
-// 1. ListMerchandiseItems (GET /merchandise-items)
-//    Test Cases (7 scenarios):
-//    ✓ Returns 200 OK with empty list when no merchandise exist
-//    ✓ Returns 200 OK with list of all clinic's merchandise (no pagination)
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Response includes all merchandise fields
-//    ✓ Response includes: id, name, price, category, inventory_id, is_active, sort_order
-//    ✓ Response sorted by sort_order (display order)
-//    ✓ Returns 500 on database error
-//
-// 2. GetMerchandiseItem (GET /merchandise-items/:id)
-//    Test Cases (9 scenarios):
-//    ✓ Returns 200 OK with single merchandise record
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when merchandise doesn't exist
-//    ✓ Returns 403 when merchandise belongs to different clinic (tenant isolation)
-//    ✓ Response includes complete merchandise data with all fields
-//    ✓ Response includes related inventory info (stock level)
-//    ✓ Returns 500 on database error
-//
-// 3. CreateMerchandiseItem (POST /merchandise-items)
-//    Test Cases (16 scenarios):
-//    ✓ Returns 201 Created when merchandise created successfully
-//    ✓ Returns 400 when required field missing (name, price, category)
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Does NOT require permission (can be created by any authenticated user)
-//    ✓ Name field: required, text (merchandise product name)
-//    ✓ Price field: required, numeric (retail price)
-//    ✓ Category field: required, text (product category: food, toy, medication, etc.)
-//    ✓ InventoryID field: optional, FK to inventories (stock tracking)
-//    ✓ Description field: optional text (product details)
-//    ✓ IsActive field: optional boolean, defaults to true
-//    ✓ SortOrder field: optional numeric for display ordering
-//    ✓ TaxType field: optional ENUM (included, excluded)
-//    ✓ TaxRate field: optional numeric (%)
-//    ✓ Created merchandise includes generated id and timestamps
-//    ✓ Returns 500 on database error
-//
-// 4. UpdateMerchandiseItem (PATCH /merchandise-items/:id)
-//    Test Cases (14 scenarios):
-//    ✓ Returns 200 OK when merchandise updated successfully
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 404 when merchandise doesn't exist
-//    ✓ Returns 403 when merchandise belongs to different clinic
-//    ✓ Does NOT require permission (can be updated by any authenticated user)
-//    ✓ Partial updates: name can be updated
-//    ✓ Partial updates: price can be updated
-//    ✓ Partial updates: category can be updated
-//    ✓ Partial updates: inventory_id can be linked/unlinked
-//    ✓ Partial updates: is_active can be toggled
-//    ✓ Unspecified fields remain unchanged (PATCH semantics)
-//    ✓ Returns 500 on database error
-//
-// 5. DeleteMerchandiseItem (DELETE /merchandise-items/:id)
-//    Test Cases (10 scenarios):
-//    ✓ Returns 204 No Content when merchandise deleted successfully
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when merchandise doesn't exist
-//    ✓ Returns 403 when merchandise belongs to different clinic
-//    ✓ Does NOT require permission (can be deleted by any authenticated user)
-//    ✓ Deletion behavior: soft delete or hard delete
-//    ✓ Deleted merchandise no longer appears in ListMerchandiseItems
-//    ✓ Deletion should check for FK dependencies (billing items if linked)
-//    ✓ Returns 500 on database error
-//
-// SECURITY & MULTITENANCY:
-//    ✓ Clinic-based access control (clinic_id verification on CRUD)
-//    ✓ RBAC: NO permission check (different from master data handlers)
-//    ✓ FK validation: inventory_id optional FK validation (if provided)
-//    ✓ Soft delete prevents accidental data loss
-//    ✓ Partial updates prevent mass assignment
-//
-// DATA USES:
-//    ✓ Merchandise tracked for retail/product sales
-//    ✓ Price for billing when merchandise sold
-//    ✓ Inventory integration for stock tracking
-//    ✓ Category for product organization
-//    ✓ is_active for hiding discontinued products
-//    ✓ Tax fields for billing compliance
-//
-// DATA MODEL (merchandise_items):
-//    - id (PK): BIGSERIAL
-//    - clinic_id: BIGINT NOT NULL (multitenancy)
-//    - name: VARCHAR(255) NOT NULL - product name
-//    - price: NUMERIC(10,2) NOT NULL - retail price
-//    - category: VARCHAR(100) NOT NULL - product category
-//    - inventory_id: BIGINT (NULLABLE, FK → inventories) - stock tracking
-//    - description: TEXT (NULLABLE) - product details
-//    - is_active: BOOLEAN DEFAULT true - enable/disable flag
-//    - sort_order: INTEGER DEFAULT 0 - display ordering
-//    - tax_type: VARCHAR(50) (NULLABLE) - ENUM (included, excluded)
-//    - tax_rate: NUMERIC(5,4) (NULLABLE) - tax rate
-//    - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - deleted_at: TIMESTAMP NULL (soft delete)
-//    - Indexes: (clinic_id, id), (clinic_id, category), (clinic_id, is_active), (clinic_id, sort_order)
-//
-// IMPLEMENTATION NOTES:
-//    - Clinic-scoped merchandise management
-//    - NO pagination (returns all clinic's merchandise)
-//    - NO permission check (different from master data handlers)
-//    - Price required (cannot be optional for retail products)
-//    - Category required (for product organization)
-//    - Inventory optional (FK to track stock)
-//    - Tax fields optional (for billing integration)
-//    - Soft delete: preserves merchandise history
-//    - Transformations: direct response (no transformation function indicated)
-//    - RBAC: NO permission required (open to all authenticated users)
-//
-// TESTING STRATEGY:
-//    Use integration tests with:
-//    - Test database fixtures with sample merchandise
-//    - Real service/repository layers
-//    - Verify clinic_id scoping (no cross-clinic merchandise access)
-//    - Test CreateMerchandiseItem without permission (public creation)
-//    - Test CreateMerchandiseItem with all required fields
-//    - Test CreateMerchandiseItem with optional fields (tax, description)
-//    - Test CreateMerchandiseItem with inventory_id FK validation
-//    - Test UpdateMerchandiseItem without permission (public update)
-//    - Test UpdateMerchandiseItem with price updates
-//    - Test UpdateMerchandiseItem with category changes
-//    - Test UpdateMerchandiseItem with inventory link/unlink
-//    - Test UpdateMerchandiseItem with is_active toggle
-//    - Test UpdateMerchandiseItem PATCH semantics
-//    - Test DeleteMerchandiseItem without permission (public delete)
-//    - Test DeleteMerchandiseItem soft delete behavior
-//    - Test response transformation
-//    - Test list ordering by sort_order
-//    - Test soft delete behavior (deleted items not in list)
-//    - Verify clinic_id parameter on all CRUD endpoints
-//
+func (m *mockMerchandiseItemService) List(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
+	return m.listFn(ctx, clinicID, category)
+}
+
+func (m *mockMerchandiseItemService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
+	return m.getByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockMerchandiseItemService) Create(ctx context.Context, clinicID uint64, input *service.CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, input)
+	}
+	return &model.MerchandiseItem{}, nil
+}
+
+func (m *mockMerchandiseItemService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+	return m.updateFn(ctx, clinicID, id, input)
+}
+
+func (m *mockMerchandiseItemService) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockMerchandiseItemService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, clinicID, ids)
+	}
+	return nil
+}
+
+// ---- test helper ----
+
+func newHandlerWithMerchandiseItemSvc(svc service.MerchandiseItemService) *Handler {
+	return &Handler{
+		svc: &service.Services{MerchandiseItem: svc},
+	}
+}
+
+// ---- ListMerchandiseItems ----
+
+func TestListMerchandiseItems(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        *mockMerchandiseItemService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns all merchandise items",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				listFn: func(_ context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "", category)
+					return []model.MerchandiseItem{{ID: 1, Name: "ドッグフード"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"ドッグフード"`,
+		},
+		{
+			name:     "passes category filter to service",
+			query:    "category=food",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				listFn: func(_ context.Context, _ uint64, category string) ([]model.MerchandiseItem, error) {
+					assert.Equal(t, "food", category)
+					return []model.MerchandiseItem{}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "returns empty list when no items",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				listFn: func(_ context.Context, _ uint64, _ string) ([]model.MerchandiseItem, error) {
+					return []model.MerchandiseItem{}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   "[]",
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			query:      "",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 500 on service error",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				listFn: func(_ context.Context, _ uint64, _ string) ([]model.MerchandiseItem, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithMerchandiseItemSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
+			tt.setupCtx(c)
+
+			h.ListMerchandiseItems(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetMerchandiseItem ----
+
+func TestGetMerchandiseItem(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockMerchandiseItemService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns merchandise item for valid id",
+			paramID:  "3",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(3), id)
+					return &model.MerchandiseItem{ID: 3, Name: "キャットフード"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"キャットフード"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when item not found",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
+					return nil, apperrors.WrapNotFound("merchandise_item", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithMerchandiseItemSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.GetMerchandiseItem(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateMerchandiseItem ----
+
+func TestCreateMerchandiseItem(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{
+			"name":       "プレミアムフード",
+			"category":   "food",
+			"unit_price": 1200,
+			"tax_type":   "excluded",
+			"tax_rate":   0.10,
+			"is_active":  true,
+		}
+	}
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockMerchandiseItemService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "creates merchandise item successfully",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "プレミアムフード", input.Name)
+					assert.Equal(t, "food", input.Category)
+					return &model.MerchandiseItem{ID: 1, Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"name":"プレミアムフード"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when required name is missing",
+			body:       map[string]any{"category": "food", "unit_price": 100, "tax_type": "excluded"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when required category is missing",
+			body:       map[string]any{"name": "テスト商品", "unit_price": 100, "tax_type": "excluded"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when required tax_type is missing",
+			body:       map[string]any{"name": "テスト商品", "category": "food"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when category value is invalid",
+			body:       map[string]any{"name": "テスト", "category": "invalid", "unit_price": 100, "tax_type": "excluded"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithMerchandiseItemSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateMerchandiseItem(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- UpdateMerchandiseItem ----
+
+func TestUpdateMerchandiseItem(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockMerchandiseItemService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "updates merchandise item successfully",
+			paramID:  "1",
+			body:     map[string]any{"name": "更新済み商品"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+					require.NotNil(t, input.Name)
+					assert.Equal(t, "更新済み商品", *input.Name)
+					return &model.MerchandiseItem{ID: 1, Name: *input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"更新済み商品"`,
+		},
+		{
+			name:     "updates unit_price (non-negative validation from BUG-380)",
+			paramID:  "1",
+			body:     map[string]any{"unit_price": 500},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+					require.NotNil(t, input.UnitPrice)
+					assert.Equal(t, int64(500), *input.UnitPrice)
+					return &model.MerchandiseItem{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when item not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "テスト"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+					return nil, apperrors.WrapNotFound("merchandise_item", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 400 for empty update body (BUG-397)",
+			paramID:  "1",
+			body:     map[string]any{},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMerchandiseItemService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+					return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithMerchandiseItemSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateMerchandiseItem(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- DeleteMerchandiseItem ----
+
+func newDeleteMerchandiseItemRouter(svc service.MerchandiseItemService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithMerchandiseItemSvc(svc)
+	r.DELETE("/merchandise-items/:id", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.DeleteMerchandiseItem)
+	return r
+}
+
+func TestDeleteMerchandiseItem(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockMerchandiseItemService
+		wantStatus int
+	}{
+		{
+			name:    "deletes merchandise item successfully",
+			paramID: "1",
+			svc: &mockMerchandiseItemService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when item not found",
+			paramID: "999",
+			svc: &mockMerchandiseItemService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("merchandise_item", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:    "returns 409 when item is in use",
+			paramID: "5",
+			svc: &mockMerchandiseItemService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapConflict("この物販品目は請求・見積データで使用中のため削除できません")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteMerchandiseItemRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/merchandise-items/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithMerchandiseItemSvc(&mockMerchandiseItemService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.DeleteMerchandiseItem(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- ReorderMerchandiseItems ----
+
+func newReorderMerchandiseItemsRouter(svc service.MerchandiseItemService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithMerchandiseItemSvc(svc)
+	r.PUT("/merchandise-items/reorder", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.ReorderMerchandiseItems)
+	return r
+}
+
+func TestReorderMerchandiseItems(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       any
+		svc        *mockMerchandiseItemService
+		wantStatus int
+	}{
+		{
+			name: "reorders merchandise items successfully",
+			body: map[string]any{"ids": []int{2, 3, 1}},
+			svc: &mockMerchandiseItemService{
+				reorderFn: func(_ context.Context, clinicID uint64, ids []uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, []uint64{2, 3, 1}, ids)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for missing ids field",
+			body:       map[string]any{},
+			svc:        &mockMerchandiseItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newReorderMerchandiseItemsRouter(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPut, "/merchandise-items/reorder", bytes.NewReader(bodyBytes))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithMerchandiseItemSvc(&mockMerchandiseItemService{})
+
+		bodyBytes, err := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader(bodyBytes))
+		c.Request.Header.Set("Content-Type", "application/json")
+		h.ReorderMerchandiseItems(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}

@@ -63,7 +63,7 @@ func (m *mockMedicalRecordService) Delete(ctx context.Context, clinicID, id uint
 func (m *mockMedicalRecordService) CreateSubRecords(_ context.Context, _, _ uint64, _ service.CreateSubRecordsInput) {
 }
 
-func (m *mockMedicalRecordService) AutoCreateFromReservation(_ context.Context, _ uint64, _ *model.Appointment) {
+func (m *mockMedicalRecordService) AutoCreateFromReservation(_ context.Context, _ uint64, _ *model.Reservation) {
 }
 
 // ---- mock ClinicalPlanService ----
@@ -98,10 +98,10 @@ func (m *mockClinicalPlanService) Delete(ctx context.Context, clinicID, medicalR
 // ---- mock InquiryService ----
 
 type mockInquiryService struct {
-	upsertFn func(ctx context.Context, input service.UpsertInquiryInput) (*model.Inquiry, error)
+	upsertFn func(ctx context.Context, input service.SaveInquiryInput) (*model.Inquiry, error)
 }
 
-func (m *mockInquiryService) Upsert(ctx context.Context, input service.UpsertInquiryInput) (*model.Inquiry, error) {
+func (m *mockInquiryService) Save(ctx context.Context, input service.SaveInquiryInput) (*model.Inquiry, error) {
 	if m.upsertFn != nil {
 		return m.upsertFn(ctx, input)
 	}

@@ -1,4 +1,4 @@
-import type { Appointment } from "@/types";
+import type { Reservation } from "@/types";
 import type { Appointment as BackendReservation } from "@/types/generated/models";
 import type { CreateReservationRequest } from "./types";
 
@@ -20,7 +20,7 @@ function extractCustomerFields(raw: unknown): CustomerFieldsJSON {
 
 export const transformReservation = (
   reservation: BackendReservation
-): Appointment => {
+): Reservation => {
   // LINE予約でオーナー未紐付けの場合、customer_fields をフォールバックとして使用
   const cf = extractCustomerFields(reservation.customer_fields);
   const ownerName =
@@ -46,7 +46,7 @@ export const transformReservation = (
     doctor: reservation.doctor?.name ?? "",
     doctorId: reservation.doctor_id ? String(reservation.doctor_id) : undefined,
     isDesignated: reservation.is_designated ?? false,
-    status: (reservation.status as Appointment["status"]) ?? "pending",
+    status: (reservation.status as Reservation["status"]) ?? "pending",
     notes: reservation.notes || undefined,
     petId: reservation.pet_id ? String(reservation.pet_id) : undefined,
     source: (reservation.source as "manual" | "line") ?? "manual",
@@ -54,7 +54,7 @@ export const transformReservation = (
 };
 
 export const transformToCreateRequest = (
-  data: Partial<Appointment>,
+  data: Partial<Reservation>,
   petId: string,
   ownerId: string
 ): CreateReservationRequest => {

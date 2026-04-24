@@ -13,26 +13,32 @@ import (
 
 // mockMerchandiseItemRepository は MerchandiseItemRepository のテスト用モック実装
 type mockMerchandiseItemRepository struct {
-	findAllFn                     func(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error)
+	findAllFn                     func(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error)
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
-	countUsageByMerchandiseItemFn func(ctx context.Context, merchandiseItemID uint64) (int64, error)
+	countUsageByMerchandiseItemFn func(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error)
 	createFn                      func(ctx context.Context, item *model.MerchandiseItem) error
-	updateFn                      func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error)
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-func (m *mockMerchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error) {
-	return m.findAllFn(ctx, clinicID, page, limit, category)
+func (m *mockMerchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
+	if m.findAllFn != nil {
+		return m.findAllFn(ctx, clinicID, category)
+	}
+	return nil, nil
 }
 
 func (m *mockMerchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.MerchandiseItem{ID: id, ClinicID: clinicID}, nil
 }
 
-func (m *mockMerchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Context, merchandiseItemID uint64) (int64, error) {
+func (m *mockMerchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error) {
 	if m.countUsageByMerchandiseItemFn != nil {
-		return m.countUsageByMerchandiseItemFn(ctx, merchandiseItemID)
+		return m.countUsageByMerchandiseItemFn(ctx, clinicID, merchandiseItemID)
 	}
 	return 0, nil
 }
@@ -41,8 +47,11 @@ func (m *mockMerchandiseItemRepository) Create(ctx context.Context, item *model.
 	return m.createFn(ctx, item)
 }
 
-func (m *mockMerchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockMerchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, clinicID, id, fields)
+	}
+	return nil, nil
 }
 
 func (m *mockMerchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -60,6 +69,179 @@ func newTestMerchandiseItemService(repo *mockMerchandiseItemRepository) Merchand
 	return NewMerchandiseItemService(repo)
 }
 
+// ---- Create テスト ----
+
+func TestMerchandiseItemService_Create(t *testing.T) {
+	price100 := int64(100)
+	priceNeg := int64(-1)
+
+	tests := []struct {
+		name    string
+		input   *CreateMerchandiseItemInput
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name: "creates merchandise item successfully",
+			input: &CreateMerchandiseItemInput{
+				Name:      "ドッグフード",
+				Category:  "food",
+				UnitPrice: price100,
+				IsActive:  true,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "applies default tax type and rate when not specified",
+			input: &CreateMerchandiseItemInput{
+				Name:      "デフォルト税率商品",
+				UnitPrice: price100,
+				IsActive:  true,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "returns error when name is empty",
+			input: &CreateMerchandiseItemInput{
+				Name: "",
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error when unit_price is negative",
+			input: &CreateMerchandiseItemInput{
+				Name:      "マイナス商品",
+				UnitPrice: priceNeg,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error on repository failure",
+			input: &CreateMerchandiseItemInput{
+				Name:      "エラー商品",
+				UnitPrice: price100,
+			},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockMerchandiseItemRepository{
+				createFn: func(_ context.Context, _ *model.MerchandiseItem) error {
+					return tt.repoErr
+				},
+			}
+			svc := newTestMerchandiseItemService(repo)
+
+			item, err := svc.Create(context.Background(), 1, tt.input)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, item)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, item)
+			}
+		})
+	}
+}
+
+// ---- Update テスト ----
+
+func TestMerchandiseItemService_Update(t *testing.T) {
+	name := "更新後商品名"
+	isActive := false
+	price200 := int64(200)
+	priceNeg := int64(-1)
+	category := "food"
+
+	tests := []struct {
+		name    string
+		input   *UpdateMerchandiseItemInput
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name: "updates merchandise item successfully",
+			input: &UpdateMerchandiseItemInput{
+				Name:      &name,
+				IsActive:  &isActive,
+				UnitPrice: &price200,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "updates category only",
+			input: &UpdateMerchandiseItemInput{
+				Category: &category,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:    "returns error when no fields provided",
+			input:   &UpdateMerchandiseItemInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error when unit_price is negative",
+			input: &UpdateMerchandiseItemInput{
+				UnitPrice: &priceNeg,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error on repository failure",
+			input: &UpdateMerchandiseItemInput{
+				Name: &name,
+			},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+		{
+			name: "returns not found error when item does not exist",
+			input: &UpdateMerchandiseItemInput{
+				Name: &name,
+			},
+			repoErr: apperrors.WrapNotFound("merchandise_item", "999"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockMerchandiseItemRepository{
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MerchandiseItem, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.MerchandiseItem{ID: 1, ClinicID: 1}, nil
+				},
+			}
+			svc := newTestMerchandiseItemService(repo)
+
+			item, err := svc.Update(context.Background(), 1, 1, tt.input)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, item)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, item)
+			}
+		})
+	}
+}
+
 // ---- Delete テスト ----
 
 func TestMerchandiseItemService_Delete_Success(t *testing.T) {
@@ -68,7 +250,7 @@ func TestMerchandiseItemService_Delete_Success(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
 			return item, nil
 		},
-		countUsageByMerchandiseItemFn: func(_ context.Context, _ uint64) (int64, error) {
+		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
 			return 0, nil
 		},
 		deleteFn: func(_ context.Context, _, _ uint64) error {
@@ -102,7 +284,7 @@ func TestMerchandiseItemService_Delete_ConflictWhenInUse(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
 			return item, nil
 		},
-		countUsageByMerchandiseItemFn: func(_ context.Context, _ uint64) (int64, error) {
+		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
 			return 2, nil // 2件の billing_items から参照
 		},
 	}
@@ -120,7 +302,7 @@ func TestMerchandiseItemService_Delete_CountUsageError(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
 			return item, nil
 		},
-		countUsageByMerchandiseItemFn: func(_ context.Context, _ uint64) (int64, error) {
+		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
 			return 0, errors.New("db connection error")
 		},
 	}
@@ -140,7 +322,7 @@ func TestMerchandiseItemService_Delete_RepositoryError(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
 			return item, nil
 		},
-		countUsageByMerchandiseItemFn: func(_ context.Context, _ uint64) (int64, error) {
+		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
 			return 0, nil
 		},
 		deleteFn: func(_ context.Context, _, _ uint64) error {

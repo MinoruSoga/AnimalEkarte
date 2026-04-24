@@ -26,14 +26,17 @@ func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64
 }
 
 func (m *mockVaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockVaccinationRepository) Create(ctx context.Context, vaccination *model.Vaccination) error {
 	return m.createFn(ctx, vaccination)
 }
 
-func (m *mockVaccinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
+func (m *mockVaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
@@ -246,14 +249,16 @@ func TestVaccinationService_GetByID_NotFound(t *testing.T) {
 func TestVaccinationService_Create(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
-		name        string
-		vaccination *model.Vaccination
-		repoErr     error
-		wantErr     bool
+		name     string
+		clinicID uint64
+		input    *CreateVaccinationInput
+		repoErr  error
+		wantErr  bool
 	}{
 		{
-			name: "creates vaccination successfully",
-			vaccination: &model.Vaccination{
+			name:     "creates vaccination successfully",
+			clinicID: 1,
+			input: &CreateVaccinationInput{
 				MedicalRecordID: ptrUint64(1),
 				VaccineID:       1,
 				Date:            now,
@@ -262,8 +267,16 @@ func TestVaccinationService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "returns error on repository failure",
-			vaccination: &model.Vaccination{
+			name:     "returns error when vaccine_id is zero",
+			clinicID: 1,
+			input:    &CreateVaccinationInput{VaccineID: 0, Date: now},
+			repoErr:  nil,
+			wantErr:  true,
+		},
+		{
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			input: &CreateVaccinationInput{
 				MedicalRecordID: ptrUint64(1),
 				VaccineID:       2,
 				Date:            now,
@@ -282,12 +295,14 @@ func TestVaccinationService_Create(t *testing.T) {
 			}
 			svc := NewVaccinationService(repo)
 
-			err := svc.Create(context.Background(), tt.vaccination)
+			vaccination, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, vaccination)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, vaccination)
 			}
 		})
 	}

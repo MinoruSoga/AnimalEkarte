@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -87,6 +88,7 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/treatments/%d", medicalRecordID, treatment.ID))
 	c.JSON(http.StatusCreated, toTreatmentResponse(treatment))
 }
 
@@ -114,7 +116,7 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 
 	// BUG-372: discount フィールドを変更する場合は既存値と比較し権限チェック
 	if req.DiscountRate != nil || req.DiscountAmount != nil {
-		existing, err := h.repos.Treatment.FindByID(c.Request.Context(), clinicID, treatmentID)
+		existing, err := h.svc.Treatment.GetByID(c.Request.Context(), clinicID, treatmentID)
 		if err != nil {
 			RespondError(c, err)
 			return

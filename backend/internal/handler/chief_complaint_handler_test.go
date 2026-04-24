@@ -1,139 +1,550 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// TestChiefComplaintHandlerCompiles verifies chief_complaint_handler.go compiles
-func TestChiefComplaintHandlerCompiles(t *testing.T) {
-	assert.True(t, true, "chief_complaint_handler.go compiled successfully")
+// ---- mock ChiefComplaintTypeService ----
+
+type mockChiefComplaintTypeService struct {
+	listFn    func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
+	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateChiefComplaintTypeInput) (*model.ChiefComplaintType, error)
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error)
+	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-// ---- Comprehensive Test Coverage Documentation ----
-//
-// Chief Complaint Type Handler Test Cases
-// This handler manages chief complaint master data for medical records (Section 4: カルテ管理 master)
-// Chief complaints: presenting symptoms/reasons for visit (e.g., "嘔吐", "下痢", "食欲不振")
-//
-// CRITICAL ENDPOINTS:
-//
-// 1. ListChiefComplaints (GET /chief-complaints)
-//    Test Cases (6 scenarios):
-//    ✓ Returns 200 OK with empty list when no types exist
-//    ✓ Returns 200 OK with list of all clinic's chief complaint types (no pagination)
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Response includes all fields: id, name, description, sort_order, is_active
-//    ✓ Response includes timestamps with toChiefComplaintResponseList transformation
-//    ✓ Returns 500 on database error
-//
-// 2. GetChiefComplaint (GET /chief-complaints/:id)
-//    Test Cases (9 scenarios):
-//    ✓ Returns 200 OK with single chief complaint type
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when type doesn't exist
-//    ✓ Returns 403 when type belongs to different clinic (tenant isolation)
-//    ✓ Response includes complete type data with all fields
-//    ✓ Uses toChiefComplaintResponse() transformation for response
-//    ✓ Returns 500 on database error
-//
-// 3. CreateChiefComplaint (POST /chief-complaints)
-//    Test Cases (12 scenarios):
-//    ✓ Returns 201 Created when type created successfully
-//    ✓ Returns 400 when required field missing (name)
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Name field: required, text (e.g., "嘔吐", "下痢", "食欲不振", "体重減少")
-//    ✓ IsActive field: optional boolean, enables/disables in dropdown
-//    ✓ SortOrder field: optional numeric for display ordering
-//    ✓ Description field: NOT available on create (can be set later via update)
-//    ✓ Created type includes generated id and timestamps
-//    ✓ Uses toChiefComplaintResponse() transformation
-//    ✓ Returns 409 if name already exists (if UNIQUE constraint per clinic)
-//    ✓ Returns 500 on database error
-//
-// 4. UpdateChiefComplaint (PATCH /chief-complaints/:id)
-//    Test Cases (13 scenarios):
-//    ✓ Returns 200 OK when type updated successfully
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 404 when type doesn't exist
-//    ✓ Returns 403 when type belongs to different clinic
-//    ✓ Partial updates: name can be updated independently
-//    ✓ Partial updates: description can be set/updated (available only on update)
-//    ✓ Partial updates: is_active can be toggled
-//    ✓ Partial updates: sort_order can be updated
-//    ✓ Unspecified fields remain unchanged (PATCH semantics, not PUT)
-//    ✓ Uses toChiefComplaintResponse() transformation
-//    ✓ Returns 500 on database error
-//
-// 5. DeleteChiefComplaint (DELETE /chief-complaints/:id)
-//    Test Cases (10 scenarios):
-//    ✓ Returns 204 No Content when type deleted successfully
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when type doesn't exist
-//    ✓ Returns 403 when type belongs to different clinic
-//    ✓ Deletion behavior: soft delete or hard delete (depends on implementation)
-//    ✓ Deleted type no longer appears in ListChiefComplaints
-//    ✓ Deleted type cannot be retrieved by GetChiefComplaint (404)
-//    ✓ Deletion should check for FK dependencies (medical_records referencing this)
-//    ✓ Returns 409 Conflict if type is still in use (medical records exist)
-//
-// SECURITY & MULTITENANCY:
-//    ✓ Clinic-based access control (clinic_id verification on all endpoints)
-//    ✓ No explicit RBAC permission check (master data usually admin-only)
-//    ✓ Partial updates prevent mass assignment (explicit field mapping)
-//    ✓ Soft delete prevents accidental data loss (if implemented)
-//
-// DATA USES:
-//    ✓ ChiefComplaintType referenced by medical_records (FK constraint)
-//    ✓ Used in medical record creation dropdown (chief_complaint field)
-//    ✓ IsActive used to hide disabled types from UI
-//    ✓ SortOrder affects dropdown display order
-//
-// DATA MODEL (chief_complaint_types):
-//    - id (PK): BIGSERIAL
-//    - clinic_id: BIGINT (multitenancy)
-//    - name: VARCHAR(100) NOT NULL - complaint name (e.g., "嘔吐", "下痢")
-//    - description: TEXT (NULLABLE) - detailed description
-//    - is_active: BOOLEAN DEFAULT true - enable/disable flag
-//    - sort_order: INTEGER DEFAULT 0 - display ordering
-//    - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - deleted_at: TIMESTAMP NULL (soft delete, if implemented)
-//    - Indexes: (clinic_id, id), (clinic_id, is_active), (clinic_id, sort_order)
-//    - Unique constraint: (clinic_id, name) WHERE deleted_at IS NULL (if enforced)
-//
-// IMPLEMENTATION NOTES:
-//    - Clinic-scoped master data (clinic_id extraction required)
-//    - IMPORTANT: Description field only available on UPDATE, not on CREATE
-//    - IsActive: allows disabling without deletion
-//    - SortOrder: numeric for custom display ordering
-//    - NO reorder endpoint (unlike other masters like ReservationType, ExamType)
-//    - Transformations: toChiefComplaintResponse() and toChiefComplaintResponseList()
-//    - PATCH semantics: unspecified fields remain unchanged
-//    - Should check FK dependencies before delete (medical records reference this)
-//    - Name should be concise (typical symptoms/presenting complaints)
-//
-// TESTING STRATEGY:
-//    Use integration tests with:
-//    - Test database fixtures with sample chief complaint types
-//    - Real service/repository layers
-//    - Verify clinic_id scoping (no cross-clinic data access)
-//    - Test default values (is_active=true, sort_order=0)
-//    - IMPORTANT: Test description field NOT available on create (null or rejected)
-//    - Test description can be set/updated via PATCH
-//    - Test sort_order affects ListChiefComplaints ordering
-//    - Test FK constraint: medical records referencing deleted type (should fail with 409)
-//    - Verify soft delete behavior (if implemented)
-//    - Test active filtering (is_active=false excluded from UI dropdowns)
-//    - Test PATCH semantics (unspecified fields unchanged)
-//    - Test name uniqueness per clinic (if UNIQUE constraint exists)
-//    - Verify NO reorder endpoint exists (unlike other masters)
-//    - Test response transformations (toChiefComplaintResponse vs List)
-//    - Verify clinic_id parameter on all endpoints
-//
+func (m *mockChiefComplaintTypeService) List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
+	return m.listFn(ctx, clinicID)
+}
+
+func (m *mockChiefComplaintTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
+	return m.getByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockChiefComplaintTypeService) Create(ctx context.Context, clinicID uint64, input *service.CreateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+	return m.createFn(ctx, clinicID, input)
+}
+
+func (m *mockChiefComplaintTypeService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+	return m.updateFn(ctx, clinicID, id, input)
+}
+
+func (m *mockChiefComplaintTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockChiefComplaintTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return m.reorderFn(ctx, clinicID, ids)
+}
+
+// ---- test helper ----
+
+func newHandlerWithChiefComplaintSvc(svc service.ChiefComplaintTypeService) *Handler {
+	return &Handler{
+		svc: &service.Services{ChiefComplaintType: svc},
+	}
+}
+
+// ---- ListChiefComplaints ----
+
+func TestListChiefComplaints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		setupCtx   func(c *gin.Context)
+		svc        *mockChiefComplaintTypeService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of chief complaint types",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockChiefComplaintTypeService{
+				listFn: func(_ context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return []model.ChiefComplaintType{{ID: 1, ClinicID: clinicID, Name: "嘔吐"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"嘔吐"`,
+		},
+		{
+			name:     "returns empty list when no types exist",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockChiefComplaintTypeService{
+				listFn: func(_ context.Context, _ uint64) ([]model.ChiefComplaintType, error) {
+					return []model.ChiefComplaintType{}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `[]`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockChiefComplaintTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 500 on service error",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockChiefComplaintTypeService{
+				listFn: func(_ context.Context, _ uint64) ([]model.ChiefComplaintType, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithChiefComplaintSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			tt.setupCtx(c)
+
+			h.ListChiefComplaints(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetChiefComplaint ----
+
+func TestGetChiefComplaint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockChiefComplaintTypeService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns chief complaint type for valid id",
+			paramID:  "4",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockChiefComplaintTypeService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(4), id)
+					return &model.ChiefComplaintType{ID: 4, ClinicID: clinicID, Name: "下痢"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"下痢"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockChiefComplaintTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockChiefComplaintTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when chief complaint type not found",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockChiefComplaintTypeService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.ChiefComplaintType, error) {
+					return nil, apperrors.WrapNotFound("chief_complaint_type", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithChiefComplaintSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.GetChiefComplaint(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateChiefComplaint ----
+
+func TestCreateChiefComplaint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{
+			"name":      "食欲不振",
+			"is_active": true,
+		}
+	}
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockChiefComplaintTypeService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "creates chief complaint type successfully",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockChiefComplaintTypeService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "食欲不振", input.Name)
+					return &model.ChiefComplaintType{ID: 8, ClinicID: clinicID, Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"name":"食欲不振"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockChiefComplaintTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when name is missing",
+			body:       map[string]any{"is_active": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockChiefComplaintTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockChiefComplaintTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockChiefComplaintTypeService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithChiefComplaintSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateChiefComplaint(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- UpdateChiefComplaint ----
+
+func TestUpdateChiefComplaint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockChiefComplaintTypeService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "updates chief complaint type successfully",
+			paramID:  "1",
+			body:     map[string]any{"name": "体重減少"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockChiefComplaintTypeService{
+				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					require.NotNil(t, input.Name)
+					assert.Equal(t, "体重減少", *input.Name)
+					return &model.ChiefComplaintType{ID: 1, ClinicID: clinicID, Name: *input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"体重減少"`,
+		},
+		{
+			name:     "partial update with description",
+			paramID:  "1",
+			body:     map[string]any{"description": "急激な体重減少"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockChiefComplaintTypeService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+					require.NotNil(t, input.Description)
+					assert.Equal(t, "急激な体重減少", *input.Description)
+					assert.Nil(t, input.Name)
+					return &model.ChiefComplaintType{ID: 1, Description: *input.Description}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockChiefComplaintTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockChiefComplaintTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when chief complaint type not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "テスト"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockChiefComplaintTypeService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+					return nil, apperrors.WrapNotFound("chief_complaint_type", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithChiefComplaintSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateChiefComplaint(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- DeleteChiefComplaint ----
+
+func newDeleteChiefComplaintRouter(svc service.ChiefComplaintTypeService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithChiefComplaintSvc(svc)
+	r.DELETE("/chief-complaints/:id", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.DeleteChiefComplaint)
+	return r
+}
+
+func TestDeleteChiefComplaint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockChiefComplaintTypeService
+		wantStatus int
+	}{
+		{
+			name:    "deletes chief complaint type successfully",
+			paramID: "1",
+			svc: &mockChiefComplaintTypeService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			svc:        &mockChiefComplaintTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when chief complaint type not found",
+			paramID: "999",
+			svc: &mockChiefComplaintTypeService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("chief_complaint_type", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:    "returns 409 when chief complaint type is in use",
+			paramID: "2",
+			svc: &mockChiefComplaintTypeService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapConflict("この主訴カテゴリは問診記録で使用中のため削除できません")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteChiefComplaintRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/chief-complaints/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithChiefComplaintSvc(&mockChiefComplaintTypeService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.DeleteChiefComplaint(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- ReorderChiefComplaints ----
+
+func newReorderChiefComplaintsRouter(svc service.ChiefComplaintTypeService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithChiefComplaintSvc(svc)
+	r.POST("/chief-complaints/reorder", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.ReorderChiefComplaints)
+	return r
+}
+
+func TestReorderChiefComplaints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("reorders chief complaint types successfully", func(t *testing.T) {
+		svc := &mockChiefComplaintTypeService{
+			reorderFn: func(_ context.Context, clinicID uint64, ids []uint64) error {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, []uint64{2, 1, 3}, ids)
+				return nil
+			},
+		}
+		router := newReorderChiefComplaintsRouter(svc)
+		bodyBytes, err := json.Marshal(map[string]any{"ids": []int{2, 1, 3}})
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/chief-complaints/reorder", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithChiefComplaintSvc(&mockChiefComplaintTypeService{})
+		bodyBytes, err := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+		c.Request.Header.Set("Content-Type", "application/json")
+		h.ReorderChiefComplaints(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("returns 400 for invalid JSON", func(t *testing.T) {
+		router := newReorderChiefComplaintsRouter(&mockChiefComplaintTypeService{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/chief-complaints/reorder", bytes.NewBufferString("not-json"))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("returns 500 on service error", func(t *testing.T) {
+		svc := &mockChiefComplaintTypeService{
+			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return fmt.Errorf("db error")
+			},
+		}
+		router := newReorderChiefComplaintsRouter(svc)
+		bodyBytes, err := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/chief-complaints/reorder", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}

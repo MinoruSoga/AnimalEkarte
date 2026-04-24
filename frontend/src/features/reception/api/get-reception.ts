@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformReservationsToReceptionColumns } from "./transforms";
 import type { Appointment as BackendReceptionReservation } from "@/types/generated/models";
 import type { ReceptionColumn } from "./types";
@@ -36,7 +37,8 @@ export function useGetReception(date: string = todayISO()) {
     // client-swr-dedup: staleTimeをrefetchIntervalより短く設定。
     // staleTime=0（デフォルト）のままではコンポーネント再マウント時に即時再取得が走り
     // ポーリングとは別に重複リクエストが発生する。
-    staleTime: 20_000,
+    staleTime: QUERY_STALE_TIMES.REALTIME,
+    gcTime: QUERY_GC_TIMES.STANDARD,
     // ウィンドウフォーカス時も再取得
     refetchOnWindowFocus: true,
   });

@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 const lineMessagingAPIURL = "https://api.line.me/v2/bot/message/push"
@@ -57,24 +59,24 @@ func (s *LineMessagingService) PushText(ctx context.Context, lineUserID, text st
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("marshal line payload: %w", err)
+		return apperrors.Wrap(err, "marshal line payload")
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, lineMessagingAPIURL, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("create line request: %w", err)
+		return apperrors.Wrap(err, "create line request")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+s.channelToken)
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("send line push: %w", err)
+		return apperrors.Wrap(err, "send line push")
 	}
 	defer resp.Body.Close() //nolint:errcheck // レスポンスボディのクローズ失敗は復旧不可のため無視
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("line push returned status %d", resp.StatusCode)
+		return apperrors.WrapInternalServerError(fmt.Sprintf("line push returned status %d", resp.StatusCode))
 	}
 
 	slog.InfoContext(ctx, "LINE push sent", "to", lineUserID)

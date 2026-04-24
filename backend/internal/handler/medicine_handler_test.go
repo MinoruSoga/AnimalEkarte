@@ -1,181 +1,580 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// TestMedicineHandlerCompiles verifies medicine_handler.go compiles
-func TestMedicineHandlerCompiles(t *testing.T) {
-	assert.True(t, true, "medicine_handler.go compiled successfully")
+// ---- mock MedicineService ----
+
+type mockMedicineService struct {
+	listFn    func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
+	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateMedicineInput) (*model.Medicine, error)
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateMedicineInput) (*model.Medicine, error)
+	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-// ---- Comprehensive Test Coverage Documentation ----
-//
-// Medicine Handler Test Cases
-// This handler manages medicine/medication master data (Section 4: カルテ管理 master)
-// Medicines: drugs/medications prescribed in treatments (e.g., "アモキシシリン", "ドキソルビシン")
-//
-// CRITICAL ENDPOINTS:
-//
-// 1. ListMedicines (GET /medicines)
-//    Test Cases (9 scenarios):
-//    ✓ Returns 200 OK with paginated list of medicines
-//    ✓ Returns 200 OK with empty list when no medicines exist
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Pagination: page and limit parameters (default: page=1, limit=20)
-//    ✓ Returns paginated response with total count
-//    ✓ Response includes all medicine fields with toMedicineResponseList transformation
-//    ✓ Response includes: id, name, price, dosage_form, medicine_unit, parent_id
-//    ✓ Response includes: inventory_id, default_quantity, tax_type, tax_rate, sort_order
-//    ✓ Returns 500 on database error
-//
-// 2. GetMedicine (GET /medicines/:id)
-//    Test Cases (9 scenarios):
-//    ✓ Returns 200 OK with single medicine record
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when medicine doesn't exist
-//    ✓ Returns 403 when medicine belongs to different clinic
-//    ✓ Response includes complete medicine data with all fields
-//    ✓ Uses toMedicineResponse() transformation for response
-//    ✓ Returns 500 on database error
-//
-// 3. CreateMedicine (POST /medicines)
-//    Test Cases (18 scenarios):
-//    ✓ Returns 201 Created when medicine created successfully
-//    ✓ Sets Location header with created medicine ID path
-//    ✓ Returns 400 when required field missing (name)
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Requires ResourceMasterMedical create permission
-//    ✓ Name field: required, text (medicine name, e.g., "アモキシシリン")
-//    ✓ ParentID field: optional FK to parent medicine (hierarchical)
-//    ✓ Price field: optional numeric for billing
-//    ✓ Description field: optional text for details
-//    ✓ DosageForm field: optional text (錠剤, 液剤, 注射液, etc.)
-//    ✓ MedicineUnit field: optional text (mg, ml, 錠, etc.)
-//    ✓ InventoryID field: optional FK to inventory record
-//    ✓ DefaultQuantity field: optional numeric (default dose quantity)
-//    ✓ IsActive field: optional boolean, defaults to true
-//    ✓ SortOrder field: optional numeric for display ordering
-//    ✓ TaxType/TaxRate fields: optional for tax configuration
-//    ✓ Returns 500 on database error
-//
-// 4. UpdateMedicine (PATCH /medicines/:id)
-//    Test Cases (17 scenarios):
-//    ✓ Returns 200 OK when medicine updated successfully
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 404 when medicine doesn't exist
-//    ✓ Returns 403 when medicine belongs to different clinic
-//    ✓ Requires ResourceMasterMedical edit permission
-//    ✓ Partial updates: all fields can be updated independently
-//    ✓ ClearParentID field: special flag to null out parent_id
-//    ✓ Can update: name, price, description, dosage_form, medicine_unit
-//    ✓ Can update: inventory_id, default_quantity, parent_id, sort_order
-//    ✓ Can update: is_active, tax_type, tax_rate
-//    ✓ Unspecified fields remain unchanged (PATCH semantics)
-//    ✓ Uses toMedicineResponse() transformation
-//    ✓ Returns 500 on database error
-//
-// 5. ReorderMedicines (POST /medicines/reorder)
-//    Test Cases (8 scenarios):
-//    ✓ Returns 200 OK with message when reorder succeeds
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Requires ResourceMasterMedical edit permission
-//    ✓ Accepts array of IDs in desired order
-//    ✓ Updates sort_order for all provided IDs
-//    ✓ Partial reorder supported
-//    ✓ Returns 500 on database error
-//
-// 6. DeleteMedicine (DELETE /medicines/:id)
-//    Test Cases (10 scenarios):
-//    ✓ Returns 204 No Content when medicine deleted successfully
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when medicine doesn't exist
-//    ✓ Returns 403 when medicine belongs to different clinic
-//    ✓ Deletion behavior: soft delete or hard delete
-//    ✓ Deleted medicine no longer appears in ListMedicines
-//    ✓ Deleted medicine cannot be retrieved by GetMedicine (404)
-//    ✓ Deletion should check FK dependencies (treatments, inventory records)
-//    ✓ Returns 409 Conflict if medicine is still in use
-//
-// SECURITY & MULTITENANCY:
-//    ✓ Clinic-based access control (clinic_id verification on all endpoints)
-//    ✓ RBAC via ResourceMasterMedical permission (create, edit required)
-//    ✓ Partial updates prevent mass assignment
-//    ✓ Soft delete prevents accidental data loss
-//
-// DATA USES:
-//    ✓ Medicine referenced by treatments (FK constraint)
-//    ✓ Medicine referenced by inventory (FK constraint via inventory_id)
-//    ✓ Price used for billing calculations
-//    ✓ DosageForm/MedicineUnit for dosing information
-//    ✓ DefaultQuantity for prescription templates
-//    ✓ IsActive used to hide inactive medicines from dropdowns
-//
-// DATA MODEL (medicines):
-//    - id (PK): BIGSERIAL
-//    - clinic_id: BIGINT NOT NULL (multitenancy)
-//    - name: VARCHAR(100) NOT NULL - medicine name
-//    - parent_id (FK, NULLABLE): BIGINT → medicines(id) - hierarchical
-//    - price: NUMERIC(10,2) (NULLABLE) - medicine fee
-//    - is_active: BOOLEAN DEFAULT true - enable/disable flag
-//    - description: TEXT (NULLABLE) - medicine details
-//    - dosage_form: VARCHAR(50) (NULLABLE) - 錠剤, 液剤, 注射液, etc.
-//    - medicine_unit: VARCHAR(50) (NULLABLE) - mg, ml, 錠, etc.
-//    - inventory_id: BIGINT (NULLABLE, FK → inventories)
-//    - default_quantity: NUMERIC(10,2) (NULLABLE) - default dose quantity
-//    - sort_order: INTEGER DEFAULT 0 - display ordering
-//    - tax_type: VARCHAR(50) (NULLABLE) - ENUM (included, excluded)
-//    - tax_rate: NUMERIC(5,4) (NULLABLE) - tax rate
-//    - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - deleted_at: TIMESTAMP NULL (soft delete)
-//    - Indexes: (clinic_id, id), (clinic_id, parent_id), (clinic_id, is_active), (clinic_id, sort_order)
-//    - Unique constraint: (clinic_id, name) WHERE deleted_at IS NULL
-//
-// IMPLEMENTATION NOTES:
-//    - Clinic-scoped master data (clinic_id extraction required)
-//    - UNIQUE: Has pagination unlike most master data handlers
-//    - Hierarchical structure via parent_id FK with ClearParentID flag
-//    - Inventory integration: inventory_id FK + medicine_unit + default_quantity
-//    - DosageForm describes pharmaceutical form
-//    - MedicineUnit describes measurement unit
-//    - DefaultQuantity for prescription defaults
-//    - Tax fields for billing tax configuration
-//    - Location header set on create (/v1/masters/medicines/{id})
-//    - Transformations: toMedicineResponse() and toMedicineResponseList()
-//    - PATCH semantics: unspecified fields remain unchanged
-//    - RBAC: ResourceMasterMedical permission required
-//    - ReorderMedicines: returns 200 OK with message
-//
-// TESTING STRATEGY:
-//    Use integration tests with:
-//    - Test database fixtures with sample medicines
-//    - Real service/repository layers
-//    - Verify clinic_id scoping
-//    - Test pagination (page, limit parameters)
-//    - Test default values (is_active=true, sort_order=0)
-//    - Test price numeric validation
-//    - Test parent-child hierarchy
-//    - Test ClearParentID flag
-//    - Test inventory_id FK validation
-//    - Test default_quantity numeric validation
-//    - Test tax_type ENUM validation
-//    - Test sort_order affects ListMedicines ordering
-//    - Test ReorderMedicines updates sort_order
-//    - Test FK constraints (inventory, treatments)
-//    - Test soft delete behavior
-//    - Test active filtering
-//    - Test PATCH semantics
-//    - Test name uniqueness per clinic
-//    - Test Location header on create
-//    - Verify clinic_id parameter on all endpoints
-//    - Test permission checks (ResourceMasterMedical)
-//
+func (m *mockMedicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
+	return m.listFn(ctx, clinicID, page, limit)
+}
+
+func (m *mockMedicineService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
+	return m.getByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockMedicineService) Create(ctx context.Context, clinicID uint64, input *service.CreateMedicineInput) (*model.Medicine, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, input)
+	}
+	return &model.Medicine{}, nil
+}
+
+func (m *mockMedicineService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateMedicineInput) (*model.Medicine, error) {
+	return m.updateFn(ctx, clinicID, id, input)
+}
+
+func (m *mockMedicineService) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockMedicineService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, clinicID, ids)
+	}
+	return nil
+}
+
+// ---- test helper ----
+
+func newHandlerWithMedicineSvc(svc service.MedicineService) *Handler {
+	return &Handler{
+		svc: &service.Services{Medicine: svc},
+	}
+}
+
+// ---- ListMedicines ----
+
+func TestListMedicines(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// TASK-232: ListMedicines は全件返却（page=1, limit=10000固定）。ページネーション引数は無視。
+	// レスポンスは JSON 配列（PaginatedResponse ラッパーなし）。
+	tests := []struct {
+		name       string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        *mockMedicineService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns all medicines as array",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				listFn: func(_ context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, 1, page)
+					assert.Equal(t, medicineListMaxLimit, limit)
+					return []model.Medicine{{ID: 1, Name: "アモキシシリン"}}, 1, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"アモキシシリン"`,
+		},
+		{
+			name:     "returns empty array when no medicines",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				listFn: func(_ context.Context, _ uint64, _, _ int) ([]model.Medicine, int64, error) {
+					return []model.Medicine{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `[]`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			query:      "",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockMedicineService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 500 on service error",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				listFn: func(_ context.Context, _ uint64, _, _ int) ([]model.Medicine, int64, error) {
+					return nil, 0, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithMedicineSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
+			tt.setupCtx(c)
+
+			h.ListMedicines(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetMedicine ----
+
+func TestGetMedicine(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockMedicineService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns medicine for valid id",
+			paramID:  "7",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Medicine, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(7), id)
+					return &model.Medicine{ID: 7, Name: "セファレキシン"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"セファレキシン"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockMedicineService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMedicineService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when medicine not found",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
+					return nil, apperrors.WrapNotFound("medicine", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithMedicineSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.GetMedicine(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateMedicine ----
+
+func TestCreateMedicine(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{
+			"name":      "テスト薬",
+			"is_active": true,
+		}
+	}
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockMedicineService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "creates medicine successfully",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateMedicineInput) (*model.Medicine, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "テスト薬", input.Name)
+					return &model.Medicine{ID: 1, Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"name":"テスト薬"`,
+		},
+		{
+			name:     "creates medicine with optional inventory_id",
+			body:     map[string]any{"name": "在庫連携薬", "inventory_id": 42},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				createFn: func(_ context.Context, _ uint64, input *service.CreateMedicineInput) (*model.Medicine, error) {
+					require.NotNil(t, input.InventoryID)
+					assert.Equal(t, uint64(42), *input.InventoryID)
+					return &model.Medicine{ID: 2, Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockMedicineService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when required name field is missing",
+			body:       map[string]any{"is_active": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMedicineService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateMedicineInput) (*model.Medicine, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithMedicineSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateMedicine(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- UpdateMedicine ----
+
+func TestUpdateMedicine(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockMedicineService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "updates medicine name successfully",
+			paramID:  "1",
+			body:     map[string]any{"name": "更新済み薬"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateMedicineInput) (*model.Medicine, error) {
+					require.NotNil(t, input.Name)
+					assert.Equal(t, "更新済み薬", *input.Name)
+					return &model.Medicine{ID: 1, Name: *input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"更新済み薬"`,
+		},
+		{
+			name:     "updates medicine with inventory_id link",
+			paramID:  "1",
+			body:     map[string]any{"inventory_id": 10},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateMedicineInput) (*model.Medicine, error) {
+					require.NotNil(t, input.InventoryID)
+					assert.Equal(t, uint64(10), *input.InventoryID)
+					return &model.Medicine{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockMedicineService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMedicineService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when medicine not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "テスト"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateMedicineInput) (*model.Medicine, error) {
+					return nil, apperrors.WrapNotFound("medicine", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 400 for empty update body (BUG-397)",
+			paramID:  "1",
+			body:     map[string]any{},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateMedicineInput) (*model.Medicine, error) {
+					return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithMedicineSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateMedicine(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- DeleteMedicine ----
+
+func newDeleteMedicineRouter(svc service.MedicineService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithMedicineSvc(svc)
+	r.DELETE("/medicines/:id", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.DeleteMedicine)
+	return r
+}
+
+func TestDeleteMedicine(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockMedicineService
+		wantStatus int
+	}{
+		{
+			name:    "deletes medicine successfully",
+			paramID: "1",
+			svc: &mockMedicineService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			svc:        &mockMedicineService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when medicine not found",
+			paramID: "999",
+			svc: &mockMedicineService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("medicine", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:    "returns 409 when medicine category has children",
+			paramID: "5",
+			svc: &mockMedicineService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapConflict("このカテゴリには3件の薬剤が含まれています。先に薬剤を移動または削除してください")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteMedicineRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/medicines/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithMedicineSvc(&mockMedicineService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.DeleteMedicine(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- ReorderMedicines ----
+
+func newReorderMedicinesRouter(svc service.MedicineService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithMedicineSvc(svc)
+	r.PUT("/medicines/reorder", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.ReorderMedicines)
+	return r
+}
+
+func TestReorderMedicines(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       any
+		svc        *mockMedicineService
+		wantStatus int
+	}{
+		{
+			name: "reorders medicines successfully",
+			body: map[string]any{"ids": []int{3, 1, 2}},
+			svc: &mockMedicineService{
+				reorderFn: func(_ context.Context, clinicID uint64, ids []uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, []uint64{3, 1, 2}, ids)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for missing ids field",
+			body:       map[string]any{},
+			svc:        &mockMedicineService{},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newReorderMedicinesRouter(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPut, "/medicines/reorder", bytes.NewReader(bodyBytes))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithMedicineSvc(&mockMedicineService{})
+
+		bodyBytes, err := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader(bodyBytes))
+		c.Request.Header.Set("Content-Type", "application/json")
+		h.ReorderMedicines(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}

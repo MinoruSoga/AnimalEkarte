@@ -13,12 +13,13 @@ import (
 
 // mockInsuranceRepository は InsuranceRepository のテスト用モック実装
 type mockInsuranceRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
-	createFn       func(ctx context.Context, insurance *model.Insurance) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
-	reorderErr     error
+	findAllFn                 func(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
+	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
+	createFn                  func(ctx context.Context, insurance *model.Insurance) error
+	updateFn                  func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
+	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
+	reorderErr                error
+	countUsageByInsuranceIDFn func(ctx context.Context, clinicID, insuranceID uint64) (int64, error)
 }
 
 func (m *mockInsuranceRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Insurance, error) {
@@ -33,8 +34,8 @@ func (m *mockInsuranceRepository) Create(ctx context.Context, insurance *model.I
 	return m.createFn(ctx, insurance)
 }
 
-func (m *mockInsuranceRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockInsuranceRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
+	return m.updateFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockInsuranceRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -45,7 +46,10 @@ func (m *mockInsuranceRepository) Reorder(_ context.Context, _ uint64, _ []uint6
 	return m.reorderErr
 }
 
-func (m *mockInsuranceRepository) CountPetsByInsuranceID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockInsuranceRepository) CountUsageByInsuranceID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	if m.countUsageByInsuranceIDFn != nil {
+		return m.countUsageByInsuranceIDFn(ctx, clinicID, id)
+	}
 	return 0, nil
 }
 
@@ -168,27 +172,59 @@ func TestInsuranceService_GetByID(t *testing.T) {
 }
 
 func TestInsuranceService_Create(t *testing.T) {
-	coverageRate := 70
+	rate70 := 70
+	rateNeg := -1
+	rate101 := 101
 	tests := []struct {
-		name      string
-		insurance *model.Insurance
-		repoErr   error
-		wantErr   bool
+		name    string
+		input   *CreateInsuranceInput
+		repoErr error
+		wantErr bool
 	}{
 		{
 			name: "creates insurance successfully",
-			insurance: &model.Insurance{
+			input: &CreateInsuranceInput{
 				Name:         "新規保険",
 				IsActive:     true,
-				CoverageRate: coverageRate,
+				CoverageRate: &rate70,
 				ContactPhone: "03-1234-5678",
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
+			name: "creates insurance successfully when coverage_rate is nil (default 0)",
+			input: &CreateInsuranceInput{
+				Name:         "デフォルト保険",
+				IsActive:     true,
+				CoverageRate: nil,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "returns error when coverage_rate is negative (BUG-398)",
+			input: &CreateInsuranceInput{
+				Name:         "負数保険",
+				IsActive:     true,
+				CoverageRate: &rateNeg,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error when coverage_rate exceeds 100 (BUG-398)",
+			input: &CreateInsuranceInput{
+				Name:         "超過保険",
+				IsActive:     true,
+				CoverageRate: &rate101,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
 			name: "returns error when insurance already exists",
-			insurance: &model.Insurance{
+			input: &CreateInsuranceInput{
 				Name:     "既存保険",
 				IsActive: true,
 			},
@@ -197,7 +233,7 @@ func TestInsuranceService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			insurance: &model.Insurance{
+			input: &CreateInsuranceInput{
 				Name:     "エラー保険",
 				IsActive: true,
 			},
@@ -215,12 +251,14 @@ func TestInsuranceService_Create(t *testing.T) {
 			}
 			svc := NewInsuranceService(repo)
 
-			err := svc.Create(context.Background(), tt.insurance)
+			insurance, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, insurance)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, insurance)
 			}
 		})
 	}
@@ -230,6 +268,8 @@ func TestInsuranceService_Update(t *testing.T) {
 	name := "更新後保険"
 	isActive := true
 	coverageRate := 80
+	rateNeg := -5
+	rate200 := 200
 	tests := []struct {
 		name    string
 		input   UpdateInsuranceInput
@@ -253,6 +293,22 @@ func TestInsuranceService_Update(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "returns error when coverage_rate is negative (BUG-398)",
+			input: UpdateInsuranceInput{
+				CoverageRate: &rateNeg,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error when coverage_rate exceeds 100 (BUG-398)",
+			input: UpdateInsuranceInput{
+				CoverageRate: &rate200,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
 			name: "returns error on repository failure",
 			input: UpdateInsuranceInput{
 				Name: &name,
@@ -265,7 +321,10 @@ func TestInsuranceService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInsuranceRepository{
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Insurance, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Insurance, error) {
+					return &model.Insurance{ID: 1, ClinicID: 1}, nil
+				},
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Insurance, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
@@ -274,7 +333,7 @@ func TestInsuranceService_Update(t *testing.T) {
 			}
 			svc := NewInsuranceService(repo)
 
-			insurance, err := svc.Update(context.Background(), 1, 1, tt.input)
+			insurance, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -285,6 +344,14 @@ func TestInsuranceService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInsuranceService_Update_NilInput(t *testing.T) {
+	repo := &mockInsuranceRepository{}
+	svc := NewInsuranceService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
 
 func TestInsuranceService_Reorder(t *testing.T) {
@@ -326,11 +393,14 @@ func TestInsuranceService_Reorder(t *testing.T) {
 
 func TestInsuranceService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name         string
+		id           uint64
+		petCount     int64
+		countErr     error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
 			name:    "deletes insurance successfully",
@@ -351,12 +421,31 @@ func TestInsuranceService_Delete(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name:         "使用中の保険は削除できない",
+			id:           2,
+			petCount:     2,
+			wantErr:      true,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInsuranceRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Insurance, error) {
+					if tt.wantNF {
+						return nil, tt.repoErr
+					}
+					return &model.Insurance{ID: id}, nil
+				},
+				countUsageByInsuranceIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.petCount, tt.countErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
+					if tt.wantNF {
+						return nil
+					}
 					return tt.repoErr
 				},
 			}
@@ -368,6 +457,9 @@ func TestInsuranceService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

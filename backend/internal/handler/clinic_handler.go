@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -26,7 +27,7 @@ func (h *Handler) ListClinics(c *gin.Context) {
 			RespondError(c, err)
 			return
 		}
-		c.JSON(http.StatusOK, clinics)
+		c.JSON(http.StatusOK, mapSlice(clinics, toClinicResponse))
 		return
 	}
 
@@ -40,7 +41,7 @@ func (h *Handler) ListClinics(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, clinics)
+	c.JSON(http.StatusOK, mapSlice(clinics, toClinicResponse))
 }
 
 // hasPermission はユーザーの実効権限を確認する。
@@ -59,11 +60,12 @@ func (h *Handler) hasPermission(c *gin.Context, resource, action string) bool {
 	if !ok {
 		return false
 	}
-	rules, err := h.repos.PermissionGroup.GetEffectivePermissionsByStaffID(c.Request.Context(), staffID)
+	rules, err := h.svc.EffectivePermission.GetEffectivePermissions(c.Request.Context(), staffID)
 	if err != nil {
 		return false
 	}
-	for _, rule := range rules {
+	for i := range rules {
+		rule := &rules[i]
 		if rule.Resource != resource {
 			continue
 		}
@@ -107,7 +109,7 @@ func (h *Handler) GetClinic(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, clinic)
+	c.JSON(http.StatusOK, toClinicResponse(clinic))
 }
 
 // UpdateClinic godoc
@@ -168,7 +170,7 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	clinic := &model.Clinic{
+	result, err := h.svc.Clinic.CreateClinic(c.Request.Context(), &service.CreateClinicInput{
 		Name:               req.Name,
 		PostalCode:         req.PostalCode,
 		Address:            req.Address,
@@ -178,14 +180,13 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 		DirectorName:       req.DirectorName,
 		Email:              req.Email,
 		Website:            req.Website,
-		IsActive:           true,
-	}
-	result, err := h.svc.Clinic.CreateClinic(c.Request.Context(), clinic)
+	})
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	c.Header("Location", fmt.Sprintf("/api/v1/clinics/%d", result.ID))
+	c.JSON(http.StatusCreated, toClinicResponse(result))
 }
 
 // DeleteClinic godoc

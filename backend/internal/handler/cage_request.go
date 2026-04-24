@@ -3,8 +3,8 @@ package handler
 
 type createCageRequest struct {
 	Name        string `json:"name"        binding:"required"`
-	CageType    string `json:"cage_type"   binding:"required"`
-	CageSize    string `json:"cage_size"   binding:"required"`
+	CageType    string `json:"cage_type"   binding:"required,oneof=icu dog cat general"`
+	CageSize    string `json:"cage_size"   binding:"required,oneof=small medium large"`
 	Price       *int64 `json:"price"`
 	IsActive    bool   `json:"is_active"`
 	Description string `json:"description"`
@@ -13,15 +13,10 @@ type createCageRequest struct {
 
 type updateCageRequest struct {
 	Name        *string `json:"name"`
-	CageType    *string `json:"cage_type"`
-	CageSize    *string `json:"cage_size"`
+	CageType    *string `json:"cage_type"    binding:"omitempty,oneof=icu dog cat general"`
+	CageSize    *string `json:"cage_size"    binding:"omitempty,oneof=small medium large"`
 	Price       *int64  `json:"price"`
 	IsActive    *bool   `json:"is_active"`
 	Description *string `json:"description"`
 	SortOrder   *int    `json:"sort_order"`
-}
-
-// reorderCageRequest はケージ並び替えのバインド struct
-type reorderCageRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
 }

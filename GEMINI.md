@@ -26,11 +26,11 @@ You operate as a senior software engineer. Adhere to the **"Flat Thinking"** pri
 ## 🔧 Operational Rules
 
 ### ⚠️ Execution Mandate: Use Docker
-**Never run npm or go commands locally.** Always use Docker Compose.
+**Never run pnpm or go commands locally.** Always use Docker Compose.
 
 ```bash
 # Correct execution
-docker compose exec frontend npm run <command>
+docker compose exec frontend pnpm <command>
 docker compose exec backend go test ./...
 ```
 

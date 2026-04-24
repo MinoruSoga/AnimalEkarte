@@ -68,4 +68,4 @@
 
 ## Testing Commands
 - **Backend**: `docker compose exec backend go test ./...`
-- **Frontend**: `docker compose exec frontend npm run test:run`
+- **Frontend**: `docker compose exec frontend pnpm test:run`

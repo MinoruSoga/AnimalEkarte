@@ -9,6 +9,8 @@ import type {
   Reservation,
   CreateReservationBody,
   CreateReservationResponse,
+  TrimmingCourse,
+  TrimmingOption,
 } from '../types/models';
 import { API_BASE_URL } from '../lib/liff-config';
 
@@ -35,6 +37,20 @@ export const liffApi = {
 
   getCourses: async (clinicId: string, idToken: string): Promise<Course[]> => {
     const res = await httpClient.get<Course[]>(`/api/liff/${clinicId}/courses`, {
+      headers: authHeaders(idToken),
+    });
+    return res.data;
+  },
+
+  getTrimmingCourses: async (clinicId: string, idToken: string): Promise<TrimmingCourse[]> => {
+    const res = await httpClient.get<TrimmingCourse[]>(`/api/liff/${clinicId}/trimming-courses`, {
+      headers: authHeaders(idToken),
+    });
+    return res.data;
+  },
+
+  getTrimmingOptions: async (clinicId: string, idToken: string): Promise<TrimmingOption[]> => {
+    const res = await httpClient.get<TrimmingOption[]>(`/api/liff/${clinicId}/trimming-options`, {
       headers: authHeaders(idToken),
     });
     return res.data;

@@ -1,6 +1,3 @@
-// Types
-export type { LineReservationSetting, LineCustomer, ReservationSetting } from "./api/types";
-
 // Components
 export { LinkedLineCustomers } from "./components/LinkedLineCustomers";
 

@@ -10,34 +10,35 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow, StatusToggleButton, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, STYLE, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
-import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "../constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
-import { useMasterSave } from "@/features/master/hooks/use-master-save";
-import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { usePermission } from "@/hooks/use-permission";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import {
   useGetStaffs,
   useCreateStaff,
   useUpdateStaff,
   useDeleteStaff,
   useGetStaffPermissionGroups,
-  useSetStaffPermissionGroups,
+  useUpdateStaffPermissionGroups,
   useGetStaffClinics,
-  useSetStaffClinics,
+  useUpdateStaffClinics,
   useGetClinicsList,
   useGetAllStaffPermissionGroupMap,
   useGetStaffExcludedReservationTypes,
-  useSetStaffExcludedReservationTypes,
-} from "@/features/master/api/staffs";
-import type { Staff, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
+  useUpdateStaffExcludedReservationTypes,
+} from "../api/staffs";
+import type { Staff, CreateStaffRequest, UpdateStaffRequest } from "../api/staffs";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
-import { useGetPermissionGroups } from "@/features/master/api/permission-groups";
-import type { PermissionGroup } from "@/features/master/api/permission-groups";
-import type { ClinicSummary } from "@/features/master/api/staffs";
-import { useGetAllOccupations } from "@/features/master/api/occupations";
-import { useGetReservationTypes } from "@/features/master/api/reservation-types";
-import type { ReservationType } from "@/features/master/api/reservation-types";
-import type { Occupation } from "@/features/master/api/occupations";
+import { useGetPermissionGroups } from "../api/permission-groups";
+import type { PermissionGroup } from "../api/permission-groups";
+import type { ClinicSummary } from "../api/staffs";
+import { useGetAllOccupations } from "../api/occupations";
+import { useGetReservationTypes } from "../api/reservation-types";
+import type { ReservationType } from "../api/reservation-types";
+import type { Occupation } from "../api/occupations";
 import { ResourceMasterStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -536,6 +537,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
 // ─────────────────────────────────────────────────
 
 export function StaffSettings() {
+  usePermission(ResourceMasterStaff);
+
   const { data } = useGetStaffs();
   const createMutation = useCreateStaff();
   const updateMutation = useUpdateStaff();
@@ -558,11 +561,11 @@ export function StaffSettings() {
   const allClinics = useMemo(() => allClinicsData ?? [], [allClinicsData]);
 
   // Group / Clinic / Excluded mutation
-  const setGroupsMutation = useSetStaffPermissionGroups();
+  const setGroupsMutation = useUpdateStaffPermissionGroups();
   const { mutate: setGroupsFn } = setGroupsMutation;
-  const setClinicsMutation = useSetStaffClinics();
+  const setClinicsMutation = useUpdateStaffClinics();
   const { mutate: setClinicsFn } = setClinicsMutation;
-  const setExcludedMutation = useSetStaffExcludedReservationTypes();
+  const setExcludedMutation = useUpdateStaffExcludedReservationTypes();
   const { mutate: setExcludedFn } = setExcludedMutation;
 
   // スタッフ全員の権限グループIDマップ（テーブル表示用）
@@ -711,7 +714,7 @@ export function StaffSettings() {
                     {visibleGroups.map((g) => (
                       <span
                         key={g.id}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[3px] text-xs"
+                        className={`inline-flex items-center gap-1 ${LAYOUT.inputCompact} text-xs`}
                         style={{
                           backgroundColor: g.color ? `${g.color}18` : `${PALETTE.primary}0f`,
                           color: g.color ?? PALETTE.primary,

@@ -3,8 +3,8 @@ package handler
 // createStaffRequest はスタッフ登録リクエスト。
 type createStaffRequest struct {
 	Name          string  `json:"name"           binding:"required"`
-	Email         string  `json:"email"`
-	Password      string  `json:"password"`
+	Email         string  `json:"email"     binding:"omitempty,email"`
+	Password      string  `json:"password"  binding:"omitempty,min=8"`
 	LicenseNumber string  `json:"license_number"`
 	OccupationID  *uint64 `json:"occupation_id"`
 	SortOrder     int     `json:"sort_order"`
@@ -24,7 +24,7 @@ type updateStaffRequest struct {
 	OccupationID  *uint64 `json:"occupation_id"`
 	SortOrder     *int    `json:"sort_order"`
 	IsActive      *bool   `json:"is_active"`
-	Password      *string `json:"password"`
+	Password      *string `json:"password" binding:"omitempty,min=8"`
 
 	// LINE予約用フィールド
 	StaffType              *string `json:"staff_type"`
@@ -34,7 +34,17 @@ type updateStaffRequest struct {
 	ReservationImageURL    *string `json:"reservation_image_url"`
 }
 
-// reorderStaffRequest はスタッフ並び替えリクエスト。
-type reorderStaffRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
+// setStaffPermissionGroupsRequest は権限グループ割当リクエスト。
+type setStaffPermissionGroupsRequest struct {
+	GroupIDs []uint64 `json:"group_ids"`
+}
+
+// setStaffClinicAssignmentsRequest はクリニック割当リクエスト。
+type setStaffClinicAssignmentsRequest struct {
+	ClinicIDs []uint64 `json:"clinic_ids"`
+}
+
+// setStaffExcludedReservationTypesRequest は除外予約種別リクエスト。
+type setStaffExcludedReservationTypesRequest struct {
+	ReservationTypeIDs []uint64 `json:"reservation_type_ids"`
 }

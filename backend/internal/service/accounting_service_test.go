@@ -26,18 +26,21 @@ func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64,
 }
 
 func (m *mockAccountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockAccountingRepository) Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
 	return m.createFn(ctx, clinicID, accounting)
 }
 
-func (m *mockAccountingRepository) UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
+func (m *mockAccountingRepository) Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
 	return m.updateFieldsFn(ctx, clinicID, billingID, fields)
 }
 
-func (m *mockAccountingRepository) UpsertPayment(_ context.Context, _ *model.Payment) error {
+func (m *mockAccountingRepository) SavePayment(_ context.Context, _ *model.Payment) error {
 	return nil
 }
 
@@ -48,6 +51,22 @@ func (m *mockAccountingRepository) FindUnpaidByBilling(_ context.Context, _ uint
 
 func (m *mockAccountingRepository) FindUnpaidByOwner(_ context.Context, _ uint64, _ string, _, _ int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
 	return nil, 0, repository.UnpaidSummary{}, nil
+}
+
+func (m *mockAccountingRepository) GetDailySummary(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
+	return &repository.DailySummaryResult{PaymentTotals: []repository.PaymentMethodTotal{}, CategoryTotals: []repository.CategoryTotal{}}, nil
+}
+
+// FEAT-368: 集計・締め機能 mock スタブ
+func (m *mockAccountingRepository) GetCloseAggregate(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+	return &repository.CloseAggregateResult{
+		AggregateRows:  []repository.BillingAggregateRow{},
+		BillingDetails: []repository.CloseBillingDetail{},
+	}, nil
+}
+
+func (m *mockAccountingRepository) GetMonthlyReport(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
+	return &repository.MonthlyReportResult{Rows: []repository.MonthlyReportRow{}}, nil
 }
 
 func ptrString(v string) *string { return &v }
@@ -449,7 +468,7 @@ func TestAccountingService_Cancel(t *testing.T) {
 			wantNF:      true,
 		},
 		{
-			name:           "異常: UpdateFields 失敗時はエラー伝播",
+			name:           "異常: Update 失敗時はエラー伝播",
 			clinicID:       1,
 			id:             10,
 			findByIDResult: &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusWaiting},

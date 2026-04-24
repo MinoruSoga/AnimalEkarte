@@ -22,11 +22,11 @@ type mockDailyRecordRepository struct {
 	createStaffNoteFn                func(ctx context.Context, sn *model.StaffNote) error
 }
 
-func (m *mockDailyRecordRepository) ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
+func (m *mockDailyRecordRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
 	return m.listByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
 }
 
-func (m *mockDailyRecordRepository) GetOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+func (m *mockDailyRecordRepository) FindOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
 	return m.getOrCreateByDateFn(ctx, clinicID, hospitalizationID, date)
 }
 
@@ -108,7 +108,7 @@ func TestDailyRecordService_List(t *testing.T) {
 	}
 }
 
-func TestDailyRecordService_GetOrCreateByDate(t *testing.T) {
+func TestDailyRecordService_FindOrCreateByDate(t *testing.T) {
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 
 	tests := []struct {
@@ -153,7 +153,7 @@ func TestDailyRecordService_GetOrCreateByDate(t *testing.T) {
 			}
 			svc := NewDailyRecordService(repo)
 
-			record, err := svc.GetOrCreateByDate(context.Background(), uint64(1), tt.hospitalizationID, tt.date)
+			record, err := svc.FindOrCreateByDate(context.Background(), uint64(1), tt.hospitalizationID, tt.date)
 
 			if tt.wantErr {
 				assert.Error(t, err)

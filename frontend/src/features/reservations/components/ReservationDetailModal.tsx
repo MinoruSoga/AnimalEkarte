@@ -9,21 +9,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
-import type { Appointment, ReservationStatus } from "../types";
+import type { Reservation, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import { useReservationTypeColorMap } from "@/features/master";
+import { useReservationTypeColorMap } from "@/hooks/use-reservation-type-color-map";
 import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/utils/constants/status-colors";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEdit?: (appointment: Appointment) => void;
-  onDelete?: (appointment: Appointment) => void;
-  onCreateRecord?: (appointment: Appointment) => void;
-  onStatusChange?: (appointment: Appointment, status: ReservationStatus) => void;
-  appointment: Appointment | null;
+  onEdit?: (reservation: Reservation) => void;
+  onDelete?: (reservation: Reservation) => void;
+  onCreateRecord?: (reservation: Reservation) => void;
+  onStatusChange?: (reservation: Reservation, status: ReservationStatus) => void;
+  reservation: Reservation | null;
 }
 
 // STATUS_OPTIONS は RESERVATION_STATUS_COLORS に集約済み（status-colors.ts）
@@ -73,15 +73,15 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
   onDelete,
   onCreateRecord,
   onStatusChange,
-  appointment,
+  reservation,
 }: ReservationDetailModalProps) {
   const { getColor } = useReservationTypeColorMap();
 
-  if (!appointment) return null;
+  if (!reservation) return null;
 
-  const actionConfig = ACTION_CONFIG_MAP[appointment.type] ?? DEFAULT_ACTION_CONFIG;
-  const visitAccent = getVisitTypeColor(appointment.visitType);
-  const currentStatus = getReservationStatusColor(appointment.status);
+  const actionConfig = ACTION_CONFIG_MAP[reservation.type] ?? DEFAULT_ACTION_CONFIG;
+  const visitAccent = getVisitTypeColor(reservation.visitType);
+  const currentStatus = getReservationStatusColor(reservation.status);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -93,10 +93,10 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           <div className="flex items-center gap-2.5">
             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm ${visitAccent.bg} ${visitAccent.text} ${visitAccent.border} border`}>
               <span className={`${ICON.dotSm} rounded-full ${visitAccent.dot}`} />
-              {appointment.visitType === "first" ? "初診" : "再診"}
+              {reservation.visitType === "first" ? "初診" : "再診"}
             </div>
             <DialogTitle className={`text-sm ${C.text}`}>
-              {getReservationTypeName(appointment.type)}
+              {getReservationTypeName(reservation.type)}
             </DialogTitle>
           </div>
           <DialogDescription className="sr-only">
@@ -111,12 +111,12 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               <div className="flex items-center gap-2 text-sm">
                 {/* BUG-323: Status Dot Icon Token 使用統一 */}
                 <span className={`${ICON.dot} rounded-full ${currentStatus.dot}`} />
-                <span>{getReservationStatusLabel(appointment.status)}</span>
+                <span>{getReservationStatusLabel(reservation.status)}</span>
               </div>
               <Select
-                value={appointment.status}
+                value={reservation.status}
                 onValueChange={typedSetter(
-                  (val: ReservationStatus) => onStatusChange(appointment, val),
+                  (val: ReservationStatus) => onStatusChange(reservation, val),
                   [...RESERVATION_STATUS_VALUES]
                 )}
               >
@@ -138,11 +138,11 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               </div>
               <div className="flex-1">
                 <div className={`text-sm ${C.text}`}>
-                  {format(appointment.start, "yyyy年 M月 d日 (E)", { locale: ja })}
+                  {format(reservation.start, "yyyy年 M月 d日 (E)", { locale: ja })}
                 </div>
                 <div className={`flex items-center gap-1.5 text-sm ${C.text60} mt-0.5`}>
                   <Clock className={ICON.xs} />
-                  {format(appointment.start, "H:mm")} – {format(appointment.end, "H:mm")}
+                  {format(reservation.start, "H:mm")} – {format(reservation.end, "H:mm")}
                 </div>
               </div>
             </div>
@@ -157,18 +157,18 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="ペット名">
                 <span className="font-medium">
-                  {appointment.petName}
-                  {appointment.petType ? (
-                    <span className={`ml-1.5 text-xs ${C.text50}`}>({appointment.petType})</span>
+                  {reservation.petName}
+                  {reservation.petType ? (
+                    <span className={`ml-1.5 text-xs ${C.text50}`}>({reservation.petType})</span>
                   ) : null}
                 </span>
               </InfoRow>
               <InfoRow label="飼い主名">
-                {appointment.ownerName}
+                {reservation.ownerName}
               </InfoRow>
-              {appointment.petId ? (
+              {reservation.petId ? (
                 <InfoRow label="カルテNo.">
-                  <span className={`font-mono ${C.text70}`}>{appointment.petId}</span>
+                  <span className={`font-mono ${C.text70}`}>{reservation.petId}</span>
                 </InfoRow>
               ) : null}
             </div>
@@ -183,8 +183,8 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="担当医">
                 <div className="flex items-center gap-1.5">
-                  {appointment.doctor}
-                  {appointment.isDesignated ? (
+                  {reservation.doctor}
+                  {reservation.isDesignated ? (
                     <Badge variant="outline" className={`text-[11px] h-5 px-1.5 ${C.bgNotice} ${C.textNotice} ${C.borderNotice}`}>
                       指名
                     </Badge>
@@ -194,22 +194,22 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               <InfoRow label="予約区分">
                 <div className="flex items-center gap-1.5">
                   {/* BUG-323: Status Dot Icon Token 使用統一 */}
-                  <span className={`${ICON.dot} rounded-full shrink-0`} style={appointment ? getColor(appointment.type).dotStyle : undefined} />
+                  <span className={`${ICON.dot} rounded-full shrink-0`} style={reservation ? getColor(reservation.type).dotStyle : undefined} />
                   <Tag className={`${ICON.xs} ${C.text40}`} />
-                  {getReservationTypeName(appointment.type)}
+                  {getReservationTypeName(reservation.type)}
                 </div>
               </InfoRow>
             </div>
           </div>
 
           {/* Notes */}
-          {appointment.notes ? (
+          {reservation.notes ? (
             <div className={`rounded-lg border ${C.borderNotice50} ${C.bgNotice40} p-3`}>
               <div className={`flex items-center gap-1.5 text-sm ${C.textNotice} mb-1.5`}>
                 <FileText className={`${ICON.xs}`} />
                 <span>メモ</span>
               </div>
-              <p className={`text-sm ${C.text80} whitespace-pre-wrap leading-relaxed`}>{appointment.notes}</p>
+              <p className={`text-sm ${C.text80} whitespace-pre-wrap leading-relaxed`}>{reservation.notes}</p>
             </div>
           ) : null}
         </div>
@@ -217,7 +217,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
         <DialogFooter className={`px-5 py-3 ${C.bgSubtle} flex flex-row items-center border-t ${C.borderDivider}`}>
           <div className="flex-1">
             {onDelete ? (
-              <DeleteIconButton onClick={() => onDelete(appointment)} />
+              <DeleteIconButton onClick={() => onDelete(reservation)} />
             ) : null}
           </div>
           <div className="flex gap-2">
@@ -225,7 +225,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onEdit(appointment)}
+                onClick={() => onEdit(reservation)}
                 className={`h-9 text-sm gap-1.5 ${C.borderMedium} bg-white ${C.text} ${C.hoverBgPage}`}
               >
                 <Pencil className={`${ICON.xs}`} />
@@ -236,7 +236,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               <Button
                 size="sm"
                 className={`${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} h-9 text-sm gap-1.5 shadow-sm`}
-                onClick={() => onCreateRecord(appointment)}
+                onClick={() => onCreateRecord(reservation)}
               >
                 <actionConfig.Icon className={ICON.action} />
                 {actionConfig.label}

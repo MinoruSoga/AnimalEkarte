@@ -11,6 +11,8 @@ import type {
   ReorderTreatmentRequest,
 } from "@/types/treatment";
 
+const PROCEDURES_QUERY_KEY = ["masters", "procedures"] as const;
+
 export type { ProcedureItem };
 
 export const getAllProcedures = async (): Promise<ProcedureItem[]> => {
@@ -20,7 +22,7 @@ export const getAllProcedures = async (): Promise<ProcedureItem[]> => {
 
 export const useGetAllProcedures = () =>
   useQuery({
-    queryKey: ["masters", "procedures"],
+    queryKey: PROCEDURES_QUERY_KEY,
     queryFn: getAllProcedures,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -33,7 +35,7 @@ export const useCreateProcedure = () => {
       const { data } = await axios.post<Procedure>("/v1/masters/procedures", req);
       return transformProcedure(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "procedures"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: PROCEDURES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -51,7 +53,7 @@ export const useUpdateProcedure = () => {
       const { data } = await axios.patch<Procedure>(`/v1/masters/procedures/${id}`, req);
       return transformProcedure(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "procedures"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: PROCEDURES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -60,7 +62,7 @@ export const useDeleteProcedure = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/procedures/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "procedures"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: PROCEDURES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -70,7 +72,7 @@ export const useReorderProcedures = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/procedures/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "procedures"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: PROCEDURES_QUERY_KEY }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };

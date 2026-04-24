@@ -1,146 +1,421 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestReservationStaffHandlerCompiles verifies reservation_staff_handler.go compiles
 func TestReservationStaffHandlerCompiles(t *testing.T) {
-	assert.True(t, true, "reservation_staff_handler.go compiled successfully")
+	// Retained for backwards compatibility. Real tests follow.
+	_ = t
 }
 
-// ---- Comprehensive Test Coverage Documentation ----
-//
-// Reservation Staff Handler Test Cases
-// This handler manages staff assignments to reservation schedules (Section 2: 予約管理 - staff assignment)
-// ReservationStaff: assignment of staff members to specific reservation timeslots
-//
-// CRITICAL ENDPOINTS:
-//
-// 1. ListReservationStaff (GET /reservation-schedules/:schedule_id/staff)
-//    Test Cases (8 scenarios):
-//    ✓ Returns 200 OK with list of staff assigned to schedule
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when schedule_id is non-numeric or invalid
-//    ✓ Returns 404 when schedule doesn't exist
-//    ✓ Returns 403 when schedule belongs to different clinic (tenant isolation)
-//    ✓ Response includes: staff_id, staff_name, occupation, max_appointments_per_slot
-//    ✓ Response sorted by staff_name or priority
-//    ✓ Returns 500 on database error
-//
-// 2. GetReservationStaffAssignment (GET /reservation-schedules/:schedule_id/staff/:staff_id)
-//    Test Cases (9 scenarios):
-//    ✓ Returns 200 OK with single staff assignment record
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when ids are non-numeric or invalid format
-//    ✓ Returns 404 when schedule or staff doesn't exist
-//    ✓ Returns 403 when schedule belongs to different clinic
-//    ✓ Response includes complete assignment data
-//    ✓ Response includes staff details and schedule details
-//    ✓ Response includes availability flags (is_available, unavailable_dates)
-//    ✓ Returns 500 on database error
-//
-// 3. AssignStaffToSchedule (POST /reservation-schedules/:schedule_id/staff)
-//    Test Cases (16 scenarios):
-//    ✓ Returns 201 Created when staff assigned successfully
-//    ✓ Returns 400 when required field missing (staff_id)
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when schedule_id is non-numeric or invalid
-//    ✓ Returns 404 when schedule doesn't exist
-//    ✓ Returns 404 when staff doesn't exist (FK validation)
-//    ✓ Returns 403 when schedule or staff belongs to different clinic
-//    ✓ Requires ResourceSetting or ResourceMasterData create permission
-//    ✓ StaffID field: required, FK to staffs
-//    ✓ MaxAppointmentsPerSlot field: optional numeric, defaults to 1
-//    ✓ IsAvailable field: optional boolean, defaults to true
-//    ✓ UnavailableDates field: optional array (dates staff unavailable)
-//    ✓ Created assignment includes generated id and timestamps
-//    ✓ Prevents duplicate staff assignments (unique constraint)
-//    ✓ Returns 500 on database error
-//
-// 4. UpdateReservationStaffAssignment (PATCH /reservation-schedules/:schedule_id/staff/:staff_id)
-//    Test Cases (14 scenarios):
-//    ✓ Returns 200 OK when assignment updated successfully
-//    ✓ Returns 400 when ids are non-numeric or invalid format
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 404 when schedule or assignment doesn't exist
-//    ✓ Returns 403 when schedule belongs to different clinic
-//    ✓ Requires ResourceSetting or ResourceMasterData edit permission
-//    ✓ Partial updates: max_appointments_per_slot can be updated
-//    ✓ Partial updates: is_available can be toggled (on/off)
-//    ✓ Partial updates: unavailable_dates can be updated or cleared
-//    ✓ Cannot update: schedule_id, staff_id (immutable)
-//    ✓ Unspecified fields remain unchanged (PATCH semantics)
-//    ✓ Updates mark staff as unavailable on specific dates
-//    ✓ Returns 500 on database error
-//
-// 5. RemoveStaffFromSchedule (DELETE /reservation-schedules/:schedule_id/staff/:staff_id)
-//    Test Cases (10 scenarios):
-//    ✓ Returns 204 No Content when staff removed successfully
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when ids are non-numeric or invalid format
-//    ✓ Returns 404 when schedule or assignment doesn't exist
-//    ✓ Returns 403 when schedule belongs to different clinic
-//    ✓ Requires ResourceSetting or ResourceMasterData delete permission
-//    ✓ Deletion behavior: soft delete or hard delete
-//    ✓ Deleted assignment no longer appears in ListReservationStaff
-//    ✓ Deletion checks for future reservations (may prevent deletion)
-//    ✓ Returns 500 on database error
-//
-// SECURITY & MULTITENANCY:
-//    ✓ Clinic-based access control via schedule isolation
-//    ✓ RBAC: ResourceSetting or ResourceMasterData permission (all operations)
-//    ✓ FK validation: staff_id must exist and belong to same clinic
-//    ✓ Soft delete prevents accidental data loss
-//    ✓ Partial updates prevent mass assignment
-//
-// DATA USES:
-//    ✓ Staff availability for specific schedules
-//    ✓ Prevents overbooking staff (max_appointments_per_slot)
-//    ✓ Handles staff unavailable dates
-//    ✓ Supports staff scheduling and load balancing
-//    ✓ Used by reservation calendar to show staff availability
-//
-// DATA MODEL (reservation_staff):
-//    - id (PK): BIGSERIAL
-//    - reservation_schedule_id: BIGINT NOT NULL (FK → reservation_schedules)
-//    - clinic_id: BIGINT NOT NULL (multitenancy)
-//    - staff_id: BIGINT NOT NULL (FK → staffs)
-//    - max_appointments_per_slot: INTEGER DEFAULT 1
-//    - is_available: BOOLEAN DEFAULT true
-//    - unavailable_dates: TEXT (NULLABLE) - JSON array of dates (YYYY-MM-DD)
-//    - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - deleted_at: TIMESTAMP NULL (soft delete)
-//    - Indexes: (reservation_schedule_id, staff_id), (clinic_id, id)
-//    - Unique constraint: (reservation_schedule_id, staff_id) WHERE deleted_at IS NULL
-//
-// IMPLEMENTATION NOTES:
-//    - Nested resource: staff assignments under reservation_schedules
-//    - NO standalone list endpoint (only via parent schedule)
-//    - Max appointments per slot: load balancing
-//    - Unavailable dates: JSON array for flexibility
-//    - Soft delete: preserves assignment history
-//    - RBAC: ResourceSetting or ResourceMasterData permission
-//
-// TESTING STRATEGY:
-//    Use integration tests with:
-//    - Test database fixtures with sample schedules and staff
-//    - Real service/repository layers
-//    - Verify clinic_id scoping
-//    - Test ListReservationStaff with filtering
-//    - Test GetReservationStaffAssignment with valid assignment
-//    - Test AssignStaffToSchedule with all fields
-//    - Test staff_id FK validation
-//    - Test max_appointments_per_slot validation
-//    - Test UpdateReservationStaffAssignment with availability toggle
-//    - Test UpdateReservationStaffAssignment with unavailable dates
-//    - Test UpdateReservationStaffAssignment PATCH semantics
-//    - Test RemoveStaffFromSchedule soft delete
-//    - Test permission checks
-//    - Test duplicate prevention
-//
+// ---- mock ReservationStaffService ----
+
+type mockReservationStaffService struct {
+	listFn                   func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
+	getByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
+	createFn                 func(ctx context.Context, clinicID uint64, input *service.CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
+	updateFn                 func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
+	patchStatusFn            func(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error)
+	patchSortOrderFn         func(ctx context.Context, clinicID, id uint64, direction string) error
+	getExcludedFn            func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
+	listExcludedByStaffIDsFn func(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
+}
+
+func (m *mockReservationStaffService) List(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, clinicID)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationStaffService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationStaffService) Create(ctx context.Context, clinicID uint64, input *service.CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, input)
+	}
+	return nil, nil, nil
+}
+
+func (m *mockReservationStaffService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, input)
+	}
+	return nil, nil, nil
+}
+
+func (m *mockReservationStaffService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (m *mockReservationStaffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error) {
+	if m.patchStatusFn != nil {
+		return m.patchStatusFn(ctx, clinicID, id, isActive)
+	}
+	return nil, nil, nil
+}
+
+func (m *mockReservationStaffService) PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
+	if m.patchSortOrderFn != nil {
+		return m.patchSortOrderFn(ctx, clinicID, id, direction)
+	}
+	return nil
+}
+
+func (m *mockReservationStaffService) GetExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+	if m.getExcludedFn != nil {
+		return m.getExcludedFn(ctx, staffID)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationStaffService) ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
+	if m.listExcludedByStaffIDsFn != nil {
+		return m.listExcludedByStaffIDsFn(ctx, staffIDs)
+	}
+	return map[uint64][]model.StaffReservationExclusion{}, nil
+}
+
+// ---- test helper ----
+
+func newHandlerWithReservationStaffSvc(svc service.ReservationStaffService) *Handler {
+	return &Handler{
+		svc: &service.Services{
+			ReservationStaff: svc,
+		},
+	}
+}
+
+// ---- ListReservationStaffs ----
+
+func TestListReservationStaffs_ReturnsOK(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationStaffService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns 200 with reservation staff list",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationStaffService{
+				listFn: func(_ context.Context, clinicID uint64) ([]model.Staff, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return []model.Staff{{ID: 5, Name: "予約スタッフA", StaffType: model.StaffTypeDoctor}}, nil
+				},
+				listExcludedByStaffIDsFn: func(_ context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
+					return map[uint64][]model.StaffReservationExclusion{}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"予約スタッフA"`,
+		},
+		{
+			name:     "returns 200 with empty list when no reservation staff",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationStaffService{
+				listFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+					return []model.Staff{}, nil
+				},
+				listExcludedByStaffIDsFn: func(_ context.Context, _ []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
+					return map[uint64][]model.StaffReservationExclusion{}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `[]`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 500 on service error",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationStaffService{
+				listFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationStaffSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			tt.setupCtx(c)
+
+			h.ListReservationStaffs(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateReservationStaff ----
+
+func TestCreateReservationStaff_Valid_Returns201(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationStaffService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name: "creates reservation staff successfully returns 201",
+			body: map[string]any{
+				"name":                "新予約スタッフ",
+				"staff_type":          "doctor",
+				"reservation_visible": true,
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationStaffService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "新予約スタッフ", input.Name)
+					return &model.Staff{ID: 30, Name: input.Name, StaffType: model.StaffTypeDoctor}, nil, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"name":"新予約スタッフ"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     map[string]any{"name": "エラースタッフ"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationStaffService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+					return nil, nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationStaffSvc(tt.svc)
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateReservationStaff(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- DeleteReservationStaff ----
+
+func newDeleteReservationStaffRouter(svc service.ReservationStaffService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithReservationStaffSvc(svc)
+	r.DELETE("/reservation-staffs/:staffId", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.DeleteReservationStaff)
+	return r
+}
+
+func TestDeleteReservationStaff_NotFound_Returns404(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockReservationStaffService
+		wantStatus int
+	}{
+		{
+			name:    "deletes reservation staff successfully returns 204",
+			paramID: "1",
+			svc: &mockReservationStaffService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:    "returns 404 when reservation staff not found",
+			paramID: "999",
+			svc: &mockReservationStaffService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("staff", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteReservationStaffRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/reservation-staffs/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithReservationStaffSvc(&mockReservationStaffService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "staffId", Value: "1"}}
+		h.DeleteReservationStaff(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- UpdateReservationStaff ----
+
+func TestUpdateReservationStaff(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	nameVal := "更新スタッフ名"
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationStaffService
+		wantStatus int
+	}{
+		{
+			name:     "updates reservation staff successfully returns 200",
+			paramID:  "3",
+			body:     map[string]any{"name": nameVal},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationStaffService{
+				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(3), id)
+					require.NotNil(t, input.Name)
+					assert.Equal(t, nameVal, *input.Name)
+					return &model.Staff{ID: 3, Name: *input.Name}, nil, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "3",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 404 when reservation staff not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "テスト"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationStaffService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+					return nil, nil, apperrors.WrapNotFound("staff", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationStaffSvc(tt.svc)
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "staffId", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateReservationStaff(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}

@@ -32,6 +32,14 @@ const (
 
 	// BUG-372: 割引フィールド専用権限（飼主/治療/入院/見積/会計の全割引フィールドを保護）
 	ResourceDiscount Resource = "discount"
+
+	// FEAT-368: 集計・締め
+	ResourceCashRegisterClose Resource = "cash-register-close" // レジ締め実行・履歴
+	ResourceAccountingReports Resource = "accounting-reports"  // 月次売上集計（経理向け）
+	ResourceClosingSettings   Resource = "closing-settings"    // 締め時間設定（管理者向け）
+
+	// 支払方法マスタ
+	ResourcePaymentMethod Resource = "master-payment-method"
 )
 
 // AllResources は全リソース一覧（is_system_admin=true 全権限バイパス用）
@@ -60,6 +68,10 @@ var AllResources = []Resource{
 	ResourceMasterInsurance,
 	ResourceMasterMerchandise,
 	ResourceDiscount,
+	ResourceCashRegisterClose,
+	ResourceAccountingReports,
+	ResourceClosingSettings,
+	ResourcePaymentMethod,
 }
 
 // IsValidResource は指定されたリソース名が有効かどうかを判定する（BUG-146）

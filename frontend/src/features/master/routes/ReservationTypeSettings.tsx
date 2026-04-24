@@ -1,12 +1,12 @@
-import { useState, useCallback, useRef, useEffect, useMemo, useTransition, useDeferredValue, Fragment } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Activity, ChevronDown, Pencil, Plus } from "lucide-react";
-import { toast } from "sonner";
-import { handleApiError } from "@/lib/handle-api-error";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
 import { TableCell } from "@/components/ui/table";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -15,11 +15,10 @@ import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
-import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
+import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { ResourceMasterReservationType } from "@/types/generated/models";
 import {
   useGetReservationTypes,
@@ -27,16 +26,16 @@ import {
   useUpdateReservationType,
   useDeleteReservationType,
   useReorderReservationTypes,
-} from "@/features/master/api/reservation-types";
-import type { ReservationType } from "@/features/master/api/reservation-types";
+} from "../api/reservation-types";
+import type { ReservationType } from "../api/reservation-types";
 import {
   useGetReservationTypeGroups,
   useCreateReservationTypeGroup,
   useUpdateReservationTypeGroup,
   useDeleteReservationTypeGroup,
-} from "@/features/master/api/reservation-type-groups";
-import type { ReservationTypeGroup } from "@/features/master/api/reservation-type-groups";
-import type { CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest } from "@/features/master/api/reservation-type-groups";
+} from "../api/reservation-type-groups";
+import type { ReservationTypeGroup } from "../api/reservation-type-groups";
+import type { CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest } from "../api/reservation-type-groups";
 import type { CreateReservationTypeRequest, UpdateReservationTypeRequest } from "@/types/reservation-type";
 import { GroupSidePanel } from "./ReservationTypeGroupSidePanel";
 import type { GroupFormData } from "./ReservationTypeGroupSidePanel";
@@ -68,7 +67,7 @@ function GroupedTable({
 
   const handleReorder = useCallback((newIds: string[]) => {
     reorderMutation.mutate({ ids: newIds.map(Number) }, {
-      onError: (error: unknown) => { resetOrderRef.current(); handleApiError(error, "並び替え"); },
+      onError: () => { resetOrderRef.current(); },
     });
   }, [reorderMutation]);
 
@@ -107,7 +106,7 @@ function GroupedTable({
     <DndContext sensors={sensors} collisionDetection={closestCenter}
       onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
       <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-        <div className={`rounded-[4px] border ${C.borderLight} overflow-hidden bg-white`}>
+        <div className={`rounded-[4px] border ${C.borderLight} overflow-hidden ${C.bgWhite}`}>
           <table className="w-full border-collapse">
             <thead>
               <tr className={STYLE.tableHeaderRow}>
@@ -144,12 +143,12 @@ function GroupedTable({
                             <div className="ml-auto flex items-center gap-1">
                               <button type="button" onClick={() => onGroupEdit(group)}
                                 className={`flex items-center gap-1 text-xs ${C.text45}
-                                  px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-colors`}>
+                                  ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}>
                                 <Pencil className={ICON.action} />編集
                               </button>
                               <button type="button" onClick={() => onCategoryAddInGroup(group.id)}
                                 className={`flex items-center gap-1 text-xs ${C.text45}
-                                  px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-colors`}>
+                                  ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}>
                                 <Plus className={ICON.action} />追加
                               </button>
                             </div>
@@ -205,7 +204,7 @@ function GroupedTable({
                         {canEdit ? (
                           <button type="button" onClick={() => onCategoryAddInGroup(undefined)}
                             className={`ml-auto flex items-center gap-1 text-xs ${C.text45}
-                              px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-colors`}>
+                              ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}>
                             <Plus className={ICON.action} />追加
                           </button>
                         ) : null}
@@ -257,33 +256,9 @@ export function ReservationTypeSettings() {
     [groupsRaw],
   );
 
-  // 検索・フィルタ
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const deferredSearch = useDeferredValue(searchTerm);
-
   const filteredCategories = useMemo(() => {
-    let items = categoriesRaw;
-    for (const f of activeFilters) {
-      if (f.key === "status" && typeof f.value === "string") {
-        const want = f.value === "active";
-        items = items.filter((i) => (f.condition === "is" ? i.isActive === want : i.isActive !== want));
-      }
-    }
-    if (deferredSearch) {
-      const lower = deferredSearch.toLowerCase();
-      items = items.filter((i) => i.name.toLowerCase().includes(lower));
-    }
-    return items;
-  }, [categoriesRaw, activeFilters, deferredSearch]);
-
-  // 編集・削除ターゲット
-  const [groupEditTarget, setGroupEditTarget] = useState<ReservationTypeGroup | "new" | null>(null);
-  const [groupPendingDelete, setGroupPendingDelete] = useState<ReservationTypeGroup | null>(null);
-  const [categoryEditTarget, setCategoryEditTarget] = useState<ReservationType | "new" | null>(null);
-  const [categoryDefaultGroupId, setCategoryDefaultGroupId] = useState<string | undefined>(undefined);
-  const [categoryPendingDelete, setCategoryPendingDelete] = useState<ReservationType | null>(null);
-  const [, startTransition] = useTransition();
+    return categoriesRaw;
+  }, [categoriesRaw]);
 
   // ミューテーション
   const createGroupMutation = useCreateReservationTypeGroup();
@@ -297,127 +272,116 @@ export function ReservationTypeSettings() {
   const dirty = useSidePeekDirty();
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
-  // ── ハンドラ ─────────────────────────────────────────────────
+  // ── FR1: useMasterCRUD hooks (groups & categories) ────────────
+  const groupCrud = useMasterCRUD<ReservationTypeGroup>({
+    data: groupsRaw,
+    deleteMutation: deleteGroupMutation,
+    entityLabel: "予約区分グループ",
+    dirtyGuard: dirty,
+  });
+
+  const categoryCrud = useMasterCRUD<ReservationType>({
+    data: filteredCategories,
+    deleteMutation: deleteCategoryMutation,
+    entityLabel: "予約区分",
+    dirtyGuard: dirty,
+    searchFilter: (item, term) => item.name.toLowerCase().includes(term.toLowerCase()),
+    activeFilterApply: (item, filters) => {
+      for (const f of filters) {
+        if (f.key === "status" && typeof f.value === "string") {
+          const want = f.value === "active";
+          if (f.condition === "is" ? item.isActive !== want : item.isActive === want) return false;
+        }
+      }
+      return true;
+    },
+  });
+
+  // ── Additional state: categoryDefaultGroupId (creation context) ───
+  const [categoryDefaultGroupId, setCategoryDefaultGroupId] = useState<string | undefined>(undefined);
+
+  // ── FR2: useMasterSave hooks ───────────────────────────────────
+  const groupSave = useMasterSave<ReservationTypeGroup, GroupFormData, CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest>({
+    crud: groupCrud,
+    createMutation: createGroupMutation,
+    updateMutation: updateGroupMutation,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data) => ({
+      name: data.name,
+      color: data.color || undefined,
+      is_active: data.isActive,
+    }),
+    toUpdateRequest: (data) => ({
+      name: data.name,
+      color: data.color || undefined,
+      is_active: data.isActive,
+    }),
+  });
+
+  const categorySave = useMasterSave<ReservationType, CategoryFormData, CreateReservationTypeRequest, UpdateReservationTypeRequest>({
+    crud: categoryCrud,
+    createMutation: createCategoryMutation,
+    updateMutation: updateCategoryMutation,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data) => ({
+      name: data.name,
+      description: data.description || undefined,
+      is_active: true,
+      group_id: data.groupId ? Number(data.groupId) : undefined,
+      reservation_display_name: data.reservationDisplayName || undefined,
+      duration_minutes: data.durationMinutes,
+      short_name: data.shortName || undefined,
+      reservation_visible: data.reservationVisible,
+      reservation_comment: data.reservationComment || undefined,
+      reservation_image_url: data.reservationImageUrl || undefined,
+      show_short_name: data.showShortName,
+      reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
+      is_internal: data.isInternal,
+    }),
+    toUpdateRequest: (data) => ({
+      name: data.name,
+      description: data.description || undefined,
+      is_active: data.isActive,
+      group_id: data.groupId ? Number(data.groupId) : undefined,
+      reservation_display_name: data.reservationDisplayName || undefined,
+      duration_minutes: data.durationMinutes,
+      short_name: data.shortName || undefined,
+      reservation_visible: data.reservationVisible,
+      reservation_comment: data.reservationComment || undefined,
+      reservation_image_url: data.reservationImageUrl || undefined,
+      show_short_name: data.showShortName,
+      reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
+      is_internal: data.isInternal,
+    }),
+  });
+
+  // ── Handler wrappers ───────────────────────────────────────────
   const handleGroupEdit = useCallback((group: ReservationTypeGroup) => {
-    if (!dirty.confirmDiscard()) return;
-    setGroupEditTarget(group);
-    setCategoryEditTarget(null);
-  }, [dirty]);
+    groupCrud.handleEdit(group);
+  }, [groupCrud]);
 
   const handleGroupAdd = useCallback(() => {
-    if (!dirty.confirmDiscard()) return;
-    setGroupEditTarget("new");
-    setCategoryEditTarget(null);
-  }, [dirty]);
+    groupCrud.handleNew();
+  }, [groupCrud]);
 
   const handleGroupDeleteRequest = useCallback((item: ReservationTypeGroup) => {
-    setGroupPendingDelete(item);
-  }, []);
+    groupCrud.handleDeleteRequest(item);
+  }, [groupCrud]);
 
   const handleCategoryEdit = useCallback((cat: ReservationType) => {
-    if (!dirty.confirmDiscard()) return;
-    setCategoryEditTarget(cat);
-    setGroupEditTarget(null);
+    categoryCrud.handleEdit(cat);
     setCategoryDefaultGroupId(undefined);
-  }, [dirty]);
+  }, [categoryCrud]);
 
   const handleCategoryAddInGroup = useCallback((groupId: string | undefined) => {
-    if (!dirty.confirmDiscard()) return;
-    setCategoryEditTarget("new");
+    categoryCrud.handleNew();
     setCategoryDefaultGroupId(groupId);
-    setGroupEditTarget(null);
-  }, [dirty]);
+  }, [categoryCrud]);
 
   const handleCategoryDeleteRequest = useCallback((item: ReservationType) => {
-    setCategoryPendingDelete(item);
-  }, []);
+    categoryCrud.handleDeleteRequest(item);
+  }, [categoryCrud]);
 
-  // ── グループ保存 ─────────────────────────────────────────────
-  const handleGroupSave = useCallback((data: GroupFormData) => {
-    startTransition(() => {
-      if (groupEditTarget !== null && groupEditTarget !== "new") {
-        const req: UpdateReservationTypeGroupRequest = {
-          name: data.name, color: data.color || undefined, is_active: data.isActive,
-        };
-        updateGroupMutation.mutate({ id: groupEditTarget.id, req }, {
-          onSuccess: () => { toast.success("更新しました"); setGroupEditTarget(null); },
-          onError: (error) => handleApiError(error, "更新"),
-        });
-      } else {
-        const req: CreateReservationTypeGroupRequest = {
-          name: data.name, color: data.color || undefined, is_active: data.isActive,
-        };
-        createGroupMutation.mutate(req, {
-          onSuccess: () => { toast.success("登録しました"); setGroupEditTarget(null); },
-          onError: (error) => handleApiError(error, "登録"),
-        });
-      }
-    });
-  }, [groupEditTarget, updateGroupMutation, createGroupMutation]);
-
-  const handleGroupDeleteConfirm = useCallback(() => {
-    if (!groupPendingDelete) return;
-    startTransition(() => {
-      deleteGroupMutation.mutate(groupPendingDelete.id, {
-        onSuccess: () => { toast.success("削除しました"); setGroupPendingDelete(null); },
-        onError: (error) => handleApiError(error, "削除"),
-      });
-    });
-  }, [groupPendingDelete, deleteGroupMutation]);
-
-  // ── 予約区分保存 ─────────────────────────────────────────────
-  const handleCategorySave = useCallback((data: CategoryFormData) => {
-    startTransition(() => {
-      if (categoryEditTarget !== null && categoryEditTarget !== "new") {
-        const req: UpdateReservationTypeRequest = {
-          name: data.name, description: data.description || undefined,
-          is_active: data.isActive, group_id: data.groupId ? Number(data.groupId) : undefined,
-          reservation_display_name: data.reservationDisplayName || undefined,
-          duration_minutes: data.durationMinutes, short_name: data.shortName || undefined,
-          reservation_visible: data.reservationVisible,
-          reservation_comment: data.reservationComment || undefined,
-          reservation_image_url: data.reservationImageUrl || undefined,
-          show_short_name: data.showShortName,
-          reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
-          is_internal: data.isInternal,
-        };
-        updateCategoryMutation.mutate({ id: categoryEditTarget.id, req }, {
-          onSuccess: () => { toast.success("更新しました"); setCategoryEditTarget(null); },
-          onError: (error) => handleApiError(error, "更新"),
-        });
-      } else {
-        const req: CreateReservationTypeRequest = {
-          name: data.name, description: data.description || undefined,
-          is_active: true, group_id: data.groupId ? Number(data.groupId) : undefined,
-          reservation_display_name: data.reservationDisplayName || undefined,
-          duration_minutes: data.durationMinutes, short_name: data.shortName || undefined,
-          reservation_visible: data.reservationVisible,
-          reservation_comment: data.reservationComment || undefined,
-          reservation_image_url: data.reservationImageUrl || undefined,
-          show_short_name: data.showShortName,
-          reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
-          is_internal: data.isInternal,
-        };
-        createCategoryMutation.mutate(req, {
-          onSuccess: () => { toast.success("登録しました"); setCategoryEditTarget(null); },
-          onError: (error) => handleApiError(error, "登録"),
-        });
-      }
-    });
-  }, [categoryEditTarget, updateCategoryMutation, createCategoryMutation]);
-
-  const handleCategoryDeleteConfirm = useCallback(() => {
-    if (!categoryPendingDelete) return;
-    startTransition(() => {
-      deleteCategoryMutation.mutate(categoryPendingDelete.id, {
-        onSuccess: () => { toast.success("削除しました"); setCategoryPendingDelete(null); },
-        onError: (error) => handleApiError(error, "削除"),
-      });
-    });
-  }, [categoryPendingDelete, deleteCategoryMutation]);
-
-  const groupPanelItem = groupEditTarget === "new" ? null : (groupEditTarget ?? null);
-  const categoryPanelItem = categoryEditTarget === "new" ? null : (categoryEditTarget ?? null);
 
   return (
     <>
@@ -441,16 +405,16 @@ export function ReservationTypeSettings() {
             <div className="flex flex-col gap-4">
               <NotionFilter
                 properties={[MASTER_STATUS_FILTER]}
-                activeFilters={activeFilters}
-                onFilterChange={setActiveFilters}
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
+                activeFilters={categoryCrud.activeFilters}
+                onFilterChange={categoryCrud.setActiveFilters}
+                searchTerm={categoryCrud.searchTerm}
+                onSearchChange={categoryCrud.setSearchTerm}
                 searchPlaceholder="予約区分名で検索..."
-                count={filteredCategories.length}
+                count={categoryCrud.filteredItems.length}
               />
               <GroupedTable
                 groups={groupsRaw}
-                categories={filteredCategories}
+                categories={categoryCrud.filteredItems}
                 onCategoryEdit={handleCategoryEdit}
                 onGroupEdit={handleGroupEdit}
                 onCategoryAddInGroup={handleCategoryAddInGroup}
@@ -468,29 +432,23 @@ export function ReservationTypeSettings() {
           </PageLayout>
         </div>
 
-        {groupEditTarget !== null ? (
+        {groupCrud.editTarget !== null ? (
           <GroupSidePanel
-            key={groupPanelItem ? String(groupPanelItem.id) : "new-group"}
-            item={groupPanelItem}
-            onClose={() => {
-              if (!dirty.confirmDiscard()) return;
-              setGroupEditTarget(null);
-            }}
-            onSave={handleGroupSave}
+            key={groupCrud.panelItem ? String(groupCrud.panelItem.id) : "new-group"}
+            item={groupCrud.panelItem}
+            onClose={groupCrud.handleClose}
+            onSave={groupSave.handleSave}
             onDeleteRequest={canDelete ? handleGroupDeleteRequest : undefined}
             readOnly={!canEdit}
             onDirtyChange={handleDirtyChange}
           />
         ) : null}
-        {categoryEditTarget !== null ? (
+        {categoryCrud.editTarget !== null ? (
           <CategorySidePanel
-            key={categoryPanelItem ? String(categoryPanelItem.id) : "new-category"}
-            item={categoryPanelItem}
-            onClose={() => {
-              if (!dirty.confirmDiscard()) return;
-              setCategoryEditTarget(null);
-            }}
-            onSave={handleCategorySave}
+            key={categoryCrud.panelItem ? String(categoryCrud.panelItem.id) : "new-category"}
+            item={categoryCrud.panelItem}
+            onClose={categoryCrud.handleClose}
+            onSave={categorySave.handleSave}
             onDeleteRequest={canDelete ? handleCategoryDeleteRequest : undefined}
             readOnly={!canEdit}
             groups={activeGroups}
@@ -501,20 +459,20 @@ export function ReservationTypeSettings() {
       </div>
 
       <ConfirmDialog
-        open={groupPendingDelete !== null}
-        onClose={() => setGroupPendingDelete(null)}
+        open={groupCrud.pendingDelete !== null}
+        onClose={groupCrud.handleDeleteCancel}
         title="グループを削除しますか？"
-        description={`「${groupPendingDelete?.name}」を削除します。この操作は取り消せません。`}
+        description={`「${groupCrud.pendingDelete?.name}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除" variant="destructive"
-        onConfirm={handleGroupDeleteConfirm}
+        onConfirm={groupCrud.handleDeleteConfirm}
       />
       <ConfirmDialog
-        open={categoryPendingDelete !== null}
-        onClose={() => setCategoryPendingDelete(null)}
+        open={categoryCrud.pendingDelete !== null}
+        onClose={categoryCrud.handleDeleteCancel}
         title="予約区分を削除しますか？"
-        description={`「${categoryPendingDelete?.name}」を削除します。この操作は取り消せません。`}
+        description={`「${categoryCrud.pendingDelete?.name}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除" variant="destructive"
-        onConfirm={handleCategoryDeleteConfirm}
+        onConfirm={categoryCrud.handleDeleteConfirm}
       />
     </>
   );

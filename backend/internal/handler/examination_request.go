@@ -11,7 +11,7 @@ type createExaminationRequest struct {
 	Date            time.Time `json:"date"              binding:"required"`
 	ResultSummary   string    `json:"result_summary"`
 	Machine         string    `json:"machine"`
-	Status          string    `json:"status"`
+	Status          string    `json:"status"             binding:"omitempty,oneof=pending in_progress result_entered completed confirmed"`
 }
 
 // updateExaminationRequest は検査更新のバインド struct
@@ -23,5 +23,5 @@ type updateExaminationRequest struct {
 	Date            *time.Time `json:"date"`
 	ResultSummary   *string    `json:"result_summary"`
 	Machine         *string    `json:"machine"`
-	Status          *string    `json:"status"`
+	Status          *string    `json:"status"             binding:"omitempty,oneof=pending in_progress result_entered completed confirmed"`
 }

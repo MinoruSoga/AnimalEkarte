@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -55,7 +56,7 @@ func (h *Handler) GetDailyRecord(c *gin.Context) {
 		return
 	}
 
-	record, err := h.svc.DailyRecord.GetOrCreateByDate(c.Request.Context(), clinicID, hospitalizationID, date)
+	record, err := h.svc.DailyRecord.FindOrCreateByDate(c.Request.Context(), clinicID, hospitalizationID, date)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -89,11 +90,12 @@ func (h *Handler) CreateDailyRecord(c *gin.Context) {
 		return
 	}
 
-	record, err := h.svc.DailyRecord.GetOrCreateByDate(c.Request.Context(), clinicID, hospitalizationID, date)
+	record, err := h.svc.DailyRecord.FindOrCreateByDate(c.Request.Context(), clinicID, hospitalizationID, date)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", record.HospitalizationID, record.Date.Format("2006-01-02")))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 
@@ -143,6 +145,7 @@ func (h *Handler) AddVitalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.Format("2006-01-02")))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 
@@ -191,6 +194,7 @@ func (h *Handler) AddCareLog(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.Format("2006-01-02")))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 
@@ -236,6 +240,7 @@ func (h *Handler) AddStaffNote(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.Format("2006-01-02")))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 

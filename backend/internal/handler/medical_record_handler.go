@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -60,7 +61,9 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(toMedicalRecordResponseList(records), total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(records, func(r *model.MedicalRecord) medicalRecordResponse {
+		return toMedicalRecordResponseWithVisitCount(r, 0)
+	}), total, page, limit))
 }
 
 // GetMedicalRecord godoc
@@ -207,7 +210,8 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		Diagnosis2CategoryID: input.Diagnosis2CategoryID,
 		Diagnosis2NameID:     input.Diagnosis2NameID,
 	})
-	c.JSON(http.StatusCreated, record)
+	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d", record.ID))
+	c.JSON(http.StatusCreated, toMedicalRecordResponseWithVisitCount(record, 0))
 }
 
 // UpdateMedicalRecord godoc
@@ -255,7 +259,7 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, record)
+	c.JSON(http.StatusOK, toMedicalRecordResponse(record))
 }
 
 // DeleteMedicalRecord godoc

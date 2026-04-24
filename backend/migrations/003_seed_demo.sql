@@ -22,16 +22,16 @@ SELECT setval(pg_get_serial_sequence('clinics', 'id'), (SELECT MAX(id) FROM clin
 -- 4. occupations（職種: 各医院4件 × 3医院 = 12件）
 -- -----------------------------------------------------------------------------
 INSERT INTO occupations (id, clinic_id, name, is_active, sort_order) VALUES
-    -- 八王子院 (clinic_id=1)
+    -- 八王子病院 (clinic_id=1)
     (1, 1, '獣医師',   true, 1),
     (2, 1, '看護師',   true, 2),
     (3, 1, 'トリマー', true, 3),
     (4, 1, '受付',     true, 4),
-    -- 城東医院 (clinic_id=2)
-    (5, 2, 'Veterinarian',   true, 1),
-    (6, 2, 'Nurse',   true, 2),
-    (7, 2, 'Trimmer', true, 3),
-    (8, 2, 'Reception',     true, 4),
+    -- 城東センター病院 (clinic_id=2)
+    (5, 2, '獣医師',   true, 1),
+    (6, 2, '看護師',   true, 2),
+    (7, 2, 'トリマー', true, 3),
+    (8, 2, '受付',     true, 4),
     -- 敷島医院 (clinic_id=3)
     (9, 3, '獣医師',   true, 1),
     (10, 3, '看護師',   true, 2),
@@ -43,14 +43,14 @@ SELECT setval(pg_get_serial_sequence('occupations', 'id'), (SELECT MAX(id) FROM 
 
 -- -----------------------------------------------------------------------------
 -- 5. staffs（スタッフ: 35件）
--- 八王子院: ID 1-15（人間11名 + リソース4件）
--- 城東医院: ID 16-25（人間7名 + リソース3件）
+-- 八王子病院: ID 1-15（人間11名 + リソース4件）
+-- 城東センター病院: ID 16-25（人間7名 + リソース3件）
 -- 敷島医院: ID 26-32（人間5名 + リソース2件）
 -- account_id は accounts INSERT 後に UPDATE で設定される
 -- clinic_id は staff_clinic_assignments で管理される
 -- -----------------------------------------------------------------------------
 INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order, staff_type, reservation_visible) VALUES
-    -- 八王子院 人間スタッフ (clinic_id=1)
+    -- 八王子病院 人間スタッフ (clinic_id=1)
     (1,  NULL, '林 文明',              true, 'V-10001', 1, 1,  'doctor',   true),
     (2,  NULL, '山﨑 晶子',           true, 'V-10002', 1, 2,  'doctor',   true),
     (3,  NULL, '三井 隆之',           true, 'V-10003', 1, 3,  'doctor',   true),
@@ -62,14 +62,13 @@ INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_
     (9,  NULL, '倉田 春香',           true, '',        2, 9,  'nurse',    false),
     (10, NULL, '梶原 梨夢',           true, '',        2, 10, 'nurse',    false),
     (11, NULL, '髙木 賀央里',         true, '',        2, 11, 'nurse',    false),
-    -- 八王子院 リソース（予約枠管理用）
+    -- 八王子病院 リソース（予約枠管理用）
     (12, NULL, 'お手入れ・オゾン療法', true, '',        3, 12, 'resource', true),
     (13, NULL, '健診・ワクチン・狂犬病', true, '',     3, 13, 'resource', true),
     (14, NULL, 'ドッグラン(アジリティ解放)', true, '', 4, 14, 'resource', true),
     (15, NULL, 'クイックシャンプー',   true, '',        3, 15, 'resource', true)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
 
 -- -----------------------------------------------------------------------------
 -- 6. accounts（認証用アカウント: 16件）
@@ -82,24 +81,24 @@ SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staff
 --   9(system)→NULL, 10(kimura)→staff 16(木村 健太)
 --   11(sasaki)→staff 17(佐々木), 12(fujiwara)→staff 26(藤原)
 --   13(matsumoto)→staff 27(松本)
---   14(trimmer@example.com)→staff 33(さくら/八王子院デモ / トリマー)
+--   14(trimmer@example.com)→staff 33(さくら/八王子病院デモ / トリマー)
 --   15(joto-vet@example.com)→新staff(城東獣医デモ)
 --   16(shiki-vet@example.com)→新staff(敷島獣医デモ)
 -- -----------------------------------------------------------------------------
 INSERT INTO accounts (id, email, password_hash, is_active, is_system_admin) VALUES
     -- システム管理者（全院アクセス）
     (1, 'admin@noavet.jp',           '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, true),
-    -- 八王子院スタッフ（実名メール）
+    -- 八王子病院スタッフ（実名メール）
     (2, 'hayashi@noah-vet.co.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, true),  -- システム管理者（林 文明）
     (3, 'yamazaki@noah-vet.co.jp',   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     (4, 'mitsui@noah-vet.co.jp',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    -- デモアカウント（八王子院・frontend mock-data.ts 対応）
+    -- デモアカウント（八王子病院・frontend mock-data.ts 対応）
     (5, 'admin@example.com',         '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     (6, 'vet@example.com',           '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     (7, 'nurse@example.com',         '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     (8, 'reception@example.com',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     (9, 'system@example.com',        '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    -- 城東医院スタッフ
+    -- 城東センター病院スタッフ
     (10, 'kimura@noah-vet.co.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     (11, 'sasaki@noah-vet.co.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     -- 敷島医院スタッフ
@@ -113,7 +112,7 @@ ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('accounts', 'id'), (SELECT MAX(id) FROM accounts));
 
--- 城東医院 (clinic_id=2) スタッフ
+-- 城東センター病院 (clinic_id=2) スタッフ
 INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order, staff_type, reservation_visible) VALUES
     (16, NULL, '木村 健太',       true, 'V-40001', 5, 1,  'doctor',   true),
     (17, NULL, '佐々木 美香',     true, 'V-40002', 5, 2,  'doctor',   true),
@@ -122,7 +121,7 @@ INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_
     (20, NULL, '中村 大輔',       true, '',        6, 5,  'nurse',    false),
     (21, NULL, '小林 麻衣',       true, '',        6, 6,  'nurse',    false),
     (22, NULL, '井上 拓也',       true, '',        6, 7,  'nurse',    false),
-    -- 城東医院 リソース
+    -- 城東センター病院 リソース
     (23, NULL, '健診・ワクチン・狂犬病', true, '', 7, 8,  'resource', true),
     (24, NULL, 'トリミング',       true, '',        7, 9,  'resource', true),
     (25, NULL, 'クイックシャンプー', true, '',      7, 10, 'resource', true)
@@ -214,24 +213,25 @@ INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
     (31, 3, true),   -- 健診・ワクチン・狂犬病 (resource)
     (32, 3, true),   -- トリミング (resource)
     -- デモアカウント用割当
-    (33, 1, true),   -- さくら（デモ）→ 八王子院
-    (34, 2, true),   -- 城東 獣医（デモ）→ 城東医院
+    (33, 1, true),   -- さくら（デモ）→ 八王子病院
+    (34, 2, true),   -- 城東 獣医（デモ）→ 城東センター病院
     (35, 3, true)    -- 敷島 獣医（デモ）→ 敷島医院
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- 7b. permission_groups（権限グループ: 各医院2グループ × 3医院 = 6グループ）
+-- 注記: CreateClinic で自動作成される「執行」「一般」グループと統一
 -- -----------------------------------------------------------------------------
 INSERT INTO permission_groups (id, clinic_id, name, description, color, is_active, sort_order) VALUES
     -- Hachioji Clinic (clinic_id=1)
-    (1, 1, 'Executive', 'Full resource access', '#6366F1', true, 1),
-    (2, 1, 'General', 'Basic operations (medical/reservation/grooming creation/editing)', '#10B981', true, 2),
+    (1, 1, '執行', '執行権限', '#6366F1', true, 1),
+    (2, 1, '一般', '一般スタッフ権限', '#10B981', true, 2),
     -- Joto Hospital (clinic_id=2)
-    (3, 2, 'Executive', 'Full resource access', '#6366F1', true, 1),
-    (4, 2, 'General', 'Basic operations (medical/reservation/grooming creation/editing)', '#10B981', true, 2),
+    (3, 2, '執行', '執行権限', '#6366F1', true, 1),
+    (4, 2, '一般', '一般スタッフ権限', '#10B981', true, 2),
     -- Shikishima Hospital (clinic_id=3)
-    (5, 3, 'Executive', 'Full resource access', '#6366F1', true, 1),
-    (6, 3, 'General', 'Basic operations (medical/reservation/grooming creation/editing)', '#10B981', true, 2)
+    (5, 3, '執行', '執行権限', '#6366F1', true, 1),
+    (6, 3, '一般', '一般スタッフ権限', '#10B981', true, 2)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('permission_groups', 'id'), (SELECT MAX(id) FROM permission_groups));
@@ -293,7 +293,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (2, 'master-insurance',       true, false, false, false),
     (2, 'master-merchandise',     true, false, false, false),
     (2, 'discount',               false, false, false, false),
-    -- 城東医院 執行（group_id=3）: 全リソース全権限
+    -- 城東センター病院 執行（group_id=3）: 全リソース全権限
     (3, 'reception',              true, true,  true,  true),
     (3, 'owners',                 true, true,  true,  true),
     (3, 'reservations',           true, true,  true,  true),
@@ -318,7 +318,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (3, 'master-insurance',       true, true,  true,  true),
     (3, 'master-merchandise',     true, true,  true,  true),
     (3, 'discount',               true, true,  true,  true),
-    -- 城東医院 一般（group_id=4）
+    -- 城東センター病院 一般（group_id=4）
     (4, 'reception',              true, false, false, false),
     (4, 'owners',                 true, true,  true,  false),
     (4, 'reservations',           true, true,  true,  false),
@@ -401,13 +401,13 @@ ON CONFLICT DO NOTHING;
 -- 一般(2): 一般業務スタッフ
 -- -----------------------------------------------------------------------------
 INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
-    -- 八王子院 執行グループ (group_id=1)
+    -- 八王子病院 執行グループ (group_id=1)
     (1,  1),  -- 林 文明     (hayashi@noah-vet.co.jp / システム管理者)
     (3,  1),  -- 三井 隆之   (mitsui@noah-vet.co.jp)
     (4,  1),  -- ノア        (admin@noavet.jp / 執行権限保持)
-    -- 八王子院 執行グループ (group_id=1) 追加: デモ admin アカウント
+    -- 八王子病院 執行グループ (group_id=1) 追加: デモ admin アカウント
     (8,  1),  -- 安田 希恵   (admin@example.com デモ) → 執行権限（削除操作を含む機能テスト用）
-    -- 八王子院 一般グループ (group_id=2)
+    -- 八王子病院 一般グループ (group_id=2)
     (2,  2),  -- 山﨑 晶子   (yamazaki@noah-vet.co.jp)
     (5,  2),  -- 加藤 茉里
     (6,  2),  -- 金谷 亜美
@@ -419,10 +419,10 @@ INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
     (13, 2),  -- 健診・ワクチン・狂犬病 (resource)
     (14, 2),  -- ドッグラン (resource)
     (15, 2),  -- クイックシャンプー (resource)
-    -- 城東医院 執行グループ (group_id=3)
+    -- 城東センター病院 執行グループ (group_id=3)
     (16, 3),  -- 木村 健太   (kimura@noah-vet.co.jp)
     (17, 3),  -- 佐々木 美香 (sasaki@noah-vet.co.jp)
-    -- 城東医院 一般グループ (group_id=4)
+    -- 城東センター病院 一般グループ (group_id=4)
     (18, 4),  -- 高橋 翔太
     (19, 4),  -- 田村 由紀
     (20, 4),  -- 中村 大輔
@@ -441,19 +441,19 @@ INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
     (31, 6),  -- 健診・ワクチン・狂犬病 (resource)
     (32, 6),  -- トリミング (resource)
     -- デモアカウント用権限グループ割当
-    (33, 2),  -- さくら（デモ）→ 八王子院 一般
-    (34, 3),  -- 城東 獣医（デモ）→ 城東医院 執行
+    (33, 2),  -- さくら（デモ）→ 八王子病院 一般
+    (34, 3),  -- 城東 獣医（デモ）→ 城東センター病院 執行
     (35, 5)   -- 敷島 獣医（デモ）→ 敷島医院 執行
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- 8a. reservation_type_groups（予約区分グループ）
--- 八王子院 (clinic_id=1): 7グループ (ID 1-7)
--- 城東医院 (clinic_id=2): 7グループ (ID 8-14)
+-- 八王子病院 (clinic_id=1): 7グループ (ID 1-7)
+-- 城東センター病院 (clinic_id=2): 7グループ (ID 8-14)
 -- 敷島医院 (clinic_id=3): 6グループ (ID 15-20)
 -- -----------------------------------------------------------------------------
 
--- 八王子院 (clinic_id=1)
+-- 八王子病院 (clinic_id=1)
 INSERT INTO reservation_type_groups (id, clinic_id, name, color, sort_order, is_active) VALUES
     (1, 1, '診療系',           '#3B82F6', 1, true),
     (2, 1, '予防・ワクチン',   '#10B981', 2, true),
@@ -465,7 +465,7 @@ INSERT INTO reservation_type_groups (id, clinic_id, name, color, sort_order, is_
 ON CONFLICT (id) DO UPDATE
     SET name=EXCLUDED.name, color=EXCLUDED.color, sort_order=EXCLUDED.sort_order, is_active=EXCLUDED.is_active;
 
--- 城東医院 (clinic_id=2)
+-- 城東センター病院 (clinic_id=2)
 INSERT INTO reservation_type_groups (id, clinic_id, name, color, sort_order, is_active) VALUES
     (8, 2, '診療系',           '#3B82F6', 1, true),
     (9, 2, '予防・ワクチン',   '#10B981', 2, true),
@@ -492,12 +492,12 @@ SELECT setval(pg_get_serial_sequence('reservation_type_groups','id'), (SELECT MA
 
 -- -----------------------------------------------------------------------------
 -- 8b. reservation_types（予約区分）
--- 八王子院 (clinic_id=1): 25件 (ID 1-25)
--- 城東医院 (clinic_id=2): 19件 (ID 26-44)
+-- 八王子病院 (clinic_id=1): 25件 (ID 1-25)
+-- 城東センター病院 (clinic_id=2): 19件 (ID 26-44)
 -- 敷島医院 (clinic_id=3): 14件 (ID 45-58)
 -- -----------------------------------------------------------------------------
 
--- 八王子院 (clinic_id=1) 公開コース (is_internal=false, reservation_visible=true)
+-- 八王子病院 (clinic_id=1) 公開コース (is_internal=false, reservation_visible=true)
 INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (1, 1, '一般診察',               '診察',     true, '内科・外科・皮膚科などの一般的な診察',         '#3B82F6', 1,  15, true,  '', false),
     (2, 1, '一般診察(再診)',          '再診',     true, '継続通院の一般診察',                           '#3B82F6', 2,  15, true,  '', false),
@@ -514,7 +514,7 @@ INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, descr
     (13, 1, '室内ドッグラン',          'ドッグラン', true, '室内ドッグラン利用（60分）',                '#6B7280', 13, 60, true,  '', false)
 ON CONFLICT DO NOTHING;
 
--- 八王子院 (clinic_id=1) スタッフ専用コース (is_internal=true, reservation_visible=false)
+-- 八王子病院 (clinic_id=1) スタッフ専用コース (is_internal=true, reservation_visible=false)
 INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (14, 1, '手術60',                 '手術60',   true, '手術枠（60分）',                               '#EF4444', 14, 60, false, '', true),
     (15, 1, 'ホテルお迎え',           'お迎え',   true, 'ホテルお迎え対応',                             '#6B7280', 15, 15, false, '', true),
@@ -530,9 +530,8 @@ INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, descr
     (25, 1, '予約不可30',             '不可30',   true, '予約不可ブロック（30分）',                     '#6B7280', 25, 30, false, '', true)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('reservation_types', 'id'), (SELECT MAX(id) FROM reservation_types));
 
--- 八王子院 (clinic_id=1) グループ紐付け
+-- 八王子病院 (clinic_id=1) グループ紐付け
 UPDATE reservation_types SET group_id=1 WHERE clinic_id=1 AND id IN (1,2);
 UPDATE reservation_types SET group_id=2 WHERE clinic_id=1 AND id IN (3,5,6);
 UPDATE reservation_types SET group_id=3 WHERE clinic_id=1 AND id IN (7,8,24);
@@ -555,7 +554,6 @@ INSERT INTO cages (id, clinic_id, name, price, is_active, description, cage_type
     (8, 1, '汎用ケージA',     2500, true, '小動物・鳥類等対応',      'general', 'small',  8)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('cages', 'id'), (SELECT MAX(id) FROM cages));
 
 -- -----------------------------------------------------------------------------
 -- 10. insurances（保険: 5件）
@@ -568,7 +566,6 @@ INSERT INTO insurances (id, clinic_id, name, is_active, description, coverage_ra
     (5, 1, 'その他（自費）',       true, '保険未加入・全額自費',                100, '',              5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('insurances', 'id'), (SELECT MAX(id) FROM insurances));
 
 -- -----------------------------------------------------------------------------
 -- 11. exam_types（検査種別: 5件）+ exam_type_fields（検査項目定義）
@@ -581,7 +578,6 @@ INSERT INTO exam_types (id, clinic_id, name, price, is_active, description, sort
     (5, 1, '超音波検査（エコー）', 5000, true, '腹部エコー・心臓エコー',                     5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_types', 'id'), (SELECT MAX(id) FROM exam_types));
 
 -- exam_type_fields: 血液検査（CBC）
 INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
@@ -620,7 +616,6 @@ INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_v
     (17, 3, '心臓エコー', '', '異常なし', 2)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_type_fields', 'id'), (SELECT MAX(id) FROM exam_type_fields));
 
 -- -----------------------------------------------------------------------------
 -- 12. vaccines（ワクチン: 10件）
@@ -638,7 +633,6 @@ INSERT INTO vaccines (id, clinic_id, name, price, is_active, description, specie
     (10, 1, 'フィラリア予防薬（大型犬）', 1500, true, '体重26kg以上犬用フィラリア予防',                                          'dog', '1ヶ月', 10)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('vaccines', 'id'), (SELECT MAX(id) FROM vaccines));
 
 -- -----------------------------------------------------------------------------
 -- 13. medicines（薬剤カテゴリ: 9件 + 薬剤: 15件）
@@ -678,7 +672,6 @@ INSERT INTO medicines (id, clinic_id, name, price, is_active, description, dosag
     (15, 1, 'オメプラゾール 10mg',          350,  true, 'プロトンポンプ阻害薬（胃酸抑制）',       'tablet',    'per_tablet', 1,  15, 1007)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('medicines', 'id'), (SELECT MAX(id) FROM medicines));
 
 -- -----------------------------------------------------------------------------
 -- 14. consultations（診察項目: 5件）
@@ -691,7 +684,6 @@ INSERT INTO consultations (id, clinic_id, name, price, is_active, description, t
     (5, 1, '電話相談料',    500, true, '電話による診察相談',                       'anytime',      15, 5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('consultations', 'id'), (SELECT MAX(id) FROM consultations));
 
 -- -----------------------------------------------------------------------------
 -- 15. procedures（処置項目: 10件）
@@ -709,7 +701,6 @@ INSERT INTO procedures (id, clinic_id, name, price, is_active, description, dura
     (10, 1, '点滴処置',          3000, true, '静脈内点滴（1時間）',              60,  'none',   10)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('procedures', 'id'), (SELECT MAX(id) FROM procedures));
 
 -- -----------------------------------------------------------------------------
 -- 16. hospitalization_plans（入院プラン: 5件）
@@ -722,7 +713,6 @@ INSERT INTO hospitalization_plans (id, clinic_id, name, price, is_active, descri
     (5, 1, 'ホテル（小型）',   2500, true, '体重10kg以下のペットホテル（1泊）', 'small',  'per_night', 5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('hospitalization_plans', 'id'), (SELECT MAX(id) FROM hospitalization_plans));
 
 -- -----------------------------------------------------------------------------
 -- 17. trimming_courses（トリミングコース: 5件）
@@ -736,7 +726,6 @@ INSERT INTO trimming_courses (id, clinic_id, name, price, is_active, description
     (5, 1, 'フルコース（大型）',        12000, true, 'カット・シャンプー・ブロー・爪切り・耳掃除', 'large',  180, 5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('trimming_courses', 'id'), (SELECT MAX(id) FROM trimming_courses));
 
 -- -----------------------------------------------------------------------------
 -- 18. trimming_options（トリミングオプション: 5件）
@@ -750,7 +739,6 @@ INSERT INTO trimming_options (id, clinic_id, name, price, is_active, description
     (5, 1, 'リボン装着', 200, true, '仕上げのアクセサリー装着',      5, true, 5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('trimming_options', 'id'), (SELECT MAX(id) FROM trimming_options));
 
 -- -----------------------------------------------------------------------------
 -- 19. diagnosis_types（診断カテゴリ: 8件）
@@ -766,7 +754,6 @@ INSERT INTO diagnosis_types (id, clinic_id, name, is_active, description, sort_o
     (8, 1, '外傷・骨格',     true, '骨折・咬傷・関節疾患など',             8)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('diagnosis_types', 'id'), (SELECT MAX(id) FROM diagnosis_types));
 
 -- -----------------------------------------------------------------------------
 -- 20. diagnosis_names（診断名: 各カテゴリ2-3件、計20件）
@@ -805,7 +792,6 @@ INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagno
     (42, 1, '膝蓋骨脱臼',         true, '膝蓋骨の内方/外方脱臼',             8, 3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('diagnosis_names', 'id'), (SELECT MAX(id) FROM diagnosis_names));
 
 -- -----------------------------------------------------------------------------
 -- 21. checkup_types（健診種別: 4件）
@@ -817,7 +803,6 @@ INSERT INTO checkup_types (id, clinic_id, name, price, is_active, description, i
     (4, 1, '歯科検診',       3000,  true, '歯周病チェック・歯石付着度の確認',             '1年',   '成犬',   4)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('checkup_types', 'id'), (SELECT MAX(id) FROM checkup_types));
 
 -- -----------------------------------------------------------------------------
 -- 22. chief_complaint_types（主訴区分: 6件）
@@ -831,7 +816,6 @@ INSERT INTO chief_complaint_types (id, clinic_id, name, is_active, sort_order) V
     (6, 1, '外傷・骨折',     true, 6)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('chief_complaint_types', 'id'), (SELECT MAX(id) FROM chief_complaint_types));
 
 -- -----------------------------------------------------------------------------
 -- 23. inquiry_templates（問診定型文: 10件）
@@ -850,7 +834,7 @@ INSERT INTO inquiry_templates (id, clinic_id, category, title, content, is_activ
     (10, 1, 'notes',              '生活環境確認',               '室内飼い/外飼い、同居動物の有無、散歩の頻度・時間を確認してください。', true, 10)
 ON CONFLICT DO NOTHING;
 
--- 城東医院 (clinic_id=2)
+-- 城東センター病院 (clinic_id=2)
 INSERT INTO inquiry_templates (id, clinic_id, category, title, content, is_active, sort_order) VALUES
     (11, 2, 'chief_complaint',    '食欲不振',                   'いつ頃から食欲が低下しましたか？完全絶食か減少かを確認してください。', true, 1),
     (12, 2, 'chief_complaint',    '嘔吐',                       '嘔吐の回数・内容物・タイミングを確認してください。', true, 2),
@@ -882,7 +866,6 @@ INSERT INTO inventory_items (id, clinic_id, name, category, quantity, unit, min_
     (5, 1, '包帯・ガーゼセット',                 'consumable', 100, 'セット', 20, '消耗品棚C', '白十字',               'sufficient')
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('inventory_items', 'id'), (SELECT MAX(id) FROM inventory_items));
 
 -- -----------------------------------------------------------------------------
 -- 25. merchandise_items（物販・フード・その他: 7件）
@@ -898,7 +881,6 @@ INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_ra
     (7, 1, '時間外診療費', 'other', 5000, 0.10, 7)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
 
 -- =============================================================================
 -- マスタ設定完了
@@ -941,7 +923,6 @@ ON CONFLICT (id) DO UPDATE SET
     name_kana = EXCLUDED.name_kana,
     updated_at      = now();
 
-SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
 
 -- -----------------------------------------------------------------------------
 -- 2. pets（ペット: 28件）
@@ -978,7 +959,6 @@ INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, name_kana, animal_s
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 
 -- -----------------------------------------------------------------------------
 -- 3. appointments（予約: 10件）
@@ -997,7 +977,6 @@ INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id,
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
 
 -- -----------------------------------------------------------------------------
 -- 4. medical_records（カルテ: 20件）
@@ -1026,7 +1005,6 @@ INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, d
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
 
 -- -----------------------------------------------------------------------------
 -- 5. inquiries（問診: 20件）
@@ -1056,7 +1034,6 @@ ON CONFLICT (id) DO UPDATE SET
     medical_record_id = EXCLUDED.medical_record_id,
     updated_at        = now();
 
-SELECT setval(pg_get_serial_sequence('inquiries', 'id'), (SELECT MAX(id) FROM inquiries));
 
 -- -----------------------------------------------------------------------------
 -- 5b. clinical_plans（診察/治療プラン: 20件）
@@ -1085,7 +1062,6 @@ INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_type
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('clinical_plans', 'id'), (SELECT MAX(id) FROM clinical_plans));
 
 -- -----------------------------------------------------------------------------
 -- 6. vital_records（バイタル: 5件）
@@ -1116,7 +1092,6 @@ INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, proce
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
 
 -- -----------------------------------------------------------------------------
 -- 8. trimming appointments（予約ベーストリミング: 8件）
@@ -1146,7 +1121,6 @@ INSERT INTO appointment_trimming_details (appointment_id, clinic_id, course_id, 
     (108, 1, 3, 3800, 'g',  'トリミング')
 ON CONFLICT (appointment_id) DO UPDATE SET updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
 SELECT setval(pg_get_serial_sequence('appointment_trimming_details', 'id'), (SELECT MAX(id) FROM appointment_trimming_details));
 
 -- -----------------------------------------------------------------------------
@@ -1194,7 +1168,6 @@ INSERT INTO inventory_items (id, clinic_id, name, category, quantity, unit, min_
     (14, 1, 'ノミダニ駆除薬 スポット',        'medicine',   40,   'ピペット',  20, '薬品棚 B-2', 'エランコジャパン',         'sufficient')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('inventory_items', 'id'), (SELECT MAX(id) FROM inventory_items));
 
 -- -----------------------------------------------------------------------------
 -- 12. billings / billing_items / payments
@@ -1245,14 +1218,14 @@ ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) FROM billing_refunds));
 
 -- =============================================================================
--- 城東医院 (clinic_id=2) マスタデータ
+-- 城東センター病院 (clinic_id=2) マスタデータ
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 城東医院 reservation_types（サービス種別: 19件、ID 26-44）
+-- 城東センター病院 reservation_types（サービス種別: 19件、ID 26-44）
 -- -----------------------------------------------------------------------------
 
--- 城東医院 公開コース
+-- 城東センター病院 公開コース
 INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (26, 2, '一般診察',               '診察',     true, '内科・外科・皮膚科などの一般的な診察',         '#3B82F6', 1,  15, true,  '', false),
     (27, 2, '一般診察(再診)',          '再診',     true, '継続通院の一般診察',                           '#3B82F6', 2,  15, true,  '', false),
@@ -1266,7 +1239,7 @@ INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, descr
     (35, 2, 'クイックシャンプー',      'Qシャンプー', true, '短時間シャンプー',                        '#F59E0B', 10, 15, true,  '', false)
 ON CONFLICT DO NOTHING;
 
--- 城東医院 スタッフ専用コース
+-- 城東センター病院 スタッフ専用コース
 INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (36, 2, '手術60',                 '手術60',   true, '手術枠（60分）',                               '#EF4444', 11, 60, false, '', true),
     (37, 2, '手術30',                 '手術30',   true, '手術枠（30分）',                               '#EF4444', 12, 30, false, '', true),
@@ -1279,9 +1252,8 @@ INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, descr
     (44, 2, 'エコー枠',               'エコー',   true, '超音波検査専用枠',                             '#8B5CF6', 19, 30, false, '', true)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('reservation_types', 'id'), (SELECT MAX(id) FROM reservation_types));
 
--- 城東医院 (clinic_id=2) グループ紐付け
+-- 城東センター病院 (clinic_id=2) グループ紐付け
 UPDATE reservation_types SET group_id=8  WHERE clinic_id=2 AND id IN (26,27);
 UPDATE reservation_types SET group_id=9  WHERE clinic_id=2 AND id IN (28,29,30);
 UPDATE reservation_types SET group_id=10 WHERE clinic_id=2 AND id IN (31,32,44);
@@ -1291,7 +1263,7 @@ UPDATE reservation_types SET group_id=13 WHERE clinic_id=2 AND id IN (38,39);
 UPDATE reservation_types SET group_id=14, is_internal=true WHERE clinic_id=2 AND id IN (40,41,42,43);
 
 -- -----------------------------------------------------------------------------
--- 城東医院 cages（ケージ: 4件）
+-- 城東センター病院 cages（ケージ: 4件）
 -- -----------------------------------------------------------------------------
 INSERT INTO cages (id, clinic_id, name, price, is_active, description, cage_type, cage_size, sort_order) VALUES
     (9, 2, 'ICUケージ',       7500, true, '酸素吸入可・重症患者用',    'icu',     'medium', 1),
@@ -1300,10 +1272,9 @@ INSERT INTO cages (id, clinic_id, name, price, is_active, description, cage_type
     (12, 2, '猫用ケージ',       2800, true, '猫専用・ストレス軽減設計',  'cat',     'small',  4)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('cages', 'id'), (SELECT MAX(id) FROM cages));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 insurances（保険: 3件）
+-- 城東センター病院 insurances（保険: 3件）
 -- -----------------------------------------------------------------------------
 INSERT INTO insurances (id, clinic_id, name, is_active, description, coverage_rate, contact_phone, sort_order) VALUES
     (6, 2, 'アニコム損保',   true, 'ペット保険大手・どうぶつ健保シリーズ', 70, '0120-025-034', 1),
@@ -1311,10 +1282,9 @@ INSERT INTO insurances (id, clinic_id, name, is_active, description, coverage_ra
     (8, 2, 'その他（自費）', true, '保険未加入・全額自費',                100, '',             3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('insurances', 'id'), (SELECT MAX(id) FROM insurances));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 exam_types（検査種別: 3件）
+-- 城東センター病院 exam_types（検査種別: 3件）
 -- -----------------------------------------------------------------------------
 INSERT INTO exam_types (id, clinic_id, name, price, is_active, description, sort_order) VALUES
     (6, 2, '血液検査（CBC）', 3000, true, '全血球計算（Complete Blood Count）',     1),
@@ -1322,7 +1292,6 @@ INSERT INTO exam_types (id, clinic_id, name, price, is_active, description, sort
     (8, 2, 'レントゲン検査',   3200, true, 'X線撮影（胸部・腹部・四肢）',            3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_types', 'id'), (SELECT MAX(id) FROM exam_types));
 
 -- exam_type_fields for clinic 4
 INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
@@ -1336,10 +1305,9 @@ INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_v
     (25, 8, '腹部正面',        '', '異常なし',            2)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_type_fields', 'id'), (SELECT MAX(id) FROM exam_type_fields));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 vaccines（ワクチン: 5件）
+-- 城東センター病院 vaccines（ワクチン: 5件）
 -- -----------------------------------------------------------------------------
 INSERT INTO vaccines (id, clinic_id, name, price, is_active, description, species, interval, sort_order) VALUES
     (11, 2, '混合ワクチン5種（犬）',  4800, true, 'ジステンパー・パルボ・アデノ1型・アデノ2型・パラインフルエンザ', 'dog', '1年',   1),
@@ -1349,10 +1317,9 @@ INSERT INTO vaccines (id, clinic_id, name, price, is_active, description, specie
     (15, 2, 'フィラリア予防薬（小型犬）', 950, true, '体重10kg以下犬用フィラリア予防',                             'dog', '1ヶ月', 5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('vaccines', 'id'), (SELECT MAX(id) FROM vaccines));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 medicines（薬剤: カテゴリ4件 + 薬剤10件）
+-- 城東センター病院 medicines（薬剤: カテゴリ4件 + 薬剤10件）
 -- -----------------------------------------------------------------------------
 INSERT INTO medicines (id, clinic_id, name, price, is_active, description, sort_order) VALUES
     (2001, 2, '抗生剤',     NULL, true, '抗生物質カテゴリ',   1),
@@ -1375,10 +1342,9 @@ INSERT INTO medicines (id, clinic_id, name, price, is_active, description, dosag
     (110, 2, '生理食塩水 500ml',            420,  true, '点滴・洗浄用生理食塩水',              'liquid',    'per_ml',     500,  10, 2005)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('medicines', 'id'), (SELECT MAX(id) FROM medicines));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 consultations（診察項目: 3件）
+-- 城東センター病院 consultations（診察項目: 3件）
 -- -----------------------------------------------------------------------------
 INSERT INTO consultations (id, clinic_id, name, price, is_active, description, time_condition, duration, sort_order) VALUES
     (6, 2, '初診料',       2200, true, '初めての受診または6ヶ月以上受診がない場合', 'first_visit', 30, 1),
@@ -1386,10 +1352,9 @@ INSERT INTO consultations (id, clinic_id, name, price, is_active, description, t
     (8, 2, '時間外診療料', 3200, true, '診療時間外・休日の緊急診察',               'after_hours', 30, 3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('consultations', 'id'), (SELECT MAX(id) FROM consultations));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 procedures（処置項目: 5件）
+-- 城東センター病院 procedures（処置項目: 5件）
 -- -----------------------------------------------------------------------------
 INSERT INTO procedures (id, clinic_id, name, price, is_active, description, duration, anesthesia, sort_order) VALUES
     (11, 2, '去勢手術（犬）', 26000, true, '雄犬の去勢手術',                  60, 'general', 1),
@@ -1399,10 +1364,9 @@ INSERT INTO procedures (id, clinic_id, name, price, is_active, description, dura
     (15, 2, '点滴処置',        3200, true, '静脈内点滴（1時間）',              60, 'none',    5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('procedures', 'id'), (SELECT MAX(id) FROM procedures));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 hospitalization_plans（入院プラン: 3件）
+-- 城東センター病院 hospitalization_plans（入院プラン: 3件）
 -- -----------------------------------------------------------------------------
 INSERT INTO hospitalization_plans (id, clinic_id, name, price, is_active, description, body_size, billing_unit, sort_order) VALUES
     (6, 2, '一般入院（小型）', 3200, true, '体重10kg以下の入院管理料（1日）', 'small',  'per_day',   1),
@@ -1410,10 +1374,9 @@ INSERT INTO hospitalization_plans (id, clinic_id, name, price, is_active, descri
     (8, 2, 'ICU入院',          8500, true, '集中治療室管理料（1日）',         'small',  'per_day',   3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('hospitalization_plans', 'id'), (SELECT MAX(id) FROM hospitalization_plans));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 trimming_courses（トリミングコース: 3件）
+-- 城東センター病院 trimming_courses（トリミングコース: 3件）
 -- -----------------------------------------------------------------------------
 INSERT INTO trimming_courses (id, clinic_id, name, price, is_active, description, target_size, duration, sort_order) VALUES
     (6, 2, 'シャンプー&ブロー（小型）', 4200, true, 'シャンプー・ブロー・ブラッシング',            'small',  60,  1),
@@ -1421,10 +1384,9 @@ INSERT INTO trimming_courses (id, clinic_id, name, price, is_active, description
     (8, 2, 'フルコース（中型）',        9500, true, 'カット・シャンプー・ブロー・爪切り・耳掃除', 'medium', 150, 3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('trimming_courses', 'id'), (SELECT MAX(id) FROM trimming_courses));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 trimming_options（トリミングオプション: 3件）
+-- 城東センター病院 trimming_options（トリミングオプション: 3件）
 -- -----------------------------------------------------------------------------
 INSERT INTO trimming_options (id, clinic_id, name, price, is_active, description, duration, is_combinable, sort_order) VALUES
     (6, 2, '爪切り',     320, true, '爪のカット・やすりがけ',    10, true, 1),
@@ -1432,10 +1394,9 @@ INSERT INTO trimming_options (id, clinic_id, name, price, is_active, description
     (8, 2, '肛門腺絞り', 320, true, '肛門嚢の分泌液除去',         5, true, 3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('trimming_options', 'id'), (SELECT MAX(id) FROM trimming_options));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 diagnosis_types（診断カテゴリ: 5件）
+-- 城東センター病院 diagnosis_types（診断カテゴリ: 5件）
 -- -----------------------------------------------------------------------------
 INSERT INTO diagnosis_types (id, clinic_id, name, is_active, description, sort_order) VALUES
     (9, 2, '消化器系',   true, '胃腸・肝臓・膵臓などの消化器系疾患', 1),
@@ -1445,10 +1406,9 @@ INSERT INTO diagnosis_types (id, clinic_id, name, is_active, description, sort_o
     (13, 2, '感染症',     true, '細菌・ウイルス感染症',               5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('diagnosis_types', 'id'), (SELECT MAX(id) FROM diagnosis_types));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 diagnosis_names（診断名: 10件）
+-- 城東センター病院 diagnosis_names（診断名: 10件）
 -- -----------------------------------------------------------------------------
 INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagnosis_type_id, sort_order) VALUES
     (21, 2, '胃腸炎',             true, '胃・腸の炎症（嘔吐・下痢）',         9,  1),
@@ -1463,10 +1423,9 @@ INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagno
     (30, 2, '猫風邪（FVR）',      true, '猫ウイルス性鼻気管炎',               13, 2)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('diagnosis_names', 'id'), (SELECT MAX(id) FROM diagnosis_names));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 checkup_types（健診種別: 3件）
+-- 城東センター病院 checkup_types（健診種別: 3件）
 -- -----------------------------------------------------------------------------
 INSERT INTO checkup_types (id, clinic_id, name, price, is_active, description, interval, target_age, sort_order) VALUES
     (5, 2, '一般健診',       5200,  true, '身体検査・体重測定・問診',                     '1年',   '全年齢',  1),
@@ -1474,10 +1433,9 @@ INSERT INTO checkup_types (id, clinic_id, name, price, is_active, description, i
     (7, 2, 'フィラリア検査', 2600,  true, 'フィラリア抗原検査（予防シーズン前）',           '1年',   '成犬',    3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('checkup_types', 'id'), (SELECT MAX(id) FROM checkup_types));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 chief_complaint_types（主訴区分: 4件）
+-- 城東センター病院 chief_complaint_types（主訴区分: 4件）
 -- -----------------------------------------------------------------------------
 INSERT INTO chief_complaint_types (id, clinic_id, name, is_active, sort_order) VALUES
     (7, 2, '食欲不振',       true, 1),
@@ -1486,10 +1444,9 @@ INSERT INTO chief_complaint_types (id, clinic_id, name, is_active, sort_order) V
     (10, 2, '排尿・排泄異常', true, 4)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('chief_complaint_types', 'id'), (SELECT MAX(id) FROM chief_complaint_types));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 merchandise_items（物販: 4件）
+-- 城東センター病院 merchandise_items（物販: 4件）
 -- -----------------------------------------------------------------------------
 INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_rate, sort_order) VALUES
     (8, 2, 'ロイヤルカナン 消化器サポート 1kg', 'food',  2900, 0.10, 1),
@@ -1498,14 +1455,13 @@ INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_ra
     (11, 2, '文書料',                            'other', 3000, 0.10, 4)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
 
 -- =============================================================================
--- 城東医院 (clinic_id=2) デモデータ（飼主・ペット）
+-- 城東センター病院 (clinic_id=2) デモデータ（飼主・ペット）
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 城東医院 owners（飼主: 8件、ID 23〜30）
+-- 城東センター病院 owners（飼主: 8件、ID 23〜30）
 -- -----------------------------------------------------------------------------
 INSERT INTO owners (id, clinic_id, name, name_kana, birth_date, company, postal_code, address1, address2, phone, company_phone, email, remarks, is_dangerous, discount_rate, membership_type) VALUES
     (23, 2, '大野 健司',   'おおの けんじ',   '1979-06-10', '',           '136-0071', '東京都江東区亀戸3-5-8',         '', '090-6601-2233', '', 'kenji.ono@example.com',      '定期通院',   false, 10, 'member'),
@@ -1521,10 +1477,9 @@ ON CONFLICT (id) DO UPDATE SET
     name_kana = EXCLUDED.name_kana,
     updated_at      = now();
 
-SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 pets（ペット: 10件、ID 29〜38）
+-- 城東センター病院 pets（ペット: 10件、ID 29〜38）
 -- -----------------------------------------------------------------------------
 INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, name_kana, animal_species_id, gender, status, birth_date, breed, color, weight, insurance_id, last_visit) VALUES
     (29, 2, 23, '23-1', 'クロ',   'くろ',   1, 'male',   'alive', '2019-03-20', 'ラブラドール',             'ブラック',   28.0,  6,    '2025-11-10'),
@@ -1540,7 +1495,6 @@ INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, name_kana, animal_s
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 
 -- =============================================================================
 -- 敷島医院 (clinic_id=3) マスタデータ
@@ -1592,7 +1546,6 @@ INSERT INTO cages (id, clinic_id, name, price, is_active, description, cage_type
     (16, 3, '猫用ケージ',       3100, true, '猫専用・ストレス軽減設計',   'cat',     'medium', 4)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('cages', 'id'), (SELECT MAX(id) FROM cages));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 insurances（保険: 3件）
@@ -1614,7 +1567,6 @@ INSERT INTO exam_types (id, clinic_id, name, price, is_active, description, sort
     (11, 3, '超音波検査（エコー）', 5200, true, '腹部エコー・心臓エコー',         3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_types', 'id'), (SELECT MAX(id) FROM exam_types));
 
 -- exam_type_fields for clinic 5
 INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
@@ -1628,7 +1580,6 @@ INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_v
     (33, 11, '心臓エコー',             '', '異常なし',           2)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_type_fields', 'id'), (SELECT MAX(id) FROM exam_type_fields));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 vaccines（ワクチン: 5件）
@@ -1641,7 +1592,6 @@ INSERT INTO vaccines (id, clinic_id, name, price, is_active, description, specie
     (20, 3, '狂犬病ワクチン',           3000, true, '狂犬病予防法に基づく接種',                                      'dog', '1年',   5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('vaccines', 'id'), (SELECT MAX(id) FROM vaccines));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 medicines（薬剤: カテゴリ4件 + 薬剤10件）
@@ -1666,7 +1616,6 @@ INSERT INTO medicines (id, clinic_id, name, price, is_active, description, dosag
     (210, 3, '生理食塩水 500ml',             410,  true, '点滴・洗浄用生理食塩水',                'liquid',    'per_ml',     500,  10, NULL)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('medicines', 'id'), (SELECT MAX(id) FROM medicines));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 consultations（診察項目: 3件）
@@ -1677,7 +1626,6 @@ INSERT INTO consultations (id, clinic_id, name, price, is_active, description, t
     (11, 3, '往診料',       5500, true, '自宅への往診料（基本料金）',               'anytime',     60, 3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('consultations', 'id'), (SELECT MAX(id) FROM consultations));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 procedures（処置項目: 5件）
@@ -1690,7 +1638,6 @@ INSERT INTO procedures (id, clinic_id, name, price, is_active, description, dura
     (20, 3, '腫瘍摘出',        22000, true, '皮膚腫瘍の外科的摘出',             60, 'local',   5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('procedures', 'id'), (SELECT MAX(id) FROM procedures));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 hospitalization_plans（入院プラン: 3件）
@@ -1701,7 +1648,6 @@ INSERT INTO hospitalization_plans (id, clinic_id, name, price, is_active, descri
     (11, 3, 'ホテル（小型）',   2600, true, '体重10kg以下のペットホテル（1泊）', 'small',  'per_night', 3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('hospitalization_plans', 'id'), (SELECT MAX(id) FROM hospitalization_plans));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 trimming_courses（トリミングコース: 3件）
@@ -1712,7 +1658,6 @@ INSERT INTO trimming_courses (id, clinic_id, name, price, is_active, description
     (11, 3, 'フルコース（小型）',        6800, true, 'カット・シャンプー・ブロー・爪切り・耳掃除', 'small',  120, 3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('trimming_courses', 'id'), (SELECT MAX(id) FROM trimming_courses));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 trimming_options（トリミングオプション: 3件）
@@ -1723,7 +1668,6 @@ INSERT INTO trimming_options (id, clinic_id, name, price, is_active, description
     (11, 3, '歯磨き',   500, true, '歯ブラシによるデンタルケア', 15, true, 3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('trimming_options', 'id'), (SELECT MAX(id) FROM trimming_options));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 diagnosis_types（診断カテゴリ: 5件）
@@ -1736,7 +1680,6 @@ INSERT INTO diagnosis_types (id, clinic_id, name, is_active, description, sort_o
     (18, 3, '外傷・骨格',     true, '骨折・咬傷・関節疾患など',           5)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('diagnosis_types', 'id'), (SELECT MAX(id) FROM diagnosis_types));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 diagnosis_names（診断名: 10件）
@@ -1754,7 +1697,6 @@ INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagno
     (40, 3, '咬傷',               true, '他動物による咬傷・咬傷感染',         18, 2)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('diagnosis_names', 'id'), (SELECT MAX(id) FROM diagnosis_names));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 checkup_types（健診種別: 3件）
@@ -1765,7 +1707,6 @@ INSERT INTO checkup_types (id, clinic_id, name, price, is_active, description, i
     (10, 3, '歯科検診',        3100, true, '歯周病チェック・歯石付着度の確認',           '1年',   '成犬',    3)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('checkup_types', 'id'), (SELECT MAX(id) FROM checkup_types));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 chief_complaint_types（主訴区分: 4件）
@@ -1777,7 +1718,6 @@ INSERT INTO chief_complaint_types (id, clinic_id, name, is_active, sort_order) V
     (14, 3, '外傷・骨折',   true, 4)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('chief_complaint_types', 'id'), (SELECT MAX(id) FROM chief_complaint_types));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 merchandise_items（物販: 4件）
@@ -1789,7 +1729,6 @@ INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_ra
     (15, 3, '文書料',                            'other', 3000, 0.10, 4)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
 
 -- =============================================================================
 -- 敷島医院 (clinic_id=3) デモデータ（飼主・ペット）
@@ -1834,7 +1773,7 @@ ON CONFLICT (id) DO UPDATE SET
 SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 
 -- -----------------------------------------------------------------------------
--- ワクチン接種記録（八王子院: 5件）
+-- ワクチン接種記録（八王子病院: 5件）
 -- -----------------------------------------------------------------------------
 INSERT INTO vaccinations (id, clinic_id, medical_record_id, pet_id, vaccine_id, doctor_id, date, lot1, next_schedule_type, next_date, remarks) VALUES
     (1, 1, 1,  1,  1,  1, '2025-10-10', 'LOT-2025-A001', '1year',  '2026-10-10', '5種混合ワクチン接種。体調良好。'),
@@ -1844,10 +1783,9 @@ INSERT INTO vaccinations (id, clinic_id, medical_record_id, pet_id, vaccine_id, 
     (5, 1, 20, 18, 5,  1, '2026-01-06', 'LOT-2026-C002', '1year',  '2027-01-06', '3種混合ワクチン接種。体調良好。')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
 
 -- -----------------------------------------------------------------------------
--- 検査記録（八王子院: 3件）
+-- 検査記録（八王子病院: 3件）
 -- -----------------------------------------------------------------------------
 INSERT INTO exams (id, clinic_id, medical_record_id, exam_type_id, doctor_id, date, result_summary, status) VALUES
     (1, 1, 2,  1, 1, '2025-12-15', 'CBC全項目正常範囲内。', 'completed'),
@@ -1855,7 +1793,6 @@ INSERT INTO exams (id, clinic_id, medical_record_id, exam_type_id, doctor_id, da
     (3, 1, 13, 1, 1, '2026-02-10', 'WBC上昇（19.2）。脱水を反映。', 'result_entered')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
 
 INSERT INTO exam_results (id, exam_id, exam_type_field_id, inspection_value, status) VALUES
     -- Exam 1 (CBC for MR2)
@@ -1875,10 +1812,9 @@ INSERT INTO exam_results (id, exam_id, exam_type_field_id, inspection_value, sta
     (45, 1, 4, '280',  'normal')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_results', 'id'), (SELECT MAX(id) FROM exam_results));
 
 -- -----------------------------------------------------------------------------
--- 城東医院 inventory_items（在庫管理: 5件）
+-- 城東センター病院 inventory_items（在庫管理: 5件）
 -- -----------------------------------------------------------------------------
 INSERT INTO inventory_items (id, clinic_id, name, category, quantity, unit, min_stock_level, location, supplier, status) VALUES
     (15, 2, '5種混合ワクチン',               'medicine',   20,  'バイアル', 10, '冷蔵庫',     '共立製薬',               'sufficient'),
@@ -1987,7 +1923,7 @@ VALUES
     (2, 'U_test_joto_001', 'テスト 次郎', '城東テスト', '{"phone":"070-1111-2222","owner_name":"城東テスト","pet_name":"チョコ","pet_type":"トイプードル"}', NULL)
 ON CONFLICT DO NOTHING;
 
--- F. 城東医院 (clinic_id=2) テスト予約 3件
+-- F. 城東センター病院 (clinic_id=2) テスト予約 3件
 -- ※ owners/pets が先に挿入されている必要がある
 INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_type_id, doctor_id, is_designated, status, notes) VALUES
     (11, 2, '2026-03-12 10:00:00+09', '2026-03-12 10:15:00+09', 23, 29, 'revisit', 26, 16, true,  'confirmed', 'クロの定期診察'),
@@ -2003,13 +1939,13 @@ SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM
 --    各クリニック共通の標準テンプレート 5種
 -- -----------------------------------------------------------------------------
 INSERT INTO shift_templates (id, clinic_id, name, shift_type, start_time, end_time, notes, sort_order, is_active) VALUES
-    -- 八王子院 (clinic_id=1)
+    -- 八王子病院 (clinic_id=1)
     (1, 1, '通常勤務',   'full',       '09:00', '18:00', '', 1, true),
     (2, 1, '午前勤務',   'morning',    '09:00', '13:00', '', 2, true),
     (3, 1, '午後勤務',   'afternoon',  '13:00', '18:00', '', 3, true),
     (4, 1, '休日',       'off',        NULL,    NULL,    '', 4, true),
     (5, 1, '有給休暇',   'paid_leave', NULL,    NULL,    '', 5, true),
-    -- 城東医院 (clinic_id=2)
+    -- 城東センター病院 (clinic_id=2)
     (6, 2, 'Regular',   'full',       '09:00', '18:00', '', 1, true),
     (7, 2, '午前勤務',   'morning',    '09:00', '13:00', '', 2, true),
     (8, 2, '午後勤務',   'afternoon',  '13:00', '18:00', '', 3, true),
@@ -2027,8 +1963,8 @@ SELECT setval(pg_get_serial_sequence('shift_templates', 'id'), (SELECT MAX(id) F
 
 -- 通常勤務テンプレートの休憩時間（12:00〜13:00）
 INSERT INTO shift_template_breaks (shift_template_id, break_start, break_end) VALUES
-    (1,  '12:00', '13:00'),  -- 八王子院: 通常勤務
-    (6,  '12:00', '13:00'),  -- 城東医院: 通常勤務
+    (1,  '12:00', '13:00'),  -- 八王子病院: 通常勤務
+    (6,  '12:00', '13:00'),  -- 城東センター病院: 通常勤務
     (11, '12:00', '13:00')   -- 敷島医院: 通常勤務
 ON CONFLICT DO NOTHING;
 
@@ -2100,8 +2036,8 @@ CROSS JOIN staff_clinic sc
 ON CONFLICT DO NOTHING;
 
 -- =============================================================================
--- J. マスタデータ均一化 — 城東医院 (clinic_id=2) + 敷島医院 (clinic_id=3)
--- 八王子院 (clinic_id=1) と同水準のマスタデータを追加
+-- J. マスタデータ均一化 — 城東センター病院 (clinic_id=2) + 敷島医院 (clinic_id=3)
+-- 八王子病院 (clinic_id=1) と同水準のマスタデータを追加
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -2364,7 +2300,7 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
 
 -- =============================================================================
--- K. トランザクションデータ — 城東医院 (clinic_id=2)
+-- K. トランザクションデータ — 城東センター病院 (clinic_id=2)
 -- doctors: staff 16(木村), 17(佐々木), 18(高橋)
 -- owners: 23-30 / pets: 29-38
 -- =============================================================================
@@ -2383,7 +2319,6 @@ INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, d
     (28, 2, 'C-2026-003', '2026-02-20', 30, 38, 18, 'draft')
 ON CONFLICT (id) DO UPDATE SET updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
 
 -- -----------------------------------------------------------------------------
 -- K-2. inquiries（城東: 8件、IDs 25-32）
@@ -2399,7 +2334,6 @@ INSERT INTO inquiries (id, medical_record_id, chief_complaint_type_id, chief_com
     (32, 28, 7,     '食欲不振・嘔吐',                       '初診。昨日から嘔吐1回。',             18)
 ON CONFLICT (id) DO UPDATE SET medical_record_id = EXCLUDED.medical_record_id, updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('inquiries', 'id'), (SELECT MAX(id) FROM inquiries));
 
 -- -----------------------------------------------------------------------------
 -- K-3. clinical_plans（城東: 8件、IDs 21-28）
@@ -2415,7 +2349,6 @@ INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_type
     (28, 28, '腹部触診で軽度抵抗感。',             9,    21,   '急性胃腸炎。',               '補液・制吐剤投与。食事制限。')
 ON CONFLICT (id) DO UPDATE SET updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('clinical_plans', 'id'), (SELECT MAX(id) FROM clinical_plans));
 
 -- -----------------------------------------------------------------------------
 -- K-4. vaccinations（城東: 3件、IDs 6-8）
@@ -2426,7 +2359,6 @@ INSERT INTO vaccinations (id, clinic_id, medical_record_id, pet_id, vaccine_id, 
     (8, 2, 21, 29, 11, 16, '2025-11-10', 'LOT-2025-J003', '1year',  '2026-11-10', '5種混合ワクチン接種。体調良好。')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
 
 -- -----------------------------------------------------------------------------
 -- K-5. exams（城東: 2件、IDs 4-5）
@@ -2436,7 +2368,6 @@ INSERT INTO exams (id, clinic_id, medical_record_id, exam_type_id, doctor_id, da
     (5, 2, 25, 8, 16, '2025-12-01', '腹部正面：腸管ガス像あり。他異常なし。', 'completed')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
 
 INSERT INTO exam_results (id, exam_id, exam_type_field_id, inspection_value, status) VALUES
     -- Exam 4 (CBC for MR23, 城東)
@@ -2448,7 +2379,6 @@ INSERT INTO exam_results (id, exam_id, exam_type_field_id, inspection_value, sta
     (50, 3, 25, '異常なし',       'normal')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_results', 'id'), (SELECT MAX(id) FROM exam_results));
 
 -- -----------------------------------------------------------------------------
 -- K-6. treatments（城東: 5件、IDs 9-13）
@@ -2461,7 +2391,6 @@ INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, proce
     (13, 25, 'medicine',     NULL, NULL, 101,  NULL, true, 'completed', 'アモキシシリン 50mg x 5日分', 520,  5, 2)
 ON CONFLICT (id) DO UPDATE SET updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
 
 -- =============================================================================
 -- L. トランザクションデータ — 敷島医院 (clinic_id=3)

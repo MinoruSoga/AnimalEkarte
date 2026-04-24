@@ -1,15 +1,14 @@
 package handler
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 type chiefComplaintResponse struct {
-	ID          string    `json:"id"`
-	ClinicID    string    `json:"clinic_id"`
+	ID          uint64    `json:"id"`
+	ClinicID    uint64    `json:"clinic_id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	IsActive    bool      `json:"is_active"`
@@ -20,8 +19,8 @@ type chiefComplaintResponse struct {
 
 func toChiefComplaintResponse(cc *model.ChiefComplaintType) chiefComplaintResponse {
 	return chiefComplaintResponse{
-		ID:          strconv.FormatUint(cc.ID, 10),
-		ClinicID:    strconv.FormatUint(cc.ClinicID, 10),
+		ID:          cc.ID,
+		ClinicID:    cc.ClinicID,
 		Name:        cc.Name,
 		Description: cc.Description,
 		IsActive:    cc.IsActive,
@@ -29,12 +28,4 @@ func toChiefComplaintResponse(cc *model.ChiefComplaintType) chiefComplaintRespon
 		CreatedAt:   cc.CreatedAt,
 		UpdatedAt:   cc.UpdatedAt,
 	}
-}
-
-func toChiefComplaintResponseList(items []model.ChiefComplaintType) []chiefComplaintResponse {
-	list := make([]chiefComplaintResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toChiefComplaintResponse(&items[i]))
-	}
-	return list
 }

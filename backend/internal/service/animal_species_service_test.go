@@ -13,12 +13,12 @@ import (
 // ---- AnimalSpecies モック ----
 
 type mockAnimalSpeciesRepository struct {
-	findAllFn  func(ctx context.Context) ([]model.AnimalSpecies, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.AnimalSpecies, error)
-	createFn   func(ctx context.Context, species *model.AnimalSpecies) error
-	updateFn   func(ctx context.Context, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, id uint64) error
-	reorderFn  func(ctx context.Context, ids []uint64) error
+	findAllFn      func(ctx context.Context) ([]model.AnimalSpecies, error)
+	findByIDFn     func(ctx context.Context, id uint64) (*model.AnimalSpecies, error)
+	createFn       func(ctx context.Context, species *model.AnimalSpecies) error
+	updateFieldsFn func(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error)
+	deleteFn       func(ctx context.Context, id uint64) error
+	reorderFn      func(ctx context.Context, ids []uint64) error
 }
 
 func (m *mockAnimalSpeciesRepository) FindAll(ctx context.Context) ([]model.AnimalSpecies, error) {
@@ -39,11 +39,11 @@ func (m *mockAnimalSpeciesRepository) Create(ctx context.Context, species *model
 	return nil
 }
 
-func (m *mockAnimalSpeciesRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
-	if m.updateFn != nil {
-		return m.updateFn(ctx, id, fields)
+func (m *mockAnimalSpeciesRepository) Update(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error) {
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, id, fields)
 	}
-	return nil
+	return &model.AnimalSpecies{}, nil
 }
 
 func (m *mockAnimalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
@@ -190,7 +190,7 @@ func TestAnimalSpeciesService_Delete_WithPetReference(t *testing.T) {
 				},
 			}
 			petRepo := &mockPetRepository{
-				countByAnimalSpeciesIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				countUsageByAnimalSpeciesIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.petCount, nil
 				},
 			}

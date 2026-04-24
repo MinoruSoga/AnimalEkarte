@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 
 // External
 import { Pencil, Plus, Check, X, BarChart2, Table2 } from "lucide-react";
@@ -19,12 +19,12 @@ const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2
 
 // Relative
 import { VitalsGraph } from "./VitalsGraph";
-import { usePermission } from "@/features/auth";
-import { useGetVitals } from "@/features/medical-records/api/vitals";
-import { useCreateVital } from "@/features/medical-records/api/vitals";
-import { useUpdateVital } from "@/features/medical-records/api/vitals";
-import { useDeleteVital } from "@/features/medical-records/api/vitals";
-import type { Vital, CreateVitalInput, UpdateVitalInput, BodyWeightUnit } from "@/features/medical-records/types";
+import { usePermission } from "@/hooks/use-permission";
+import { useGetVitals } from "../../api/vitals";
+import { useCreateVital } from "../../api/vitals";
+import { useUpdateVital } from "../../api/vitals";
+import { useDeleteVital } from "../../api/vitals";
+import type { Vital, CreateVitalInput, UpdateVitalInput, BodyWeightUnit } from "../../types";
 
 // ── 静的定数 ─────────────────────────────────────────────────────────
 
@@ -312,12 +312,16 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
   const [showGraph, setShowGraph] = useState(false);
 
   // recorded_at 昇順ソート済みリスト
-  const sortedVitals: Vital[] = vitals
-    ? [...vitals].sort(
-        (a, b) =>
-          new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
-      )
-    : [];
+  const sortedVitals = useMemo<Vital[]>(
+    () =>
+      vitals
+        ? [...vitals].sort(
+            (a, b) =>
+              new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+          )
+        : [],
+    [vitals]
+  );
 
   // ── handlers ──
 

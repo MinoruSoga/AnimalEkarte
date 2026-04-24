@@ -12,7 +12,7 @@ $ARGUMENTS 環境へのデプロイを準備してください。
 ## デプロイ手順
 
 1. 環境: $ARGUMENTS
-2. ビルド: `npm run build`
+2. ビルド: `ppnpm build`
 3. デプロイ: `./scripts/deploy.sh $ARGUMENTS`
 
 ## 注意事項

@@ -28,15 +28,16 @@ func (PermissionGroup) TableName() string { return "permission_groups" }
 
 // PermissionGroupRule は権限グループ内のリソース×CRUD権限
 type PermissionGroupRule struct {
-	ID        uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	GroupID   uint64    `gorm:"not null"                                       json:"group_id"`
-	Resource  string    `gorm:"type:varchar(50);not null"                      json:"resource"`
-	CanView   bool      `gorm:"default:false"                                  json:"can_view"`
-	CanCreate bool      `gorm:"default:false"                                  json:"can_create"`
-	CanEdit   bool      `gorm:"default:false"                                  json:"can_edit"`
-	CanDelete bool      `gorm:"default:false"                                  json:"can_delete"`
-	CreatedAt time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID        uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	GroupID   uint64         `gorm:"not null"                                       json:"group_id"`
+	Resource  string         `gorm:"type:varchar(50);not null"                      json:"resource"`
+	CanView   bool           `gorm:"default:false"                                  json:"can_view"`
+	CanCreate bool           `gorm:"default:false"                                  json:"can_create"`
+	CanEdit   bool           `gorm:"default:false"                                  json:"can_edit"`
+	CanDelete bool           `gorm:"default:false"                                  json:"can_delete"`
+	CreatedAt time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt gorm.DeletedAt `                                                      json:"-"`
 
 	// Relations
 	PermissionGroup *PermissionGroup `gorm:"foreignKey:GroupID" json:"permission_group,omitempty"`

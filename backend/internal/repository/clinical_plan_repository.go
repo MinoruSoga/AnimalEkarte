@@ -30,8 +30,8 @@ func NewClinicalPlanRepository(db *gorm.DB) ClinicalPlanRepository {
 func (r *clinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
 	var plan model.ClinicalPlan
 	err := r.db.WithContext(ctx).
-		Preload("DiagnosisType").
-		Preload("DiagnosisName").
+		Preload("DiagnosisType", "deleted_at IS NULL").
+		Preload("DiagnosisName", "deleted_at IS NULL").
 		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND clinical_plans.medical_record_id = ?", clinicID, medicalRecordID).
 		First(&plan).Error

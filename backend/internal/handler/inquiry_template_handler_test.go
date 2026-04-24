@@ -1,181 +1,527 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// TestInquiryTemplateHandlerCompiles verifies inquiry_template_handler.go compiles
-func TestInquiryTemplateHandlerCompiles(t *testing.T) {
-	assert.True(t, true, "inquiry_template_handler.go compiled successfully")
+// ---- mock InquiryTemplateService ----
+
+type mockInquiryTemplateService struct {
+	listFn    func(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error)
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
+	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateInquiryTemplateInput) (*model.InquiryTemplate, error)
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateInquiryTemplateInput) (*model.InquiryTemplate, error)
+	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-// ---- Comprehensive Test Coverage Documentation ----
-//
-// Inquiry Template Handler Test Cases
-// This handler manages inquiry/questionnaire templates (Section 4: カルテ管理 - medical records)
-// InquiryTemplate: reusable question templates for pre-visit or pre-procedure questionnaires
-//
-// CRITICAL ENDPOINTS:
-//
-// 1. ListInquiryTemplates (GET /inquiry-templates)
-//    Test Cases (8 scenarios):
-//    ✓ Returns 200 OK with empty list when no templates exist
-//    ✓ Returns 200 OK with list of all clinic's templates (no pagination)
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Response includes all template fields
-//    ✓ Response includes: id, name, description, category, is_active, sort_order
-//    ✓ Response sorted by sort_order (display order)
-//    ✓ Optional filtering by category (pre-visit, pre-procedure, pre-surgery, etc.)
-//    ✓ Returns 500 on database error
-//
-// 2. GetInquiryTemplate (GET /inquiry-templates/:id)
-//    Test Cases (10 scenarios):
-//    ✓ Returns 200 OK with single template record
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when template doesn't exist
-//    ✓ Returns 403 when template belongs to different clinic (tenant isolation)
-//    ✓ Response includes complete template data with all fields
-//    ✓ Response includes nested inquiry_questions array (questions in template)
-//    ✓ Each question includes: question_id, question_text, question_type, required, sort_order
-//    ✓ Question types: text, checkbox, radio, number, date, time, textarea
-//    ✓ Returns 500 on database error
-//
-// 3. CreateInquiryTemplate (POST /inquiry-templates)
-//    Test Cases (18 scenarios):
-//    ✓ Returns 201 Created when template created successfully
-//    ✓ Returns 400 when required field missing (name, category)
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Requires ResourceMasterData create permission (checked via middleware)
-//    ✓ Name field: required, text (template name)
-//    ✓ Category field: required ENUM (pre-visit, pre-procedure, pre-surgery, post-visit, intake)
-//    ✓ Description field: optional text (template purpose/notes)
-//    ✓ IsActive field: optional boolean, defaults to true
-//    ✓ SortOrder field: optional numeric for display ordering
-//    ✓ DefaultLanguage field: optional (if multi-language support)
-//    ✓ Created template includes generated id and timestamps
-//    ✓ Uses toInquiryTemplateResponse() transformation
-//    ✓ Can accept initial questions in body (nested creation)
-//    ✓ Prevents duplicate template names per clinic
-//    ✓ Response includes nested empty questions array
-//    ✓ Returns 500 on database error
-//
-// 4. UpdateInquiryTemplate (PATCH /inquiry-templates/:id)
-//    Test Cases (15 scenarios):
-//    ✓ Returns 200 OK when template updated successfully
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 404 when template doesn't exist
-//    ✓ Returns 403 when template belongs to different clinic
-//    ✓ Requires ResourceMasterData edit permission
-//    ✓ Partial updates: name can be updated
-//    ✓ Partial updates: category can be updated
-//    ✓ Partial updates: description can be updated or cleared
-//    ✓ Partial updates: is_active can be toggled
-//    ✓ Partial updates: sort_order can be changed
-//    ✓ Unspecified fields remain unchanged (PATCH semantics)
-//    ✓ Uses toInquiryTemplateResponse() transformation
-//    ✓ Returns 500 on database error
-//
-// 5. DeleteInquiryTemplate (DELETE /inquiry-templates/:id)
-//    Test Cases (11 scenarios):
-//    ✓ Returns 204 No Content when template deleted successfully
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when template doesn't exist
-//    ✓ Returns 403 when template belongs to different clinic
-//    ✓ Requires ResourceMasterData delete permission
-//    ✓ Deletion behavior: soft delete or hard delete
-//    ✓ Deleted template no longer appears in ListInquiryTemplates
-//    ✓ Deletion cascades or blocks nested questions (child records)
-//    ✓ Deletion checks for FK dependencies (inquiry_responses if linked)
-//    ✓ Returns 500 on database error
-//
-// 6. AddQuestion (POST /inquiry-templates/:id/questions)
-//    Test Cases (16 scenarios):
-//    ✓ Returns 201 Created when question added to template
-//    ✓ Returns 400 when required fields missing (question_text, question_type)
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when template id is non-numeric or invalid format
-//    ✓ Returns 404 when template doesn't exist
-//    ✓ Returns 403 when template belongs to different clinic
-//    ✓ Requires ResourceMasterData edit permission
-//    ✓ QuestionText field: required, text (the question)
-//    ✓ QuestionType field: required ENUM (text, checkbox, radio, number, date, time, textarea)
-//    ✓ IsRequired field: optional boolean, defaults to false
-//    ✓ SortOrder field: optional numeric
-//    ✓ Options field: optional array for radio/checkbox (choice list)
-//    ✓ RegexPattern field: optional (for text validation)
-//    ✓ MinValue/MaxValue fields: optional (for number type)
-//    ✓ Uses transformation for response
-//    ✓ Returns 500 on database error
-//
-// SECURITY & MULTITENANCY:
-//    ✓ Clinic-based access control (clinic_id verification on CRUD)
-//    ✓ RBAC: ResourceMasterData permission (create, edit, delete required)
-//    ✓ Template isolation: no cross-clinic template access
-//    ✓ Soft delete prevents accidental data loss
-//    ✓ Partial updates prevent mass assignment
-//
-// DATA USES:
-//    ✓ Inquiry template master for creating inquiry forms
-//    ✓ Reusable question templates for different visit types
-//    ✓ Parent for inquiry_questions (1:N relationship)
-//    ✓ Reduces data entry by allowing template reuse
-//    ✓ Category-based organization (pre-visit, pre-procedure, etc.)
-//
-// DATA MODEL (inquiry_templates):
-//    - id (PK): BIGSERIAL
-//    - clinic_id: BIGINT NOT NULL (multitenancy)
-//    - name: VARCHAR(255) NOT NULL - template name
-//    - category: VARCHAR(50) NOT NULL - ENUM (pre-visit, pre-procedure, pre-surgery, post-visit, intake)
-//    - description: TEXT (NULLABLE) - template purpose/notes
-//    - is_active: BOOLEAN DEFAULT true - enable/disable flag
-//    - sort_order: INTEGER DEFAULT 0 - display ordering
-//    - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - deleted_at: TIMESTAMP NULL (soft delete)
-//    - Indexes: (clinic_id, id), (clinic_id, category), (clinic_id, is_active), (clinic_id, sort_order)
-//    - Unique constraint: (clinic_id, name) WHERE deleted_at IS NULL
-//
-// RELATED TABLES:
-//    - inquiry_questions: Child questions within template
-//    - inquiry_responses: Answers submitted via inquiry template
-//
-// IMPLEMENTATION NOTES:
-//    - Clinic-scoped template management
-//    - NO pagination (returns all clinic's templates)
-//    - Parent for inquiry_questions (1:N relationship)
-//    - Category ENUM: pre-visit, pre-procedure, pre-surgery, post-visit, intake
-//    - Soft delete: preserves template history
-//    - Transformations: toInquiryTemplateResponse()
-//    - RBAC: ResourceMasterData permission required
-//
-// TESTING STRATEGY:
-//    Use integration tests with:
-//    - Test database fixtures with sample templates
-//    - Real service/repository layers
-//    - Verify clinic_id scoping (no cross-clinic template access)
-//    - Test ListInquiryTemplates returns all templates sorted by sort_order
-//    - Test GetInquiryTemplate with valid template
-//    - Test GetInquiryTemplate 404 when template doesn't exist
-//    - Test CreateInquiryTemplate with required fields
-//    - Test CreateInquiryTemplate with optional fields
-//    - Test CreateInquiryTemplate with category ENUM validation
-//    - Test duplicate name prevention
-//    - Test UpdateInquiryTemplate with name/category/description changes
-//    - Test UpdateInquiryTemplate toggling is_active
-//    - Test UpdateInquiryTemplate PATCH semantics
-//    - Test DeleteInquiryTemplate soft delete behavior
-//    - Test DeleteInquiryTemplate cascades child questions
-//    - Test AddQuestion with various question types
-//    - Test AddQuestion with validation rules (regex, min/max)
-//    - Test response transformation (toInquiryTemplateResponse)
-//    - Test permission checks (ResourceMasterData on all operations)
-//    - Test FK constraint (clinic_id must match)
-//    - Verify nested questions array structure
-//
+func (m *mockInquiryTemplateService) List(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, clinicID)
+	}
+	return nil, nil
+}
+
+func (m *mockInquiryTemplateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, clinicID, id)
+	}
+	return &model.InquiryTemplate{ID: id}, nil
+}
+
+func (m *mockInquiryTemplateService) Create(ctx context.Context, clinicID uint64, input *service.CreateInquiryTemplateInput) (*model.InquiryTemplate, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, input)
+	}
+	return &model.InquiryTemplate{ID: 1, Title: input.Title}, nil
+}
+
+func (m *mockInquiryTemplateService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateInquiryTemplateInput) (*model.InquiryTemplate, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, input)
+	}
+	return &model.InquiryTemplate{ID: id}, nil
+}
+
+func (m *mockInquiryTemplateService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (m *mockInquiryTemplateService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, clinicID, ids)
+	}
+	return nil
+}
+
+// ---- helper ----
+
+func newHandlerWithInquiryTemplateSvc(svc service.InquiryTemplateService) *Handler {
+	return &Handler{svc: &service.Services{
+		InquiryTemplate: svc,
+	}}
+}
+
+// ---- TestInquiryTemplateHandler_List ----
+
+func TestInquiryTemplateHandler_List(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		setupCtx   func(c *gin.Context)
+		svc        *mockInquiryTemplateService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "正常: 一覧を返す",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryTemplateService{
+				listFn: func(_ context.Context, clinicID uint64) ([]model.InquiryTemplate, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return []model.InquiryTemplate{
+						{ID: 1, ClinicID: 1, Title: "問診テンプレート1"},
+						{ID: 2, ClinicID: 1, Title: "問診テンプレート2"},
+					}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"title":"問診テンプレート1"`,
+		},
+		{
+			name:       "401: clinic_id なし",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockInquiryTemplateService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "500: サービスエラー",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryTemplateService{
+				listFn: func(_ context.Context, _ uint64) ([]model.InquiryTemplate, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithInquiryTemplateSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			tt.setupCtx(c)
+			h.ListInquiryTemplates(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- TestInquiryTemplateHandler_GetByID ----
+
+func TestInquiryTemplateHandler_GetByID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockInquiryTemplateService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "正常: テンプレートを返す",
+			paramID:  "3",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryTemplateService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(3), id)
+					return &model.InquiryTemplate{ID: id, Title: "問診テンプレート"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"title":"問診テンプレート"`,
+		},
+		{
+			name:       "401: clinic_id なし",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockInquiryTemplateService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "400: 不正なID",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInquiryTemplateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "404: 存在しないID",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryTemplateService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.InquiryTemplate, error) {
+					return nil, apperrors.WrapNotFound("inquiry_template", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithInquiryTemplateSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.GetInquiryTemplate(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- TestInquiryTemplateHandler_Create ----
+
+func TestInquiryTemplateHandler_Create(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{
+			"title":    "新規テンプレート",
+			"category": "pre-visit",
+			"content":  "問診内容",
+		}
+	}
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockInquiryTemplateService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "201: 正常作成",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryTemplateService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateInquiryTemplateInput) (*model.InquiryTemplate, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "新規テンプレート", input.Title)
+					return &model.InquiryTemplate{ID: 5, ClinicID: clinicID, Title: input.Title}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"title":"新規テンプレート"`,
+		},
+		{
+			name:       "401: clinic_id なし",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockInquiryTemplateService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "400: title なし（バリデーションエラー）",
+			body:       map[string]any{"category": "pre-visit"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInquiryTemplateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "400: 不正なJSON",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInquiryTemplateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "500: サービスエラー",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryTemplateService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateInquiryTemplateInput) (*model.InquiryTemplate, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithInquiryTemplateSvc(tt.svc)
+			b, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+			h.CreateInquiryTemplate(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			if tt.wantStatus == http.StatusCreated {
+				assert.Contains(t, w.Header().Get("Location"), "/inquiry-templates/")
+			}
+		})
+	}
+}
+
+// ---- TestInquiryTemplateHandler_Update ----
+
+func TestInquiryTemplateHandler_Update(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockInquiryTemplateService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "200: 正常更新",
+			paramID:  "1",
+			body:     map[string]any{"title": "更新されたタイトル"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryTemplateService{
+				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateInquiryTemplateInput) (*model.InquiryTemplate, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					require.NotNil(t, input.Title)
+					assert.Equal(t, "更新されたタイトル", *input.Title)
+					return &model.InquiryTemplate{ID: id, Title: *input.Title}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"title":"更新されたタイトル"`,
+		},
+		{
+			name:       "401: clinic_id なし",
+			paramID:    "1",
+			body:       map[string]any{"title": "テスト"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockInquiryTemplateService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "400: 不正なID",
+			paramID:    "xyz",
+			body:       map[string]any{"title": "テスト"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInquiryTemplateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "400: 不正なJSON",
+			paramID:    "1",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInquiryTemplateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "404: 存在しないID",
+			paramID:  "999",
+			body:     map[string]any{"title": "テスト"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryTemplateService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateInquiryTemplateInput) (*model.InquiryTemplate, error) {
+					return nil, apperrors.WrapNotFound("inquiry_template", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithInquiryTemplateSvc(tt.svc)
+			b, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(b))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.UpdateInquiryTemplate(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- TestInquiryTemplateHandler_Delete ----
+
+func newDeleteInquiryTemplateRouter(svc service.InquiryTemplateService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithInquiryTemplateSvc(svc)
+	r.DELETE("/inquiry-templates/:id", func(c *gin.Context) {
+		setClinicID(c)
+		h.DeleteInquiryTemplate(c)
+	})
+	return r
+}
+
+func TestInquiryTemplateHandler_Delete(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockInquiryTemplateService
+		wantStatus int
+	}{
+		{
+			name:    "204: 正常削除",
+			paramID: "1",
+			svc: &mockInquiryTemplateService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:    "409: 使用中のため削除不可",
+			paramID: "2",
+			svc: &mockInquiryTemplateService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapConflict("この問診定型文は使用中のため削除できません")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+		{
+			name:    "404: 存在しないID",
+			paramID: "999",
+			svc: &mockInquiryTemplateService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("inquiry_template", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteInquiryTemplateRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/inquiry-templates/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("401: clinic_id なし", func(t *testing.T) {
+		h := newHandlerWithInquiryTemplateSvc(&mockInquiryTemplateService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.DeleteInquiryTemplate(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- TestInquiryTemplateHandler_Reorder ----
+
+func newReorderInquiryTemplatesRouter(svc service.InquiryTemplateService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithInquiryTemplateSvc(svc)
+	r.POST("/inquiry-templates/reorder", func(c *gin.Context) {
+		setClinicID(c)
+		h.ReorderInquiryTemplates(c)
+	})
+	return r
+}
+
+func TestInquiryTemplateHandler_Reorder(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("200: 正常並び替え", func(t *testing.T) {
+		svc := &mockInquiryTemplateService{
+			reorderFn: func(_ context.Context, clinicID uint64, ids []uint64) error {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, []uint64{3, 1, 2}, ids)
+				return nil
+			},
+		}
+		router := newReorderInquiryTemplatesRouter(svc)
+		body, _ := json.Marshal(map[string]any{"ids": []int{3, 1, 2}})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/inquiry-templates/reorder", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("400: 空のIDsエラー", func(t *testing.T) {
+		svc := &mockInquiryTemplateService{
+			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return apperrors.WrapInvalidInput("IDsは1件以上必要です")
+			},
+		}
+		router := newReorderInquiryTemplatesRouter(svc)
+		body, _ := json.Marshal(map[string]any{"ids": []int{}})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/inquiry-templates/reorder", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("401: clinic_id なし", func(t *testing.T) {
+		h := newHandlerWithInquiryTemplateSvc(&mockInquiryTemplateService{})
+		body, _ := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		h.ReorderInquiryTemplates(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}

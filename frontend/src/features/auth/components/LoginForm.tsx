@@ -29,14 +29,14 @@ const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO ? [
   // システム管理者（全医院）
   { email: "hayashi@noah-vet.co.jp", displayName: "林 文明",     occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "全医院",   isSystemAdmin: true },
   { email: "admin@noavet.jp",        displayName: "ノア",         occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "全医院",   isSystemAdmin: true },
-  // 八王子院
-  { email: "admin@example.com",      displayName: "安田 希恵",   occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子院" },
-  { email: "vet@example.com",        displayName: "倉田 春香",   occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子院" },
-  { email: "nurse@example.com",      displayName: "梶原 梨夢",   occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子院" },
-  { email: "reception@example.com",  displayName: "髙木 賀央里", occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子院" },
-  { email: "trimmer@example.com",    displayName: "さくら",      occupationLabel: "トリマー", permissionLabel: "一般", clinicLabel: "八王子院" },
-  // 城東医院
-  { email: "joto-vet@example.com",   displayName: "城東 獣医",   occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "城東医院" },
+  // 八王子病院
+  { email: "admin@example.com",      displayName: "安田 希恵",   occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子病院" },
+  { email: "vet@example.com",        displayName: "倉田 春香",   occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子病院" },
+  { email: "nurse@example.com",      displayName: "梶原 梨夢",   occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子病院" },
+  { email: "reception@example.com",  displayName: "髙木 賀央里", occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子病院" },
+  { email: "trimmer@example.com",    displayName: "さくら",      occupationLabel: "トリマー", permissionLabel: "一般", clinicLabel: "八王子病院" },
+  // 城東センター病院
+  { email: "joto-vet@example.com",   displayName: "城東 獣医",   occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "城東センター病院" },
   // 敷島医院
   { email: "shiki-vet@example.com",  displayName: "敷島 獣医",   occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "敷島医院" },
 ] : [];

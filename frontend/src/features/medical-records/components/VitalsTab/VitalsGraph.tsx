@@ -8,7 +8,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
 
 // Relative
-import type { Vital } from "@/features/medical-records/types";
+import type { Vital } from "../../types";
 
 // ── 表示可能な指標定義 ────────────────────────────────────────────────
 

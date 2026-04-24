@@ -37,6 +37,40 @@ func generateCryptoRandomString(length int) string {
 	return string(b)
 }
 
+// UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO
+type UpdateMedicalRecordInput struct {
+	Date          *time.Time
+	OwnerID       *uint64
+	PetID         *uint64
+	DoctorID      *uint64
+	AppointmentID *uint64
+	Status        *model.MedicalRecordStatus
+	Version       *int // 楽観的ロック用: nil の場合はチェックをスキップ
+}
+
+func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Date != nil {
+		fields["date"] = *input.Date
+	}
+	if input.OwnerID != nil {
+		fields["owner_id"] = *input.OwnerID
+	}
+	if input.PetID != nil {
+		fields["pet_id"] = *input.PetID
+	}
+	if input.DoctorID != nil {
+		fields["doctor_id"] = *input.DoctorID
+	}
+	if input.AppointmentID != nil {
+		fields["appointment_id"] = *input.AppointmentID
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	return fields
+}
+
 type MedicalRecordService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
@@ -48,7 +82,7 @@ type MedicalRecordService interface {
 	// 失敗しても呼び出し元のカルテ作成は完了済みのためエラーは握りつぶす（slog.Warn のみ）。
 	CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput)
 	// AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。
-	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Appointment)
+	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation)
 }
 
 // CreateSubRecordsInput はカルテ作成時の inquiry / clinical_plan サブレコード作成 DTO
@@ -155,14 +189,14 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 		}
 	}
 
-	fields := buildMedicalRecordUpdateFields(input)
+	fields := buildMedicalRecordUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	// バージョンをインクリメント
 	fields["version"] = existing.Version + 1
 
-	record, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	record, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update medical record")
 	}
@@ -173,6 +207,9 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find medical record")
+	}
 	estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check estimate dependencies")
@@ -187,40 +224,6 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 		slog.Uint64("record_id", id),
 		slog.Uint64("clinic_id", clinicID))
 	return nil
-}
-
-// UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO
-type UpdateMedicalRecordInput struct {
-	Date          *time.Time
-	OwnerID       *uint64
-	PetID         *uint64
-	DoctorID      *uint64
-	AppointmentID *uint64
-	Status        *model.MedicalRecordStatus
-	Version       *int // 楽観的ロック用: nil の場合はチェックをスキップ
-}
-
-func buildMedicalRecordUpdateFields(input UpdateMedicalRecordInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Date != nil {
-		fields["date"] = *input.Date
-	}
-	if input.OwnerID != nil {
-		fields["owner_id"] = *input.OwnerID
-	}
-	if input.PetID != nil {
-		fields["pet_id"] = *input.PetID
-	}
-	if input.DoctorID != nil {
-		fields["doctor_id"] = *input.DoctorID
-	}
-	if input.AppointmentID != nil {
-		fields["appointment_id"] = *input.AppointmentID
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	return fields
 }
 
 // CreateSubRecords はカルテ作成と同時に inquiry / clinical_plan を best-effort で作成する。
@@ -239,7 +242,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 	if input.Notes != nil {
 		inquiry.Notes = *input.Notes
 	}
-	if _, err := s.inquiryRepo.UpsertByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
+	if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
 		slog.WarnContext(ctx, "createSubRecords: failed to upsert inquiry",
 			slog.Uint64("medical_record_id", recordID),
 			slog.String("error", err.Error()))
@@ -294,7 +297,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 // 同日同ペットのカルテが既に存在する場合はスキップする（重複防止）。
 // LINE予約で owner_id / pet_id が未設定の場合は line_customer から補完を試みる（BUG-386）。
 // 失敗してもメイン処理（予約更新）には影響しない。
-func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Appointment) {
+func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation) {
 	// BUG-386: LINE予約で owner_id / pet_id が未設定の場合、line_customer から補完する
 	if (reservation.PetID == nil || reservation.OwnerID == nil) &&
 		reservation.LineCustomerID != nil &&

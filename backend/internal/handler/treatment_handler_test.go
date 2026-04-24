@@ -22,6 +22,7 @@ import (
 
 type mockTreatmentService struct {
 	listFn                func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
+	getByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	createFn              func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error)
 	updateFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error)
 	deleteFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error
@@ -30,6 +31,13 @@ type mockTreatmentService struct {
 
 func (m *mockTreatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
 	return m.listFn(ctx, clinicID, medicalRecordID)
+}
+
+func (m *mockTreatmentService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, clinicID, id)
+	}
+	return &model.Treatment{ID: id}, nil
 }
 
 func (m *mockTreatmentService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error) {

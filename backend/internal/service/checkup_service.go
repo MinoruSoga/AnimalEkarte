@@ -42,8 +42,31 @@ type ListCheckupsByClinicInput struct {
 }
 
 // CheckupService は健診記録のビジネスロジックを定義するインターフェース
+func buildCheckupUpdate(input *UpdateCheckupInput) map[string]any {
+	fields := map[string]any{}
+	if input.CheckupTypeID != nil {
+		fields["checkup_type_id"] = *input.CheckupTypeID
+	}
+	if input.PetID != nil {
+		fields["pet_id"] = *input.PetID
+	}
+	if input.Date != nil {
+		fields["date"] = *input.Date
+	}
+	if input.NextDate != nil {
+		fields["next_date"] = *input.NextDate
+	}
+	if input.DoctorID != nil {
+		fields["doctor_id"] = *input.DoctorID
+	}
+	if input.Result != nil {
+		fields["result"] = *input.Result
+	}
+	return fields
+}
+
 type CheckupService interface {
-	List(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error)
+	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
 	ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error)
 	Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error)
@@ -59,8 +82,8 @@ func NewCheckupService(repo repository.CheckupRepository) CheckupService {
 	return &checkupService{repo: repo}
 }
 
-func (s *checkupService) List(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error) {
-	result, err := s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
+func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
+	result, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list checkups")
 	}
@@ -69,7 +92,7 @@ func (s *checkupService) List(ctx context.Context, medicalRecordID uint64) ([]mo
 
 func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error) {
 	slog.InfoContext(ctx, "listing checkups by clinic", slog.Uint64("clinic_id", input.ClinicID))
-	result, err := s.repo.ListByClinic(ctx, input.ClinicID, repository.CheckupFilters{
+	result, err := s.repo.FindByClinicID(ctx, input.ClinicID, repository.CheckupFilters{
 		StartDate:     input.StartDate,
 		EndDate:       input.EndDate,
 		NextStartDate: input.NextStartDate,
@@ -96,6 +119,7 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		return nil, apperrors.Wrap(err, "failed to create checkup")
 	}
 	slog.InfoContext(ctx, "checkup created",
+		slog.Uint64("clinic_id", input.ClinicID),
 		slog.Uint64("checkup_id", checkup.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	created, err := s.repo.FindByID(ctx, input.ClinicID, checkup.ID)
@@ -106,10 +130,6 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 }
 
 func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error) {
-	fields := buildCheckupUpdateFields(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
 	// 親カルテ所属確認（clinic_id スコープ済み）
 	existing, err := s.repo.FindByID(ctx, clinicID, checkupID)
 	if err != nil {
@@ -117,6 +137,10 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 	}
 	if existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
+	}
+	fields := buildCheckupUpdate(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, checkupID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update checkup")
@@ -148,27 +172,4 @@ func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, 
 		slog.Uint64("checkup_id", checkupID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	return nil
-}
-
-func buildCheckupUpdateFields(input *UpdateCheckupInput) map[string]any {
-	fields := map[string]any{}
-	if input.CheckupTypeID != nil {
-		fields["checkup_type_id"] = *input.CheckupTypeID
-	}
-	if input.PetID != nil {
-		fields["pet_id"] = *input.PetID
-	}
-	if input.Date != nil {
-		fields["date"] = *input.Date
-	}
-	if input.NextDate != nil {
-		fields["next_date"] = *input.NextDate
-	}
-	if input.DoctorID != nil {
-		fields["doctor_id"] = *input.DoctorID
-	}
-	if input.Result != nil {
-		fields["result"] = *input.Result
-	}
-	return fields
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,7 +16,7 @@ import (
 // GetLiffSettings はLIFF公開設定を返す。
 // GET /api/liff/:clinicId/settings
 func (h *Handler) GetLiffSettings(c *gin.Context) {
-	clinicID, ok := extractClinicIDFromParam(c)
+	clinicID, ok := parseIDParam(c, "clinicId")
 	if !ok {
 		return
 	}
@@ -30,7 +31,7 @@ func (h *Handler) GetLiffSettings(c *gin.Context) {
 // GetLiffProfile はLIFF顧客プロフィールを返す。
 // GET /api/liff/:clinicId/profile
 func (h *Handler) GetLiffProfile(c *gin.Context) {
-	clinicID, ok := extractClinicIDFromParam(c)
+	clinicID, ok := parseIDParam(c, "clinicId")
 	if !ok {
 		return
 	}
@@ -50,7 +51,7 @@ func (h *Handler) GetLiffProfile(c *gin.Context) {
 // GetLiffTypes はLIFF向け公開コース一覧を返す。
 // GET /api/liff/:clinicId/courses
 func (h *Handler) GetLiffTypes(c *gin.Context) {
-	clinicID, ok := extractClinicIDFromParam(c)
+	clinicID, ok := parseIDParam(c, "clinicId")
 	if !ok {
 		return
 	}
@@ -69,7 +70,7 @@ func (h *Handler) GetLiffTypes(c *gin.Context) {
 // GetLiffStaffs はコース対応スタッフ一覧を返す。
 // GET /api/liff/:clinicId/staffs?courseId=:id
 func (h *Handler) GetLiffStaffs(c *gin.Context) {
-	clinicID, ok := extractClinicIDFromParam(c)
+	clinicID, ok := parseIDParam(c, "clinicId")
 	if !ok {
 		return
 	}
@@ -94,7 +95,7 @@ func (h *Handler) GetLiffStaffs(c *gin.Context) {
 // GetLiffAvailableDates は予約可能日付一覧を返す。
 // GET /api/liff/:clinicId/available-dates?courseId=:id&staffId=:id
 func (h *Handler) GetLiffAvailableDates(c *gin.Context) {
-	clinicID, ok := extractClinicIDFromParam(c)
+	clinicID, ok := parseIDParam(c, "clinicId")
 	if !ok {
 		return
 	}
@@ -128,7 +129,7 @@ func (h *Handler) GetLiffAvailableDates(c *gin.Context) {
 // GetLiffAvailableTimes は指定日の予約可能時間枠を返す。
 // GET /api/liff/:clinicId/available-times?courseId=:id&staffId=:id&date=YYYY-MM-DD
 func (h *Handler) GetLiffAvailableTimes(c *gin.Context) {
-	clinicID, ok := extractClinicIDFromParam(c)
+	clinicID, ok := parseIDParam(c, "clinicId")
 	if !ok {
 		return
 	}
@@ -161,7 +162,7 @@ func (h *Handler) GetLiffAvailableTimes(c *gin.Context) {
 // CreateLiffReservation は予約を確定する。
 // POST /api/liff/:clinicId/reservations
 func (h *Handler) CreateLiffReservation(c *gin.Context) {
-	clinicID, ok := extractClinicIDFromParam(c)
+	clinicID, ok := parseIDParam(c, "clinicId")
 	if !ok {
 		return
 	}
@@ -191,43 +192,85 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 	}
 
 	input := &service.CreateReservationInput{
-		ReservationTypeID: req.TypeID,
-		StaffID:           req.StaffID,
-		Date:              date,
-		StartTime:         req.StartTime,
-		EndTime:           req.EndTime,
-		CustomerFields:    req.CustomerFields,
-		RequestText:       req.RequestText,
+		ReservationTypeID:    req.TypeID,
+		StaffID:              req.StaffID,
+		Date:                 date,
+		StartTime:            req.StartTime,
+		EndTime:              req.EndTime,
+		CustomerFields:       req.CustomerFields,
+		RequestText:          req.RequestText,
+		TrimmingCourseID:     req.TrimmingCourseID,
+		TrimmingOptionIDs:    req.TrimmingOptionIDs,
+		TrimmingStyleRequest: req.TrimmingStyleRequest,
 	}
 
-	// 指名予約時: 医師がこのクリニックに所属しているか確認
-	if err := h.checkDoctorClinicAssignment(c.Request.Context(), clinicID, req.StaffID); err != nil {
-		RespondError(c, err)
-		return
+	// 指名予約時のみ所属チェック（StaffID=0 は「指名なし」）
+	if req.StaffID != 0 {
+		if err := h.checkDoctorClinicAssignment(c.Request.Context(), clinicID, req.StaffID); err != nil {
+			RespondError(c, err)
+			return
+		}
 	}
 
 	appt, err := h.svc.Liff.CreateReservation(c.Request.Context(), clinicID, customerID, input)
 	if err != nil {
 		// 予約制限エラーはフロントエンドに redirect_step を伝える
 		if limErr, ok := service.IsReservationLimitError(err); ok {
-			// NOTE: Intentional direct response — ReservationLimitError は RespondError で処理できないカスタムペイロード（redirect_step）を含む
-			c.JSON(http.StatusConflict, gin.H{
-				"error":         limErr.Error(),
-				"code":          limErr.Code,
+			extras := map[string]any{
 				"redirect_step": limErr.RedirectStep,
-			})
+			}
+			RespondErrorWithExtras(c, limErr, extras)
 			return
 		}
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", appt.ID))
 	c.JSON(http.StatusCreated, gin.H{"id": appt.ID, "notes": appt.Notes})
+}
+
+// GetLiffTrimmingCourses はLIFF向けトリミングコース一覧を返す。
+// GET /api/liff/:clinicId/trimming-courses
+func (h *Handler) GetLiffTrimmingCourses(c *gin.Context) {
+	clinicID, ok := parseIDParam(c, "clinicId")
+	if !ok {
+		return
+	}
+	courses, err := h.svc.Liff.GetTrimmingCourses(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	resp := make([]liffTrimmingCourseResponse, 0, len(courses))
+	for i := range courses {
+		resp = append(resp, toLiffTrimmingCourseResponse(&courses[i]))
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// GetLiffTrimmingOptions はLIFF向けトリミングオプション一覧を返す。
+// GET /api/liff/:clinicId/trimming-options
+func (h *Handler) GetLiffTrimmingOptions(c *gin.Context) {
+	clinicID, ok := parseIDParam(c, "clinicId")
+	if !ok {
+		return
+	}
+	options, err := h.svc.Liff.GetTrimmingOptions(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	resp := make([]liffTrimmingOptionResponse, 0, len(options))
+	for i := range options {
+		resp = append(resp, toLiffTrimmingOptionResponse(&options[i]))
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // GetLiffMyReservations は顧客自身の予約一覧を返す。
 // GET /api/liff/:clinicId/my-reservations
 func (h *Handler) GetLiffMyReservations(c *gin.Context) {
-	clinicID, ok := extractClinicIDFromParam(c)
+	clinicID, ok := parseIDParam(c, "clinicId")
 	if !ok {
 		return
 	}
@@ -252,7 +295,7 @@ func (h *Handler) GetLiffMyReservations(c *gin.Context) {
 // CancelLiffReservation は予約をキャンセルする。
 // DELETE /api/liff/:clinicId/my-reservations/:id
 func (h *Handler) CancelLiffReservation(c *gin.Context) {
-	clinicID, ok := extractClinicIDFromParam(c)
+	clinicID, ok := parseIDParam(c, "clinicId")
 	if !ok {
 		return
 	}

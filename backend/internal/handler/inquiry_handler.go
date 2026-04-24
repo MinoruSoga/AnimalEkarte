@@ -26,7 +26,7 @@ func (h *Handler) UpdateInquiry(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	inquiry, err := h.svc.Inquiry.Upsert(c.Request.Context(), service.UpsertInquiryInput{
+	inquiry, err := h.svc.Inquiry.Save(c.Request.Context(), service.SaveInquiryInput{
 		ClinicID:             clinicID,
 		MedicalRecordID:      medicalRecordID,
 		ChiefComplaintTypeID: req.ChiefComplaintTypeID,
@@ -37,7 +37,7 @@ func (h *Handler) UpdateInquiry(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, inquiry)
+	c.JSON(http.StatusOK, toInquiryResponse(inquiry))
 }
 
 // RegisterInquiryRoutes は問診関連のルートを登録する

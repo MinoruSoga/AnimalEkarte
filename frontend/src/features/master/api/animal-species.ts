@@ -22,20 +22,17 @@ function transformAnimalSpecies(data: ModelAnimalSpecies) {
 export type AnimalSpecies = ReturnType<typeof transformAnimalSpecies>;
 
 // ─────────────────────────────────────────────────
-// Request types
+// Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export interface CreateAnimalSpeciesRequest {
-  name: string;
-  is_active: boolean;
-  sort_order: number;
-}
+export type CreateAnimalSpeciesRequest = Omit<
+  ModelAnimalSpecies,
+  "id" | "created_at" | "updated_at"
+>;
 
 export type UpdateAnimalSpeciesRequest = Partial<CreateAnimalSpeciesRequest>;
 
-export interface ReorderAnimalSpeciesRequest {
-  ids: number[];
-}
+export type ReorderAnimalSpeciesRequest = { ids: number[] };
 
 // ─────────────────────────────────────────────────
 // Query key

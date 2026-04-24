@@ -11,6 +11,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
+// medicineListMaxLimit はマスタ全件取得の上限定数（他マスタと統一の全件返却）
+const medicineListMaxLimit = 10000
+
 // ListMedicines godoc
 func (h *Handler) ListMedicines(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -18,18 +21,13 @@ func (h *Handler) ListMedicines(c *gin.Context) {
 		return
 	}
 
-	page, limit, err := parsePagination(c)
+	// マスタ系は全件返却（他マスタと統一）。service.List のページネーション引数は固定値で全件取得。
+	medicines, _, err := h.svc.Medicine.List(c.Request.Context(), clinicID, 1, medicineListMaxLimit)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-
-	medicines, total, err := h.svc.Medicine.List(c.Request.Context(), clinicID, page, limit)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, newPaginatedResponse(toMedicineResponseList(medicines), total, page, limit))
+	c.JSON(http.StatusOK, mapSlice(medicines, toMedicineResponse))
 }
 
 // GetMedicine godoc
@@ -64,7 +62,7 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 		return
 	}
 
-	input := service.CreateMedicineInput{
+	medicine, err := h.svc.Medicine.Create(c.Request.Context(), clinicID, &service.CreateMedicineInput{
 		Name:            req.Name,
 		ParentID:        req.ParentID,
 		Price:           req.Price,
@@ -77,9 +75,7 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 		SortOrder:       req.SortOrder,
 		TaxType:         req.TaxType,
 		TaxRate:         req.TaxRate,
-	}
-
-	medicine, err := h.svc.Medicine.Create(c.Request.Context(), clinicID, &input)
+	})
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -105,7 +101,7 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 		return
 	}
 
-	input := service.UpdateMedicineInput{
+	medicine, err := h.svc.Medicine.Update(c.Request.Context(), clinicID, id, &service.UpdateMedicineInput{
 		Name:            req.Name,
 		ParentID:        req.ParentID,
 		ClearParentID:   req.ClearParentID,
@@ -119,9 +115,7 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 		SortOrder:       req.SortOrder,
 		TaxType:         req.TaxType,
 		TaxRate:         req.TaxRate,
-	}
-
-	medicine, err := h.svc.Medicine.Update(c.Request.Context(), clinicID, id, &input)
+	})
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -135,7 +129,7 @@ func (h *Handler) ReorderMedicines(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderMedicineRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -144,7 +138,7 @@ func (h *Handler) ReorderMedicines(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // DeleteMedicine godoc

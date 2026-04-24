@@ -33,11 +33,3 @@ func toInsuranceResponse(ins *model.Insurance) insuranceResponse {
 		UpdatedAt:    ins.UpdatedAt,
 	}
 }
-
-func toInsuranceResponseList(items []model.Insurance) []insuranceResponse {
-	list := make([]insuranceResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toInsuranceResponse(&items[i]))
-	}
-	return list
-}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -13,6 +14,17 @@ import (
 // MasterNameMaxLength はマスタ系エンティティの name カラムに許容する
 // 最大文字数 (UTF-8 rune count)。BUG-379 対応。
 const MasterNameMaxLength = 255
+
+// 日本語エラーメッセージ定数 (BUG-385)
+const (
+	ErrMsgAtLeastOneField   = "少なくとも1つのフィールドを指定してください"
+	ErrMsgIDsNotEmpty       = "並び順のIDリストが空です"
+	ErrMsgInputNotNil       = "更新内容が指定されていません"
+	ErrMsgPriceZeroOrMore   = "金額は0以上を入力してください"
+	ErrMsgQuantityPositive  = "数量は0より大きい値を入力してください"
+	ErrMsgWeightZeroOrMore  = "体重は0以上の値を入力してください"
+	ErrMsgResourceNameEmpty = "リソース名が空です"
+)
 
 // RFC 5322簡易的なメール形式パターン
 var emailPattern = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
@@ -32,7 +44,7 @@ func validatePetGender(gender string) error {
 	case model.PetGenderMale, model.PetGenderFemale, model.PetGenderUnknown:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid gender: %s", gender))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("性別の値が不正です: %s", gender))
 	}
 }
 
@@ -45,7 +57,7 @@ func validatePetStatus(status string) error {
 	case model.PetStatusAlive, model.PetStatusDeceased:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid status: %s", status))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("ステータスの値が不正です: %s", status))
 	}
 }
 
@@ -59,7 +71,7 @@ func validatePetAcquisitionType(t string) error {
 		model.AcquisitionTypeProtected, model.AcquisitionTypeOther:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid acquisition_type: %s", t))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("入手経路の値が不正です: %s", t))
 	}
 }
 
@@ -72,7 +84,7 @@ func validatePetDangerLevel(level string) error {
 	case model.DangerLevelLow, model.DangerLevelMedium, model.DangerLevelHigh:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid danger_level: %s", level))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("危険度の値が不正です: %s", level))
 	}
 }
 
@@ -96,31 +108,19 @@ func validateRequiredName(name string) error {
 	return nil
 }
 
-// validateMasterName はマスタ系エンティティの名称に対するバリデーションを行う。
-// 空文字・255文字超・制御文字が含まれていないかを検証する。
-// BUG-379 対応: 全マスタ Create/Update で呼び出すこと。
-func validateMasterName(name string) error {
-	return validateRequiredName(name)
-}
-
-// validateOptionalMasterName は nil 許容のマスタ名称バリデーション。
+// validateOptionalName は nil 許容の名称バリデーション。
 // PATCH 系で nil の場合は更新しない意味なのでスキップ、非 nil の場合のみ検証する。
-func validateOptionalMasterName(name *string) error {
+func validateOptionalName(name *string) error {
 	if name == nil {
 		return nil
 	}
-	return validateMasterName(*name)
-}
-
-// validateOwnerName はオーナー名のバリデーションを行う（validateRequiredName のエイリアス）
-func validateOwnerName(name string) error {
-	return validateRequiredName(name)
+	return validateRequiredName(*name)
 }
 
 // validateDiscountRate は割引率が 0〜100 の範囲内かを検証する
 func validateDiscountRate(rate float64) error {
 	if rate < 0 || rate > 100 {
-		return apperrors.WrapInvalidInput("discount_rate must be between 0 and 100")
+		return apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
 	}
 	return nil
 }
@@ -136,7 +136,7 @@ func validateMedicalImageType(t string) error {
 		model.MedicalImageTypeMicroscope, model.MedicalImageTypeOther:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid image_type: %s", t))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("画像種別の値が不正です: %s", t))
 	}
 }
 
@@ -150,7 +150,7 @@ func validateMembershipType(t model.MembershipType) error {
 		model.MembershipTypeDeceased, model.MembershipTypeTransferred:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid membership_type: %s", t))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("会員種別の値が不正です: %s", t))
 	}
 }
 
@@ -187,4 +187,140 @@ func validatePostalCodeFormat(postalCode string) error {
 		return apperrors.WrapInvalidInput("郵便番号の形式が正しくありません（例：123-4567 または 1234567）")
 	}
 	return nil
+}
+
+// validateVaccineSpecies はワクチン対象種別がドメイン上有効かを検証する
+func validateVaccineSpecies(species string) error {
+	if species == "" {
+		return nil
+	}
+	switch model.VaccineSpecies(species) {
+	case model.VaccineSpeciesDog, model.VaccineSpeciesCat, model.VaccineSpeciesBoth:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("ワクチン対象種別の値が不正です: %s", species))
+	}
+}
+
+// validateAnesthesiaType は麻酔種別がドメイン上有効かを検証する
+func validateAnesthesiaType(anesthesia string) error {
+	if anesthesia == "" {
+		return nil
+	}
+	switch model.AnesthesiaType(anesthesia) {
+	case model.AnesthesiaTypeNone, model.AnesthesiaTypeLocal,
+		model.AnesthesiaTypeSedation, model.AnesthesiaTypeGeneral:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("麻酔種別の値が不正です: %s", anesthesia))
+	}
+}
+
+// validateTaxType は税種別がドメイン上有効かを検証する
+func validateTaxType(taxType string) error {
+	if taxType == "" {
+		return nil
+	}
+	switch model.TaxType(taxType) {
+	case model.TaxTypeIncluded, model.TaxTypeExcluded, model.TaxTypeExempt:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("税種別の値が不正です: %s", taxType))
+	}
+}
+
+// validateItemCategory は明細カテゴリ文字列がドメイン上有効かを検証する
+func validateItemCategory(v string) error {
+	switch model.ItemCategory(v) {
+	case model.ItemCategoryExamination, model.ItemCategoryTest, model.ItemCategoryProcedure,
+		model.ItemCategorySurgery, model.ItemCategoryMedicine, model.ItemCategoryFood,
+		model.ItemCategoryGoods, model.ItemCategoryOther:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("明細カテゴリの値が不正です: %s", v))
+	}
+}
+
+// validateItemSource は明細ソース文字列がドメイン上有効かを検証する
+func validateItemSource(v string) error {
+	switch model.ItemSource(v) {
+	case model.ItemSourceMedicalRecord, model.ItemSourceManual, model.ItemSourceHospitalization:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("明細ソースの値が不正です: %s", v))
+	}
+}
+
+// validateCageType はケージ種別がドメイン上有効かを検証する
+func validateCageType(cageType string) error {
+	if cageType == "" {
+		return nil
+	}
+	switch model.CageType(cageType) {
+	case model.CageTypeICU, model.CageTypeDog, model.CageTypeCat, model.CageTypeGeneral:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("ケージ種別の値が不正です: %s", cageType))
+	}
+}
+
+// validateNonNegativePrice は価格フィールドが 0 以上かを検証する（nil の場合はスキップ）(BUG-380)
+func validateNonNegativePrice(price *int64) error {
+	if price == nil {
+		return nil
+	}
+	if *price < 0 {
+		return apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
+	}
+	return nil
+}
+
+// validateCoverageRate は保険補償率が 0〜100 の範囲内かを検証する (BUG-398)
+func validateCoverageRate(rate int) error {
+	if rate < 0 || rate > 100 {
+		return apperrors.WrapInvalidInput("補償率は0〜100の範囲で入力してください")
+	}
+	return nil
+}
+
+// validateOptionalCoverageRate は nil 許容の保険補償率バリデーション (BUG-398)
+func validateOptionalCoverageRate(rate *int) error {
+	if rate == nil {
+		return nil
+	}
+	return validateCoverageRate(*rate)
+}
+
+// validatePassword はパスワード複雑性を検証する（BUG-139）。
+// 8文字以上、英字1文字以上、数字1文字以上が必須。
+func validatePassword(pw string) error {
+	if len(pw) < 8 {
+		return apperrors.WrapInvalidInput("パスワードは8文字以上で入力してください")
+	}
+	var hasLetter, hasDigit bool
+	for _, r := range pw {
+		if unicode.IsLetter(r) {
+			hasLetter = true
+		}
+		if unicode.IsDigit(r) {
+			hasDigit = true
+		}
+	}
+	if !hasLetter || !hasDigit {
+		return apperrors.WrapInvalidInput("パスワードは英字と数字の両方を含めてください")
+	}
+	return nil
+}
+
+// validateCageSize はケージサイズがドメイン上有効かを検証する
+func validateCageSize(cageSize string) error {
+	if cageSize == "" {
+		return nil
+	}
+	switch model.CageSize(cageSize) {
+	case model.CageSizeSmall, model.CageSizeMedium, model.CageSizeLarge:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid cage_size: %s", cageSize))
+	}
 }

@@ -29,7 +29,6 @@
 | 16 | トリミング一覧 | [16-trimming-list.md](./16-trimming-list.md) | トリミング予約と施術状況の一覧 |
 | 17 | トリミング登録/編集 | [17-trimming-form.md](./17-trimming-form.md) | 施術内容・スタイル希望・画像の記録 |
 | 18 | 在庫管理 | [18-inventory-list.md](./18-inventory-list.md) | 薬品・消耗品の在庫数とアラート管理 |
-| 27 | 在庫登録/編集 | [27-inventory-form.md](./27-inventory-form.md) | 在庫品目の入力・更新 |
 | 19 | 病院情報設定 | [19-clinic-settings.md](./19-clinic-settings.md) | 医院名、住所、インボイス番号等の設定 |
 | 20 | マスタ設定トップ | [20-master-settings.md](./20-master-settings.md) | システム全体の各種マスタ管理 |
 | 21 | ログイン | [21-login.md](./21-login.md) | ユーザー認証と初期遷移 |
@@ -38,7 +37,10 @@
 | 24 | シフト管理カレンダー | [24-shift-calendar.md](./24-shift-calendar.md) | スタッフ勤務シフトの可視化・管理 |
 | 25 | 定期健診一覧 | [25-checkups-list.md](./25-checkups-list.md) | 全ペットの定期健診記録の参照 |
 | 26 | 見積書詳細 | [26-estimate-detail.md](./26-estimate-detail.md) | 見積内容の確認と管理 |
+| 27 | 在庫登録/編集 | [27-inventory-form.md](./27-inventory-form.md) | 在庫品目の入力・更新 |
 | 28 | LINE予約設定 | [28-line-reservation.md](./28-line-reservation.md) | LINE予約システムの設定・編集 |
+| 29 | 集計・締め | [29-closing-aggregation.md](./29-closing-aggregation.md) | レジ締め・売上レポート・履歴 |
+| 30 | 未納者一覧 | [30-unpaid-list.md](./30-unpaid-list.md) | 売掛金把握・未精算管理 |
 | 99 | カルテ登録フロー | [99-medical-record-flow.md](./99-medical-record-flow.md) | カルテ登録・編集の複雑なライフサイクル仕様 |
 
 ## マスタ設定詳細

@@ -2,7 +2,7 @@ import { memo, useState, useCallback, useEffect } from "react";
 import { Layers } from "lucide-react";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, PALETTE } from "@/lib/design-tokens";
-import type { ReservationTypeGroup } from "@/features/master/api/reservation-type-groups";
+import type { ReservationTypeGroup } from "../api/reservation-type-groups";
 
 export interface GroupFormData {
   name: string;
@@ -74,8 +74,8 @@ export const GroupSidePanel = memo(function GroupSidePanel({
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
             <input type="color" value={formData.color} onChange={handleColorPickerChange}
-              className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0" />
-            <PropertyInput value={formData.color} onChange={handleColorInputChange} placeholder="#3B82F6" />
+              className={LAYOUT.colorInputSmall} />
+            <PropertyInput value={formData.color} onChange={handleColorInputChange} placeholder={PALETTE.pickerDefaultBlue} />
           </div>
           <p className={`text-xs ${C.text40}`}>
             予約管理カレンダーでこのグループに属する区分の予約枠を色別表示します。

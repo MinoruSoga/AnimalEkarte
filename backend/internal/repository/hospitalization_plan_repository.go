@@ -17,10 +17,10 @@ type HospitalizationPlanRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountCarePlanItemsByPlanID(ctx context.Context, planID uint64) (int64, error)
+	CountUsageByHospitalizationPlanID(ctx context.Context, clinicID, planID uint64) (int64, error)
 }
 
 type hospitalizationPlanRepository struct{ db *gorm.DB }
@@ -50,15 +50,12 @@ func (r *hospitalizationPlanRepository) FindByID(ctx context.Context, clinicID, 
 func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.HospitalizationPlan) error {
 	err := r.db.WithContext(ctx).Create(plan).Error
 	if err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
-		}
 		return apperrors.FromGORM(err, "hospitalization_plan", "")
 	}
 	return nil
 }
 
-func (r *hospitalizationPlanRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
+func (r *hospitalizationPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.HospitalizationPlan{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -83,12 +80,15 @@ func (r *hospitalizationPlanRepository) Delete(ctx context.Context, clinicID, id
 	return nil
 }
 
-// CountCarePlanItemsByPlanID は指定入院プランを参照する care_plan_items の件数を返す（BUG-105）
-func (r *hospitalizationPlanRepository) CountCarePlanItemsByPlanID(ctx context.Context, planID uint64) (int64, error) {
+// CountUsageByHospitalizationPlanID は指定入院プランを参照する care_plan_items の件数を返す（BUG-105）。
+// care_plan_items は直接 clinic_id を持たないため、hospitalization_plans を JOIN して
+// clinic 境界を明示する（CODE-QUALITY-229）。
+func (r *hospitalizationPlanRepository) CountUsageByHospitalizationPlanID(ctx context.Context, clinicID, planID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
-		Where("hospitalization_plan_id = ?", planID).
+		Joins("JOIN hospitalization_plans hp ON hp.id = care_plan_items.hospitalization_plan_id AND hp.clinic_id = ? AND hp.deleted_at IS NULL", clinicID).
+		Where("care_plan_items.hospitalization_plan_id = ?", planID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", "")
 	}

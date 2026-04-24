@@ -12,7 +12,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import type {
   FilterProperty,
   ActiveFilter,

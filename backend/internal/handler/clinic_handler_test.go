@@ -1,9 +1,18 @@
 package handler
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestClinicHandlerCompiles verifies clinic_handler.go compiles
@@ -134,7 +143,7 @@ func TestClinicHandlerCompiles(t *testing.T) {
 //    - CRITICAL DIFFERENCE: Clinics are SYSTEM-WIDE (NOT clinic-scoped in request context)
 //    - Clinic access controlled by is_system_admin flag (not clinic_id context)
 //    - Non-admin staff view/access controlled via staff_clinic_assignments join
-//    - ListClinics with scope=all requires ResourceMasterStaff view permission
+//    - ListClinics with scope=all requires ResourceHospitalSettings view permission
 //    - CreateClinic requires system_admin (NOT permission-based)
 //    - DeleteClinic requires system_admin + ResourceHospitalSettings delete permission
 //    - UpdateClinic requires ResourceHospitalSettings edit permission (admin can do any clinic)
@@ -164,3 +173,337 @@ func TestClinicHandlerCompiles(t *testing.T) {
 //    - Test FK constraint: staff_clinic_assignments referencing deleted clinic (409)
 //    - Verify is_active flag behavior in soft delete scenarios
 //
+
+// ---- mock ClinicService ----
+
+type mockClinicService struct {
+	listClinicsFn   func(ctx context.Context) ([]model.Clinic, error)
+	listByStaffIDFn func(ctx context.Context, staffID uint64) ([]model.Clinic, error)
+	getClinicByIDFn func(ctx context.Context, id uint64) (*model.Clinic, error)
+	createClinicFn  func(ctx context.Context, input *service.CreateClinicInput) (*model.Clinic, error)
+	updateClinicFn  func(ctx context.Context, id uint64, input *service.UpdateClinicInput) (*model.Clinic, error)
+	deleteClinicFn  func(ctx context.Context, id uint64) error
+}
+
+func (m *mockClinicService) ListClinics(ctx context.Context) ([]model.Clinic, error) {
+	return m.listClinicsFn(ctx)
+}
+
+func (m *mockClinicService) ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
+	return m.listByStaffIDFn(ctx, staffID)
+}
+
+func (m *mockClinicService) GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error) {
+	return m.getClinicByIDFn(ctx, id)
+}
+
+func (m *mockClinicService) CreateClinic(ctx context.Context, input *service.CreateClinicInput) (*model.Clinic, error) {
+	return m.createClinicFn(ctx, input)
+}
+
+func (m *mockClinicService) UpdateClinic(ctx context.Context, id uint64, input *service.UpdateClinicInput) (*model.Clinic, error) {
+	return m.updateClinicFn(ctx, id, input)
+}
+
+func (m *mockClinicService) DeleteClinic(ctx context.Context, id uint64) error {
+	return m.deleteClinicFn(ctx, id)
+}
+
+// mockEffectivePermissionService は permission_group_handler_test.go で定義済み
+
+// ---- test helpers ----
+
+func newHandlerWithClinicSvc(svc service.ClinicService) *Handler {
+	return &Handler{
+		svc: &service.Services{Clinic: svc},
+	}
+}
+
+func newHandlerWithClinicAndPermSvc(clinicSvc service.ClinicService, permSvc service.EffectivePermissionService) *Handler {
+	return &Handler{
+		svc: &service.Services{
+			Clinic:              clinicSvc,
+			EffectivePermission: permSvc,
+		},
+	}
+}
+
+// setStaffID は gin.Context に user_id（staff_id）を設定するヘルパー
+func setStaffID(c *gin.Context) {
+	c.Set("user_id", "1")
+}
+
+// setSystemAdmin は gin.Context に is_system_admin=true を設定するヘルパー
+func setSystemAdmin(c *gin.Context) {
+	c.Set("is_system_admin", true)
+	c.Set("user_id", "1")
+}
+
+// setNonSystemAdmin は gin.Context に is_system_admin=false を設定するヘルパー
+func setNonSystemAdmin(c *gin.Context) {
+	c.Set("is_system_admin", false)
+	c.Set("user_id", "1")
+}
+
+// ---- ListClinics ----
+
+func TestListClinics_ReturnsOK(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockClinicService{
+		listByStaffIDFn: func(_ context.Context, staffID uint64) ([]model.Clinic, error) {
+			assert.Equal(t, uint64(1), staffID)
+			return []model.Clinic{
+				{ID: 1, Name: "ノア動物病院 本院", IsActive: true},
+				{ID: 2, Name: "ノア動物病院 東京", IsActive: true},
+			}, nil
+		},
+	}
+	h := newHandlerWithClinicSvc(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics", http.NoBody)
+	setStaffID(c)
+
+	h.ListClinics(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "ノア動物病院 本院")
+	assert.Contains(t, w.Body.String(), "ノア動物病院 東京")
+}
+
+func TestListClinics_ServiceError_Returns500(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockClinicService{
+		listByStaffIDFn: func(_ context.Context, _ uint64) ([]model.Clinic, error) {
+			return nil, fmt.Errorf("db failure")
+		},
+	}
+	h := newHandlerWithClinicSvc(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics", http.NoBody)
+	setStaffID(c)
+
+	h.ListClinics(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestListClinics_MissingStaffID_Returns401(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := newHandlerWithClinicSvc(&mockClinicService{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics", http.NoBody)
+	// user_id を設定しない → 401
+
+	h.ListClinics(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestListClinics_ScopeAll_SystemAdmin_ReturnsAllClinics(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockClinicService{
+		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
+			return []model.Clinic{
+				{ID: 1, Name: "ノア動物病院 本院"},
+				{ID: 2, Name: "ノア動物病院 東京"},
+				{ID: 3, Name: "ノア動物病院 大阪"},
+			}, nil
+		},
+	}
+	// system_admin=true → EffectivePermission は不要（hasPermission が即 true を返す）
+	h := newHandlerWithClinicAndPermSvc(svc, &mockEffectivePermissionService{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics?scope=all", http.NoBody)
+	setSystemAdmin(c)
+	setClinicID(c)
+
+	h.ListClinics(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "ノア動物病院 本院")
+	assert.Contains(t, w.Body.String(), "ノア動物病院 大阪")
+}
+
+func TestListClinics_ScopeAll_NoPermission_Returns403(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	permSvc := &mockEffectivePermissionService{
+		getEffectivePermissionsFn: func(_ context.Context, _ uint64) ([]model.PermissionGroupRule, error) {
+			// 権限ルールを空で返す → hospital_settings view 権限なし
+			return []model.PermissionGroupRule{}, nil
+		},
+	}
+	h := newHandlerWithClinicAndPermSvc(&mockClinicService{}, permSvc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics?scope=all", http.NoBody)
+	setNonSystemAdmin(c)
+	setClinicID(c)
+
+	h.ListClinics(c)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+// ---- GetClinic ----
+
+func TestGetClinic_SystemAdmin_ReturnsOK(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockClinicService{
+		getClinicByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
+			assert.Equal(t, uint64(5), id)
+			return &model.Clinic{
+				ID:              5,
+				Name:            "ノア動物病院 渋谷",
+				IsActive:        true,
+				StandardTaxRate: 0.10,
+				ReducedTaxRate:  0.08,
+			}, nil
+		},
+	}
+	h := newHandlerWithClinicSvc(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/5", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setSystemAdmin(c)
+
+	h.GetClinic(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "ノア動物病院 渋谷")
+}
+
+func TestGetClinic_NotFound_Returns404(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockClinicService{
+		getClinicByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
+			return nil, apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
+		},
+	}
+	h := newHandlerWithClinicSvc(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/999", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "999"}}
+	setSystemAdmin(c)
+
+	h.GetClinic(c)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestGetClinic_InvalidID_Returns400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := newHandlerWithClinicSvc(&mockClinicService{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/abc", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "abc"}}
+	setSystemAdmin(c)
+
+	h.GetClinic(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestGetClinic_NonAdmin_OwnClinic_ReturnsOK(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockClinicService{
+		getClinicByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
+			assert.Equal(t, uint64(1), id)
+			return &model.Clinic{ID: 1, Name: "ノア動物病院 本院"}, nil
+		},
+	}
+	h := newHandlerWithClinicSvc(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/1", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	// is_system_admin=false、clinic_id=1 → 自分のクリニックなのでアクセス可
+	setNonSystemAdmin(c)
+	setClinicID(c) // clinic_id=1
+
+	h.GetClinic(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "ノア動物病院 本院")
+}
+
+func TestGetClinic_NonAdmin_OtherClinic_Returns403(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := newHandlerWithClinicSvc(&mockClinicService{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/2", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "2"}}
+	// is_system_admin=false、clinic_id=1 → id=2 は別クリニック → 403
+	setNonSystemAdmin(c)
+	setClinicID(c) // clinic_id=1
+
+	h.GetClinic(c)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestGetClinic_ServiceError_Returns500(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockClinicService{
+		getClinicByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
+			return nil, fmt.Errorf("unexpected db error")
+		},
+	}
+	h := newHandlerWithClinicSvc(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/1", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	setSystemAdmin(c)
+
+	h.GetClinic(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+// ---- MissingIsSystemAdmin ----
+
+func TestGetClinic_MissingIsSystemAdmin_Returns401(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := newHandlerWithClinicSvc(&mockClinicService{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/1", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	// is_system_admin をコンテキストに設定しない → 401
+
+	h.GetClinic(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}

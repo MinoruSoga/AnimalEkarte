@@ -18,7 +18,7 @@ type mockExamTypeRepository struct {
 	createFn                 func(ctx context.Context, exType *model.ExaminationType) error
 	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
-	countUsageByExamTypeIDFn func(ctx context.Context, examTypeID uint64) (int64, error)
+	countUsageByExamTypeIDFn func(ctx context.Context, clinicID, examTypeID uint64) (int64, error)
 }
 
 func (m *mockExamTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
@@ -33,7 +33,7 @@ func (m *mockExamTypeRepository) Create(ctx context.Context, exType *model.Exami
 	return m.createFn(ctx, exType)
 }
 
-func (m *mockExamTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error) {
+func (m *mockExamTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
@@ -49,11 +49,15 @@ func (m *mockExamTypeRepository) Reorder(ctx context.Context, clinicID uint64, i
 	return nil
 }
 
-func (m *mockExamTypeRepository) CountUsageByExamTypeID(ctx context.Context, examTypeID uint64) (int64, error) {
+func (m *mockExamTypeRepository) CountUsageByExamTypeID(ctx context.Context, clinicID, examTypeID uint64) (int64, error) {
 	if m.countUsageByExamTypeIDFn == nil {
 		return 0, nil
 	}
-	return m.countUsageByExamTypeIDFn(ctx, examTypeID)
+	return m.countUsageByExamTypeIDFn(ctx, clinicID, examTypeID)
+}
+
+func (m *mockExamTypeRepository) CountChildrenByParentID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
 }
 
 func TestExamTypeService_List(t *testing.T) {
@@ -181,45 +185,43 @@ func TestExamTypeService_GetByID(t *testing.T) {
 func TestExamTypeService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		exType  *model.ExaminationType
+		input   *CreateExamTypeInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates exam type successfully",
-			exType: &model.ExaminationType{
+			input: &CreateExamTypeInput{
 				Name:     "新規検査種別",
-				ClinicID: 1,
+				IsActive: true,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
-			name: "creates exam type with items successfully",
-			exType: &model.ExaminationType{
-				Name:     "血液検査",
-				ClinicID: 1,
-				Items: []model.ExamTypeField{
-					{Name: "白血球数", NormalValue: "5000-10000"},
-				},
+			name: "creates exam type with optional fields",
+			input: &CreateExamTypeInput{
+				Name:        "血液検査",
+				IsActive:    true,
+				Description: "血液の詳細検査",
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
 			name: "returns error when exam type already exists",
-			exType: &model.ExaminationType{
+			input: &CreateExamTypeInput{
 				Name:     "重複検査種別",
-				ClinicID: 1,
+				IsActive: true,
 			},
 			repoErr: apperrors.WrapAlreadyExists("exam_type", "重複検査種別"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			exType: &model.ExaminationType{
+			input: &CreateExamTypeInput{
 				Name:     "エラー検査種別",
-				ClinicID: 1,
+				IsActive: true,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -235,12 +237,16 @@ func TestExamTypeService_Create(t *testing.T) {
 			}
 			svc := NewExamTypeService(repo)
 
-			err := svc.Create(context.Background(), tt.exType)
+			result, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, result)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.input.Name, result.Name)
+				assert.Equal(t, uint64(1), result.ClinicID)
 			}
 		})
 	}
@@ -289,6 +295,12 @@ func TestExamTypeService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ExaminationType, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.ExaminationType{ID: 1}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ExaminationType, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
@@ -298,7 +310,7 @@ func TestExamTypeService_Update(t *testing.T) {
 			}
 			svc := NewExamTypeService(repo)
 
-			exType, err := svc.Update(context.Background(), 1, 1, tt.input)
+			exType, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -309,12 +321,21 @@ func TestExamTypeService_Update(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("nil input はエラー", func(t *testing.T) {
+		repo := &mockExamTypeRepository{}
+		svc := NewExamTypeService(repo)
+		result, err := svc.Update(context.Background(), 1, 1, nil)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
 }
 
 func TestExamTypeService_Delete(t *testing.T) {
 	tests := []struct {
 		name          string
 		id            uint64
+		findByIDErr   error
 		usageCount    int64
 		countUsageErr error
 		repoErr       error
@@ -329,6 +350,13 @@ func TestExamTypeService_Delete(t *testing.T) {
 			countUsageErr: nil,
 			repoErr:       nil,
 			wantErr:       false,
+		},
+		{
+			name:        "returns not found error when FindByID fails",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("exam_type", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:          "returns conflict error when exam type is used in exam records",
@@ -348,16 +376,7 @@ func TestExamTypeService_Delete(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			name:          "returns not found error when exam type does not exist",
-			id:            999,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       apperrors.WrapNotFound("exam_type", "999"),
-			wantErr:       true,
-			wantNF:        true,
-		},
-		{
-			name:          "returns error on repository failure",
+			name:          "returns error on repository delete failure",
 			id:            1,
 			usageCount:    0,
 			countUsageErr: nil,
@@ -369,7 +388,13 @@ func TestExamTypeService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
-				countUsageByExamTypeIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.ExaminationType{ID: id}, nil
+				},
+				countUsageByExamTypeIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

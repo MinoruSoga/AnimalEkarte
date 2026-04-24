@@ -6,6 +6,7 @@
 # Dependencies
 node_modules/
 vendor/
+.pnpm-store/
 
 # Build
 dist/
@@ -13,7 +14,7 @@ build/
 tmp/
 
 # Temporary migration/seed files
-backend/migrations/*_seed_staging.sql
+# backend/migrations/*_seed_staging.sql
 
 # Frontend test and debug artifacts
 frontend/coverage/
@@ -76,3 +77,11 @@ docs/tasks/
 # Test results
 test-results/
 .vercel
+
+# Root-level schema inspection artifacts
+db_schema.json
+enums.txt
+existing_paths.txt
+existing_schemas.txt
+parse_sql.py
+tables.txt

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	holiday "github.com/holiday-jp/holiday_jp-go"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // AvailableDateResult は1日分の空き状況を表す。
@@ -51,11 +53,11 @@ func ParseAvailableDatesSettings(
 	reservationDayOption string,
 ) (AvailableDatesSettings, error) {
 	var closedWeekdays []int
-	if err := json.Unmarshal(closedWeekdays0(closedWeekdaysJSON), &closedWeekdays); err != nil {
+	if err := json.Unmarshal(orEmptyJSONArray(closedWeekdaysJSON), &closedWeekdays); err != nil {
 		closedWeekdays = nil
 	}
 	var closedDates []string
-	if err := json.Unmarshal(closedDates0(closedDatesJSON), &closedDates); err != nil {
+	if err := json.Unmarshal(orEmptyJSONArray(closedDatesJSON), &closedDates); err != nil {
 		closedDates = nil
 	}
 	return AvailableDatesSettings{
@@ -69,14 +71,8 @@ func ParseAvailableDatesSettings(
 	}, nil
 }
 
-func closedWeekdays0(b []byte) []byte {
-	if len(b) == 0 {
-		return []byte("[]")
-	}
-	return b
-}
-
-func closedDates0(b []byte) []byte {
+// orEmptyJSONArray は nil または空スライスを JSON の空配列 "[]" に変換する。
+func orEmptyJSONArray(b []byte) []byte {
 	if len(b) == 0 {
 		return []byte("[]")
 	}
@@ -135,7 +131,7 @@ func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]Avai
 		}
 
 		// 祝日チェック
-		if input.Settings.NationalHolidayClosed && isJapaneseHoliday(d) {
+		if input.Settings.NationalHolidayClosed && holiday.IsHoliday(d) {
 			result.Available = false
 			result.Reason = "holiday"
 			results = append(results, result)
@@ -198,19 +194,14 @@ func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]Avai
 	return results, window, nil
 }
 
-// isJapaneseHoliday は指定日が日本の祝日かどうかを返す。
-func isJapaneseHoliday(t time.Time) bool {
-	return holiday.IsHoliday(t)
-}
-
 // checkDayOption はコースの曜日オプションに対して予約可能かチェックする。
 func checkDayOption(option string, weekday int) bool {
-	switch option {
-	case "saturday":
+	switch model.ReservationDayOption(option) {
+	case model.DayOptionSaturday:
 		return weekday == 6 // 土曜のみ
-	case "weekday":
+	case model.DayOptionWeekday:
 		return weekday >= 1 && weekday <= 5 // 月〜金
-	case "anyday":
+	case model.DayOptionAnyday:
 		return true
 	default: // "none"
 		return true

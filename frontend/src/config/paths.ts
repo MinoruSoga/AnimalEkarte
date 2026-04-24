@@ -21,10 +21,6 @@ export const paths = {
       path: "/forgot-password",
       getHref: () => "/forgot-password",
     },
-    resetPassword: {
-      path: "/reset-password",
-      getHref: () => "/reset-password",
-    },
   },
 
   owners: {
@@ -128,14 +124,22 @@ export const paths = {
       path: "/accounting/new",
       getHref: () => "/accounting/new",
     },
-    // BUG-370: 月末未納者一覧
-    unpaid: {
-      path: "/accounting/unpaid",
-      getHref: () => "/accounting/unpaid",
-    },
     detail: {
       path: "/accounting/:id",
       getHref: (id: string | number) => `/accounting/${id}`,
+    },
+    // FEAT-368: 締め・集計
+    close: {
+      path: "/accounting/close",
+      getHref: () => "/accounting/close",
+    },
+    closeHistory: {
+      path: "/accounting/close/history",
+      getHref: () => "/accounting/close/history",
+    },
+    reports: {
+      path: "/accounting/reports",
+      getHref: () => "/accounting/reports",
     },
   },
 
@@ -306,6 +310,15 @@ export const paths = {
         path: "/settings/interview/templates",
         getHref: () => "/settings/interview/templates",
       },
+    },
+    // FEAT-368: 締め設定・支払方法マスタ
+    closingTime: {
+      path: "/settings/closing-time",
+      getHref: () => "/settings/closing-time",
+    },
+    paymentMethods: {
+      path: "/settings/payment-methods",
+      getHref: () => "/settings/payment-methods",
     },
   },
 } as const;

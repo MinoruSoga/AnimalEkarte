@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -58,7 +60,14 @@ func RespondError(c *gin.Context, err error) {
 		}
 		c.JSON(http.StatusUnauthorized, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrForbidden):
-		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		var appErr *apperrors.AppError
+		msg := "forbidden"
+		if errors.As(err, &appErr) && appErr.Message != "" {
+			msg = appErr.Message
+		}
+		c.JSON(http.StatusForbidden, gin.H{"error": msg})
+	case errors.Is(err, apperrors.ErrNotImplemented):
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
 	case isPgError(err):
 		// BUG-138: FromGORM を経由しなかった PostgreSQL エラーをここでキャッチ
 		pgMsg := classifyPgError(err)
@@ -72,11 +81,123 @@ func RespondError(c *gin.Context, err error) {
 	}
 }
 
-// RespondErrorAndAbort は RespondError を呼び出した後 c.Abort() する。
-// gin ミドルウェアで後続ハンドラを停止させる必要がある場合に使用する。
-func RespondErrorAndAbort(c *gin.Context, err error) {
-	RespondError(c, err)
-	c.Abort()
+// RespondErrorWithExtras は custom extra fields を含むエラーレスポンスを返す。
+// `error` と `code` を必須フィールドとして生成し、extras をマージして JSON で返却する。
+// ステータスコードはエラー種別から自動判定される。
+func RespondErrorWithExtras(c *gin.Context, err error, extras map[string]any) {
+	status, message, code := resolveErrorResponse(err)
+
+	response := gin.H{
+		"error": message,
+		"code":  code,
+	}
+
+	// extras をマージ（既存キーを上書き可能）
+	maps.Copy(response, extras)
+
+	c.JSON(status, response)
+}
+
+// resolveErrorResponse はエラーから HTTP ステータスコード・メッセージ・エラーコードを決定する。
+// RespondError と同じ分類ロジックをベースにする。
+func resolveErrorResponse(err error) (status int, message, code string) {
+	// AppError からの抽出（Code / Message）
+	var appErr *apperrors.AppError
+	hasApp := errors.As(err, &appErr)
+
+	switch {
+	case errors.Is(err, apperrors.ErrNotFound):
+		status = http.StatusNotFound
+		message = "resource not found"
+		if hasApp {
+			message = appErr.Message
+			code = appErr.Code
+		}
+	case errors.Is(err, apperrors.ErrInvalidInput):
+		status = http.StatusBadRequest
+		message = "invalid input"
+		if hasApp {
+			message = appErr.Message
+			code = appErr.Code
+		}
+	case errors.Is(err, apperrors.ErrConflict):
+		status = http.StatusConflict
+		message = "resource conflict"
+		if hasApp {
+			message = appErr.Message
+			code = appErr.Code
+		}
+	case errors.Is(err, apperrors.ErrAlreadyExists):
+		status = http.StatusConflict
+		message = "resource already exists"
+		if hasApp {
+			message = appErr.Message
+			code = appErr.Code
+		}
+	case errors.Is(err, apperrors.ErrUnauthorized):
+		status = http.StatusUnauthorized
+		message = "unauthorized"
+		if hasApp {
+			message = appErr.Message
+			code = appErr.Code
+		}
+	case errors.Is(err, apperrors.ErrForbidden):
+		status = http.StatusForbidden
+		message = "forbidden"
+		if hasApp && appErr.Message != "" {
+			message = appErr.Message
+			code = appErr.Code
+		}
+	case errors.Is(err, apperrors.ErrNotImplemented):
+		status = http.StatusNotImplemented
+		message = "not implemented"
+		if hasApp {
+			code = appErr.Code
+		}
+	case isPgError(err):
+		status = http.StatusBadRequest
+		message = classifyPgError(err)
+	default:
+		// カスタムエラー型（ReservationLimitError 等）のフォールバック:
+		// 公開フィールド Code / Message を持つ構造体を reflect で抽出する。
+		status = http.StatusConflict
+		message = err.Error()
+		if c, m, ok := extractCodeMessage(err); ok {
+			code = c
+			if m != "" {
+				message = m
+			}
+		}
+	}
+	return status, message, code
+}
+
+// extractCodeMessage は err が持つ Code / Message 公開フィールドを reflect で抽出する。
+// ReservationLimitError 等、apperrors 外のカスタムエラー型をサポートする。
+func extractCodeMessage(err error) (code, message string, ok bool) {
+	v := reflect.ValueOf(err)
+	if !v.IsValid() {
+		return "", "", false
+	}
+	for v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			return "", "", false
+		}
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return "", "", false
+	}
+	codeField := v.FieldByName("Code")
+	msgField := v.FieldByName("Message")
+	if codeField.IsValid() && codeField.Kind() == reflect.String {
+		code = codeField.String()
+		ok = true
+	}
+	if msgField.IsValid() && msgField.Kind() == reflect.String {
+		message = msgField.String()
+	}
+	return code, message, ok
 }
 
 // isPgError はエラーチェーンに pgconn.PgError が含まれるか判定する
@@ -179,51 +300,42 @@ func parseDateQuery(c *gin.Context, key string) (*string, error) {
 		return nil, nil
 	}
 	if _, err := time.Parse("2006-01-02", s); err != nil {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s must be YYYY-MM-DD format", key))
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s は YYYY-MM-DD 形式で入力してください", key))
 	}
 	return &s, nil
 }
 
+// extractContextUint64 はJWTコンテキストから string 型の値を取得し uint64 にパースする共通ヘルパー。
+// missingMsg: 存在しない場合の 401 メッセージ / invalidMsg: 型変換・パース失敗時の 400 メッセージ
+func extractContextUint64(c *gin.Context, key, missingMsg, invalidMsg string) (uint64, bool) {
+	val, exists := c.Get(key)
+	if !exists {
+		RespondError(c, apperrors.WrapUnauthorized(missingMsg))
+		return 0, false
+	}
+	s, ok := val.(string)
+	if !ok {
+		RespondError(c, apperrors.WrapInvalidInput(invalidMsg))
+		return 0, false
+	}
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(invalidMsg))
+		return 0, false
+	}
+	return id, true
+}
+
 // extractStaffID はJWT認証済みコンテキストから user_id（=staff_id）を取得してパースする。
 func extractStaffID(c *gin.Context) (uint64, bool) {
-	val, exists := c.Get("user_id")
-	if !exists {
-		RespondError(c, apperrors.WrapUnauthorized("missing user context"))
-		return 0, false
-	}
-	userIDStr, ok := val.(string)
-	if !ok {
-		RespondError(c, apperrors.WrapInvalidInput("invalid user context"))
-		return 0, false
-	}
-	staffID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid user context"))
-		return 0, false
-	}
-	return staffID, true
+	return extractContextUint64(c, "user_id", "missing user context", "invalid user context")
 }
 
 // extractClinicID はJWT認証済みコンテキストから clinic_id を取得してパースする。
 // 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
 // 呼び出し元はfalse時に即return すること。
 func extractClinicID(c *gin.Context) (uint64, bool) {
-	val, exists := c.Get("clinic_id")
-	if !exists {
-		RespondError(c, apperrors.WrapUnauthorized("missing clinic context"))
-		return 0, false
-	}
-	clinicIDStr, ok := val.(string)
-	if !ok {
-		RespondError(c, apperrors.WrapInvalidInput("invalid clinic context"))
-		return 0, false
-	}
-	clinicID, err := strconv.ParseUint(clinicIDStr, 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid clinic context"))
-		return 0, false
-	}
-	return clinicID, true
+	return extractContextUint64(c, "clinic_id", "missing clinic context", "invalid clinic context")
 }
 
 // extractIsSystemAdmin はJWT認証済みコンテキストから is_system_admin を取得する。
@@ -248,7 +360,8 @@ func extractIsSystemAdmin(c *gin.Context) (isSystemAdmin, ok bool) {
 func (h *Handler) RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !h.hasPermission(c, resource, action) {
-			RespondErrorAndAbort(c, apperrors.WrapForbidden("forbidden"))
+			RespondError(c, apperrors.WrapForbidden("forbidden"))
+			c.Abort()
 			return
 		}
 		c.Next()
@@ -267,15 +380,32 @@ func parsePagination(c *gin.Context) (page, limit int, err error) {
 
 	page, err = strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
-		return 0, 0, apperrors.WrapInvalidInput("page must be a positive integer")
+		return 0, 0, apperrors.WrapInvalidInput("page は1以上の整数で指定してください")
 	}
 
 	limit, err = strconv.Atoi(limitStr)
 	if err != nil || limit < 1 || limit > 100 {
-		return 0, 0, apperrors.WrapInvalidInput("limit must be between 1 and 100")
+		return 0, 0, apperrors.WrapInvalidInput("limit は1〜100の範囲で指定してください")
 	}
 
 	return page, limit, nil
+}
+
+// parseOptionalUint64Query はクエリパラメータを optional な uint64 にパースする汎用ヘルパー。
+// パラメータが空文字の場合は (nil, true) を返す。
+// パース失敗時は即座に HTTP 400 レスポンスを書いて (nil, false) を返す。
+// 呼び出し元は false 時に即 return すること。
+func parseOptionalUint64Query(c *gin.Context, key string) (*uint64, bool) {
+	s := c.Query(key)
+	if s == "" {
+		return nil, true
+	}
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid %s", key)))
+		return nil, false
+	}
+	return &id, true
 }
 
 // parseIDParam は URL path parameter を uint64 にパースする汎用ヘルパー。
@@ -284,29 +414,16 @@ func parsePagination(c *gin.Context) (page, limit int, err error) {
 func parseIDParam(c *gin.Context, key string) (uint64, bool) {
 	s := c.Param(key)
 	if s == "" {
-		RespondError(c, apperrors.WrapInvalidInput("missing "+key))
+		RespondError(c, apperrors.WrapInvalidInput("パラメータが不足しています: "+key))
 		return 0, false
 	}
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid "+key))
+		RespondError(c, apperrors.WrapInvalidInput("パラメータの形式が不正です: "+key))
 		return 0, false
 	}
-	return id, true
-}
-
-// extractClinicIDFromParam は URL path parameter :clinicId を取得してパースする。
-// 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
-// 呼び出し元は false 時に即 return すること。
-func extractClinicIDFromParam(c *gin.Context) (uint64, bool) {
-	s := c.Param("clinicId")
-	if s == "" {
-		RespondError(c, apperrors.WrapInvalidInput("missing clinicId"))
-		return 0, false
-	}
-	id, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid clinicId"))
+	if id == 0 {
+		RespondError(c, apperrors.WrapInvalidInput("IDは1以上を指定してください"))
 		return 0, false
 	}
 	return id, true

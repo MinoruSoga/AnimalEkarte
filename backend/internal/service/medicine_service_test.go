@@ -13,13 +13,13 @@ import (
 
 // mockMedicineRepository は MedicineRepository のテスト用モック実装
 type mockMedicineRepository struct {
-	findAllFn       func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
-	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
-	countChildrenFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
-	createFn        func(ctx context.Context, medicine *model.Medicine) error
-	updateFn        func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn        func(ctx context.Context, clinicID, id uint64) error
-	reorderFn       func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                 func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
+	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
+	countChildrenByParentIDFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
+	createFn                  func(ctx context.Context, medicine *model.Medicine) error
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error)
+	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockMedicineRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
@@ -30,14 +30,14 @@ func (m *mockMedicineRepository) FindByID(ctx context.Context, clinicID, id uint
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockMedicineRepository) CountChildren(ctx context.Context, clinicID, parentID uint64) (int64, error) {
-	if m.countChildrenFn != nil {
-		return m.countChildrenFn(ctx, clinicID, parentID)
+func (m *mockMedicineRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn != nil {
+		return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
 	}
 	return 0, nil
 }
 
-func (m *mockMedicineRepository) CountUsageByMedicineID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockMedicineRepository) CountUsageByMedicineID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -45,8 +45,8 @@ func (m *mockMedicineRepository) Create(ctx context.Context, medicine *model.Med
 	return m.createFn(ctx, medicine)
 }
 
-func (m *mockMedicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockMedicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockMedicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -67,7 +67,8 @@ func newTestMedicineService(repo *mockMedicineRepository) MedicineService {
 			return nil // デフォルト: 在庫作成成功
 		},
 	}
-	return NewMedicineService(repo, inventoryRepo)
+	// mockTransactor は trimming_service_test.go で定義済み（パッケージスコープ共有）
+	return NewMedicineService(repo, inventoryRepo, &mockTransactor{})
 }
 
 func TestMedicineService_List(t *testing.T) {
@@ -272,14 +273,14 @@ func TestMedicineService_Update(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:  "returns same medicine when no fields provided",
+			name:  "returns 400 when no fields provided",
 			id:    1,
 			input: &UpdateMedicineInput{
 				// 全フィールド nil
 			},
 			updateErr: nil,
 			findErr:   nil,
-			wantErr:   false,
+			wantErr:   true,
 		},
 		{
 			name: "returns not found error when medicine does not exist",
@@ -306,12 +307,15 @@ func TestMedicineService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicineRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-					return tt.updateErr
-				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
 					if tt.findErr != nil {
 						return nil, tt.findErr
+					}
+					return existingMedicine, nil
+				},
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Medicine, error) {
+					if tt.updateErr != nil {
+						return nil, tt.updateErr
 					}
 					return existingMedicine, nil
 				},
@@ -333,6 +337,14 @@ func TestMedicineService_Update(t *testing.T) {
 
 func uint64Ptr(v uint64) *uint64 { return &v }
 
+func TestMedicineService_Update_NilInput(t *testing.T) {
+	repo := &mockMedicineRepository{}
+	svc := NewMedicineService(repo, &mockInventoryRepository{}, &mockTransactor{})
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
 func TestMedicineService_Delete(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -345,6 +357,7 @@ func TestMedicineService_Delete(t *testing.T) {
 		wantErr          bool
 		wantNotFound     bool
 		wantInvalid      bool
+		wantConflict     bool
 	}{
 		{
 			name:      "deletes a leaf medicine item successfully",
@@ -367,7 +380,7 @@ func TestMedicineService_Delete(t *testing.T) {
 			medicine:      &model.Medicine{ID: 1, ClinicID: 1, ParentID: nil},
 			childrenCount: 3,
 			wantErr:       true,
-			wantInvalid:   true,
+			wantConflict:  true,
 		},
 		{
 			name:         "returns not found when medicine does not exist",
@@ -398,7 +411,7 @@ func TestMedicineService_Delete(t *testing.T) {
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
 					return tt.medicine, tt.findErr
 				},
-				countChildrenFn: func(_ context.Context, _, _ uint64) (int64, error) {
+				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.childrenCount, tt.countChildrenErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
@@ -416,6 +429,9 @@ func TestMedicineService_Delete(t *testing.T) {
 				}
 				if tt.wantInvalid {
 					assert.True(t, apperrors.IsInvalidInput(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

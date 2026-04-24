@@ -3,6 +3,9 @@ import { ICON, C } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
+// Components
+import { UnpaidTab } from "../components/UnpaidTab";
+
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 
@@ -31,7 +34,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 // Relative
 import { useGetAccountings } from "../api/get-accountings";
 import type { AccountingFilters } from "../api/get-accountings";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
@@ -118,6 +121,23 @@ export function AccountingList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit } = usePermission("accounting");
+
+  const activeTab = searchParams.get("tab") === "unpaid" ? "unpaid" : "list";
+  const handleTabChange = useCallback((tab: "list" | "unpaid") => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (tab === "unpaid") {
+        next.set("tab", "unpaid");
+        next.delete("page");
+      } else {
+        next.delete("tab");
+        next.delete("page");
+        next.delete("group_by");
+        next.delete("reference_date");
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -348,17 +368,13 @@ export function AccountingList() {
     [handleEdit, navigate, canEdit],
   );
 
-  // 全フック呼び出し後に早期リターン（Rules of Hooks 準拠）
-  if (isLoading) return <LoadingFallback />;
-  if (isError) return <ErrorFallback />;
-
   return (
     <PageLayout
       title="会計管理"
       resource={ResourceAccounting}
       icon={<CreditCard className={`${ICON.page} ${C.text}`} />}
       headerAction={
-        canCreate ? (
+        activeTab === "list" && canCreate ? (
           <PrimaryButton onClick={handleCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規会計登録
@@ -368,40 +384,70 @@ export function AccountingList() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        <NotionFilter
-          properties={FILTER_PROPERTIES}
-          activeFilters={activeFilters}
-          onFilterChange={setActiveFilters}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="飼主名、ペット名..."
-          count={filteredRecords.length}
-          sortProperties={ACCOUNTING_SORT_PROPERTIES}
-          activeSorts={activeSorts}
-          onSortChange={setActiveSorts}
-        />
+        {/* タブナビゲーション */}
+        <div className={`flex border-b ${C.borderLight}`}>
+          {(["list", "unpaid"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => handleTabChange(tab)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab
+                  ? `${C.accent} border-current`
+                  : `${C.text50} border-transparent hover:${C.text}`
+              }`}
+            >
+              {tab === "list" ? "会計一覧" : "未納者一覧"}
+            </button>
+          ))}
+        </div>
 
-        <FilteringIndicator isFiltering={isFiltering}>
-          <DataTable
-            columns={columns}
-            data={pagination.paginatedData}
-            emptyMessage="会計データが見つかりません"
-            renderRow={renderRow}
-          />
-        </FilteringIndicator>
+        {activeTab === "unpaid" ? (
+          <UnpaidTab />
+        ) : (
+          <>
+            {isLoading ? <LoadingFallback /> : null}
+            {isError ? <ErrorFallback /> : null}
+            {!isLoading && !isError ? (
+              <>
+                <NotionFilter
+                  properties={FILTER_PROPERTIES}
+                  activeFilters={activeFilters}
+                  onFilterChange={setActiveFilters}
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  searchPlaceholder="飼主名、ペット名..."
+                  count={filteredRecords.length}
+                  sortProperties={ACCOUNTING_SORT_PROPERTIES}
+                  activeSorts={activeSorts}
+                  onSortChange={setActiveSorts}
+                />
 
-        {pagination.totalPages > 1 ? (
-          <Pagination
-            currentPage={pagination.currentPage}
-            totalPages={pagination.totalPages}
-            totalCount={pagination.totalCount}
-            startIndex={pagination.startIndex}
-            endIndex={pagination.endIndex}
-            onPageChange={handlePageChange}
-            onPrev={() => handlePageChange(pagination.currentPage - 1)}
-            onNext={() => handlePageChange(pagination.currentPage + 1)}
-          />
-        ) : null}
+                <FilteringIndicator isFiltering={isFiltering}>
+                  <DataTable
+                    columns={columns}
+                    data={pagination.paginatedData}
+                    emptyMessage="会計データが見つかりません"
+                    renderRow={renderRow}
+                  />
+                </FilteringIndicator>
+
+                {pagination.totalPages > 1 ? (
+                  <Pagination
+                    currentPage={pagination.currentPage}
+                    totalPages={pagination.totalPages}
+                    totalCount={pagination.totalCount}
+                    startIndex={pagination.startIndex}
+                    endIndex={pagination.endIndex}
+                    onPageChange={handlePageChange}
+                    onPrev={() => handlePageChange(pagination.currentPage - 1)}
+                    onNext={() => handlePageChange(pagination.currentPage + 1)}
+                  />
+                ) : null}
+              </>
+            ) : null}
+          </>
+        )}
       </div>
     </PageLayout>
   );

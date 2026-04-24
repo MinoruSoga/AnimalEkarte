@@ -2,9 +2,9 @@ import { lazy, Suspense, useState, useCallback } from "react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ResourceShifts } from "@/types/generated/models";
 import { useGetShifts } from "../api/get-shifts";
-import { useStaffsForShift } from "../api/get-staffs";
+import { useGetStaffsForShift } from "../api/get-staffs";
 import { ShiftCalendar as ShiftCalendarGrid } from "../components/ShiftCalendar/ShiftCalendar";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useGetClinicHolidays } from "../api/clinic-holidays";
 import type { ClinicHoliday } from "../api/clinic-holidays";
@@ -38,7 +38,7 @@ export function ShiftCalendarPage() {
     staff_id: selectedStaffId !== "all" ? selectedStaffId : undefined,
   });
 
-  const staffsQuery = useStaffsForShift();
+  const staffsQuery = useGetStaffsForShift();
   const holidaysQuery = useGetClinicHolidays(yearMonth);
 
   const handlePrevMonth = useCallback(() => {

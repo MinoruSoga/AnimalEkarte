@@ -8,13 +8,13 @@ type createReservationRequest struct {
 	EndTime           time.Time `json:"end_time"        binding:"required"`
 	OwnerID           *uint64   `json:"owner_id"`
 	PetID             *uint64   `json:"pet_id"`
-	VisitType         string    `json:"visit_type"`
+	VisitType         string    `json:"visit_type"          binding:"omitempty,oneof=first revisit"`
 	ReservationTypeID uint64    `json:"reservation_type_id" binding:"required"`
 	DoctorID          *uint64   `json:"doctor_id"`
 	IsDesignated      bool      `json:"is_designated"`
-	Status            string    `json:"status"`
+	Status            string    `json:"status"              binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
 	Notes             string    `json:"notes"`
-	Source            string    `json:"source"`
+	Source            string    `json:"source"              binding:"omitempty,oneof=manual line"`
 }
 
 // updateReservationRequest は予約更新のバインド struct
@@ -23,10 +23,10 @@ type updateReservationRequest struct {
 	EndTime           *time.Time `json:"end_time"`
 	OwnerID           *uint64    `json:"owner_id"`
 	PetID             *uint64    `json:"pet_id"`
-	VisitType         *string    `json:"visit_type"`
+	VisitType         *string    `json:"visit_type"           binding:"omitempty,oneof=first revisit"`
 	ReservationTypeID *uint64    `json:"reservation_type_id"`
 	DoctorID          *uint64    `json:"doctor_id"`
 	IsDesignated      *bool      `json:"is_designated"`
-	Status            *string    `json:"status"`
+	Status            *string    `json:"status"               binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
 	Notes             *string    `json:"notes"`
 }

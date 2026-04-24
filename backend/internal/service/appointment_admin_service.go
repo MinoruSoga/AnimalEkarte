@@ -11,14 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ReservationAdminService は管理者向け予約管理のビジネスロジックインターフェース
-type ReservationAdminService interface {
-	ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Appointment, error)
-	ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Appointment, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
-}
-
 // CreateReservationAdminInput は管理者手動予約の入力データ
 type CreateReservationAdminInput struct {
 	StartTime         time.Time
@@ -36,6 +28,14 @@ type CreateReservationAdminInput struct {
 	CustomerFields    []byte
 }
 
+// ReservationAdminService は管理者向け予約管理のビジネスロジックインターフェース
+type ReservationAdminService interface {
+	ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Reservation, error)
+	ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
+}
+
 type reservationAdminService struct {
 	repo    repository.ReservationAdminRepository
 	resRepo repository.ReservationRepository
@@ -46,27 +46,27 @@ func NewReservationAdminService(repo repository.ReservationAdminRepository, resR
 	return &reservationAdminService{repo: repo, resRepo: resRepo, tx: tx}
 }
 
-func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Appointment, error) {
+func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Reservation, error) {
 	t, err := time.Parse("2006-01", yearMonth)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM format for month view")
 	}
-	items, err := s.repo.FindByMonth(ctx, clinicID, t.Year(), t.Month())
+	items, err := s.repo.FindAllByMonth(ctx, clinicID, t.Year(), t.Month())
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list reservations by month")
 	}
 	return items, nil
 }
 
-func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error) {
-	items, err := s.repo.FindByDay(ctx, clinicID, date)
+func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
+	items, err := s.repo.FindAllByDay(ctx, clinicID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list reservations by day")
 	}
 	return items, nil
 }
 
-func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Appointment, error) {
+func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error) {
 	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
@@ -80,13 +80,13 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 		customerFields = json.RawMessage("{}")
 	}
 
-	var result *model.Appointment
+	var result *model.Reservation
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if err := checkSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
 			return err
 		}
 
-		ra := &model.Appointment{
+		ra := &model.Reservation{
 			ClinicID:          clinicID,
 			StartTime:         input.StartTime,
 			EndTime:           input.EndTime,
@@ -120,6 +120,9 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 }
 
 func (s *reservationAdminService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.resRepo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find reservation appointment")
+	}
 	if err := s.repo.SoftDelete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation appointment")
 	}

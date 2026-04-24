@@ -6,11 +6,11 @@ type createProcedureRequest struct {
 	IsActive    bool     `json:"is_active"`
 	Description string   `json:"description"`
 	Duration    *int     `json:"duration"`
-	Anesthesia  string   `json:"anesthesia"`
+	Anesthesia  string   `json:"anesthesia"  binding:"required,oneof=none local sedation general"`
 	ParentID    *uint64  `json:"parent_id"`
 	SortOrder   int      `json:"sort_order"`
-	TaxType     string   `json:"tax_type"`
-	TaxRate     *float64 `json:"tax_rate"`
+	TaxType     string   `json:"tax_type"    binding:"required,oneof=included excluded exempt"`
+	TaxRate     *float64 `json:"tax_rate" binding:"omitempty,min=0,max=1"`
 }
 
 type updateProcedureRequest struct {
@@ -19,15 +19,10 @@ type updateProcedureRequest struct {
 	IsActive      *bool    `json:"is_active"`
 	Description   *string  `json:"description"`
 	Duration      *int     `json:"duration"`
-	Anesthesia    *string  `json:"anesthesia"`
+	Anesthesia    *string  `json:"anesthesia"   binding:"omitempty,oneof=none local sedation general"`
 	ParentID      *uint64  `json:"parent_id"`
 	ClearParentID bool     `json:"clear_parent_id"`
 	SortOrder     *int     `json:"sort_order"`
-	TaxType       *string  `json:"tax_type"`
-	TaxRate       *float64 `json:"tax_rate"`
-}
-
-// reorderProcedureRequest は処置並び替えのバインド struct
-type reorderProcedureRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
+	TaxType       *string  `json:"tax_type"     binding:"omitempty,oneof=included excluded exempt"`
+	TaxRate       *float64 `json:"tax_rate" binding:"omitempty,min=0,max=1"`
 }

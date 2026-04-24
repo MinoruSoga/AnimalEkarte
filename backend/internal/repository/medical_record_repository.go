@@ -14,7 +14,7 @@ type MedicalRecordRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
 	CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error)
@@ -48,8 +48,8 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
-	if err := q.Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").
-		Preload("Owner").Preload("Pet.AnimalSpecies").Preload("Doctor").Preload("EnteredByStaff").Preload("Inquiry").Preload("Billing").
+	if err := q.Offset((page-1)*limit).Limit(limit).Order("date DESC, created_at DESC").
+		Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.AnimalSpecies", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("EnteredByStaff", "deleted_at IS NULL").Preload("Inquiry", "deleted_at IS NULL").Preload("Billing", "deleted_at IS NULL").
 		Find(&records).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
@@ -59,12 +59,13 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
 	err := r.db.WithContext(ctx).
-		Preload("Treatments").
-		Preload("Vitals").
-		Preload("Doctor").
-		Preload("EnteredByStaff").
-		Preload("Owner").
-		Preload("Pet.AnimalSpecies").
+		Preload("Treatments", "deleted_at IS NULL").
+		Preload("Vitals", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
+		Preload("EnteredByStaff", "deleted_at IS NULL").
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("Pet", "deleted_at IS NULL").
+		Preload("Pet.AnimalSpecies", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&record).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
@@ -83,7 +84,7 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 	return nil
 }
 
-func (r *medicalRecordRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
+func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -114,7 +115,7 @@ func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, pe
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
 		Scopes(clinicScope(clinicID)).
-		Where("pet_id = ?", petID).
+		Where("pet_id = ? AND deleted_at IS NULL", petID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", "")
@@ -128,7 +129,7 @@ func (r *medicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Co
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Estimate{}).
-		Where("medical_record_id = ?", medicalRecordID).
+		Where("medical_record_id = ? AND deleted_at IS NULL", medicalRecordID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "estimate", "")

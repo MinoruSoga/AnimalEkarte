@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useEffect } from "react";
 import { FileText } from "lucide-react";
+import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -7,16 +8,16 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow, StatusToggleButton, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
-import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
-import { useMasterSave } from "@/features/master/hooks/use-master-save";
-import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import { useGetInquiryTemplates, useCreateInquiryTemplate, useUpdateInquiryTemplate, useDeleteInquiryTemplate } from "@/features/master/api/inquiry-templates";
+import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "../constants/styles";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
+import { useGetInquiryTemplates, useCreateInquiryTemplate, useUpdateInquiryTemplate, useDeleteInquiryTemplate } from "../api/inquiry-templates";
 import type {
   InquiryTemplate,
   CreateInquiryTemplateRequest,
   UpdateInquiryTemplateRequest,
-} from "@/features/master/api/inquiry-templates";
+} from "../api/inquiry-templates";
 import { ResourceMasterMedical } from "@/types/generated/models";
 
 // BUG-042: Map English snake_case category codes to Japanese labels
@@ -107,6 +108,7 @@ const SidePanel = memo(function SidePanel({
 });
 
 export function InterviewTemplateSettings() {
+  usePermission(ResourceMasterMedical);
   const { data } = useGetInquiryTemplates();
   const createMutation = useCreateInquiryTemplate();
   const updateMutation = useUpdateInquiryTemplate();

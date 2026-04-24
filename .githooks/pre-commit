@@ -1,21 +1,45 @@
 #!/bin/sh
-# Pre-commit hook: フロントエンドの lint + 型チェックを実行
+# Pre-commit hook: gofmt + フロントエンドの lint + 型チェックを実行
 # make setup-hooks でインストール
 
 set -e
 
-echo "Pre-commit: フロントエンドチェック開始..."
+echo "Pre-commit: チェック開始..."
 
-# コンテナが起動していない場合はスキップ（CI で実行される）
+# ── Go: gofmt（ステージ済みの .go ファイルのみ、高速）──
+STAGED_GO=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+if [ -n "$STAGED_GO" ]; then
+  echo "  [Go] gofmt チェック..."
+  UNFORMATTED=""
+  for f in $STAGED_GO; do
+    if [ -f "$f" ]; then
+      result=$(docker run --rm \
+        -v "$(pwd)":/app -w /app \
+        golang:1.25-alpine \
+        gofmt -l "$f" 2>/dev/null)
+      if [ -n "$result" ]; then
+        UNFORMATTED="$UNFORMATTED $f"
+      fi
+    fi
+  done
+  if [ -n "$UNFORMATTED" ]; then
+    echo "ERROR: 以下のファイルが gofmt されていません:"
+    for f in $UNFORMATTED; do echo "  $f"; done
+    echo "  → gofmt -w <file> または make lint-fix で修正してください"
+    exit 1
+  fi
+fi
+
+# ── Frontend: コンテナ起動確認 ──
 if ! docker compose exec -T frontend true 2>/dev/null; then
   echo "Pre-commit: frontendコンテナが未起動のためスキップします（make up で起動してください）"
   exit 0
 fi
 
-echo "  [1/2] lint..."
+echo "  [Frontend] lint..."
 docker compose exec -T frontend npm run lint
 
-echo "  [2/2] 型チェック (tsc --noEmit)..."
+echo "  [Frontend] 型チェック (tsc --noEmit)..."
 docker compose exec -T frontend npx tsc --noEmit
 
 echo "Pre-commit: すべて通過。commit を続行します。"

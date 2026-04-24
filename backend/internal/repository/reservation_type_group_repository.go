@@ -13,9 +13,9 @@ import (
 type ReservationTypeGroupRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error)
-	CountCategories(ctx context.Context, groupID uint64) (int64, error)
+	CountUsageByReservationTypeGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	Create(ctx context.Context, g *model.ReservationTypeGroup) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -45,10 +45,11 @@ func (r *reservationTypeGroupRepository) FindByID(ctx context.Context, clinicID,
 	return &g, nil
 }
 
-func (r *reservationTypeGroupRepository) CountCategories(ctx context.Context, groupID uint64) (int64, error) {
+func (r *reservationTypeGroupRepository) CountUsageByReservationTypeGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.ReservationType{}).
-		Where("group_id = ?", groupID).Count(&count).Error; err != nil {
+		Scopes(clinicScope(clinicID)).
+		Where("group_id = ? AND deleted_at IS NULL", groupID).Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "reservation_type", "")
 	}
 	return count, nil
@@ -56,26 +57,23 @@ func (r *reservationTypeGroupRepository) CountCategories(ctx context.Context, gr
 
 func (r *reservationTypeGroupRepository) Create(ctx context.Context, g *model.ReservationTypeGroup) error {
 	if err := r.db.WithContext(ctx).Create(g).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapConflict("同じ名称のグループが既に登録されています")
-		}
 		return apperrors.FromGORM(err, "reservation_type_group", "")
 	}
 	return nil
 }
 
-func (r *reservationTypeGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *reservationTypeGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ReservationTypeGroup{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "reservation_type_group", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(result.Error, "reservation_type_group", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_type_group", fmt.Sprintf("%d", id))
+		return nil, apperrors.WrapNotFound("reservation_type_group", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *reservationTypeGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {

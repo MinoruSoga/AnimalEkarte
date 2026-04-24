@@ -84,26 +84,6 @@ export type RelativePoint = "this" | "last" | "next";
 /** 相対日付の単位 */
 export type RelativeUnit = "day" | "week" | "month" | "year";
 
-/** 相対日付の値 */
-export interface RelativeDateValue {
-  point: RelativePoint;
-  unit: RelativeUnit;
-}
-
-/** 相対日付の時点ラベル */
-export const RELATIVE_POINT_LABELS: { value: RelativePoint; label: string }[] = [
-  { value: "this", label: "今" },
-  { value: "last", label: "前" },
-  { value: "next", label: "来" },
-];
-
-/** 相対日付の単位ラベル */
-export const RELATIVE_UNIT_LABELS: { value: RelativeUnit; label: string }[] = [
-  { value: "day", label: "日" },
-  { value: "week", label: "週" },
-  { value: "month", label: "月" },
-  { value: "year", label: "年" },
-];
 
 // ─── Filter Logic ───────────────────────────────────────────
 

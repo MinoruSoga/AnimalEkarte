@@ -1453,6 +1453,36 @@ components:
           type: string
           format: date-time
           readOnly: true
+    CreateReservationTypeUnavailableTimeRequest:
+      type: object
+      required: [unavailable_type, start_time, end_time]
+      properties:
+        unavailable_type:
+          type: string
+          enum: [weekly, specific]
+        day_of_week:
+          type: integer
+          format: int32
+          nullable: true
+          description: weekly の場合のみ指定。0=日曜、6=土曜。
+        specific_date:
+          type: string
+          format: date
+          nullable: true
+          description: specific の場合のみ指定。
+        start_time:
+          type: string
+          example: "09:00"
+        end_time:
+          type: string
+          example: "12:00"
+    LinkReservationTypeOccupationRequest:
+      type: object
+      required: [occupation_id]
+      properties:
+        occupation_id:
+          type: integer
+          format: int64
     Inquiry:
       type: object
       properties:
@@ -3016,8 +3046,6 @@ components:
         deleted_at:
           type: string
           format: date-time
-        (item_type:
-          type: string
     CreateTreatmentRequest:
       type: object
       required: [item_type]
@@ -3305,8 +3333,6 @@ components:
         deleted_at:
           type: string
           format: date-time
-        (medical_record_id:
-          type: string
     CreateTreatmentPlanRequest:
       type: object
       required: [treatment_content]
@@ -3762,8 +3788,6 @@ components:
           type: string
           format: date-time
 
-        (type:
-          type: string
     CreateCarePlanItemRequest:
       type: object
       required: [type, name]
@@ -4405,8 +4429,6 @@ components:
         updated_at:
           type: string
           format: date-time
-        (medical_record_id:
-          type: string
     EstimateItems:
       type: object
       description: estimate_items schema
@@ -4750,10 +4772,6 @@ components:
           type: boolean
         additional_fields:
           type: object
-        '{"key":"phone","label":"電話番号","required":true,"placeholder":"例)':
-          type: string
-        '{"key":"pet_info","label":"ペットの名前と種類","required":true,"placeholder":"例)':
-          type: string
         line_channel_id:
           type: string
         line_channel_secret:
@@ -4889,10 +4907,6 @@ components:
         day_of_week:
           type: integer
           format: int32
-        (unavailable_type:
-          type: string
-        OR:
-          type: string
         specific_date:
           type: string
           format: date
@@ -7718,18 +7732,18 @@ paths:
           $ref: '#/components/responses/InternalError'
   /masters/reservation-types:
     get:
-      operationId: listServiceTypes
-      summary: サービス種別一覧
+      operationId: listReservationTypes
+      summary: 予約区分一覧
       tags: [Masters]
       responses:
         '200':
-          description: サービス種別一覧
+          description: 予約区分一覧
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ServiceType'
+                  $ref: '#/components/schemas/ReservationTypes'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -7737,15 +7751,15 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
     post:
-      operationId: createServiceType
-      summary: サービス種別登録
+      operationId: createReservationType
+      summary: 予約区分登録
       tags: [Masters]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ServiceType'
+              $ref: '#/components/schemas/ReservationTypes'
       responses:
         '201':
           description: 登録成功
@@ -7760,7 +7774,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServiceType'
+                $ref: '#/components/schemas/ReservationTypes'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -7773,7 +7787,7 @@ paths:
           $ref: '#/components/responses/InternalError'
   /masters/reservation-types/reorder:
     patch:
-      operationId: reorderServiceTypes
+      operationId: reorderReservationTypes
       summary: 予約区分マスタ一括並び替え
       description: |
         指定した順序で `sort_order` を一括更新する。
@@ -7808,9 +7822,35 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/reservation-types/{id}:
+    get:
+      operationId: getReservationType
+      summary: 予約区分取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationTypes'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
-      operationId: updateServiceType
-      summary: サービス種別更新
+      operationId: updateReservationType
+      summary: 予約区分更新
       tags: [Masters]
       parameters:
         - name: id
@@ -7824,14 +7864,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ServiceType'
+              $ref: '#/components/schemas/ReservationTypes'
       responses:
         '200':
           description: 更新成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServiceType'
+                $ref: '#/components/schemas/ReservationTypes'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -7843,11 +7883,204 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
-      operationId: deleteServiceType
-      summary: サービス種別削除
+      operationId: deleteReservationType
+      summary: 予約区分削除
       tags: [Masters]
       parameters:
         - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/reservation-types/{id}/unavailable-times:
+    get:
+      operationId: listReservationTypeUnavailableTimes
+      summary: 予約区分の予約不可時間一覧
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 予約不可時間一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReservationTypeUnavailableTimes'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createReservationTypeUnavailableTime
+      summary: 予約区分の予約不可時間作成
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationTypeUnavailableTimeRequest'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/reservation-types/1/unavailable-times/1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationTypeUnavailableTimes'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/reservation-types/{id}/unavailable-times/{unavailableTimeId}:
+    delete:
+      operationId: deleteReservationTypeUnavailableTime
+      summary: 予約区分の予約不可時間削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: unavailableTimeId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/reservation-types/{id}/occupations:
+    get:
+      operationId: listReservationTypeOccupations
+      summary: 予約区分に紐づく職種一覧
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 職種紐付け一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReservationTypeOccupations'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: linkReservationTypeOccupation
+      summary: 予約区分に職種を紐付け
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkReservationTypeOccupationRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationTypeOccupations'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/reservation-types/{id}/occupations/{occupationId}:
+    delete:
+      operationId: unlinkReservationTypeOccupation
+      summary: 予約区分から職種紐付けを削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: occupationId
           in: path
           required: true
           schema:
@@ -10057,6 +10290,13 @@ paths:
       responses:
         '201':
           description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/animal-species/1
           content:
             application/json:
               schema:
@@ -11969,14 +12209,53 @@ paths:
       responses:
         '201':
           description: Created
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/shift-templates/1
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ShiftTemplate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/shift-templates/reorder:
+    patch:
+      tags:
+        - シフトテンプレート
+      summary: シフトテンプレート並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/shift-templates/{id}:
     get:
       tags:
         - シフトテンプレート
+      summary: シフトテンプレート取得
       parameters:
         - name: id
           in: path
@@ -11991,9 +12270,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ShiftTemplate'
-    put:
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
       tags:
         - シフトテンプレート
+      summary: シフトテンプレート更新
       parameters:
         - name: id
           in: path

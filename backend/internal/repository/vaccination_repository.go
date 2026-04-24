@@ -14,7 +14,7 @@ type VaccinationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	Create(ctx context.Context, vaccination *model.Vaccination) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -52,10 +52,10 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 
 	vaccinations := make([]model.Vaccination, 0)
 	if err := buildBase().
-		Preload("Vaccine").
-		Preload("Pet").
-		Preload("Pet.Owner").
-		Preload("Doctor").
+		Preload("Vaccine", "deleted_at IS NULL").
+		Preload("Pet", "deleted_at IS NULL").
+		Preload("Pet.Owner", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "vaccination", "")
@@ -67,7 +67,7 @@ func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 	var vaccination model.Vaccination
 	err := r.db.WithContext(ctx).
 		Where("vaccinations.id = ? AND vaccinations.clinic_id = ?", id, clinicID).
-		Preload("Vaccine").Preload("Pet").Preload("Pet.Owner").Preload("Doctor").
+		Preload("Vaccine", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
 		First(&vaccination).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("%d", id))
@@ -82,7 +82,7 @@ func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.V
 	return nil
 }
 
-func (r *vaccinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
+func (r *vaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

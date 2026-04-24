@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 
 // ListCheckups は指定カルテに紐づく健診記録の一覧を返す
 func (h *Handler) ListCheckups(c *gin.Context) {
-	_, ok := extractClinicID(c)
+	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
@@ -23,12 +24,12 @@ func (h *Handler) ListCheckups(c *gin.Context) {
 		return
 	}
 
-	checkups, err := h.svc.Checkup.List(c.Request.Context(), id)
+	checkups, err := h.svc.Checkup.List(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toCheckupResponseList(checkups))
+	c.JSON(http.StatusOK, mapSlice(checkups, toCheckupResponse))
 }
 
 // CreateCheckup は指定カルテに健診記録を作成する
@@ -77,6 +78,7 @@ func (h *Handler) CreateCheckup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/checkups/%d", id, checkup.ID))
 	c.JSON(http.StatusCreated, toCheckupResponse(checkup))
 }
 
@@ -189,13 +191,13 @@ func (h *Handler) ListGlobalCheckups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": toCheckupGlobalResponseList(checkups)})
+	c.JSON(http.StatusOK, mapSlice(checkups, toCheckupGlobalResponse))
 }
 
 // RegisterGlobalCheckupRoutes は /checkups トップレベルルートを登録する
 func (h *Handler) RegisterGlobalCheckupRoutes(rg *gin.RouterGroup) {
 	checkups := rg.Group("/checkups")
-	checkups.GET("", h.ListGlobalCheckups)
+	checkups.GET("", h.RequirePermission(string(model.ResourceCheckups), "view"), h.ListGlobalCheckups)
 }
 
 // RegisterCheckupRoutes は健診記録関連のルートを登録する

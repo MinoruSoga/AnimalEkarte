@@ -10,22 +10,30 @@ const initialFlow: ReservationFlow = {
   },
   courseId: null,
   courseName: '',
+  courseCategory: 'general',
   staffId: 0,
   staffName: '',
   date: '',
   startTime: '',
   endTime: '',
   requestText: '',
+  trimmingCourseId: null,
+  trimmingCourseName: '',
+  trimmingOptionIds: [],
+  trimmingStyleRequest: '',
 };
 
 interface UseReservationFlowReturn {
   flow: ReservationFlow;
   setCustomerInfo: (info: CustomerInfo) => void;
-  setCourse: (id: number, name: string) => void;
+  setCourse: (id: number, name: string, category?: 'general' | 'trimming') => void;
   setStaff: (id: number, name: string) => void;
   setDate: (date: string) => void;
   setTime: (startTime: string, endTime: string) => void;
   setRequestText: (text: string) => void;
+  setTrimmingCourse: (id: number, name: string) => void;
+  setTrimmingOptions: (ids: number[]) => void;
+  setTrimmingStyleRequest: (text: string) => void;
   resetFlow: () => void;
 }
 
@@ -36,8 +44,8 @@ export function useReservationFlow(): UseReservationFlowReturn {
     setFlow(prev => ({ ...prev, customerInfo: info }));
   }, []);
 
-  const setCourse = useCallback((id: number, name: string) => {
-    setFlow(prev => ({ ...prev, courseId: id, courseName: name }));
+  const setCourse = useCallback((id: number, name: string, category: 'general' | 'trimming' = 'general') => {
+    setFlow(prev => ({ ...prev, courseId: id, courseName: name, courseCategory: category }));
   }, []);
 
   const setStaff = useCallback((id: number, name: string) => {
@@ -56,6 +64,18 @@ export function useReservationFlow(): UseReservationFlowReturn {
     setFlow(prev => ({ ...prev, requestText: text }));
   }, []);
 
+  const setTrimmingCourse = useCallback((id: number, name: string) => {
+    setFlow(prev => ({ ...prev, trimmingCourseId: id, trimmingCourseName: name }));
+  }, []);
+
+  const setTrimmingOptions = useCallback((ids: number[]) => {
+    setFlow(prev => ({ ...prev, trimmingOptionIds: ids }));
+  }, []);
+
+  const setTrimmingStyleRequest = useCallback((text: string) => {
+    setFlow(prev => ({ ...prev, trimmingStyleRequest: text }));
+  }, []);
+
   const resetFlow = useCallback(() => {
     setFlow(initialFlow);
   }, []);
@@ -68,6 +88,9 @@ export function useReservationFlow(): UseReservationFlowReturn {
     setDate,
     setTime,
     setRequestText,
+    setTrimmingCourse,
+    setTrimmingOptions,
+    setTrimmingStyleRequest,
     resetFlow,
   };
 }

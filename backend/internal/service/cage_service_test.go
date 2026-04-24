@@ -13,12 +13,13 @@ import (
 
 // mockCageRepository は CageRepository のテスト用モック実装
 type mockCageRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
-	createFn       func(ctx context.Context, cage *model.Cage) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
-	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn            func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
+	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+	countUsageByCageIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
+	createFn             func(ctx context.Context, cage *model.Cage) error
+	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
+	deleteFn             func(ctx context.Context, clinicID, id uint64) error
+	reorderFn            func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockCageRepository) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
@@ -26,19 +27,29 @@ func (m *mockCageRepository) FindAll(ctx context.Context, clinicID uint64, cageT
 }
 
 func (m *mockCageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockCageRepository) Create(ctx context.Context, cage *model.Cage) error {
 	return m.createFn(ctx, cage)
 }
 
-func (m *mockCageRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
+func (m *mockCageRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockCageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockCageRepository) CountUsageByCageID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	if m.countUsageByCageIDFn != nil {
+		return m.countUsageByCageIDFn(ctx, clinicID, id)
+	}
+	return 0, nil
 }
 
 func (m *mockCageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -48,39 +59,8 @@ func (m *mockCageRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 	return nil
 }
 
-// mockHospitalizationForCage は Cage テストで使用する HospitalizationRepository のスタブ
-type mockHospitalizationForCage struct {
-	existsByCageIDFn func(ctx context.Context, cageID uint64) (bool, error)
-}
-
-func (m *mockHospitalizationForCage) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Hospitalization, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockHospitalizationForCage) FindByID(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
-	return nil, nil
-}
-func (m *mockHospitalizationForCage) Create(_ context.Context, _ *model.Hospitalization) error {
-	return nil
-}
-func (m *mockHospitalizationForCage) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
-	return nil, nil
-}
-func (m *mockHospitalizationForCage) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *mockHospitalizationForCage) ExistsByCageID(ctx context.Context, cageID uint64) (bool, error) {
-	if m.existsByCageIDFn != nil {
-		return m.existsByCageIDFn(ctx, cageID)
-	}
-	return false, nil
-}
-
-func (m *mockHospitalizationForCage) CountCarePlanItemsByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
 func newTestCageService(repo *mockCageRepository) CageService {
-	return NewCageService(repo, &mockHospitalizationForCage{})
+	return NewCageService(repo)
 }
 
 func TestCageService_List(t *testing.T) {
@@ -222,17 +202,16 @@ func TestCageService_Create(t *testing.T) {
 	price := int64(3000)
 	tests := []struct {
 		name    string
-		cage    *model.Cage
+		input   *CreateCageInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates cage successfully",
-			cage: &model.Cage{
-				ClinicID: 1,
+			input: &CreateCageInput{
 				Name:     "新規ケージ",
-				CageType: model.CageTypeDog,
-				CageSize: model.CageSizeMedium,
+				CageType: string(model.CageTypeDog),
+				CageSize: string(model.CageSizeMedium),
 				Price:    &price,
 				IsActive: true,
 			},
@@ -241,22 +220,20 @@ func TestCageService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when cage already exists",
-			cage: &model.Cage{
-				ClinicID: 1,
+			input: &CreateCageInput{
 				Name:     "既存ケージ",
-				CageType: model.CageTypeCat,
-				CageSize: model.CageSizeSmall,
+				CageType: string(model.CageTypeCat),
+				CageSize: string(model.CageSizeSmall),
 			},
 			repoErr: apperrors.WrapAlreadyExists("cage", "既存ケージ"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			cage: &model.Cage{
-				ClinicID: 1,
+			input: &CreateCageInput{
 				Name:     "エラーケージ",
-				CageType: model.CageTypeGeneral,
-				CageSize: model.CageSizeLarge,
+				CageType: string(model.CageTypeGeneral),
+				CageSize: string(model.CageSizeLarge),
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -272,12 +249,14 @@ func TestCageService_Create(t *testing.T) {
 			}
 			svc := newTestCageService(repo)
 
-			err := svc.Create(context.Background(), tt.cage)
+			cage, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, cage)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, cage)
 			}
 		})
 	}
@@ -286,8 +265,8 @@ func TestCageService_Create(t *testing.T) {
 func TestCageService_Update(t *testing.T) {
 	price := int64(4500)
 	name := "更新後ケージ"
-	cageType := model.CageTypeDog
-	cageSize := model.CageSizeLarge
+	cageType := string(model.CageTypeDog)
+	cageSize := string(model.CageSizeLarge)
 	isActive := true
 	tests := []struct {
 		name     string
@@ -313,8 +292,8 @@ func TestCageService_Update(t *testing.T) {
 				ID:       1,
 				ClinicID: 1,
 				Name:     name,
-				CageType: cageType,
-				CageSize: cageSize,
+				CageType: model.CageType(cageType),
+				CageSize: model.CageSize(cageSize),
 				Price:    &price,
 				IsActive: isActive,
 			},
@@ -343,13 +322,16 @@ func TestCageService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCageRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Cage, error) {
+					return &model.Cage{ID: tt.id, ClinicID: tt.clinicID}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Cage, error) {
 					return tt.repoCage, tt.repoErr
 				},
 			}
 			svc := newTestCageService(repo)
 
-			cage, err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
+			cage, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -362,13 +344,24 @@ func TestCageService_Update(t *testing.T) {
 	}
 }
 
+func TestCageService_Update_NilInput(t *testing.T) {
+	repo := &mockCageRepository{}
+	svc := newTestCageService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
 func TestCageService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name         string
+		id           uint64
+		usageCount   int64
+		findByIDErr  error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
 			name:    "deletes cage successfully",
@@ -377,11 +370,11 @@ func TestCageService_Delete(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "returns not found error when cage does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("cage", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:        "returns not found error when cage does not exist",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("cage", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:    "returns error on repository failure",
@@ -389,11 +382,27 @@ func TestCageService_Delete(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name:         "使用中のケージは削除できない",
+			id:           2,
+			usageCount:   1,
+			wantErr:      true,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCageRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Cage{ID: id}, nil
+				},
+				countUsageByCageIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.usageCount, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -406,6 +415,9 @@ func TestCageService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

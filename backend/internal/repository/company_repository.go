@@ -11,7 +11,7 @@ import (
 
 // CompanyRepository は法人情報のデータアクセスインターフェース
 type CompanyRepository interface {
-	Get(ctx context.Context) (*model.Company, error)
+	FindSingleton(ctx context.Context) (*model.Company, error)
 	Update(ctx context.Context, fields map[string]any) error
 }
 
@@ -24,10 +24,10 @@ func NewCompanyRepository(db *gorm.DB) CompanyRepository {
 	return &companyRepository{db: db}
 }
 
-// Get は company テーブルの先頭レコードを返す。レコードがなければ WrapNotFound を返す。
-func (r *companyRepository) Get(ctx context.Context) (*model.Company, error) {
+// FindSingleton は company テーブルの先頭レコードを返す。レコードがなければ WrapNotFound を返す。
+func (r *companyRepository) FindSingleton(ctx context.Context) (*model.Company, error) {
 	var company model.Company
-	err := r.db.WithContext(ctx).Limit(1).First(&company).Error
+	err := r.db.WithContext(ctx).First(&company, 1).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "company", "1")
 	}

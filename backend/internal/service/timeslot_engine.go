@@ -159,7 +159,7 @@ func generateForStaff(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]Time
 	}
 
 	// 2. 休憩時間を除外
-	breaks, err := resolveBrakeIntervals(input, staffInput)
+	breaks, err := resolveBreakIntervals(input, staffInput)
 	if err != nil {
 		return nil, err
 	}
@@ -282,8 +282,8 @@ func resolveWorkIntervals(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]
 	}
 }
 
-// resolveBrakeIntervals はスタッフの休憩時間区間を解決する。
-func resolveBrakeIntervals(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]interval, error) {
+// resolveBreakIntervals はスタッフの休憩時間区間を解決する。
+func resolveBreakIntervals(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]interval, error) {
 	var breaks []BreakPeriod
 	if staffInput.ScheduleOverride != nil && len(staffInput.ScheduleOverride.Breaks) > 0 {
 		breaks = staffInput.ScheduleOverride.Breaks

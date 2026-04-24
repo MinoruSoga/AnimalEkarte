@@ -2,12 +2,12 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -24,7 +24,7 @@ func (h *Handler) ListInquiryTemplates(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toInquiryTemplateResponseList(templates))
+	c.JSON(http.StatusOK, mapSlice(templates, toInquiryTemplateResponse))
 }
 
 // GetInquiryTemplate godoc
@@ -58,8 +58,7 @@ func (h *Handler) CreateInquiryTemplate(c *gin.Context) {
 		return
 	}
 
-	tmpl := &model.InquiryTemplate{
-		ClinicID:  clinicID,
+	svcInput := &service.CreateInquiryTemplateInput{
 		Category:  req.Category,
 		Title:     req.Title,
 		Content:   req.Content,
@@ -67,10 +66,12 @@ func (h *Handler) CreateInquiryTemplate(c *gin.Context) {
 		SortOrder: req.SortOrder,
 	}
 
-	if err := h.svc.InquiryTemplate.Create(c.Request.Context(), tmpl); err != nil {
+	tmpl, err := h.svc.InquiryTemplate.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/inquiry-templates/%d", tmpl.ID))
 	c.JSON(http.StatusCreated, toInquiryTemplateResponse(tmpl))
 }
 
@@ -118,6 +119,24 @@ func (h *Handler) DeleteInquiryTemplate(c *gin.Context) {
 		return
 	}
 	if err := h.svc.InquiryTemplate.Delete(c.Request.Context(), clinicID, id); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// ReorderInquiryTemplates godoc
+func (h *Handler) ReorderInquiryTemplates(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if err := h.svc.InquiryTemplate.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
 		RespondError(c, err)
 		return
 	}

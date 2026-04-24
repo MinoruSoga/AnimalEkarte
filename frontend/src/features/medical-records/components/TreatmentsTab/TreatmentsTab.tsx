@@ -6,7 +6,7 @@ import { Plus, Search } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
@@ -17,12 +17,12 @@ const TreatmentSearchDialog = lazy(() =>
 );
 
 // Relative
-import { useGetTreatments } from "@/features/medical-records/api/treatments";
-import { useCreateTreatment } from "@/features/medical-records/api/treatments";
-import { useUpdateTreatment } from "@/features/medical-records/api/treatments";
-import { useDeleteTreatment } from "@/features/medical-records/api/treatments";
-import { useReorderTreatments } from "@/features/medical-records/api/treatments";
-import type { TreatmentItemType, UpdateTreatmentInput } from "@/features/medical-records/types";
+import { useGetTreatments } from "../../api/treatments";
+import { useCreateTreatment } from "../../api/treatments";
+import { useUpdateTreatment } from "../../api/treatments";
+import { useDeleteTreatment } from "../../api/treatments";
+import { useReorderTreatments } from "../../api/treatments";
+import type { TreatmentItemType, UpdateTreatmentInput } from "../../types";
 import { TreatmentRow } from "./TreatmentRow";
 
 // ── 静的定数 ───────────────────────────────────────────────────────────

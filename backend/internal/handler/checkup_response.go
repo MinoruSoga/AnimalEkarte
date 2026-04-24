@@ -109,19 +109,3 @@ func toCheckupGlobalResponse(c *model.Checkup) checkupGlobalResponse {
 	}
 	return r
 }
-
-func toCheckupGlobalResponseList(items []model.Checkup) []checkupGlobalResponse {
-	list := make([]checkupGlobalResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toCheckupGlobalResponse(&items[i]))
-	}
-	return list
-}
-
-func toCheckupResponseList(items []model.Checkup) []checkupResponse {
-	list := make([]checkupResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toCheckupResponse(&items[i]))
-	}
-	return list
-}

@@ -4,10 +4,12 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
-import type { ReservationType } from "@/features/master/api/reservation-types";
+import { ReservationTypeUnavailableTimesSection } from "../components/ReservationTypeUnavailableTimesSection";
+import { ReservationTypeOccupationsSection } from "../components/ReservationTypeOccupationsSection";
+import type { ReservationType } from "../api/reservation-types";
 
 // ── 静的 SelectItem JSX (rendering-hoist-jsx) ──────────────────
-export const RESERVATION_DAY_OPTION_ITEMS = (
+const RESERVATION_DAY_OPTION_ITEMS = (
   <>
     <SelectItem value="none">制限なし</SelectItem>
     <SelectItem value="weekday">平日のみ</SelectItem>
@@ -32,7 +34,7 @@ export interface CategoryFormData {
   isInternal: boolean;
 }
 
-export interface GroupOption { id: string; name: string; color: string; }
+interface GroupOption { id: string; name: string; color: string; }
 
 export const CategorySidePanel = memo(function CategorySidePanel({
   item, onClose, onSave, onDeleteRequest, readOnly, groups, defaultGroupId, onDirtyChange,
@@ -147,7 +149,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
         </PropertyRow>
         <PropertyRow label="所要時間（分）">
           <input type="number" min={5} max={480}
-            className={`w-20 rounded-[3px] border ${C.borderMedium} px-2 py-1 text-base ${C.text}`}
+            className={`w-20 border ${C.borderMedium} ${LAYOUT.inputStandard} text-base ${C.text}`}
             value={formData.durationMinutes}
             onChange={(e) => setFormDataDirty((prev) => ({ ...prev, durationMinutes: Number(e.target.value) || 15 }))} />
         </PropertyRow>
@@ -178,6 +180,19 @@ export const CategorySidePanel = memo(function CategorySidePanel({
             placeholder="LINE予約画面に表示する説明" />
         </PropertyRow>
       </div>
+
+      {item !== null ? (
+        <>
+          <ReservationTypeUnavailableTimesSection
+            clinicId={item.clinicId}
+            reservationTypeId={item.id}
+          />
+          <ReservationTypeOccupationsSection
+            clinicId={item.clinicId}
+            reservationTypeId={item.id}
+          />
+        </>
+      ) : null}
     </MasterSidePanel>
   );
 });

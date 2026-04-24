@@ -1,6 +1,7 @@
 package model
 
 import (
+	"math"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,9 +19,9 @@ type BillingStatus string
 
 const (
 	BillingStatusWaiting   BillingStatus = "waiting"
+	BillingStatusPending   BillingStatus = "pending"
 	BillingStatusCompleted BillingStatus = "completed"
 	BillingStatusCancelled BillingStatus = "cancelled"
-	BillingStatusPending   BillingStatus = "pending"
 )
 
 type PaymentMethod string
@@ -42,6 +43,10 @@ const (
 	ItemCategoryFood        ItemCategory = "food"
 	ItemCategoryGoods       ItemCategory = "goods"
 	ItemCategoryOther       ItemCategory = "other"
+	ItemCategoryVaccine     ItemCategory = "vaccine"
+	ItemCategoryTrimming    ItemCategory = "trimming"
+	ItemCategoryHotel       ItemCategory = "hotel"
+	ItemCategoryTraining    ItemCategory = "training"
 )
 
 type ItemSource string
@@ -59,9 +64,9 @@ type Billing struct {
 	HospitalizationID *uint64        `                                                      json:"hospitalization_id,omitempty"`
 	OwnerID           *uint64        `                                                      json:"owner_id,omitempty"`
 	PetID             *uint64        `                                                      json:"pet_id,omitempty"`
-	Subtotal          int            `gorm:"default:0"                                      json:"subtotal"`
-	TaxTotal          int            `gorm:"default:0"                                      json:"tax_total"`
-	TotalAmount       int            `gorm:"default:0"                                      json:"total_amount"`
+	Subtotal          int64          `gorm:"default:0"                                      json:"subtotal"`
+	TaxTotal          int64          `gorm:"default:0"                                      json:"tax_total"`
+	TotalAmount       int64          `gorm:"default:0"                                      json:"total_amount"`
 	HasInsurance      bool           `gorm:"default:false"                                  json:"has_insurance"`
 	Status            BillingStatus  `gorm:"type:billing_status;default:'waiting'"          json:"status"`
 	ScheduledDate     time.Time      `gorm:"type:date;not null"                             json:"scheduled_date"`
@@ -105,20 +110,39 @@ type BillingItem struct {
 
 func (BillingItem) TableName() string { return "billing_items" }
 
+// CalculateTaxAmount は課税区分に応じた税額（円）を計算する。
+//
+//	外税: 税額 = 単価 × 数量 × 税率
+//	内税: 税額 = 単価 × 数量 × 税率 ÷ (1 + 税率)
+//	非課税: 税額 = 0
+func (item *BillingItem) CalculateTaxAmount() int64 {
+	subtotal := float64(item.UnitPrice) * item.Quantity
+	switch item.TaxType {
+	case TaxTypeExcluded:
+		return int64(math.Round(subtotal * item.TaxRate))
+	case TaxTypeIncluded:
+		return int64(math.Round(subtotal * item.TaxRate / (1 + item.TaxRate)))
+	default:
+		return 0
+	}
+}
+
 type Payment struct {
-	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	BillingID       uint64         `gorm:"not null;uniqueIndex"                           json:"billing_id"`
-	Subtotal        int64          `gorm:"not null;default:0"                             json:"subtotal"`
-	TaxTotal        int64          `gorm:"not null;default:0"                             json:"tax_total"`
-	TotalAmount     int64          `gorm:"not null;default:0"                             json:"total_amount"`
-	InsuranceName   string         `gorm:"default:''"                                     json:"insurance_name"`
-	InsuranceRatio  float64        `gorm:"type:numeric(3,2);default:0"                    json:"insurance_ratio"`
-	InsuranceAmount int64          `gorm:"default:0"                                      json:"insurance_amount"`
-	DiscountAmount  int64          `gorm:"default:0"                                      json:"discount_amount"`
-	BillingAmount   int64          `gorm:"not null;default:0"                             json:"billing_amount"`
-	ReceivedAmount  int64          `gorm:"default:0"                                      json:"received_amount"`
-	ChangeAmount    int64          `gorm:"default:0"                                      json:"change_amount"`
+	ID              uint64  `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	BillingID       uint64  `gorm:"not null;uniqueIndex"                           json:"billing_id"`
+	Subtotal        int64   `gorm:"not null;default:0"                             json:"subtotal"`
+	TaxTotal        int64   `gorm:"not null;default:0"                             json:"tax_total"`
+	TotalAmount     int64   `gorm:"not null;default:0"                             json:"total_amount"`
+	InsuranceName   string  `gorm:"default:''"                                     json:"insurance_name"`
+	InsuranceRatio  float64 `gorm:"type:numeric(3,2);default:0"                    json:"insurance_ratio"`
+	InsuranceAmount int64   `gorm:"default:0"                                      json:"insurance_amount"`
+	DiscountAmount  int64   `gorm:"default:0"                                      json:"discount_amount"`
+	BillingAmount   int64   `gorm:"not null;default:0"                             json:"billing_amount"`
+	ReceivedAmount  int64   `gorm:"default:0"                                      json:"received_amount"`
+	ChangeAmount    int64   `gorm:"default:0"                                      json:"change_amount"`
+	// Deprecated: use PaymentMethodID. Will be removed in a future release.
 	Method          PaymentMethod  `gorm:"type:payment_method;default:'cash'"             json:"method"`
+	PaymentMethodID *uint64        `                                                      json:"payment_method_id,omitempty"`
 	PaidBy          *uint64        `gorm:""                                               json:"paid_by"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`

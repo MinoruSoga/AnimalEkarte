@@ -23,7 +23,7 @@ import (
 type mockInventoryService struct {
 	listFn    func(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
-	createFn  func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
+	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateInventoryInput) (*model.InventoryItem, error)
 	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateInventoryInput) (*model.InventoryItem, error)
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 }
@@ -36,8 +36,11 @@ func (m *mockInventoryService) GetByID(ctx context.Context, clinicID, id uint64)
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockInventoryService) Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
-	return m.createFn(ctx, clinicID, item)
+func (m *mockInventoryService) Create(ctx context.Context, clinicID uint64, input *service.CreateInventoryInput) (*model.InventoryItem, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, input)
+	}
+	return &model.InventoryItem{}, nil
 }
 
 func (m *mockInventoryService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateInventoryInput) (*model.InventoryItem, error) {
@@ -243,10 +246,10 @@ func TestCreateInventory(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
-				createFn: func(_ context.Context, clinicID uint64, item *model.InventoryItem) error {
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateInventoryInput) (*model.InventoryItem, error) {
 					assert.Equal(t, uint64(1), clinicID)
-					assert.Equal(t, "アルコール消毒液", item.Name)
-					return nil
+					assert.Equal(t, "アルコール消毒液", input.Name)
+					return &model.InventoryItem{Name: input.Name, Category: model.InventoryCategory(input.Category)}, nil
 				},
 			},
 			wantStatus: http.StatusCreated,
@@ -271,8 +274,8 @@ func TestCreateInventory(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
-				createFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error {
-					return fmt.Errorf("db error")
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateInventoryInput) (*model.InventoryItem, error) {
+					return nil, fmt.Errorf("db error")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,

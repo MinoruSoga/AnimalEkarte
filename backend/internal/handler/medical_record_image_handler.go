@@ -112,6 +112,7 @@ func (h *Handler) CreateMedicalRecordImage(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/images/%d", medicalRecordID, image.ID))
 	c.JSON(http.StatusCreated, toMedicalRecordImageResponse(image))
 }
 
@@ -230,6 +231,7 @@ func (h *Handler) UploadMedicalRecordImage(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/images/%d", medicalRecordID, image.ID))
 	c.JSON(http.StatusCreated, toMedicalRecordImageResponse(image))
 }
 

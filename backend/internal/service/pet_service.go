@@ -80,6 +80,73 @@ type UpdatePetInput struct {
 	Remarks         *string
 }
 
+// buildPetUpdate はポインタが非 nil のフィールドのみ map に追加する
+func buildPetUpdate(input *UpdatePetInput) map[string]any {
+	fields := make(map[string]any)
+	if input.OwnerID != nil {
+		fields[colPetOwnerID] = *input.OwnerID
+	}
+	if input.AnimalSpeciesID != nil {
+		fields[colPetAnimalSpeciesID] = *input.AnimalSpeciesID
+	}
+	if input.PetNumber != nil {
+		fields["pet_number"] = *input.PetNumber
+	}
+	if input.Name != nil {
+		fields[colPetName] = *input.Name
+	}
+	if input.PetNameKana != nil {
+		fields[colPetNameKana] = *input.PetNameKana
+	}
+	if input.Gender != nil {
+		fields[colPetGender] = *input.Gender
+	}
+	if input.Status != nil {
+		fields[colPetStatus] = *input.Status
+	}
+	if input.BirthDate != nil {
+		fields[colPetBirthDate] = *input.BirthDate
+	}
+	if input.Breed != nil {
+		fields[colPetBreed] = *input.Breed
+	}
+	if input.Color != nil {
+		fields["color"] = *input.Color
+	}
+	if input.Weight != nil {
+		fields[colPetWeight] = *input.Weight
+	}
+	if input.NeuteredDate != nil {
+		fields["neutered_date"] = *input.NeuteredDate
+	}
+	if input.AcquisitionType != nil {
+		fields["acquisition_type"] = *input.AcquisitionType
+	}
+	if input.DangerLevel != nil {
+		fields["danger_level"] = *input.DangerLevel
+	}
+	if input.Food != nil {
+		fields["food"] = *input.Food
+	}
+	if input.Environment != nil {
+		fields[colPetEnvironment] = *input.Environment
+	}
+	if input.Phone != nil {
+		fields["phone"] = *input.Phone
+	}
+	if input.LastVisit != nil {
+		fields["last_visit"] = *input.LastVisit
+	}
+	if input.InsuranceID != nil {
+		// *input.InsuranceID は *uint64: nil = NULL クリア、非nil = 値セット
+		fields[colPetInsuranceID] = *input.InsuranceID
+	}
+	if input.Remarks != nil {
+		fields[colPetRemarks] = *input.Remarks
+	}
+	return fields
+}
+
 // --- Interface ---
 
 type PetService interface {
@@ -138,7 +205,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 
 	// ビジネスルールバリデーション
 	if input.Weight != nil && *input.Weight < 0 {
-		return nil, apperrors.WrapInvalidInput("体重は0以上の値を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgWeightZeroOrMore)
 	}
 	if err := validatePetGender(input.Gender); err != nil {
 		return nil, err
@@ -218,6 +285,9 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 }
 
 func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find pet")
+	}
 	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
 	if input.Name != nil {
 		if err := validateRequiredName(*input.Name); err != nil {
@@ -229,7 +299,7 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 
 	// ビジネスルールバリデーション
 	if input.Weight != nil && *input.Weight < 0 {
-		return nil, apperrors.WrapInvalidInput("体重は0以上の値を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgWeightZeroOrMore)
 	}
 	if input.Gender != nil {
 		if err := validatePetGender(*input.Gender); err != nil {
@@ -266,7 +336,7 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		}
 	}
 
-	fields := buildPetUpdateFields(input)
+	fields := buildPetUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -285,75 +355,10 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 	}
 	return pet, nil
 }
-
-// buildPetUpdateFields はポインタが非 nil のフィールドのみ map に追加する
-func buildPetUpdateFields(input *UpdatePetInput) map[string]any {
-	fields := make(map[string]any)
-	if input.OwnerID != nil {
-		fields[colPetOwnerID] = *input.OwnerID
-	}
-	if input.AnimalSpeciesID != nil {
-		fields[colPetAnimalSpeciesID] = *input.AnimalSpeciesID
-	}
-	if input.PetNumber != nil {
-		fields["pet_number"] = *input.PetNumber
-	}
-	if input.Name != nil {
-		fields[colPetName] = *input.Name
-	}
-	if input.PetNameKana != nil {
-		fields[colPetNameKana] = *input.PetNameKana
-	}
-	if input.Gender != nil {
-		fields[colPetGender] = *input.Gender
-	}
-	if input.Status != nil {
-		fields[colPetStatus] = *input.Status
-	}
-	if input.BirthDate != nil {
-		fields[colPetBirthDate] = *input.BirthDate
-	}
-	if input.Breed != nil {
-		fields[colPetBreed] = *input.Breed
-	}
-	if input.Color != nil {
-		fields["color"] = *input.Color
-	}
-	if input.Weight != nil {
-		fields[colPetWeight] = *input.Weight
-	}
-	if input.NeuteredDate != nil {
-		fields["neutered_date"] = *input.NeuteredDate
-	}
-	if input.AcquisitionType != nil {
-		fields["acquisition_type"] = *input.AcquisitionType
-	}
-	if input.DangerLevel != nil {
-		fields["danger_level"] = *input.DangerLevel
-	}
-	if input.Food != nil {
-		fields["food"] = *input.Food
-	}
-	if input.Environment != nil {
-		fields[colPetEnvironment] = *input.Environment
-	}
-	if input.Phone != nil {
-		fields["phone"] = *input.Phone
-	}
-	if input.LastVisit != nil {
-		fields["last_visit"] = *input.LastVisit
-	}
-	if input.InsuranceID != nil {
-		// *input.InsuranceID は *uint64: nil = NULL クリア、非nil = 値セット
-		fields[colPetInsuranceID] = *input.InsuranceID
-	}
-	if input.Remarks != nil {
-		fields[colPetRemarks] = *input.Remarks
-	}
-	return fields
-}
-
 func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find pet")
+	}
 	// FK依存チェック: カルテが紐付いている場合は削除を拒否
 	recordCount, err := s.medicalRecordRepo.CountByPetID(ctx, clinicID, id)
 	if err != nil {

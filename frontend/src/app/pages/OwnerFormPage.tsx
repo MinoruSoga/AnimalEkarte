@@ -9,7 +9,7 @@ import { useParams } from "react-router";
 import { OwnerForm } from "@/features/owners";
 import { createPet, useCreatePet, useUpdatePet, useDeletePet } from "@/features/pets";
 import { LinkedLineCustomers } from "@/features/line-reservation";
-import { useAuth } from "@/features/auth";
+import { useAuth } from "@/hooks/use-auth";
 import type { PetMutations } from "@/types/pet";
 
 export function OwnerFormPage() {

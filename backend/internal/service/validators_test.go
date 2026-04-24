@@ -9,8 +9,7 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
-// BUG-379: マスタ名称バリデータ
-func TestValidateMasterName(t *testing.T) {
+func TestValidateRequiredName(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
@@ -25,7 +24,7 @@ func TestValidateMasterName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateMasterName(tt.input)
+			err := validateRequiredName(tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.True(t, apperrors.IsInvalidInput(err))
@@ -36,14 +35,14 @@ func TestValidateMasterName(t *testing.T) {
 	}
 }
 
-func TestValidateOptionalMasterName(t *testing.T) {
+func TestValidateOptionalName(t *testing.T) {
 	// nil はスキップされる
-	assert.NoError(t, validateOptionalMasterName(nil))
+	assert.NoError(t, validateOptionalName(nil))
 	// 非 nil は通常検証
 	ok := "犬"
-	assert.NoError(t, validateOptionalMasterName(&ok))
+	assert.NoError(t, validateOptionalName(&ok))
 	ng := strings.Repeat("X", MasterNameMaxLength+1)
-	err := validateOptionalMasterName(&ng)
+	err := validateOptionalName(&ng)
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,7 +21,7 @@ func (h *Handler) ListReservationTypeGroups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationTypeGroupResponseList(groups))
+	c.JSON(http.StatusOK, mapSlice(groups, toReservationTypeGroupResponse))
 }
 
 // GetReservationTypeGroup godoc
@@ -62,6 +63,7 @@ func (h *Handler) CreateReservationTypeGroup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-type-groups/%d", g.ID))
 	c.JSON(http.StatusCreated, toReservationTypeGroupResponse(g))
 }
 
@@ -116,7 +118,7 @@ func (h *Handler) ReorderReservationTypeGroups(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderReservationTypeGroupRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

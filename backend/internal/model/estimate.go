@@ -1,6 +1,7 @@
 package model
 
 import (
+	"math"
 	"time"
 
 	"gorm.io/gorm"
@@ -49,24 +50,25 @@ func (Estimate) TableName() string { return "estimates" }
 
 // EstimateItem は見積書明細
 type EstimateItem struct {
-	ID                    uint64       `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	EstimateID            uint64       `gorm:"not null"                                       json:"estimate_id"`
-	Name                  string       `gorm:"not null;default:''"                            json:"name"`
-	Category              ItemCategory `gorm:"type:item_category;not null"                    json:"category"`
-	UnitPrice             int64        `gorm:"default:0"                                      json:"unit_price"`
-	Quantity              float64      `gorm:"type:numeric(10,1);default:1"                   json:"quantity"`
-	TaxType               TaxType      `gorm:"type:tax_type;not null;default:excluded"        json:"tax_type"`
-	TaxRate               float64      `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
-	DiscountRate          float64      `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
-	DiscountAmount        int64        `gorm:"default:0"                                      json:"discount_amount"`
-	IsInsuranceApplicable bool         `gorm:"default:false"                                  json:"is_insurance_applicable"`
-	ConsultationID        *uint64      `                                                      json:"consultation_id,omitempty"`
-	ProcedureID           *uint64      `                                                      json:"procedure_id,omitempty"`
-	MedicineID            *uint64      `                                                      json:"medicine_id,omitempty"`
-	MerchandiseItemID     *uint64      `                                                      json:"merchandise_item_id,omitempty"`
-	SortOrder             int          `gorm:"type:integer;default:0"                         json:"sort_order"`
-	CreatedAt             time.Time    `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt             time.Time    `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID                    uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	EstimateID            uint64         `gorm:"not null"                                       json:"estimate_id"`
+	Name                  string         `gorm:"not null;default:''"                            json:"name"`
+	Category              ItemCategory   `gorm:"type:item_category;not null"                    json:"category"`
+	UnitPrice             int64          `gorm:"default:0"                                      json:"unit_price"`
+	Quantity              float64        `gorm:"type:numeric(10,1);default:1"                   json:"quantity"`
+	TaxType               TaxType        `gorm:"type:tax_type;not null;default:excluded"        json:"tax_type"`
+	TaxRate               float64        `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
+	DiscountRate          float64        `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
+	DiscountAmount        int64          `gorm:"default:0"                                      json:"discount_amount"`
+	IsInsuranceApplicable bool           `gorm:"default:false"                                  json:"is_insurance_applicable"`
+	ConsultationID        *uint64        `                                                      json:"consultation_id,omitempty"`
+	ProcedureID           *uint64        `                                                      json:"procedure_id,omitempty"`
+	MedicineID            *uint64        `                                                      json:"medicine_id,omitempty"`
+	MerchandiseItemID     *uint64        `                                                      json:"merchandise_item_id,omitempty"`
+	SortOrder             int            `gorm:"type:integer;default:0"                         json:"sort_order"`
+	CreatedAt             time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt             time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt             gorm.DeletedAt `gorm:"index"                                          json:"-"`
 
 	// Relations
 	Consultation *Consultation `gorm:"foreignKey:ConsultationID" json:"consultation,omitempty"`
@@ -75,3 +77,16 @@ type EstimateItem struct {
 }
 
 func (EstimateItem) TableName() string { return "estimate_items" }
+
+// CalculateTaxAmount は課税区分に応じた税額（円）を計算する。
+func (item *EstimateItem) CalculateTaxAmount() int64 {
+	subtotal := float64(item.UnitPrice) * item.Quantity
+	switch item.TaxType {
+	case TaxTypeExcluded:
+		return int64(math.Round(subtotal * item.TaxRate))
+	case TaxTypeIncluded:
+		return int64(math.Round(subtotal * item.TaxRate / (1 + item.TaxRate)))
+	default:
+		return 0
+	}
+}

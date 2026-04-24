@@ -3,16 +3,6 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { DiagnosisType, DiagnosisName } from "@/types/generated/models";
 
-export interface DiagnosisTypeOption {
-  id: number;
-  name: string;
-}
-
-export interface DiagnosisNameOption {
-  id: number;
-  name: string;
-}
-
 interface PaginatedResponse<T> {
   data: T[];
   total: number;
@@ -20,16 +10,29 @@ interface PaginatedResponse<T> {
   limit: number;
 }
 
+function transformDiagnosisTypeOption(item: DiagnosisType) {
+  return {
+    id: Number(item.id ?? 0),
+    name: item.name,
+  };
+}
+export type DiagnosisTypeOption = ReturnType<typeof transformDiagnosisTypeOption>;
+
+function transformDiagnosisNameOption(item: DiagnosisName) {
+  return {
+    id: Number(item.id ?? 0),
+    name: item.name,
+  };
+}
+export type DiagnosisNameOption = ReturnType<typeof transformDiagnosisNameOption>;
+
 export const getDiagnosisTypes = async (): Promise<DiagnosisTypeOption[]> => {
   const { data } = await axios.get<DiagnosisType[] | PaginatedResponse<DiagnosisType>>(
     "/v1/masters/diagnosis-types",
     { params: { limit: 100 } },
   );
   const items = Array.isArray(data) ? data : (data.data ?? []);
-  return items.map((item) => ({
-    id: Number(item.id ?? 0),
-    name: item.name,
-  }));
+  return items.map(transformDiagnosisTypeOption);
 };
 
 export const getDiagnosisNames = async (typeId?: number | null): Promise<DiagnosisNameOption[]> => {
@@ -40,10 +43,7 @@ export const getDiagnosisNames = async (typeId?: number | null): Promise<Diagnos
     { params },
   );
   const items = Array.isArray(data) ? data : (data.data ?? []);
-  return items.map((item) => ({
-    id: Number(item.id ?? 0),
-    name: item.name,
-  }));
+  return items.map(transformDiagnosisNameOption);
 };
 
 export const useGetDiagnosisTypes = () =>

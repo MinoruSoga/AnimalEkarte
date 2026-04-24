@@ -14,10 +14,12 @@ type HospitalizationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	ExistsByCageID(ctx context.Context, cageID uint64) (bool, error)
+	CountByCageID(ctx context.Context, clinicID, cageID uint64) (int64, error)
 	CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
+	CountDailyRecordsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
+	CountTreatmentPlansByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
 }
 
 type hospitalizationRepository struct {
@@ -51,7 +53,7 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
-	if err := q.Preload("Pet.AnimalSpecies").Preload("Owner").Preload("Cage").Preload("Doctor").
+	if err := q.Preload("Pet", "deleted_at IS NULL").Preload("Pet.AnimalSpecies", "deleted_at IS NULL").Preload("Owner", "deleted_at IS NULL").Preload("Cage", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("start_date DESC, created_at DESC").
 		Find(&hospitalizations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
@@ -62,13 +64,14 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	var hospitalization model.Hospitalization
 	err := r.db.WithContext(ctx).
-		Preload("Pet.AnimalSpecies").
-		Preload("Owner").
-		Preload("Cage").
-		Preload("Doctor").
-		Preload("CarePlanItems").
-		Preload("DailyRecords").
-		Preload("TreatmentPlans").
+		Preload("Pet", "deleted_at IS NULL").
+		Preload("Pet.AnimalSpecies", "deleted_at IS NULL").
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("Cage", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
+		Preload("CarePlanItems", "deleted_at IS NULL").
+		Preload("DailyRecords", "deleted_at IS NULL").
+		Preload("TreatmentPlans", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&hospitalization).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization", fmt.Sprintf("%d", id))
@@ -87,7 +90,7 @@ func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization 
 	return nil
 }
 
-func (r *hospitalizationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
+func (r *hospitalizationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Hospitalization{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -112,15 +115,16 @@ func (r *hospitalizationRepository) Delete(ctx context.Context, clinicID, id uin
 	return nil
 }
 
-func (r *hospitalizationRepository) ExistsByCageID(ctx context.Context, cageID uint64) (bool, error) {
+func (r *hospitalizationRepository) CountByCageID(ctx context.Context, clinicID, cageID uint64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&model.Hospitalization{}).
-		Where("cage_id = ?", cageID).
+		Scopes(clinicScope(clinicID)).
+		Where("cage_id = ? AND deleted_at IS NULL", cageID).
 		Count(&count).Error
 	if err != nil {
-		return false, apperrors.FromGORM(err, "hospitalization", "")
+		return 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
-	return count > 0, nil
+	return count, nil
 }
 
 func (r *hospitalizationRepository) CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {
@@ -128,10 +132,36 @@ func (r *hospitalizationRepository) CountCarePlanItemsByHospitalizationID(ctx co
 	err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
 		Joins("JOIN hospitalizations ON care_plan_items.hospitalization_id = hospitalizations.id AND hospitalizations.deleted_at IS NULL").
-		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ?", clinicID, hospitalizationID).
+		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ? AND care_plan_items.deleted_at IS NULL", clinicID, hospitalizationID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))
+	}
+	return count, nil
+}
+
+func (r *hospitalizationRepository) CountDailyRecordsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.DailyRecord{}).
+		Joins("JOIN hospitalizations ON daily_records.hospitalization_id = hospitalizations.id AND hospitalizations.deleted_at IS NULL").
+		Where("hospitalizations.clinic_id = ? AND daily_records.hospitalization_id = ? AND daily_records.deleted_at IS NULL", clinicID, hospitalizationID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))
+	}
+	return count, nil
+}
+
+func (r *hospitalizationRepository) CountTreatmentPlansByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.TreatmentPlan{}).
+		Joins("JOIN hospitalizations ON treatment_plans.hospitalization_id = hospitalizations.id AND hospitalizations.deleted_at IS NULL").
+		Where("hospitalizations.clinic_id = ? AND treatment_plans.hospitalization_id = ? AND treatment_plans.deleted_at IS NULL", clinicID, hospitalizationID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "treatment_plan", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))
 	}
 	return count, nil
 }

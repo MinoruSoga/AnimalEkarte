@@ -22,13 +22,12 @@ func (h *Handler) ListMerchandiseItems(c *gin.Context) {
 
 	category := c.Query("category") // optional category filter
 
-	// page=1, limit=10000 で全件取得（マスタデータは件数が限定的）
-	items, _, err := h.svc.MerchandiseItem.List(c.Request.Context(), clinicID, 1, 10000, category)
+	items, err := h.svc.MerchandiseItem.List(c.Request.Context(), clinicID, category)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toMerchandiseItemResponseList(items))
+	c.JSON(http.StatusOK, mapSlice(items, toMerchandiseItemResponse))
 }
 
 // GetMerchandiseItem godoc
@@ -63,17 +62,17 @@ func (h *Handler) CreateMerchandiseItem(c *gin.Context) {
 		return
 	}
 
-	input := service.CreateMerchandiseItemInput{
+	input := &service.CreateMerchandiseItemInput{
 		Name:      req.Name,
 		Category:  req.Category,
 		UnitPrice: req.UnitPrice,
 		TaxType:   req.TaxType,
-		TaxRate:   req.TaxRate,
+		TaxRate:   req.TaxRate, // *float64: nil → service側でデフォルト 0.10 を適用
 		IsActive:  req.IsActive,
 		SortOrder: req.SortOrder,
 	}
 
-	item, err := h.svc.MerchandiseItem.Create(c.Request.Context(), clinicID, &input)
+	item, err := h.svc.MerchandiseItem.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -99,7 +98,7 @@ func (h *Handler) UpdateMerchandiseItem(c *gin.Context) {
 		return
 	}
 
-	input := service.UpdateMerchandiseItemInput{
+	input := &service.UpdateMerchandiseItemInput{
 		Name:      req.Name,
 		Category:  req.Category,
 		UnitPrice: req.UnitPrice,
@@ -109,7 +108,7 @@ func (h *Handler) UpdateMerchandiseItem(c *gin.Context) {
 		SortOrder: req.SortOrder,
 	}
 
-	item, err := h.svc.MerchandiseItem.Update(c.Request.Context(), clinicID, id, &input)
+	item, err := h.svc.MerchandiseItem.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -123,7 +122,7 @@ func (h *Handler) ReorderMerchandiseItems(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderMerchandiseItemRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -132,7 +131,7 @@ func (h *Handler) ReorderMerchandiseItems(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // DeleteMerchandiseItem godoc

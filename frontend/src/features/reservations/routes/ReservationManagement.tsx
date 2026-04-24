@@ -14,7 +14,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { getCalendarViewLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import type { CalendarView, Appointment } from "../types";
+import type { CalendarView, Reservation } from "../types";
 import { CALENDAR_VIEW_VALUES } from "../types";
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
@@ -22,8 +22,8 @@ const ReservationFormModal = lazy(() =>
   })),
 );
 import { useReservationManagement } from "../hooks/use-reservation-management";
-import { useReservationTypeColorMap } from "@/features/master";
-import { usePermission } from "@/features/auth";
+import { useReservationTypeColorMap } from "@/hooks/use-reservation-type-color-map";
+import { usePermission } from "@/hooks/use-permission";
 
 const MonthView = lazy(() =>
   import("../components/MonthView").then((m) => ({ default: m.MonthView })),
@@ -86,7 +86,7 @@ export function ReservationManagement() {
     handleDelete,
     handleCreateRecord,
     handleTimeSlotClick,
-    handleAppointmentUpdate,
+    handleReservationUpdate,
     deleteConfirmOpen,
     deleteTarget,
     executeDelete,
@@ -96,23 +96,23 @@ export function ReservationManagement() {
     handlePetSelectConfirm,
   } = useReservationManagement();
 
-  // BUG-069: Appointment → ReservationFormData 変換を行うラッパー
-  // handleOpenForm は ReservationFormData を期待するが、詳細モーダルからは Appointment が来る
-  const handleOpenFormFromAppointment = useCallback(
-    (appointment: Appointment) => {
+  // BUG-069: Reservation → ReservationFormData 変換を行うラッパー
+  // handleOpenForm は ReservationFormData を期待するが、詳細モーダルからは Reservation が来る
+  const handleOpenFormFromReservation = useCallback(
+    (reservation: Reservation) => {
       handleOpenForm({
-        id: appointment.id,
-        start: appointment.start,
-        end: appointment.end,
-        ownerName: appointment.ownerName,
-        petName: appointment.petName,
-        visitType: appointment.visitType,
-        type: appointment.reservationTypeId ?? "",
-        doctor: appointment.doctorId ?? "",
-        isDesignated: appointment.isDesignated,
-        status: appointment.status,
-        notes: appointment.notes,
-        petId: appointment.petId,
+        id: reservation.id,
+        start: reservation.start,
+        end: reservation.end,
+        ownerName: reservation.ownerName,
+        petName: reservation.petName,
+        visitType: reservation.visitType,
+        type: reservation.reservationTypeId ?? "",
+        doctor: reservation.doctorId ?? "",
+        isDesignated: reservation.isDesignated,
+        status: reservation.status,
+        notes: reservation.notes,
+        petId: reservation.petId,
       });
     },
     [handleOpenForm],
@@ -294,7 +294,7 @@ export function ReservationManagement() {
                 appointments={filteredAppointments}
                 onAppointmentClick={handleOpenDetail}
                 onTimeSlotClick={canCreate ? handleTimeSlotClick : undefined}
-                onAppointmentUpdate={handleAppointmentUpdate}
+                onAppointmentUpdate={handleReservationUpdate}
                 dynamicColorMap={dynamicColorMap}
               />
             )}
@@ -317,8 +317,8 @@ export function ReservationManagement() {
         <ReservationDetailModal
           isOpen={isDetailOpen}
           onClose={handleCloseDetail}
-          appointment={detailAppointment}
-          onEdit={canEdit ? handleOpenFormFromAppointment : undefined}
+          reservation={detailAppointment}
+          onEdit={canEdit ? handleOpenFormFromReservation : undefined}
           onDelete={canDelete ? handleDelete : undefined}
           onCreateRecord={handleCreateRecord}
           onStatusChange={canEdit ? handleStatusChange : undefined}

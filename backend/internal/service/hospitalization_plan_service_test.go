@@ -7,18 +7,20 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ---- HospitalizationPlan モック ----
 
 type mockHospitalizationPlanRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
-	createFn       func(ctx context.Context, plan *model.HospitalizationPlan) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
-	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                    func(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
+	findByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
+	createFn                     func(ctx context.Context, plan *model.HospitalizationPlan) error
+	updateFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
+	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                    func(ctx context.Context, clinicID uint64, ids []uint64) error
+	countCarePlanItemsByPlanIDFn func(ctx context.Context, clinicID, planID uint64) (int64, error)
 }
 
 func (m *mockHospitalizationPlanRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error) {
@@ -26,15 +28,18 @@ func (m *mockHospitalizationPlanRepository) FindAll(ctx context.Context, clinicI
 }
 
 func (m *mockHospitalizationPlanRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.HospitalizationPlan{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockHospitalizationPlanRepository) Create(ctx context.Context, plan *model.HospitalizationPlan) error {
 	return m.createFn(ctx, plan)
 }
 
-func (m *mockHospitalizationPlanRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockHospitalizationPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
+	return m.updateFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockHospitalizationPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -45,7 +50,10 @@ func (m *mockHospitalizationPlanRepository) Reorder(ctx context.Context, clinicI
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockHospitalizationPlanRepository) CountCarePlanItemsByPlanID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockHospitalizationPlanRepository) CountUsageByHospitalizationPlanID(ctx context.Context, clinicID, planID uint64) (int64, error) {
+	if m.countCarePlanItemsByPlanIDFn != nil {
+		return m.countCarePlanItemsByPlanIDFn(ctx, clinicID, planID)
+	}
 	return 0, nil
 }
 
@@ -164,14 +172,13 @@ func TestHospitalizationPlanService_GetByID(t *testing.T) {
 func TestHospitalizationPlanService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.HospitalizationPlan
+		input   *CreateHospitalizationPlanInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates hospitalization plan successfully",
-			input: &model.HospitalizationPlan{
-				ClinicID: 1,
+			input: &CreateHospitalizationPlanInput{
 				Name:     "New Plan",
 				IsActive: true,
 			},
@@ -180,9 +187,8 @@ func TestHospitalizationPlanService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when repository fails",
-			input: &model.HospitalizationPlan{
-				ClinicID: 1,
-				Name:     "Failed Plan",
+			input: &CreateHospitalizationPlanInput{
+				Name: "Failed Plan",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -198,12 +204,14 @@ func TestHospitalizationPlanService_Create(t *testing.T) {
 			}
 			svc := NewHospitalizationPlanService(repo)
 
-			err := svc.Create(context.Background(), tt.input)
+			plan, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, plan)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, plan)
 			}
 		})
 	}
@@ -246,7 +254,7 @@ func TestHospitalizationPlanService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockHospitalizationPlanRepository{
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.HospitalizationPlan, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.HospitalizationPlan, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
@@ -255,7 +263,7 @@ func TestHospitalizationPlanService_Update(t *testing.T) {
 			}
 			svc := NewHospitalizationPlanService(repo)
 
-			plan, err := svc.Update(context.Background(), 1, 1, tt.input)
+			plan, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -270,10 +278,13 @@ func TestHospitalizationPlanService_Update(t *testing.T) {
 
 func TestHospitalizationPlanService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
+		name          string
+		id            uint64
+		carePlanCount int64
+		countErr      error
+		repoErr       error
+		wantErr       bool
+		wantConflict  bool
 	}{
 		{
 			name:    "deletes hospitalization plan successfully",
@@ -287,11 +298,21 @@ func TestHospitalizationPlanService_Delete(t *testing.T) {
 			repoErr: errors.New("not found"),
 			wantErr: true,
 		},
+		{
+			name:          "使用中の入院プランは削除できない",
+			id:            2,
+			carePlanCount: 3,
+			wantErr:       true,
+			wantConflict:  true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockHospitalizationPlanRepository{
+				countCarePlanItemsByPlanIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.carePlanCount, tt.countErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -302,6 +323,9 @@ func TestHospitalizationPlanService_Delete(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
+				}
 			} else {
 				assert.NoError(t, err)
 			}

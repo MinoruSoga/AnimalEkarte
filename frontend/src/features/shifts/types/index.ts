@@ -2,7 +2,6 @@
  * Shifts feature types
  * Backend types: {@link ShiftEntry}, {@link ShiftType as BackendShiftType} from models.ts
  */
-import { C } from "@/lib/design-tokens";
 import {
   ShiftTypeFull,
   ShiftTypeMorning,
@@ -75,13 +74,6 @@ export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   [ShiftTypePaidLeave]: "有休",
 };
 
-export const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
-  [ShiftTypeFull]: `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentBadge}`,
-  [ShiftTypeMorning]: `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
-  [ShiftTypeAfternoon]: `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
-  [ShiftTypeOff]: `${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`,
-  [ShiftTypePaidLeave]: `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderPurpleLight}`,
-};
 
 // シフトカレンダーで使用するスタッフの最小型（feature間importを避けるため）
 export interface ShiftStaff {

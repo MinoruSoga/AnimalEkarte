@@ -38,11 +38,3 @@ func toLineCustomerResponse(rc *model.LineCustomer) lineCustomerResponse {
 		UpdatedAt:        rc.UpdatedAt,
 	}
 }
-
-func toLineCustomerResponseList(items []model.LineCustomer) []lineCustomerResponse {
-	list := make([]lineCustomerResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toLineCustomerResponse(&items[i]))
-	}
-	return list
-}

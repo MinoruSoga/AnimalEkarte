@@ -2,7 +2,7 @@ package handler
 
 type createReservationStaffRequest struct {
 	Name               string   `json:"name"               binding:"required"`
-	StaffType          string   `json:"staff_type"`
+	StaffType          string   `json:"staff_type" binding:"omitempty,oneof=doctor nurse groomer other"`
 	ReservationVisible bool     `json:"reservation_visible"`
 	ReservationComment string   `json:"reservation_comment"`
 	SortOrder          int      `json:"sort_order"`
@@ -11,7 +11,7 @@ type createReservationStaffRequest struct {
 
 type updateReservationStaffRequest struct {
 	Name               *string   `json:"name"`
-	StaffType          *string   `json:"staff_type"`
+	StaffType          *string   `json:"staff_type" binding:"omitempty,oneof=doctor nurse groomer other"`
 	ReservationVisible *bool     `json:"reservation_visible"`
 	ReservationComment *string   `json:"reservation_comment"`
 	SortOrder          *int      `json:"sort_order"`

@@ -27,12 +27,12 @@ func (h *Handler) checkDoctorClinicAssignment(ctx context.Context, clinicID, doc
 	if doctorID == 0 {
 		return nil
 	}
-	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, doctorID)
+	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(ctx, doctorID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to verify staff assignment")
 	}
-	for _, a := range assignments {
-		if a.ClinicID == clinicID {
+	for i := range assignments {
+		if assignments[i].ClinicID == clinicID {
 			return nil
 		}
 	}
@@ -43,13 +43,8 @@ func (h *Handler) checkDoctorClinicAssignment(ctx context.Context, clinicID, doc
 // 所属していない場合は 404 レスポンスを書いて false を返す。
 // 呼び出し元は false 時に即 return すること。
 func (h *Handler) verifyStaffClinicMembership(c *gin.Context, clinicID, staffID uint64) bool {
-	exists, err := h.repos.StaffClinicAssignment.ExistsByStaffAndClinic(c.Request.Context(), staffID, clinicID)
-	if err != nil {
+	if err := h.svc.Staff.VerifyClinicMembership(c.Request.Context(), staffID, clinicID); err != nil {
 		RespondError(c, err)
-		return false
-	}
-	if !exists {
-		RespondError(c, apperrors.WrapNotFound("staff", fmt.Sprintf("%d", staffID)))
 		return false
 	}
 	return true

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,6 +12,24 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// billingStatusPtr は *string を *model.BillingStatus に変換する。nil の場合は nil を返す。
+func billingStatusPtr(s *string) *model.BillingStatus {
+	if s == nil {
+		return nil
+	}
+	v := model.BillingStatus(*s)
+	return &v
+}
+
+// paymentMethodPtr は *string を *model.PaymentMethod に変換する。nil の場合は nil を返す。
+func paymentMethodPtr(s *string) *model.PaymentMethod {
+	if s == nil {
+		return nil
+	}
+	v := model.PaymentMethod(*s)
+	return &v
+}
 
 // ListAccountings godoc
 func (h *Handler) ListAccountings(c *gin.Context) {
@@ -65,7 +84,7 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(toAccountingResponseList(accountings), total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(accountings, toAccountingResponse), total, page, limit))
 }
 
 // GetAccounting godoc
@@ -100,7 +119,8 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 		return
 	}
 
-	createInput := service.CreateAccountingInput{
+	ctx := c.Request.Context()
+	created, err := h.svc.Accounting.Create(ctx, &service.CreateAccountingInput{
 		ClinicID:          clinicID,
 		MedicalRecordID:   input.MedicalRecordID,
 		HospitalizationID: input.HospitalizationID,
@@ -110,20 +130,16 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 		TaxTotal:          input.TaxTotal,
 		TotalAmount:       input.TotalAmount,
 		HasInsurance:      input.HasInsurance,
+		Status:            model.BillingStatus(input.Status),
 		ScheduledDate:     input.ScheduledDate,
 		CompletedAt:       input.CompletedAt,
 		Memo:              input.Memo,
-	}
-	if input.Status != "" {
-		createInput.Status = model.BillingStatus(input.Status)
-	}
-
-	ctx := c.Request.Context()
-	created, err := h.svc.Accounting.Create(ctx, &createInput)
+	})
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/accountings/%d", created.ID))
 	c.JSON(http.StatusCreated, toAccountingResponse(created))
 }
 
@@ -160,7 +176,8 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		}
 	}
 
-	updateInput := service.UpdateAccountingInput{
+	ctx := c.Request.Context()
+	updated, err := h.svc.Accounting.Update(ctx, &service.UpdateAccountingInput{
 		ID:                id,
 		ClinicID:          clinicID,
 		StaffID:           &staffID,
@@ -182,18 +199,9 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		BillingAmount:     input.BillingAmount,
 		ReceivedAmount:    input.ReceivedAmount,
 		ChangeAmount:      input.ChangeAmount,
-	}
-	if input.Status != nil {
-		s := model.BillingStatus(*input.Status)
-		updateInput.Status = &s
-	}
-	if input.PaymentMethod != nil {
-		m := model.PaymentMethod(*input.PaymentMethod)
-		updateInput.PaymentMethod = &m
-	}
-
-	ctx := c.Request.Context()
-	updated, err := h.svc.Accounting.Update(ctx, &updateInput)
+		Status:            billingStatusPtr(input.Status),
+		PaymentMethod:     paymentMethodPtr(input.PaymentMethod),
+	})
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -229,14 +237,16 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 
 	switch groupBy {
 	case "billing":
-		billings, total, err := h.svc.Accounting.ListUnpaidByBilling(ctx, clinicID, baseDate, page, limit)
+		// ListUnpaidByBilling は model.Billing スライスを返す（DBテーブル名 billings 由来）。
+		// 会計ドメイン(accounting)と DB モデル(Billing)の命名差異はここで吸収する。
+		accountings, total, err := h.svc.Accounting.ListUnpaidByBilling(ctx, clinicID, baseDate, page, limit)
 		if err != nil {
 			RespondError(c, err)
 			return
 		}
-		responses := make([]accountingResponse, 0, len(billings))
-		for i := range billings {
-			responses = append(responses, toAccountingResponse(&billings[i]))
+		responses := make([]accountingResponse, 0, len(accountings))
+		for i := range accountings {
+			responses = append(responses, toAccountingResponse(&accountings[i]))
 		}
 		c.JSON(http.StatusOK, newPaginatedResponse(responses, total, page, limit))
 	case "owner":
@@ -249,6 +259,23 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 	default:
 		RespondError(c, apperrors.WrapInvalidInput("group_by must be owner or billing"))
 	}
+}
+
+// GetDailySummary はレジ締め日次集計を返す。BUG-368
+// GET /v1/accountings/daily-summary?date=YYYY-MM-DD
+func (h *Handler) GetDailySummary(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	dateStr := c.Query("date")
+	result, err := h.svc.Accounting.GetDailySummary(c.Request.Context(), clinicID, dateStr)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 // CancelAccounting は会計を論理削除（status=cancelled）する。

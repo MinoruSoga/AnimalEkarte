@@ -11,8 +11,8 @@ import (
 )
 
 type TreatmentPlanRepository interface {
-	ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error)
-	ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error)
+	FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	Create(ctx context.Context, plan *model.TreatmentPlan) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -34,7 +34,7 @@ func (r *treatmentPlanRepository) clinicScopeQuery(ctx context.Context, clinicID
 		Where("(medical_records.clinic_id = ? OR hospitalizations.clinic_id = ?)", clinicID, clinicID)
 }
 
-func (r *treatmentPlanRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
+func (r *treatmentPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
 	plans := make([]model.TreatmentPlan, 0)
 	if err := r.clinicScopeQuery(ctx, clinicID).
 		Where("treatment_plans.medical_record_id = ?", medicalRecordID).
@@ -45,7 +45,7 @@ func (r *treatmentPlanRepository) ListByMedicalRecordID(ctx context.Context, cli
 	return plans, nil
 }
 
-func (r *treatmentPlanRepository) ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
+func (r *treatmentPlanRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
 	plans := make([]model.TreatmentPlan, 0)
 	if err := r.clinicScopeQuery(ctx, clinicID).
 		Where("treatment_plans.hospitalization_id = ?", hospitalizationID).

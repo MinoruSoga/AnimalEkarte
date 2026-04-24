@@ -11,7 +11,7 @@ import { C } from "@/lib/design-tokens";
 import { getReservationTypeColor } from "@/utils/status-helpers";
 
 // Types
-import type { Appointment } from "@/types";
+import type { Reservation } from "@/types";
 
 interface ReservationTypeColor {
   style: React.CSSProperties;
@@ -21,8 +21,8 @@ interface ReservationTypeColor {
 
 interface MonthViewProps {
   currentDate: Date;
-  appointments: Appointment[];
-  onAppointmentClick: (appointment: Appointment) => void;
+  appointments: Reservation[];
+  onAppointmentClick: (reservation: Reservation) => void;
   /** BUG-076: 日付セルクリックで週表示に遷移するコールバック */
   onDateClick?: (date: Date) => void;
   dynamicColorMap?: Map<string, ReservationTypeColor>;

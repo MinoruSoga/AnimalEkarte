@@ -1,0 +1,47 @@
+version: '3.9'
+
+# Swagger UI コンテナ（OpenAPI 仕様の可視化）
+# 実行: docker compose -f docker-compose.swagger.yml up
+# アクセス: http://localhost:8081
+
+services:
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: animal_ekarte_swagger_ui
+    ports:
+      - "8081:8080"
+    environment:
+      SWAGGER_JSON: /docs/openapi.yaml
+      SWAGGER_JSON_URL: http://localhost:8080/api/swagger.json
+      BASE_URL: /swagger
+      URLS: |
+        [
+          {
+            "url": "file:///docs/openapi.yaml",
+            "name": "OpenAPI 3.0"
+          }
+        ]
+    volumes:
+      - ./docs:/docs:ro
+    networks:
+      - animal_ekarte
+
+  # Redoc（別のドキュメント表示オプション）
+  # アクセス: http://localhost:8082
+  redoc:
+    image: redocly/redoc:latest
+    container_name: animal_ekarte_redoc
+    ports:
+      - "8082:8080"
+    environment:
+      SPEC_URL: /docs/openapi.yaml
+    volumes:
+      - ./docs:/docs:ro
+    networks:
+      - animal_ekarte
+    command: redoc -s --listen 0.0.0.0:8080 /docs/openapi.yaml
+
+networks:
+  animal_ekarte:
+    external: true
+    name: animal_ekarte_default

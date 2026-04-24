@@ -48,7 +48,7 @@ type trimmingResponse struct {
 	Options []trimmingOptionSummaryResponse `json:"options"`
 }
 
-func toTrimmingResponse(appt *model.Appointment) trimmingResponse {
+func toTrimmingResponse(appt *model.Reservation) trimmingResponse {
 	resp := trimmingResponse{
 		ID:                appt.ID,
 		ClinicID:          appt.ClinicID,

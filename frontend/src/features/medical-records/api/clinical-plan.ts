@@ -6,12 +6,12 @@ import { toast } from "sonner";
 
 // Internal
 import { axios } from "@/lib/axios";
-import { QUERY_STALE_TIMES } from "@/lib/react-query";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
 
 // ── Types ─────────────────────────────────────────────────────────────
 
-export interface ClinicalPlan {
+function transformClinicalPlan(item: {
   id: string;
   medical_record_id: string;
   physical_exam: string;
@@ -21,10 +21,24 @@ export interface ClinicalPlan {
   treatment_policy: string;
   created_at: string;
   updated_at: string;
-  // nested relations
   diagnosis_type?: { id: string; name: string } | null;
   diagnosis_name?: { id: string; name: string } | null;
+}) {
+  return {
+    id: item.id,
+    medical_record_id: item.medical_record_id,
+    physical_exam: item.physical_exam,
+    diagnosis_type_id: item.diagnosis_type_id,
+    diagnosis_name_id: item.diagnosis_name_id,
+    diagnosis_details: item.diagnosis_details,
+    treatment_policy: item.treatment_policy,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    diagnosis_type: item.diagnosis_type,
+    diagnosis_name: item.diagnosis_name,
+  };
 }
+export type ClinicalPlan = ReturnType<typeof transformClinicalPlan>;
 
 export interface UpdateClinicalPlanInput {
   physical_exam?: string;
@@ -37,10 +51,10 @@ export interface UpdateClinicalPlanInput {
 // ── Fetch ─────────────────────────────────────────────────────────────
 
 export const getClinicalPlan = async (medicalRecordId: string): Promise<ClinicalPlan> => {
-  const { data } = await axios.get<ClinicalPlan>(
+  const { data } = await axios.get<Parameters<typeof transformClinicalPlan>[0]>(
     `/v1/medical-records/${medicalRecordId}/clinical-plan`
   );
-  return data;
+  return transformClinicalPlan(data);
 };
 
 export const useGetClinicalPlan = (medicalRecordId: string) => {
@@ -49,6 +63,7 @@ export const useGetClinicalPlan = (medicalRecordId: string) => {
     queryFn: () => getClinicalPlan(medicalRecordId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
 

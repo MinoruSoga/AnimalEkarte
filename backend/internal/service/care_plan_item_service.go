@@ -44,6 +44,47 @@ type UpdateCarePlanItemInput struct {
 	SortOrder             *int
 }
 
+func buildCarePlanItemUpdate(input *UpdateCarePlanItemInput) map[string]any {
+	fields := map[string]any{}
+	if input.Type != nil {
+		fields["type"] = *input.Type
+	}
+	if input.Name != nil {
+		fields["name"] = *input.Name
+	}
+	if input.Description != nil {
+		fields["description"] = *input.Description
+	}
+	if input.Timing != nil {
+		fields["timing"] = pq.StringArray(input.Timing)
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	if input.Notes != nil {
+		fields["notes"] = *input.Notes
+	}
+	if input.MedicineID != nil {
+		fields["medicine_id"] = *input.MedicineID
+	}
+	if input.ProcedureID != nil {
+		fields["procedure_id"] = *input.ProcedureID
+	}
+	if input.HospitalizationPlanID != nil {
+		fields["hospitalization_plan_id"] = *input.HospitalizationPlanID
+	}
+	if input.UnitPrice != nil {
+		fields["unit_price"] = *input.UnitPrice
+	}
+	if input.Category != nil {
+		fields["category"] = *input.Category
+	}
+	if input.SortOrder != nil {
+		fields["sort_order"] = *input.SortOrder
+	}
+	return fields
+}
+
 // CarePlanItemService はケアプランアイテムのビジネスロジックインターフェース
 type CarePlanItemService interface {
 	List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error)
@@ -62,7 +103,7 @@ func NewCarePlanItemService(repo repository.CarePlanItemRepository) CarePlanItem
 }
 
 func (s *carePlanItemService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
-	items, err := s.repo.ListByHospitalizationID(ctx, clinicID, hospitalizationID)
+	items, err := s.repo.FindByHospitalizationID(ctx, clinicID, hospitalizationID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list care plan items")
 	}
@@ -136,7 +177,7 @@ func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizat
 		}
 	}
 
-	fields := buildCarePlanItemUpdateFields(input)
+	fields := buildCarePlanItemUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -195,45 +236,4 @@ func validateCarePlanStatus(s model.CarePlanStatus) error {
 	default:
 		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid care plan status: %s", s))
 	}
-}
-
-func buildCarePlanItemUpdateFields(input *UpdateCarePlanItemInput) map[string]any {
-	fields := map[string]any{}
-	if input.Type != nil {
-		fields["type"] = *input.Type
-	}
-	if input.Name != nil {
-		fields["name"] = *input.Name
-	}
-	if input.Description != nil {
-		fields["description"] = *input.Description
-	}
-	if input.Timing != nil {
-		fields["timing"] = pq.StringArray(input.Timing)
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	if input.Notes != nil {
-		fields["notes"] = *input.Notes
-	}
-	if input.MedicineID != nil {
-		fields["medicine_id"] = *input.MedicineID
-	}
-	if input.ProcedureID != nil {
-		fields["procedure_id"] = *input.ProcedureID
-	}
-	if input.HospitalizationPlanID != nil {
-		fields["hospitalization_plan_id"] = *input.HospitalizationPlanID
-	}
-	if input.UnitPrice != nil {
-		fields["unit_price"] = *input.UnitPrice
-	}
-	if input.Category != nil {
-		fields["category"] = *input.Category
-	}
-	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
-	}
-	return fields
 }

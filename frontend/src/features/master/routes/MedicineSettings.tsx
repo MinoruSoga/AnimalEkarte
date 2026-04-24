@@ -23,7 +23,7 @@ import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 // Internal – shared
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import { MASTER_STATUS_FILTER } from "../constants/styles";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
@@ -36,6 +36,8 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useSortableList } from "@/hooks/use-sortable-list";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
 
 // Internal – feature API (direct import, no barrel)
 import { useGetAllMedicines, useCreateMedicine, useUpdateMedicine, useDeleteMedicine, useReorderMedicines } from "../api/medicines";
@@ -44,7 +46,7 @@ import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSele
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import type { TaxType } from "@/types/generated/models";
 import { ResourceMasterMedical } from "@/types/generated/models";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type { Medicine } from "@/types";
@@ -274,7 +276,7 @@ const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
     setIsDirty(true);
   }, []);
 
-  const handleAction = () => {
+  const handleAction = useCallback(() => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
@@ -282,16 +284,18 @@ const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
     setNameError("");
     onSave(formData);
     setIsDirty(false);
-  };
+  }, [formData, onSave]);
+
+  const handleTitleChange = useCallback((v: string) => {
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
+    if (v.trim()) setNameError("");
+  }, [setFormDataDirty]);
 
   return (
     <MasterSidePanel
       isNew={!selectedMedicine}
       title={formData.name}
-      onTitleChange={(v) => {
-        setFormDataDirty((prev) => ({ ...prev, name: v }));
-        if (v.trim()) setNameError("");
-      }}
+      onTitleChange={handleTitleChange}
       onClose={onCloseEdit}
       action={handleAction}
       onDelete={selectedMedicine && canDelete ? onDeleteRequest : undefined}
@@ -490,24 +494,15 @@ export function MedicineSettings() {
   const reduced = useReducedMotion();
   const panelDuration = reduced ? 0 : 0.2;
 
-  // ── UI state ──
+  // ── UI state (non-CRUD: kept external per Option A) ──
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  // null=closed, "new"=create mode, Medicine=edit mode
-  const [editTarget, setEditTarget] = useState<Medicine | "new" | null>(null);
   // BUG-380 統一: formData は SidePanel が所有。新規作成時の親カテゴリ起点だけ親で保持。
   const [defaultParentId, setDefaultParentId] = useState<string | undefined>(undefined);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   // 値は parentId 文字列、undefined = 親なし
   const [overrideCategories, setOverrideCategories] = useState<Map<string, string | undefined>>(new Map());
-
-  // ── Derived: discriminated union → isEditing / selectedMedicine ──
-  const selectedMedicine = editTarget !== null && editTarget !== "new" ? editTarget : null;
-  const isEditing = editTarget !== null;
-
-  // ── 現在選択中アイテムがカテゴリかどうか ──
-  const isCategory = isCategoryMedicine(selectedMedicine);
 
   // ── API ──
   const { data: medicines = [] } = useGetAllMedicines();
@@ -516,7 +511,25 @@ export function MedicineSettings() {
   const deleteMutation = useDeleteMedicine();
   const reorderMutation = useReorderMedicines();
 
-  // ── DnD (flat sort 担当) ──
+  // BUG-380: 未保存破棄ガード（14 マスタ画面と統一パターン）
+  const dirty = useSidePeekDirty();
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+
+  // ── FR1: useMasterCRUD (editTarget state only; deletion modal kept external) ──
+  const medicineCrud = useMasterCRUD<Medicine>({
+    data: medicines,
+    deleteMutation,
+    entityLabel: "薬品",
+    dirtyGuard: dirty,
+  });
+
+  // ── Derived: editTarget → selectedMedicine / isEditing / isCategory ──
+  const { editTarget } = medicineCrud;
+  const selectedMedicine = editTarget !== null && editTarget !== "new" ? editTarget : null;
+  const isEditing = editTarget !== null;
+  const isCategory = isCategoryMedicine(selectedMedicine);
+
+  // DnD (flat sort 担当) ──
   const {
     orderedItems: sortedMedicines,
     sensors,
@@ -678,88 +691,80 @@ export function MedicineSettings() {
     [orderedMedicinesById, updateMutation, handleFlatSortDragEnd],
   );
 
-  // BUG-380: 未保存破棄ガード（14 マスタ画面と統一パターン）
-  const dirty = useSidePeekDirty();
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
-
   const handleCloseEdit = useCallback(() => {
-    if (!dirty.confirmDiscard()) return;
-    setEditTarget(null);
+    medicineCrud.handleClose();
     setDefaultParentId(undefined);
-  }, [dirty]);
+  }, [medicineCrud]);
 
   const handleEdit = useCallback((medicine: Medicine) => {
-    if (!dirty.confirmDiscard()) return;
     setDefaultParentId(undefined);
-    setEditTarget(medicine);
-  }, [dirty]);
+    medicineCrud.handleEdit(medicine);
+  }, [medicineCrud]);
 
   const handleCreate = useCallback((parentId?: string) => {
-    if (!dirty.confirmDiscard()) return;
     setDefaultParentId(parentId);
-    setEditTarget("new");
-  }, [dirty]);
+    medicineCrud.handleNew();
+  }, [medicineCrud]);
 
+  // ── startSaveTransition wrapper for useMasterSave ──
   const [, startSaveTransition] = useTransition();
+  const startSaveTransitionWrapper = useCallback((cb: () => void) => {
+    startSaveTransition(cb);
+  }, []);
 
-  // SidePanel から受け取った formData で保存。バリデーション (name 空) は SidePanel 側で実施済み。
-  const handleSave = useCallback((formData: MedicineFormData) => {
-    // カテゴリ編集時は price を 0 に固定（disabled UI をバイパス対策）
-    const effectivePrice = isCategoryMedicine(selectedMedicine) ? 0 : formData.price;
-
-    startSaveTransition(() => {
-      if (selectedMedicine) {
-        const req: UpdateMedicineRequest = {
-          name: formData.name,
-          dosage_form: formData.dosageForm || undefined,
-          medicine_unit: formData.medicineUnit || undefined,
-          price: effectivePrice,
-          description: formData.description,
-          is_active: formData.isActive,
-          tax_type: formData.taxType,
-          tax_rate: formData.taxRate,
-        };
-        // parent_id の処理
-        if (formData.parentId) {
-          req.parent_id = Number(formData.parentId);
-        } else if (selectedMedicine.parentId) {
-          // 元々グループに属していたが今は外す
-          req.clear_parent_id = true;
-        }
-        updateMutation.mutate(
-          { id: selectedMedicine.id, req },
-          {
-            onSuccess: () => {
-              toast.success("更新しました");
-              dirty.markClean();
-              handleCloseEdit();
-            },
-            onError: (error) => handleApiError(error, "更新"),
-          },
-        );
-      } else {
-        const req: CreateMedicineRequest = {
-          name: formData.name,
-          dosage_form: formData.dosageForm || undefined,
-          medicine_unit: formData.medicineUnit || undefined,
-          price: effectivePrice,
-          description: formData.description,
-          is_active: formData.isActive,
-          tax_type: formData.taxType,
-          tax_rate: formData.taxRate,
-          ...(formData.parentId ? { parent_id: Number(formData.parentId) } : {}),
-        };
-        createMutation.mutate(req, {
-          onSuccess: () => {
-            toast.success("登録しました");
-            dirty.markClean();
-            handleCloseEdit();
-          },
-          onError: (error) => handleApiError(error, "登録"),
-        });
+  // ── FR2: useMasterSave (with complex price/parent logic) ──
+  const medicineSave = useMasterSave<Medicine, MedicineFormData, CreateMedicineRequest, UpdateMedicineRequest>({
+    crud: {
+      editTarget,
+      handleClose: handleCloseEdit,
+      startSaveTransition: startSaveTransitionWrapper,
+    },
+    createMutation,
+    updateMutation,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data) => {
+      // カテゴリ編集時は price を 0 に固定
+      const effectivePrice = isCategory ? 0 : data.price;
+      return {
+        name: data.name,
+        dosage_form: data.dosageForm || undefined,
+        medicine_unit: data.medicineUnit || undefined,
+        price: effectivePrice,
+        description: data.description,
+        is_active: data.isActive,
+        tax_type: data.taxType,
+        tax_rate: data.taxRate,
+        ...(data.parentId ? { parent_id: Number(data.parentId) } : {}),
+      };
+    },
+    toUpdateRequest: (data) => {
+      // カテゴリ編集時は price を 0 に固定
+      const effectivePrice = isCategory ? 0 : data.price;
+      const req: UpdateMedicineRequest = {
+        name: data.name,
+        dosage_form: data.dosageForm || undefined,
+        medicine_unit: data.medicineUnit || undefined,
+        price: effectivePrice,
+        description: data.description,
+        is_active: data.isActive,
+        tax_type: data.taxType,
+        tax_rate: data.taxRate,
+      };
+      // parent_id の処理
+      if (data.parentId) {
+        req.parent_id = Number(data.parentId);
+      } else if (selectedMedicine?.parentId) {
+        // 元々グループに属していたが今は外す
+        req.clear_parent_id = true;
       }
-    });
-  }, [selectedMedicine, updateMutation, createMutation, handleCloseEdit, dirty]);
+      return req;
+    },
+  });
+
+  // handleSave delegates to hook
+  const handleSave = useCallback((formData: MedicineFormData) => {
+    medicineSave.handleSave(formData);
+  }, [medicineSave]);
 
   const handleDeleteRequest = useCallback(() => {
     if (!selectedMedicine) return;

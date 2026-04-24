@@ -1,0 +1,176 @@
+---
+description: Go 1.25 coding standards (error handling, context propagation, concurrency)
+alwaysApply: true
+globs: ["backend/**/*.go"]
+---
+
+# Go Language Rules
+
+Go 1.25 project standard rules.
+
+## Core Rules
+
+### 1. Context Propagation (Required)
+
+Place `context.Context` as first argument in all functions.
+
+```go
+// ✅ Correct
+func (r *OwnerRepository) GetByID(ctx context.Context, id uint64) (*Owner, error) {
+  return r.db.WithContext(ctx).First(&owner, id).Error
+}
+
+// ❌ Prohibited: No Context
+func (r *OwnerRepository) GetByID(id uint64) (*Owner, error) {
+  return r.db.First(&owner, id).Error
+}
+```
+
+### 2. Error Handling (Sentinel + Wrap)
+
+```go
+// Define Sentinel errors in errors/errors.go
+var (
+  ErrNotFound = errors.New("not found")
+  ErrConflict = errors.New("conflict")
+)
+
+// Wrap in service layer
+if err := repo.Create(ctx, owner); err != nil {
+  if errors.Is(err, ErrConflict) {
+    return fmt.Errorf("owner already exists: %w", err)
+  }
+  return fmt.Errorf("failed to create owner: %w", err)
+}
+
+// Call RespondError() in handler layer
+RespondError(c, err)
+```
+
+### 3. Interface Design
+
+```go
+// Minimize: only necessary operations
+type OwnerRepository interface {
+  GetByID(ctx context.Context, id uint64) (*Owner, error)
+  Create(ctx context.Context, owner *Owner) error
+  Update(ctx context.Context, owner *Owner) error
+  Delete(ctx context.Context, id uint64) error
+}
+
+// ❌ Prohibited: Massive interface
+type Repository interface {
+  GetByID() (*Owner, error)
+  Create() error
+  Update() error
+  Delete() error
+  GetAll() ([]Owner, error)
+  Count() (int64, error)
+  // ... 20 more methods
+}
+```
+
+### 4. GORM PATCH (Pointer types + buildUpdateFields)
+
+```go
+// service/owner_service.go
+type UpdateOwnerInput struct {
+  Name  *string `json:"name"`
+  Email *string `json:"email"`
+}
+
+func (s *OwnerService) Update(ctx context.Context, id uint64, input UpdateOwnerInput) (*Owner, error) {
+  // Avoid zero value problem
+  fields := buildOwnerUpdateFields(input)
+  return s.repo.UpdateFields(ctx, id, fields)
+}
+
+// repository/owner_repository.go
+func (r *OwnerRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]any) (*Owner, error) {
+  var owner Owner
+  return &owner, r.db.WithContext(ctx).Model(&Owner{}).Where("id = ?", id).Updates(fields).First(&owner).Error
+}
+
+func buildOwnerUpdateFields(input UpdateOwnerInput) map[string]any {
+  fields := make(map[string]any)
+  if input.Name != nil {
+    fields["name"] = *input.Name
+  }
+  if input.Email != nil {
+    fields["email"] = *input.Email
+  }
+  return fields
+}
+```
+
+### 5. Concurrency (errgroup)
+
+```go
+import "golang.org/x/sync/errgroup"
+
+// Run multiple independent operations in parallel
+g, ctx := errgroup.WithContext(ctx)
+
+g.Go(func() error {
+  return r.saveOwner(ctx, owner)
+})
+
+g.Go(func() error {
+  return r.savePets(ctx, owner.ID)
+})
+
+if err := g.Wait(); err != nil {
+  return fmt.Errorf("failed to save data: %w", err)
+}
+```
+
+### 6. Logging (slog structured logging)
+
+Logging only in service layer. No handler or repository logging.
+
+**Exceptions (allowed in handler layer):**
+- `response.go` `RespondError` internal server error logging (HTTP infrastructure concern)
+- Audit log write failures with best-effort error logging (`auth_handler.go`, `permission_group_handler.go`)
+- File cleanup failure warnings (`medical_record_image_handler.go`)
+
+```go
+import "log/slog"
+
+func (s *OwnerService) Create(ctx context.Context, input CreateOwnerInput) (*Owner, error) {
+  slog.InfoContext(ctx, "creating owner", "name", input.Name, "email", input.Email)
+
+  owner, err := s.repo.Create(ctx, &Owner{Name: input.Name, Email: input.Email})
+  if err != nil {
+    slog.ErrorContext(ctx, "failed to create owner", "error", err)
+    return nil, fmt.Errorf("failed to create owner: %w", err)
+  }
+
+  slog.InfoContext(ctx, "owner created", "id", owner.ID)
+  return owner, nil
+}
+```
+
+### 7. Naming Conventions
+
+| Target | Rule | Example |
+|--------|------|---------|
+| Package | lowercase (single word) | `handler`, `repository` |
+| Exported | PascalCase | `GetOwner`, `OwnerService` |
+| Unexported | camelCase | `getOwnerByID` |
+| File | snake_case | `owner_handler.go` |
+| Interface | PascalCase + er | `OwnerRepository` |
+| Table | snake_case (plural) | `owners`, `medical_records` |
+
+## Checklist
+
+- [ ] All functions have `ctx context.Context` argument
+- [ ] Sentinel errors + `fmt.Errorf("...: %w", err)` wrapping
+- [ ] Logging only in service layer
+- [ ] PATCH uses pointer types + buildUpdateFields()
+- [ ] errgroup for parallel processing
+- [ ] Interfaces minimized (3-5 methods)
+
+## Architecture Compliance
+
+Layer-specific rules (P1–P18) are defined in `gin-architecture-compliance.md`.
+Run compliance checks when implementing or reviewing handler/service/repository code.

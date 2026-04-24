@@ -40,9 +40,9 @@ export const TaxTypeExcluded: TaxType = "excluded"; // 外税
 export const TaxTypeExempt: TaxType = "exempt"; // 非課税
 export type BillingStatus = string;
 export const BillingStatusWaiting: BillingStatus = "waiting";
+export const BillingStatusPending: BillingStatus = "pending";
 export const BillingStatusCompleted: BillingStatus = "completed";
 export const BillingStatusCancelled: BillingStatus = "cancelled";
-export const BillingStatusPending: BillingStatus = "pending";
 export type PaymentMethod = string;
 export const PaymentMethodCash: PaymentMethod = "cash";
 export const PaymentMethodCreditCard: PaymentMethod = "credit_card";
@@ -56,6 +56,10 @@ export const ItemCategoryMedicine: ItemCategory = "medicine";
 export const ItemCategoryFood: ItemCategory = "food";
 export const ItemCategoryGoods: ItemCategory = "goods";
 export const ItemCategoryOther: ItemCategory = "other";
+export const ItemCategoryVaccine: ItemCategory = "vaccine";
+export const ItemCategoryTrimming: ItemCategory = "trimming";
+export const ItemCategoryHotel: ItemCategory = "hotel";
+export const ItemCategoryTraining: ItemCategory = "training";
 export type ItemSource = string;
 export const ItemSourceMedicalRecord: ItemSource = "medical_record";
 export const ItemSourceManual: ItemSource = "manual";
@@ -67,9 +71,9 @@ export interface Billing {
   hospitalization_id?: number /* uint64 */;
   owner_id?: number /* uint64 */;
   pet_id?: number /* uint64 */;
-  subtotal: number /* int */;
-  tax_total: number /* int */;
-  total_amount: number /* int */;
+  subtotal: number /* int64 */;
+  tax_total: number /* int64 */;
+  total_amount: number /* int64 */;
   has_insurance: boolean;
   status: BillingStatus;
   scheduled_date: string;
@@ -120,7 +124,11 @@ export interface Payment {
   billing_amount: number /* int64 */;
   received_amount: number /* int64 */;
   change_amount: number /* int64 */;
+  /**
+   * Deprecated: use PaymentMethodID. Will be removed in a future release.
+   */
   method: PaymentMethod;
+  payment_method_id?: number /* uint64 */;
   paid_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
@@ -272,6 +280,53 @@ export interface Cage {
 }
 
 //////////
+// source: cash_register_close.go
+
+/**
+ * CashRegisterClose はレジ締めレコード
+ */
+export interface CashRegisterClose {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  close_date: string;
+  period: string; // "am" or "pm"
+  theoretical_cash: number /* int64 */;
+  actual_cash: number /* int64 */;
+  cash_difference: number /* int64 */;
+  category_breakdown: any /* json.RawMessage */;
+  memo: string;
+  closed_by?: number /* uint64 */;
+  closed_at: string;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  closed_by_staff?: Staff;
+}
+/**
+ * CategoryBreakdownSchema は category_breakdown JSONB の型定義
+ */
+export interface CategoryBreakdownSchema {
+  categories: { [key: string]: { [key: string]: number /* int64 */}}; // category → payment_method_name → amount
+  tax_breakdown: TaxBreakdown;
+}
+/**
+ * TaxBreakdown は消費税区分別の集計
+ */
+export interface TaxBreakdown {
+  standard: TaxBreakdownItem; // 10%
+  reduced: TaxBreakdownItem; // 8%
+}
+/**
+ * TaxBreakdownItem は課税額と税額のペア
+ */
+export interface TaxBreakdownItem {
+  taxable_amount: number /* int64 */;
+  tax_amount: number /* int64 */;
+}
+
+//////////
 // source: checkup_record.go
 
 export interface Checkup {
@@ -354,6 +409,37 @@ export interface Clinic {
 }
 
 //////////
+// source: clinic_holiday.go
+
+/**
+ * ClinicHoliday は病院が設定した個別休診日を表す
+ */
+export interface ClinicHoliday {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  date: string;
+  reason: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: clinic_settings.go
+
+/**
+ * ClinicSettings は診療所の締め時間設定
+ */
+export interface ClinicSettings {
+  clinic_id: number /* uint64 */;
+  closing_am_pm_boundary: string;
+  closing_weekday_end: string;
+  closing_sunday_end: string;
+  closed_weekdays: any /* pq.Int64Array */;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: clinical_plan.go
 
 /**
@@ -379,6 +465,24 @@ export interface ClinicalPlan {
   diagnosis_name?: DiagnosisName;
   diagnosis_2_category?: DiagnosisType;
   diagnosis_2_name?: DiagnosisName;
+}
+
+//////////
+// source: closing_special_period.go
+
+/**
+ * ClosingSpecialPeriod は特別締め時間期間（GW・年末年始等）
+ */
+export interface ClosingSpecialPeriod {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  start_date: string;
+  end_date: string;
+  am_pm_boundary: string;
+  pm_end: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -1152,6 +1256,36 @@ export interface Owner {
 }
 
 //////////
+// source: password_reset_token.go
+
+/**
+ * PasswordResetToken はパスワードリセットトークンを表す。
+ * token_hash に SHA256(rawToken) を保存し、rawToken はメールURLにのみ含める。
+ */
+export interface PasswordResetToken {
+  id: number /* uint64 */;
+  account_id: number /* uint64 */;
+  expires_at: string;
+  created_at: string;
+}
+
+//////////
+// source: payment_method_master.go
+
+/**
+ * PaymentMethodMaster は診療所ごとの支払方法マスタ
+ */
+export interface PaymentMethodMaster {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  display_order: number /* int */;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: permission.go
 
 /**
@@ -1188,6 +1322,16 @@ export const ResourceMasterMerchandise: Resource = "master-merchandise";
  * BUG-372: 割引フィールド専用権限（飼主/治療/入院/見積/会計の全割引フィールドを保護）
  */
 export const ResourceDiscount: Resource = "discount";
+/**
+ * FEAT-368: 集計・締め
+ */
+export const ResourceCashRegisterClose: Resource = "cash-register-close"; // レジ締め実行・履歴
+export const ResourceAccountingReports: Resource = "accounting-reports"; // 月次売上集計（経理向け）
+export const ResourceClosingSettings: Resource = "closing-settings"; // 締め時間設定（管理者向け）
+/**
+ * 支払方法マスタ
+ */
+export const ResourcePaymentMethod: Resource = "master-payment-method";
 
 //////////
 // source: permission_group.go
@@ -1340,7 +1484,7 @@ export const VisitTypeRevisit: VisitType = "revisit";
 export type ReservationSource = string;
 export const ReservationSourceManual: ReservationSource = "manual";
 export const ReservationSourceLine: ReservationSource = "line";
-export interface Appointment {
+export interface Reservation {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   start_time: string;
@@ -1505,6 +1649,7 @@ export interface ShiftEntryBreak {
 export type StaffType = string;
 export const StaffTypeDoctor: StaffType = "doctor";
 export const StaffTypeNurse: StaffType = "nurse";
+export const StaffTypeTrimmer: StaffType = "trimmer";
 export const StaffTypeResource: StaffType = "resource";
 export interface Staff {
   id: number /* uint64 */;
@@ -1553,17 +1698,6 @@ export interface ShiftEntry {
    */
   staff?: Staff;
   breaks?: ShiftEntryBreak[];
-}
-/**
- * ClinicHoliday は病院が設定した個別休診日を表す
- */
-export interface ClinicHoliday {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  date: string;
-  reason: string;
-  created_at: string;
-  updated_at: string;
 }
 /**
  * ShiftTemplate はシフトテンプレートマスタを表す

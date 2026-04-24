@@ -28,14 +28,17 @@ func (m *mockHospitalizationRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (m *mockHospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockHospitalizationRepository) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
 	return m.createFn(ctx, hospitalization)
 }
 
-func (m *mockHospitalizationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
+func (m *mockHospitalizationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
@@ -43,8 +46,8 @@ func (m *mockHospitalizationRepository) Delete(ctx context.Context, clinicID, id
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockHospitalizationRepository) ExistsByCageID(_ context.Context, _ uint64) (bool, error) {
-	return false, nil
+func (m *mockHospitalizationRepository) CountByCageID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
 }
 
 func (m *mockHospitalizationRepository) CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {
@@ -52,6 +55,14 @@ func (m *mockHospitalizationRepository) CountCarePlanItemsByHospitalizationID(ct
 		return 0, nil
 	}
 	return m.countCarePlanItemsByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
+}
+
+func (m *mockHospitalizationRepository) CountDailyRecordsByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockHospitalizationRepository) CountTreatmentPlansByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
 }
 
 func TestHospitalizationService_List(t *testing.T) {
@@ -250,17 +261,18 @@ func TestHospitalizationService_GetByID(t *testing.T) {
 func TestHospitalizationService_Create(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
-		name            string
-		hospitalization *model.Hospitalization
-		repoErr         error
-		wantErr         bool
+		name     string
+		clinicID uint64
+		input    *CreateHospitalizationInput
+		repoErr  error
+		wantErr  bool
 	}{
 		{
-			name: "creates hospitalization successfully",
-			hospitalization: &model.Hospitalization{
-				ClinicID:            1,
-				PetID:               5,
+			name:     "creates hospitalization successfully",
+			clinicID: 1,
+			input: &CreateHospitalizationInput{
 				OwnerID:             2,
+				PetID:               5,
 				HospitalizationType: model.HospitalizationTypeInpatient,
 				StartDate:           now,
 				EndDate:             now.Add(24 * time.Hour),
@@ -270,11 +282,24 @@ func TestHospitalizationService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "returns error when already exists",
-			hospitalization: &model.Hospitalization{
-				ClinicID:  1,
-				PetID:     5,
+			name:     "defaults status to reserved when empty",
+			clinicID: 1,
+			input: &CreateHospitalizationInput{
+				OwnerID:             2,
+				PetID:               5,
+				HospitalizationType: model.HospitalizationTypeHotel,
+				StartDate:           now,
+				EndDate:             now.Add(24 * time.Hour),
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:     "returns error when already exists",
+			clinicID: 1,
+			input: &CreateHospitalizationInput{
 				OwnerID:   2,
+				PetID:     5,
 				StartDate: now,
 				EndDate:   now.Add(24 * time.Hour),
 			},
@@ -282,11 +307,11 @@ func TestHospitalizationService_Create(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "returns error on repository failure",
-			hospitalization: &model.Hospitalization{
-				ClinicID: 1,
-				PetID:    5,
-				OwnerID:  2,
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			input: &CreateHospitalizationInput{
+				OwnerID: 2,
+				PetID:   5,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -302,12 +327,14 @@ func TestHospitalizationService_Create(t *testing.T) {
 			}
 			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
 
-			err := svc.Create(context.Background(), tt.hospitalization)
+			hosp, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, hosp)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, hosp)
 			}
 		})
 	}

@@ -58,9 +58,13 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 
 	// 認証関連（保護なし）— ログインにはレートリミット適用（BUG-130: ブルートフォース対策）
 	loginRateStore := middleware.NewRateLimitStore(ctx)
+	// パスワードリセット系も独立したストアでレートリミット（3回/分・バースト3）
+	passwordRateStore := middleware.NewRateLimitStore(ctx)
 	api.POST("/login", middleware.RateLimit(loginRateStore, 5.0/60, 5), h.Login) // 5回/分
 	api.POST("/logout", h.Logout)
 	api.POST("/auth/refresh", h.RefreshToken) // BUG-136: refresh token エンドポイント
+	api.POST("/auth/forgot-password", middleware.RateLimit(passwordRateStore, 3.0/60, 3), h.ForgotPassword)
+	api.POST("/auth/reset-password", middleware.RateLimit(passwordRateStore, 3.0/60, 3), h.ResetPassword)
 
 	protected := api.Group("")
 	protected.Use(middleware.Auth(h.cfg.JWTSecret))
@@ -80,7 +84,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.registerExaminationRoutesWithAuth(protected)
 	h.registerVaccinationRoutesWithAuth(protected)
 	h.registerInventoryRoutesWithAuth(protected)
-	h.registerMasterRoutesWithAuth(protected)
+	h.RegisterMasterRoutes(protected)
 	h.RegisterClinicRoutes(protected)
 	h.registerEstimateRoutesWithAuth(protected)
 	h.RegisterShiftRoutes(protected)
@@ -90,6 +94,11 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterGlobalCheckupRoutes(protected)
 	h.RegisterBillingItemRoutes(protected)
 	h.RegisterLineReservationRoutes(protected)
+	// FEAT-368: 集計・締め機能
+	h.RegisterClosingSettingsRoutes(protected)
+	h.RegisterCashRegisterRoutes(protected)
+	h.RegisterAccountingReportRoutes(protected)
+	h.RegisterPaymentMethodMasterRoutes(protected)
 
 	// LIFF公開API（JWT認証なし・LINE IDトークン認証）
 	h.RegisterLiffRoutes(r)
@@ -175,6 +184,8 @@ func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
 	accountings.GET("", h.ListAccountings)
 	// BUG-370: 月末未納者一覧
 	accountings.GET("/unpaid", h.ListUnpaidBillings)
+	// BUG-368: レジ締め日次集計
+	accountings.GET("/daily-summary", h.GetDailySummary)
 	accountings.GET("/:id", h.GetAccounting)
 	accountings.GET("/:id/refunds", h.ListRefunds)
 	accountings.POST("", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateAccounting)
@@ -192,11 +203,6 @@ func (h *Handler) registerInventoryRoutesWithAuth(rg *gin.RouterGroup) {
 	inventory.POST("", h.RequirePermission(string(model.ResourceInventory), "create"), h.CreateInventory)
 	inventory.PATCH("/:id", h.RequirePermission(string(model.ResourceInventory), "edit"), h.UpdateInventory)
 	inventory.DELETE("/:id", h.RequirePermission(string(model.ResourceInventory), "delete"), h.DeleteInventory)
-}
-
-// registerMasterRoutesWithAuth はマスタルートに権限チェックを追加する（BUG-122）
-func (h *Handler) registerMasterRoutesWithAuth(rg *gin.RouterGroup) {
-	h.RegisterMasterRoutes(rg)
 }
 
 // registerEstimateRoutesWithAuth は見積書ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
