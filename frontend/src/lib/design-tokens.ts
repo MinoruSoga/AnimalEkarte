@@ -927,6 +927,9 @@ export const STYLE = {
 
   /** Standard multi-line text area */
   textarea:     `w-full rounded-[3px] border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed font-mono`,
+
+  /* ── Drag Overlay ── */
+  dragOverlayShadow: "shadow-[0_4px_16px_rgba(0,0,0,0.12)]",
 } as const;
 
 /* ================================================================== */

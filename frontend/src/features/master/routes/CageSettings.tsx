@@ -128,7 +128,7 @@ const CageSidePanel = memo(function CageSidePanel({
 // ─── DragOverlay ───
 function CageRowOverlay({ cage }: { cage: Cage }) {
   return (
-    <div className={`flex items-center h-12 ${C.bgWhite} border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`} style={{ width: "100%" }}>
+    <div className={`flex items-center h-12 ${C.bgWhite} border ${C.borderLight} rounded-[4px] ${STYLE.dragOverlayShadow} cursor-grabbing`} style={{ width: "100%" }}>
       <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}><GripVertical className={ICON.action} /></div>
       <div className={`flex-1 min-w-0 text-base font-medium ${C.text} px-3`}>{cage.name}</div>
       <div className={`w-[100px] shrink-0 text-base ${C.text65}`}>{CAGE_TYPE_LABELS[cage.cageType]}</div>
