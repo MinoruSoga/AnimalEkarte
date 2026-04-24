@@ -20,11 +20,11 @@ origin: ECC (adapted for AnimalEkarte)
 
 ```bash
 # ❌ ローカル直接実行（禁止）
-ppnpm build
+pnpm build
 go test ./...
 
 # ✅ Docker Compose 経由（必須）
-docker compose exec frontend ppnpm build
+docker compose exec frontend pnpm build
 docker compose exec backend go test ./...
 ```
 
@@ -37,9 +37,9 @@ make down        # docker compose down
 make logs        # docker compose logs -f
 
 # Frontend
-docker compose exec frontend ppnpm lint
-docker compose exec frontend pppnpm test:run
-docker compose exec frontend ppnpm build
+docker compose exec frontend pnpm lint
+docker compose exec frontend pnpm test:run
+docker compose exec frontend pnpm build
 docker compose exec frontend npx tsc --noEmit
 
 # Backend
@@ -149,9 +149,9 @@ CMD ["./app"]
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN ppnpm install --frozen-lockfile                # 依存を先にキャッシュ
+RUN pnpm install --frozen-lockfile                # 依存を先にキャッシュ
 COPY . .
-RUN ppnpm build
+RUN pnpm build
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html

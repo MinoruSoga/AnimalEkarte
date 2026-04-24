@@ -131,8 +131,8 @@ describe('OwnersList', () => {
 
 ### テスト実行
 ```bash
-docker compose exec frontend pppnpm test:run
-docker compose exec frontend pppnpm test:coverage
+docker compose exec frontend pnpm test:run
+docker compose exec frontend pnpm test:coverage
 ```
 
 ## 必須テストケース

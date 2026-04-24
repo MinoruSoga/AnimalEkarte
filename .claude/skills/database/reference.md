@@ -1,132 +1,110 @@
-# Database Reference
+# Database Reference (GORM + PostgreSQL)
 
-## Prisma Schema ガイド
+> AnimalEkarte は GORM v2 + PostgreSQL 18 + Raw SQL マイグレーションを使用。
 
-### モデル定義
+## GORM モデル定義
 
-```prisma
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  posts     Post[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([email])
-  @@map("users")
-}
-
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  String
-
-  @@index([authorId])
-  @@map("posts")
+```go
+type Owner struct {
+    ID        uint           `gorm:"primaryKey"`
+    Name      string         `gorm:"not null"`
+    Email     string         `gorm:"uniqueIndex"`
+    CreatedAt time.Time
+    UpdatedAt time.Time
+    DeletedAt gorm.DeletedAt `gorm:"index"`
+    Patients  []Patient      `gorm:"foreignKey:OwnerID"`
 }
 ```
 
 ### リレーション種別
 
-| 種別 | 記法 | 例 |
-|------|------|-----|
-| 1:1 | `@relation` | User - Profile |
-| 1:N | `[]` | User - Posts |
-| M:N | 中間テーブル | Post - Tags |
+| 種別 | GORM タグ | 例 |
+|------|-----------|-----|
+| 1:1 | `gorm:"foreignKey:OwnerID"` | Owner - Profile |
+| 1:N | `gorm:"foreignKey:OwnerID"` | Owner - Patients |
+| M:N | 中間テーブル + `many2many:` | Patient - Tags |
 
 ### データ型マッピング
 
-| Prisma | PostgreSQL | TypeScript |
-|--------|------------|------------|
-| String | TEXT | string |
-| Int | INTEGER | number |
-| BigInt | BIGINT | bigint |
-| Float | DOUBLE PRECISION | number |
-| Boolean | BOOLEAN | boolean |
-| DateTime | TIMESTAMP | Date |
-| Json | JSONB | JsonValue |
+| Go | PostgreSQL | 備考 |
+|----|------------|------|
+| string | TEXT / VARCHAR | |
+| int / uint | INTEGER | |
+| int64 / uint64 | BIGINT | |
+| float64 | DOUBLE PRECISION | |
+| bool | BOOLEAN | |
+| time.Time | TIMESTAMP WITH TIME ZONE | |
+| *T | NULL許容 | ポインタ型 |
 
 ## インデックス設計
 
-### 推奨パターン
-
-```prisma
-// 単一カラム
-@@index([email])
-
-// 複合インデックス（検索順序重要）
-@@index([status, createdAt])
-
-// ユニーク制約
-@@unique([email, tenantId])
+```go
+type Patient struct {
+    ID      uint   `gorm:"primaryKey"`
+    OwnerID uint   `gorm:"index"`                     // 単一
+    Status  string `gorm:"index:idx_status_created"`  // 複合
+    CreatedAt time.Time `gorm:"index:idx_status_created"`
+}
 ```
 
 ### パフォーマンス指針
 
 - WHERE句で頻繁に使用するカラムにインデックス
-- 外部キーには自動でインデックス作成
+- 外部キーには手動でインデックス追加（GORM は自動生成しない）
 - 複合インデックスは左から順に使用される
 
-## マイグレーション
-
-### コマンド一覧
+## マイグレーション（Raw SQL 直接編集）
 
 ```bash
-# 開発環境
-npx prisma migrate dev --name <name>
+# スキーマ変更: backend/migrations/001_init.sql を直接編集（リリース前運用）
 
-# 本番環境
-npx prisma migrate deploy
+# 変更を DB に適用
+docker compose exec db psql -U postgres -d animalekarte -f /migrations/001_init.sql
 
-# リセット（開発のみ）
-npx prisma migrate reset
+# 現在のスキーマ確認
+docker compose exec db psql -U postgres -d animalekarte -c "\dt"
+docker compose exec db psql -U postgres -d animalekarte -c "\d patients"
 
-# 状態確認
-npx prisma migrate status
+# GORM モデル変更後は codegen で models.ts を再生成
+make codegen
 ```
 
 ### 命名規則
 
 ```
-YYYYMMDD_description
-例: 20250115_add_user_role
+NNN_description.sql
+例: 001_init.sql, 002_seed_master.sql
 ```
 
 ## クエリ最適化
 
 ### N+1問題の回避
 
-```typescript
+```go
 // NG: N+1クエリ
-const users = await prisma.user.findMany();
-for (const user of users) {
-  const posts = await prisma.post.findMany({ where: { authorId: user.id } });
+var owners []Owner
+db.Find(&owners)
+for _, o := range owners {
+    var patients []Patient
+    db.Where("owner_id = ?", o.ID).Find(&patients)
 }
 
-// OK: include で解決
-const users = await prisma.user.findMany({
-  include: { posts: true }
-});
+// OK: Preload で解決
+db.Preload("Patients").Find(&owners)
 ```
 
 ### 選択的フィールド取得
 
-```typescript
+```go
 // 必要なフィールドのみ取得
-const users = await prisma.user.findMany({
-  select: {
-    id: true,
-    name: true,
-    email: true
-  }
-});
+var results []struct {
+    ID   uint
+    Name string
+}
+db.Model(&Owner{}).Select("id, name").Find(&results)
 ```
 
 ## 参照リンク
 
-- [Prisma公式ドキュメント](https://www.prisma.io/docs)
+- [GORM 公式ドキュメント](https://gorm.io/docs/)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)

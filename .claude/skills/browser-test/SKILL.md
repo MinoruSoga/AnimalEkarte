@@ -1,6 +1,6 @@
 ---
 name: browser-test
-description: Chrome DevTools MCPを使ったブラウザ機能テスト。FUNCTIONAL_TEST_REPORT.mdのセクションを実行し結果を更新する。Haikuモデルでコスト効率よく実行。
+description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/testing/FULL_DOMAIN_SCENARIO_TEST_GUIDE.mdのセクションを実行し結果を更新する。Haikuモデルでコスト効率よく実行。
 ---
 
 # ブラウザ機能テスト スキル
@@ -22,9 +22,9 @@ description: Chrome DevTools MCPを使ったブラウザ機能テスト。FUNCTI
 
 このスキルが呼ばれたら、**以下の手順を必ず守れ**：
 
-1. `docs/FUNCTIONAL_TEST_REPORT.md` から対象セクションのテスト項目を読み込む
+1. `docs/testing/FULL_DOMAIN_SCENARIO_TEST_GUIDE.md` から対象セクションのテスト項目を読み込む
 2. **`Agent` ツールを `model: "haiku"` で起動**し、ブラウザテストを委譲する
-3. Haiku Agent の結果を受け取り、`docs/FUNCTIONAL_TEST_REPORT.md` を更新する
+3. Haiku Agent の結果を受け取り、`docs/testing/FULL_DOMAIN_SCENARIO_TEST_GUIDE.md` を更新する
 
 メインセッション（Sonnet）は直接 Chrome DevTools MCP ツールを呼ばないこと。
 すべてのブラウザ操作は Haiku Agent に委譲する。
@@ -109,7 +109,7 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 Haiku Agent の結果を受け取った後：
 
 1. **テストレポートを更新**する
-   - `docs/FUNCTIONAL_TEST_REPORT.md` の該当セクションの結果列を更新
+   - `docs/testing/FULL_DOMAIN_SCENARIO_TEST_GUIDE.md` の該当セクションの結果列を更新
    - NG 項目は `docs/tasks/open/crash/` にバグチケットを作成（BUG-XXX 形式）
    - レポート冒頭の「最終更新」日付を更新
 

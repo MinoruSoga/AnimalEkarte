@@ -187,8 +187,8 @@ useEffect(() => {
 ```bash
 # axe DevTools (Chrome extension)
 # WAVE (WebAIM)
-# Lighthouse (DevTools)
-pppnpm audit:lighthouse  # a11y score check
+# Lighthouse (Chrome DevTools → Lighthouse タブ)
+docker compose exec frontend pnpm lighthouse  # a11y score check
 ```
 
 ## References

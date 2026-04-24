@@ -27,10 +27,10 @@ model: sonnet
 
 ## 技術スタック
 
-- Frontend Testing: Vitest, React Testing Library
-- Backend Testing: go test, testify
+- Frontend Testing: Vitest + Testing Library + MSW
+- Backend Testing: go test + testify
 - Coverage Target: 80% 以上
-- E2E: Playwright, Cypress
+- E2E: 未導入（シナリオ設計のみ対応）
 
 ## テスト設計プロセス
 

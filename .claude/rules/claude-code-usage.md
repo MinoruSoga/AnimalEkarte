@@ -15,9 +15,12 @@
 | `planner` | 実装計画・リスク分析 | opus |
 | `architect` | システム設計判断 | opus |
 | `security-analyst` | 脆弱性分析 | opus |
+| `healthcare-reviewer` | 臨床データ安全性・clinic_id隔離・患者記録保護 | opus |
 | `go-expert` | Go idiom・パフォーマンス | sonnet |
 | `go-reviewer` | Go コードレビュー | sonnet |
+| `go-build-resolver` | Go ビルドエラー・go vet 解決 | sonnet |
 | `typescript-reviewer` | TS/React コードレビュー | sonnet |
+| `build-error-resolver` | TypeScript ビルドエラー・型エラー解決 | sonnet |
 | `implementer` | 機能実装 | sonnet |
 | `refactor-cleaner` | リファクタリング | sonnet |
 | `database-reviewer` | DB スキーマレビュー | sonnet |

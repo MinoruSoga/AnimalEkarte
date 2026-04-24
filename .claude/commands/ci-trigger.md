@@ -28,12 +28,12 @@ docker compose exec backend go test ./... -v
 docker compose exec backend golangci-lint run ./...
 
 # Frontend
-docker compose exec frontend pppnpm test:run
-docker compose exec frontend ppnpm lint
+docker compose exec frontend pnpm test:run
+docker compose exec frontend pnpm lint
 
 # Security
 docker compose exec backend gosec ./...
-docker compose exec frontend ppnpm audit
+docker compose exec frontend pnpm audit
 ```
 
 ### GitHub Actions 確認

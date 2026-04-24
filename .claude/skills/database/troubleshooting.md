@@ -1,67 +1,74 @@
-# Database Troubleshooting
+# Database Troubleshooting (GORM + PostgreSQL)
+
+> AnimalEkarte は GORM v2 + PostgreSQL 18 + Raw SQL マイグレーション。
 
 ## よくある問題と解決策
 
 ### 1. 接続エラー
 
-**症状**: `Can't reach database server`
+**症状**: `failed to connect to postgres`
 
-**原因と対処**:
+**対処**:
 ```bash
-# PostgreSQL が起動しているか確認
-pg_isready -h localhost -p 5432
+# DB コンテナの起動確認
+docker compose ps db
 
-# Docker の場合
-docker ps | grep postgres
+# コンテナ再起動
+docker compose restart db
 
-# 接続文字列の確認
-echo $DATABASE_URL
+# 接続確認
+docker compose exec db psql -U postgres -d animalekarte -c "\conninfo"
+
+# 環境変数確認（backend コンテナ内）
+docker compose exec backend env | grep DB
 ```
 
 **チェックリスト**:
-- [ ] PostgreSQL サービスが起動している
-- [ ] ポート番号が正しい（デフォルト: 5432）
-- [ ] ユーザー名/パスワードが正しい
-- [ ] データベースが存在する
+- [ ] `docker compose up -d` で db コンテナが起動している
+- [ ] `.env` の DB_HOST / DB_PORT / DB_USER / DB_PASSWORD が正しい
+- [ ] データベースが存在する（`\l` で確認）
 
 ---
 
 ### 2. マイグレーション失敗
 
-**症状**: `Migration failed to apply`
+**症状**: SQL エラーでスキーマ適用に失敗
 
 **対処手順**:
 ```bash
-# 1. 状態確認
-npx prisma migrate status
+# 1. 現在のスキーマ確認
+docker compose exec db psql -U postgres -d animalekarte -c "\dt"
 
-# 2. 失敗したマイグレーションを確認
-ls -la prisma/migrations/
+# 2. 失敗箇所を特定してSQLを修正
+# backend/migrations/001_init.sql を編集
 
-# 3. 開発環境: リセット
-npx prisma migrate reset
+# 3. 開発環境: DB をリセットして再適用
+docker compose down -v   # ボリューム削除
+docker compose up -d db
+docker compose exec db psql -U postgres -d animalekarte -f /migrations/001_init.sql
 
-# 4. 本番環境: 手動修正
-psql $DATABASE_URL -c "DELETE FROM _prisma_migrations WHERE migration_name = 'XXXXX';"
+# 4. GORM モデル変更を codegen に反映
+make codegen
 ```
 
 **予防策**:
-- マイグレーション前にバックアップ
+- マイグレーション前にバックアップ取得
 - ステージング環境で先にテスト
 
 ---
 
-### 3. スキーマ同期エラー
+### 3. GORM モデルと DB スキーマの不一致
 
-**症状**: `The database schema is not in sync`
+**症状**: `column "xxx" does not exist` / `relation "xxx" does not exist`
 
 **対処**:
 ```bash
-# スキーマとDBの差分確認
-npx prisma db pull --force
+# DB の実際のスキーマを確認
+docker compose exec db psql -U postgres -d animalekarte -c "\d table_name"
 
-# 差分を解消
-npx prisma migrate dev
+# backend/migrations/001_init.sql と GORM モデルを突き合わせて修正
+# モデル変更後は codegen 実行
+make codegen
 ```
 
 ---
@@ -73,34 +80,34 @@ npx prisma migrate dev
 **診断**:
 ```sql
 -- 実行計画の確認
-EXPLAIN ANALYZE SELECT * FROM users WHERE email = 'test@example.com';
+EXPLAIN ANALYZE SELECT * FROM patients WHERE owner_id = 1;
 
 -- インデックス確認
-\di+ users
+\di+ patients
+
+-- スロークエリ確認
+SELECT query, mean_exec_time FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;
 ```
 
 **対処**:
-```prisma
-// インデックス追加
-model User {
-  email String
-  @@index([email])
-}
+```sql
+-- インデックス追加（001_init.sql に追記して再適用）
+CREATE INDEX CONCURRENTLY idx_patients_owner_id ON patients(owner_id);
 ```
 
 ---
 
 ### 5. ロック待ち
 
-**症状**: `Lock wait timeout exceeded`
+**症状**: クエリがハング / タイムアウト
 
 **診断**:
 ```sql
 -- ロック状況確認
 SELECT * FROM pg_locks WHERE NOT granted;
 
--- プロセス確認
-SELECT * FROM pg_stat_activity WHERE state = 'active';
+-- アクティブプロセス確認
+SELECT pid, state, query, wait_event FROM pg_stat_activity WHERE state = 'active';
 ```
 
 **対処**:
@@ -117,39 +124,33 @@ SELECT pg_terminate_backend(pid);
 
 **対処**:
 ```bash
-# 容量確認
-df -h
+# Docker ボリューム容量確認
+docker system df
 
-# 不要データ削除
-VACUUM FULL;
+# 不要イメージ・ボリュームの削除
+docker system prune -f
 
-# ログクリーンアップ
-pg_archivecleanup /var/lib/postgresql/pg_wal/ <checkpoint>
+# PostgreSQL VACUUM
+docker compose exec db psql -U postgres -d animalekarte -c "VACUUM FULL;"
 ```
 
 ---
 
 ## 緊急時対応
 
-### バックアップからの復元
+### バックアップと復元
 
 ```bash
 # バックアップ作成
-pg_dump $DATABASE_URL > backup.sql
+docker compose exec db pg_dump -U postgres animalekarte > backup_$(date +%Y%m%d).sql
 
 # 復元
-psql $DATABASE_URL < backup.sql
+docker compose exec -T db psql -U postgres -d animalekarte < backup_20260101.sql
 ```
 
-### ロールバック
+### 開発環境の完全リセット
 
 ```bash
-# 特定のマイグレーションまで戻す
-npx prisma migrate resolve --rolled-back <migration_name>
+docker compose down -v    # ボリュームごと削除
+docker compose up -d      # 再起動（init スクリプトが自動実行される）
 ```
-
-## 連絡先
-
-問題が解決しない場合:
-- DBA チームに連絡
-- Slack: #database-support

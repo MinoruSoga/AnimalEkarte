@@ -32,7 +32,7 @@ If execution is needed, inform the user with the command and have them run it ma
 - `docker compose exec backend golangci-lint run ./...`
 - `docker compose exec backend gofmt -w ./...`
 - `docker compose exec frontend pnpm lint`
-- `docker compose exec frontend ppnpm test:run`
+- `docker compose exec frontend pnpm test:run`
 - `docker compose exec frontend pnpm build`
 - `docker compose exec frontend pnpm type-check`
 - `make codegen`
@@ -48,7 +48,7 @@ If execution is needed, inform the user with the command and have them run it ma
 - `docker compose exec db psql ...` (direct SQL execution)
 
 ### Dependency Installation (verbose and slow)
-- `docker compose exec frontend ppnpm install`
+- `docker compose exec frontend pnpm install`
 - `docker compose exec backend go mod download`
 
 **Example response:**

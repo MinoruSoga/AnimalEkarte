@@ -47,9 +47,9 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json
 FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
-RUN ppnpm install --frozen-lockfile --only=production
+RUN pnpm install --frozen-lockfile --only=production
 COPY . .
-RUN ppnpm build
+RUN pnpm build
 EXPOSE 8080
 CMD ["npm", "start"]
 ```

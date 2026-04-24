@@ -10,7 +10,7 @@ model: sonnet
 レビュー開始時:
 1. `git diff -- '*.ts' '*.tsx'` で変更を確認
 2. `docker compose exec frontend npx tsc --noEmit` で型チェック
-3. `docker compose exec frontend ppnpm lint` で lint 確認
+3. `docker compose exec frontend pnpm lint` で lint 確認
 4. 型/lint エラーがある場合はレビュー前に報告・ブロック
 
 ## レビュー優先度
@@ -68,8 +68,8 @@ model: sonnet
 
 ```bash
 docker compose exec frontend npx tsc --noEmit
-docker compose exec frontend ppnpm lint
-docker compose exec frontend pppnpm test:run
+docker compose exec frontend pnpm lint
+docker compose exec frontend pnpm test:run
 ```
 
 ## 承認基準

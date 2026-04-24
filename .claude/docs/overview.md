@@ -46,22 +46,22 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 │  database-design, testing, api,     │
 │  naming-conventions, security, ...  │
 ├─────────────────────────────────────┤
-│  Hooks (14 scripts, ECC protocol)   │
+│  Hooks (12 registered, 14 scripts)  │
 │  PreToolUse:                        │
 │    - block-dangerous (exit 2)       │
 │    - block-no-verify (exit 2)       │
 │    - commit-quality (exit 2)        │
+│    - git-push-reminder (warn)       │
 │    - large-file-block (exit 2)      │
 │    - config-protection (warn)       │
-│    - git-push-reminder (warn)       │
 │  PostToolUse:                       │
 │    - console-warn (warn)            │
 │    - file-size-warn (warn)          │
-│    - format-go (gofmt)              │
-│    - typecheck-ts (tsc)             │
 │  PreCompact / Stop / SessionStart:  │
 │    - save-state, save-progress      │
 │    - desktop-notify, session-init   │
+│  (unregistered: format-go,          │
+│   typecheck-ts — high Docker cost)  │
 ├─────────────────────────────────────┤
 │  Memory (persistent knowledge)      │
 │  - project-architecture.md          │
