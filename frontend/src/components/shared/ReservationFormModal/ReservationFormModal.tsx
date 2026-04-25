@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, PALETTE } from "@/lib/design-tokens";
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { format as dateFnsFormat } from "date-fns";
 
@@ -16,6 +16,7 @@ import { usePetSelection } from "@/hooks/use-pet-selection";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 
 import { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
+import { useGetOwnerLineTags } from "@/features/owners";
 
 // Relative
 import { PatientSelectionTable } from "./PatientSelectionTable";
@@ -86,6 +87,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
 
   // BUG-343: 定休日を取得して Calendar で disabled にする
   const { data: clinicHolidays = [] } = useGetClinicHolidays(calendarMonth);
+
   const holidayDates = useMemo(
     () => new Set(clinicHolidays.map((h) => h.date)),
     [clinicHolidays]
@@ -99,6 +101,15 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     setSelectedPets,
     togglePetSelection,
   } = usePetSelection([], "multiple-same-owner");
+
+  const { data: ownerLineData } = useGetOwnerLineTags(selectedPets[0]?.ownerId ?? "");
+  const lstepStatus = selectedPets.length === 0 || ownerLineData === undefined
+    ? undefined
+    : ownerLineData.lstep_opt_out
+      ? ("opt-out" as const)
+      : ownerLineData.is_linked
+        ? ("synced" as const)
+        : ("not-linked" as const);
 
   const { data: loadedPet } = useGetPet(pendingPetId ?? "");
 
@@ -281,6 +292,21 @@ export const ReservationFormModal = memo(function ReservationFormModal({
                   <FormFieldError message={validationErrors.patient} />
                 ) : null}
               </div>
+
+              {/* LINE Integration Status */}
+              {lstepStatus === "not-linked" ? (
+                <div className={`rounded-[4px] border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}>
+                  この飼い主はLINEアカウントが未連携のため、予約確定後のLINE自動通知は送信されません。
+                </div>
+              ) : lstepStatus === "opt-out" ? (
+                <div className={`rounded-[4px] border ${C.borderMediumLight} ${C.bgPage30} px-3 py-2 text-xs ${C.text40}`}>
+                  この飼い主はLINEメッセージの受信を拒否しています。予約確定後のLINE自動通知は送信されません。
+                </div>
+              ) : lstepStatus === "synced" ? (
+                <div className="rounded-[4px] border px-3 py-2 text-xs text-white flex items-center gap-1.5" style={{ backgroundColor: PALETTE.lineGreen, borderColor: PALETTE.lineGreen }}>
+                  LINE連携済み — 予約確定後に自動通知が送信されます。
+                </div>
+              ) : null}
 
               {/* Form Fields */}
               <div className="space-y-4">

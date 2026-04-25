@@ -11,7 +11,10 @@ import { CheckupSyncPreviewTable } from "./CheckupSyncPreviewTable";
 import { CheckupSyncConfirmDialog } from "./CheckupSyncConfirmDialog";
 
 function buildDefaultTagName(checkupType: CheckupType): string {
-  return `checkup_${checkupType}_${new Date().getFullYear()}`;
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  return `checkup_done_${checkupType}_${yyyy}-${mm}`;
 }
 
 export function CheckupSyncPage() {

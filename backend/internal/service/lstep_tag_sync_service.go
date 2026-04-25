@@ -13,52 +13,58 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// CPMStage は顧客ポートフォリオ管理ステージ（BE-011）。
+// CPMStage は顧客ポートフォリオ管理ステージ（BE-004）。
+// 仕様: docs/line/lstep-integration.md Section 7.2
 type CPMStage string
 
 const (
-	CPMStageNew       CPMStage = "cpm_new"        // 初来院・1回のみ
-	CPMStageStep      CPMStage = "cpm_step"       // 2〜3回、90日以内
-	CPMStageRegular   CPMStage = "cpm_regular"    // 4回以上、90日以内
-	CPMStageLoyalHigh CPMStage = "cpm_loyal_high" // 高LTV、90日以内
-	CPMStageAtRisk    CPMStage = "cpm_at_risk"    // 90〜180日間来院なし
-	CPMStageDormant   CPMStage = "cpm_dormant"    // 180日超来院なし
+	CPMStageEncounter CPMStage = "cpm_encounter" // 1回来院・LTV 20,000円未満
+	CPMStageGrowing   CPMStage = "cpm_growing"   // 2〜3回来院・90日以内・LTV 20,000〜50,000円
+	CPMStageCore      CPMStage = "cpm_core"      // 在籍180日以上・年間2回以上・LTV 50,000円以上
+	CPMStageSpot      CPMStage = "cpm_spot"      // 単回高額（30,000円以上）・90日超来院なし
+	CPMStageNoah      CPMStage = "cpm_noah"      // 在籍1年以上・年間3回以上・LTV 80,000円以上
+	CPMStageDormant   CPMStage = "cpm_dormant"   // 最終来院から240日超
 )
 
 var allCPMStages = []CPMStage{
-	CPMStageNew, CPMStageStep, CPMStageRegular, CPMStageLoyalHigh, CPMStageAtRisk, CPMStageDormant,
+	CPMStageEncounter, CPMStageGrowing, CPMStageCore, CPMStageSpot, CPMStageNoah, CPMStageDormant,
 }
 
 // CPMData は CPM ステージ計算に必要な集計データ。
 type CPMData struct {
-	TotalVisitCount  int64
-	AnnualVisitCount int64
-	DaysSinceVisit   int   // 最終来院からの経過日数（来院なし = -1）
-	LTVAmount        int64 // 支払済み累計金額（円）
+	TotalVisitCount      int64
+	AnnualVisitCount     int64
+	DaysSinceVisit       int   // 最終来院からの経過日数（来院なし = -1）
+	LTVAmount            int64 // 支払済み累計金額（円）
+	FirstVisitDaysSince  int   // 初来院からの経過日数＝在籍期間（来院なし = -1）
+	MaxSingleVisitAmount int64 // 単回最大支払い額（cpm_spot 判定用）
 }
 
-// CalculateCPMStage は純粋関数として CPM ステージを計算する（BE-011）。
+// CalculateCPMStage は純粋関数として CPM ステージを計算する（BE-004）。
+// 仕様: docs/line/lstep-integration.md Section 7.2
 func CalculateCPMStage(d CPMData) CPMStage {
-	if d.DaysSinceVisit < 0 {
+	// cpm_dormant: 最終来院から240日超または来院なし（最優先）
+	if d.DaysSinceVisit < 0 || d.DaysSinceVisit >= 240 {
 		return CPMStageDormant
 	}
-	if d.DaysSinceVisit > 180 {
-		return CPMStageDormant
+	// cpm_noah: 在籍1年以上、年間3回以上、LTV 80,000円以上
+	if d.FirstVisitDaysSince >= 365 && d.AnnualVisitCount >= 3 && d.LTVAmount >= 80_000 {
+		return CPMStageNoah
 	}
-	if d.DaysSinceVisit > 90 {
-		return CPMStageAtRisk
+	// cpm_core: 在籍180日以上、年間2回以上、LTV 50,000円以上
+	if d.FirstVisitDaysSince >= 180 && d.AnnualVisitCount >= 2 && d.LTVAmount >= 50_000 {
+		return CPMStageCore
 	}
-	// 90日以内来院
-	switch {
-	case d.LTVAmount >= 100_000 || d.AnnualVisitCount >= 6:
-		return CPMStageLoyalHigh
-	case d.TotalVisitCount >= 4:
-		return CPMStageRegular
-	case d.TotalVisitCount >= 2:
-		return CPMStageStep
-	default:
-		return CPMStageNew
+	// cpm_spot: 単回高額（30,000円以上）かつ90日超来院なし
+	if d.MaxSingleVisitAmount >= 30_000 && d.DaysSinceVisit > 90 {
+		return CPMStageSpot
 	}
+	// cpm_growing: 2〜3回来院かつ90日以内に来院
+	if d.TotalVisitCount >= 2 && d.TotalVisitCount <= 3 && d.DaysSinceVisit <= 90 {
+		return CPMStageGrowing
+	}
+	// cpm_encounter: デフォルト（初来院・新規顧客）
+	return CPMStageEncounter
 }
 
 // LstepTagSyncService は Lステップタグ同期の業務ロジックインターフェース（BE-003, BE-004, BE-005, BE-011）。
@@ -92,6 +98,9 @@ type LstepTagSyncService interface {
 	SyncChronicConditionTags(ctx context.Context, clinicID, ownerID uint64, activeConditionCodes []string) error
 	// SyncNoShowTag は予約ノーショウ時に no_show_YYYY-MM-DD タグを付与し reserved_* を解除する（BE-014）。
 	SyncNoShowTag(ctx context.Context, clinicID, ownerID uint64, reservationDate time.Time) error
+	// SyncDormantTags は最終来院からの経過日数に基づき dormant_* タグを差分同期する（BE-005）。
+	// daysSinceLastVisit < 0 は来院なしを表す。
+	SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error
 }
 
 type lstepTagSyncService struct {
@@ -503,9 +512,9 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 		return apperrors.Wrap(err, "failed to load tag cache")
 	}
 	for _, c := range cached {
-		if isReservationRelatedTag(c.TagName) {
+		if isReservationRelatedTag(c.TagName) || isDormantTag(c.TagName) {
 			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove reservation tag on visit completion", "error", delErr, "tag", c.TagName)
+				slog.ErrorContext(ctx, "failed to remove reservation/dormant tag on visit completion", "error", delErr, "tag", c.TagName)
 			} else {
 				_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName)
 			}
@@ -539,32 +548,35 @@ func buildVisitTags(summary *repository.OwnerVisitSummary, ltv int64) []string {
 
 func ltvBracketTag(ltv int64) string {
 	switch {
-	case ltv >= 500_000:
-		return "ltv_amount_500000plus"
-	case ltv >= 200_000:
-		return "ltv_amount_200000to500000"
-	case ltv >= 100_000:
-		return "ltv_amount_100000to200000"
+	case ltv >= 80_000:
+		return "ltv_amount_8"
 	case ltv >= 50_000:
-		return "ltv_amount_50000to100000"
-	case ltv >= 10_000:
-		return "ltv_amount_10000to50000"
+		return "ltv_amount_5"
+	case ltv >= 20_000:
+		return "ltv_amount_2"
 	default:
-		return "ltv_amount_under10000"
+		return "ltv_amount_0"
 	}
 }
 
 func visitCountAnnualTag(count int64) string {
 	switch {
-	case count >= 12:
-		return "visit_count_annual_12plus"
-	case count >= 6:
-		return "visit_count_annual_6to12"
+	case count >= 10:
+		return "visit_count_annual_10"
+	case count >= 5:
+		return "visit_count_annual_5"
 	case count >= 3:
-		return "visit_count_annual_3to6"
+		return "visit_count_annual_3"
+	case count >= 2:
+		return "visit_count_annual_2"
 	default:
-		return fmt.Sprintf("visit_count_annual_%d", count)
+		return "visit_count_annual_1"
 	}
+}
+
+// isDormantTag は dormant 系タグかどうかを判定する。
+func isDormantTag(tag string) bool {
+	return tag == "dormant_180d" || tag == "dormant_210d" || tag == "dormant_240d" || tag == "dormant_365d"
 }
 
 // SyncNextVisitTag は次回来院推奨日タグを同期する（BE-006）。
@@ -658,16 +670,28 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 		return apperrors.Wrap(err, "failed to sum paid amount")
 	}
 
+	maxSingle, err := s.accountRepo.MaxSingleVisitAmountByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get max single visit amount for CPM", "error", err)
+		return apperrors.Wrap(err, "failed to get max single visit amount")
+	}
+
 	daysSince := -1
 	if summary.LastVisitAt != nil {
 		daysSince = int(time.Since(*summary.LastVisitAt).Hours() / 24)
 	}
+	firstVisitDaysSince := 0
+	if summary.FirstVisitAt != nil {
+		firstVisitDaysSince = int(time.Since(*summary.FirstVisitAt).Hours() / 24)
+	}
 
 	stage := CalculateCPMStage(CPMData{
-		TotalVisitCount:  summary.TotalCount,
-		AnnualVisitCount: summary.AnnualCount,
-		DaysSinceVisit:   daysSince,
-		LTVAmount:        ltv,
+		TotalVisitCount:      summary.TotalCount,
+		AnnualVisitCount:     summary.AnnualCount,
+		DaysSinceVisit:       daysSince,
+		LTVAmount:            ltv,
+		FirstVisitDaysSince:  firstVisitDaysSince,
+		MaxSingleVisitAmount: maxSingle,
 	})
 
 	client, err := s.buildClient(ctx, clinicID)
@@ -1093,6 +1117,73 @@ func (s *lstepTagSyncService) SyncNoShowTag(ctx context.Context, clinicID, owner
 	}
 	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, noShowTag, "auto"); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert no_show tag cache", "error", upsertErr)
+	}
+	return nil
+}
+
+// SyncDormantTags は最終来院からの経過日数に基づき dormant_* タグを差分同期する（BE-005）。
+func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error {
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for dormant tag sync", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to build lstep client for dormant tag sync", "error", err)
+		return apperrors.Wrap(err, "failed to build lstep client")
+	}
+	if client == nil {
+		return nil
+	}
+
+	// 付与すべき dormant タグを決定（閾値: 180/210/240/365）
+	var targetTag string
+	switch {
+	case daysSinceLastVisit < 0 || daysSinceLastVisit >= 365:
+		targetTag = "dormant_365d"
+	case daysSinceLastVisit >= 240:
+		targetTag = "dormant_240d"
+	case daysSinceLastVisit >= 210:
+		targetTag = "dormant_210d"
+	case daysSinceLastVisit >= 180:
+		targetTag = "dormant_180d"
+	}
+
+	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load tag cache for dormant sync", "error", err)
+		return apperrors.Wrap(err, "failed to load tag cache")
+	}
+
+	for _, c := range cached {
+		if isDormantTag(c.TagName) && c.TagName != targetTag {
+			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
+				slog.ErrorContext(ctx, "failed to remove stale dormant tag", "error", delErr, "tag", c.TagName)
+			} else {
+				_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName)
+			}
+		}
+	}
+
+	if targetTag == "" {
+		return nil
+	}
+
+	if addErr := client.AddTag(ctx, lineUserID, targetTag); addErr != nil {
+		slog.ErrorContext(ctx, "failed to add dormant tag", "error", addErr, "tag", targetTag)
+		return apperrors.Wrap(addErr, "failed to add dormant tag")
+	}
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, targetTag, "auto"); upsertErr != nil {
+		slog.ErrorContext(ctx, "failed to upsert dormant tag cache", "error", upsertErr)
 	}
 	return nil
 }

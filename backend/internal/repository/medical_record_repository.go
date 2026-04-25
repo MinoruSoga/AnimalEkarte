@@ -19,6 +19,12 @@ type OwnerVisitSummary struct {
 	AnnualCount  int64
 }
 
+// DormantOwnerEntry はバッチ用の休眠飼い主エントリ。
+type DormantOwnerEntry struct {
+	OwnerID   uint64
+	DaysSince int
+}
+
 type MedicalRecordRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
@@ -32,6 +38,8 @@ type MedicalRecordRepository interface {
 	// FindLatestByOwner は飼い主の最新カルテを返す（Lステップ次回来院推奨日タグ同期用）。
 	// カルテが存在しない場合は nil, nil を返す。
 	FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error)
+	// FindDormantOwnerEntries は最終来院から minDaysSince 日以上経過した飼い主一覧を返す（バッチ処理用）。
+	FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]DormantOwnerEntry, error)
 }
 
 type medicalRecordRepository struct {
@@ -197,4 +205,34 @@ func (r *medicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, cli
 		TotalCount:   result.TotalCount,
 		AnnualCount:  result.AnnualCount,
 	}, nil
+}
+
+// FindDormantOwnerEntries は最終来院から minDaysSince 日以上経過した飼い主一覧を返す（バッチ処理用）。
+func (r *medicalRecordRepository) FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]DormantOwnerEntry, error) {
+	cutoff := time.Now().AddDate(0, 0, -minDaysSince)
+	type row struct {
+		OwnerID     uint64
+		LastVisitAt time.Time
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Model(&model.MedicalRecord{}).
+		Scopes(clinicScope(clinicID)).
+		Where("deleted_at IS NULL").
+		Select("owner_id, MAX(date) AS last_visit_at").
+		Group("owner_id").
+		Having("MAX(date) < ?", cutoff).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d dormant", clinicID))
+	}
+	now := time.Now()
+	entries := make([]DormantOwnerEntry, 0, len(rows))
+	for _, r := range rows {
+		entries = append(entries, DormantOwnerEntry{
+			OwnerID:   r.OwnerID,
+			DaysSince: int(now.Sub(r.LastVisitAt).Hours() / 24),
+		})
+	}
+	return entries, nil
 }

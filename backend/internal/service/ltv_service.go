@@ -13,17 +13,17 @@ import (
 // cpmStageToAPI は内部CPMStageをAPIレスポンス名（task doc準拠）に変換する。
 func cpmStageToAPI(stage CPMStage) string {
 	switch stage {
-	case CPMStageNew:
+	case CPMStageEncounter:
 		return "encounter"
-	case CPMStageStep:
+	case CPMStageGrowing:
 		return "growing"
-	case CPMStageRegular:
+	case CPMStageCore:
 		return "core"
-	case CPMStageLoyalHigh:
+	case CPMStageNoah:
 		return "noah"
-	case CPMStageAtRisk:
+	case CPMStageSpot:
 		return "spot"
-	default:
+	default: // CPMStageDormant
 		return "dormant"
 	}
 }
@@ -32,15 +32,15 @@ func cpmStageToAPI(stage CPMStage) string {
 func apiToCPMStage(name string) (CPMStage, bool) {
 	switch name {
 	case "encounter":
-		return CPMStageNew, true
+		return CPMStageEncounter, true
 	case "growing":
-		return CPMStageStep, true
+		return CPMStageGrowing, true
 	case "core":
-		return CPMStageRegular, true
+		return CPMStageCore, true
 	case "noah":
-		return CPMStageLoyalHigh, true
+		return CPMStageNoah, true
 	case "spot":
-		return CPMStageAtRisk, true
+		return CPMStageSpot, true
 	case "dormant":
 		return CPMStageDormant, true
 	default:

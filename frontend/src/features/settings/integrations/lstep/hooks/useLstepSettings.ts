@@ -65,6 +65,13 @@ async function postLstepTest(): Promise<void> {
   );
 }
 
+async function postLineMessagingTest(): Promise<void> {
+  const clinicId = getClinicId();
+  await axios.post(
+    `/v1/clinics/${clinicId}/settings/integrations/lstep/test-line`,
+  );
+}
+
 async function deleteLstepSettings(): Promise<void> {
   const clinicId = getClinicId();
   await axios.delete(
@@ -105,6 +112,13 @@ export function useTestLstepConnection() {
   return useMutation({
     mutationFn: postLstepTest,
     onError: (error) => handleApiError(error, "接続テスト"),
+  });
+}
+
+export function useTestLineMessagingConnection() {
+  return useMutation({
+    mutationFn: postLineMessagingTest,
+    onError: (error) => handleApiError(error, "LINE Messaging API接続テスト"),
   });
 }
 

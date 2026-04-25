@@ -159,6 +159,10 @@ func (m *mockLstepTagSyncService) SyncNoShowTag(_ context.Context, _, _ uint64, 
 	return nil
 }
 
+func (m *mockLstepTagSyncService) SyncDormantTags(_ context.Context, _, _ uint64, _ int) error {
+	return nil
+}
+
 // ---- ヘルパー ----
 
 func newLstepLifecycleSvc(
@@ -540,13 +544,13 @@ func TestCalculateCPMStage(t *testing.T) {
 		stage CPMStage
 	}{
 		{"来院なし → dormant", CPMData{DaysSinceVisit: -1}, CPMStageDormant},
-		{"180日超 → dormant", CPMData{DaysSinceVisit: 181}, CPMStageDormant},
-		{"90〜180日 → at_risk", CPMData{DaysSinceVisit: 100}, CPMStageAtRisk},
-		{"90日以内・高LTV → loyal_high", CPMData{DaysSinceVisit: 30, LTVAmount: 100_000}, CPMStageLoyalHigh},
-		{"90日以内・年6回 → loyal_high", CPMData{DaysSinceVisit: 10, AnnualVisitCount: 6}, CPMStageLoyalHigh},
-		{"90日以内・累計4回 → regular", CPMData{DaysSinceVisit: 10, TotalVisitCount: 4}, CPMStageRegular},
-		{"90日以内・累計2回 → step", CPMData{DaysSinceVisit: 10, TotalVisitCount: 2}, CPMStageStep},
-		{"90日以内・初回 → new", CPMData{DaysSinceVisit: 5, TotalVisitCount: 1}, CPMStageNew},
+		{"240日以上 → dormant", CPMData{DaysSinceVisit: 240}, CPMStageDormant},
+		{"noah条件満たす → noah", CPMData{DaysSinceVisit: 30, FirstVisitDaysSince: 365, AnnualVisitCount: 3, LTVAmount: 80_000}, CPMStageNoah},
+		{"core条件満たす → core", CPMData{DaysSinceVisit: 30, FirstVisitDaysSince: 180, AnnualVisitCount: 2, LTVAmount: 50_000}, CPMStageCore},
+		{"spot条件 高単価・90日超 → spot", CPMData{DaysSinceVisit: 100, MaxSingleVisitAmount: 30_000}, CPMStageSpot},
+		{"2〜3回来院・90日以内 → growing", CPMData{DaysSinceVisit: 10, TotalVisitCount: 2}, CPMStageGrowing},
+		{"初回来院 → encounter", CPMData{DaysSinceVisit: 5, TotalVisitCount: 1}, CPMStageEncounter},
+		{"累計4回・条件未達 → encounter", CPMData{DaysSinceVisit: 10, TotalVisitCount: 4}, CPMStageEncounter},
 	}
 
 	for _, tt := range tests {
@@ -560,20 +564,26 @@ func TestCalculateCPMStage(t *testing.T) {
 // ---- テスト: ltvBracketTag / visitCountAnnualTag ----
 
 func TestLtvBracketTag(t *testing.T) {
-	assert.Equal(t, "ltv_amount_500000plus", ltvBracketTag(500_000))
-	assert.Equal(t, "ltv_amount_200000to500000", ltvBracketTag(200_000))
-	assert.Equal(t, "ltv_amount_100000to200000", ltvBracketTag(100_000))
-	assert.Equal(t, "ltv_amount_50000to100000", ltvBracketTag(50_000))
-	assert.Equal(t, "ltv_amount_10000to50000", ltvBracketTag(10_000))
-	assert.Equal(t, "ltv_amount_under10000", ltvBracketTag(9_999))
+	assert.Equal(t, "ltv_amount_8", ltvBracketTag(80_000))
+	assert.Equal(t, "ltv_amount_8", ltvBracketTag(200_000))
+	assert.Equal(t, "ltv_amount_5", ltvBracketTag(50_000))
+	assert.Equal(t, "ltv_amount_5", ltvBracketTag(79_999))
+	assert.Equal(t, "ltv_amount_2", ltvBracketTag(20_000))
+	assert.Equal(t, "ltv_amount_2", ltvBracketTag(49_999))
+	assert.Equal(t, "ltv_amount_0", ltvBracketTag(0))
+	assert.Equal(t, "ltv_amount_0", ltvBracketTag(19_999))
 }
 
 func TestVisitCountAnnualTag(t *testing.T) {
-	assert.Equal(t, "visit_count_annual_12plus", visitCountAnnualTag(12))
-	assert.Equal(t, "visit_count_annual_6to12", visitCountAnnualTag(6))
-	assert.Equal(t, "visit_count_annual_3to6", visitCountAnnualTag(3))
+	assert.Equal(t, "visit_count_annual_10", visitCountAnnualTag(10))
+	assert.Equal(t, "visit_count_annual_10", visitCountAnnualTag(15))
+	assert.Equal(t, "visit_count_annual_5", visitCountAnnualTag(5))
+	assert.Equal(t, "visit_count_annual_5", visitCountAnnualTag(9))
+	assert.Equal(t, "visit_count_annual_3", visitCountAnnualTag(3))
+	assert.Equal(t, "visit_count_annual_3", visitCountAnnualTag(4))
 	assert.Equal(t, "visit_count_annual_2", visitCountAnnualTag(2))
-	assert.Equal(t, "visit_count_annual_0", visitCountAnnualTag(0))
+	assert.Equal(t, "visit_count_annual_1", visitCountAnnualTag(0))
+	assert.Equal(t, "visit_count_annual_1", visitCountAnnualTag(1))
 }
 
 // ---- テスト: vaccineTagNames / isRabiesVaccine ----

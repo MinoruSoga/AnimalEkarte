@@ -28,6 +28,8 @@ type AccountingRepository interface {
 	GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
 	// SumPaidByOwner は飼い主の支払済み請求合計（LTV）を返す（Lステップタグ同期用）。
 	SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	// MaxSingleVisitAmountByOwner は飼い主の1回来院最大支払額を返す（CPMスポット判定用）。
+	MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
 
 // PaymentMethodTotal は支払方法別の売上合計。BUG-368
@@ -700,4 +702,19 @@ func (r *accountingRepository) SumPaidByOwner(ctx context.Context, clinicID, own
 		return 0, apperrors.FromGORM(err, "billing", fmt.Sprintf("owner=%d", ownerID))
 	}
 	return total, nil
+}
+
+// MaxSingleVisitAmountByOwner は飼い主の1回来院最大支払額を返す（CPMスポット判定用）。
+func (r *accountingRepository) MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	var max int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Billing{}).
+		Scopes(clinicScope(clinicID)).
+		Where("owner_id = ? AND status = ? AND deleted_at IS NULL", ownerID, model.BillingStatusCompleted).
+		Select("COALESCE(MAX(total_amount), 0)").
+		Scan(&max).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "billing", fmt.Sprintf("owner=%d", ownerID))
+	}
+	return max, nil
 }

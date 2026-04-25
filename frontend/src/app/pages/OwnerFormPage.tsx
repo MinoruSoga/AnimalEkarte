@@ -3,13 +3,22 @@
  * owners feature と pets feature と line-reservation feature を app層でのみ合成し、
  * feature 間 import を排除する。
  */
+import { useState } from "react";
 import { useParams } from "react-router";
+import { Send } from "lucide-react";
 
 // features（app層なので複数 feature を import 可能）
-import { OwnerForm } from "@/features/owners";
+import {
+  OwnerForm,
+  LineIntegrationCard,
+  LineSendPanel,
+  useGetOwner,
+} from "@/features/owners";
 import { createPet, useCreatePet, useUpdatePet, useDeletePet } from "@/features/pets";
 import { LinkedLineCustomers } from "@/features/line-reservation";
 import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { ICON, STYLE } from "@/lib/design-tokens";
 import type { PetMutations } from "@/types/pet";
 
 export function OwnerFormPage() {
@@ -20,6 +29,11 @@ export function OwnerFormPage() {
   const { mutate: createPetMutate } = useCreatePet();
   const { mutate: updatePetMutate } = useUpdatePet();
   const { mutate: deletePetMutate } = useDeletePet();
+
+  const { data: owner } = useGetOwner(ownerId ?? "");
+  const ownerName = owner?.ownerName ?? "";
+
+  const [sendPanelOpen, setSendPanelOpen] = useState(false);
 
   const petMutations: PetMutations = {
     createPetFn: createPet,
@@ -33,7 +47,26 @@ export function OwnerFormPage() {
 
   // LINE連携セクション（編集モード=ownerIdがある時のみ意味がある）
   const lineSection = ownerId ? (
-    <LinkedLineCustomers clinicId={clinicId} ownerId={Number(ownerId)} />
+    <div className="space-y-4">
+      <LinkedLineCustomers clinicId={clinicId} ownerId={Number(ownerId)} />
+      <LineIntegrationCard ownerId={ownerId} ownerName={ownerName} />
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          onClick={() => setSendPanelOpen(true)}
+          className={STYLE.btnPrimary}
+        >
+          <Send className={ICON.sm} />
+          個別LINE送信
+        </Button>
+      </div>
+      <LineSendPanel
+        ownerId={ownerId}
+        ownerName={ownerName}
+        open={sendPanelOpen}
+        onOpenChange={setSendPanelOpen}
+      />
+    </div>
   ) : null;
 
   return <OwnerForm petMutations={petMutations} lineSection={lineSection} />;

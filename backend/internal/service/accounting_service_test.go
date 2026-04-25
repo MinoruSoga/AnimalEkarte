@@ -73,6 +73,10 @@ func (m *mockAccountingRepository) SumPaidByOwner(_ context.Context, _, _ uint64
 	return 0, nil
 }
 
+func (m *mockAccountingRepository) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func ptrString(v string) *string { return &v }
 
 func TestAccountingService_List(t *testing.T) {

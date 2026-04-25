@@ -13,7 +13,7 @@ interface ConfirmDialogProps {
   variant?: "default" | "destructive";
   isPending?: boolean;
   /** BUG-084: ref to the element that triggered the dialog; focus is restored here on close */
-  triggerRef?: React.RefObject<HTMLElement>;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 export const ConfirmDialog = memo(function ConfirmDialog({

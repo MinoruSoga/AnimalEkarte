@@ -68,6 +68,9 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input SendL
 	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return nil, apperrors.WrapInvalidInput("飼い主にLINE User IDが設定されていません")
 	}
+	if owner.LstepOptOut {
+		return nil, apperrors.WrapInvalidInput("この飼い主はLINEメッセージの受信を拒否しています")
+	}
 
 	_, _, lineToken, err := s.lstepSettings.GetRawCredentials(ctx, clinicID)
 	if err != nil {

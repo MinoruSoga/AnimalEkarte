@@ -72,6 +72,10 @@ func (m *mockMedicalRecordRepository) FindLatestByOwner(_ context.Context, _, _ 
 	return nil, nil
 }
 
+func (m *mockMedicalRecordRepository) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+	return nil, nil
+}
+
 // mrMockOwnerRepo は MedicalRecord テスト用 OwnerRepository モック（FindByID のみ）
 type mrMockOwnerRepo struct {
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)

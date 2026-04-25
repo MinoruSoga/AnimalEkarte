@@ -104,7 +104,7 @@ func (m *mockLineLinkTokenRepo) FindByToken(ctx context.Context, token string) (
 	if m.findByTokenFn != nil {
 		return m.findByTokenFn(ctx, token)
 	}
-	return nil, apperrors.FromGORM(nil, "link_token", token)
+	return nil, apperrors.WrapNotFound("link_token", token)
 }
 func (m *mockLineLinkTokenRepo) MarkUsed(ctx context.Context, id uint64, usedAt time.Time) error {
 	if m.markUsedFn != nil {
@@ -176,7 +176,7 @@ func TestLineLinkService_GenerateLinkToken_OwnerNotFound(t *testing.T) {
 	svc := newTestLineLinkService(
 		&mockLineLinkOwnerRepo{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
-				return nil, apperrors.FromGORM(nil, "owner", "42")
+				return nil, apperrors.WrapNotFound("owner", "42")
 			},
 		},
 		&mockLineLinkTokenRepo{},

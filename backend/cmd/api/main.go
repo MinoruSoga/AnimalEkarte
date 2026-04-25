@@ -121,7 +121,7 @@ func main() {
 	// LSTEP-BE-013: LINE個別送信
 	svcs.LineSend = service.NewLineSendService(svcs.LstepSettings, repos.Owner, svcs.SharedFile, repos.LstepTagCache, svcs.Audit, repos.LineSendLog)
 	// LSTEP-BE-014: ノーショウ検知バッチ
-	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic)
+	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic, repos.MedicalRecord)
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
 	svcs.LineLink = service.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, svcs.Audit)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
@@ -173,6 +173,29 @@ func main() {
 					if batchErr := svcs.LstepBatch.RunNoShowCheckAllClinics(appCtx); batchErr != nil {
 						logger.Error("no-show batch failed", slog.String("error", batchErr.Error()))
 					}
+				}
+			}
+		}
+	}()
+
+	// LSTEP-BE-004: 休眠検知バッチ — 毎日 02:00 JST に実行
+	go func() {
+		jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+		for {
+			now := time.Now().In(jst)
+			// 翌日の 02:00 JST を計算
+			next := time.Date(now.Year(), now.Month(), now.Day(), 2, 0, 0, 0, jst)
+			if !next.After(now) {
+				next = next.Add(24 * time.Hour)
+			}
+			timer := time.NewTimer(next.Sub(now))
+			select {
+			case <-appCtx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+				if batchErr := svcs.LstepBatch.RunDormantDetectionAllClinics(appCtx); batchErr != nil {
+					logger.Error("dormant detection batch failed", slog.String("error", batchErr.Error()))
 				}
 			}
 		}

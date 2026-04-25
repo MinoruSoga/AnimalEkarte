@@ -11,10 +11,11 @@ import {
   useGetLstepSettings,
   useUpdateLstepSettings,
   useTestLstepConnection,
+  useTestLineMessagingConnection,
   useDeleteLstepSettings,
 } from "./hooks/useLstepSettings";
 import type { LstepSettingsRequest } from "./hooks/useLstepSettings";
-import { Trash2, Wifi } from "lucide-react";
+import { Trash2, Wifi, AlertTriangle, Info } from "lucide-react";
 
 // ─────────────────────────────────────────────────
 // Subcomponents
@@ -86,10 +87,12 @@ export function LstepSettingsForm() {
   const { data: settings, isLoading } = useGetLstepSettings();
   const updateMutation = useUpdateLstepSettings();
   const testMutation = useTestLstepConnection();
+  const lineTestMutation = useTestLineMessagingConnection();
   const deleteMutation = useDeleteLstepSettings();
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
+  const [lineTestResult, setLineTestResult] = useState<"success" | "error" | null>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
 
   const [_formState, formAction] = useActionState(
@@ -134,9 +137,20 @@ export function LstepSettingsForm() {
     try {
       await testMutation.mutateAsync();
       setTestResult("success");
-      toast.success("接続テスト成功");
+      toast.success("Lステップ接続テスト成功");
     } catch {
       setTestResult("error");
+    }
+  };
+
+  const handleLineTest = async () => {
+    setLineTestResult(null);
+    try {
+      await lineTestMutation.mutateAsync();
+      setLineTestResult("success");
+      toast.success("LINE Messaging API接続テスト成功");
+    } catch {
+      setLineTestResult("error");
     }
   };
 
@@ -235,9 +249,23 @@ export function LstepSettingsForm() {
           placeholder="例: 〇〇動物病院"
         />
 
+        {/* 月間配信数の注意 */}
+        <div className={`flex items-start gap-2 p-3 rounded-[4px] bg-[#FFF9E6] border border-[#F0D070] text-sm text-[#7A5C00]`}>
+          <AlertTriangle className="shrink-0 mt-0.5 w-4 h-4" />
+          <span>LINE Messaging API送信は LINE 公式アカウントの月間配信数にカウントされます。プランの上限に注意してください。</span>
+        </div>
+
+        {/* APIオプション未加入注意 */}
+        {!settings?.line_channel_access_token_masked ? (
+          <div className={`flex items-start gap-2 p-3 rounded-[4px] bg-[#F4F4F4] border ${C.borderLight} text-sm ${C.text60}`}>
+            <Info className="shrink-0 mt-0.5 w-4 h-4" />
+            <span>LINE Messaging API トークンが未設定です。LINE公式アカウントのMessaging APIオプションを契約し、チャネルアクセストークンを入力してください。未設定の場合、LINE連携機能は動作しません。</span>
+          </div>
+        ) : null}
+
         <div className={`flex items-center justify-between pt-4 border-t ${C.borderLight}`}>
-          <div className="flex items-center gap-2">
-            {/* 接続テスト */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Lステップ接続テスト */}
             {isConfigured ? (
               <Button
                 type="button"
@@ -247,15 +275,34 @@ export function LstepSettingsForm() {
                 className="h-10 text-sm px-4"
               >
                 <Wifi className={ICON.action} />
-                {testMutation.isPending ? "テスト中..." : "接続テスト"}
+                {testMutation.isPending ? "テスト中..." : "Lステップ接続テスト"}
               </Button>
             ) : null}
-            {/* テスト結果 */}
             {testResult === "success" ? (
-              <span className={`text-sm text-[#0F7B6C]`}>接続成功</span>
+              <span className="text-sm text-[#0F7B6C]">L接続成功</span>
             ) : null}
             {testResult === "error" ? (
-              <span className={`text-sm ${C.danger}`}>接続失敗</span>
+              <span className={`text-sm ${C.danger}`}>L接続失敗</span>
+            ) : null}
+
+            {/* LINE Messaging API 接続テスト */}
+            {settings?.line_channel_access_token_masked ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleLineTest}
+                disabled={lineTestMutation.isPending}
+                className="h-10 text-sm px-4"
+              >
+                <Wifi className={ICON.action} />
+                {lineTestMutation.isPending ? "テスト中..." : "LINE接続テスト"}
+              </Button>
+            ) : null}
+            {lineTestResult === "success" ? (
+              <span className="text-sm text-[#0F7B6C]">LINE接続成功</span>
+            ) : null}
+            {lineTestResult === "error" ? (
+              <span className={`text-sm ${C.danger}`}>LINE接続失敗</span>
             ) : null}
           </div>
 

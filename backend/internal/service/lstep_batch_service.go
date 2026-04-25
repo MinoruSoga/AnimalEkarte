@@ -9,19 +9,25 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// LstepBatchService はバッチ処理でノーショウ検知を行うサービス（BE-014）。
+// LstepBatchService はバッチ処理でノーショウ検知・休眠検知を行うサービス（BE-005, BE-014）。
 type LstepBatchService interface {
 	// DetectNoShowReservations は指定クリニックのノーショウ予約を検知しタグ付与・ステータス更新を行う。
 	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。
 	DetectNoShowReservations(ctx context.Context, clinicID uint64) (int, []error)
 	// RunNoShowCheckAllClinics は全クリニックに対してノーショウ検知を実行するcronエントリポイント。
 	RunNoShowCheckAllClinics(ctx context.Context) error
+	// DetectDormantOwners は指定クリニックの休眠飼い主を検知しタグを同期する。
+	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。
+	DetectDormantOwners(ctx context.Context, clinicID uint64) (int, []error)
+	// RunDormantDetectionAllClinics は全クリニックに対して休眠検知を実行するcronエントリポイント（02:00 JST）。
+	RunDormantDetectionAllClinics(ctx context.Context) error
 }
 
 type lstepBatchService struct {
 	reservationRepo repository.ReservationRepository
 	tagSyncSvc      LstepTagSyncService
 	clinicRepo      repository.ClinicRepository
+	medRecordRepo   repository.MedicalRecordRepository
 }
 
 // NewLstepBatchService は LstepBatchService を初期化して返す。
@@ -29,11 +35,13 @@ func NewLstepBatchService(
 	reservationRepo repository.ReservationRepository,
 	tagSyncSvc LstepTagSyncService,
 	clinicRepo repository.ClinicRepository,
+	medRecordRepo repository.MedicalRecordRepository,
 ) LstepBatchService {
 	return &lstepBatchService{
 		reservationRepo: reservationRepo,
 		tagSyncSvc:      tagSyncSvc,
 		clinicRepo:      clinicRepo,
+		medRecordRepo:   medRecordRepo,
 	}
 }
 
@@ -83,6 +91,48 @@ func (s *lstepBatchService) RunNoShowCheckAllClinics(ctx context.Context) error 
 		}
 		if count > 0 {
 			slog.InfoContext(ctx, "no-show batch: updated reservations", "clinic_id", clinic.ID, "count", count)
+		}
+	}
+	return nil
+}
+
+// DetectDormantOwners は指定クリニックの休眠飼い主を検知してタグを同期する（閾値: 180日）。
+func (s *lstepBatchService) DetectDormantOwners(ctx context.Context, clinicID uint64) (int, []error) {
+	const minDaysSince = 180
+	entries, err := s.medRecordRepo.FindDormantOwnerEntries(ctx, clinicID, minDaysSince)
+	if err != nil {
+		slog.ErrorContext(ctx, "dormant batch: failed to find dormant owners", "clinic_id", clinicID, "error", err)
+		return 0, []error{apperrors.Wrap(err, "failed to find dormant owners")}
+	}
+
+	var errs []error
+	count := 0
+	for _, entry := range entries {
+		if tagErr := s.tagSyncSvc.SyncDormantTags(ctx, clinicID, entry.OwnerID, entry.DaysSince); tagErr != nil {
+			slog.ErrorContext(ctx, "dormant batch: failed to sync dormant tag", "clinic_id", clinicID, "owner_id", entry.OwnerID, "error", tagErr)
+			errs = append(errs, apperrors.Wrap(tagErr, "failed to sync dormant tag"))
+			continue
+		}
+		count++
+	}
+	return count, errs
+}
+
+// RunDormantDetectionAllClinics は全クリニックに対して休眠検知を実行する（02:00 JST バッチ）。
+func (s *lstepBatchService) RunDormantDetectionAllClinics(ctx context.Context) error {
+	clinics, err := s.clinicRepo.FindAll(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "dormant batch: failed to fetch clinics", "error", err)
+		return apperrors.Wrap(err, "failed to fetch clinics for dormant batch")
+	}
+
+	for _, clinic := range clinics {
+		count, errs := s.DetectDormantOwners(ctx, clinic.ID)
+		if len(errs) > 0 {
+			slog.ErrorContext(ctx, "dormant batch: partial errors", "clinic_id", clinic.ID, "error_count", len(errs))
+		}
+		if count > 0 {
+			slog.InfoContext(ctx, "dormant batch: synced dormant tags", "clinic_id", clinic.ID, "count", count)
 		}
 	}
 	return nil

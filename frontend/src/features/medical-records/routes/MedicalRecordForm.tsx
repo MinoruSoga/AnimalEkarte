@@ -45,6 +45,7 @@ import { toast } from "sonner";
 import { MedicalRecordPrintView } from "../components/MedicalRecordPrintView";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
+import { useGetOwnerLineTags } from "@/features/owners";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
@@ -123,6 +124,15 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
     const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
+  const { data: ownerLineData } = useGetOwnerLineTags(selectedPet?.ownerId ?? "");
+  const hasLineIntegration = (ownerLineData?.is_linked && !ownerLineData?.lstep_opt_out) ?? false;
+  const lstepStatus = ownerLineData === undefined
+    ? undefined
+    : ownerLineData.lstep_opt_out
+      ? ("opt-out" as const)
+      : ownerLineData.is_linked
+        ? ("synced" as const)
+        : ("not-linked" as const);
 
   // BUG-MEDI-005: タブ切替時にスクロール位置をトップにリセットするための ref
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -404,7 +414,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
                 value={nextVisitDate}
                 onChange={handleNextVisitDateChange}
                 onValidationChange={handleNextVisitDateValidChange}
-                hasLineIntegration={false}
+                hasLineIntegration={hasLineIntegration}
                 disabled={isNewRecord}
               />
             </div>
@@ -420,7 +430,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         ) : null}
         {mountedTabs.has("予防接種") ? (
           <div className={`${LAYOUT.fullHeight} ${activeTab === "予防接種" ? "" : "hidden"}`}>
-            <MedicalRecordVaccination petId={selectedPet?.id} />
+            <MedicalRecordVaccination petId={selectedPet?.id} lstepStatus={lstepStatus} />
           </div>
         ) : null}
         {mountedTabs.has("定期健診") ? (
@@ -430,7 +440,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
                 カルテを保存してから使用できます
               </div>
             ) : (
-              <CheckupsTab medicalRecordId={recordId} />
+              <CheckupsTab medicalRecordId={recordId} lstepStatus={lstepStatus} />
             )}
           </div>
         ) : null}
