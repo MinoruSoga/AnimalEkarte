@@ -13,6 +13,8 @@ import (
 // LineReservationSettingRepository は予約基本設定のデータアクセスインターフェース
 type LineReservationSettingRepository interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	// FindAll は全クリニックの設定を返す（Webhook署名検証用）。
+	FindAll(ctx context.Context) ([]model.LineReservationSetting, error)
 	Save(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error
 }
 
@@ -20,6 +22,14 @@ type lineReservationSettingRepository struct{ db *gorm.DB }
 
 func NewLineReservationSettingRepository(db *gorm.DB) LineReservationSettingRepository {
 	return &lineReservationSettingRepository{db: db}
+}
+
+func (r *lineReservationSettingRepository) FindAll(ctx context.Context) ([]model.LineReservationSetting, error) {
+	var settings []model.LineReservationSetting
+	if err := r.db.WithContext(ctx).Find(&settings).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "line_reservation_setting", "")
+	}
+	return settings, nil
 }
 
 func (r *lineReservationSettingRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {

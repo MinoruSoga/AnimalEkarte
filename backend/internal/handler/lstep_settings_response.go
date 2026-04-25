@@ -1,0 +1,47 @@
+package handler
+
+import (
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/service"
+)
+
+// lstepSettingsResponse はGETレスポンス（センシティブ値はマスク済み）
+type lstepSettingsResponse struct {
+	LstepAPIKeyMasked            string     `json:"lstep_api_key_masked"`
+	LstepBaseURL                 string     `json:"lstep_base_url"`
+	LineChannelAccessTokenMasked string     `json:"line_channel_access_token_masked"`
+	LineChannelSecretMasked      string     `json:"line_channel_secret_masked"`
+	LiffID                       string     `json:"liff_id"`
+	IsConfigured                 bool       `json:"is_configured"`
+	LastUpdatedAt                *time.Time `json:"last_updated_at"`
+}
+
+// lstepConnectionTestResponse は疎通確認結果レスポンス
+type lstepConnectionTestResponse struct {
+	LstepOK    bool   `json:"lstep_ok"`
+	LstepError string `json:"lstep_error,omitempty"`
+	LineOK     bool   `json:"line_ok"`
+	LineError  string `json:"line_error,omitempty"`
+}
+
+func toLstepSettingsResponse(s *service.LstepSettingsResponse) lstepSettingsResponse {
+	return lstepSettingsResponse{
+		LstepAPIKeyMasked:            s.LstepAPIKeyMasked,
+		LstepBaseURL:                 s.LstepBaseURL,
+		LineChannelAccessTokenMasked: s.LineChannelAccessTokenMasked,
+		LineChannelSecretMasked:      s.LineChannelSecretMasked,
+		LiffID:                       s.LiffID,
+		IsConfigured:                 s.IsConfigured,
+		LastUpdatedAt:                s.LastUpdatedAt,
+	}
+}
+
+func toLstepConnectionTestResponse(r *service.LstepConnectionTestResult) lstepConnectionTestResponse {
+	return lstepConnectionTestResponse{
+		LstepOK:    r.LstepOK,
+		LstepError: r.LstepError,
+		LineOK:     r.LineOK,
+		LineError:  r.LineError,
+	}
+}

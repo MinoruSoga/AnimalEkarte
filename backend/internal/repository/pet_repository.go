@@ -13,6 +13,7 @@ import (
 type PetRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
 	CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
 	Create(ctx context.Context, pet *model.Pet) error
@@ -77,6 +78,20 @@ func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*mod
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
 	}
 	return &pet, nil
+}
+
+func (r *petRepository) FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error) {
+	var pets []model.Pet
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Preload("AnimalSpecies").
+		Where("owner_id = ? AND deceased_at IS NULL AND deleted_at IS NULL", ownerID).
+		Order("created_at ASC").
+		Find(&pets).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "pet", "")
+	}
+	return pets, nil
 }
 
 func (r *petRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {

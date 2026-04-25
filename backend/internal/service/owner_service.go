@@ -166,6 +166,8 @@ type OwnerService interface {
 	CreateWithPets(ctx context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateOwnerInput) (*model.Owner, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	// LinkLineUserID は飼主の LINE User ID を設定または解除する（BE-005）。nil で解除。
+	LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error
 }
 
 // --- Implementation ---
@@ -452,5 +454,16 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 	slog.InfoContext(ctx, "owner deleted",
 		slog.Uint64("owner_id", id),
 		slog.Uint64("clinic_id", clinicID))
+	return nil
+}
+
+func (s *ownerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find owner")
+	}
+	if err := s.repo.UpdateLineUserID(ctx, clinicID, id, lineUserID); err != nil {
+		slog.ErrorContext(ctx, "failed to link line user id", "error", err, "id", id, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to link line user id")
+	}
 	return nil
 }

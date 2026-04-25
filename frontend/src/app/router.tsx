@@ -121,6 +121,13 @@ export const router = createBrowserRouter([
               return { Component: OwnerFormPage, loader: ownerLoader };
             },
           },
+          {
+            path: "ltv",
+            lazy: async () => {
+              const { LtvDashboardPage } = await import("@/features/owners");
+              return { Component: LtvDashboardPage };
+            },
+          },
         ],
       },
 // ── Reservations ─────────────────────────────────────────────
@@ -916,6 +923,50 @@ export const router = createBrowserRouter([
             lazy: async () => {
               const { PaymentMethodSettings } = await import("@/features/master");
               return { Component: PaymentMethodSettings };
+            },
+          },
+          // FE-001: Lステップ連携設定
+          {
+            path: "integrations/lstep",
+            element: <RequirePermission resource={ResourceHospitalSettings}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { LstepSettingsPage } = await import("@/features/settings/integrations/lstep");
+                return { Component: LstepSettingsPage };
+              },
+            }],
+          },
+          // FE-007: Lステップタグ管理
+          {
+            path: "lstep/tags",
+            element: <RequirePermission resource={ResourceHospitalSettings}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { LstepTagManagementPage } = await import("@/features/lstep");
+                return { Component: LstepTagManagementPage };
+              },
+            }],
+          },
+        ],
+      },
+
+      // ── Lステップ管理 ────────────────────────────────────────────
+      {
+        path: "/lstep",
+        element: (
+          <RequirePermission resource={ResourceHospitalSettings}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          {
+            path: "checkup-sync",
+            lazy: async () => {
+              const { CheckupSyncPage } = await import("@/features/lstep");
+              return { Component: CheckupSyncPage };
             },
           },
         ],

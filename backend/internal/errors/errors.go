@@ -136,6 +136,23 @@ func WrapNotImplemented(message string) error {
 	}
 }
 
+// ErrBadGateway は上流サービス（LINE等）のエラーを表す（502 Bad Gateway）。
+var ErrBadGateway = errors.New("bad gateway")
+
+// WrapBadGateway は上流サービスエラーを AppError でラップする。
+func WrapBadGateway(message string) error {
+	return &AppError{
+		Code:    "BAD_GATEWAY",
+		Message: message,
+		Err:     ErrBadGateway,
+	}
+}
+
+// IsBadGateway は ErrBadGateway かどうかを判定する。
+func IsBadGateway(err error) bool {
+	return errors.Is(err, ErrBadGateway)
+}
+
 // FromGORM は GORM のエラーを AppError に変換する
 func FromGORM(err error, resource, id string) error {
 	if err == nil {

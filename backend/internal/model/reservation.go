@@ -17,6 +17,7 @@ const (
 	ReservationStatusInConsultation ReservationStatus = "in_consultation"
 	ReservationStatusAccounting     ReservationStatus = "accounting"
 	ReservationStatusCompleted      ReservationStatus = "completed"
+	ReservationStatusNoShow         ReservationStatus = "no_show"
 )
 
 type VisitType string

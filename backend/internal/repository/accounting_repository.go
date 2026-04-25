@@ -26,6 +26,8 @@ type AccountingRepository interface {
 	// FEAT-368: 集計・締め機能
 	GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
 	GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
+	// SumPaidByOwner は飼い主の支払済み請求合計（LTV）を返す（Lステップタグ同期用）。
+	SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
 
 // PaymentMethodTotal は支払方法別の売上合計。BUG-368
@@ -683,4 +685,19 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 		BillingCount: billingCount,
 		TaxBreakdown: taxBreakdown,
 	}, nil
+}
+
+// SumPaidByOwner は飼い主の支払済み請求合計（LTV）を返す（Lステップタグ同期用）。
+func (r *accountingRepository) SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	var total int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Billing{}).
+		Scopes(clinicScope(clinicID)).
+		Where("owner_id = ? AND status = ? AND deleted_at IS NULL", ownerID, model.BillingStatusCompleted).
+		Select("COALESCE(SUM(total_amount), 0)").
+		Scan(&total).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "billing", fmt.Sprintf("owner=%d", ownerID))
+	}
+	return total, nil
 }

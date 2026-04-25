@@ -27,6 +27,10 @@ func (m *mockLiffSettingRepository) FindByClinicID(ctx context.Context, clinicID
 	return nil, errors.New("not implemented")
 }
 
+func (m *mockLiffSettingRepository) FindAll(_ context.Context) ([]model.LineReservationSetting, error) {
+	return nil, nil
+}
+
 func (m *mockLiffSettingRepository) Save(_ context.Context, _ uint64, _ *model.LineReservationSetting) error {
 	return nil
 }
@@ -285,6 +289,27 @@ func (m *mockLiffOwnerRepository) Delete(_ context.Context, _, _ uint64) error {
 func (m *mockLiffOwnerRepository) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
+func (m *mockLiffOwnerRepository) FindByLineUserID(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+	return nil, nil
+}
+func (m *mockLiffOwnerRepository) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
+	return nil, nil
+}
+func (m *mockLiffOwnerRepository) UpdateLineUserID(_ context.Context, _, _ uint64, _ *string) error {
+	return nil
+}
+
+func (m *mockLiffOwnerRepository) FindAllByLineUserID(_ context.Context, _ string) ([]model.Owner, error) {
+	return nil, nil
+}
+
+func (m *mockLiffOwnerRepository) UpdateLineFollowedAt(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
+}
+
+func (m *mockLiffOwnerRepository) UpdateLineBlockedAt(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
+}
 
 // --- mockLiffReservationRepository ---
 
@@ -353,6 +378,10 @@ func (m *mockLiffReservationRepository) CountByDateAndSource(_ context.Context, 
 
 func (m *mockLiffReservationRepository) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
+}
+
+func (m *mockLiffReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
+	return nil, nil
 }
 
 // --- mockLiffValidators ---

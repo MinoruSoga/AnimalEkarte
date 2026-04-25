@@ -1,0 +1,170 @@
+import { useId } from "react";
+import { C, STYLE, PALETTE } from "@/lib/design-tokens";
+
+// ─────────────────────────────────────────────────
+// Date helpers (no date-fns dependency)
+// ─────────────────────────────────────────────────
+
+function addMonths(date: Date, months: number): string {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().split("T")[0];
+}
+
+function addYears(date: Date, years: number): string {
+  const d = new Date(date);
+  d.setFullYear(d.getFullYear() + years);
+  return d.toISOString().split("T")[0];
+}
+
+function today(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+// ─────────────────────────────────────────────────
+// Validation
+// ─────────────────────────────────────────────────
+
+function validate(value: string): string | null {
+  if (value === "") return null; // 空欄はOK
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const selected = new Date(value);
+  selected.setHours(0, 0, 0, 0);
+
+  if (selected < now) {
+    return "今日より前の日付は設定できません";
+  }
+
+  const twoYearsLater = new Date(now);
+  twoYearsLater.setFullYear(twoYearsLater.getFullYear() + 2);
+
+  if (selected > twoYearsLater) {
+    return "今日から2年以内の日付を設定してください";
+  }
+
+  return null;
+}
+
+// ─────────────────────────────────────────────────
+// Quick-select button definitions
+// ─────────────────────────────────────────────────
+
+interface QuickOption {
+  label: string;
+  getValue: () => string;
+}
+
+const QUICK_OPTIONS: QuickOption[] = [
+  { label: "1ヶ月後", getValue: () => addMonths(new Date(), 1) },
+  { label: "3ヶ月後", getValue: () => addMonths(new Date(), 3) },
+  { label: "6ヶ月後", getValue: () => addMonths(new Date(), 6) },
+  { label: "1年後",   getValue: () => addYears(new Date(), 1) },
+];
+
+// ─────────────────────────────────────────────────
+// Props
+// ─────────────────────────────────────────────────
+
+interface NextVisitDateFieldProps {
+  value: string;
+  onChange: (date: string) => void;
+  onValidationChange: (isValid: boolean) => void;
+  hasLineIntegration?: boolean;
+  disabled?: boolean;
+}
+
+// ─────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────
+
+export function NextVisitDateField({
+  value,
+  onChange,
+  onValidationChange,
+  hasLineIntegration = false,
+  disabled = false,
+}: NextVisitDateFieldProps) {
+  const inputId = useId();
+  const errorMessage = validate(value);
+  const isValid = errorMessage === null;
+
+  const handleChange = (newValue: string) => {
+    const error = validate(newValue);
+    onValidationChange(error === null);
+    onChange(newValue);
+  };
+
+  const handleQuickSelect = (getValue: () => string) => {
+    const newValue = getValue();
+    const error = validate(newValue);
+    onValidationChange(error === null);
+    onChange(newValue);
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Label row */}
+      <div className="flex items-center gap-2">
+        <label htmlFor={inputId} className={STYLE.formLabel}>
+          次回来院推奨日
+        </label>
+        {hasLineIntegration ? (
+          <span
+            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full text-white"
+            style={{ backgroundColor: PALETTE.lineGreen }}
+          >
+            LINEに自動通知
+          </span>
+        ) : null}
+      </div>
+
+      {/* Date input */}
+      <input
+        id={inputId}
+        type="date"
+        value={value}
+        min={today()}
+        onChange={(e) => handleChange(e.target.value)}
+        disabled={disabled}
+        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full max-w-[220px] outline-none focus:ring-2 focus:ring-[#2383E2]/30 ${
+          !isValid && value !== "" ? `ring-2 ring-[#C0392B]/30 ${C.borderDanger}` : ""
+        }`}
+      />
+
+      {/* Quick select buttons */}
+      <div className="flex flex-wrap gap-1.5">
+        {QUICK_OPTIONS.map((opt) => (
+          <button
+            key={opt.label}
+            type="button"
+            disabled={disabled}
+            onClick={() => handleQuickSelect(opt.getValue)}
+            className={`text-sm px-3 py-1 rounded-[4px] border ${C.borderMedium} ${C.text60} ${C.hoverBgLight} ${C.hoverText} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            {opt.label}
+          </button>
+        ))}
+        {value !== "" ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => handleChange("")}
+            className={`text-sm px-3 py-1 rounded-[4px] ${C.text40} ${C.hoverText} ${C.hoverBgLight} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            クリア
+          </button>
+        ) : null}
+      </div>
+
+      {/* Validation error */}
+      {errorMessage !== null && value !== "" ? (
+        <p className={`text-sm ${C.danger}`} role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
+    </div>
+  );
+}

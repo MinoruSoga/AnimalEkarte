@@ -139,6 +139,12 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	// BE-003: ワクチンタグ同期（best-effort、失敗しても作成レスポンスは返す）
+	if vaccination.PetID != nil {
+		if pet, err := h.svc.Pet.GetByID(c.Request.Context(), clinicID, *vaccination.PetID); err == nil {
+			_ = h.svc.LstepTagSync.SyncVaccineTag(c.Request.Context(), clinicID, pet.OwnerID, vaccination.ID)
+		}
+	}
 	c.Header("Location", fmt.Sprintf("/api/v1/vaccinations/%d", vaccination.ID))
 	c.JSON(http.StatusCreated, toVaccinationResponse(vaccination))
 }

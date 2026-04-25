@@ -139,6 +139,10 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	// BE-011: CPM ステージタグ同期（completed 時のみ、best-effort）
+	if model.BillingStatus(input.Status) == model.BillingStatusCompleted && created.OwnerID != nil {
+		_ = h.svc.LstepTagSync.SyncCPMStageTag(ctx, clinicID, *created.OwnerID)
+	}
 	c.Header("Location", fmt.Sprintf("/v1/accountings/%d", created.ID))
 	c.JSON(http.StatusCreated, toAccountingResponse(created))
 }
@@ -205,6 +209,10 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 	if err != nil {
 		RespondError(c, err)
 		return
+	}
+	// BE-011: CPM ステージタグ同期（completed 遷移時のみ、best-effort）
+	if input.Status != nil && model.BillingStatus(*input.Status) == model.BillingStatusCompleted && updated.OwnerID != nil {
+		_ = h.svc.LstepTagSync.SyncCPMStageTag(ctx, clinicID, *updated.OwnerID)
 	}
 	c.JSON(http.StatusOK, toAccountingResponse(updated))
 }

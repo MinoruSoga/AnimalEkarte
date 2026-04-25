@@ -17,6 +17,7 @@ import { LoadingFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
+import { NextVisitDateField } from "../components/NextVisitDateField";
 import { MedicalRecordDiagnosisPlan } from "../components/MedicalRecordDiagnosisPlan";
 import { MedicalRecordTreatment } from "../components/MedicalRecordTreatment";
 import { MedicalRecordVaccination } from "../components/MedicalRecordVaccination";
@@ -106,6 +107,10 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     requestOwnerChange,
     confirmOwnerChange,
     cancelOwnerChange,
+    nextVisitDate,
+    handleNextVisitDateChange,
+    isNextVisitDateValid: _isNextVisitDateValid,
+    handleNextVisitDateValidChange,
     } = useMedicalRecordForm(recordId);
 
     useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
@@ -394,6 +399,15 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
               diagnosis1NameIdError={formState.fieldErrors?.diagnosis1_name_id}
             />
+            <div className="px-4 pb-4 mt-4">
+              <NextVisitDateField
+                value={nextVisitDate}
+                onChange={handleNextVisitDateChange}
+                onValidationChange={handleNextVisitDateValidChange}
+                hasLineIntegration={false}
+                disabled={isNewRecord}
+              />
+            </div>
           </div>
         ) : null}
         {mountedTabs.has("治療") ? (

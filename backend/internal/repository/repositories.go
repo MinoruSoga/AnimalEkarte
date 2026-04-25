@@ -82,6 +82,20 @@ type Repositories struct {
 	ClosingSpecialPeriod ClosingSpecialPeriodRepository
 	PaymentMethodMaster  PaymentMethodMasterRepository
 	CashRegisterClose    CashRegisterCloseRepository
+	// LSTEP / LINE連携
+	LstepSettings LstepSettingsRepository
+	SharedFile    SharedFileRepository
+	LstepTagCache LstepTagCacheRepository
+	// LSTEP-BE-009: 処方薬記録
+	Prescription PrescriptionRepository
+	// LSTEP-BE-010: LTV集計
+	Ltv LtvRepository
+	// LSTEP-BE-012: 慢性疾患フラグ
+	ChronicCondition PetChronicConditionRepository
+	// LSTEP-BE-013: LINE個別送信ログ
+	LineSendLog LineSendLogRepository
+	// LSTEP-BE-021: LINE User ID 紐付けトークン
+	LineLinkToken LineLinkTokenRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -155,6 +169,15 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		ClosingSpecialPeriod: NewClosingSpecialPeriodRepository(db),
 		PaymentMethodMaster:  NewPaymentMethodMasterRepository(db),
 		CashRegisterClose:    NewCashRegisterCloseRepository(db),
+		// LSTEP / LINE連携
+		LstepSettings:    NewLstepSettingsRepository(db),
+		SharedFile:       NewSharedFileRepository(db),
+		LstepTagCache:    NewLstepTagCacheRepository(db),
+		Prescription:     NewPrescriptionRepository(db),
+		Ltv:              NewLtvRepository(db),
+		ChronicCondition: NewPetChronicConditionRepository(db),
+		LineSendLog:      NewLineSendLogRepository(db),
+		LineLinkToken:    NewLineLinkTokenRepository(db),
 	}
 }
 

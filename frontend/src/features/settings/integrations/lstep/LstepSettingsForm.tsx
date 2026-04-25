@@ -1,0 +1,298 @@
+import { useActionState, useState, useRef } from "react";
+import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { INITIAL_ACTION_STATE } from "@/types/form";
+import type { ActionState } from "@/types/form";
+import {
+  useGetLstepSettings,
+  useUpdateLstepSettings,
+  useTestLstepConnection,
+  useDeleteLstepSettings,
+} from "./hooks/useLstepSettings";
+import type { LstepSettingsRequest } from "./hooks/useLstepSettings";
+import { Trash2, Wifi } from "lucide-react";
+
+// ─────────────────────────────────────────────────
+// Subcomponents
+// ─────────────────────────────────────────────────
+
+function PasswordField({
+  id,
+  name,
+  label,
+  placeholder,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  placeholder?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className={STYLE.formLabel}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type="password"
+        name={name}
+        placeholder={placeholder ?? "新しい値を入力（空欄で変更なし）"}
+        autoComplete="new-password"
+        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full outline-none focus:ring-2 focus:ring-[#2383E2]/30`}
+      />
+    </div>
+  );
+}
+
+function TextField({
+  id,
+  name,
+  label,
+  defaultValue,
+  placeholder,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  defaultValue?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className={STYLE.formLabel}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type="text"
+        name={name}
+        defaultValue={defaultValue ?? ""}
+        placeholder={placeholder ?? ""}
+        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full outline-none focus:ring-2 focus:ring-[#2383E2]/30`}
+      />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────────
+
+export function LstepSettingsForm() {
+  const { data: settings, isLoading } = useGetLstepSettings();
+  const updateMutation = useUpdateLstepSettings();
+  const testMutation = useTestLstepConnection();
+  const deleteMutation = useDeleteLstepSettings();
+
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+
+  const [_formState, formAction] = useActionState(
+    async (_prevState: ActionState, formData: FormData): Promise<ActionState> => {
+      const req: LstepSettingsRequest = {};
+
+      const apiKey = formData.get("lstep_api_key");
+      if (typeof apiKey === "string" && apiKey.trim() !== "") {
+        req.lstep_api_key = apiKey.trim();
+      }
+      const token = formData.get("line_channel_access_token");
+      if (typeof token === "string" && token.trim() !== "") {
+        req.line_channel_access_token = token.trim();
+      }
+      const secret = formData.get("line_channel_secret");
+      if (typeof secret === "string" && secret.trim() !== "") {
+        req.line_channel_secret = secret.trim();
+      }
+      const liffId = formData.get("liff_id");
+      if (typeof liffId === "string") {
+        req.liff_id = liffId.trim();
+      }
+      const accountName = formData.get("line_account_name");
+      if (typeof accountName === "string") {
+        req.line_account_name = accountName.trim();
+      }
+
+      try {
+        await updateMutation.mutateAsync(req);
+        toast.success("Lステップ設定を保存しました");
+        return { success: true, timestamp: Date.now() };
+      } catch (error) {
+        handleApiError(error, "Lステップ設定の保存");
+        return { success: false, timestamp: Date.now() };
+      }
+    },
+    INITIAL_ACTION_STATE,
+  );
+
+  const handleTest = async () => {
+    setTestResult(null);
+    try {
+      await testMutation.mutateAsync();
+      setTestResult("success");
+      toast.success("接続テスト成功");
+    } catch {
+      setTestResult("error");
+    }
+  };
+
+  const handleDeleteConfirm = () => {
+    deleteMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast.success("Lステップ設定を削除しました");
+        setIsDeleteOpen(false);
+      },
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className={`flex items-center justify-center py-16 text-sm ${C.text50}`}>
+        読み込み中...
+      </div>
+    );
+  }
+
+  const isConfigured = settings?.is_configured ?? false;
+
+  return (
+    <div className={`${STYLE.formCard} max-w-2xl`}>
+      {/* 設定状態バッジ */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className={`text-base font-semibold ${C.text}`}>
+          Lステップ連携設定
+        </h2>
+        {isConfigured ? (
+          <span className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full bg-[#DDEDEA] text-[#0F7B6C] border border-[#C3DFC3]`}>
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#0F7B6C]" />
+            設定済み
+          </span>
+        ) : (
+          <span className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full ${C.bgStatusGray} ${C.textStatusGray} border ${C.borderMuted}`}>
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${C.bgStatusGrayMedium}`} />
+            未設定
+          </span>
+        )}
+      </div>
+
+      {/* 既存マスク値の表示 */}
+      {isConfigured ? (
+        <div className={`mb-6 p-3 rounded-[4px] ${C.bgPage} border ${C.borderLight} text-sm ${C.text60} flex flex-col gap-1`}>
+          {settings?.lstep_api_key_masked ? (
+            <span>Lステップ APIキー: <span className={`font-mono ${C.text}`}>••••{settings.lstep_api_key_masked}</span></span>
+          ) : null}
+          {settings?.line_channel_access_token_masked ? (
+            <span>LINE Channel Access Token: <span className={`font-mono ${C.text}`}>••••{settings.line_channel_access_token_masked}</span></span>
+          ) : null}
+          {settings?.line_channel_secret_masked ? (
+            <span>LINE Channel Secret: <span className={`font-mono ${C.text}`}>••••{settings.line_channel_secret_masked}</span></span>
+          ) : null}
+          {settings?.liff_id ? (
+            <span>LIFF ID: <span className={`font-mono ${C.text}`}>{settings.liff_id}</span></span>
+          ) : null}
+          {settings?.line_account_name ? (
+            <span>LINE公式アカウント名: <span className={C.text}>{settings.line_account_name}</span></span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* フォーム */}
+      <form action={formAction} className="flex flex-col gap-4">
+        <PasswordField
+          id="lstep_api_key"
+          name="lstep_api_key"
+          label="Lステップ APIキー"
+          placeholder={settings?.lstep_api_key_masked ? `現在: ••••${settings.lstep_api_key_masked}（変更する場合のみ入力）` : "Lステップ APIキーを入力"}
+        />
+        <PasswordField
+          id="line_channel_access_token"
+          name="line_channel_access_token"
+          label="LINE Channel Access Token"
+          placeholder={settings?.line_channel_access_token_masked ? `現在: ••••${settings.line_channel_access_token_masked}（変更する場合のみ入力）` : "LINE Channel Access Tokenを入力"}
+        />
+        <PasswordField
+          id="line_channel_secret"
+          name="line_channel_secret"
+          label="LINE Channel Secret"
+          placeholder={settings?.line_channel_secret_masked ? `現在: ••••${settings.line_channel_secret_masked}（変更する場合のみ入力）` : "LINE Channel Secretを入力"}
+        />
+        <TextField
+          id="liff_id"
+          name="liff_id"
+          label="LIFF ID"
+          defaultValue={settings?.liff_id ?? ""}
+          placeholder="例: 1234567890-xxxxxxxx"
+        />
+        <TextField
+          id="line_account_name"
+          name="line_account_name"
+          label="LINE公式アカウント名"
+          defaultValue={settings?.line_account_name ?? ""}
+          placeholder="例: 〇〇動物病院"
+        />
+
+        <div className={`flex items-center justify-between pt-4 border-t ${C.borderLight}`}>
+          <div className="flex items-center gap-2">
+            {/* 接続テスト */}
+            {isConfigured ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleTest}
+                disabled={testMutation.isPending}
+                className="h-10 text-sm px-4"
+              >
+                <Wifi className={ICON.action} />
+                {testMutation.isPending ? "テスト中..." : "接続テスト"}
+              </Button>
+            ) : null}
+            {/* テスト結果 */}
+            {testResult === "success" ? (
+              <span className={`text-sm text-[#0F7B6C]`}>接続成功</span>
+            ) : null}
+            {testResult === "error" ? (
+              <span className={`text-sm ${C.danger}`}>接続失敗</span>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* 削除ボタン */}
+            {isConfigured ? (
+              <Button
+                ref={deleteButtonRef}
+                type="button"
+                variant="ghost-danger"
+                onClick={() => setIsDeleteOpen(true)}
+                className={`h-10 text-sm px-4 border ${C.borderDanger}`}
+              >
+                <Trash2 className={ICON.action} />
+                設定削除
+              </Button>
+            ) : null}
+            <SubmitButton className="h-10 text-sm px-5">
+              保存
+            </SubmitButton>
+          </div>
+        </div>
+      </form>
+
+      {/* 削除確認ダイアログ */}
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Lステップ設定を削除しますか？"
+        description="Lステップ連携設定をすべて削除します。LINE連携機能が無効になります。この操作は元に戻せません。"
+        confirmLabel={deleteMutation.isPending ? "削除中..." : "削除する"}
+        cancelLabel="キャンセル"
+        variant="destructive"
+        isPending={deleteMutation.isPending}
+        triggerRef={deleteButtonRef}
+      />
+    </div>
+  );
+}

@@ -104,6 +104,9 @@ func (h *Handler) CreatePet(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	// BE-005: ペット基本情報・動物分類タグ同期（best-effort）
+	_ = h.svc.LstepTagSync.SyncOwnerAnimalClassificationTags(c.Request.Context(), clinicID, pet.OwnerID)
+	_ = h.svc.LstepTagSync.SyncPetBasicInfoTags(c.Request.Context(), clinicID, pet.OwnerID)
 	c.Header("Location", fmt.Sprintf("/api/v1/pets/%d", pet.ID))
 	c.JSON(http.StatusCreated, toPetResponse(pet))
 }
@@ -152,6 +155,9 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	// BE-005: ペット基本情報・動物分類タグ同期（best-effort）
+	_ = h.svc.LstepTagSync.SyncOwnerAnimalClassificationTags(c.Request.Context(), clinicID, pet.OwnerID)
+	_ = h.svc.LstepTagSync.SyncPetBasicInfoTags(c.Request.Context(), clinicID, pet.OwnerID)
 	c.JSON(http.StatusOK, toPetResponse(pet))
 }
 
@@ -180,4 +186,9 @@ func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
 	pets.POST("", h.RequirePermission(string(model.ResourceOwners), "create"), h.CreatePet)
 	pets.PATCH("/:id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdatePet)
 	pets.DELETE("/:id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeletePet)
+	// BE-017: ペット死亡ライフサイクル
+	pets.PATCH("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchPetDeath)
+	pets.DELETE("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeletePetDeath)
+	// BE-012: 慢性疾患フラグ
+	h.RegisterChronicConditionRoutes(pets)
 }

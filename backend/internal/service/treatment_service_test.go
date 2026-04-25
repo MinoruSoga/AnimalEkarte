@@ -38,6 +38,14 @@ func (m *mockMedicalRecordRepoForTreatment) CountEstimatesByMedicalRecordID(_ co
 	return 0, nil
 }
 
+func (m *mockMedicalRecordRepoForTreatment) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
+	return &repository.OwnerVisitSummary{}, nil
+}
+
+func (m *mockMedicalRecordRepoForTreatment) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+
 // ---- Treatment モック ----
 
 type mockTreatmentRepository struct {

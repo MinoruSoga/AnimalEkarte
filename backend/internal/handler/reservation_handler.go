@@ -165,6 +165,10 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	// BE-007: 予約登録タグ同期（best-effort）
+	if reservation.OwnerID != nil && reservation.Status != model.ReservationStatusCancelled {
+		_ = h.svc.LstepTagSync.SyncReservationTag(ctx, clinicID, *reservation.OwnerID, reservation.StartTime)
+	}
 	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", reservation.ID))
 	c.JSON(http.StatusCreated, toReservationResponse(reservation))
 }
@@ -239,6 +243,15 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		return
 	}
 
+	// BE-007: 予約ステータス変更タグ同期（best-effort）
+	if svcInput.Status != nil && reservation.OwnerID != nil {
+		switch *svcInput.Status {
+		case model.ReservationStatusCancelled:
+			_ = h.svc.LstepTagSync.SyncCancellationTag(ctx, clinicID, *reservation.OwnerID, reservation.StartTime)
+		case model.ReservationStatusConfirmed, model.ReservationStatusPending:
+			_ = h.svc.LstepTagSync.SyncReservationTag(ctx, clinicID, *reservation.OwnerID, reservation.StartTime)
+		}
+	}
 	// 受付済みに変更された場合はカルテを best-effort で自動作成する（BE-reception-auto-create-medical-record）
 	if svcInput.Status != nil && *svcInput.Status == model.ReservationStatusCheckedIn {
 		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)

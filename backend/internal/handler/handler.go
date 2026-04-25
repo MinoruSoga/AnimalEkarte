@@ -100,8 +100,18 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterAccountingReportRoutes(protected)
 	h.RegisterPaymentMethodMasterRoutes(protected)
 
+	// LSTEP / LINE連携
+	h.RegisterLstepSettingsRoutes(protected)
+	h.RegisterSharedFileRoutes(protected)
+	h.RegisterLtvRoutes(protected)
+	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
+	h.RegisterLstepTagSummaryRoutes(protected)
+
 	// LIFF公開API（JWT認証なし・LINE IDトークン認証）
 	h.RegisterLiffRoutes(r)
+
+	// BE-021: LINE Webhook（JWT認証なし・HMAC-SHA256署名検証）
+	r.POST("/api/line/webhook", h.ReceiveLineWebhook)
 }
 
 // registerOwnerRoutesWithAuth は飼主ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
@@ -112,6 +122,19 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners.POST("", h.RequirePermission(string(model.ResourceOwners), "create"), h.CreateOwner)
 	owners.PATCH("/:id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwner)
 	owners.DELETE("/:id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwner)
+	// BE-005: LINE User ID 連携・解除
+	owners.PATCH("/:id/line-user-id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineUserID)
+	// BE-017: Lステップオプトアウト・オプトイン
+	owners.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepOptOut)
+	owners.DELETE("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeleteOwnerLstepOptOut)
+	// BE-019: Lステップタグ CRUD
+	owners.GET("/:id/lstep/tags", h.GetOwnerLstepTags)
+	owners.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepTag)
+	owners.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
+	// BE-013: LINE個別送信
+	h.RegisterLineSendRoutes(owners)
+	// BE-021: LINE User ID 自動取得・飼い主紐付けトークン発行
+	owners.POST("/:id/line/link-token", h.RequirePermission(string(model.ResourceOwners), "edit"), h.GenerateLineLinkToken)
 }
 
 // registerMedicalRecordRoutesWithAuth はカルテルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
@@ -130,6 +153,7 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	h.RegisterTreatmentPlanMedicalRecordRoutes(records)
 	h.RegisterClinicalPlanRoutes(records)
 	h.RegisterCheckupRoutes(records)
+	h.RegisterPrescriptionRoutes(records)
 	h.RegisterInquiryRoutes(records)
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -72,6 +73,30 @@ func (m *mockOwnerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, 
 		return m.countPetsByOwnerIDFn(ctx, clinicID, ownerID)
 	}
 	return 0, nil
+}
+
+func (m *mockOwnerRepository) FindByLineUserID(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+	return nil, nil
+}
+
+func (m *mockOwnerRepository) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
+	return nil, nil
+}
+
+func (m *mockOwnerRepository) UpdateLineUserID(_ context.Context, _, _ uint64, _ *string) error {
+	return nil
+}
+
+func (m *mockOwnerRepository) FindAllByLineUserID(_ context.Context, _ string) ([]model.Owner, error) {
+	return nil, nil
+}
+
+func (m *mockOwnerRepository) UpdateLineFollowedAt(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
+}
+
+func (m *mockOwnerRepository) UpdateLineBlockedAt(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
 }
 
 // ポインタヘルパー関数（ptrString は accounting_service_test.go で定義済み）

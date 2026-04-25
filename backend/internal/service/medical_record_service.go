@@ -39,13 +39,14 @@ func generateCryptoRandomString(length int) string {
 
 // UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO
 type UpdateMedicalRecordInput struct {
-	Date          *time.Time
-	OwnerID       *uint64
-	PetID         *uint64
-	DoctorID      *uint64
-	AppointmentID *uint64
-	Status        *model.MedicalRecordStatus
-	Version       *int // 楽観的ロック用: nil の場合はチェックをスキップ
+	Date                     *time.Time
+	OwnerID                  *uint64
+	PetID                    *uint64
+	DoctorID                 *uint64
+	AppointmentID            *uint64
+	Status                   *model.MedicalRecordStatus
+	Version                  *int // 楽観的ロック用: nil の場合はチェックをスキップ
+	NextVisitRecommendedDate *time.Time
 }
 
 func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
@@ -67,6 +68,9 @@ func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
 	}
 	if input.Status != nil {
 		fields["status"] = *input.Status
+	}
+	if input.NextVisitRecommendedDate != nil {
+		fields["next_visit_recommended_date"] = *input.NextVisitRecommendedDate
 	}
 	return fields
 }

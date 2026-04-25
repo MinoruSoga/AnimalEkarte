@@ -10,6 +10,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // mockMedicalRecordRepository は MedicalRecordRepository のテスト用モック実装
@@ -63,6 +64,14 @@ func (m *mockMedicalRecordRepository) CountEstimatesByMedicalRecordID(ctx contex
 	return 0, nil
 }
 
+func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
+	return &repository.OwnerVisitSummary{}, nil
+}
+
+func (m *mockMedicalRecordRepository) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+
 // mrMockOwnerRepo は MedicalRecord テスト用 OwnerRepository モック（FindByID のみ）
 type mrMockOwnerRepo struct {
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
@@ -93,6 +102,27 @@ func (m *mrMockOwnerRepo) FindByNameAndPhone(_ context.Context, _ uint64, _, _ s
 func (m *mrMockOwnerRepo) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
+func (m *mrMockOwnerRepo) FindByLineUserID(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+	return nil, nil
+}
+func (m *mrMockOwnerRepo) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
+	return nil, nil
+}
+func (m *mrMockOwnerRepo) UpdateLineUserID(_ context.Context, _, _ uint64, _ *string) error {
+	return nil
+}
+
+func (m *mrMockOwnerRepo) FindAllByLineUserID(_ context.Context, _ string) ([]model.Owner, error) {
+	return nil, nil
+}
+
+func (m *mrMockOwnerRepo) UpdateLineFollowedAt(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
+}
+
+func (m *mrMockOwnerRepo) UpdateLineBlockedAt(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
+}
 
 // mrMockPetRepo は MedicalRecord テスト用 PetRepository モック（FindByID のみ）
 type mrMockPetRepo struct {
@@ -114,6 +144,9 @@ func (m *mrMockPetRepo) Update(_ context.Context, _, _ uint64, _ map[string]any)
 	return nil
 }
 func (m *mrMockPetRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *mrMockPetRepo) FindLivingByOwner(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+	return nil, nil
+}
 
 func TestMedicalRecordService_List(t *testing.T) {
 	now := time.Now()

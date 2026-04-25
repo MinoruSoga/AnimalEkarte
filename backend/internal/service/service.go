@@ -83,6 +83,27 @@ type Services struct {
 	ReservationAdmin          ReservationAdminService
 	LineCustomer              LineCustomerService
 	Liff                      LiffService
+
+	// LSTEP / LINE連携
+	LstepSettings  LstepSettingsService
+	LstepTagSync   LstepTagSyncService
+	LstepLifecycle LstepLifecycleService
+	LstepTag       LstepTagService
+	SharedFile     SharedFileService
+	// LSTEP-BE-009: 処方薬記録
+	Prescription PrescriptionService
+	// LSTEP-BE-010: LTV集計
+	Ltv LtvService
+	// LSTEP-BE-012: 慢性疾患フラグ
+	ChronicCondition ChronicConditionService
+	// LSTEP-BE-013: LINE個別送信
+	LineSend LineSendService
+	// LSTEP-BE-014: ノーショウ検知バッチ
+	LstepBatch LstepBatchService
+	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
+	LineLink LineLinkService
+	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
+	LstepTagSummary LstepTagSummaryService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -191,6 +212,8 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ReservationSchedule:       NewReservationScheduleService(repos.ReservationSchedule),
 		ReservationAdmin:          NewReservationAdminService(repos.ReservationAdmin, repos.Reservation, tx),
 		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr),
+		Prescription:              NewPrescriptionService(repos.Prescription, repos.MedicalRecord),
+		Ltv:                       NewLtvService(repos.Ltv, repos.LstepTagCache),
 		Liff: NewLiffService(
 			repos.LineReservationSetting,
 			repos.ReservationTypeLiff,

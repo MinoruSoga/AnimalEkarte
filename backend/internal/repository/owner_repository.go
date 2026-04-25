@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -18,8 +19,20 @@ type OwnerRepository interface {
 	FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
 	FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error)
 	FindByNameAndPhone(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error)
+	// FindByLineUserID は LINE User ID で飼主を検索する（Lステップ連携用）。
+	FindByLineUserID(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error)
+	// FindAllWithLineUserID は line_user_id が設定されている飼主を全件返す（タグ一括同期用）。
+	FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error)
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	// UpdateLineUserID は飼主の LINE User ID を更新する。nil を渡すと連携解除。
+	UpdateLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error
+	// FindAllByLineUserID は LINE User ID で飼主を全クリニック横断検索する（Webhook用）。
+	FindAllByLineUserID(ctx context.Context, lineUserID string) ([]model.Owner, error)
+	// UpdateLineFollowedAt は飼主の LINE フォロー日時を更新する。
+	UpdateLineFollowedAt(ctx context.Context, clinicID, id uint64, t time.Time) error
+	// UpdateLineBlockedAt は飼主の LINE ブロック日時を更新する。
+	UpdateLineBlockedAt(ctx context.Context, clinicID, id uint64, t time.Time) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountPetsByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
@@ -199,4 +212,81 @@ func (r *ownerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, owne
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return count, nil
+}
+
+// FindByLineUserID は LINE User ID で飼主を検索する（Lステップ連携用）。
+func (r *ownerRepository) FindByLineUserID(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error) {
+	var owner model.Owner
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("line_user_id = ? AND deleted_at IS NULL", lineUserID).
+		First(&owner).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner", lineUserID)
+	}
+	return &owner, nil
+}
+
+// FindAllWithLineUserID は line_user_id が設定されている飼主を全件返す（タグ一括同期用）。
+func (r *ownerRepository) FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error) {
+	var owners []model.Owner
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("line_user_id IS NOT NULL AND deleted_at IS NULL").
+		Find(&owners).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner", "")
+	}
+	return owners, nil
+}
+
+// FindAllByLineUserID は LINE User ID で飼主を全クリニック横断検索する（Webhook用）。
+func (r *ownerRepository) FindAllByLineUserID(ctx context.Context, lineUserID string) ([]model.Owner, error) {
+	var owners []model.Owner
+	err := r.db.WithContext(ctx).
+		Where("line_user_id = ? AND deleted_at IS NULL", lineUserID).
+		Find(&owners).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner", lineUserID)
+	}
+	return owners, nil
+}
+
+// UpdateLineFollowedAt は飼主の LINE フォロー日時を更新する。
+func (r *ownerRepository) UpdateLineFollowedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
+	err := r.db.WithContext(ctx).
+		Model(&model.Owner{}).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ? AND deleted_at IS NULL", id).
+		Updates(map[string]any{"line_followed_at": t, "line_blocked_at": nil}).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+// UpdateLineBlockedAt は飼主の LINE ブロック日時を更新する。
+func (r *ownerRepository) UpdateLineBlockedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
+	err := r.db.WithContext(ctx).
+		Model(&model.Owner{}).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ? AND deleted_at IS NULL", id).
+		Update("line_blocked_at", t).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+// UpdateLineUserID は飼主の LINE User ID を更新する。nil を渡すと連携解除。
+func (r *ownerRepository) UpdateLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
+	err := r.db.WithContext(ctx).
+		Model(&model.Owner{}).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ? AND deleted_at IS NULL", id).
+		Update("line_user_id", lineUserID).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
+	}
+	return nil
 }

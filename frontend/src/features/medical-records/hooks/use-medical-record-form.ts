@@ -38,6 +38,10 @@ export function useMedicalRecordForm(recordId?: string) {
   const [isCreating, startCreateTransition] = useTransition();
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
 
+  // 次回来院推奨日
+  const [nextVisitDate, setNextVisitDate] = useState("");
+  const [isNextVisitDateValid, setIsNextVisitDateValid] = useState(true);
+
   // --- Focus Management (Accessibility) ---
   // Tab switching: previous-value pattern (no side effects during render)
   const [prevManualErrors, setPrevManualErrors] = useState(manualErrors);
@@ -192,6 +196,9 @@ export function useMedicalRecordForm(recordId?: string) {
 
           case "診察/治療プラン": {
             if (!canEdit) break;
+            if (!isNextVisitDateValid) {
+              return { success: false, timestamp: Date.now() };
+            }
             if (diagnosis1CategoryId && !diagnosis1NameId) {
               const diagError = { diagnosis1_name_id: "診断名を選択してください" };
               setManualErrors(diagError);
@@ -207,6 +214,13 @@ export function useMedicalRecordForm(recordId?: string) {
               diagnosis_2_name_id: diagnosis2NameId ?? undefined,
             };
             await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
+            // 次回来院推奨日を更新（空欄の場合は送信しない）
+            if (nextVisitDate) {
+              await updateMutation.mutateAsync({
+                id: recordId as string,
+                req: { next_recommended_visit_date: nextVisitDate } as UpdateMedicalRecordRequest,
+              });
+            }
             break;
           }
 
@@ -370,5 +384,10 @@ export function useMedicalRecordForm(recordId?: string) {
     confirmOwnerChange,
     cancelOwnerChange,
     fieldErrors: manualErrors,
+    // 次回来院推奨日
+    nextVisitDate,
+    handleNextVisitDateChange: setNextVisitDate,
+    isNextVisitDateValid,
+    handleNextVisitDateValidChange: setIsNextVisitDateValid,
   };
 }

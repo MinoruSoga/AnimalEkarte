@@ -1,0 +1,101 @@
+import { useState, useRef } from "react";
+import { C } from "@/lib/design-tokens";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useRevokePetDeath } from "../api/revoke-pet-death";
+
+interface PetDeceasedBannerProps {
+  deceasedAt: string;
+  birthDate?: string;
+  petId: string;
+  canEdit?: boolean;
+}
+
+function calcAge(deceasedAt: string, birthDate: string): number {
+  const deceased = new Date(deceasedAt);
+  const birth = new Date(birthDate);
+  let age = deceased.getFullYear() - birth.getFullYear();
+  const hasBirthdayPassed =
+    deceased.getMonth() > birth.getMonth() ||
+    (deceased.getMonth() === birth.getMonth() &&
+      deceased.getDate() >= birth.getDate());
+  if (!hasBirthdayPassed) {
+    age -= 1;
+  }
+  return Math.max(0, age);
+}
+
+function formatDeceasedDate(deceasedAt: string): string {
+  const d = new Date(deceasedAt);
+  const yyyy = d.getFullYear();
+  const mm = d.getMonth() + 1;
+  const dd = d.getDate();
+  return `${yyyy}年${mm}月${dd}日`;
+}
+
+export function PetDeceasedBanner({
+  deceasedAt,
+  birthDate,
+  petId,
+  canEdit = false,
+}: PetDeceasedBannerProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const revokeButtonRef = useRef<HTMLButtonElement>(null);
+  const mutation = useRevokePetDeath();
+
+  const age = birthDate ? calcAge(deceasedAt, birthDate) : null;
+  const formattedDate = formatDeceasedDate(deceasedAt);
+
+  const handleRevokeConfirm = () => {
+    mutation.mutate(petId, {
+      onSettled: () => setConfirmOpen(false),
+    });
+  };
+
+  return (
+    <div className="rounded-lg border border-gray-300 bg-gray-50 p-3 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <p className={`${C.text70}`}>
+          {age !== null ? (
+            <span>
+              享年: <span className={`font-medium ${C.text}`}>{age}歳</span>
+              <span className={`ml-1.5 ${C.text50}`}>
+                （{formattedDate} 永眠）
+              </span>
+            </span>
+          ) : (
+            <span>
+              <span className={C.text50}>{formattedDate} 永眠</span>
+            </span>
+          )}
+        </p>
+
+        {canEdit ? (
+          <button
+            ref={revokeButtonRef}
+            type="button"
+            onClick={() => setConfirmOpen(true)}
+            className={`text-xs ${C.text50} underline hover:no-underline ${C.hoverText} transition-colors shrink-0`}
+            disabled={mutation.isPending}
+          >
+            死亡記録を解除
+          </button>
+        ) : null}
+      </div>
+
+      {canEdit ? (
+        <ConfirmDialog
+          open={confirmOpen}
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={handleRevokeConfirm}
+          title="死亡記録を解除しますか？"
+          description="解除するとこのペットは「生存」ステータスに戻ります。"
+          confirmLabel="解除する"
+          cancelLabel="キャンセル"
+          variant="destructive"
+          isPending={mutation.isPending}
+          triggerRef={revokeButtonRef as React.RefObject<HTMLElement>}
+        />
+      ) : null}
+    </div>
+  );
+}

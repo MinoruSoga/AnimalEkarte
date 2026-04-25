@@ -47,6 +47,8 @@ type ReservationQueryRepository interface {
 	// FindAllByCategory はカテゴリ（'general'/'trimming'）でフィルタした予約一覧を返す。
 	// トリミング管理APIが appointments ベースで動作するために使用（BE-119）。
 	FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
+	// FindNoShowCandidates は end_time が現在時刻以前の confirmed/pending 予約を返す（BE-014 ノーショウ検知用）。
+	FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error)
 }
 
 // ReservationRepository は 3 つのサブインターフェースを合成したフルインターフェース。
@@ -352,6 +354,20 @@ func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinic
 		return 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	return count, nil
+}
+
+// FindNoShowCandidates は end_time が現在時刻以前の confirmed/pending 予約を返す（BE-014）。
+func (r *reservationRepository) FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error) {
+	var reservations []model.Reservation
+	err := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND deleted_at IS NULL AND status IN ? AND end_time <= NOW()",
+			clinicID,
+			[]string{string(model.ReservationStatusConfirmed), string(model.ReservationStatusPending)}).
+		Find(&reservations).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation", "")
+	}
+	return reservations, nil
 }
 
 func appointmentDayRange(date time.Time) (start, end time.Time) {

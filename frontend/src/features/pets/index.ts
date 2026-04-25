@@ -3,3 +3,7 @@ export { useDeletePet } from "./api/delete-pet";
 export { useGetPet } from "./api/get-pet";
 export { useGetPets } from "./api/get-pets";
 export { updatePet, useUpdatePet } from "./api/update-pet";
+export { useRecordPetDeath } from "./api/record-pet-death";
+export { useRevokePetDeath } from "./api/revoke-pet-death";
+export { PetDeceasedRecordButton } from "./components/PetDeceasedRecordButton";
+export { PetDeceasedBadge } from "./components/PetDeceasedBadge";

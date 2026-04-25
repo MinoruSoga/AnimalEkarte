@@ -59,6 +59,10 @@ func (m *mockPetRepository) Delete(ctx context.Context, clinicID, id uint64) err
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockPetRepository) FindLivingByOwner(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+	return nil, nil
+}
+
 // defaultOwnerRepo は owner を常に見つけるモック（cross-clinic validation パスさせる用）
 func defaultOwnerRepo() *mockOwnerRepository {
 	return &mockOwnerRepository{

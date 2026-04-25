@@ -68,6 +68,8 @@ func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
 
 	// 設定は認証不要（トップページ表示用）
 	liff.GET("/settings", h.GetLiffSettings)
+	// BE-021: LINE User ID 紐付け（link_token + line_id_token で自己認証）
+	liff.POST("/link", h.LinkLiffAccount)
 
 	// 以下は LINE IDトークン認証が必要
 	authed := liff.Group("")

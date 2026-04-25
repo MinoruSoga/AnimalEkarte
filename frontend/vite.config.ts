@@ -22,8 +22,23 @@ function lineReserveDevPlugin(): Plugin {
   };
 }
 
+/** dev サーバーで /liff/* の HTML ナビゲーションを liff/index.html にリライトする */
+function liffDevPlugin(): Plugin {
+  return {
+    name: 'liff-dev',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        if (req.url?.startsWith('/liff') && !req.url.includes('.')) {
+          req.url = '/liff/index.html';
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), lineReserveDevPlugin()],
+  plugins: [react(), tailwindcss(), lineReserveDevPlugin(), liffDevPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -47,6 +62,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         'line-reserve': resolve(__dirname, 'line-reserve/index.html'),
+        liff: resolve(__dirname, 'liff/index.html'),
       },
       output: {
         manualChunks: {
@@ -80,6 +96,8 @@ export default defineConfig({
           'vendor-icons': ['lucide-react'],
           // その他ユーティリティ
           'vendor-misc': ['sonner', 'clsx', 'tailwind-merge', 'cmdk'],
+          // LIFF SDK（liff バンドルに集約）
+          'vendor-liff': ['@line/liff'],
         },
       },
     },

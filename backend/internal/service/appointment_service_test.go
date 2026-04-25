@@ -96,6 +96,10 @@ func (m *mockReservationRepository) FindAllByCategory(_ context.Context, _ uint6
 	return nil, 0, nil
 }
 
+func (m *mockReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
+	return nil, nil
+}
+
 func ptrTime(t time.Time) *time.Time { return &t }
 
 func TestReservationService_List(t *testing.T) {
