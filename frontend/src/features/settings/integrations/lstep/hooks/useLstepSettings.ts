@@ -9,15 +9,18 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 export interface LstepSettingsResponse {
   lstep_api_key_masked: string | null;
+  lstep_base_url: string | null;
   line_channel_access_token_masked: string | null;
   line_channel_secret_masked: string | null;
   liff_id: string | null;
   line_account_name: string | null;
   is_configured: boolean;
+  last_updated_at: string | null;
 }
 
 export interface LstepSettingsRequest {
   lstep_api_key?: string;
+  lstep_base_url?: string;
   line_channel_access_token?: string;
   line_channel_secret?: string;
   liff_id?: string;
@@ -42,7 +45,7 @@ function getClinicId(): string {
 async function fetchLstepSettings(): Promise<LstepSettingsResponse> {
   const clinicId = getClinicId();
   const { data } = await axios.get<LstepSettingsResponse>(
-    `/v1/clinics/${clinicId}/settings/integrations/lstep`,
+    `/v1/clinics/${clinicId}/lstep-settings`,
   );
   return data;
 }
@@ -52,7 +55,7 @@ async function patchLstepSettings(
 ): Promise<LstepSettingsResponse> {
   const clinicId = getClinicId();
   const { data } = await axios.patch<LstepSettingsResponse>(
-    `/v1/clinics/${clinicId}/settings/integrations/lstep`,
+    `/v1/clinics/${clinicId}/lstep-settings`,
     req,
   );
   return data;
@@ -61,21 +64,14 @@ async function patchLstepSettings(
 async function postLstepTest(): Promise<void> {
   const clinicId = getClinicId();
   await axios.post(
-    `/v1/clinics/${clinicId}/settings/integrations/lstep/test`,
-  );
-}
-
-async function postLineMessagingTest(): Promise<void> {
-  const clinicId = getClinicId();
-  await axios.post(
-    `/v1/clinics/${clinicId}/settings/integrations/lstep/test-line`,
+    `/v1/clinics/${clinicId}/lstep-settings/test-connection`,
   );
 }
 
 async function deleteLstepSettings(): Promise<void> {
   const clinicId = getClinicId();
   await axios.delete(
-    `/v1/clinics/${clinicId}/settings/integrations/lstep`,
+    `/v1/clinics/${clinicId}/lstep-settings`,
   );
 }
 
@@ -115,9 +111,10 @@ export function useTestLstepConnection() {
   });
 }
 
+// BE has a single test-connection endpoint; this alias keeps the form unchanged.
 export function useTestLineMessagingConnection() {
   return useMutation({
-    mutationFn: postLineMessagingTest,
+    mutationFn: postLstepTest,
     onError: (error) => handleApiError(error, "LINE Messaging API接続テスト"),
   });
 }

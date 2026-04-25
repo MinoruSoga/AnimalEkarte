@@ -360,7 +360,7 @@ func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinic
 func (r *reservationRepository) FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error) {
 	var reservations []model.Reservation
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND deleted_at IS NULL AND status IN ? AND end_time <= NOW()",
+		Where("clinic_id = ? AND deleted_at IS NULL AND status IN ? AND end_time <= NOW() - interval '4 hours'",
 			clinicID,
 			[]string{string(model.ReservationStatusConfirmed), string(model.ReservationStatusPending)}).
 		Find(&reservations).Error

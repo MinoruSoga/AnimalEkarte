@@ -3,8 +3,8 @@ import type { LineSendType } from "../api/send-line-message";
 
 const TYPE_OPTIONS: { value: LineSendType; label: string }[] = [
   { value: "text", label: "テキスト送信" },
-  { value: "pdf", label: "PDF送付" },
-  { value: "image", label: "画像送付" },
+  { value: "pdf_url", label: "PDF送付" },
+  { value: "image_url", label: "画像送付" },
 ];
 
 interface LineSendTypeSelectorProps {

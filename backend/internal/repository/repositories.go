@@ -96,6 +96,8 @@ type Repositories struct {
 	LineSendLog LineSendLogRepository
 	// LSTEP-BE-021: LINE User ID 紐付けトークン
 	LineLinkToken LineLinkTokenRepository
+	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
+	CheckupSync CheckupSyncRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -178,6 +180,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		ChronicCondition: NewPetChronicConditionRepository(db),
 		LineSendLog:      NewLineSendLogRepository(db),
 		LineLinkToken:    NewLineLinkTokenRepository(db),
+		CheckupSync:      NewCheckupSyncRepository(db),
 	}
 }
 

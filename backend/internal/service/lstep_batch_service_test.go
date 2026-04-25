@@ -127,7 +127,7 @@ func (m *batchMockTagSyncSvc) SyncReservationTag(_ context.Context, _, _ uint64,
 func (m *batchMockTagSyncSvc) SyncCancellationTag(_ context.Context, _, _ uint64, _ time.Time) error {
 	return nil
 }
-func (m *batchMockTagSyncSvc) SyncCheckupTag(_ context.Context, _, _ uint64, _ time.Time, _ *time.Time) error {
+func (m *batchMockTagSyncSvc) SyncCheckupTag(_ context.Context, _, _, _ uint64, _ time.Time, _ *time.Time) error {
 	return nil
 }
 func (m *batchMockTagSyncSvc) SyncPrescriptionTag(_ context.Context, _, _ uint64) error {
@@ -150,13 +150,23 @@ func (m *batchMockTagSyncSvc) SyncDormantTags(ctx context.Context, clinicID, own
 	return nil
 }
 
+type batchMockAuditService struct{}
+
+func (m *batchMockAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
+func (m *batchMockAuditService) LogAuthLogin(_ context.Context, _ *uint64, _ *uint64, _, _, _ string) error {
+	return nil
+}
+func (m *batchMockAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
+	return nil
+}
+
 func newBatchService(
 	resRepo repository.ReservationRepository,
 	tagSvc LstepTagSyncService,
 	clinicRepo repository.ClinicRepository,
 	medRepo repository.MedicalRecordRepository,
 ) LstepBatchService {
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo)
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{})
 }
 
 func TestDetectNoShowReservations_Success(t *testing.T) {

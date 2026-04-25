@@ -144,4 +144,9 @@ func (h *Handler) RegisterLstepTagSummaryRoutes(rg *gin.RouterGroup) {
 	lstep := rg.Group("/lstep")
 	lstep.GET("/tag-summary", h.GetLstepTagSummary)
 	lstep.GET("/owners", h.SearchLstepOwnersByTag)
+
+	// ISSUE-020: FE が /clinics/:clinic_id/lstep/... で呼ぶエイリアス
+	clinicLstep := rg.Group("/clinics/:clinic_id/lstep")
+	clinicLstep.GET("/tag-summary", h.GetLstepTagSummary)
+	clinicLstep.GET("/owners", h.SearchLstepOwnersByTag)
 }

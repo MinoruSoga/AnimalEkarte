@@ -28,6 +28,7 @@ type lstepBatchService struct {
 	tagSyncSvc      LstepTagSyncService
 	clinicRepo      repository.ClinicRepository
 	medRecordRepo   repository.MedicalRecordRepository
+	auditSvc        AuditService
 }
 
 // NewLstepBatchService は LstepBatchService を初期化して返す。
@@ -36,12 +37,14 @@ func NewLstepBatchService(
 	tagSyncSvc LstepTagSyncService,
 	clinicRepo repository.ClinicRepository,
 	medRecordRepo repository.MedicalRecordRepository,
+	auditSvc AuditService,
 ) LstepBatchService {
 	return &lstepBatchService{
 		reservationRepo: reservationRepo,
 		tagSyncSvc:      tagSyncSvc,
 		clinicRepo:      clinicRepo,
 		medRecordRepo:   medRecordRepo,
+		auditSvc:        auditSvc,
 	}
 }
 
@@ -91,6 +94,7 @@ func (s *lstepBatchService) RunNoShowCheckAllClinics(ctx context.Context) error 
 		}
 		if count > 0 {
 			slog.InfoContext(ctx, "no-show batch: updated reservations", "clinic_id", clinic.ID, "count", count)
+			_ = s.auditSvc.LogLstepOperation(ctx, clinic.ID, nil, "batch_no_show_detect", "clinic", &clinic.ID)
 		}
 	}
 	return nil
@@ -133,6 +137,7 @@ func (s *lstepBatchService) RunDormantDetectionAllClinics(ctx context.Context) e
 		}
 		if count > 0 {
 			slog.InfoContext(ctx, "dormant batch: synced dormant tags", "clinic_id", clinic.ID, "count", count)
+			_ = s.auditSvc.LogLstepOperation(ctx, clinic.ID, nil, "batch_dormant_detect", "clinic", &clinic.ID)
 		}
 	}
 	return nil

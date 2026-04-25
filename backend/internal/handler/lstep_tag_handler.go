@@ -22,9 +22,11 @@ type postOwnerLstepTagRequest struct {
 
 // lstepTagsResponse は GET /owners/:id/lstep/tags のレスポンス。
 type lstepTagsResponse struct {
-	LineUserID *string   `json:"line_user_id"`
-	Tags       []string  `json:"tags"`
-	FetchedAt  time.Time `json:"fetched_at"`
+	LineUserID  *string   `json:"line_user_id"`
+	IsLinked    bool      `json:"is_linked"`
+	LstepOptOut bool      `json:"lstep_opt_out"`
+	Tags        []string  `json:"tags"`
+	FetchedAt   time.Time `json:"fetched_at"`
 }
 
 // lstepAddTagResponse は POST /owners/:id/lstep/tags のレスポンス。
@@ -39,9 +41,11 @@ func toLstepTagsResponse(r *service.OwnerTagsResult) lstepTagsResponse {
 		tags = []string{}
 	}
 	return lstepTagsResponse{
-		LineUserID: r.LineUserID,
-		Tags:       tags,
-		FetchedAt:  r.FetchedAt,
+		LineUserID:  r.LineUserID,
+		IsLinked:    r.IsLinked,
+		LstepOptOut: r.LstepOptOut,
+		Tags:        tags,
+		FetchedAt:   r.FetchedAt,
 	}
 }
 

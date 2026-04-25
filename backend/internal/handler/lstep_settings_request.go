@@ -7,4 +7,5 @@ type updateLstepSettingsRequest struct {
 	LineChannelAccessToken string `json:"line_channel_access_token"`
 	LineChannelSecret      string `json:"line_channel_secret"`
 	LiffID                 string `json:"liff_id"`
+	LineAccountName        string `json:"line_account_name"`
 }

@@ -5,6 +5,7 @@ import { Send } from "lucide-react";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetCheckupSyncPreview } from "../api/get-checkup-sync-preview";
 import { useCreateCheckupSync } from "../api/create-checkup-sync";
+import type { CheckupSyncResult } from "../api/create-checkup-sync";
 import type { CheckupSyncParams, CheckupType } from "../api/get-checkup-sync-preview";
 import { CheckupSyncFilterForm } from "./CheckupSyncFilterForm";
 import { CheckupSyncPreviewTable } from "./CheckupSyncPreviewTable";
@@ -22,6 +23,7 @@ export function CheckupSyncPage() {
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<Set<string>>(new Set());
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [tagName, setTagName] = useState("");
+  const [syncResult, setSyncResult] = useState<CheckupSyncResult | null>(null);
 
   const { canCreate } = usePermission("hospital-settings");
   const { data: previewData, isFetching } = useGetCheckupSyncPreview(searchParams);
@@ -30,6 +32,7 @@ export function CheckupSyncPage() {
   function handleSearch(params: CheckupSyncParams) {
     setSearchParams(params);
     setSelectedOwnerIds(new Set());
+    setSyncResult(null);
   }
 
   function handleOpenConfirm() {
@@ -47,7 +50,8 @@ export function CheckupSyncPage() {
         tag_name: tagName,
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          setSyncResult(data);
           setConfirmDialogOpen(false);
           setSelectedOwnerIds(new Set());
         },
@@ -87,6 +91,21 @@ export function CheckupSyncPage() {
               lineLinkedCount={previewData.line_linked_count}
               totalCount={previewData.total_count}
             />
+          ) : null}
+
+          {/* 実行結果 */}
+          {syncResult !== null ? (
+            <div className={`rounded-lg border ${C.borderLight} p-4 ${C.bgPage30}`}>
+              <p className={`text-sm font-medium ${C.text}`}>一括送信が完了しました</p>
+              <p className={`mt-1 text-sm ${C.text60}`}>
+                成功: <span className={`font-semibold ${C.text}`}>{syncResult.success_count}件</span>
+                {syncResult.failed_count > 0 ? (
+                  <>
+                    　失敗: <span className={`font-semibold ${C.textNotice}`}>{syncResult.failed_count}件</span>
+                  </>
+                ) : null}
+              </p>
+            </div>
           ) : null}
 
           {/* 送信アクション */}

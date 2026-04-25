@@ -88,7 +88,7 @@ export function PetDeceasedBanner({
           onClose={() => setConfirmOpen(false)}
           onConfirm={handleRevokeConfirm}
           title="死亡記録を解除しますか？"
-          description="解除するとこのペットは「生存」ステータスに戻ります。"
+          description="解除するとこのペットは「生存」ステータスに戻ります。Lステップタグは自動では復元されません。必要に応じて手動で再同期してください。"
           confirmLabel="解除する"
           cancelLabel="キャンセル"
           variant="destructive"

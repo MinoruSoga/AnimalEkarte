@@ -10,3 +10,10 @@ type patchPetDeathRequest struct {
 type postOwnerLstepOptOutRequest struct {
 	Reason string `json:"reason"`
 }
+
+// patchOwnerLstepOptOutRequest は PATCH /owners/:id/lstep/opt-out の統合リクエスト（ISSUE-001）。
+// opt_out: true でオプトアウト、false でオプトイン。
+type patchOwnerLstepOptOutRequest struct {
+	OptOut bool   `json:"opt_out"`
+	Reason string `json:"reason"`
+}

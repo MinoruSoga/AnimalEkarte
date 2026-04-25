@@ -93,6 +93,7 @@ func main() {
 		repos.Pet,
 		repos.LstepTagCache,
 		svcs.LstepTagSync,
+		svcs.Audit,
 	)
 	svcs.LstepTag = service.NewLstepTagService(
 		svcs.LstepSettings,
@@ -121,11 +122,13 @@ func main() {
 	// LSTEP-BE-013: LINE個別送信
 	svcs.LineSend = service.NewLineSendService(svcs.LstepSettings, repos.Owner, svcs.SharedFile, repos.LstepTagCache, svcs.Audit, repos.LineSendLog)
 	// LSTEP-BE-014: ノーショウ検知バッチ
-	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic, repos.MedicalRecord)
+	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic, repos.MedicalRecord, svcs.Audit)
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
 	svcs.LineLink = service.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, svcs.Audit)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	svcs.LstepTagSummary = service.NewLstepTagSummaryService(repos.LstepTagCache)
+	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
+	svcs.CheckupSync = service.NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.LstepTagCache, svcs.LstepSettings, svcs.Audit)
 
 	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var uploader infra.FileUploader

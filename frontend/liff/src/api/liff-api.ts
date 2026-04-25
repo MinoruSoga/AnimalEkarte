@@ -1,5 +1,12 @@
 import { API_BASE_URL } from '../lib/liff-config';
 
+export class LiffApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = 'LiffApiError';
+  }
+}
+
 export interface PetVaccineRecord {
   vaccine_name: string;
   vaccinated_at: string;
@@ -19,6 +26,22 @@ export interface PetHealthCard {
 export interface HealthCardResponse {
   owner_name: string;
   pets: PetHealthCard[];
+}
+
+export async function linkLineAccount(
+  clinicId: string,
+  linkToken: string,
+  lineIdToken: string,
+): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/liff/${encodeURIComponent(clinicId)}/link`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ link_token: linkToken, line_id_token: lineIdToken }),
+  });
+
+  if (!res.ok) {
+    throw new LiffApiError(res.status, `Link failed: ${res.status}`);
+  }
 }
 
 export async function fetchHealthCard(idToken: string, clinicId: string): Promise<HealthCardResponse> {

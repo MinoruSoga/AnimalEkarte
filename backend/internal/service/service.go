@@ -104,6 +104,8 @@ type Services struct {
 	LineLink LineLinkService
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	LstepTagSummary LstepTagSummaryService
+	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
+	CheckupSync CheckupSyncService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す

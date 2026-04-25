@@ -25,6 +25,7 @@ const (
 	IntegrationKeyLineChannelAccessToken = "line_channel_access_token"
 	IntegrationKeyLineChannelSecret      = "line_channel_secret"
 	IntegrationKeyLiffID                 = "liff_id"
+	IntegrationKeyLineAccountName        = "line_account_name"
 )
 
 // 暗号化が必要な key_name セット（true=暗号化必要）

@@ -108,6 +108,50 @@ func (m *mockInquiryService) Save(ctx context.Context, input service.UpsertInqui
 	return &model.Inquiry{}, nil
 }
 
+// ---- mock LstepTagSyncService ----
+
+type mockLstepTagSyncService struct{}
+
+func (m *mockLstepTagSyncService) SyncVaccineTag(_ context.Context, _, _, _ uint64) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncVisitCompletionTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncOwnerAnimalClassificationTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncPetBasicInfoTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncCPMStageTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncNextVisitTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncReservationTag(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncCancellationTag(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncCheckupTag(_ context.Context, _, _, _ uint64, _ time.Time, _ *time.Time) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncPrescriptionTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncChronicConditionTags(_ context.Context, _, _ uint64, _ []string) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncNoShowTag(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) SyncDormantTags(_ context.Context, _, _ uint64, _ int) error {
+	return nil
+}
+
 // ---- test helper ----
 
 func newHandlerWithMedicalRecordSvc(mrSvc service.MedicalRecordService, cpSvc service.ClinicalPlanService) *Handler {
@@ -116,6 +160,7 @@ func newHandlerWithMedicalRecordSvc(mrSvc service.MedicalRecordService, cpSvc se
 			MedicalRecord: mrSvc,
 			ClinicalPlan:  cpSvc,
 			Inquiry:       &mockInquiryService{},
+			LstepTagSync:  &mockLstepTagSyncService{},
 		},
 	}
 }

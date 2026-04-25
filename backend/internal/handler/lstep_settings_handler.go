@@ -43,6 +43,7 @@ func (h *Handler) UpdateLstepSettings(c *gin.Context) {
 		LineChannelAccessToken: req.LineChannelAccessToken,
 		LineChannelSecret:      req.LineChannelSecret,
 		LiffID:                 req.LiffID,
+		LineAccountName:        req.LineAccountName,
 	})
 	if err != nil {
 		RespondError(c, err)
@@ -88,4 +89,11 @@ func (h *Handler) RegisterLstepSettingsRoutes(rg *gin.RouterGroup) {
 	ls.PATCH("", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateLstepSettings)
 	ls.DELETE("", h.RequirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteLstepSettings)
 	ls.POST("/test-connection", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.TestLstepConnection)
+
+	// ISSUE-003: FE が /clinics/:clinic_id/lstep-settings で呼ぶエイリアス
+	alias := rg.Group("/clinics/:clinic_id/lstep-settings")
+	alias.GET("", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.GetLstepSettings)
+	alias.PATCH("", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateLstepSettings)
+	alias.DELETE("", h.RequirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteLstepSettings)
+	alias.POST("/test-connection", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.TestLstepConnection)
 }

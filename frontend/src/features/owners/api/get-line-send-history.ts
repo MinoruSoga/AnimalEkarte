@@ -4,27 +4,26 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { LineSendType } from "./send-line-message";
 
 export interface LineSendHistoryItem {
-  id: string;
+  id: number;
   message_type: LineSendType;
-  text: string | null;
-  file_url: string | null;
-  purpose_tag: string | null;
-  sent_at: string;
+  content_summary: string | null;
   status: "sent" | "failed" | "pending";
+  error_message: string | null;
+  sent_at: string;
 }
 
-export interface LineSendHistoryResponse {
+interface LineSendHistoryResponse {
   items: LineSendHistoryItem[];
 }
 
 async function getLineSendHistory(
   clinicId: string,
   ownerId: string
-): Promise<LineSendHistoryResponse> {
+): Promise<LineSendHistoryItem[]> {
   const { data } = await axios.get<LineSendHistoryResponse>(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/lstep/send-history`
+    `/v1/clinics/${clinicId}/owners/${ownerId}/line/send-logs`
   );
-  return data;
+  return data.items;
 }
 
 export function useGetLineSendHistory(ownerId: string) {

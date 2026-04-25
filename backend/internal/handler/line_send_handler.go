@@ -19,6 +19,18 @@ type lineSendRequest struct {
 	Purpose     string  `json:"purpose"`
 }
 
+// normalizeMessageType は FE から送られる message_type エイリアスをサービス内部値に変換する（ISSUE-002）。
+func normalizeMessageType(t string) string {
+	switch t {
+	case "pdf":
+		return "pdf_url"
+	case "image":
+		return "image_url"
+	default:
+		return t
+	}
+}
+
 type lineSendResponse struct {
 	Sent     bool   `json:"sent"`
 	SentAt   string `json:"sent_at"`
@@ -32,6 +44,10 @@ type lineSendLogResponse struct {
 	Status         string  `json:"status"`
 	ErrorMessage   *string `json:"error_message,omitempty"`
 	SentAt         string  `json:"sent_at"`
+}
+
+type lineSendLogListResponse struct {
+	Items []lineSendLogResponse `json:"items"`
 }
 
 func toLineSendLogResponse(l *model.LineSendLog) lineSendLogResponse {
@@ -88,7 +104,7 @@ func (h *Handler) PostLineSend(c *gin.Context) {
 	result, err := h.svc.LineSend.Send(c.Request.Context(), clinicID, service.SendLineMessageInput{
 		OwnerID:     ownerIDRaw,
 		StaffID:     staffID,
-		MessageType: req.MessageType,
+		MessageType: normalizeMessageType(req.MessageType),
 		Text:        req.Text,
 		FileID:      req.FileID,
 		FileName:    req.FileName,
@@ -124,11 +140,14 @@ func (h *Handler) GetLineSendLogs(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, toLineSendLogListResponse(logs))
+	c.JSON(http.StatusOK, lineSendLogListResponse{Items: toLineSendLogListResponse(logs)})
 }
 
 // RegisterLineSendRoutes は LINE 個別送信ルートを /owners/:id 以下に登録する
 func (h *Handler) RegisterLineSendRoutes(owners *gin.RouterGroup) {
 	owners.POST("/:id/line/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostLineSend)
 	owners.GET("/:id/line/send-logs", h.GetLineSendLogs)
+	// ISSUE-002: FE統一エンドポイントのエイリアス
+	owners.POST("/:id/lstep/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostLineSend)
+	owners.GET("/:id/lstep/send-history", h.GetLineSendLogs)
 }

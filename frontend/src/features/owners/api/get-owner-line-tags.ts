@@ -2,17 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
-export interface LstepTag {
-  tag_name: string;
-  category: "auto" | "manual";
-  created_at: string;
-}
-
 export interface OwnerLineStatus {
   line_user_id: string | null;
   is_linked: boolean;
-  tags: LstepTag[];
   lstep_opt_out: boolean;
+  tags: string[];
+  fetched_at: string;
 }
 
 async function getOwnerLineTags(

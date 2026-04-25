@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -31,6 +32,7 @@ type lstepLifecycleService struct {
 	petRepo      repository.PetRepository
 	tagCacheRepo repository.LstepTagCacheRepository
 	syncSvc      LstepTagSyncService
+	auditSvc     AuditService
 }
 
 // NewLstepLifecycleService は LstepLifecycleService を初期化して返す。
@@ -40,6 +42,7 @@ func NewLstepLifecycleService(
 	petRepo repository.PetRepository,
 	tagCacheRepo repository.LstepTagCacheRepository,
 	syncSvc LstepTagSyncService,
+	auditSvc AuditService,
 ) LstepLifecycleService {
 	return &lstepLifecycleService{
 		settingsSvc:  settingsSvc,
@@ -47,6 +50,7 @@ func NewLstepLifecycleService(
 		petRepo:      petRepo,
 		tagCacheRepo: tagCacheRepo,
 		syncSvc:      syncSvc,
+		auditSvc:     auditSvc,
 	}
 }
 
@@ -63,7 +67,8 @@ func (s *lstepLifecycleService) buildClient(ctx context.Context, clinicID uint64
 	return lstep.NewClient(apiKey, baseURL), nil
 }
 
-// HandlePetDeath はペット死亡を記録し、オーナーの CPM タグを再同期する。
+// HandlePetDeath はペット死亡を記録し、オーナーのタグを再同期する。
+// 全ペットが死亡した場合は Lステップ全タグを解除する（配信停止）。
 func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
 	// P1: FindByID before Update
 	pet, err := s.petRepo.FindByID(ctx, clinicID, petID)
@@ -81,10 +86,48 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 		return apperrors.Wrap(err, "failed to record pet death")
 	}
 
-	// CPM 再同期は best-effort — 死亡記録の成否に影響させない
-	if syncErr := s.syncSvc.SyncCPMStageTag(ctx, clinicID, pet.OwnerID); syncErr != nil {
+	ownerID := pet.OwnerID
+
+	// 生存ペットを確認 — 全滅時は配信停止としてタグを全解除
+	livingPets, err := s.petRepo.FindLivingByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find living pets after pet death", "error", err)
+		// タグ同期失敗は死亡記録を巻き戻さない
+		return nil
+	}
+
+	if len(livingPets) == 0 {
+		// 全ペット死亡 → Lステップタグを全解除
+		owner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
+		if findErr == nil && owner != nil && owner.LineUserID != nil && *owner.LineUserID != "" {
+			if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, *owner.LineUserID); removeErr != nil {
+				slog.ErrorContext(ctx, "failed to remove lstep tags on all-pets-dead", "error", removeErr)
+			}
+		}
+		return nil
+	}
+
+	// 生存ペットあり — ペット由来タグを再同期（best-effort）
+	if syncErr := s.syncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, ownerID); syncErr != nil {
+		slog.ErrorContext(ctx, "failed to sync animal classification tags after pet death", "error", syncErr)
+	}
+	if syncErr := s.syncSvc.SyncPetBasicInfoTags(ctx, clinicID, ownerID); syncErr != nil {
+		slog.ErrorContext(ctx, "failed to sync pet basic info tags after pet death", "error", syncErr)
+	}
+	if syncErr := s.syncSvc.SyncCPMStageTag(ctx, clinicID, ownerID); syncErr != nil {
 		slog.ErrorContext(ctx, "failed to sync CPM tag after pet death", "error", syncErr)
 	}
+
+	// 死亡ペット由来のワクチン・健診タグを解除する（best-effort）
+	if cleanupOwner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID); findErr == nil &&
+		cleanupOwner != nil && cleanupOwner.LineUserID != nil && *cleanupOwner.LineUserID != "" {
+		if client, clientErr := s.buildClient(ctx, clinicID); clientErr == nil && client != nil {
+			s.removePetDerivedTagsFromLstep(ctx, client, clinicID, ownerID, *cleanupOwner.LineUserID)
+		}
+	}
+
+	// 監査ログ（best-effort）
+	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "pet_death_tag_sync", "pet", &petID)
 
 	return nil
 }
@@ -107,9 +150,18 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 		return apperrors.Wrap(err, "failed to record pet revival")
 	}
 
+	if syncErr := s.syncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, pet.OwnerID); syncErr != nil {
+		slog.ErrorContext(ctx, "failed to sync animal classification tags after pet revival", "error", syncErr)
+	}
+	if syncErr := s.syncSvc.SyncPetBasicInfoTags(ctx, clinicID, pet.OwnerID); syncErr != nil {
+		slog.ErrorContext(ctx, "failed to sync pet basic info tags after pet revival", "error", syncErr)
+	}
 	if syncErr := s.syncSvc.SyncCPMStageTag(ctx, clinicID, pet.OwnerID); syncErr != nil {
 		slog.ErrorContext(ctx, "failed to sync CPM tag after pet revival", "error", syncErr)
 	}
+
+	// 監査ログ（best-effort）
+	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "pet_revival_tag_sync", "pet", &petID)
 
 	return nil
 }
@@ -216,4 +268,27 @@ func (s *lstepLifecycleService) removeAllTagsFromLstep(ctx context.Context, clin
 	}
 
 	return nil
+}
+
+// removePetDerivedTagsFromLstep は死亡ペット由来のタグ（ワクチン・健診カテゴリ）を
+// Lステップおよびキャッシュから解除する（best-effort）。
+func (s *lstepLifecycleService) removePetDerivedTagsFromLstep(ctx context.Context, client lstep.Client, clinicID, ownerID uint64, lineUserID string) {
+	petDerivedPrefixes := []string{"vaccine_dog_", "vaccine_cat_", "vaccine_rabies_", "checkup_done_"}
+	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load tag cache for pet-derived tag removal", "error", err)
+		return
+	}
+	for _, t := range cached {
+		for _, prefix := range petDerivedPrefixes {
+			if strings.HasPrefix(t.TagName, prefix) {
+				if removeErr := client.RemoveTag(ctx, lineUserID, t.TagName); removeErr != nil {
+					slog.ErrorContext(ctx, "failed to remove pet-derived tag", "error", removeErr, "tag", t.TagName)
+				} else {
+					_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName)
+				}
+				break
+			}
+		}
+	}
 }

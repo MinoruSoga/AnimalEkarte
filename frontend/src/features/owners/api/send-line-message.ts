@@ -3,13 +3,14 @@ import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 
-export type LineSendType = "text" | "pdf" | "image";
+export type LineSendType = "text" | "pdf_url" | "image_url";
 
 export interface LineSendRequest {
   message_type: LineSendType;
   text?: string;
-  file_url?: string;
-  purpose_tag?: string;
+  file_id?: number | null;
+  file_name?: string;
+  purpose?: string;
 }
 
 async function sendLineMessage(
@@ -18,7 +19,7 @@ async function sendLineMessage(
   body: LineSendRequest
 ): Promise<void> {
   await axios.post(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/lstep/send`,
+    `/v1/clinics/${clinicId}/owners/${ownerId}/line/send`,
     body
   );
 }

@@ -12,11 +12,12 @@ interface LtvFilterPanelProps {
 
 const CPM_STAGE_OPTIONS = [
   { value: "all", label: "すべて" },
-  { value: "core", label: "コア" },
+  { value: "encounter", label: "エンカウンター" },
   { value: "growing", label: "グロウィング" },
-  { value: "new", label: "新規" },
+  { value: "core", label: "コア" },
+  { value: "noah", label: "ノア" },
+  { value: "spot", label: "スポット" },
   { value: "dormant", label: "休眠" },
-  { value: "lost", label: "離脱" },
 ] as const;
 
 export function LtvFilterPanel({ params, onParamsChange }: LtvFilterPanelProps) {

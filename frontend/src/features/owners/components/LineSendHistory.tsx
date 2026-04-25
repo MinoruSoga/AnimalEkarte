@@ -2,12 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { C, BADGE } from "@/lib/design-tokens";
-import type { LineSendHistoryItem, LineSendHistoryResponse } from "../api/get-line-send-history";
+import type { LineSendHistoryItem } from "../api/get-line-send-history";
 
 const TYPE_LABEL: Record<LineSendHistoryItem["message_type"], string> = {
   text: "テキスト",
-  pdf: "PDF",
-  image: "画像",
+  pdf_url: "PDF",
+  image_url: "画像",
 };
 
 const STATUS_BADGE: Record<LineSendHistoryItem["status"], string> = {
@@ -39,24 +39,24 @@ interface LineSendHistoryProps {
 export function LineSendHistory({ ownerId }: LineSendHistoryProps) {
   const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
 
-  const { data, isLoading, isError } = useQuery<LineSendHistoryResponse>({
+  const { data, isLoading, isError } = useQuery<LineSendHistoryItem[]>({
     queryKey: ["line-send-history", ownerId],
     queryFn: async () => {
-      const { data: res } = await axios.get<LineSendHistoryResponse>(
-        `/v1/clinics/${clinicId}/owners/${ownerId}/lstep/send-history`
+      const { data: res } = await axios.get<{ items: LineSendHistoryItem[] }>(
+        `/v1/clinics/${clinicId}/owners/${ownerId}/line/send-logs`
       );
-      return res;
+      return res.items;
     },
     enabled: !!ownerId && !!clinicId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.SHORT,
     refetchInterval: (query) => {
-      const items = query.state.data?.items ?? [];
+      const items = query.state.data ?? [];
       return items.some((item) => item.status === "pending") ? 5000 : false;
     },
   });
 
-  const recent = (data?.items ?? []).slice(0, 5);
+  const recent = (data ?? []).slice(0, 5);
 
   if (isLoading) {
     return (
@@ -89,13 +89,8 @@ export function LineSendHistory({ ownerId }: LineSendHistoryProps) {
           <span className={`shrink-0 ${C.text70}`}>
             {TYPE_LABEL[item.message_type]}
           </span>
-          {item.text !== null ? (
-            <span className={`flex-1 truncate ${C.text60}`}>{item.text}</span>
-          ) : null}
-          {item.file_url !== null && item.text === null ? (
-            <span className={`flex-1 truncate ${C.text50} font-mono`}>
-              {item.file_url}
-            </span>
+          {item.content_summary !== null ? (
+            <span className={`flex-1 truncate ${C.text60}`}>{item.content_summary}</span>
           ) : null}
           <span
             className={`shrink-0 text-xs px-1.5 py-0.5 rounded-[3px] border font-medium ${STATUS_BADGE[item.status]}`}

@@ -10,6 +10,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { useGetOwnerLineTags } from "../api/get-owner-line-tags";
 import { useSendLineMessage } from "../api/send-line-message";
 import type { LineSendType } from "../api/send-line-message";
+import { uploadLineFile } from "../api/upload-line-file";
 import { LineSendTypeSelector } from "./LineSendTypeSelector";
 import { LineSendHistory } from "./LineSendHistory";
 
@@ -50,7 +51,7 @@ export function LineSendPanel({
       }
 
       const type = formData.get("send_type") as LineSendType;
-      const purposeTag = (formData.get("purpose_tag") as string | null)?.trim() || undefined;
+      const purpose = (formData.get("purpose") as string | null)?.trim() || undefined;
 
       if (type === "text") {
         const text = (formData.get("text") as string | null)?.trim();
@@ -58,25 +59,26 @@ export function LineSendPanel({
           return { error: "メッセージを入力してください", success: false };
         }
         try {
-          await sendMessage({ message_type: "text", text, purpose_tag: purposeTag });
+          await sendMessage({ message_type: "text", text, purpose });
           return { error: null, success: true };
         } catch {
           return { error: null, success: false };
         }
       }
 
-      // pdf / image: file upload — use placeholder URL
+      // pdf_url / image_url: upload first, then send with file_id
       const file = formData.get("file") as File | null;
       if (!file || file.size === 0) {
         return { error: "ファイルを選択してください", success: false };
       }
-      // Placeholder: in production this URL comes from a pre-signed S3 upload
-      const fileUrl = `pending-upload:${file.name}`;
       try {
+        const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+        const uploaded = await uploadLineFile(clinicId, ownerId, file);
         await sendMessage({
           message_type: type,
-          file_url: fileUrl,
-          purpose_tag: purposeTag,
+          file_id: uploaded.id,
+          file_name: uploaded.file_name,
+          purpose,
         });
         return { error: null, success: true };
       } catch {
@@ -135,7 +137,7 @@ export function LineSendPanel({
               ) : null}
 
               {/* ファイル入力 */}
-              {sendType === "pdf" ? (
+              {sendType === "pdf_url" ? (
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="line_file_pdf" className={STYLE.formLabel}>
                     PDFファイル
@@ -150,7 +152,7 @@ export function LineSendPanel({
                 </div>
               ) : null}
 
-              {sendType === "image" ? (
+              {sendType === "image_url" ? (
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="line_file_image" className={STYLE.formLabel}>
                     画像ファイル
@@ -165,15 +167,15 @@ export function LineSendPanel({
                 </div>
               ) : null}
 
-              {/* 送信目的タグ */}
+              {/* 送信目的 */}
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="line_purpose_tag" className={STYLE.formLabel}>
-                  送信目的タグ
+                <label htmlFor="line_purpose" className={STYLE.formLabel}>
+                  送信目的
                   <span className={`ml-1 text-xs ${C.text40}`}>（任意）</span>
                 </label>
                 <input
-                  id="line_purpose_tag"
-                  name="purpose_tag"
+                  id="line_purpose"
+                  name="purpose"
                   type="text"
                   placeholder="例: 術後フォロー"
                   className={`${STYLE.formInput} rounded-[3px] px-3`}

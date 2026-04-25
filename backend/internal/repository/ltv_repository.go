@@ -75,10 +75,18 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params FindOwnerLTVPar
 
 	orderBy := "total_amount DESC"
 	switch params.Sort {
+	case "total_amount_desc":
+		orderBy = "total_amount DESC"
+	case "total_amount_asc":
+		orderBy = "total_amount ASC"
 	case "visit_count_desc":
 		orderBy = "total_visit_count DESC"
+	case "visit_count_asc":
+		orderBy = "total_visit_count ASC"
 	case "last_visit_desc":
 		orderBy = "last_visit_date DESC NULLS LAST"
+	case "last_visit_asc":
+		orderBy = "last_visit_date ASC NULLS LAST"
 	}
 
 	query := fmt.Sprintf(`

@@ -60,7 +60,10 @@ func (m *mockOwnerService) LinkLineUserID(ctx context.Context, clinicID, id uint
 
 func newHandlerWithOwnerSvc(svc service.OwnerService) *Handler {
 	return &Handler{
-		svc: &service.Services{Owner: svc},
+		svc: &service.Services{
+			Owner:        svc,
+			LstepTagSync: &mockLstepTagSyncService{},
+		},
 	}
 }
 

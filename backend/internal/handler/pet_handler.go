@@ -191,4 +191,9 @@ func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
 	pets.DELETE("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeletePetDeath)
 	// BE-012: 慢性疾患フラグ
 	h.RegisterChronicConditionRoutes(pets)
+
+	// ISSUE-007: FE が /clinics/:clinic_id/pets/:id/death で呼ぶエイリアス
+	clinicPets := rg.Group("/clinics/:clinic_id/pets")
+	clinicPets.PATCH("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchPetDeath)
+	clinicPets.DELETE("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeletePetDeath)
 }

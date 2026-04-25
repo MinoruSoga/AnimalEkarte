@@ -93,3 +93,50 @@ func (h *Handler) DeleteOwnerLstepOptOut(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// PatchOwnerLstepOptOut godoc
+// PATCH /owners/:id/lstep/opt-out — opt_out:true でオプトアウト、false でオプトインする統合エンドポイント（ISSUE-001）。
+func (h *Handler) PatchOwnerLstepOptOut(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	ownerID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchOwnerLstepOptOutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	var err error
+	if req.OptOut {
+		err = h.svc.LstepLifecycle.HandleOwnerOptOut(c.Request.Context(), clinicID, ownerID, req.Reason)
+	} else {
+		err = h.svc.LstepLifecycle.HandleOwnerOptIn(c.Request.Context(), clinicID, ownerID)
+	}
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// DeleteOwnerLine godoc
+// DELETE /owners/:id/line — LINE User ID 連携を解除する（ISSUE-001）。
+func (h *Handler) DeleteOwnerLine(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	if err := h.svc.Owner.LinkLineUserID(c.Request.Context(), clinicID, id, nil); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}

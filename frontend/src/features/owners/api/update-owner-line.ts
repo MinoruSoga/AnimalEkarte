@@ -13,16 +13,19 @@ async function updateOwnerLine(
   body: UpdateOwnerLineBody
 ): Promise<void> {
   await axios.patch(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/line`,
+    `/v1/clinics/${clinicId}/owners/${ownerId}/line-user-id`,
     body
   );
 }
 
-async function deleteOwnerLine(
+async function unlinkOwnerLine(
   clinicId: string,
   ownerId: string
 ): Promise<void> {
-  await axios.delete(`/v1/clinics/${clinicId}/owners/${ownerId}/line`);
+  await axios.patch(
+    `/v1/clinics/${clinicId}/owners/${ownerId}/line-user-id`,
+    { line_user_id: null }
+  );
 }
 
 export function useUpdateOwnerLine(ownerId: string) {
@@ -47,7 +50,7 @@ export function useDeleteOwnerLine(ownerId: string) {
   const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
 
   return useMutation({
-    mutationFn: () => deleteOwnerLine(clinicId, ownerId),
+    mutationFn: () => unlinkOwnerLine(clinicId, ownerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["owner-line-tags", ownerId] });
       toast.success("LINE連携を解除しました");

@@ -13,10 +13,11 @@ async function updateOwnerLstepOptOut(
   ownerId: string,
   body: UpdateOwnerLstepOptOutBody
 ): Promise<void> {
-  await axios.patch(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/lstep/opt-out`,
-    body
-  );
+  if (body.opt_out) {
+    await axios.post(`/v1/clinics/${clinicId}/owners/${ownerId}/lstep-opt-out`, { reason: body.reason });
+  } else {
+    await axios.delete(`/v1/clinics/${clinicId}/owners/${ownerId}/lstep-opt-out`);
+  }
 }
 
 export function useUpdateOwnerLstepOptOut(ownerId: string) {

@@ -139,7 +139,7 @@ func (m *mockLstepTagSyncService) SyncReservationTag(_ context.Context, _, _ uin
 func (m *mockLstepTagSyncService) SyncCancellationTag(_ context.Context, _, _ uint64, _ time.Time) error {
 	return nil
 }
-func (m *mockLstepTagSyncService) SyncCheckupTag(_ context.Context, _, _ uint64, _ time.Time, _ *time.Time) error {
+func (m *mockLstepTagSyncService) SyncCheckupTag(_ context.Context, _, _, _ uint64, _ time.Time, _ *time.Time) error {
 	return nil
 }
 func (m *mockLstepTagSyncService) SyncPrescriptionTag(_ context.Context, _, _ uint64) error {
@@ -163,6 +163,18 @@ func (m *mockLstepTagSyncService) SyncDormantTags(_ context.Context, _, _ uint64
 	return nil
 }
 
+// ---- AuditService モック ----
+
+type mockAuditService struct{}
+
+func (m *mockAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
+func (m *mockAuditService) LogAuthLogin(_ context.Context, _ *uint64, _ *uint64, _, _, _ string) error {
+	return nil
+}
+func (m *mockAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
+	return nil
+}
+
 // ---- ヘルパー ----
 
 func newLstepLifecycleSvc(
@@ -172,7 +184,7 @@ func newLstepLifecycleSvc(
 	tagCacheRepo *mockLstepTagCacheRepository,
 	syncSvc *mockLstepTagSyncService,
 ) LstepLifecycleService {
-	return NewLstepLifecycleService(settingsSvc, ownerRepo, petRepo, tagCacheRepo, syncSvc)
+	return NewLstepLifecycleService(settingsSvc, ownerRepo, petRepo, tagCacheRepo, syncSvc, &mockAuditService{})
 }
 
 func defaultLstepSettingsSvc() *mockLstepSettingsService {
@@ -187,21 +199,36 @@ func defaultLstepSettingsSvc() *mockLstepSettingsService {
 
 func TestLstepLifecycleService_HandlePetDeath(t *testing.T) {
 	tests := []struct {
-		name        string
-		petFindFn   func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
-		petUpdateFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-		syncCPMFn   func(ctx context.Context, clinicID, ownerID uint64) error
-		wantErr     bool
-		wantErrIs   error
+		name                string
+		petFindFn           func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+		petUpdateFn         func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+		findLivingByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
+		syncCPMFn           func(ctx context.Context, clinicID, ownerID uint64) error
+		wantErr             bool
+		wantErrIs           error
 	}{
 		{
-			name: "正常: 死亡記録と CPM 再同期",
+			name: "正常: 生存ペットあり — タグ再同期",
 			petFindFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
 				return &model.Pet{ID: 1, OwnerID: 10}, nil
 			},
 			petUpdateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 				return nil
 			},
+			findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+				return []model.Pet{{ID: 2, OwnerID: 10}}, nil
+			},
+		},
+		{
+			name: "正常: 全ペット死亡 — owner nil でも panic しない",
+			petFindFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+				return &model.Pet{ID: 1, OwnerID: 10}, nil
+			},
+			petUpdateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				return nil
+			},
+			// findLivingByOwnerFn nil → default returns nil, nil (all dead)
+			// ownerRepo.FindByID returns nil, nil — nil guard must prevent panic
 		},
 		{
 			name: "エラー: ペットが見つからない → ErrNotFound",
@@ -222,12 +249,15 @@ func TestLstepLifecycleService_HandlePetDeath(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "正常: CPM 同期失敗はエラーにならない（best-effort）",
+			name: "正常: 生存ペットあり — CPM 同期失敗は best-effort",
 			petFindFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
 				return &model.Pet{ID: 1, OwnerID: 10}, nil
 			},
 			petUpdateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 				return nil
+			},
+			findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+				return []model.Pet{{ID: 2, OwnerID: 10}}, nil
 			},
 			syncCPMFn: func(_ context.Context, _, _ uint64) error {
 				return errors.New("sync error")
@@ -238,8 +268,9 @@ func TestLstepLifecycleService_HandlePetDeath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			petRepo := &mockPetRepository{
-				findByIDFn: tt.petFindFn,
-				updateFn:   tt.petUpdateFn,
+				findByIDFn:          tt.petFindFn,
+				updateFn:            tt.petUpdateFn,
+				findLivingByOwnerFn: tt.findLivingByOwnerFn,
 			}
 			syncSvc := &mockLstepTagSyncService{
 				syncCPMStageTagFn: tt.syncCPMFn,

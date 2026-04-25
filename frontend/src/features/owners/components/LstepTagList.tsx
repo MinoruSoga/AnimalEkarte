@@ -4,12 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { C, ICON } from "@/lib/design-tokens";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
-import type { LstepTag } from "../api/get-owner-line-tags";
-
 const COLLAPSE_THRESHOLD = 10;
 
 interface LstepTagListProps {
-  tags: LstepTag[];
+  tags: string[];
   onRemove: (tagName: string) => void;
   disabled?: boolean;
   canEdit?: boolean;
@@ -41,27 +39,27 @@ export function LstepTagList({
         className={`flex flex-wrap gap-1.5 ${disabled ? "opacity-50" : ""}`}
       >
         {visibleTags.map((tag) => {
-          const isAuto = isAutoManagedTag(tag.tag_name);
+          const isAuto = isAutoManagedTag(tag);
           return (
-            <span key={tag.tag_name} className="inline-flex items-center gap-0.5">
+            <span key={tag} className="inline-flex items-center gap-0.5">
               {isAuto ? (
                 <Badge
                   variant="outline"
                   className={`text-xs px-2 py-0.5 h-auto ${C.bgStatusGray} ${C.textStatusGray} border-0`}
                 >
-                  {tag.tag_name}
+                  {tag}
                 </Badge>
               ) : (
                 <Badge
                   variant="secondary"
                   className="text-xs px-2 py-0.5 h-auto flex items-center gap-0.5"
                 >
-                  {tag.tag_name}
+                  {tag}
                   {canEdit && !disabled ? (
                     <button
                       type="button"
-                      aria-label={`${tag.tag_name}を削除`}
-                      onClick={() => onRemove(tag.tag_name)}
+                      aria-label={`${tag}を削除`}
+                      onClick={() => onRemove(tag)}
                       className={`ml-0.5 rounded-full ${C.hoverBgMedium} transition-colors`}
                     >
                       <X className={ICON.xxs} />

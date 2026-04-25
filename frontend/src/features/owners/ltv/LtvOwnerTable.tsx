@@ -20,23 +20,25 @@ interface LtvOwnerTableProps {
   isLoading: boolean;
 }
 
-type CpmStage = "core" | "growing" | "new" | "dormant" | "lost";
+type CpmStage = "encounter" | "growing" | "core" | "noah" | "spot" | "dormant";
 
 const CPM_STAGE_LABEL: Record<CpmStage, string> = {
-  core: "コア",
+  encounter: "エンカウンター",
   growing: "グロウィング",
-  new: "新規",
+  core: "コア",
+  noah: "ノア",
+  spot: "スポット",
   dormant: "休眠",
-  lost: "離脱",
 };
 
 // design-tokens の C クラスで対応困難なため Tailwind 直書き
 const CPM_STAGE_CLASS: Record<CpmStage, string> = {
-  core: "bg-green-100 text-green-800 border-green-200",
+  encounter: "bg-cyan-100 text-cyan-800 border-cyan-200",
   growing: "bg-blue-100 text-blue-800 border-blue-200",
-  new: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  core: "bg-green-100 text-green-800 border-green-200",
+  noah: "bg-purple-100 text-purple-800 border-purple-200",
+  spot: "bg-orange-100 text-orange-800 border-orange-200",
   dormant: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  lost: "bg-red-100 text-red-800 border-red-200",
 };
 
 function CpmStageBadge({ stage }: { stage: CpmStage | null }) {

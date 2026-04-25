@@ -5,7 +5,7 @@ export interface LtvOwner {
   owner_id: string;
   owner_name: string;
   has_line: boolean;
-  cpm_stage: "core" | "growing" | "new" | "dormant" | "lost" | null;
+  cpm_stage: "encounter" | "growing" | "core" | "noah" | "spot" | "dormant" | null;
   total_fee: number;
   annual_visit_count: number;
   total_visit_count: number;

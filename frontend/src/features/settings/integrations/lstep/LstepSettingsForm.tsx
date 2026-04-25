@@ -115,9 +115,9 @@ export function LstepSettingsForm() {
       if (typeof liffId === "string") {
         req.liff_id = liffId.trim();
       }
-      const accountName = formData.get("line_account_name");
-      if (typeof accountName === "string") {
-        req.line_account_name = accountName.trim();
+      const lstepBaseUrl = formData.get("lstep_base_url");
+      if (typeof lstepBaseUrl === "string" && lstepBaseUrl.trim() !== "") {
+        req.lstep_base_url = lstepBaseUrl.trim();
       }
 
       try {
@@ -208,8 +208,8 @@ export function LstepSettingsForm() {
           {settings?.liff_id ? (
             <span>LIFF ID: <span className={`font-mono ${C.text}`}>{settings.liff_id}</span></span>
           ) : null}
-          {settings?.line_account_name ? (
-            <span>LINE公式アカウント名: <span className={C.text}>{settings.line_account_name}</span></span>
+          {settings?.lstep_base_url ? (
+            <span>LステップベースURL: <span className={`font-mono ${C.text}`}>{settings.lstep_base_url}</span></span>
           ) : null}
         </div>
       ) : null}
@@ -242,11 +242,11 @@ export function LstepSettingsForm() {
           placeholder="例: 1234567890-xxxxxxxx"
         />
         <TextField
-          id="line_account_name"
-          name="line_account_name"
-          label="LINE公式アカウント名"
-          defaultValue={settings?.line_account_name ?? ""}
-          placeholder="例: 〇〇動物病院"
+          id="lstep_base_url"
+          name="lstep_base_url"
+          label="LステップベースURL"
+          defaultValue={settings?.lstep_base_url ?? ""}
+          placeholder="例: https://app.lstep.jp"
         />
 
         {/* 月間配信数の注意 */}

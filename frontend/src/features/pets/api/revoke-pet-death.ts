@@ -9,7 +9,7 @@ export function useRevokePetDeath() {
   return useMutation({
     mutationFn: async (petId: string) => {
       const clinicId = localStorage.getItem("auth_current_clinic:v1");
-      await axios.delete(`/v1/clinics/${clinicId}/pets/${petId}/deceased`);
+      await axios.delete(`/v1/clinics/${clinicId}/pets/${petId}/death`);
     },
     onSuccess: (_, petId) => {
       queryClient.invalidateQueries({ queryKey: ["pet", petId] });

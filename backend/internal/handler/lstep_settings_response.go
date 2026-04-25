@@ -13,6 +13,7 @@ type lstepSettingsResponse struct {
 	LineChannelAccessTokenMasked string     `json:"line_channel_access_token_masked"`
 	LineChannelSecretMasked      string     `json:"line_channel_secret_masked"`
 	LiffID                       string     `json:"liff_id"`
+	LineAccountName              string     `json:"line_account_name"`
 	IsConfigured                 bool       `json:"is_configured"`
 	LastUpdatedAt                *time.Time `json:"last_updated_at"`
 }
@@ -32,6 +33,7 @@ func toLstepSettingsResponse(s *service.LstepSettingsResponse) lstepSettingsResp
 		LineChannelAccessTokenMasked: s.LineChannelAccessTokenMasked,
 		LineChannelSecretMasked:      s.LineChannelSecretMasked,
 		LiffID:                       s.LiffID,
+		LineAccountName:              s.LineAccountName,
 		IsConfigured:                 s.IsConfigured,
 		LastUpdatedAt:                s.LastUpdatedAt,
 	}

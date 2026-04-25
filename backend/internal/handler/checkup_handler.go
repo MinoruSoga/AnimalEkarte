@@ -80,7 +80,7 @@ func (h *Handler) CreateCheckup(c *gin.Context) {
 	}
 	// BE-008: 健診タグ同期（best-effort）
 	if checkup.MedicalRecord != nil && checkup.MedicalRecord.OwnerID != nil {
-		_ = h.svc.LstepTagSync.SyncCheckupTag(c.Request.Context(), clinicID, *checkup.MedicalRecord.OwnerID, checkup.Date, checkup.NextDate)
+		_ = h.svc.LstepTagSync.SyncCheckupTag(c.Request.Context(), clinicID, *checkup.MedicalRecord.OwnerID, checkup.CheckupTypeID, checkup.Date, checkup.NextDate)
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/checkups/%d", id, checkup.ID))
 	c.JSON(http.StatusCreated, toCheckupResponse(checkup))
@@ -142,7 +142,7 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 	}
 	// BE-008: 健診タグ同期（best-effort）
 	if checkup.MedicalRecord != nil && checkup.MedicalRecord.OwnerID != nil {
-		_ = h.svc.LstepTagSync.SyncCheckupTag(c.Request.Context(), clinicID, *checkup.MedicalRecord.OwnerID, checkup.Date, checkup.NextDate)
+		_ = h.svc.LstepTagSync.SyncCheckupTag(c.Request.Context(), clinicID, *checkup.MedicalRecord.OwnerID, checkup.CheckupTypeID, checkup.Date, checkup.NextDate)
 	}
 	c.JSON(http.StatusOK, toCheckupResponse(checkup))
 }

@@ -61,6 +61,7 @@ type OwnerLTVItem struct {
 	OwnerID          uint64
 	OwnerName        string
 	LineUserIDMasked *string
+	HasLine          bool
 	TotalAmount      int64
 	TotalVisitCount  int64
 	AnnualVisitCount int64
@@ -165,6 +166,7 @@ func (s *ltvService) ListOwnerLTV(ctx context.Context, clinicID uint64, input Li
 		item := OwnerLTVItem{
 			OwnerID:          row.OwnerID,
 			OwnerName:        row.OwnerName,
+			HasLine:          row.LineUserID != nil && *row.LineUserID != "",
 			TotalAmount:      row.TotalAmount,
 			TotalVisitCount:  row.TotalVisitCount,
 			AnnualVisitCount: row.AnnualVisitCount,
@@ -172,7 +174,7 @@ func (s *ltvService) ListOwnerLTV(ctx context.Context, clinicID uint64, input Li
 			FirstVisitDate:   row.FirstVisitDate,
 			CPMStageAPI:      cpmStageToAPI(stage),
 		}
-		if row.LineUserID != nil {
+		if row.LineUserID != nil && *row.LineUserID != "" {
 			masked := maskLineUserID(*row.LineUserID)
 			item.LineUserIDMasked = &masked
 		}

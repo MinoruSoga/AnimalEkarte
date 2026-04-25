@@ -21,6 +21,7 @@ type LstepSettingsResponse struct {
 	LineChannelAccessTokenMasked string     `json:"line_channel_access_token_masked"`
 	LineChannelSecretMasked      string     `json:"line_channel_secret_masked"`
 	LiffID                       string     `json:"liff_id"`
+	LineAccountName              string     `json:"line_account_name"`
 	IsConfigured                 bool       `json:"is_configured"`
 	LastUpdatedAt                *time.Time `json:"last_updated_at"`
 }
@@ -32,6 +33,7 @@ type UpdateLstepSettingsInput struct {
 	LineChannelAccessToken string
 	LineChannelSecret      string
 	LiffID                 string
+	LineAccountName        string
 }
 
 // LstepConnectionTestResult は疎通確認結果
@@ -107,6 +109,7 @@ func buildLstepSettingsResponse(kvMap map[string]string, lastUpdated *time.Time)
 		LineChannelAccessTokenMasked: mask(token),
 		LineChannelSecretMasked:      mask(secret),
 		LiffID:                       kvMap[model.IntegrationKeyLiffID],
+		LineAccountName:              kvMap[model.IntegrationKeyLineAccountName],
 		IsConfigured:                 isConfigured,
 		LastUpdatedAt:                lastUpdated,
 	}
@@ -122,6 +125,7 @@ func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint
 		{model.IntegrationKeyLineChannelAccessToken, input.LineChannelAccessToken},
 		{model.IntegrationKeyLineChannelSecret, input.LineChannelSecret},
 		{model.IntegrationKeyLiffID, input.LiffID},
+		{model.IntegrationKeyLineAccountName, input.LineAccountName},
 	}
 
 	for _, pair := range pairs {

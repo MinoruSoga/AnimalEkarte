@@ -11,6 +11,6 @@ export { LineSendPanel } from "./components/LineSendPanel";
 export { useGetLineSendHistory } from "./api/get-line-send-history";
 export { useSendLineMessage } from "./api/send-line-message";
 export type { LineSendType, LineSendRequest } from "./api/send-line-message";
-export type { LineSendHistoryItem, LineSendHistoryResponse } from "./api/get-line-send-history";
+export type { LineSendHistoryItem } from "./api/get-line-send-history";
 export { useGetOwnerLineTags } from "./api/get-owner-line-tags";
-export type { OwnerLineStatus, LstepTag } from "./api/get-owner-line-tags";
+export type { OwnerLineStatus } from "./api/get-owner-line-tags";

@@ -56,7 +56,10 @@ func (m *mockVaccinationService) Delete(ctx context.Context, clinicID, id uint64
 }
 
 func newHandlerWithVaccinationSvc(svc service.VaccinationService) *Handler {
-	return &Handler{svc: &service.Services{Vaccination: svc}}
+	return &Handler{svc: &service.Services{
+		Vaccination:  svc,
+		LstepTagSync: &mockLstepTagSyncService{},
+	}}
 }
 
 // ---- ListVaccinations ----
