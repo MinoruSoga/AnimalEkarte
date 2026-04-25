@@ -154,12 +154,9 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
   }, {} as Record<string, MasterItem[]>);
 
   // js-index-maps: cageId → Hospitalization の Map を事前構築（O(n)）しレンダーループ内で O(1) 検索
+  // 親コンポーネントがタブに応じて既にフィルタリング済みのデータを渡すため、ここでは再フィルタしない
   const occupantByCageId = useMemo(
-    () => new Map(
-      hospitalizations
-        .filter(h => h.status === "入院中")
-        .map(h => [h.cageId, h])
-    ),
+    () => new Map(hospitalizations.map(h => [h.cageId, h])),
     [hospitalizations]
   );
 

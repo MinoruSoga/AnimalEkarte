@@ -100,8 +100,8 @@ func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uin
 // UpdateRules はトランザクション内で権限グループの全ルールを置き換える（全削除→再挿入）
 func (r *permissionGroupRepository) UpdateRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 既存ルールを全削除
-		if err := tx.Where("group_id = ?", groupID).Delete(&model.PermissionGroupRule{}).Error; err != nil {
+		// 既存ルールを全削除（物理削除してユニーク制約重複を防止）
+		if err := tx.Unscoped().Where("group_id = ?", groupID).Delete(&model.PermissionGroupRule{}).Error; err != nil {
 			return apperrors.FromGORM(err, "permission_group_rule", "")
 		}
 

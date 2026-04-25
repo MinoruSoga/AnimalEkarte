@@ -73,16 +73,18 @@ type BillingItemService interface {
 	CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
 	UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
 	DeleteItem(ctx context.Context, clinicID, id uint64) error
+	GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error)
 }
 
 type billingItemService struct {
-	repo        repository.BillingItemRepository
-	billingRepo repository.AccountingRepository
+	repo          repository.BillingItemRepository
+	billingRepo   repository.AccountingRepository
+	treatmentRepo repository.TreatmentRepository
 }
 
 // NewBillingItemService は BillingItemService を初期化して返す
-func NewBillingItemService(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository) BillingItemService {
-	return &billingItemService{repo: repo, billingRepo: billingRepo}
+func NewBillingItemService(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository) BillingItemService {
+	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo}
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
@@ -229,6 +231,15 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 		slog.Uint64("billing_id", billingID),
 	)
 	return nil
+}
+
+func (s *billingItemService) GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error) {
+	treatments, err := s.treatmentRepo.FindUnbilledByPetID(ctx, clinicID, petID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find unbilled treatments", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find unbilled treatments")
+	}
+	return treatments, nil
 }
 
 // recalculateTotals は billing の全明細から subtotal/tax_total/total_amount を再計算して保存する

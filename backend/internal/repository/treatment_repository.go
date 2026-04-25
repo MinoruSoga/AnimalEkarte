@@ -21,6 +21,7 @@ type TreatmentSortUpdate struct {
 type TreatmentRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
+	FindUnbilledByPetID(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error)
 	Create(ctx context.Context, treatment *model.Treatment) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -61,6 +62,21 @@ func (r *treatmentRepository) FindByID(ctx context.Context, clinicID, id uint64)
 		return nil, apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", id))
 	}
 	return &treatment, nil
+}
+
+func (r *treatmentRepository) FindUnbilledByPetID(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error) {
+	treatments := make([]model.Treatment, 0)
+	err := r.db.WithContext(ctx).
+		Joins("JOIN medical_records mr ON mr.id = treatments.medical_record_id AND mr.deleted_at IS NULL").
+		Joins("JOIN billing_confirmations bc ON bc.medical_record_id = mr.id").
+		Where("mr.pet_id = ? AND mr.clinic_id = ? AND bc.status = 'confirmed' AND treatments.deleted_at IS NULL", petID, clinicID).
+		Where("NOT EXISTS (SELECT 1 FROM billings b WHERE b.medical_record_id = mr.id AND b.status != 'cancelled' AND b.deleted_at IS NULL)").
+		Order("treatments.sort_order ASC, treatments.id ASC").
+		Find(&treatments).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "treatment", "")
+	}
+	return treatments, nil
 }
 
 func (r *treatmentRepository) Create(ctx context.Context, treatment *model.Treatment) error {

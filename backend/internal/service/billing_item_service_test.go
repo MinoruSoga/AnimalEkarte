@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ---- BillingItem モック ----
@@ -50,6 +51,34 @@ func defaultMockBillingItemRepo() *mockBillingItemRepository {
 			return []model.BillingItem{}, nil
 		},
 	}
+}
+
+type mockTreatmentRepositoryForBilling struct{}
+
+func (m *mockTreatmentRepositoryForBilling) FindUnbilledByPetID(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
+	return nil, nil
+}
+func (m *mockTreatmentRepositoryForBilling) FindByMedicalRecordID(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
+	return nil, nil
+}
+func (m *mockTreatmentRepositoryForBilling) FindByID(_ context.Context, _, _ uint64) (*model.Treatment, error) {
+	return nil, nil
+}
+func (m *mockTreatmentRepositoryForBilling) Create(_ context.Context, _ *model.Treatment) error {
+	return nil
+}
+func (m *mockTreatmentRepositoryForBilling) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+	return nil
+}
+func (m *mockTreatmentRepositoryForBilling) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockTreatmentRepositoryForBilling) BulkUpdateSortOrder(_ context.Context, _ []repository.TreatmentSortUpdate) error {
+	return nil
+}
+
+func defaultMockTreatmentRepo() *mockTreatmentRepositoryForBilling {
+	return &mockTreatmentRepositoryForBilling{}
 }
 
 func defaultMockBillingRepo() *mockAccountingRepository {
@@ -197,7 +226,7 @@ func TestBillingItemService_CreateItem(t *testing.T) {
 			if tt.billingFindFn != nil {
 				billingRepo.findByIDFn = tt.billingFindFn
 			}
-			svc := NewBillingItemService(repo, billingRepo)
+			svc := NewBillingItemService(repo, billingRepo, defaultMockTreatmentRepo())
 			result, err := svc.CreateItem(context.Background(), tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -270,7 +299,7 @@ func TestBillingItemService_UpdateItem(t *testing.T) {
 			repo.updateFieldsFn = func(_ context.Context, _, _ uint64, _ map[string]any) error {
 				return tt.updateErr
 			}
-			svc := NewBillingItemService(repo, defaultMockBillingRepo())
+			svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo())
 			result, err := svc.UpdateItem(context.Background(), 1, 1, tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -319,7 +348,7 @@ func TestBillingItemService_DeleteItem(t *testing.T) {
 			repo.deleteFn = func(_ context.Context, _, _ uint64) error {
 				return tt.deleteErr
 			}
-			svc := NewBillingItemService(repo, defaultMockBillingRepo())
+			svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo())
 			err := svc.DeleteItem(context.Background(), 1, 1)
 			if tt.wantErr {
 				assert.Error(t, err)

@@ -42,7 +42,9 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   // rerender-dependencies: extract primitives from crud.editTarget object
   const editTargetId = crud.editTarget !== null && crud.editTarget !== "new" ? crud.editTarget.id : null;
   // rerender-dependencies: destructure methods to avoid object reference instability
-  const crudHandleClose = crud.handleClose;
+  // NOTE: use setEditTarget(null) directly on save success to bypass confirmDiscard()
+  // crudHandleClose calls confirmDiscard() which shows window.confirm when isDirtyRef is still stale
+  const crudSetEditTarget = crud.setEditTarget;
   const crudStartSave = crud.startSaveTransition;
 
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -68,7 +70,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
                     await onSuccess(saved, data);
                   }
                   toast.success("更新しました");
-                  crudHandleClose();
+                  crudSetEditTarget(null);
                 } catch (error) {
                   handleApiError(error, "保存");
                 }
@@ -85,7 +87,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
                   await onSuccess(saved, data);
                 }
                 toast.success("登録しました");
-                crudHandleClose();
+                crudSetEditTarget(null);
               } catch (error) {
                 handleApiError(error, "保存");
               }
@@ -95,7 +97,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
         }
       });
     },
-    [editTargetId, crudHandleClose, crudStartSave, createMutation, updateMutation, validate, toCreateRequest, toUpdateRequest, onSuccess],
+    [editTargetId, crudSetEditTarget, crudStartSave, createMutation, updateMutation, validate, toCreateRequest, toUpdateRequest, onSuccess],
   );
 
   return { handleSave, validationError };

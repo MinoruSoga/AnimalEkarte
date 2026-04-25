@@ -113,6 +113,19 @@ export const paths = {
     },
   },
 
+  checkups: {
+    path: "/checkups",
+    getHref: () => "/checkups",
+    selectPet: {
+      path: "/checkups/select-pet",
+      getHref: () => "/checkups/select-pet",
+    },
+    new: {
+      path: "/checkups/new",
+      getHref: () => "/checkups/new",
+    },
+  },
+
   accounting: {
     path: "/accounting",
     getHref: () => "/accounting",

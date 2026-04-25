@@ -191,7 +191,8 @@ func (h *Handler) ListGlobalCheckups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, mapSlice(checkups, toCheckupGlobalResponse))
+	responses := mapSlice(checkups, toCheckupGlobalResponse)
+	c.JSON(http.StatusOK, newPaginatedResponse(responses, int64(len(responses)), 1, len(responses)))
 }
 
 // RegisterGlobalCheckupRoutes は /checkups トップレベルルートを登録する

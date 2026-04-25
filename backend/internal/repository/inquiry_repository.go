@@ -78,7 +78,6 @@ func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID 
 	// 最新状態を DB から取得（updated_at 等の DB 管理フィールドも正確に反映）
 	var refreshed model.Inquiry
 	if err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
 		Where("id = ?", existing.ID).
 		First(&refreshed).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "inquiry", fmt.Sprintf("%d", existing.ID))
@@ -90,10 +89,11 @@ func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID 
 // Delete の FK チェックに使用する。clinic_id フィルタにより他クリニックのレコードを誤検知しない。
 func (r *inquiryRepository) CountByChiefComplaintTypeID(ctx context.Context, clinicID, categoryID uint64) (int64, error) {
 	var count int64
+	// Inquiry は clinic_id を持たないため、medical_records と JOIN して clinicID で絞り込む
 	err := r.db.WithContext(ctx).
 		Model(&model.Inquiry{}).
-		Scopes(clinicScope(clinicID)).
-		Where("chief_complaint_type_id = ? AND deleted_at IS NULL", categoryID).
+		Joins("JOIN medical_records ON medical_records.id = inquiries.medical_record_id").
+		Where("medical_records.clinic_id = ? AND inquiries.chief_complaint_type_id = ?", clinicID, categoryID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "inquiry", "")

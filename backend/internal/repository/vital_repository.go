@@ -78,7 +78,7 @@ func (r *vitalRepository) Delete(ctx context.Context, clinicID, id uint64) error
 	result := r.db.WithContext(ctx).
 		Where("vital_records.id = ? AND vital_records.medical_record_id IN "+
 			"(SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
-		Delete(&model.VitalRecord{})
+		Unscoped().Delete(&model.VitalRecord{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "vital", fmt.Sprintf("%d", id))
 	}

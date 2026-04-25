@@ -55,7 +55,7 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 	}
 
 	exams := make([]model.Examination, 0)
-	if err := buildBase().Preload("ExaminationType", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
+	if err := buildBase().Preload("ExaminationType", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items").
 		Offset((page - 1) * limit).Limit(limit).Order("exams.date DESC, exams.created_at DESC").
 		Find(&exams).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "exam", "")
@@ -67,7 +67,7 @@ func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 	var exam model.Examination
 	err := r.db.WithContext(ctx).
 		Where("exams.id = ? AND exams.clinic_id = ?", id, clinicID).
-		Preload("ExaminationType", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
+		Preload("ExaminationType", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items").
 		First(&exam).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", id))
@@ -115,7 +115,7 @@ func (r *examinationRepository) CountItemsByExamID(ctx context.Context, clinicID
 	err := r.db.WithContext(ctx).
 		Model(&model.ExamResult{}).
 		Joins("JOIN exams ON exam_results.exam_id = exams.id AND exams.deleted_at IS NULL").
-		Where("exams.clinic_id = ? AND exam_results.exam_id = ? AND exam_results.deleted_at IS NULL", clinicID, examID).
+		Where("exams.clinic_id = ? AND exam_results.exam_id = ? ", clinicID, examID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "exam_item", fmt.Sprintf("exam_id=%d", examID))

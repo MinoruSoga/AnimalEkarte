@@ -49,7 +49,7 @@ const DEFAULT_FORM: VaccinationFormState = {
 // BUG-026: calculate next date based on vaccination date and schedule type
 function calculateNextDate(vaccinationDate: string, scheduleType: string): string {
   if (!vaccinationDate || scheduleType === "other") return "";
-  const date = new Date(vaccinationDate);
+  const date = new Date(vaccinationDate + "T00:00:00");
   if (isNaN(date.getTime())) return "";
   switch (scheduleType) {
     case "3weeks":
@@ -131,28 +131,28 @@ export function useVaccinationForm(id?: string) {
         }
         if (!formData.date) {
           errors.date = "接種日を入力してください";
-        } else if (new Date(formData.date) > today) {
+        } else if (new Date(formData.date + "T00:00:00") > today) {
           // BUG-024: 実施日は今日以前であること
           errors.date = "接種日は今日以前の日付を入力してください";
         }
       } else {
         if (!formData.date) {
           errors.date = "接種日を入力してください";
-        } else if (new Date(formData.date) > today) {
+        } else if (new Date(formData.date + "T00:00:00") > today) {
           // BUG-024: 実施日は今日以前であること
           errors.date = "接種日は今日以前の日付を入力してください";
         }
       }
       // BUG-096: 新規登録時、次回予定日は本日以降
       if (!isEdit && formData.nextDate) {
-        if (new Date(formData.nextDate) < today) {
+        if (new Date(formData.nextDate + "T00:00:00") < today) {
           errors.nextDate = "次回予定日は本日以降の日付を入力してください";
         }
       }
       // BUG-024: 次回予定日は実施日より後であること（新規・編集共通）
       if (formData.date && formData.nextDate) {
-        const dateVal = new Date(formData.date);
-        const nextDateVal = new Date(formData.nextDate);
+        const dateVal = new Date(formData.date + "T00:00:00");
+        const nextDateVal = new Date(formData.nextDate + "T00:00:00");
         if (!isNaN(dateVal.getTime()) && !isNaN(nextDateVal.getTime()) && nextDateVal <= dateVal) {
           errors.nextDate = "次回予定日は接種日より後の日付を入力してください";
         }

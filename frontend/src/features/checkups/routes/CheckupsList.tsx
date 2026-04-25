@@ -175,7 +175,7 @@ export function CheckupsList() {
   );
 
   const handleCreate = useCallback(() => {
-    navigate(paths.medicalRecords.selectPet.getHref());
+    navigate(paths.checkups.selectPet.getHref());
   }, [navigate]);
 
   const handleEdit = useCallback((medicalRecordId: string) => {

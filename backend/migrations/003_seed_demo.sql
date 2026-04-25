@@ -1217,6 +1217,100 @@ ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) FROM billing_refunds));
 
+-- -----------------------------------------------------------------------------
+-- 13b. 2026-04-25 デモ会計データ（レジ締めプレビュー用、clinic_id=1）
+-- AM 区分: completed_at 00:00-14:00 JST / PM 区分: 14:00-18:30 JST
+-- -----------------------------------------------------------------------------
+
+-- 本日分カルテ（医師 doctor_id 1 or 2、clinic_id=1 のみ）
+INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, doctor_id, status) VALUES
+    (21, 1, 'R-2026-021', '2026-04-25', 2,  3,  1, 'finalized'),
+    (22, 1, 'R-2026-022', '2026-04-25', 4,  6,  2, 'finalized'),
+    (23, 1, 'R-2026-023', '2026-04-25', 8,  10, 1, 'finalized'),
+    (24, 1, 'R-2026-024', '2026-04-25', 9,  11, 2, 'finalized'),
+    (25, 1, 'R-2026-025', '2026-04-25', 11, 13, 1, 'finalized')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
+
+-- 本日会計（AM 4件 / PM 3件）
+INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo) VALUES
+    -- AM 09:30: 田中花子 / ミケ（初診 + 猫3種ワクチン）
+    (4,  1, 21, NULL, 2,  3,  4500,  450,  4950,  false, 'completed', '2026-04-25', '2026-04-25 09:30:00+09', ''),
+    -- AM 10:30: 田中美咲 / チョコ（再診 + 皮膚炎処置 + 外用薬）
+    (5,  1, 22, NULL, 4,  6,  3500,  350,  3850,  false, 'completed', '2026-04-25', '2026-04-25 10:30:00+09', ''),
+    -- AM 11:30: 佐藤花子 / レオ（トリミング + フード購入、10%/8% 混在）
+    (6,  1, NULL, NULL, 5, 7,  6200,  596,  6796,  false, 'completed', '2026-04-25', '2026-04-25 11:30:00+09', 'トリミング来院'),
+    -- AM 13:00: 中村勇気 / ロッキー（再診 + 血液検査、アニコム 70%）
+    (7,  1, 23, NULL, 8,  10, 6800,  680,  7480,  true,  'completed', '2026-04-25', '2026-04-25 13:00:00+09', 'アニコム保険適用'),
+    -- PM 14:30: 加藤恵 / ルナ（避妊手術、アニコム 70%）
+    (8,  1, 24, NULL, 9,  11, 25000, 2500, 27500, true,  'completed', '2026-04-25', '2026-04-25 14:30:00+09', 'アニコム保険適用（避妊手術）'),
+    -- PM 15:30: 山田太郎 / ケン（ペットホテル 2泊）
+    (9,  1, NULL, NULL, 10, 12, 5000,  500,  5500,  false, 'completed', '2026-04-25', '2026-04-25 15:30:00+09', 'ペットホテル利用'),
+    -- PM 16:30: 高橋由美 / ソラ（再診 + 点眼薬）
+    (10, 1, 25, NULL, 11, 13, 1400,  140,  1540,  false, 'completed', '2026-04-25', '2026-04-25 16:30:00+09', '')
+ON CONFLICT (id) DO UPDATE SET
+    updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM billings));
+
+INSERT INTO billing_items (id, billing_id, category, name, unit_price, quantity, tax_rate, is_insurance_applicable, source, sort_order) VALUES
+    -- Billing 4: ミケ（初診 + ワクチン）
+    (7,  4, 'examination', '初診料',                            1500, 1, 0.10, true,  'medical_record', 1),
+    (8,  4, 'vaccine',     '猫3種混合ワクチン',                  3000, 1, 0.10, true,  'medical_record', 2),
+    -- Billing 5: チョコ（再診 + 処置 + 薬）
+    (9,  5, 'other',       '再診料',                             800,  1, 0.10, true,  'medical_record', 1),
+    (10, 5, 'procedure',   'アトピー皮膚炎処置',                 1500, 1, 0.10, true,  'medical_record', 2),
+    (11, 5, 'medicine',    'ステロイド外用薬 30g',               1200, 1, 0.10, true,  'medical_record', 3),
+    -- Billing 6: レオ（トリミング + フード、8% 混在）
+    (12, 6, 'trimming',    'フルトリミング（猫）',               5000, 1, 0.10, false, 'manual',         1),
+    (13, 6, 'food',        'ヒルズ サイエンスダイエット 猫用 400g', 1200, 1, 0.08, false, 'manual',       2),
+    -- Billing 7: ロッキー（再診 + 血液検査）
+    (14, 7, 'other',       '再診料',                             800,  1, 0.10, true,  'medical_record', 1),
+    (15, 7, 'test',        '血液検査（CBC + 生化学）',           6000, 1, 0.10, true,  'medical_record', 2),
+    -- Billing 8: ルナ（避妊手術）
+    (16, 8, 'surgery',     '避妊手術（猫）',                    25000, 1, 0.10, true,  'medical_record', 1),
+    -- Billing 9: ケン（ペットホテル 2泊）
+    (17, 9, 'hotel',       'ペットホテル（1泊）',               2500, 2, 0.10, false, 'manual',         1),
+    -- Billing 10: ソラ（再診 + 点眼薬）
+    (18, 10, 'other',      '再診料',                             800,  1, 0.10, true,  'medical_record', 1),
+    (19, 10, 'medicine',   '抗菌点眼薬（5ml）',                  600,  1, 0.10, true,  'medical_record', 2)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
+
+-- payments — 現金は payment_method_id=NULL（calcTheoreticalCash は NULL 行のみを現金として計算するため）
+-- 非現金（クレカ/電子マネー/銀行振込）はサブクエリで name 引き（ID が環境依存のため）
+INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insurance_name, insurance_ratio, insurance_amount, discount_amount, billing_amount, received_amount, change_amount, method, payment_method_id, paid_by) VALUES
+    -- Billing 4: 現金 4950円（受取 5000、釣 50）— payment_method_id=NULL で理論現金に加算
+    (3,  4,  4500,  450,  4950,  '',              0.00, 0,     0, 4950, 5000, 50,  'cash',         NULL, 1),
+    -- Billing 5: クレジットカード 3850円
+    (4,  5,  3500,  350,  3850,  '',              0.00, 0,     0, 3850, 3850, 0,   'credit_card',
+     (SELECT id FROM payment_methods WHERE clinic_id=1 AND name='クレジットカード' AND deleted_at IS NULL LIMIT 1), 1),
+    -- Billing 6: 現金 6796円（受取 7000、釣 204）— payment_method_id=NULL で理論現金に加算
+    (5,  6,  6200,  596,  6796,  '',              0.00, 0,     0, 6796, 7000, 204, 'cash',         NULL, 1),
+    -- Billing 7: クレジットカード（アニコム 70%、実費 2244円）
+    (6,  7,  6800,  680,  7480,  'アニコム損保',  0.70, 5236,  0, 2244, 2244, 0,   'credit_card',
+     (SELECT id FROM payment_methods WHERE clinic_id=1 AND name='クレジットカード' AND deleted_at IS NULL LIMIT 1), 1),
+    -- Billing 8: 銀行振込（アニコム 70%、実費 8250円）
+    (7,  8,  25000, 2500, 27500, 'アニコム損保',  0.70, 19250, 0, 8250, 8250, 0,   'cash',
+     (SELECT id FROM payment_methods WHERE clinic_id=1 AND name='銀行振込'       AND deleted_at IS NULL LIMIT 1), 1),
+    -- Billing 9: 電子マネー 5500円
+    (8,  9,  5000,  500,  5500,  '',              0.00, 0,     0, 5500, 5500, 0,   'electronic_money',
+     (SELECT id FROM payment_methods WHERE clinic_id=1 AND name='電子マネー'     AND deleted_at IS NULL LIMIT 1), 1),
+    -- Billing 10: 現金 1540円（受取 2000、釣 460）— payment_method_id=NULL で理論現金に加算
+    (9,  10, 1400,  140,  1540,  '',              0.00, 0,     0, 1540, 2000, 460, 'cash',         NULL, 1)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
+
+-- 返金デモ（billing_id=8 避妊手術の術前重複請求分、PM 区分内）
+INSERT INTO billing_refunds (id, clinic_id, billing_id, amount, reason, refunded_by, refunded_at) VALUES
+    (4, 1, 8, 2750, '術前検査費用の重複請求による部分返金', 1, '2026-04-25 17:00:00+09')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) FROM billing_refunds));
+
 -- =============================================================================
 -- 城東センター病院 (clinic_id=2) マスタデータ
 -- =============================================================================

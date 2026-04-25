@@ -349,7 +349,17 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 }
 
 func validateSpecialPeriodTimes(boundary, pmEnd string) error {
-	if boundary >= pmEnd {
+	// parseHHMM を使って "HH:MM" / "HH:MM:SS" 混在を正規化してから分単位で比較する。
+	// 文字列比較だと "13:30" < "13:30:00" になり同一時刻を誤って通過させる。
+	bh, bm, err := parseHHMM(boundary)
+	if err != nil {
+		return apperrors.WrapInvalidInput("境界時刻の形式が正しくありません")
+	}
+	ph, pm, err := parseHHMM(pmEnd)
+	if err != nil {
+		return apperrors.WrapInvalidInput("PM締め終了時刻の形式が正しくありません")
+	}
+	if bh*60+bm >= ph*60+pm {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("PM締め終了時刻(%s)は境界時刻(%s)より後に設定してください", pmEnd, boundary))
 	}
 	return nil

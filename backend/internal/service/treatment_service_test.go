@@ -76,6 +76,10 @@ func (m *mockTreatmentRepository) BulkUpdateSortOrder(ctx context.Context, updat
 	return m.bulkUpdateSortOrderFn(ctx, updates)
 }
 
+func (m *mockTreatmentRepository) FindUnbilledByPetID(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
+	return nil, nil
+}
+
 // ---- Tests ----
 
 func TestTreatmentService_List(t *testing.T) {

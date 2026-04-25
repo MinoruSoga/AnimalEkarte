@@ -543,6 +543,20 @@ export const router = createBrowserRouter([
               return { Component: CheckupsList };
             },
           },
+          {
+            path: "select-pet",
+            lazy: async () => {
+              const { CheckupPetSelection } = await import("@/features/checkups");
+              return { Component: CheckupPetSelection };
+            },
+          },
+          {
+            path: "new",
+            lazy: async () => {
+              const { CheckupForm } = await import("@/features/checkups");
+              return { Component: CheckupForm };
+            },
+          },
         ],
       },
 

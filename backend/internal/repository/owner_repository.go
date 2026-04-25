@@ -59,7 +59,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
 	}
 	if err := buildBase().
-		Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies", "deleted_at IS NULL").Preload("Pets.Insurance", "deleted_at IS NULL").
+		Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").
 		Find(&owners).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
@@ -69,7 +69,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 
 func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies", "deleted_at IS NULL").Preload("Pets.Insurance", "deleted_at IS NULL").Preload("Pets.Owner", "deleted_at IS NULL").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&owner).Error
+	err := r.db.WithContext(ctx).Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "deleted_at IS NULL").Preload("Pets.Owner", "deleted_at IS NULL").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&owner).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}

@@ -91,7 +91,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
-	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Pet.AnimalSpecies", "deleted_at IS NULL").Preload("ReservationType", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
+	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("ReservationType", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
@@ -104,7 +104,7 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner", "deleted_at IS NULL").
-		Preload("Pet.AnimalSpecies", "deleted_at IS NULL").
+		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CreatedByStaff", "deleted_at IS NULL").
@@ -294,7 +294,7 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 	var total int64
 
 	q := dbOrTx(ctx, r.db).Model(&model.Reservation{}).
-		Scopes(clinicScope(clinicID)).
+		Where("appointments.clinic_id = ?", clinicID).
 		Joins("JOIN reservation_types ON reservation_types.id = appointments.reservation_type_id AND reservation_types.deleted_at IS NULL").
 		Where("reservation_types.category = ?", category)
 
@@ -326,7 +326,7 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 	if err := q.
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner", "deleted_at IS NULL").
-		Preload("Pet.AnimalSpecies", "deleted_at IS NULL").
+		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("TrimmingDetail.Course", "deleted_at IS NULL").

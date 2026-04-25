@@ -38,7 +38,7 @@ func (r *reservationAdminRepository) FindAllByMonth(ctx context.Context, clinicI
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
-		Preload("LineCustomer", "deleted_at IS NULL").
+		Preload("LineCustomer").
 		Scopes(clinicScope(clinicID)).
 		Where("start_time >= ? AND start_time < ?", start, end).
 		Order("start_time ASC").
@@ -58,7 +58,7 @@ func (r *reservationAdminRepository) FindAllByDay(ctx context.Context, clinicID 
 		Preload("ReservationType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CreatedByStaff", "deleted_at IS NULL").
-		Preload("LineCustomer", "deleted_at IS NULL").
+		Preload("LineCustomer").
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
