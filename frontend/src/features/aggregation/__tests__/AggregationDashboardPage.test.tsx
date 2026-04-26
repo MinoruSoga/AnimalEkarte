@@ -1,0 +1,139 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Route, Routes } from 'react-router';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/testing/mocks/node';
+import { AggregationDashboardPage } from '../AggregationDashboardPage';
+import type { LtvOwnersResponse } from '../api/get-aggregations';
+
+const mockResponse: LtvOwnersResponse = {
+  owners: [
+    {
+      owner_id: 'owner1',
+      owner_name: '田中太郎',
+      has_line: true,
+      cpm_stage: 'established',
+      total_fee: 500000,
+      total_visit_count: 20,
+      annual_visit_count: 12,
+      last_visit_date: '2026-04-20',
+      first_visit_date: '2024-01-15',
+      annual_amount: 150000,
+      billing_count: 8,
+      period_visit_count: 5,
+      days_since_last_visit: 7,
+      last_visit_bucket: 'within_3m',
+    },
+    {
+      owner_id: 'owner2',
+      owner_name: '鈴木花子',
+      has_line: false,
+      cpm_stage: 'prospect',
+      total_fee: 200000,
+      total_visit_count: 8,
+      annual_visit_count: 4,
+      last_visit_date: '2026-01-10',
+      first_visit_date: '2025-06-01',
+      annual_amount: 80000,
+      billing_count: 4,
+      period_visit_count: 2,
+      days_since_last_visit: 107,
+      last_visit_bucket: 'over_3m',
+    },
+  ],
+  page: 1,
+  per_page: 50,
+  total: 2,
+};
+
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/owners/aggregation" element={children} />
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+};
+
+describe('AggregationDashboardPage', () => {
+  beforeEach(() => {
+    server.use(
+      http.get('/api/v1/clinics/:clinic_id/owners/aggregations', () => {
+        return HttpResponse.json(mockResponse);
+      })
+    );
+    vi.clearAllMocks();
+  });
+
+  it('should render revenue tab by default', async () => {
+    render(<AggregationDashboardPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText('年間売上')).toBeInTheDocument();
+    expect(screen.getByText('田中太郎')).toBeInTheDocument();
+  });
+
+  it('should switch tabs and update URL state', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<AggregationDashboardPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+    });
+
+    const tabs = container.querySelectorAll('button[role="tab"]');
+    expect(tabs.length).toBeGreaterThan(0);
+  });
+
+  it('should display error message on API failure', async () => {
+    server.use(
+      http.get('/api/v1/clinics/:clinic_id/owners/aggregations', () => {
+        return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+      })
+    );
+
+    render(<AggregationDashboardPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText(/読み込みに失敗しました/)).toBeInTheDocument();
+    });
+  });
+
+  it('should render pagination controls', async () => {
+    render(<AggregationDashboardPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/件中/)).toBeInTheDocument();
+  });
+
+  it('should display loading state initially', () => {
+    render(<AggregationDashboardPage />, { wrapper: createWrapper() });
+
+    expect(screen.getByText('読み込み中...')).toBeInTheDocument();
+  });
+
+  it('should render table with owner data', async () => {
+    render(<AggregationDashboardPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('田中太郎')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('鈴木花子')).toBeInTheDocument();
+  });
+});

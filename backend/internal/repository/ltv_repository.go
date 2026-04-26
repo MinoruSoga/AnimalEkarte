@@ -68,10 +68,10 @@ func NewLtvRepository(db *gorm.DB) LtvRepository {
 }
 
 func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params FindOwnerLTVParams) ([]OwnerLTVRow, error) {
-	var args []any
-
+	// Build all string components first, collecting args in separate slices
 	where := "o.clinic_id = ? AND o.deleted_at IS NULL"
-	args = append(args, params.ClinicID)
+	var whereArgs []any
+	whereArgs = append(whereArgs, params.ClinicID)
 
 	if params.LineLinked {
 		where += " AND o.line_user_id IS NOT NULL"
@@ -79,16 +79,13 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params FindOwnerLTVPar
 
 	if params.Search != "" {
 		where += " AND o.name ILIKE ?"
-		args = append(args, "%"+params.Search+"%")
+		whereArgs = append(whereArgs, "%"+params.Search+"%")
 	}
 
 	// 期間決定（AGG-BE-001/002/003）
-	fromDate, toDate := r.calculateDateRange(params)
-
-	// 期間フィルタ（WHERE句に追加）
-	if fromDate != nil && toDate != nil {
-		where += " AND mr.date >= ? AND mr.date <= ?"
-		args = append(args, fromDate, toDate)
+	fromDate, toDate, err := r.calculateDateRange(params)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to parse date range parameters")
 	}
 
 	// 金額基準選択（AGG-BE-001）
@@ -97,18 +94,33 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params FindOwnerLTVPar
 		amountBasis = "gross_total_amount"
 	}
 
+	// 金額式の構築（期間フィルタ付き）
 	var amountExpr string
+	hasPeriodFilter := fromDate != nil && toDate != nil
 	switch amountBasis {
 	case "paid_amount":
-		amountExpr = "COALESCE(SUM(p.billing_amount), 0)"
+		if hasPeriodFilter {
+			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END), 0)"
+		} else {
+			amountExpr = "COALESCE(SUM(p.billing_amount), 0)"
+		}
 	case "net_paid_amount":
-		amountExpr = "COALESCE(SUM(p.billing_amount) - COALESCE(SUM(br.amount), 0), 0)"
+		if hasPeriodFilter {
+			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END) - COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN br.amount ELSE 0 END), 0), 0)"
+		} else {
+			amountExpr = "COALESCE(SUM(p.billing_amount) - COALESCE(SUM(br.amount), 0), 0)"
+		}
 	default: // gross_total_amount
-		amountExpr = "COALESCE(SUM(b.total_amount), 0)"
+		if hasPeriodFilter {
+			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN b.total_amount ELSE 0 END), 0)"
+		} else {
+			amountExpr = "COALESCE(SUM(b.total_amount), 0)"
+		}
 	}
 
 	// HAVING句構築
 	var having []string
+	var havingArgs []any
 
 	// 全期間の会計額フィルタ（AGG-BE-001: min_amount/max_amount は期間内）
 	if params.MinTotalAmount != nil {
@@ -121,11 +133,11 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params FindOwnerLTVPar
 	// 来院回数フィルタ（AGG-BE-002）
 	if params.MinVisitCount != nil {
 		having = append(having, fmt.Sprintf("COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) >= %d", *params.MinVisitCount))
-		args = append(args, fromDate, toDate)
+		havingArgs = append(havingArgs, fromDate, toDate)
 	}
 	if params.MaxVisitCount != nil {
 		having = append(having, fmt.Sprintf("COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) <= %d", *params.MaxVisitCount))
-		args = append(args, fromDate, toDate)
+		havingArgs = append(havingArgs, fromDate, toDate)
 	}
 
 	havingClause := ""
@@ -135,6 +147,28 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params FindOwnerLTVPar
 
 	// ORDER BY構築
 	orderBy := r.buildOrderBy(params.Sort, params.Order)
+
+	// 期間フィルタをCASE式で適用（total_visit_countは全期間、period_visit_countのみ期間制限）
+	periodFilter := ""
+	var periodFilterArgs []any
+	if fromDate != nil && toDate != nil {
+		periodFilter = fmt.Sprintf("(mr.date >= %s AND mr.date <= %s)", "?", "?")
+		// amountExpr用: net_paid_amount の場合は4個、その他は2個のargs
+		periodFilterArgs = append(periodFilterArgs, fromDate, toDate)
+		if amountBasis == "net_paid_amount" {
+			periodFilterArgs = append(periodFilterArgs, fromDate, toDate)
+		}
+	}
+
+	// period_visit_count用フィルタ条件（CASE WHEN の条件部分）
+	// 注意: periodVisitCountCondition は query内で2回使われるため、fromDate/toDate を2回分必要
+	periodVisitCountCondition := ""
+	if periodFilter != "" {
+		periodVisitCountCondition = "AND " + periodFilter
+		// periodVisitCountCondition が query内で2回使われるため、args を2回分追加
+		periodFilterArgs = append(periodFilterArgs, fromDate, toDate)
+		periodFilterArgs = append(periodFilterArgs, fromDate, toDate)
+	}
 
 	query := fmt.Sprintf(`
 SELECT
@@ -148,8 +182,8 @@ SELECT
   MAX(mr.date)                                                                        AS last_visit_date,
   MIN(mr.date)                                                                        AS first_visit_date,
   %s                                                                                   AS annual_amount,
-  COUNT(DISTINCT CASE WHEN mr.clinic_id = o.clinic_id THEN b.id END)                 AS billing_count,
-  COUNT(DISTINCT CASE WHEN mr.clinic_id = o.clinic_id THEN mr.date END)              AS period_visit_count,
+  COUNT(DISTINCT CASE WHEN mr.clinic_id = o.clinic_id %s THEN b.id END)              AS billing_count,
+  COUNT(DISTINCT CASE WHEN mr.clinic_id = o.clinic_id %s THEN mr.date END)           AS period_visit_count,
   EXTRACT(DAY FROM NOW() - MAX(mr.date))::int                                        AS days_since_last_visit,
   CASE
     WHEN MAX(mr.date) IS NULL THEN 'no_visit'
@@ -167,7 +201,13 @@ WHERE %s
 GROUP BY o.id, o.name, o.line_user_id, o.lstep_opt_out
 %s
 ORDER BY %s
-`, amountExpr, where, havingClause, orderBy)
+`, amountExpr, periodVisitCountCondition, periodVisitCountCondition, where, havingClause, orderBy)
+
+	// Assemble args in the correct order: periodFilter args, then where args, then having args
+	var args []any
+	args = append(args, periodFilterArgs...)
+	args = append(args, whereArgs...)
+	args = append(args, havingArgs...)
 
 	var rows []OwnerLTVRow
 	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error; err != nil {
@@ -196,43 +236,49 @@ ORDER BY %s
 }
 
 // calculateDateRange は year/from/to/period_preset から集計期間を決定する。
-func (r *ltvRepository) calculateDateRange(params FindOwnerLTVParams) (*time.Time, *time.Time) {
+func (r *ltvRepository) calculateDateRange(params FindOwnerLTVParams) (*time.Time, *time.Time, error) {
 	now := time.Now()
 	currentYear := now.Year()
 
-	// from/to が明示的に指定されている場合はそれを優先
+	// from/to が明示的に指定されている場合はそれを優先（優先度1）
 	if params.From != nil && params.To != nil {
-		// YYYY-MM-DD 形式をパース
-		from, _ := time.Parse("2006-01-02", *params.From)
-		to, _ := time.Parse("2006-01-02", *params.To)
-		return &from, &to
+		// YYYY-MM-DD 形式をパース（エラーを明示的に処理）
+		from, err := time.Parse("2006-01-02", *params.From)
+		if err != nil {
+			return nil, nil, apperrors.Wrap(err, fmt.Sprintf("invalid From date format: %s (expected YYYY-MM-DD)", *params.From))
+		}
+		to, err := time.Parse("2006-01-02", *params.To)
+		if err != nil {
+			return nil, nil, apperrors.Wrap(err, fmt.Sprintf("invalid To date format: %s (expected YYYY-MM-DD)", *params.To))
+		}
+		return &from, &to, nil
 	}
 
-	// period_preset に基づいて期間を決定（AGG-BE-002）
+	// year が指定されている場合（優先度2）（AGG-BE-001）
+	if params.Year != nil {
+		from := time.Date(*params.Year, 1, 1, 0, 0, 0, 0, time.UTC)
+		to := time.Date(*params.Year, 12, 31, 23, 59, 59, 0, time.UTC)
+		return &from, &to, nil
+	}
+
+	// period_preset に基づいて期間を決定（優先度3）（AGG-BE-002）
 	switch params.PeriodPreset {
 	case "last_3_months":
 		from := now.AddDate(0, -3, 0)
-		return &from, &now
+		return &from, &now, nil
 	case "last_6_months":
 		from := now.AddDate(0, -6, 0)
-		return &from, &now
+		return &from, &now, nil
 	case "last_12_months":
 		from := now.AddDate(-1, 0, 0)
-		return &from, &now
+		return &from, &now, nil
 	case "calendar_year":
 		from := time.Date(currentYear, 1, 1, 0, 0, 0, 0, now.Location())
-		return &from, &now
-	}
-
-	// year が指定されている場合（AGG-BE-001）
-	if params.Year != nil {
-		from := time.Date(*params.Year, 1, 1, 0, 0, 0, 0, now.Location())
-		to := time.Date(*params.Year, 12, 31, 23, 59, 59, 0, now.Location())
-		return &from, &to
+		return &from, &now, nil
 	}
 
 	// デフォルト: from/to は nil（全期間）
-	return nil, nil
+	return nil, nil, nil
 }
 
 // buildOrderBy はソートフィールドと順序から ORDER BY 句を構築する。

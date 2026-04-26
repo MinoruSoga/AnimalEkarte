@@ -65,6 +65,10 @@
 - **[tasks/open/aggregation/](tasks/open/aggregation/)**: 顧客集計の開発タスク（BE/FE分割）。
 - **[tasks/open/lstep/](tasks/open/lstep/)**: Lステップ連携の開発タスク（BE/FE分割）。
 
+## 🤖 AI 開発ワークフロー
+
+- **[AI_DEVELOPMENT_WORKFLOW.md](AI_DEVELOPMENT_WORKFLOW.md)**: 仕様と issue から要件を読み取り、AI エージェントと協働して実装・PR・セルフレビューまで進める標準手順。
+
 ---
 
 **最終更新**: 2026-04-26

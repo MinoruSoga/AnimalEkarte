@@ -34,10 +34,11 @@ export const paths = {
       path: "/owners/:id",
       getHref: (id: string | number) => `/owners/${id}`,
     },
-    ltv: {
-      path: "/owners/ltv",
-      getHref: () => "/owners/ltv",
-    },
+  },
+
+  aggregation: {
+    path: "/aggregation",
+    getHref: () => "/aggregation",
   },
 
   reservations: {

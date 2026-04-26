@@ -32,9 +32,6 @@ export type LastVisitBucket =
 export interface LtvOwner {
   owner_id: string;
   owner_name: string;
-  has_line: boolean;
-  cpm_stage: "encounter" | "growing" | "core" | "noah" | "spot" | "dormant" | null;
-  total_fee: number;
   annual_visit_count: number;
   total_visit_count: number;
   last_visit_date: string | null;
@@ -51,10 +48,6 @@ export interface LtvOwner {
 export interface LtvOwnersParams {
   sort?: LtvSortField;
   order?: "asc" | "desc";
-  cpm_stage?: string;
-  has_line?: boolean;
-  min_total_fee?: number;
-  max_total_fee?: number;
   search?: string;
   page?: number;
   per_page?: number;
@@ -82,14 +75,14 @@ export interface LtvOwnersResponse {
   per_page: number;
 }
 
-// GET /api/clinics/:clinic_id/owners/ltv
-export function useGetLtvOwners(params: LtvOwnersParams) {
+// GET /api/clinics/:clinic_id/owners/aggregations
+export function useGetOwnerAggregations(params: LtvOwnersParams) {
   return useQuery({
-    queryKey: ["ltv-owners", params],
+    queryKey: ["owner-aggregations", params],
     queryFn: async () => {
       const clinicId = localStorage.getItem("auth_current_clinic:v1");
       const { data } = await axios.get<LtvOwnersResponse>(
-        `/v1/clinics/${clinicId}/owners/ltv`,
+        `/v1/clinics/${clinicId}/owners/aggregations`,
         { params }
       );
       return data;

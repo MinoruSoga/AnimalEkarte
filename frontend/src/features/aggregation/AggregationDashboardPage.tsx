@@ -9,11 +9,11 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { useGetLtvOwners, type LtvOwnersParams, type LtvOwner } from "../api/get-ltv-owners";
-import { LtvFilterPanel } from "./LtvFilterPanel";
-import { LtvOwnerTable } from "./LtvOwnerTable";
+import { useGetOwnerAggregations, type LtvOwnersParams, type LtvOwner } from "./api/get-aggregations";
+import { AggregationFilterPanel } from "./AggregationFilterPanel";
+import { AggregationOwnerTable } from "./AggregationOwnerTable";
 
-export type LtvTab = "revenue" | "visit" | "last_visit" | "ltv";
+export type LtvTab = "revenue" | "visit" | "last_visit";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -40,16 +40,10 @@ const TAB_DEFAULT_PARAMS: Record<LtvTab, LtvOwnersParams> = {
     sort: "last_visit_date",
     order: "asc",
   },
-  ltv: {
-    page: 1,
-    per_page: 50,
-    sort: "total_fee",
-    order: "desc",
-  },
 };
 
 function validateTab(value: unknown): LtvTab | null {
-  if (value === "revenue" || value === "visit" || value === "last_visit" || value === "ltv") {
+  if (value === "revenue" || value === "visit" || value === "last_visit") {
     return value;
   }
   return null;
@@ -63,8 +57,6 @@ interface CsvColumnDef {
 const CSV_COMMON_COLUMNS: CsvColumnDef[] = [
   { header: "owner_id", getValue: (o) => o.owner_id },
   { header: "owner_name", getValue: (o) => `"${o.owner_name.replace(/"/g, '""')}"` },
-  { header: "has_line", getValue: (o) => (o.has_line ? "true" : "false") },
-  { header: "cpm_stage", getValue: (o) => o.cpm_stage ?? "" },
 ];
 
 const CSV_COLUMNS: Record<LtvTab, CsvColumnDef[]> = {
@@ -91,14 +83,6 @@ const CSV_COLUMNS: Record<LtvTab, CsvColumnDef[]> = {
     { header: "last_visit_bucket", getValue: (o) => o.last_visit_bucket ?? "" },
     { header: "first_visit_date", getValue: (o) => o.first_visit_date ?? "" },
   ],
-  ltv: [
-    ...CSV_COMMON_COLUMNS,
-    { header: "total_fee", getValue: (o) => String(o.total_fee) },
-    { header: "annual_visit_count", getValue: (o) => String(o.annual_visit_count) },
-    { header: "total_visit_count", getValue: (o) => String(o.total_visit_count) },
-    { header: "last_visit_date", getValue: (o) => o.last_visit_date ?? "" },
-    { header: "first_visit_date", getValue: (o) => o.first_visit_date ?? "" },
-  ],
 };
 
 function buildCsvContent(owners: LtvOwner[], tab: LtvTab): string {
@@ -123,13 +107,13 @@ function downloadCsv(content: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-export function LtvDashboardPage() {
+export function AggregationDashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab: LtvTab = validateTab(searchParams.get("tab")) ?? "revenue";
   const [params, setParams] = useState<LtvOwnersParams>(TAB_DEFAULT_PARAMS[activeTab]);
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<Set<string>>(new Set());
 
-  const { data, isLoading, isError, error } = useGetLtvOwners(params);
+  const { data, isLoading, isError, error } = useGetOwnerAggregations(params);
   const owners = data?.owners ?? [];
 
   const handleTabChange = useCallback(
@@ -207,7 +191,7 @@ export function LtvDashboardPage() {
       <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* タブUI */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className={`grid w-full grid-cols-4 ${C.bgLight}`}>
+          <TabsList className={`grid w-full grid-cols-3 ${C.bgLight}`}>
             <TabsTrigger
               value="revenue"
               className={`data-[state=active]:${C.dataActiveBorderB} data-[state=active]:${C.dataActiveText}`}
@@ -226,17 +210,11 @@ export function LtvDashboardPage() {
             >
               最終来院
             </TabsTrigger>
-            <TabsTrigger
-              value="ltv"
-              className={`data-[state=active]:${C.dataActiveBorderB} data-[state=active]:${C.dataActiveText}`}
-            >
-              LTV/CPM
-            </TabsTrigger>
           </TabsList>
         </Tabs>
 
         {/* フィルタパネル */}
-        <LtvFilterPanel params={params} onParamsChange={handleParamsChange} activeTab={activeTab} />
+        <AggregationFilterPanel params={params} onParamsChange={handleParamsChange} activeTab={activeTab} />
 
         {/* ツールバー */}
         <div className={`flex items-center gap-3 py-2 px-1 border-b ${C.borderLight}`}>
@@ -262,7 +240,7 @@ export function LtvDashboardPage() {
         </div>
 
         {/* テーブル */}
-        <LtvOwnerTable
+        <AggregationOwnerTable
           owners={owners}
           selectedOwnerIds={selectedOwnerIds}
           onSelectAll={handleSelectAll}

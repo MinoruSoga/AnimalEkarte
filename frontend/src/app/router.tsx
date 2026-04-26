@@ -121,15 +121,24 @@ export const router = createBrowserRouter([
               return { Component: OwnerFormPage, loader: ownerLoader };
             },
           },
-          {
-            path: "ltv",
-            lazy: async () => {
-              const { LtvDashboardPage } = await import("@/features/owners");
-              return { Component: LtvDashboardPage };
-            },
-          },
         ],
       },
+
+      // ── Aggregation ──────────────────────────────────────────────
+      {
+        path: "/aggregation",
+        element: (
+          <RequirePermission resource={ResourceOwners}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        errorElement: <RouteErrorBoundary />,
+        lazy: async () => {
+          const { AggregationDashboardPage } = await import("@/features/aggregation");
+          return { Component: AggregationDashboardPage };
+        },
+      },
+
 // ── Reservations ─────────────────────────────────────────────
 {
   path: "/reservations",

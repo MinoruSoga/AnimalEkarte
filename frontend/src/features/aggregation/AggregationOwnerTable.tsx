@@ -1,5 +1,4 @@
 import { Link } from "react-router";
-import { Check, Minus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
@@ -10,11 +9,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
-import type { LtvOwner, LastVisitBucket } from "../api/get-ltv-owners";
+import type { LtvOwner, LastVisitBucket } from "./api/get-aggregations";
 
-export type LtvTab = "revenue" | "visit" | "last_visit" | "ltv";
+export type LtvTab = "revenue" | "visit" | "last_visit";
 
-interface LtvOwnerTableProps {
+interface AggregationOwnerTableProps {
   owners: LtvOwner[];
   selectedOwnerIds: Set<string>;
   onSelectAll: (checked: boolean) => void;
@@ -25,39 +24,8 @@ interface LtvOwnerTableProps {
   errorMessage?: string;
 }
 
-type CpmStage = "encounter" | "growing" | "core" | "noah" | "spot" | "dormant";
 
-const CPM_STAGE_LABEL: Record<CpmStage, string> = {
-  encounter: "エンカウンター",
-  growing: "グロウィング",
-  core: "コア",
-  noah: "ノア",
-  spot: "スポット",
-  dormant: "休眠",
-};
 
-// design-tokens の C クラスで対応困難なため Tailwind 直書き
-const CPM_STAGE_CLASS: Record<CpmStage, string> = {
-  encounter: "bg-cyan-100 text-cyan-800 border-cyan-200",
-  growing: "bg-blue-100 text-blue-800 border-blue-200",
-  core: "bg-green-100 text-green-800 border-green-200",
-  noah: "bg-purple-100 text-purple-800 border-purple-200",
-  spot: "bg-orange-100 text-orange-800 border-orange-200",
-  dormant: "bg-yellow-100 text-yellow-800 border-yellow-200",
-};
-
-function CpmStageBadge({ stage }: { stage: CpmStage | null }) {
-  if (stage === null) {
-    return <span className={`text-sm ${C.text40}`}>—</span>;
-  }
-  return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${CPM_STAGE_CLASS[stage]}`}
-    >
-      {CPM_STAGE_LABEL[stage]}
-    </span>
-  );
-}
 
 const LAST_VISIT_BUCKET_LABEL: Record<LastVisitBucket, string> = {
   within_3m: "3ヶ月以内",
@@ -130,23 +98,6 @@ const COMMON_COLUMNS: ColumnDef[] = [
         {owner.owner_name}
       </Link>
     ),
-  },
-  {
-    key: "has_line",
-    label: "LINE",
-    width: "w-24",
-    render: (owner) =>
-      owner.has_line ? (
-        <Check className="size-4 text-[#06C755]" />
-      ) : (
-        <Minus className={`size-4 ${C.text30}`} />
-      ),
-  },
-  {
-    key: "cpm_stage",
-    label: "CPMステージ",
-    width: "w-32",
-    render: (owner) => <CpmStageBadge stage={owner.cpm_stage} />,
   },
 ];
 
@@ -279,55 +230,9 @@ const TAB_SPECIFIC_COLUMNS: Record<LtvTab, ColumnDef[]> = {
       ),
     },
   ],
-  ltv: [
-    ...COMMON_COLUMNS,
-    {
-      key: "total_fee",
-      label: "累計診療費",
-      width: "w-32",
-      textAlign: "right",
-      render: (owner) => (
-        <span className="font-mono">{formatFee(owner.total_fee)}</span>
-      ),
-    },
-    {
-      key: "annual_visit_count",
-      label: "年間来院",
-      width: "w-24",
-      textAlign: "right",
-      render: (owner) => (
-        <span className="font-mono">{owner.annual_visit_count}</span>
-      ),
-    },
-    {
-      key: "total_visit_count",
-      label: "累計来院",
-      width: "w-24",
-      textAlign: "right",
-      render: (owner) => (
-        <span className="font-mono">{owner.total_visit_count}</span>
-      ),
-    },
-    {
-      key: "last_visit_date",
-      label: "最終来院日",
-      width: "w-28",
-      render: (owner) => (
-        <span className="font-mono">{formatDate(owner.last_visit_date)}</span>
-      ),
-    },
-    {
-      key: "first_visit_date",
-      label: "初診日",
-      width: "w-28",
-      render: (owner) => (
-        <span className="font-mono">{formatDate(owner.first_visit_date)}</span>
-      ),
-    },
-  ],
 };
 
-export function LtvOwnerTable({
+export function AggregationOwnerTable({
   owners,
   selectedOwnerIds,
   onSelectAll,
@@ -336,7 +241,7 @@ export function LtvOwnerTable({
   activeTab,
   isError,
   errorMessage,
-}: LtvOwnerTableProps) {
+}: AggregationOwnerTableProps) {
   const columns = TAB_SPECIFIC_COLUMNS[activeTab];
   const colSpan = columns.length + 1; // +1 for checkbox
   const allSelected = owners.length > 0 && owners.every((o) => selectedOwnerIds.has(o.owner_id));
