@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
-import { Download, RefreshCw, Tags } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +12,6 @@ import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { useGetLtvOwners, type LtvOwnersParams, type LtvOwner } from "../api/get-ltv-owners";
 import { LtvFilterPanel } from "./LtvFilterPanel";
 import { LtvOwnerTable } from "./LtvOwnerTable";
-import { LtvBulkSyncDialog } from "./LtvBulkSyncDialog";
 
 export type LtvTab = "revenue" | "visit" | "last_visit" | "ltv";
 
@@ -129,7 +128,6 @@ export function LtvDashboardPage() {
   const activeTab: LtvTab = validateTab(searchParams.get("tab")) ?? "revenue";
   const [params, setParams] = useState<LtvOwnersParams>(TAB_DEFAULT_PARAMS[activeTab]);
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<Set<string>>(new Set());
-  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
 
   const { data, isLoading, isError, error } = useGetLtvOwners(params);
   const owners = data?.owners ?? [];
@@ -185,10 +183,6 @@ export function LtvDashboardPage() {
     const date = new Date().toISOString().slice(0, 10);
     downloadCsv(csv, `ltv-${activeTab}-${date}.csv`);
   }, [selectedCount, selectedOwners, owners, activeTab]);
-
-  const handleSyncClick = useCallback(() => {
-    setSyncDialogOpen(true);
-  }, []);
 
   const errorMessage = isError
     ? (error instanceof Error ? error.message : "データの読み込みに失敗しました")
@@ -255,16 +249,6 @@ export function LtvDashboardPage() {
             </span>
           ) : null}
           <div className="flex items-center gap-2 ml-auto">
-            {selectedCount > 0 ? (
-              <Button
-                className={STYLE.btnPrimary}
-                onClick={handleSyncClick}
-                disabled={isLoading}
-              >
-                <Tags className={`mr-1.5 ${ICON.sm}`} />
-                Lステップに連携
-              </Button>
-            ) : null}
             <Button
               variant="outline"
               className={STYLE.btnOutline}
@@ -322,14 +306,6 @@ export function LtvDashboardPage() {
           </div>
         ) : null}
       </div>
-
-      {/* Lステップ連携ダイアログ */}
-      <LtvBulkSyncDialog
-        open={syncDialogOpen}
-        onOpenChange={setSyncDialogOpen}
-        selectedOwnerIds={Array.from(selectedOwnerIds)}
-        selectedCount={selectedCount}
-      />
     </PageLayout>
   );
 }
