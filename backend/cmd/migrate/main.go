@@ -49,7 +49,7 @@ func run(logger *slog.Logger) error {
 	// SSL mode を取得
 	sslMode := os.Getenv("DB_SSL_MODE")
 	if sslMode == "" {
-		sslMode = "require"
+		sslMode = "disable"
 	}
 
 	// PostgreSQL 接続文字列を構築
