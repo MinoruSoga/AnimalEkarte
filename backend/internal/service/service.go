@@ -140,6 +140,11 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	// resStaffSvc は ReservationStaffService（Core + Exclusion の合成）を実装する。
 	resStaffSvc := NewReservationStaffService(repos.ReservationStaff, tx)
 
+	// LSTEP services initialization with nil cipher (production code in main.go will override with encrypted cipher)
+	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, nil, auditSvc)
+	lstepTagSyncSvc := NewLstepTagSyncService(lstepSettingsSvc, repos.Owner, repos.Vaccination, repos.MedicalRecord, repos.Accounting, repos.LstepTagCache, repos.Pet, repos.Prescription)
+	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc)
+
 	return &Services{
 		Account:                        NewAccountService(repos.Account),
 		StaffClinicAssignment:          NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
@@ -216,6 +221,9 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr),
 		Prescription:              NewPrescriptionService(repos.Prescription, repos.MedicalRecord),
 		Ltv:                       NewLtvService(repos.Ltv, repos.LstepTagCache),
+		LstepSettings:             lstepSettingsSvc,
+		LstepTagSync:              lstepTagSyncSvc,
+		LstepLifecycle:            lstepLifecycleSvc,
 		Liff: NewLiffService(
 			repos.LineReservationSetting,
 			repos.ReservationTypeLiff,

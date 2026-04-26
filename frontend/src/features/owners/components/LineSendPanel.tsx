@@ -40,6 +40,8 @@ export function LineSendPanel({
   const [sendType, setSendType] = useState<LineSendType>("text");
 
   const isLinked = lineData?.is_linked ?? false;
+  const isOptOut = lineData?.lstep_opt_out ?? false;
+  const canSend = isLinked && !isOptOut;
 
   const [formState, formAction] = useActionState(
     async (
@@ -48,6 +50,9 @@ export function LineSendPanel({
     ): Promise<SendFormState> => {
       if (!isLinked) {
         return { error: "LINE未連携のため送信できません", success: false };
+      }
+      if (isOptOut) {
+        return { error: "配信停止中のため送信できません", success: false };
       }
 
       const type = formData.get("send_type") as LineSendType;
@@ -72,8 +77,7 @@ export function LineSendPanel({
         return { error: "ファイルを選択してください", success: false };
       }
       try {
-        const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
-        const uploaded = await uploadLineFile(clinicId, ownerId, file);
+        const uploaded = await uploadLineFile(ownerId, file);
         await sendMessage({
           message_type: type,
           file_id: uploaded.id,
@@ -100,13 +104,21 @@ export function LineSendPanel({
         <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-4">
           {!isLinked ? (
             <div
-              className={`rounded-md border ${C.borderNotice} ${C.bgNotice} px-4 py-3 text-sm ${C.textNotice}`}
+              className={`rounded-md border ${C.borderDanger} ${C.bgDanger8} px-4 py-3 text-sm ${C.danger}`}
             >
               LINE未連携のため送信できません
             </div>
           ) : null}
 
-          {isLinked ? (
+          {isLinked && isOptOut ? (
+            <div
+              className={`rounded-md border ${C.borderDanger} ${C.bgDanger8} px-4 py-3 text-sm ${C.danger}`}
+            >
+              配信停止中（opt-out）のため送信できません
+            </div>
+          ) : null}
+
+          {canSend ? (
             <form action={formAction} className="flex flex-col gap-4">
               {/* 送信タイプ選択 */}
               <div className="flex flex-col gap-1.5">
@@ -166,6 +178,11 @@ export function LineSendPanel({
                   />
                 </div>
               ) : null}
+
+              {/* FE-003: 月間配信数消費の注意 */}
+              <div className={`rounded-md border ${C.borderNotice} ${C.bgNotice} px-3 py-2 text-xs ${C.textNotice}`}>
+                この送信はLINE Messaging APIを使用します。月間配信数を1件消費します。
+              </div>
 
               {/* 送信目的 */}
               <div className="flex flex-col gap-1.5">

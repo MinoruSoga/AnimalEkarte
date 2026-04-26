@@ -7,7 +7,6 @@ interface UploadedLineFile {
 }
 
 export async function uploadLineFile(
-  clinicId: string,
   ownerId: string,
   file: File
 ): Promise<UploadedLineFile> {
