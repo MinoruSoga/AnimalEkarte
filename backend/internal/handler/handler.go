@@ -103,7 +103,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	// LSTEP / LINE連携
 	h.RegisterLstepSettingsRoutes(protected)
 	h.RegisterSharedFileRoutes(protected)
-	h.RegisterLtvRoutes(protected)
+	h.RegisterAggregationRoutes(protected)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	h.RegisterLstepTagSummaryRoutes(protected)
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携

@@ -27,7 +27,7 @@
 ## 📱 画面・機能仕様
 
 - **[SPECIFICATION.md](SPECIFICATION.md)**: システム全体の機能要件と主要ビジネスフロー。
-- **[CUSTOMER_AGGREGATION_SPEC.md](CUSTOMER_AGGREGATION_SPEC.md)**: LTV/顧客集計ダッシュボードの仕様。年間売上ランキング・来院回数・最終来院日分類を含む。
+- **[CUSTOMER_AGGREGATION_SPEC.md](CUSTOMER_AGGREGATION_SPEC.md)**: 顧客集計ダッシュボードの仕様。年間売上ランキング・来院回数・最終来院日分類を含む。
 - **[CASH_REGISTER_SPEC.md](CASH_REGISTER_SPEC.md)**: レジ締め・日次/月次売上集計の業務仕様。
 - **[screens/](screens/)**: 各画面の詳細仕様（項目定義・コンポーネント構成）。
 - **[screens/99-medical-record-flow.md](screens/99-medical-record-flow.md)**: カルテ登録・編集の複雑なライフサイクル仕様。
@@ -62,7 +62,7 @@
 
 - **[tasks/closed/](tasks/closed/)**: 完了済みバグ修正・機能開発タスク。
 - **[tasks/open/](tasks/open/)**: 未着手タスク。
-- **[tasks/open/aggregation/](tasks/open/aggregation/)**: LTV/顧客集計の開発タスク（BE/FE分割）。
+- **[tasks/open/aggregation/](tasks/open/aggregation/)**: 顧客集計の開発タスク（BE/FE分割）。
 - **[tasks/open/lstep/](tasks/open/lstep/)**: Lステップ連携の開発タスク（BE/FE分割）。
 
 ---

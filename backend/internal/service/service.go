@@ -92,8 +92,8 @@ type Services struct {
 	SharedFile     SharedFileService
 	// LSTEP-BE-009: 処方薬記録
 	Prescription PrescriptionService
-	// LSTEP-BE-010: LTV集計
-	Ltv LtvService
+	// LSTEP-BE-010: LTV集計 → 顧客集計ドメインに統一
+	Aggregation AggregationService
 	// LSTEP-BE-012: 慢性疾患フラグ
 	ChronicCondition ChronicConditionService
 	// LSTEP-BE-013: LINE個別送信
@@ -220,10 +220,11 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ReservationAdmin:          NewReservationAdminService(repos.ReservationAdmin, repos.Reservation, tx),
 		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr),
 		Prescription:              NewPrescriptionService(repos.Prescription, repos.MedicalRecord),
-		Ltv:                       NewLtvService(repos.Ltv, repos.LstepTagCache),
+		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache),
 		LstepSettings:             lstepSettingsSvc,
 		LstepTagSync:              lstepTagSyncSvc,
 		LstepLifecycle:            lstepLifecycleSvc,
+		LstepTag:                  NewLstepTagService(lstepSettingsSvc, repos.Owner, repos.LstepTagCache, auditSvc),
 		Liff: NewLiffService(
 			repos.LineReservationSetting,
 			repos.ReservationTypeLiff,

@@ -277,26 +277,37 @@ Authorization: Bearer {jwt_token}
 
 ---
 
-#### LTV/顧客集計一覧取得
+#### 顧客集計一覧取得
 
 ```http
-GET /api/v1/clinics/:clinic_id/owners/ltv?sort=total_fee&order=desc&page=1&per_page=50
+GET /api/v1/clinics/:clinic_id/owners/aggregations?sort=annual_amount&order=desc&page=1&per_page=50
 Authorization: Bearer {jwt_token}
 ```
 
-飼い主単位で累計診療費、年間来院回数、最終来院日、初診日を集計する一覧。
+飼い主単位で年間売上、来院回数、最終来院日を集計する一覧。
 
 **主なクエリパラメータ**:
 
 | パラメータ | 型 | 説明 |
 |----------|-----|------|
-| `sort` | string | `total_fee` / `annual_visit_count` / `last_visit_date` |
+| `metric` | string | `annual_sales` / `visit_count` / `last_visit` |
+| `sort` | string | `annual_amount` / `period_visit_count` / `last_visit_date` |
 | `order` | string | `asc` / `desc` |
-| `min_total_fee` | integer | 累計診療費下限 |
-| `max_total_fee` | integer | 累計診療費上限 |
+| `amount_basis` | string | `gross_total_amount` / `paid_amount` / `net_paid_amount` |
+| `min_amount` | integer | 年間売上下限 |
+| `max_amount` | integer | 年間売上上限 |
+| `search` | string | 飼い主名部分一致 |
+| `year` | integer | 年間売上の対象年 |
+| `from` | date | 集計開始日 |
+| `to` | date | 集計終了日 |
+| `period_preset` | string | `last_3_months` / `last_6_months` / `last_12_months` / `calendar_year` |
 | `min_visit_count` | integer | 累計来院回数下限 |
-| `cpm_stage` | string | `encounter` / `growing` / `core` / `noah` / `spot` / `dormant` |
-| `line_linked` | boolean | LINE連携済みのみ |
+| `max_visit_count` | integer | 累計来院回数上限 |
+| `last_visit_bucket` | string | `within_3m` / `over_3m` / `over_6m` / `over_1y` / `no_visit` |
+| `min_days_since_last_visit` | integer | 経過日数下限 |
+| `max_days_since_last_visit` | integer | 経過日数上限 |
+| `include_zero` | boolean | 0円・0回を含める |
+| `include_no_visit` | boolean | 来院なしを含める |
 | `page` | integer | ページ番号 |
 | `per_page` | integer | 1ページ件数 |
 
@@ -310,14 +321,14 @@ Authorization: Bearer {jwt_token}
     {
       "owner_id": "1",
       "owner_name": "山田 太郎",
-      "has_line": true,
-      "total_amount": 156000,
-      "total_fee": 156000,
+      "annual_amount": 156000,
+      "billing_count": 12,
+      "period_visit_count": 4,
       "total_visit_count": 12,
-      "annual_visit_count": 4,
       "last_visit_date": "2026-03-10",
-      "first_visit_date": "2022-05-01",
-      "cpm_stage": "noah"
+      "days_since_last_visit": 47,
+      "last_visit_bucket": "over_3m",
+      "first_visit_date": "2022-05-01"
     }
   ]
 }
@@ -632,7 +643,7 @@ Authorization: Bearer {jwt_token}
 - `POST /api/v1/owners` — 飼主作成
 - `PATCH /api/v1/owners/:id` — 飼主更新
 - `DELETE /api/v1/owners/:id` — 飼主削除
-- `GET /api/v1/clinics/:clinic_id/owners/ltv` — LTV/顧客集計一覧
+- `GET /api/v1/clinics/:clinic_id/owners/aggregations` — 顧客集計一覧
 - `GET /api/v1/owners/:id/pets` — ペット一覧
 
 ### 予約
