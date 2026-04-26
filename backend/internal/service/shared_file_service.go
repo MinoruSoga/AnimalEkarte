@@ -52,16 +52,25 @@ type SharedFileService interface {
 }
 
 type sharedFileService struct {
-	repo    repository.SharedFileRepository
-	storage infra.FileStorage
+	repo      repository.SharedFileRepository
+	ownerRepo repository.OwnerRepository
+	storage   infra.FileStorage
 }
 
 // NewSharedFileService は SharedFileService を初期化して返す。
-func NewSharedFileService(repo repository.SharedFileRepository, storage infra.FileStorage) SharedFileService {
-	return &sharedFileService{repo: repo, storage: storage}
+func NewSharedFileService(repo repository.SharedFileRepository, ownerRepo repository.OwnerRepository, storage infra.FileStorage) SharedFileService {
+	return &sharedFileService{repo: repo, ownerRepo: ownerRepo, storage: storage}
 }
 
 func (s *sharedFileService) Upload(ctx context.Context, clinicID, uploadedBy uint64, input UploadSharedFileInput) (*SharedFileResponse, error) {
+	// owner_id が指定された場合、同一クリニックに存在することを検証
+	if input.OwnerID != nil {
+		if _, err := s.ownerRepo.FindByID(ctx, clinicID, *input.OwnerID); err != nil {
+			slog.ErrorContext(ctx, "owner not found or different clinic", "error", err, "clinic_id", clinicID, "owner_id", *input.OwnerID)
+			return nil, apperrors.Wrap(err, "owner not found")
+		}
+	}
+
 	key, err := generateSharedFileKey(clinicID, input.FileName)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to generate file key")

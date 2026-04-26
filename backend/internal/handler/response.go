@@ -375,6 +375,21 @@ func (h *Handler) RequirePermission(resource, action string) gin.HandlerFunc {
 	}
 }
 
+// RequirePermissionAny は指定された複数の(リソース, アクション)ペアの内、いずれかの権限を持つユーザーのみ通過させる。
+// system_admin は全権限バイパス。複数の権限オプション(OR)をサポート。
+func (h *Handler) RequirePermissionAny(permissions ...struct{ Resource, Action string }) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		for _, perm := range permissions {
+			if h.hasPermission(c, perm.Resource, perm.Action) {
+				c.Next()
+				return
+			}
+		}
+		RespondError(c, apperrors.WrapForbidden("forbidden"))
+		c.Abort()
+	}
+}
+
 // parsePagination はページネーションパラメータを安全にパースする。
 // page: 1以上の整数, limit: 1〜100の整数
 func parsePagination(c *gin.Context) (page, limit int, err error) {

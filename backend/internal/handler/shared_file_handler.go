@@ -128,10 +128,17 @@ func (h *Handler) DeleteSharedFile(c *gin.Context) {
 }
 
 // RegisterSharedFileRoutes はファイル共有のルートを登録する。
+// POST は個別送信用ファイルアップロードをサポートするため、owners:edit または medical-records:create/edit 権限で実行可能。
+// GET list/signed-url は管理用途のため hospital-settings:view 権限で保護。
+// DELETE は管理用途のため hospital-settings:delete 権限で保護。
 func (h *Handler) RegisterSharedFileRoutes(rg *gin.RouterGroup) {
 	sf := rg.Group("/shared-files")
 	sf.GET("", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.ListSharedFiles)
-	sf.POST("", h.RequirePermission(string(model.ResourceHospitalSettings), "create"), h.UploadSharedFile)
+	sf.POST("", h.RequirePermissionAny(
+		struct{ Resource, Action string }{Resource: string(model.ResourceOwners), Action: "edit"},
+		struct{ Resource, Action string }{Resource: string(model.ResourceMedicalRecords), Action: "create"},
+		struct{ Resource, Action string }{Resource: string(model.ResourceMedicalRecords), Action: "edit"},
+	), h.UploadSharedFile)
 	sf.GET("/:id/signed-url", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.GetSharedFileSignedURL)
 	sf.DELETE("/:id", h.RequirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteSharedFile)
 }

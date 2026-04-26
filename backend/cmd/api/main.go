@@ -116,7 +116,7 @@ func main() {
 		sharedStorage = infra.NewLocalFileStorage("/app/uploads/shared", "http://localhost:"+cfg.Port+"/uploads/shared")
 		logger.Info("shared file storage: local filesystem")
 	}
-	svcs.SharedFile = service.NewSharedFileService(repos.SharedFile, sharedStorage)
+	svcs.SharedFile = service.NewSharedFileService(repos.SharedFile, repos.Owner, sharedStorage)
 	// LSTEP-BE-012: 慢性疾患フラグ
 	svcs.ChronicCondition = service.NewChronicConditionService(repos.ChronicCondition, repos.Pet, svcs.LstepTagSync)
 	// LSTEP-BE-013: LINE個別送信
