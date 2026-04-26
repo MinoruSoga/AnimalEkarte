@@ -18,6 +18,7 @@ type CheckupSyncPreviewOwner struct {
 	PetNames      []string
 	LastVisitDate *time.Time
 	HasLine       bool
+	IsOptOut      bool
 	CurrentTags   []string
 }
 
@@ -46,6 +47,7 @@ type CreateCheckupSyncInput struct {
 // CreateCheckupSyncResult はCreateCheckupSyncの結果。
 type CreateCheckupSyncResult struct {
 	SuccessCount   int
+	SkippedCount   int
 	FailedCount    int
 	FailedOwnerIDs []uint64
 }
@@ -142,6 +144,7 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 			PetNames:      petNames,
 			LastVisitDate: row.LastVisitDate,
 			HasLine:       hasLine,
+			IsOptOut:      row.LstepOptOut,
 			CurrentTags:   currentTags,
 		})
 	}
@@ -176,6 +179,7 @@ func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uin
 			continue
 		}
 		if owner.LstepOptOut || owner.LineUserID == nil || *owner.LineUserID == "" {
+			result.SkippedCount++
 			continue
 		}
 

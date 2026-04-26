@@ -19,6 +19,7 @@ type checkupSyncPreviewOwnerResponse struct {
 	PetNames      []string `json:"pet_names"`
 	LastVisitDate *string  `json:"last_visit_date"`
 	HasLine       bool     `json:"has_line"`
+	IsOptOut      bool     `json:"is_opt_out"`
 	CurrentTags   []string `json:"current_tags"`
 }
 
@@ -39,6 +40,7 @@ type checkupSyncRequest struct {
 // checkupSyncResultResponse は一括タグ付与レスポンス。
 type checkupSyncResultResponse struct {
 	SuccessCount   int      `json:"success_count"`
+	SkippedCount   int      `json:"skipped_count"`
 	FailedCount    int      `json:"failed_count"`
 	FailedOwnerIDs []string `json:"failed_owner_ids"`
 }
@@ -49,6 +51,7 @@ func toCheckupSyncPreviewOwnerResponse(o service.CheckupSyncPreviewOwner) checku
 		OwnerName:   o.OwnerName,
 		PetNames:    o.PetNames,
 		HasLine:     o.HasLine,
+		IsOptOut:    o.IsOptOut,
 		CurrentTags: o.CurrentTags,
 	}
 	if o.LastVisitDate != nil {
@@ -159,6 +162,7 @@ func (h *Handler) CreateCheckupSync(c *gin.Context) {
 
 	c.JSON(http.StatusOK, checkupSyncResultResponse{
 		SuccessCount:   result.SuccessCount,
+		SkippedCount:   result.SkippedCount,
 		FailedCount:    result.FailedCount,
 		FailedOwnerIDs: failedStrings,
 	})
