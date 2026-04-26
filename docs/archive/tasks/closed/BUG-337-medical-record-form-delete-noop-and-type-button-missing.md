@@ -1,6 +1,6 @@
 # BUG-337: カルテフォームの削除確認ダイアログが実際に削除しない + フローティングボタンが form submit を発火する
 
-**Status**: OPEN  
+**Status**: CLOSED  
 **Priority**: Critical  
 **Discovery**: コード静的解析 Section 4 カルテ管理 (2026-04-12)
 

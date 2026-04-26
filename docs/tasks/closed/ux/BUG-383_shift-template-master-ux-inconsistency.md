@@ -1,7 +1,7 @@
 # BUG-383: シフトテンプレートマスタで他マスタと UX が不整合
 
 **作成日**: 2026-04-15
-**Status**: OPEN
+**Status**: CLOSED
 **Priority**: LOW (UX 一貫性 / 軽微な機能欠落)
 **Affects**: `features/settings/shift-template`, `/settings/shift-template`
 

@@ -1,7 +1,7 @@
 # BUG-377: 医院マスタ新規作成 — Frontend/Backend 権限モデル不整合 + 403 サイレント失敗
 
 **作成日**: 2026-04-15
-**Status**: OPEN
+**Status**: CLOSED
 **Priority**: HIGH (Security: 権限モデル破綻 + UX: サイレント失敗)
 **Affects**: `features/hospital-settings`, `backend/internal/handler/clinic_handler.go`, `frontend/src/lib/handle-api-error.ts`
 **発見経緯**: BUG-374 以降のマスタ系ブラウザテスト (Section 14 / `/settings/clinic`)

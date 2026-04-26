@@ -1,6 +1,6 @@
 # BUG-335: 予防接種一覧の削除操作でユーザーフィードバックがない
 
-**Status**: OPEN  
+**Status**: CLOSED  
 **Priority**: Medium  
 **Discovery**: コード静的解析 Section 8 予防接種管理 (2026-04-12)
 

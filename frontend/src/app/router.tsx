@@ -899,7 +899,12 @@ export const router = createBrowserRouter([
             }],
           },
           {
+            // BUG-383: 旧URL redirect
             path: "shift-template",
+            element: <Navigate to="/settings/shift-templates" replace />,
+          },
+          {
+            path: "shift-templates",
             element: <RequirePermission resource={ResourceShifts}><Outlet /></RequirePermission>,
             children: [{
               index: true,

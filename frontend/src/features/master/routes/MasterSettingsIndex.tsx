@@ -91,7 +91,7 @@ const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     label: "シフトテンプレートマスタ",
     description: "シフト登録で使用するテンプレートを管理します",
     IconComponent: Calendar,
-    path: "/settings/shift-template",
+    path: "/settings/shift-templates",
     resource: ResourceShifts,
     countCategories: [],
   },

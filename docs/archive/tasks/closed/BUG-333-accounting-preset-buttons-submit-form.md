@@ -1,6 +1,6 @@
 # BUG-333: 会計精算フォームの「丁度」「千円単位」「一万単位」ボタンが確認なしに会計を即時確定する
 
-**Status**: OPEN  
+**Status**: CLOSED  
 **Priority**: High  
 **Discovery**: 機能テスト Section 6 会計管理 (2026-04-12)
 

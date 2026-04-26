@@ -1,7 +1,7 @@
 # BUG-378: `/settings/clinic` 一覧に新規作成 clinic が表示されない
 
 **作成日**: 2026-04-15
-**Status**: OPEN
+**Status**: CLOSED
 **Priority**: HIGH (管理機能の不完全性 — system admin でも新規作成した医院が UI 不可視 → 管理不能)
 **Affects**: `features/hospital-settings`, `backend/internal/handler/clinic_handler.go`
 

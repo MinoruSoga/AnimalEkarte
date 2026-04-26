@@ -1,6 +1,6 @@
 # BUG-326: カルテ「予防接種」タブの保存機能が未実装
 
-**Status**: OPEN  
+**Status**: CLOSED  
 **Priority**: High  
 **Discovery**: 機能テスト Section 4.3 予防接種タブ (2026-04-12)
 

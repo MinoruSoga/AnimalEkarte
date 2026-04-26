@@ -1,7 +1,7 @@
 # BUG-385: `config/paths.ts` と `router.tsx` の不整合で 7 件の settings ルートが 404
 
 **作成日**: 2026-04-15
-**Status**: OPEN
+**Status**: CLOSED
 **Priority**: **HIGH** (設計一貫性破綻・運用画面からリンク切れが大量に発生)
 **Affects**: `frontend/src/config/paths.ts`, `frontend/src/app/router.tsx`, `frontend/src/features/master/constants/category-config.ts`
 

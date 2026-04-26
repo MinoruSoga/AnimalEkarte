@@ -1,7 +1,7 @@
 # BUG-379: マスタ名称の文字数制限が未実装 (Backend/Frontend 両方)
 
 **作成日**: 2026-04-15
-**Status**: OPEN
+**Status**: CLOSED
 **Priority**: MEDIUM (データ健全性・UI 破綻リスク)
 **Affects**: 全マスタ (animal-species, treatment-items, medicines, cages, reservation-types, 等)
 
