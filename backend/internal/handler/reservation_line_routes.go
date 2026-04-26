@@ -9,14 +9,11 @@ import (
 
 // RegisterLineReservationRoutes はLINE予約管理APIのルートを登録する
 //
-// BUG-LINE-005: 旧実装では `/clinics/:id/.../:id` のように `:id` が重複しており、
-// Gin の c.Param("id") が最初にマッチした clinic_id を返すため、個別リソース操作が
-// 他レコードへ誤って適用される CRITICAL SECURITY バグがあった。
-// ネストした子リソースのパスパラメータは全て固有名（typeId/staffId/reservationId/customerId）に変更する。
-// 親の `/clinics/:id` は clinic_handler.go 側の CRUD ルート（/clinics/:id）と整合させるため `:id` のまま保持し、
-// 実際の clinic_id 判定は JWT の `extractClinicID(c)` を使うため URL 側の `:id` は識別子として参照しない。
+// clinic_id の実際の判定は JWT の extractClinicID(c) を使うため、
+// URL の :clinic_id パラメータは識別子として参照しない。
+// 子リソースのパスパラメータは固有名（typeId/staffId/reservationId/customerId）を使用する。
 func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
-	clinics := rg.Group("/clinics/:id")
+	clinics := rg.Group("/clinics/:clinic_id")
 
 	// TASK-RES-010: 基本設定
 	clinics.GET("/line-reservation-settings", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.GetLineReservationSetting)
