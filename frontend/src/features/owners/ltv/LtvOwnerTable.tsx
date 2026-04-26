@@ -10,7 +10,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
-import type { LtvOwner } from "../api/get-ltv-owners";
+import type { LtvOwner, LastVisitBucket } from "../api/get-ltv-owners";
+
+export type LtvTab = "revenue" | "visit" | "last_visit" | "ltv";
 
 interface LtvOwnerTableProps {
   owners: LtvOwner[];
@@ -18,6 +20,9 @@ interface LtvOwnerTableProps {
   onSelectAll: (checked: boolean) => void;
   onSelectOwner: (ownerId: string, checked: boolean) => void;
   isLoading: boolean;
+  activeTab: LtvTab;
+  isError?: boolean;
+  errorMessage?: string;
 }
 
 type CpmStage = "encounter" | "growing" | "core" | "noah" | "spot" | "dormant";
@@ -54,14 +59,273 @@ function CpmStageBadge({ stage }: { stage: CpmStage | null }) {
   );
 }
 
-function formatFee(fee: number): string {
+const LAST_VISIT_BUCKET_LABEL: Record<LastVisitBucket, string> = {
+  within_3m: "3ヶ月以内",
+  over_3m: "3ヶ月以上",
+  over_6m: "6ヶ月以上",
+  over_1y: "1年以上",
+  no_visit: "来院なし",
+};
+
+const LAST_VISIT_BUCKET_CLASS: Record<LastVisitBucket, string> = {
+  within_3m: "bg-green-100 text-green-800 border-green-200",
+  over_3m: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  over_6m: "bg-orange-100 text-orange-800 border-orange-200",
+  over_1y: "bg-red-100 text-red-800 border-red-200",
+  no_visit: "bg-gray-100 text-gray-800 border-gray-200",
+};
+
+function LastVisitBucketBadge({ bucket }: { bucket: LastVisitBucket | null }) {
+  if (bucket === null) {
+    return <span className={`text-sm ${C.text40}`}>—</span>;
+  }
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${LAST_VISIT_BUCKET_CLASS[bucket]}`}
+    >
+      {LAST_VISIT_BUCKET_LABEL[bucket]}
+    </span>
+  );
+}
+
+function formatFee(fee: number | undefined): string {
+  if (fee === undefined) return "—";
   return `¥${fee.toLocaleString("ja-JP")}`;
 }
 
-function formatDate(dateStr: string | null): string {
+function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
   return dateStr.slice(0, 10);
 }
+
+function formatDaysSince(days: number | null | undefined): string {
+  if (days === null || days === undefined) return "—";
+  return `${days}日`;
+}
+
+interface ColumnDef {
+  key: string;
+  label: string;
+  width?: string;
+  render: (owner: LtvOwner) => React.ReactNode;
+  textAlign?: "left" | "right";
+}
+
+const COMMON_COLUMNS: ColumnDef[] = [
+  {
+    key: "checkbox",
+    label: "",
+    width: "w-12",
+    render: () => null, // handled separately
+  },
+  {
+    key: "owner_name",
+    label: "飼い主名",
+    render: (owner) => (
+      <Link
+        to={`/owners/${owner.owner_id}`}
+        className={`${C.accent} hover:underline`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {owner.owner_name}
+      </Link>
+    ),
+  },
+  {
+    key: "has_line",
+    label: "LINE",
+    width: "w-24",
+    render: (owner) =>
+      owner.has_line ? (
+        <Check className="size-4 text-[#06C755]" />
+      ) : (
+        <Minus className={`size-4 ${C.text30}`} />
+      ),
+  },
+  {
+    key: "cpm_stage",
+    label: "CPMステージ",
+    width: "w-32",
+    render: (owner) => <CpmStageBadge stage={owner.cpm_stage} />,
+  },
+];
+
+const TAB_SPECIFIC_COLUMNS: Record<LtvTab, ColumnDef[]> = {
+  revenue: [
+    ...COMMON_COLUMNS,
+    {
+      key: "annual_amount",
+      label: "期間診療費",
+      width: "w-32",
+      textAlign: "right",
+      render: (owner) => (
+        <span className="font-mono">{formatFee(owner.annual_amount)}</span>
+      ),
+    },
+    {
+      key: "billing_count",
+      label: "会計件数",
+      width: "w-24",
+      textAlign: "right",
+      render: (owner) => (
+        <span className="font-mono">{owner.billing_count ?? "—"}</span>
+      ),
+    },
+    {
+      key: "period_visit_count",
+      label: "来院回数",
+      width: "w-24",
+      textAlign: "right",
+      render: (owner) => (
+        <span className="font-mono">{owner.period_visit_count ?? "—"}</span>
+      ),
+    },
+    {
+      key: "last_visit_date",
+      label: "最終来院日",
+      width: "w-28",
+      render: (owner) => (
+        <span className="font-mono">{formatDate(owner.last_visit_date)}</span>
+      ),
+    },
+    {
+      key: "first_visit_date",
+      label: "初診日",
+      width: "w-28",
+      render: (owner) => (
+        <span className="font-mono">{formatDate(owner.first_visit_date)}</span>
+      ),
+    },
+  ],
+  visit: [
+    ...COMMON_COLUMNS,
+    {
+      key: "period_visit_count",
+      label: "来院回数(期間)",
+      width: "w-24",
+      textAlign: "right",
+      render: (owner) => (
+        <span className="font-mono">{owner.period_visit_count ?? "—"}</span>
+      ),
+    },
+    {
+      key: "total_visit_count",
+      label: "累計来院",
+      width: "w-24",
+      textAlign: "right",
+      render: (owner) => (
+        <span className="font-mono">{owner.total_visit_count}</span>
+      ),
+    },
+    {
+      key: "annual_visit_count",
+      label: "年間来院",
+      width: "w-24",
+      textAlign: "right",
+      render: (owner) => (
+        <span className="font-mono">{owner.annual_visit_count}</span>
+      ),
+    },
+    {
+      key: "last_visit_date",
+      label: "最終来院日",
+      width: "w-28",
+      render: (owner) => (
+        <span className="font-mono">{formatDate(owner.last_visit_date)}</span>
+      ),
+    },
+    {
+      key: "first_visit_date",
+      label: "初診日",
+      width: "w-28",
+      render: (owner) => (
+        <span className="font-mono">{formatDate(owner.first_visit_date)}</span>
+      ),
+    },
+  ],
+  last_visit: [
+    ...COMMON_COLUMNS,
+    {
+      key: "last_visit_date",
+      label: "最終来院日",
+      width: "w-28",
+      render: (owner) => (
+        <span className="font-mono">{formatDate(owner.last_visit_date)}</span>
+      ),
+    },
+    {
+      key: "days_since_last_visit",
+      label: "経過日数",
+      width: "w-24",
+      textAlign: "right",
+      render: (owner) => (
+        <span className="font-mono">{formatDaysSince(owner.days_since_last_visit)}</span>
+      ),
+    },
+    {
+      key: "last_visit_bucket",
+      label: "分類",
+      width: "w-32",
+      render: (owner) => (
+        <LastVisitBucketBadge bucket={owner.last_visit_bucket ?? null} />
+      ),
+    },
+    {
+      key: "first_visit_date",
+      label: "初診日",
+      width: "w-28",
+      render: (owner) => (
+        <span className="font-mono">{formatDate(owner.first_visit_date)}</span>
+      ),
+    },
+  ],
+  ltv: [
+    ...COMMON_COLUMNS,
+    {
+      key: "total_fee",
+      label: "累計診療費",
+      width: "w-32",
+      textAlign: "right",
+      render: (owner) => (
+        <span className="font-mono">{formatFee(owner.total_fee)}</span>
+      ),
+    },
+    {
+      key: "annual_visit_count",
+      label: "年間来院",
+      width: "w-24",
+      textAlign: "right",
+      render: (owner) => (
+        <span className="font-mono">{owner.annual_visit_count}</span>
+      ),
+    },
+    {
+      key: "total_visit_count",
+      label: "累計来院",
+      width: "w-24",
+      textAlign: "right",
+      render: (owner) => (
+        <span className="font-mono">{owner.total_visit_count}</span>
+      ),
+    },
+    {
+      key: "last_visit_date",
+      label: "最終来院日",
+      width: "w-28",
+      render: (owner) => (
+        <span className="font-mono">{formatDate(owner.last_visit_date)}</span>
+      ),
+    },
+    {
+      key: "first_visit_date",
+      label: "初診日",
+      width: "w-28",
+      render: (owner) => (
+        <span className="font-mono">{formatDate(owner.first_visit_date)}</span>
+      ),
+    },
+  ],
+};
 
 export function LtvOwnerTable({
   owners,
@@ -69,7 +333,12 @@ export function LtvOwnerTable({
   onSelectAll,
   onSelectOwner,
   isLoading,
+  activeTab,
+  isError,
+  errorMessage,
 }: LtvOwnerTableProps) {
+  const columns = TAB_SPECIFIC_COLUMNS[activeTab];
+  const colSpan = columns.length + 1; // +1 for checkbox
   const allSelected = owners.length > 0 && owners.every((o) => selectedOwnerIds.has(o.owner_id));
   const someSelected = owners.some((o) => selectedOwnerIds.has(o.owner_id)) && !allSelected;
 
@@ -86,26 +355,36 @@ export function LtvOwnerTable({
                 className={`${C.dataCheckedBgAccent} ${C.dataCheckedBorderAccent}`}
               />
             </TableHead>
-            <TableHead className={`${STYLE.tableHeaderCell} px-4`}>飼い主名</TableHead>
-            <TableHead className={`${STYLE.tableHeaderCell} px-4 w-24`}>LINE</TableHead>
-            <TableHead className={`${STYLE.tableHeaderCell} px-4 w-32`}>CPMステージ</TableHead>
-            <TableHead className={`${STYLE.tableHeaderCell} px-4 w-32 text-right`}>累計診療費</TableHead>
-            <TableHead className={`${STYLE.tableHeaderCell} px-4 w-24 text-right`}>年間来院</TableHead>
-            <TableHead className={`${STYLE.tableHeaderCell} px-4 w-24 text-right`}>累計来院</TableHead>
-            <TableHead className={`${STYLE.tableHeaderCell} px-4 w-28`}>最終来院日</TableHead>
-            <TableHead className={`${STYLE.tableHeaderCell} px-4 w-28`}>初診日</TableHead>
+            {columns
+              .filter((col) => col.key !== "checkbox")
+              .map((col) => (
+                <TableHead
+                  key={col.key}
+                  className={`${STYLE.tableHeaderCell} px-4 ${col.width ?? ""} ${
+                    col.textAlign === "right" ? "text-right" : ""
+                  }`}
+                >
+                  {col.label}
+                </TableHead>
+              ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {isLoading ? (
+          {isError ? (
             <TableRow>
-              <TableCell colSpan={9} className={STYLE.tableEmpty}>
+              <TableCell colSpan={colSpan} className={`${STYLE.tableEmpty} text-red-600`}>
+                {errorMessage || "エラーが発生しました"}
+              </TableCell>
+            </TableRow>
+          ) : isLoading ? (
+            <TableRow>
+              <TableCell colSpan={colSpan} className={STYLE.tableEmpty}>
                 読み込み中...
               </TableCell>
             </TableRow>
           ) : owners.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className={STYLE.tableEmpty}>
+              <TableCell colSpan={colSpan} className={STYLE.tableEmpty}>
                 データが見つかりません
               </TableCell>
             </TableRow>
@@ -125,40 +404,18 @@ export function LtvOwnerTable({
                     className={`${C.dataCheckedBgAccent} ${C.dataCheckedBorderAccent}`}
                   />
                 </TableCell>
-                <TableCell className={`${STYLE.tableCell} px-4`}>
-                  <Link
-                    to={`/owners/${owner.owner_id}`}
-                    className={`${C.accent} hover:underline`}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {owner.owner_name}
-                  </Link>
-                </TableCell>
-                <TableCell className={`${STYLE.tableCell} px-4`}>
-                  {owner.has_line ? (
-                    <Check className="size-4 text-[#06C755]" />
-                  ) : (
-                    <Minus className={`size-4 ${C.text30}`} />
-                  )}
-                </TableCell>
-                <TableCell className={`${STYLE.tableCell} px-4`}>
-                  <CpmStageBadge stage={owner.cpm_stage} />
-                </TableCell>
-                <TableCell className={`${STYLE.tableCell} px-4 text-right font-mono`}>
-                  {formatFee(owner.total_fee)}
-                </TableCell>
-                <TableCell className={`${STYLE.tableCell} px-4 text-right font-mono`}>
-                  {owner.annual_visit_count}
-                </TableCell>
-                <TableCell className={`${STYLE.tableCell} px-4 text-right font-mono`}>
-                  {owner.total_visit_count}
-                </TableCell>
-                <TableCell className={`${STYLE.tableCell} px-4 font-mono`}>
-                  {formatDate(owner.last_visit_date)}
-                </TableCell>
-                <TableCell className={`${STYLE.tableCell} px-4 font-mono`}>
-                  {formatDate(owner.first_visit_date)}
-                </TableCell>
+                {columns
+                  .filter((col) => col.key !== "checkbox")
+                  .map((col) => (
+                    <TableCell
+                      key={col.key}
+                      className={`${STYLE.tableCell} px-4 ${col.width ?? ""} ${
+                        col.textAlign === "right" ? "text-right" : ""
+                      }`}
+                    >
+                      {col.render(owner)}
+                    </TableCell>
+                  ))}
               </TableRow>
             ))
           )}
