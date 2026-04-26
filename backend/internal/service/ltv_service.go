@@ -151,12 +151,17 @@ func (s *ltvService) ListOwnerLTV(ctx context.Context, clinicID uint64, input Li
 		if row.LastVisitDate != nil {
 			daysSinceVisit = int(now.Sub(*row.LastVisitDate).Hours() / 24)
 		}
+		firstVisitDaysSince := -1
+		if row.FirstVisitDate != nil {
+			firstVisitDaysSince = int(now.Sub(*row.FirstVisitDate).Hours() / 24)
+		}
 
 		stage := CalculateCPMStage(CPMData{
-			TotalVisitCount:  row.TotalVisitCount,
-			AnnualVisitCount: row.AnnualVisitCount,
-			DaysSinceVisit:   daysSinceVisit,
-			LTVAmount:        row.TotalAmount,
+			TotalVisitCount:     row.TotalVisitCount,
+			AnnualVisitCount:    row.AnnualVisitCount,
+			DaysSinceVisit:      daysSinceVisit,
+			LTVAmount:           row.TotalAmount,
+			FirstVisitDaysSince: firstVisitDaysSince,
 		})
 
 		if cpmFilter != "" && stage != cpmFilter {

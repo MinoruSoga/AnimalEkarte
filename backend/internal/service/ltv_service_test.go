@@ -104,11 +104,13 @@ func TestListOwnerLTV_CPMFilter(t *testing.T) {
 	lineID := "U1234567890"
 	now := time.Now()
 	yesterday := now.AddDate(0, 0, -1)
+	// cpm_core requires FirstVisitDaysSince >= 180
+	firstVisit200DaysAgo := now.AddDate(0, 0, -200)
 
-	// 2 rows: one encounter (total=5000, annual=1), one core (total=100000, annual=10)
+	// 2 rows: one encounter (total=5000, annual=1), one core (total=100000, annual=10, first visit 200 days ago)
 	rows := []repository.OwnerLTVRow{
 		{OwnerID: 1, OwnerName: "飼主A", LineUserID: &lineID, TotalAmount: 5000, TotalVisitCount: 1, AnnualVisitCount: 1, LastVisitDate: &yesterday},
-		{OwnerID: 2, OwnerName: "飼主B", LineUserID: &lineID, TotalAmount: 100000, TotalVisitCount: 20, AnnualVisitCount: 10, LastVisitDate: &yesterday},
+		{OwnerID: 2, OwnerName: "飼主B", LineUserID: &lineID, TotalAmount: 100000, TotalVisitCount: 20, AnnualVisitCount: 10, LastVisitDate: &yesterday, FirstVisitDate: &firstVisit200DaysAgo},
 	}
 
 	repo := &mockLtvRepository{
