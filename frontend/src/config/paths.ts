@@ -34,6 +34,10 @@ export const paths = {
       path: "/owners/:id",
       getHref: (id: string | number) => `/owners/${id}`,
     },
+    ltv: {
+      path: "/owners/ltv",
+      getHref: () => "/owners/ltv",
+    },
   },
 
   reservations: {
@@ -213,6 +217,21 @@ export const paths = {
     getHref: () => "/line-reservation",
     settings: { path: "/line-reservation/settings", getHref: () => "/line-reservation/settings" },
     pageEditor: { path: "/line-reservation/page-editor", getHref: () => "/line-reservation/page-editor" },
+  },
+
+  lstep: {
+    settings: {
+      path: "/settings/integrations/lstep",
+      getHref: () => "/settings/integrations/lstep",
+    },
+    tags: {
+      path: "/settings/lstep/tags",
+      getHref: () => "/settings/lstep/tags",
+    },
+    checkupSync: {
+      path: "/lstep/checkup-sync",
+      getHref: () => "/lstep/checkup-sync",
+    },
   },
 
   settings: {
