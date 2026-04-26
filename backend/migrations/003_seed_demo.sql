@@ -2591,3 +2591,22 @@ INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, proce
 ON CONFLICT (id) DO UPDATE SET updated_at = now();
 
 SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
+
+-- =============================================================================
+-- Lステップ連携設定（clinic_integrations）
+-- =============================================================================
+-- 八王子病院 (clinic_id=1) テスト用LINE連携設定
+-- 注記: Lステップ API は「プロプラン」以上が必須のため無料プランでは未実装
+--      LINE Messaging API のみで初期実装。プロプラン導入時に lstep_api_key を追加
+-- 認証情報は docs/line/setup.md の「テスト-八王子（@642hdxoh）」から取得
+INSERT INTO clinic_integrations (clinic_id, service, key_name, key_value, created_at, updated_at) VALUES
+    -- LINE Messaging API 認証（アクセストークン・シークレット=要暗号化）
+    (1, 'lstep', 'line_channel_access_token',  'pwMi3yP6jhRa0xbmnR0IPEcE5l+OIp21a7ia3hmoiuFSCvqkR5Tmmfm6fLoSTB1Bt7uQjAe9NN7fZ+LBDtNKLGnrqBrjDmhTnws9PVxQKLyinomNzUAb61KADX7NJmFBfEsLQQ9VmlU+tMJcWh+zswdB04t89/1O/w1cDnyilFU=', now(), now()),
+    (1, 'lstep', 'line_channel_secret',        '5344ef84eb7072b5894f7e087db28827', now(), now()),
+
+    -- LIFF・アカウント情報（暗号化不要）
+    (1, 'lstep', 'liff_id',                    '2009755581-w5NOA3EW', now(), now()),
+    (1, 'lstep', 'line_account_name',          'テスト-八王子', now(), now())
+ON CONFLICT (clinic_id, service, key_name) DO UPDATE SET
+    key_value = EXCLUDED.key_value,
+    updated_at = now();

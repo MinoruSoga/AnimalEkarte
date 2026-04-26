@@ -270,9 +270,19 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
+	// BE-REOPEN-002: Delete 前に reservation を取得してキャンセルタグ同期に必要な owner_id を確保
+	reservation, err := h.svc.Reservation.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 	if err := h.svc.Reservation.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
+	}
+	// BE-REOPEN-002: 予約削除時にキャンセルタグを同期（best-effort）
+	if reservation.OwnerID != nil {
+		_ = h.svc.LstepTagSync.SyncCancellationTag(c.Request.Context(), clinicID, *reservation.OwnerID, reservation.StartTime)
 	}
 	c.Status(http.StatusNoContent)
 }

@@ -616,6 +616,9 @@ func TestDeleteMedicalRecord(t *testing.T) {
 			name:    "deletes record successfully",
 			paramID: "1",
 			svc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 1, OwnerID: nil}, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
 			},
 			wantStatus: http.StatusNoContent,
@@ -630,8 +633,8 @@ func TestDeleteMedicalRecord(t *testing.T) {
 			name:    "returns 404 when not found",
 			paramID: "999",
 			svc: &mockMedicalRecordService{
-				deleteFn: func(_ context.Context, _, _ uint64) error {
-					return apperrors.WrapNotFound("medical_record", "999")
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,

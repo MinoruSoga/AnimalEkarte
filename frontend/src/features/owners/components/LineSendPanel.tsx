@@ -66,8 +66,11 @@ export function LineSendPanel({
         try {
           await sendMessage({ message_type: "text", text, purpose });
           return { error: null, success: true };
-        } catch {
-          return { error: null, success: false };
+        } catch (err: unknown) {
+          const msg =
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            "送信に失敗しました。しばらく待ってから再試行してください";
+          return { error: msg, success: false };
         }
       }
 
@@ -76,8 +79,16 @@ export function LineSendPanel({
       if (!file || file.size === 0) {
         return { error: "ファイルを選択してください", success: false };
       }
+      let uploaded: { id: number; file_name: string; file_type: string };
       try {
-        const uploaded = await uploadLineFile(ownerId, file);
+        uploaded = await uploadLineFile(ownerId, file);
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          "ファイルのアップロードに失敗しました";
+        return { error: msg, success: false };
+      }
+      try {
         await sendMessage({
           message_type: type,
           file_id: uploaded.id,
@@ -85,8 +96,11 @@ export function LineSendPanel({
           purpose,
         });
         return { error: null, success: true };
-      } catch {
-        return { error: null, success: false };
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          "送信に失敗しました。しばらく待ってから再試行してください";
+        return { error: msg, success: false };
       }
     },
     INITIAL_STATE

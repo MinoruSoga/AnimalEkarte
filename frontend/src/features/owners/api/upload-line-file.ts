@@ -16,7 +16,7 @@ export async function uploadLineFile(
   fd.append("owner_id", ownerId);
 
   const { data } = await axios.post<UploadedLineFile>(
-    "/api/v1/shared-files",
+    "/v1/shared-files",
     fd
   );
   return data;

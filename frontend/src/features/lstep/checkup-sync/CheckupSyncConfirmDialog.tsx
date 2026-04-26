@@ -46,7 +46,7 @@ export function CheckupSyncConfirmDialog({
       <DialogContent className={LAYOUT.modal.md}>
         <DialogHeader>
           <DialogTitle className={`text-base font-semibold ${C.text}`}>
-            健診リマインダー一括送信の確認
+            Lステップタグ一括付与の確認
           </DialogTitle>
         </DialogHeader>
 
@@ -77,9 +77,9 @@ export function CheckupSyncConfirmDialog({
               </span>
               の対象者{" "}
               <span className="font-semibold">{selectedCount}名</span>
-              にタグ「
+              にLステップタグ「
               <span className={`font-mono ${C.textBrand}`}>{tagName || "—"}</span>
-              」を付与してLステップメッセージを送信します。
+              」を付与します。
             </p>
           </div>
         </div>
@@ -100,7 +100,7 @@ export function CheckupSyncConfirmDialog({
             disabled={isTagNameEmpty || isPending}
             className={STYLE.btnPrimary}
           >
-            {isPending ? "送信中..." : "一括送信する"}
+            {isPending ? "付与中..." : "タグを一括付与する"}
           </Button>
         </DialogFooter>
       </DialogContent>

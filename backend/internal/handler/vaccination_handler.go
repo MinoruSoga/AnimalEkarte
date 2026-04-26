@@ -203,6 +203,12 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	// BE-REOPEN-002: ワクチン更新後にタグを再同期（best-effort）
+	if vaccination.PetID != nil {
+		if pet, err := h.svc.Pet.GetByID(c.Request.Context(), clinicID, *vaccination.PetID); err == nil {
+			_ = h.svc.LstepTagSync.SyncVaccineTag(c.Request.Context(), clinicID, pet.OwnerID, vaccination.ID)
+		}
+	}
 	c.JSON(http.StatusOK, toVaccinationResponse(vaccination))
 }
 
@@ -216,9 +222,21 @@ func (h *Handler) DeleteVaccination(c *gin.Context) {
 	if !ok {
 		return
 	}
+	// BE-REOPEN-002: Delete 前に vaccination を取得してカテゴリタグ再計算に必要な pet_id を確保
+	vaccination, err := h.svc.Vaccination.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 	if err := h.svc.Vaccination.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
+	}
+	// BE-REOPEN-002: ワクチン削除後にカテゴリタグを再計算（best-effort）
+	if vaccination.PetID != nil {
+		if pet, err := h.svc.Pet.GetByID(c.Request.Context(), clinicID, *vaccination.PetID); err == nil {
+			_ = h.svc.LstepTagSync.SyncVaccineTag(c.Request.Context(), clinicID, pet.OwnerID, vaccination.ID)
+		}
 	}
 	c.Status(http.StatusNoContent)
 }

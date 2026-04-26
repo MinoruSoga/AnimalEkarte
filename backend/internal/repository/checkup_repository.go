@@ -85,6 +85,7 @@ func (r *checkupRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 	err := r.db.WithContext(ctx).
 		Preload("CheckupType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
+		Preload("MedicalRecord", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&checkup).Error

@@ -67,7 +67,7 @@ export function CheckupSyncPage() {
           健診リマインダー抽出
         </h1>
         <p className={`mt-1.5 text-sm ${C.text60}`}>
-          検診の種類・動物種・最終来院日の条件で対象者を絞り込み、LステップタグでリマインダーをまとめてLINE送信します。
+          Lステップタグを一括付与して健診リマインダーをLINE送信します。
         </p>
       </div>
 
@@ -88,7 +88,10 @@ export function CheckupSyncPage() {
               owners={previewData.owners}
               selectedIds={selectedOwnerIds}
               onSelectionChange={setSelectedOwnerIds}
+              eligibleCount={previewData.eligible_count}
               lineLinkedCount={previewData.line_linked_count}
+              optOutCount={previewData.opt_out_count}
+              noLivingPetCount={previewData.no_living_pet_count}
               totalCount={previewData.total_count}
             />
           ) : null}
@@ -96,9 +99,14 @@ export function CheckupSyncPage() {
           {/* 実行結果 */}
           {syncResult !== null ? (
             <div className={`rounded-lg border ${C.borderLight} p-4 ${C.bgPage30}`}>
-              <p className={`text-sm font-medium ${C.text}`}>一括送信が完了しました</p>
+              <p className={`text-sm font-medium ${C.text}`}>Lステップタグの一括付与が完了しました</p>
               <p className={`mt-1 text-sm ${C.text60}`}>
                 成功: <span className={`font-semibold ${C.text}`}>{syncResult.success_count}件</span>
+                {syncResult.skip_count > 0 ? (
+                  <>
+                    　スキップ: <span className={`font-semibold ${C.text50}`}>{syncResult.skip_count}件</span>
+                  </>
+                ) : null}
                 {syncResult.failed_count > 0 ? (
                   <>
                     　失敗: <span className={`font-semibold ${C.textNotice}`}>{syncResult.failed_count}件</span>
@@ -130,7 +138,7 @@ export function CheckupSyncPage() {
                 className={STYLE.btnPrimary}
               >
                 <Send className={ICON.sm} />
-                一括送信する
+                タグを一括付与する
               </Button>
             </div>
           ) : null}

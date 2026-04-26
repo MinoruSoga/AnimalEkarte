@@ -277,6 +277,56 @@ Authorization: Bearer {jwt_token}
 
 ---
 
+#### LTV/顧客集計一覧取得
+
+```http
+GET /api/v1/clinics/:clinic_id/owners/ltv?sort=total_fee&order=desc&page=1&per_page=50
+Authorization: Bearer {jwt_token}
+```
+
+飼い主単位で累計診療費、年間来院回数、最終来院日、初診日を集計する一覧。
+
+**主なクエリパラメータ**:
+
+| パラメータ | 型 | 説明 |
+|----------|-----|------|
+| `sort` | string | `total_fee` / `annual_visit_count` / `last_visit_date` |
+| `order` | string | `asc` / `desc` |
+| `min_total_fee` | integer | 累計診療費下限 |
+| `max_total_fee` | integer | 累計診療費上限 |
+| `min_visit_count` | integer | 累計来院回数下限 |
+| `cpm_stage` | string | `encounter` / `growing` / `core` / `noah` / `spot` / `dormant` |
+| `line_linked` | boolean | LINE連携済みのみ |
+| `page` | integer | ページ番号 |
+| `per_page` | integer | 1ページ件数 |
+
+**レスポンス (200 OK)**:
+```json
+{
+  "total": 142,
+  "page": 1,
+  "per_page": 50,
+  "owners": [
+    {
+      "owner_id": "1",
+      "owner_name": "山田 太郎",
+      "has_line": true,
+      "total_amount": 156000,
+      "total_fee": 156000,
+      "total_visit_count": 12,
+      "annual_visit_count": 4,
+      "last_visit_date": "2026-03-10",
+      "first_visit_date": "2022-05-01",
+      "cpm_stage": "noah"
+    }
+  ]
+}
+```
+
+詳細仕様は [CUSTOMER_AGGREGATION_SPEC.md](./CUSTOMER_AGGREGATION_SPEC.md) を参照。
+
+---
+
 ### 2. ペット管理 (Pets)
 
 #### ペット一覧取得（飼主配下）
@@ -582,6 +632,7 @@ Authorization: Bearer {jwt_token}
 - `POST /api/v1/owners` — 飼主作成
 - `PATCH /api/v1/owners/:id` — 飼主更新
 - `DELETE /api/v1/owners/:id` — 飼主削除
+- `GET /api/v1/clinics/:clinic_id/owners/ltv` — LTV/顧客集計一覧
 - `GET /api/v1/owners/:id/pets` — ペット一覧
 
 ### 予約

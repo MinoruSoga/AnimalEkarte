@@ -68,6 +68,7 @@ func buildCheckupUpdate(input *UpdateCheckupInput) map[string]any {
 type CheckupService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
 	ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error)
+	GetByID(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) (*model.Checkup, error)
 	Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error)
 	Delete(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) error
@@ -104,6 +105,18 @@ func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByC
 		return nil, apperrors.Wrap(err, "failed to list checkups by clinic")
 	}
 	return result, nil
+}
+
+func (s *checkupService) GetByID(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) (*model.Checkup, error) {
+	checkup, err := s.repo.FindByID(ctx, clinicID, checkupID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get checkup", "error", err, "checkup_id", checkupID)
+		return nil, apperrors.Wrap(err, "failed to get checkup")
+	}
+	if checkup.MedicalRecordID != medicalRecordID {
+		return nil, apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
+	}
+	return checkup, nil
 }
 
 func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error) {

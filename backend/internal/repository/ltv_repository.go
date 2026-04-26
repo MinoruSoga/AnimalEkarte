@@ -12,15 +12,17 @@ import (
 
 // OwnerLTVRow はLTV集計クエリの結果行。
 type OwnerLTVRow struct {
-	OwnerID          uint64     `gorm:"column:owner_id"`
-	OwnerName        string     `gorm:"column:owner_name"`
-	LineUserID       *string    `gorm:"column:line_user_id"`
-	LstepOptOut      bool       `gorm:"column:lstep_opt_out"`
-	TotalAmount      int64      `gorm:"column:total_amount"`
-	TotalVisitCount  int64      `gorm:"column:total_visit_count"`
-	AnnualVisitCount int64      `gorm:"column:annual_visit_count"`
-	LastVisitDate    *time.Time `gorm:"column:last_visit_date"`
-	FirstVisitDate   *time.Time `gorm:"column:first_visit_date"`
+	OwnerID              uint64     `gorm:"column:owner_id"`
+	OwnerName            string     `gorm:"column:owner_name"`
+	LineUserID           *string    `gorm:"column:line_user_id"`
+	LstepOptOut          bool       `gorm:"column:lstep_opt_out"`
+	TotalAmount          int64      `gorm:"column:total_amount"`
+	TotalVisitCount      int64      `gorm:"column:total_visit_count"`
+	CumulativeVisitCount int64      `gorm:"column:cumulative_visit_count"`
+	AnnualVisitCount     int64      `gorm:"column:annual_visit_count"`
+	PeriodVisitCount     int64      `gorm:"column:period_visit_count"`
+	LastVisitDate        *time.Time `gorm:"column:last_visit_date"`
+	FirstVisitDate       *time.Time `gorm:"column:first_visit_date"`
 }
 
 // FindOwnerLTVParams はLTV一覧検索のパラメータ。

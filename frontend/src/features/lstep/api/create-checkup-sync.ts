@@ -13,7 +13,9 @@ export interface CheckupSyncRequest {
 export interface CheckupSyncResult {
   success_count: number;
   failed_count: number;
+  skip_count: number;
   failed_owner_ids: string[];
+  skipped_owner_ids: string[];
 }
 
 async function createCheckupSync(
@@ -35,10 +37,10 @@ export function useCreateCheckupSync() {
     mutationFn: (body: CheckupSyncRequest) =>
       createCheckupSync(clinicId, body),
     onSuccess: () => {
-      toast.success("健診リマインダーの一括送信が完了しました");
+      toast.success("Lステップタグの一括付与が完了しました");
     },
     onError: (error) => {
-      handleApiError(error, "健診リマインダー送信");
+      handleApiError(error, "Lステップタグ一括付与");
     },
   });
 }

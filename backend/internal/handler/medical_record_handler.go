@@ -313,9 +313,19 @@ func (h *Handler) DeleteMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
+	// BE-REOPEN-002: Delete 前に医療記録を取得して来院/LTV タグ再計算に必要な owner_id を確保
+	record, err := h.svc.MedicalRecord.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 	if err := h.svc.MedicalRecord.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
+	}
+	// BE-REOPEN-002: 医療記録削除後に来院/LTV タグを再計算（best-effort）
+	if record.OwnerID != nil {
+		_ = h.svc.LstepTagSync.SyncVisitCompletionTags(c.Request.Context(), clinicID, *record.OwnerID)
 	}
 	c.Status(http.StatusNoContent)
 }

@@ -22,12 +22,18 @@ export interface CheckupSyncPreviewOwner {
   pet_names: string[];
   last_visit_date: string | null;
   has_line: boolean;
+  is_opt_out: boolean;
+  has_living_pet: boolean;
+  exclusion_reason: string | null;
   current_tags: string[];
 }
 
 export interface CheckupSyncPreviewResponse {
   owners: CheckupSyncPreviewOwner[];
+  eligible_count: number;
   line_linked_count: number;
+  opt_out_count: number;
+  no_living_pet_count: number;
   total_count: number;
 }
 

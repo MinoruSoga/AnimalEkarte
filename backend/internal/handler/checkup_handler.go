@@ -164,9 +164,20 @@ func (h *Handler) DeleteCheckup(c *gin.Context) {
 		return
 	}
 
+	// BE-REOPEN-002: Delete 前に checkup を取得してタグ再計算に必要な owner_id を確保
+	checkup, err := h.svc.Checkup.GetByID(c.Request.Context(), clinicID, medicalRecordID, checkupID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
 	if err := h.svc.Checkup.Delete(c.Request.Context(), clinicID, medicalRecordID, checkupID); err != nil {
 		RespondError(c, err)
 		return
+	}
+	// BE-REOPEN-002: 健診削除後にチェックアップタグを再計算（best-effort）
+	if checkup.MedicalRecord != nil && checkup.MedicalRecord.OwnerID != nil {
+		_ = h.svc.LstepTagSync.SyncCheckupTag(c.Request.Context(), clinicID, *checkup.MedicalRecord.OwnerID, checkup.CheckupTypeID, checkup.Date, checkup.NextDate)
 	}
 	c.Status(http.StatusNoContent)
 }
