@@ -3,7 +3,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, STYLE } from "@/lib/design-tokens";
-import type { LtvOwnersParams, AmountBasis, PeriodPreset, LastVisitBucket } from "../api/get-ltv-owners";
+import type { LtvOwnersParams, AmountBasis, PeriodPreset } from "../api/get-ltv-owners";
 import type { LtvTab } from "./LtvOwnerTable";
 
 interface LtvFilterPanelProps {
@@ -67,8 +67,9 @@ export function LtvFilterPanel({ params, onParamsChange, activeTab }: LtvFilterP
 
   // Revenue tab handlers
   const handleYearChange = useCallback(
-    (value: string) => {
-      onParamsChange({ year: value === "" ? undefined : Number(value), page: 1 });
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value === "" ? undefined : Number(e.target.value);
+      onParamsChange({ year: val, page: 1 });
     },
     [onParamsChange]
   );

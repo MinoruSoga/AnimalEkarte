@@ -68,6 +68,7 @@ export interface LtvOwnersParams {
   period_preset?: PeriodPreset;
   from?: string; // YYYY-MM-DD
   to?: string; // YYYY-MM-DD
+  min_visit_count?: number;
   max_visit_count?: number;
   // Last visit aggregation parameters
   last_visit_bucket?: string;
