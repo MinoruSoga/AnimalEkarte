@@ -1495,6 +1495,25 @@ CREATE TABLE billing_items (
 );
 
 -- ------------------------------------
+-- 62c. payment_methods（支払方法マスタ — 旧 payment_method enum のマスタ化）
+-- ------------------------------------
+CREATE TABLE payment_methods (
+    id             BIGSERIAL    PRIMARY KEY,
+    clinic_id      bigint       NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    name           varchar(50)  NOT NULL,
+    display_order  integer      NOT NULL DEFAULT 0,
+    is_active      boolean      NOT NULL DEFAULT true,
+    created_at     timestamptz  NOT NULL DEFAULT now(),
+    updated_at     timestamptz  NOT NULL DEFAULT now(),
+    deleted_at     timestamptz
+);
+
+CREATE UNIQUE INDEX idx_payment_methods_clinic_name ON payment_methods(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE INDEX idx_payment_methods_clinic_order ON payment_methods(clinic_id, display_order) WHERE deleted_at IS NULL;
+
+COMMENT ON TABLE payment_methods IS '支払方法マスタ（FEAT-368: payment_method enum のマスタ化）';
+
+-- ------------------------------------
 -- 58. payments（支払い: billingsと1:1）
 -- ------------------------------------
 CREATE TABLE payments (
@@ -1598,25 +1617,6 @@ CREATE TABLE closing_special_periods (
 CREATE INDEX idx_closing_special_periods_clinic ON closing_special_periods(clinic_id, start_date, end_date);
 
 COMMENT ON TABLE closing_special_periods IS '特別診療時間設定（年末年始・お盆等, FEAT-368）';
-
--- ------------------------------------
--- 62c. payment_methods（支払方法マスタ — 旧 payment_method enum のマスタ化）
--- ------------------------------------
-CREATE TABLE payment_methods (
-    id             BIGSERIAL    PRIMARY KEY,
-    clinic_id      bigint       NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
-    name           varchar(50)  NOT NULL,
-    display_order  integer      NOT NULL DEFAULT 0,
-    is_active      boolean      NOT NULL DEFAULT true,
-    created_at     timestamptz  NOT NULL DEFAULT now(),
-    updated_at     timestamptz  NOT NULL DEFAULT now(),
-    deleted_at     timestamptz
-);
-
-CREATE UNIQUE INDEX idx_payment_methods_clinic_name ON payment_methods(clinic_id, name) WHERE deleted_at IS NULL;
-CREATE INDEX idx_payment_methods_clinic_order ON payment_methods(clinic_id, display_order) WHERE deleted_at IS NULL;
-
-COMMENT ON TABLE payment_methods IS '支払方法マスタ（FEAT-368: payment_method enum のマスタ化）';
 
 -- ------------------------------------
 -- 62d. cash_register_closes（レジ締めレコード）
