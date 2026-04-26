@@ -47,8 +47,8 @@ type LstepConnectionTestResult struct {
 // LstepSettingsService は Lステップ/LINE連携設定の管理インターフェース。
 type LstepSettingsService interface {
 	GetSettings(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error)
-	UpdateSettings(ctx context.Context, clinicID uint64, input UpdateLstepSettingsInput) (*LstepSettingsResponse, error)
-	DeleteSettings(ctx context.Context, clinicID uint64) error
+	UpdateSettings(ctx context.Context, clinicID uint64, input UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error)
+	DeleteSettings(ctx context.Context, clinicID uint64, actorID *uint64) error
 	TestConnection(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error)
 	// GetRawCredentials は復号済みの API キー・BASE URL・LINE アクセストークンを返す。
 	// 設定が存在しない場合は空文字を返す（エラーにはならない）。
@@ -56,14 +56,16 @@ type LstepSettingsService interface {
 }
 
 type lstepSettingsService struct {
-	repo   repository.LstepSettingsRepository
-	cipher *crypto.AESGCMCipher
+	repo     repository.LstepSettingsRepository
+	cipher   *crypto.AESGCMCipher
+	auditSvc AuditService
 }
 
 // NewLstepSettingsService は LstepSettingsService を初期化して返す。
 // cipher が nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
-func NewLstepSettingsService(repo repository.LstepSettingsRepository, cipher *crypto.AESGCMCipher) LstepSettingsService {
-	return &lstepSettingsService{repo: repo, cipher: cipher}
+// auditSvc が nil の場合は監査ログをスキップする（CLI ツール等での使用を想定）。
+func NewLstepSettingsService(repo repository.LstepSettingsRepository, cipher *crypto.AESGCMCipher, auditSvc AuditService) LstepSettingsService {
+	return &lstepSettingsService{repo: repo, cipher: cipher, auditSvc: auditSvc}
 }
 
 func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error) {
@@ -115,7 +117,7 @@ func buildLstepSettingsResponse(kvMap map[string]string, lastUpdated *time.Time)
 	}
 }
 
-func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input UpdateLstepSettingsInput) (*LstepSettingsResponse, error) {
+func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {
 	pairs := []struct {
 		keyName string
 		value   string
@@ -147,13 +149,20 @@ func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint
 			return nil, apperrors.Wrap(err, "failed to update lstep setting")
 		}
 	}
-	return s.GetSettings(ctx, clinicID)
+	resp, err := s.GetSettings(ctx, clinicID)
+	if err == nil && s.auditSvc != nil {
+		_ = s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "update_settings", "clinic", &clinicID)
+	}
+	return resp, err
 }
 
-func (s *lstepSettingsService) DeleteSettings(ctx context.Context, clinicID uint64) error {
+func (s *lstepSettingsService) DeleteSettings(ctx context.Context, clinicID uint64, actorID *uint64) error {
 	if err := s.repo.DeleteByClinicAndService(ctx, clinicID, model.IntegrationServiceLstep); err != nil {
 		slog.ErrorContext(ctx, "failed to delete lstep settings", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete lstep settings")
+	}
+	if s.auditSvc != nil {
+		_ = s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "delete_settings", "clinic", &clinicID)
 	}
 	return nil
 }

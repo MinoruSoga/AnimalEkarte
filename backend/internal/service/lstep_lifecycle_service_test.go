@@ -35,13 +35,13 @@ func (m *mockLstepSettingsService) GetSettings(ctx context.Context, clinicID uin
 	}
 	return &LstepSettingsResponse{}, nil
 }
-func (m *mockLstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input UpdateLstepSettingsInput) (*LstepSettingsResponse, error) {
+func (m *mockLstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {
 	if m.updateSettingsFn != nil {
 		return m.updateSettingsFn(ctx, clinicID, input)
 	}
 	return &LstepSettingsResponse{}, nil
 }
-func (m *mockLstepSettingsService) DeleteSettings(ctx context.Context, clinicID uint64) error {
+func (m *mockLstepSettingsService) DeleteSettings(ctx context.Context, clinicID uint64, actorID *uint64) error {
 	if m.deleteSettingsFn != nil {
 		return m.deleteSettingsFn(ctx, clinicID)
 	}

@@ -37,6 +37,10 @@ func (h *Handler) UpdateLstepSettings(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
+	var actorID *uint64
+	if staffID, ok := extractStaffID(c); ok {
+		actorID = &staffID
+	}
 	resp, err := h.svc.LstepSettings.UpdateSettings(c.Request.Context(), clinicID, service.UpdateLstepSettingsInput{
 		LstepAPIKey:            req.LstepAPIKey,
 		LstepBaseURL:           req.LstepBaseURL,
@@ -44,7 +48,7 @@ func (h *Handler) UpdateLstepSettings(c *gin.Context) {
 		LineChannelSecret:      req.LineChannelSecret,
 		LiffID:                 req.LiffID,
 		LineAccountName:        req.LineAccountName,
-	})
+	}, actorID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -59,7 +63,11 @@ func (h *Handler) DeleteLstepSettings(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.svc.LstepSettings.DeleteSettings(c.Request.Context(), clinicID); err != nil {
+	var actorID *uint64
+	if staffID, ok := extractStaffID(c); ok {
+		actorID = &staffID
+	}
+	if err := h.svc.LstepSettings.DeleteSettings(c.Request.Context(), clinicID, actorID); err != nil {
 		RespondError(c, err)
 		return
 	}

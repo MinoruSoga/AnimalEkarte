@@ -78,7 +78,7 @@ func main() {
 		}
 	}
 
-	settingsSvc := service.NewLstepSettingsService(repos.LstepSettings, cipher)
+	settingsSvc := service.NewLstepSettingsService(repos.LstepSettings, cipher, nil)
 	tagSyncSvc := service.NewLstepTagSyncService(
 		settingsSvc,
 		repos.Owner,
