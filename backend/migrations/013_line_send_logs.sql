@@ -2,7 +2,7 @@ CREATE TABLE line_send_logs (
   id BIGSERIAL PRIMARY KEY,
   clinic_id BIGINT NOT NULL REFERENCES clinics(id),
   owner_id BIGINT NOT NULL REFERENCES owners(id),
-  sent_by_user_id BIGINT NOT NULL REFERENCES users(id),
+  sent_by_user_id BIGINT NOT NULL REFERENCES staffs(id),
   message_type VARCHAR(20) NOT NULL,
   content_summary TEXT NOT NULL,
   line_message_id VARCHAR(100),
