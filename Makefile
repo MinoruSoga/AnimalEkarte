@@ -3,59 +3,62 @@
 # デフォルトターゲット
 .DEFAULT_GOAL := help
 
+# $(DC) に --env-file を渡す（.env.local を変数展開の source of truth にする）
+DC = docker compose --env-file .env.local
+
 # 起動
 up:
-	docker compose down --remove-orphans 2>/dev/null || true
-	docker compose up -d
+	$(DC) down --remove-orphans 2>/dev/null || true
+	$(DC) up -d
 
 # node_modules をホストにコピー（IDE補完用・初回 or package.json 変更時のみ実行）
 sync-modules:
-	docker compose exec -T frontend pnpm install
-	docker compose cp frontend:/app/node_modules ./frontend/
-	docker compose cp frontend:/app/pnpm-lock.yaml ./frontend/
+	$(DC) exec -T frontend pnpm install
+	$(DC) cp frontend:/app/node_modules ./frontend/
+	$(DC) cp frontend:/app/pnpm-lock.yaml ./frontend/
 
 # 起動（ビルド付き）
 build:
-	docker compose up -d --build
+	$(DC) up -d --build
 
 # 停止
 down:
-	docker compose down
+	$(DC) down
 
 # ログ表示（全体）
 logs:
-	docker compose logs -f
+	$(DC) logs -f
 
 # ログ表示（API）
 logs-api:
-	docker compose logs -f backend
+	$(DC) logs -f backend
 
 # ログ表示（フロントエンド）
 logs-front:
-	docker compose logs -f frontend
+	$(DC) logs -f frontend
 
 # コンテナ状態確認
 ps:
-	docker compose ps
+	$(DC) ps
 
 # DB接続
 db:
-	docker compose exec db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'
+	$(DC) exec db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'
 
 # キャッシュクリア＆再ビルド
 clean:
-	docker compose down --rmi local --volumes --remove-orphans
-	docker compose build --no-cache
+	$(DC) down --rmi local --volumes --remove-orphans
+	$(DC) build --no-cache
 
 # 完全リセット（スキーマ・シーダー含む）
 # 環境ファイルから DB_USER を読み込み（デフォルト: postgres）
 reset:
 	@echo "🔄 Resetting database..."
-	docker compose down -v
-	docker compose up -d --build
+	$(DC) down -v
+	$(DC) up -d --build
 	@echo "⏳ Waiting for database to be ready..."
 	@for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if docker compose exec -T db pg_isready > /dev/null 2>&1; then \
+		if $(DC) exec -T db pg_isready > /dev/null 2>&1; then \
 			echo "✓ Database is ready"; \
 			break; \
 		fi; \
@@ -65,7 +68,7 @@ reset:
 	done
 	@echo "⏳ Waiting for backend to be ready..."
 	@for i in 1 2 3 4 5; do \
-		if docker compose exec -T backend wget -qO- http://localhost:8080/health > /dev/null 2>&1; then \
+		if $(DC) exec -T backend wget -qO- http://localhost:8080/health > /dev/null 2>&1; then \
 			echo "✓ Backend is ready"; \
 			break; \
 		fi; \
@@ -74,26 +77,26 @@ reset:
 		sleep 2; \
 	done
 	@echo "⏳ Running migrations and seeding..."
-	docker compose exec -T backend go run ./cmd/migrate
+	$(DC) exec -T backend go run ./cmd/migrate
 	@echo "✓ Reset complete — all migrations and seed data applied"
 
 # マイグレーション適用（差分のみ・DBは落とさない）
 migrate:
-	docker compose exec -T backend sh -c "go run ./cmd/migrate"
+	$(DC) exec -T backend sh -c "go run ./cmd/migrate"
 	@echo "✓ Migrations applied"
 
 # シーダー適用（マイグレーションと同じコマンド — seed は SQL ファイルとして管理されているため差分のみ適用）
 seed:
-	docker compose exec -T backend sh -c "go run ./cmd/migrate"
+	$(DC) exec -T backend sh -c "go run ./cmd/migrate"
 	@echo "✓ Seed data applied"
 
 # バックエンドのみ再起動
 restart-api:
-	docker compose restart backend
+	$(DC) restart backend
 
 # フロントエンドのみ再起動
 restart-front:
-	docker compose restart frontend
+	$(DC) restart frontend
 
 # 本番ビルド
 build-prod:
@@ -121,29 +124,29 @@ lint-fix:
 
 # テスト実行（Go）
 test:
-	docker compose exec backend go test -race -v ./...
+	$(DC) exec backend go test -race -v ./...
 
 # テスト実行（カバレッジ付き）
 test-cover:
-	docker compose exec backend go test -race -cover ./...
+	$(DC) exec backend go test -race -cover ./...
 
 # リンター実行（フロントエンド）
 lint-front:
-	docker compose exec frontend pnpm run lint
+	$(DC) exec frontend pnpm run lint
 
 # テスト実行（フロントエンド）
 test-front:
-	docker compose exec frontend pnpm run test:run
+	$(DC) exec frontend pnpm run test:run
 
 # フロントエンドビルド
 build-front:
-	docker compose exec frontend pnpm run build
+	$(DC) exec frontend pnpm run build
 
 # 型定義生成（Go model → TypeScript型）
 # backend/internal/model/*.go が single source of truth
 codegen:
 	mkdir -p frontend/src/types/generated
-	docker compose run --rm codegen
+	$(DC) run --rm codegen
 
 # 型定義の差分チェック（CI用）
 codegen-check: codegen
@@ -151,27 +154,27 @@ codegen-check: codegen
 
 # スキーマ差分チェック（GoモデルとDBの整合性検証）
 schema-check:
-	docker compose exec backend go test ./internal/model/ -run TestSchemaDrift -v
+	$(DC) exec backend go test ./internal/model/ -run TestSchemaDrift -v
 
 # Goビルド（開発用）
 build-go:
-	docker compose exec backend go build ./cmd/api
+	$(DC) exec backend go build ./cmd/api
 
 # Goモジュールダウンロード
 mod-download:
-	docker compose exec backend go mod download
+	$(DC) exec backend go mod download
 
 # Goモジュールtidy
 mod-tidy:
-	docker compose exec backend go mod tidy
+	$(DC) exec backend go mod tidy
 
 # CI と同等のチェックをローカル Docker で実行
 # 実行前に make up でコンテナを起動しておくこと
 ci-local:
 	@echo "=== [1/7] Backend: build ==="
-	docker compose exec backend go build ./...
+	$(DC) exec backend go build ./...
 	@echo "=== [2/7] Backend: test ==="
-	docker compose exec backend go test ./... -count=1 -race -timeout 120s
+	$(DC) exec backend go test ./... -count=1 -race -timeout 120s
 	@echo "=== [3/7] Backend: lint ==="
 	docker run --rm \
 		-v $(PWD)/backend:/app \
@@ -179,14 +182,14 @@ ci-local:
 		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) \
 		golangci-lint run
 	@echo "=== [4/7] Backend: schema drift ==="
-	docker compose exec backend go test ./internal/model/ -run TestSchemaDrift -v
+	$(DC) exec backend go test ./internal/model/ -run TestSchemaDrift -v
 	@echo "=== [5/7] Codegen: sync check ==="
 	$(MAKE) codegen
 	git diff --exit-code frontend/src/types/generated/ || (echo "ERROR: models.ts is out of sync. Commit the updated file." && exit 1)
 	@echo "=== [6/7] Frontend: lint ==="
-	docker compose exec frontend pnpm run lint
+	$(DC) exec frontend pnpm run lint
 	@echo "=== [7/7] Frontend: build ==="
-	docker compose exec frontend pnpm run build
+	$(DC) exec frontend pnpm run build
 	@echo ""
 	@echo "✓ All CI checks passed"
 
