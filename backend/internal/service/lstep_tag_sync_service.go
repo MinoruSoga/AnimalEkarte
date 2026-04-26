@@ -635,7 +635,7 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 	if optOut {
 		return nil
 	}
-	if owner.LineUserID == nil {
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return nil
 	}
 	lineUserID := *owner.LineUserID
@@ -782,7 +782,7 @@ func (s *lstepTagSyncService) SyncReservationTag(ctx context.Context, clinicID, 
 	if optOut {
 		return nil
 	}
-	if owner.LineUserID == nil {
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return nil
 	}
 	lineUserID := *owner.LineUserID
@@ -833,7 +833,7 @@ func (s *lstepTagSyncService) SyncCancellationTag(ctx context.Context, clinicID,
 	if optOut {
 		return nil
 	}
-	if owner.LineUserID == nil {
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return nil
 	}
 	lineUserID := *owner.LineUserID
@@ -894,7 +894,7 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 	if optOut {
 		return nil
 	}
-	if owner.LineUserID == nil {
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return nil
 	}
 	lineUserID := *owner.LineUserID
@@ -972,7 +972,7 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 	if optOut {
 		return nil
 	}
-	if owner.LineUserID == nil {
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return nil
 	}
 	lineUserID := *owner.LineUserID
@@ -1050,7 +1050,7 @@ func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clin
 	if optOut {
 		return nil
 	}
-	if owner.LineUserID == nil {
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return nil
 	}
 	lineUserID := *owner.LineUserID
@@ -1124,7 +1124,7 @@ func (s *lstepTagSyncService) SyncNoShowTag(ctx context.Context, clinicID, owner
 	if optOut {
 		return nil
 	}
-	if owner.LineUserID == nil {
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return nil
 	}
 	lineUserID := *owner.LineUserID
@@ -1182,7 +1182,7 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 	if optOut {
 		return nil
 	}
-	if owner.LineUserID == nil {
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return nil
 	}
 	lineUserID := *owner.LineUserID
