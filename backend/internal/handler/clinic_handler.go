@@ -86,7 +86,7 @@ func (h *Handler) hasPermission(c *gin.Context, resource, action string) bool {
 // GetClinic godoc
 // system_admin は任意クリニックを取得可能。それ以外は所属クリニックのみ。
 func (h *Handler) GetClinic(c *gin.Context) {
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "clinic_id")
 	if !ok {
 		return
 	}
@@ -115,7 +115,7 @@ func (h *Handler) GetClinic(c *gin.Context) {
 // UpdateClinic godoc
 // system_admin は任意クリニックを更新可能。それ以外は所属クリニックのみ。
 func (h *Handler) UpdateClinic(c *gin.Context) {
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "clinic_id")
 	if !ok {
 		return
 	}
@@ -192,7 +192,7 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 // DeleteClinic godoc
 // hospital-settings.can_delete 権限が必要（RequirePermission ミドルウェアで事前検査済み）
 func (h *Handler) DeleteClinic(c *gin.Context) {
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "clinic_id")
 	if !ok {
 		return
 	}
@@ -207,8 +207,8 @@ func (h *Handler) DeleteClinic(c *gin.Context) {
 func (h *Handler) RegisterClinicRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics")
 	clinics.GET("", h.ListClinics)
-	clinics.GET("/:id", h.GetClinic)
+	clinics.GET("/:clinic_id", h.GetClinic)
 	clinics.POST("", h.RequirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateClinic)
-	clinics.PATCH("/:id", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateClinic)
-	clinics.DELETE("/:id", h.RequirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteClinic)
+	clinics.PATCH("/:clinic_id", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateClinic)
+	clinics.DELETE("/:clinic_id", h.RequirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteClinic)
 }
