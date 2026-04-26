@@ -37,11 +37,10 @@ type ListOwnersByTagInput struct {
 
 // TagOwnerItem は GET /lstep/owners の1件。
 type TagOwnerItem struct {
-	OwnerID          uint64
-	OwnerName        string
-	LineUserIDMasked *string
-	LastVisitDate    *string
-	AllTags          []string
+	OwnerID       uint64
+	OwnerName     string
+	LastVisitDate *string
+	AllTags       []string
 }
 
 // TagOwnerListResponse は GET /lstep/owners のレスポンス。
@@ -108,10 +107,6 @@ func (s *lstepTagSummaryService) ListOwnersByTag(ctx context.Context, clinicID u
 			OwnerName:     r.OwnerName,
 			AllTags:       r.Tags,
 			LastVisitDate: extractLastVisitDate(r.Tags),
-		}
-		if r.LineUserID != nil {
-			masked := maskLineUserID(*r.LineUserID)
-			item.LineUserIDMasked = &masked
 		}
 		items[i] = item
 	}

@@ -63,11 +63,10 @@ func toTagOwnerListResponse(r service.TagOwnerListResponse) tagOwnerListResponse
 			tags = []string{}
 		}
 		owners[i] = tagOwnerItemResponse{
-			OwnerID:          strconv.FormatUint(o.OwnerID, 10),
-			OwnerName:        o.OwnerName,
-			LineUserIDMasked: o.LineUserIDMasked,
-			LastVisitDate:    o.LastVisitDate,
-			AllTags:          tags,
+			OwnerID:       strconv.FormatUint(o.OwnerID, 10),
+			OwnerName:     o.OwnerName,
+			LastVisitDate: o.LastVisitDate,
+			AllTags:       tags,
 		}
 	}
 	return tagOwnerListResponse{Owners: owners, Total: r.Total, Page: r.Page, PerPage: r.PerPage}

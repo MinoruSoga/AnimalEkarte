@@ -150,8 +150,7 @@ func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, inpu
 
 	if owner.LineUserID != nil && *owner.LineUserID != "" && !input.Force {
 		// 既に別の LINE User ID が設定済み
-		masked := maskLineUserID(*owner.LineUserID)
-		return nil, apperrors.WrapConflict(fmt.Sprintf("line user id already set: %s", masked))
+		return nil, apperrors.WrapConflict("line user id already set")
 	}
 
 	// 4. LINE User ID を更新
@@ -294,4 +293,3 @@ func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, set
 	}
 	return result.Sub, nil
 }
-
