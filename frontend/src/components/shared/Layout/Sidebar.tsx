@@ -309,6 +309,7 @@ export const Sidebar = memo(function Sidebar() {
             { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref(), resource: ResourceHospitalization },
             { icon: <Package       className={ICON.toolbar} />, label: "在庫管理",     path: paths.inventory.getHref(),       resource: ResourceInventory },
             { icon: <CalendarDays  className={ICON.toolbar} />, label: "シフト管理",   path: paths.shifts.getHref(),          resource: ResourceShifts },
+            { icon: <BarChart3     className={ICON.toolbar} />, label: "集計・分析",   path: paths.owners.ltv.getHref(),      resource: ResourceOwners },
           ].map(item => (
             <SidebarItemWithPermission key={item.label} item={item as MenuItem} collapsed={collapsed} />
           ))}
