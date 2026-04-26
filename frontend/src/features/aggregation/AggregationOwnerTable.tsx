@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, BADGE } from "@/lib/design-tokens";
 import type { LtvOwner, LastVisitBucket } from "./api/get-aggregations";
 
 export type LtvTab = "revenue" | "visit" | "last_visit";
@@ -36,11 +36,11 @@ const LAST_VISIT_BUCKET_LABEL: Record<LastVisitBucket, string> = {
 };
 
 const LAST_VISIT_BUCKET_CLASS: Record<LastVisitBucket, string> = {
-  within_3m: "bg-green-100 text-green-800 border-green-200",
-  over_3m: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  over_6m: "bg-orange-100 text-orange-800 border-orange-200",
-  over_1y: "bg-red-100 text-red-800 border-red-200",
-  no_visit: "bg-gray-100 text-gray-800 border-gray-200",
+  within_3m: BADGE.green,
+  over_3m: BADGE.yellow,
+  over_6m: BADGE.orange,
+  over_1y: BADGE.red,
+  no_visit: BADGE.gray,
 };
 
 function LastVisitBucketBadge({ bucket }: { bucket: LastVisitBucket | null }) {
@@ -277,7 +277,7 @@ export function AggregationOwnerTable({
         <TableBody>
           {isError ? (
             <TableRow>
-              <TableCell colSpan={colSpan} className={`${STYLE.tableEmpty} text-red-600`}>
+              <TableCell colSpan={colSpan} className={`${STYLE.tableEmpty} ${C.danger}`}>
                 {errorMessage || "エラーが発生しました"}
               </TableCell>
             </TableRow>

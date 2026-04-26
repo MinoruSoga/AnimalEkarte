@@ -134,7 +134,7 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
   );
 
   return (
-    <div className={`bg-white border ${C.borderLight} rounded-[4px] p-4 flex flex-wrap gap-4 items-end`}>
+    <div className={`${C.bgWhite} border ${C.borderLight} rounded-[4px] p-4 flex flex-wrap gap-4 items-end`}>
       {/* 飼い主名検索 */}
       <div className="flex flex-col gap-1 min-w-[200px]">
         <label className={`text-sm ${C.text65}`}>飼い主名</label>
