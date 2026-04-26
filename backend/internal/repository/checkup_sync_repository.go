@@ -55,10 +55,12 @@ func (r *checkupSyncRepository) FindCheckupSyncPreview(ctx context.Context, para
 
 	var having []string
 	if params.LastVisitBefore != nil {
-		having = append(having, fmt.Sprintf("MAX(mr.date) <= '%s'", params.LastVisitBefore.Format("2006-01-02")))
+		having = append(having, "MAX(mr.date) <= ?")
+		args = append(args, params.LastVisitBefore.Format("2006-01-02"))
 	}
 	if params.LastVisitAfter != nil {
-		having = append(having, fmt.Sprintf("MAX(mr.date) >= '%s'", params.LastVisitAfter.Format("2006-01-02")))
+		having = append(having, "MAX(mr.date) >= ?")
+		args = append(args, params.LastVisitAfter.Format("2006-01-02"))
 	}
 
 	havingClause := ""
