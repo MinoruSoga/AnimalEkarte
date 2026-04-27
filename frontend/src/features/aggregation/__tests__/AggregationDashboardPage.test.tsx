@@ -6,15 +6,13 @@ import { BrowserRouter, Route, Routes } from 'react-router';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/testing/mocks/node';
 import { AggregationDashboardPage } from '../AggregationDashboardPage';
-import type { LtvOwnersResponse } from '../api/get-aggregations';
+import type { AggregationResponse } from '../api/get-aggregations';
 
-const mockResponse: LtvOwnersResponse = {
+const mockResponse: AggregationResponse = {
   owners: [
     {
       owner_id: 'owner1',
       owner_name: '田中太郎',
-      has_line: true,
-      cpm_stage: 'established',
       total_fee: 500000,
       total_visit_count: 20,
       annual_visit_count: 12,
@@ -29,8 +27,6 @@ const mockResponse: LtvOwnersResponse = {
     {
       owner_id: 'owner2',
       owner_name: '鈴木花子',
-      has_line: false,
-      cpm_stage: 'prospect',
       total_fee: 200000,
       total_visit_count: 8,
       annual_visit_count: 4,
