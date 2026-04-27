@@ -1,15 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { BrowserRouter } from 'react-router';
 import { AggregationOwnerTable } from '../AggregationOwnerTable';
-import type { LtvOwner, LtvTab } from '../api/get-aggregations';
+import type { AggregationOwner } from '../api/get-aggregations';
+import type { AggregationTab } from '../AggregationOwnerTable';
 
-const mockOwners: LtvOwner[] = [
+const mockOwners: AggregationOwner[] = [
   {
     owner_id: 'owner1',
     owner_name: '田中太郎',
-    has_line: true,
-    cpm_stage: 'established',
-    total_fee: 500000,
     total_visit_count: 20,
     annual_visit_count: 12,
     last_visit_date: '2026-04-20',
@@ -23,9 +22,6 @@ const mockOwners: LtvOwner[] = [
   {
     owner_id: 'owner2',
     owner_name: '鈴木花子',
-    has_line: false,
-    cpm_stage: 'prospect',
-    total_fee: 200000,
     total_visit_count: 8,
     annual_visit_count: 4,
     last_visit_date: '2026-01-10',
@@ -38,22 +34,26 @@ const mockOwners: LtvOwner[] = [
   },
 ];
 
-describe('AggregationOwnerTable', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+const createWrapper = () => {
+  return ({ children }: { children: React.ReactNode }) => (
+    <BrowserRouter>
+      {children}
+    </BrowserRouter>
+  );
+};
 
+describe('AggregationOwnerTable', () => {
   it('should render owners in revenue tab', () => {
     render(
       <AggregationOwnerTable
         owners={mockOwners}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={false}
         activeTab="revenue"
-      />
+      />,
+      { wrapper: createWrapper() }
     );
 
     expect(screen.getByText('田中太郎')).toBeInTheDocument();
@@ -64,45 +64,45 @@ describe('AggregationOwnerTable', () => {
     render(
       <AggregationOwnerTable
         owners={mockOwners}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={false}
         activeTab="revenue"
-      />
+      />,
+      { wrapper: createWrapper() }
     );
 
-    expect(screen.getByText('年間売上')).toBeInTheDocument();
+    expect(screen.getByText('期間診療費')).toBeInTheDocument();
   });
 
   it('should render period_visit_count in visit tab', () => {
     render(
       <AggregationOwnerTable
         owners={mockOwners}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={false}
         activeTab="visit"
-      />
+      />,
+      { wrapper: createWrapper() }
     );
 
-    expect(screen.getByText('来院回数')).toBeInTheDocument();
+    expect(screen.getByText('来院回数(期間)')).toBeInTheDocument();
   });
 
   it('should render last_visit_bucket badge in last_visit tab', () => {
     render(
       <AggregationOwnerTable
         owners={mockOwners}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={false}
         activeTab="last_visit"
-      />
+      />,
+      { wrapper: createWrapper() }
     );
 
     expect(screen.getByText('3ヶ月以内')).toBeInTheDocument();
@@ -113,15 +113,15 @@ describe('AggregationOwnerTable', () => {
     render(
       <AggregationOwnerTable
         owners={[]}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={false}
         activeTab="revenue"
         isError={true}
         errorMessage="データの読み込みに失敗しました"
-      />
+      />,
+      { wrapper: createWrapper() }
     );
 
     expect(screen.getByText('データの読み込みに失敗しました')).toBeInTheDocument();
@@ -131,13 +131,13 @@ describe('AggregationOwnerTable', () => {
     render(
       <AggregationOwnerTable
         owners={[]}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={true}
         activeTab="revenue"
-      />
+      />,
+      { wrapper: createWrapper() }
     );
 
     expect(screen.getByText('読み込み中...')).toBeInTheDocument();
@@ -147,29 +147,29 @@ describe('AggregationOwnerTable', () => {
     render(
       <AggregationOwnerTable
         owners={[]}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={false}
         activeTab="revenue"
-      />
+      />,
+      { wrapper: createWrapper() }
     );
 
-    expect(screen.getByText('データがありません')).toBeInTheDocument();
+    expect(screen.getByText('データが見つかりません')).toBeInTheDocument();
   });
 
   it('should display common columns for all tabs', () => {
     const { rerender } = render(
       <AggregationOwnerTable
         owners={mockOwners}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={false}
         activeTab="revenue"
-      />
+      />,
+      { wrapper: createWrapper() }
     );
 
     expect(screen.getByText('飼い主名')).toBeInTheDocument();
@@ -178,10 +178,9 @@ describe('AggregationOwnerTable', () => {
     rerender(
       <AggregationOwnerTable
         owners={mockOwners}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={false}
         activeTab="visit"
       />
@@ -191,13 +190,10 @@ describe('AggregationOwnerTable', () => {
   });
 
   it('should render correct badge colors for different last_visit_bucket values', () => {
-    const ownersWithVariousBuckets: LtvOwner[] = [
+    const ownersWithVariousBuckets: AggregationOwner[] = [
       {
         owner_id: 'owner1',
         owner_name: 'Owner 1',
-        has_line: false,
-        cpm_stage: 'established',
-        total_fee: 100000,
         total_visit_count: 10,
         annual_visit_count: 5,
         last_visit_date: '2026-04-20',
@@ -211,9 +207,6 @@ describe('AggregationOwnerTable', () => {
       {
         owner_id: 'owner2',
         owner_name: 'Owner 2',
-        has_line: false,
-        cpm_stage: 'prospect',
-        total_fee: 50000,
         total_visit_count: 5,
         annual_visit_count: 2,
         last_visit_date: '2025-10-20',
@@ -229,13 +222,13 @@ describe('AggregationOwnerTable', () => {
     render(
       <AggregationOwnerTable
         owners={ownersWithVariousBuckets}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={false}
         activeTab="last_visit"
-      />
+      />,
+      { wrapper: createWrapper() }
     );
 
     expect(screen.getByText('3ヶ月以内')).toBeInTheDocument();
@@ -246,30 +239,30 @@ describe('AggregationOwnerTable', () => {
     render(
       <AggregationOwnerTable
         owners={mockOwners}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={false}
         activeTab="revenue"
-      />
+      />,
+      { wrapper: createWrapper() }
     );
 
-    expect(screen.getByText('150,000')).toBeInTheDocument();
-    expect(screen.getByText('80,000')).toBeInTheDocument();
+    expect(screen.getByText('¥150,000')).toBeInTheDocument();
+    expect(screen.getByText('¥80,000')).toBeInTheDocument();
   });
 
   it('should format dates correctly', () => {
     render(
       <AggregationOwnerTable
         owners={mockOwners}
-        selectedOwnerIds={[]}
-        onSelectionChange={() => {}}
-        onSortChange={() => {}}
-        onPageChange={() => {}}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
         isLoading={false}
         activeTab="visit"
-      />
+      />,
+      { wrapper: createWrapper() }
     );
 
     expect(screen.getByText('2026-04-20')).toBeInTheDocument();

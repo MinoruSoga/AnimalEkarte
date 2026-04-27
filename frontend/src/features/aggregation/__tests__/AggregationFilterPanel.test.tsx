@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AggregationFilterPanel } from '../AggregationFilterPanel';
-import type { LtvOwnersParams, LtvTab } from '../api/get-aggregations';
+import type { AggregationParams } from '../api/get-aggregations';
+import type { AggregationTab } from '../AggregationDashboardPage';
 
 describe('AggregationFilterPanel', () => {
   const mockOnParamsChange = vi.fn();
@@ -12,7 +13,7 @@ describe('AggregationFilterPanel', () => {
   });
 
   it('should render common filters for all tabs', async () => {
-    const params: LtvOwnersParams = {
+    const params: AggregationParams = {
       page: 1,
       per_page: 50,
       sort: 'annual_amount',
@@ -31,7 +32,7 @@ describe('AggregationFilterPanel', () => {
   });
 
   it('should render revenue-specific filters', () => {
-    const params: LtvOwnersParams = {
+    const params: AggregationParams = {
       page: 1,
       per_page: 50,
       year: 2026,
@@ -53,7 +54,7 @@ describe('AggregationFilterPanel', () => {
   });
 
   it('should render visit-specific filters', () => {
-    const params: LtvOwnersParams = {
+    const params: AggregationParams = {
       page: 1,
       per_page: 50,
       period_preset: 'last_12_months',
@@ -73,7 +74,7 @@ describe('AggregationFilterPanel', () => {
   });
 
   it('should render last_visit-specific filters', () => {
-    const params: LtvOwnersParams = {
+    const params: AggregationParams = {
       page: 1,
       per_page: 50,
       last_visit_bucket: 'over_3m',
@@ -94,7 +95,7 @@ describe('AggregationFilterPanel', () => {
 
   it('should call onParamsChange with updated params on search change', async () => {
     const user = userEvent.setup();
-    const params: LtvOwnersParams = {
+    const params: AggregationParams = {
       page: 1,
       per_page: 50,
       sort: 'annual_amount',
@@ -119,7 +120,7 @@ describe('AggregationFilterPanel', () => {
 
   it('should call onParamsChange with page reset on filter change', async () => {
     const user = userEvent.setup();
-    const params: LtvOwnersParams = {
+    const params: AggregationParams = {
       page: 2,
       per_page: 50,
       year: 2026,
@@ -141,7 +142,7 @@ describe('AggregationFilterPanel', () => {
   });
 
   it('should not render revenue filters for non-revenue tabs', () => {
-    const params: LtvOwnersParams = {
+    const params: AggregationParams = {
       page: 1,
       per_page: 50,
       period_preset: 'last_12_months',
@@ -161,7 +162,7 @@ describe('AggregationFilterPanel', () => {
   });
 
   it('should not render visit filters for non-visit tabs', () => {
-    const params: LtvOwnersParams = {
+    const params: AggregationParams = {
       page: 1,
       per_page: 50,
       year: 2026,

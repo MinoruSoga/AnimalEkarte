@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 
 // Type definitions for aggregation features
-export type LtvSortField =
+export type AggregationSortField =
   | "total_fee"
   | "annual_visit_count"
   | "last_visit_date"
@@ -29,7 +29,7 @@ export type LastVisitBucket =
   | "over_1y"
   | "no_visit";
 
-export interface LtvOwner {
+export interface AggregationOwner {
   owner_id: string;
   owner_name: string;
   annual_visit_count: number;
@@ -43,10 +43,11 @@ export interface LtvOwner {
   period_last_visit_date?: string | null;
   days_since_last_visit?: number | null;
   last_visit_bucket?: LastVisitBucket | null;
+  total_fee?: number;
 }
 
-export interface LtvOwnersParams {
-  sort?: LtvSortField;
+export interface AggregationParams {
+  sort?: AggregationSortField;
   order?: "asc" | "desc";
   search?: string;
   page?: number;
@@ -68,20 +69,20 @@ export interface LtvOwnersParams {
   include_no_visit?: boolean;
 }
 
-export interface LtvOwnersResponse {
-  owners: LtvOwner[];
+export interface AggregationResponse {
+  owners: AggregationOwner[];
   total: number;
   page: number;
   per_page: number;
 }
 
 // GET /api/clinics/:clinic_id/owners/aggregations
-export function useGetOwnerAggregations(params: LtvOwnersParams) {
+export function useGetOwnerAggregations(params: AggregationParams) {
   return useQuery({
     queryKey: ["owner-aggregations", params],
     queryFn: async () => {
       const clinicId = localStorage.getItem("auth_current_clinic:v1");
-      const { data } = await axios.get<LtvOwnersResponse>(
+      const { data } = await axios.get<AggregationResponse>(
         `/v1/clinics/${clinicId}/owners/aggregations`,
         { params }
       );
