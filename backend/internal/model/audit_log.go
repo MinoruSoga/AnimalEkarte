@@ -34,10 +34,10 @@ const (
 	AuditActionAuthLogout            = "auth.logout"
 
 	// Lステップ / LINE連携 監査アクション
-	AuditActionLstepSettingsSave      = "lstep.settings.save"
-	AuditActionLstepTagSync           = "lstep.tag.sync"
-	AuditActionLstepTagSyncBulk       = "lstep.tag.sync_bulk"
-	AuditActionLineNotificationSend   = "line.notification.send"
-	AuditActionOwnerLineUserIDUpdate   = "owner.line_user_id.update"
-	AuditActionOwnerLineUserIDUnlink   = "owner.line_user_id.unlink"
+	AuditActionLstepSettingsSave     = "lstep.settings.save"
+	AuditActionLstepTagSync          = "lstep.tag.sync"
+	AuditActionLstepTagSyncBulk      = "lstep.tag.sync_bulk"
+	AuditActionLineNotificationSend  = "line.notification.send"
+	AuditActionOwnerLineUserIDUpdate = "owner.line_user_id.update"
+	AuditActionOwnerLineUserIDUnlink = "owner.line_user_id.unlink"
 )

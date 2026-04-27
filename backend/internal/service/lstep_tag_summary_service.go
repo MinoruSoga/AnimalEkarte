@@ -130,7 +130,7 @@ func (s *lstepTagSummaryService) ExportOwnersByTagCSV(ctx context.Context, clini
 		if d := extractLastVisitDate(r.Tags); d != nil {
 			lvd = *d
 		}
-		cw.Write([]string{ //nolint:errcheck
+		cw.Write([]string{ //nolint:errcheck // csv.Writer error is captured by cw.Error() after Flush()
 			fmt.Sprintf("%d", r.OwnerID),
 			r.OwnerName,
 			lvd,
@@ -138,7 +138,10 @@ func (s *lstepTagSummaryService) ExportOwnersByTagCSV(ctx context.Context, clini
 		})
 	}
 	cw.Flush()
-	return cw.Error()
+	if err := cw.Error(); err != nil {
+		return apperrors.Wrap(err, "csv writer error")
+	}
+	return nil
 }
 
 // extractLastVisitDate はタグ一覧から last_visit_YYYY-MM-DD を抽出する。

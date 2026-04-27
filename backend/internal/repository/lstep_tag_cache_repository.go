@@ -170,7 +170,9 @@ func (r *lstepTagCacheRepository) FindOwnersByTag(ctx context.Context, clinicID 
 		return nil, 0, apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("clinic=%d tag=%s count", clinicID, tagName))
 	}
 
-	pageArgs := append(args, limit, offset)
+	pageArgs := make([]any, 0, len(args)+2)
+	pageArgs = append(pageArgs, args...)
+	pageArgs = append(pageArgs, limit, offset)
 	var stubs []ownerStub
 	if err := r.db.WithContext(ctx).
 		Raw("SELECT DISTINCT o.id AS owner_id, o.name AS owner_name, o.line_user_id "+baseSQL+` ORDER BY o.id LIMIT ? OFFSET ?`, pageArgs...).
@@ -212,7 +214,7 @@ func (r *lstepTagCacheRepository) FindOwnersByTag(ctx context.Context, clinicID 
 }
 
 func (r *lstepTagCacheRepository) BulkReplaceOwnerTags(ctx context.Context, clinicID, ownerID uint64, tags []TagEntry) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("clinic_id = ? AND owner_id = ?", clinicID, ownerID).
 			Delete(&model.LstepTagCache{}).Error; err != nil {
 			return apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("owner=%d delete", ownerID))
@@ -233,4 +235,8 @@ func (r *lstepTagCacheRepository) BulkReplaceOwnerTags(ctx context.Context, clin
 		}
 		return nil
 	})
+	if err != nil {
+		return apperrors.Wrap(err, "lstep tag cache bulk replace")
+	}
+	return nil
 }

@@ -210,7 +210,8 @@ func (s *lineLinkService) handleFollowEvent(ctx context.Context, lineUserID stri
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find owners by line user id")
 	}
-	for _, o := range owners {
+	for i := range owners {
+		o := &owners[i]
 		if err := s.ownerRepo.UpdateLineFollowedAt(ctx, o.ClinicID, o.ID, now); err != nil {
 			slog.ErrorContext(ctx, "failed to update line_followed_at", "error", err, "owner_id", o.ID)
 		}
@@ -223,7 +224,8 @@ func (s *lineLinkService) handleUnfollowEvent(ctx context.Context, lineUserID st
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find owners by line user id")
 	}
-	for _, o := range owners {
+	for i := range owners {
+		o := &owners[i]
 		if err := s.ownerRepo.UpdateLineBlockedAt(ctx, o.ClinicID, o.ID, now); err != nil {
 			slog.ErrorContext(ctx, "failed to update line_blocked_at", "error", err, "owner_id", o.ID)
 		}
@@ -238,7 +240,8 @@ func (s *lineLinkService) verifySignatureAnyClinic(ctx context.Context, body []b
 		slog.ErrorContext(ctx, "failed to load line settings for signature verification", "error", err)
 		return false
 	}
-	for _, setting := range settings {
+	for i := range settings {
+		setting := &settings[i]
 		if setting.LineChannelSecret == "" {
 			continue
 		}
@@ -271,7 +274,7 @@ func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, set
 	if err != nil {
 		return "", fmt.Errorf("line id token verify request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

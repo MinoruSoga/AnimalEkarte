@@ -35,7 +35,7 @@ func (m *mockLineSendLogRepo) FindByOwner(ctx context.Context, clinicID, ownerID
 
 type mockSharedFileSvc struct{}
 
-func (m *mockSharedFileSvc) Upload(_ context.Context, _, _ uint64, _ UploadSharedFileInput) (*SharedFileResponse, error) {
+func (m *mockSharedFileSvc) Upload(_ context.Context, _, _ uint64, _ *UploadSharedFileInput) (*SharedFileResponse, error) {
 	return nil, nil
 }
 func (m *mockSharedFileSvc) GetSignedURL(_ context.Context, _, _ uint64) (string, error) {
@@ -113,7 +113,7 @@ func TestSend_OwnerNotFound(t *testing.T) {
 		},
 	}
 	svc := newLineSendSvc(ownerRepo, &mockLineSendLogRepo{})
-	_, err := svc.Send(context.Background(), 1, SendLineMessageInput{OwnerID: 99, MessageType: "text", Text: "hi"})
+	_, err := svc.Send(context.Background(), 1, &SendLineMessageInput{OwnerID: 99, MessageType: "text", Text: "hi"})
 	assert.Error(t, err)
 }
 
@@ -124,7 +124,7 @@ func TestSend_NoLineUserID(t *testing.T) {
 		},
 	}
 	svc := newLineSendSvc(ownerRepo, &mockLineSendLogRepo{})
-	_, err := svc.Send(context.Background(), 1, SendLineMessageInput{OwnerID: 1, MessageType: "text", Text: "hi"})
+	_, err := svc.Send(context.Background(), 1, &SendLineMessageInput{OwnerID: 1, MessageType: "text", Text: "hi"})
 	assert.Error(t, err)
 }
 
@@ -135,6 +135,6 @@ func TestSend_LstepOptOut(t *testing.T) {
 		},
 	}
 	svc := newLineSendSvc(ownerRepo, &mockLineSendLogRepo{})
-	_, err := svc.Send(context.Background(), 1, SendLineMessageInput{OwnerID: 1, MessageType: "text", Text: "hi"})
+	_, err := svc.Send(context.Background(), 1, &SendLineMessageInput{OwnerID: 1, MessageType: "text", Text: "hi"})
 	assert.Error(t, err)
 }

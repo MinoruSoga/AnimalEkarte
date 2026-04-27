@@ -107,7 +107,7 @@ func (h *Handler) SearchLstepOwnersByTag(c *gin.Context) {
 		date := time.Now().Format("2006-01-02")
 		filename := fmt.Sprintf("lstep-%s-%s.csv", tagName, date)
 		c.Header("Content-Type", "text/csv; charset=utf-8")
-		c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 		if err := h.svc.LstepTagSummary.ExportOwnersByTagCSV(c.Request.Context(), clinicID, tagName, nameQuery, c.Writer); err != nil {
 			RespondError(c, err)
 		}

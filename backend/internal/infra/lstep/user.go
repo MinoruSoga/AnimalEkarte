@@ -47,7 +47,7 @@ func (c *httpLstepClient) GetUser(ctx context.Context, lineUserID string) (*User
 	if err != nil {
 		return nil, fmt.Errorf("lstep GetUser: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("lineUserID=%s: %w", lineUserID, ErrUserNotFound)
 	}
@@ -87,7 +87,7 @@ func (c *httpLstepClient) SetProperty(ctx context.Context, lineUserID, key, valu
 	if err != nil {
 		return fmt.Errorf("lstep SetProperty: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if err := checkResponse(resp, lineUserID); err != nil {
 		return fmt.Errorf("lstep SetProperty: %w", err)
 	}

@@ -28,7 +28,7 @@ type SendLineMessageResult struct {
 }
 
 type LineSendService interface {
-	Send(ctx context.Context, clinicID uint64, input SendLineMessageInput) (*SendLineMessageResult, error)
+	Send(ctx context.Context, clinicID uint64, input *SendLineMessageInput) (*SendLineMessageResult, error)
 	GetSendLogs(ctx context.Context, clinicID, ownerID uint64) ([]*model.LineSendLog, error)
 }
 
@@ -59,7 +59,7 @@ func NewLineSendService(
 	}
 }
 
-func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input SendLineMessageInput) (*SendLineMessageResult, error) {
+func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *SendLineMessageInput) (*SendLineMessageResult, error) {
 	owner, err := s.ownerRepo.FindByID(ctx, clinicID, input.OwnerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find owner for line send", "error", err)
@@ -181,10 +181,10 @@ func lineSendPurposeTag(purpose string, t time.Time) string {
 	}
 }
 
-func lineSendTruncate(s string, max int) string {
+func lineSendTruncate(s string, maxLen int) string {
 	runes := []rune(s)
-	if len(runes) <= max {
+	if len(runes) <= maxLen {
 		return s
 	}
-	return string(runes[:max])
+	return string(runes[:maxLen])
 }

@@ -43,7 +43,7 @@ type UploadSharedFileInput struct {
 
 // SharedFileService は shared_files の管理インターフェース。
 type SharedFileService interface {
-	Upload(ctx context.Context, clinicID, uploadedBy uint64, input UploadSharedFileInput) (*SharedFileResponse, error)
+	Upload(ctx context.Context, clinicID, uploadedBy uint64, input *UploadSharedFileInput) (*SharedFileResponse, error)
 	GetSignedURL(ctx context.Context, clinicID, id uint64) (string, error)
 	FindAll(ctx context.Context, clinicID uint64) ([]*SharedFileResponse, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -62,7 +62,7 @@ func NewSharedFileService(repo repository.SharedFileRepository, ownerRepo reposi
 	return &sharedFileService{repo: repo, ownerRepo: ownerRepo, storage: storage}
 }
 
-func (s *sharedFileService) Upload(ctx context.Context, clinicID, uploadedBy uint64, input UploadSharedFileInput) (*SharedFileResponse, error) {
+func (s *sharedFileService) Upload(ctx context.Context, clinicID, uploadedBy uint64, input *UploadSharedFileInput) (*SharedFileResponse, error) {
 	// owner_id が指定された場合、同一クリニックに存在することを検証
 	if input.OwnerID != nil {
 		if _, err := s.ownerRepo.FindByID(ctx, clinicID, *input.OwnerID); err != nil {

@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount
@@ -118,7 +119,7 @@ func TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount(t *testing.T)
 
 	// ===== DEBUG 4b: FindOwnerLTV 実行 =====
 	t.Logf("[DEBUG 4b] About to call FindOwnerLTV with ClinicID=%d", clinicID)
-	result1, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result1, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID: clinicID,
 	})
 	t.Logf("[DEBUG 4b] FindOwnerLTV result count: %d (expected 1)", len(result1))
@@ -131,7 +132,7 @@ func TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount(t *testing.T)
 
 	// Test 2: last_12_months 指定時
 	// total_visit_count は 10 のまま（period_visit_count が変わるべきで total_visit_count は変わらない）
-	result2, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result2, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:     clinicID,
 		PeriodPreset: "last_12_months",
 	})
@@ -143,7 +144,7 @@ func TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount(t *testing.T)
 	assert.Equal(t, int64(7), *result2[0].PeriodVisitCount, "last_12_months での period_visit_count = 7")
 
 	// Test 3: last_3_months 指定時
-	result3, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result3, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:     clinicID,
 		PeriodPreset: "last_3_months",
 	})
@@ -223,7 +224,7 @@ func TestFindOwnerLTV_PeriodPriority(t *testing.T) {
 	// Test 1: from/to 指定時（優先度最高）
 	from := "2025-01-01"
 	to := "2025-12-31"
-	result1, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result1, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:     clinicID,
 		From:         &from,
 		To:           &to,
@@ -236,7 +237,7 @@ func TestFindOwnerLTV_PeriodPriority(t *testing.T) {
 
 	// Test 2: year 指定（from/to なし）
 	year := 2024
-	result2, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result2, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:     clinicID,
 		Year:         &year,
 		PeriodPreset: "last_3_months", // これは無視されるべき
@@ -247,7 +248,7 @@ func TestFindOwnerLTV_PeriodPriority(t *testing.T) {
 	assert.Equal(t, int64(5), *result2[0].AnnualAmount)
 
 	// Test 3: period_preset 指定（year/from/to なし）
-	result3, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result3, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:     clinicID,
 		PeriodPreset: "last_12_months",
 	})
@@ -304,7 +305,7 @@ func TestFindOwnerLTV_LastVisitBucketBoundaries(t *testing.T) {
 				t.Fatalf("failed to create medical record: %v", err)
 			}
 
-			result, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+			result, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 				ClinicID:    clinicID,
 				IncludeZero: true,
 			})
@@ -343,7 +344,7 @@ func TestFindOwnerLTV_NoVisitBucket(t *testing.T) {
 	}
 
 	// Test 1: include_no_visit = false (デフォルト)
-	result1, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result1, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:       clinicID,
 		IncludeNoVisit: false,
 	})
@@ -352,7 +353,7 @@ func TestFindOwnerLTV_NoVisitBucket(t *testing.T) {
 	assert.Equal(t, 0, len(result1), "no_visit owner should be excluded when include_no_visit=false")
 
 	// Test 2: include_no_visit = true
-	result2, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result2, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:       clinicID,
 		IncludeNoVisit: true,
 		IncludeZero:    true,
@@ -391,7 +392,7 @@ func TestFindOwnerLTV_IncludeZero(t *testing.T) {
 	}
 
 	// Test 1: include_zero = false
-	result1, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result1, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:    clinicID,
 		IncludeZero: false,
 	})
@@ -400,7 +401,7 @@ func TestFindOwnerLTV_IncludeZero(t *testing.T) {
 	assert.Equal(t, 0, len(result1), "zero amount owner should be excluded when include_zero=false")
 
 	// Test 2: include_zero = true
-	result2, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result2, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:    clinicID,
 		IncludeZero: true,
 	})
@@ -466,7 +467,7 @@ func TestFindOwnerLTV_AmountBasisSwitching(t *testing.T) {
 	}
 
 	// Test 1: gross_total_amount (default)
-	result1, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result1, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:    clinicID,
 		AmountBasis: "gross_total_amount",
 		IncludeZero: true,
@@ -476,7 +477,7 @@ func TestFindOwnerLTV_AmountBasisSwitching(t *testing.T) {
 	assert.Equal(t, int64(10000), *result1[0].AnnualAmount, "gross_total_amount should be 10000")
 
 	// Test 2: paid_amount
-	result2, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result2, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:    clinicID,
 		AmountBasis: "paid_amount",
 		IncludeZero: true,
@@ -486,7 +487,7 @@ func TestFindOwnerLTV_AmountBasisSwitching(t *testing.T) {
 	assert.Equal(t, int64(8000), *result2[0].AnnualAmount, "paid_amount should be 8000")
 
 	// Test 3: net_paid_amount
-	result3, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result3, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:    clinicID,
 		AmountBasis: "net_paid_amount",
 		IncludeZero: true,
@@ -544,7 +545,7 @@ func TestFindOwnerLTV_OnlyCompletedBillings(t *testing.T) {
 		t.Fatalf("failed to create pending billing: %v", err)
 	}
 
-	result, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:    clinicID,
 		IncludeZero: true,
 	})
@@ -593,7 +594,7 @@ func TestFindOwnerLTV_ClinicIDIsolation(t *testing.T) {
 	}
 
 	// Clinic 1 でクエリ
-	result1, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result1, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:       clinicID1,
 		IncludeZero:    true,
 		IncludeNoVisit: true,
@@ -604,7 +605,7 @@ func TestFindOwnerLTV_ClinicIDIsolation(t *testing.T) {
 	assert.Equal(t, "Owner Clinic 1", result1[0].OwnerName)
 
 	// Clinic 2 でクエリ
-	result2, err := repo.FindOwnerLTV(ctx, FindOwnerLTVParams{
+	result2, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:       clinicID2,
 		IncludeZero:    true,
 		IncludeNoVisit: true,

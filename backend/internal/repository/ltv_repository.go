@@ -6,8 +6,9 @@ import (
 	"strings"
 	"time"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"gorm.io/gorm"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 // OwnerLTVRow はLTV集計クエリの結果行。
@@ -55,7 +56,7 @@ type FindOwnerLTVParams struct {
 
 // LtvRepository はLTV集計のリポジトリインターフェース（BE-010）。
 type LtvRepository interface {
-	FindOwnerLTV(ctx context.Context, params FindOwnerLTVParams) ([]OwnerLTVRow, error)
+	FindOwnerLTV(ctx context.Context, params *FindOwnerLTVParams) ([]OwnerLTVRow, error)
 }
 
 type ltvRepository struct {
@@ -67,7 +68,7 @@ func NewLtvRepository(db *gorm.DB) LtvRepository {
 	return &ltvRepository{db: db}
 }
 
-func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
 	// Build all string components first, collecting args in separate slices
 	where := "o.clinic_id = ? AND o.deleted_at IS NULL"
 	var whereArgs []any
@@ -166,8 +167,7 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params FindOwnerLTVPar
 	if periodFilter != "" {
 		periodVisitCountCondition = "AND " + periodFilter
 		// periodVisitCountCondition が query内で2回使われるため、args を2回分追加
-		periodFilterArgs = append(periodFilterArgs, fromDate, toDate)
-		periodFilterArgs = append(periodFilterArgs, fromDate, toDate)
+		periodFilterArgs = append(periodFilterArgs, fromDate, toDate, fromDate, toDate)
 	}
 
 	query := fmt.Sprintf(`
@@ -204,7 +204,7 @@ ORDER BY %s
 `, amountExpr, periodVisitCountCondition, periodVisitCountCondition, where, havingClause, orderBy)
 
 	// Assemble args in the correct order: periodFilter args, then where args, then having args
-	var args []any
+	args := make([]any, 0, len(periodFilterArgs)+len(whereArgs)+len(havingArgs))
 	args = append(args, periodFilterArgs...)
 	args = append(args, whereArgs...)
 	args = append(args, havingArgs...)
@@ -236,7 +236,7 @@ ORDER BY %s
 }
 
 // calculateDateRange は year/from/to/period_preset から集計期間を決定する。
-func (r *ltvRepository) calculateDateRange(params FindOwnerLTVParams) (*time.Time, *time.Time, error) {
+func (r *ltvRepository) calculateDateRange(params *FindOwnerLTVParams) (fromDate, toDate *time.Time, err error) {
 	now := time.Now()
 	currentYear := now.Year()
 
@@ -282,7 +282,7 @@ func (r *ltvRepository) calculateDateRange(params FindOwnerLTVParams) (*time.Tim
 }
 
 // buildOrderBy はソートフィールドと順序から ORDER BY 句を構築する。
-func (r *ltvRepository) buildOrderBy(sort string, order string) string {
+func (r *ltvRepository) buildOrderBy(sort, order string) string {
 	if order == "" {
 		order = "desc"
 	}

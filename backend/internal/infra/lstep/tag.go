@@ -50,7 +50,7 @@ func (c *httpLstepClient) AddTag(ctx context.Context, lineUserID, tagName string
 	if err != nil {
 		return fmt.Errorf("lstep AddTag: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if err := checkResponse(resp, lineUserID); err != nil {
 		return fmt.Errorf("lstep AddTag: %w", err)
 	}
@@ -78,7 +78,7 @@ func (c *httpLstepClient) RemoveTag(ctx context.Context, lineUserID, tagName str
 	if err != nil {
 		return fmt.Errorf("lstep RemoveTag: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if err := checkResponse(resp, lineUserID); err != nil {
 		return fmt.Errorf("lstep RemoveTag: %w", err)
 	}
@@ -102,7 +102,7 @@ func (c *httpLstepClient) GetUserTags(ctx context.Context, lineUserID string) ([
 	if err != nil {
 		return nil, fmt.Errorf("lstep GetUserTags: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("lineUserID=%s: %w", lineUserID, ErrUserNotFound)
 	}
@@ -136,7 +136,7 @@ func (c *httpLstepClient) AddTagBulk(ctx context.Context, lineUserIDs []string, 
 	if err != nil {
 		return fmt.Errorf("lstep AddTagBulk: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("lstep AddTagBulk: status=%d", resp.StatusCode)
 	}

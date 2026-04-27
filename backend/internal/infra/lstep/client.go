@@ -65,12 +65,12 @@ func (c *httpLstepClient) doWithRetry(ctx context.Context, fn func() (*http.Resp
 		}
 		// 429: レート制限 — レスポンスボディを破棄してリトライ
 		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		lastErr = ErrRateLimit
 		if attempt < maxRetries {
 			select {
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				return nil, fmt.Errorf("lstep client: %w", ctx.Err())
 			case <-time.After(wait):
 				wait *= 2
 			}
@@ -83,7 +83,7 @@ func (c *httpLstepClient) doWithRetry(ctx context.Context, fn func() (*http.Resp
 func (c *httpLstepClient) newRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create lstep request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	req.Header.Set("Content-Type", "application/json")

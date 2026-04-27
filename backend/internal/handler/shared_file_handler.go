@@ -53,7 +53,7 @@ func (h *Handler) UploadSharedFile(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("file field is required"))
 		return
 	}
-	defer file.Close() //nolint:errcheck
+	defer file.Close() //nolint:errcheck // multipart file close error is not actionable
 
 	// 拡張子チェック（.pdf, .jpg, .jpeg, .png のみ許可）
 	ext := strings.ToLower(filepath.Ext(header.Filename))
@@ -73,7 +73,7 @@ func (h *Handler) UploadSharedFile(c *gin.Context) {
 		req.Purpose = model.SharedFilePurposeOther
 	}
 
-	resp, err := h.svc.SharedFile.Upload(c.Request.Context(), clinicID, staffID, service.UploadSharedFileInput{
+	resp, err := h.svc.SharedFile.Upload(c.Request.Context(), clinicID, staffID, &service.UploadSharedFileInput{
 		Content:     file,
 		FileName:    header.Filename,
 		ContentType: contentType,

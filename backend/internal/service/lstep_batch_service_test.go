@@ -153,7 +153,7 @@ func (m *batchMockTagSyncSvc) SyncDormantTags(ctx context.Context, clinicID, own
 type batchMockAuditService struct{}
 
 func (m *batchMockAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *batchMockAuditService) LogAuthLogin(_ context.Context, _ *uint64, _ *uint64, _, _, _ string) error {
+func (m *batchMockAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
 	return nil
 }
 func (m *batchMockAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {

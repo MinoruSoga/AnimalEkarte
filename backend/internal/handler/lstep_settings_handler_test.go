@@ -19,7 +19,7 @@ import (
 
 type mockLstepSettingsService struct {
 	getSettingsFn    func(ctx context.Context, clinicID uint64) (*service.LstepSettingsResponse, error)
-	updateSettingsFn func(ctx context.Context, clinicID uint64, input service.UpdateLstepSettingsInput, actorID *uint64) (*service.LstepSettingsResponse, error)
+	updateSettingsFn func(ctx context.Context, clinicID uint64, input *service.UpdateLstepSettingsInput, actorID *uint64) (*service.LstepSettingsResponse, error)
 	deleteSettingsFn func(ctx context.Context, clinicID uint64, actorID *uint64) error
 	testConnectionFn func(ctx context.Context, clinicID uint64) (*service.LstepConnectionTestResult, error)
 }
@@ -30,7 +30,7 @@ func (m *mockLstepSettingsService) GetSettings(ctx context.Context, clinicID uin
 	}
 	return &service.LstepSettingsResponse{}, nil
 }
-func (m *mockLstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input service.UpdateLstepSettingsInput, actorID *uint64) (*service.LstepSettingsResponse, error) {
+func (m *mockLstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input *service.UpdateLstepSettingsInput, actorID *uint64) (*service.LstepSettingsResponse, error) {
 	if m.updateSettingsFn != nil {
 		return m.updateSettingsFn(ctx, clinicID, input, actorID)
 	}
@@ -48,7 +48,7 @@ func (m *mockLstepSettingsService) TestConnection(ctx context.Context, clinicID 
 	}
 	return &service.LstepConnectionTestResult{LstepOK: true, LineOK: true}, nil
 }
-func (m *mockLstepSettingsService) GetRawCredentials(_ context.Context, _ uint64) (string, string, string, error) {
+func (m *mockLstepSettingsService) GetRawCredentials(_ context.Context, _ uint64) (apiKey, baseURL, lineToken string, err error) {
 	return "", "", "", nil
 }
 
@@ -134,7 +134,7 @@ func TestGetLstepSettings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := newGetLstepSettingsRouter(tt.svc, tt.wantStatus != http.StatusUnauthorized)
-			req := httptest.NewRequest(http.MethodGet, "/lstep-settings", nil)
+			req := httptest.NewRequest(http.MethodGet, "/lstep-settings", http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -172,7 +172,7 @@ func TestPatchLstepSettings(t *testing.T) {
 		{
 			name: "500 service error",
 			svc: &mockLstepSettingsService{
-				updateSettingsFn: func(_ context.Context, _ uint64, _ service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+				updateSettingsFn: func(_ context.Context, _ uint64, _ *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -222,7 +222,7 @@ func TestDeleteLstepSettings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := newDeleteLstepSettingsRouter(tt.svc, tt.wantStatus != http.StatusUnauthorized)
-			req := httptest.NewRequest(http.MethodDelete, "/lstep-settings", nil)
+			req := httptest.NewRequest(http.MethodDelete, "/lstep-settings", http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -269,7 +269,7 @@ func TestPostLstepTestConnection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := newPostLstepTestConnectionRouter(tt.svc, tt.wantStatus != http.StatusUnauthorized)
-			req := httptest.NewRequest(http.MethodPost, "/lstep-settings/test-connection", nil)
+			req := httptest.NewRequest(http.MethodPost, "/lstep-settings/test-connection", http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)

@@ -109,17 +109,21 @@ func (m *Migrator) Run(ctx context.Context) ([]ProgressRecord, error) {
 	sem := semaphore.NewWeighted(int64(m.cfg.BatchSize))
 
 	var wg sync.WaitGroup
-	for _, o := range targets {
+	var loopErr error
+	for i := range targets {
+		owner := &targets[i]
 		if err := sem.Acquire(ctx, 1); err != nil {
+			loopErr = fmt.Errorf("semaphore acquire: %w", err)
 			break
 		}
 		if err := limiter.Wait(ctx); err != nil {
 			sem.Release(1)
+			loopErr = fmt.Errorf("rate limiter wait: %w", err)
 			break
 		}
 		wg.Go(func() {
 			defer sem.Release(1)
-			rec := m.processOwner(ctx, o)
+			rec := m.processOwner(ctx, owner)
 			m.mu.Lock()
 			m.records = append(m.records, rec)
 			m.mu.Unlock()
@@ -127,6 +131,9 @@ func (m *Migrator) Run(ctx context.Context) ([]ProgressRecord, error) {
 	}
 	wg.Wait()
 
+	if loopErr != nil {
+		return m.records, loopErr
+	}
 	return m.records, nil
 }
 
@@ -137,7 +144,8 @@ func (m *Migrator) filterOwners(owners []model.Owner) []model.Owner {
 		idSet[id] = true
 	}
 	var result []model.Owner
-	for _, o := range owners {
+	for i := range owners {
+		o := &owners[i]
 		if o.LstepOptOut {
 			continue
 		}
@@ -147,13 +155,13 @@ func (m *Migrator) filterOwners(owners []model.Owner) []model.Owner {
 		if len(idSet) > 0 && !idSet[o.ID] {
 			continue
 		}
-		result = append(result, o)
+		result = append(result, *o)
 	}
 	return result
 }
 
 // processOwner は1飼い主のタグ同期を実行して進捗を記録する。
-func (m *Migrator) processOwner(ctx context.Context, owner model.Owner) ProgressRecord {
+func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) ProgressRecord {
 	rec := ProgressRecord{OwnerID: owner.ID, OwnerName: owner.Name, Status: "success"}
 	startedAt := time.Now()
 
@@ -250,8 +258,8 @@ func (m *Migrator) processOwner(ctx context.Context, owner model.Owner) Progress
 
 func (m *Migrator) initProgressRows(ctx context.Context, owners []model.Owner) error {
 	rows := make([]progressRow, 0, len(owners))
-	for _, o := range owners {
-		rows = append(rows, progressRow{ClinicID: m.cfg.ClinicID, OwnerID: o.ID, Status: "pending"})
+	for i := range owners {
+		rows = append(rows, progressRow{ClinicID: m.cfg.ClinicID, OwnerID: owners[i].ID, Status: "pending"})
 	}
 	return m.db.WithContext(ctx).
 		Clauses().

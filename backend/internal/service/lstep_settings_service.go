@@ -47,7 +47,7 @@ type LstepConnectionTestResult struct {
 // LstepSettingsService は Lステップ/LINE連携設定の管理インターフェース。
 type LstepSettingsService interface {
 	GetSettings(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error)
-	UpdateSettings(ctx context.Context, clinicID uint64, input UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error)
+	UpdateSettings(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error)
 	DeleteSettings(ctx context.Context, clinicID uint64, actorID *uint64) error
 	TestConnection(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error)
 	// GetRawCredentials は復号済みの API キー・BASE URL・LINE アクセストークンを返す。
@@ -117,7 +117,7 @@ func buildLstepSettingsResponse(kvMap map[string]string, lastUpdated *time.Time)
 	}
 }
 
-func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {
+func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {
 	pairs := []struct {
 		keyName string
 		value   string
@@ -212,7 +212,7 @@ func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint
 }
 
 func testLstepAPI(ctx context.Context, baseURL, apiKey string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/tags", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/tags", http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to build request: %w", err)
 	}
@@ -221,8 +221,8 @@ func testLstepAPI(ctx context.Context, baseURL, apiKey string) error {
 	if err != nil {
 		return fmt.Errorf("connection failed: %w", err)
 	}
-	defer resp.Body.Close()               //nolint:errcheck
-	_, _ = io.Copy(io.Discard, resp.Body) //nolint:errcheck
+	defer resp.Body.Close()               //nolint:errcheck // close error on connectivity probe is not actionable
+	_, _ = io.Copy(io.Discard, resp.Body) //nolint:errcheck // body drain failure on connectivity probe is not actionable
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		return fmt.Errorf("authentication failed: HTTP %d", resp.StatusCode)
 	}
@@ -230,7 +230,7 @@ func testLstepAPI(ctx context.Context, baseURL, apiKey string) error {
 }
 
 func testLineAPI(ctx context.Context, channelToken string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.line.me/v2/bot/info", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.line.me/v2/bot/info", http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to build request: %w", err)
 	}
@@ -239,8 +239,8 @@ func testLineAPI(ctx context.Context, channelToken string) error {
 	if err != nil {
 		return fmt.Errorf("connection failed: %w", err)
 	}
-	defer resp.Body.Close()               //nolint:errcheck
-	_, _ = io.Copy(io.Discard, resp.Body) //nolint:errcheck
+	defer resp.Body.Close()               //nolint:errcheck // close error on connectivity probe is not actionable
+	_, _ = io.Copy(io.Discard, resp.Body) //nolint:errcheck // body drain failure on connectivity probe is not actionable
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		return fmt.Errorf("authentication failed: HTTP %d", resp.StatusCode)
 	}

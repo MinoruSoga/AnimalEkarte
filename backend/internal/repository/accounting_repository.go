@@ -706,15 +706,15 @@ func (r *accountingRepository) SumPaidByOwner(ctx context.Context, clinicID, own
 
 // MaxSingleVisitAmountByOwner は飼い主の1回来院最大支払額を返す（CPMスポット判定用）。
 func (r *accountingRepository) MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
-	var max int64
+	var maxAmount int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
 		Scopes(clinicScope(clinicID)).
 		Where("owner_id = ? AND status = ? AND deleted_at IS NULL", ownerID, model.BillingStatusCompleted).
 		Select("COALESCE(MAX(total_amount), 0)").
-		Scan(&max).Error
+		Scan(&maxAmount).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "billing", fmt.Sprintf("owner=%d", ownerID))
 	}
-	return max, nil
+	return maxAmount, nil
 }

@@ -89,7 +89,7 @@ type LstepTagSyncService interface {
 	SyncCancellationTag(ctx context.Context, clinicID, ownerID uint64, canceledDate time.Time) error
 	// SyncCheckupTag は健診記録の作成・更新時に checkup_done_{typeID}_{YYYY-MM}/next_checkup_* タグを同期する（BE-008）。
 	// 同一健診種別の古い checkup_done タグを解除してから新タグを付与する。next_checkup_* は最新1件のみ。
-	SyncCheckupTag(ctx context.Context, clinicID, ownerID uint64, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error
+	SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error
 	// SyncPrescriptionTag は飼い主の全アクティブ処方を取得し、補充推奨日が最も遅い処方に基づいて
 	// refill_due_* タグを更新する（BE-009）。処方記録の追加・更新・削除後に呼び出すこと。
 	SyncPrescriptionTag(ctx context.Context, clinicID, ownerID uint64) error
@@ -272,7 +272,8 @@ func (s *lstepTagSyncService) SyncOwnerAnimalClassificationTags(ctx context.Cont
 	}
 
 	var hasDog, hasCat bool
-	for _, p := range pets {
+	for i := range pets {
+		p := &pets[i]
 		if p.AnimalSpecies == nil {
 			continue
 		}
@@ -413,7 +414,8 @@ func buildPetBasicInfoTags(pets []model.Pet) []string {
 	tagSet := make(map[string]struct{})
 	var hasNeutered, hasIntact bool
 
-	for _, p := range pets {
+	for i := range pets {
+		p := &pets[i]
 		fallback := "breed_mix_other"
 		if p.AnimalSpecies != nil {
 			if strings.Contains(p.AnimalSpecies.Name, "犬") {
@@ -560,8 +562,7 @@ func buildVisitTags(summary *repository.OwnerVisitSummary, ltv int64) []string {
 	if summary.LastVisitAt != nil {
 		tags = append(tags, "last_visit_"+summary.LastVisitAt.Format("2006-01-02"))
 	}
-	tags = append(tags, ltvBracketTag(ltv))
-	tags = append(tags, visitCountAnnualTag(summary.AnnualCount))
+	tags = append(tags, ltvBracketTag(ltv), visitCountAnnualTag(summary.AnnualCount))
 	return tags
 }
 
@@ -916,7 +917,8 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 
 	// 補充推奨日の計算: prescribed_at + duration_days - 7。duration_days < 7 なら prescribed_at + 1
 	var latestRefillDue *time.Time
-	for _, p := range prescriptions {
+	for i := range prescriptions {
+		p := &prescriptions[i]
 		var refill time.Time
 		if p.DurationDays < 7 {
 			refill = p.PrescribedAt.AddDate(0, 0, 1)
@@ -963,7 +965,7 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 
 // SyncCheckupTag は健診記録の作成・更新時に checkup_done_{typeID}_{YYYY-MM}/next_checkup_* タグを同期する（BE-008）。
 // 同一健診種別の古い checkup_done タグを解除してから新タグを付与する。next_checkup_* は最新1件のみ。
-func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, ownerID uint64, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error {
+func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error {
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for checkup tag sync", "error", err)

@@ -87,7 +87,8 @@ func (s *lstepBatchService) RunNoShowCheckAllClinics(ctx context.Context) error 
 		return apperrors.Wrap(err, "failed to fetch clinics for no-show batch")
 	}
 
-	for _, clinic := range clinics {
+	for i := range clinics {
+		clinic := &clinics[i]
 		count, errs := s.DetectNoShowReservations(ctx, clinic.ID)
 		if len(errs) > 0 {
 			slog.ErrorContext(ctx, "no-show batch: partial errors", "clinic_id", clinic.ID, "error_count", len(errs))
@@ -130,7 +131,8 @@ func (s *lstepBatchService) RunDormantDetectionAllClinics(ctx context.Context) e
 		return apperrors.Wrap(err, "failed to fetch clinics for dormant batch")
 	}
 
-	for _, clinic := range clinics {
+	for i := range clinics {
+		clinic := &clinics[i]
 		count, errs := s.DetectDormantOwners(ctx, clinic.ID)
 		if len(errs) > 0 {
 			slog.ErrorContext(ctx, "dormant batch: partial errors", "clinic_id", clinic.ID, "error_count", len(errs))

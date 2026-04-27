@@ -41,7 +41,7 @@ func (h *Handler) UpdateLstepSettings(c *gin.Context) {
 	if staffID, ok := extractStaffID(c); ok {
 		actorID = &staffID
 	}
-	resp, err := h.svc.LstepSettings.UpdateSettings(c.Request.Context(), clinicID, service.UpdateLstepSettingsInput{
+	resp, err := h.svc.LstepSettings.UpdateSettings(c.Request.Context(), clinicID, &service.UpdateLstepSettingsInput{
 		LstepAPIKey:            req.LstepAPIKey,
 		LstepBaseURL:           req.LstepBaseURL,
 		LineChannelAccessToken: req.LineChannelAccessToken,

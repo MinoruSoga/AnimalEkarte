@@ -141,7 +141,7 @@ func (m *mockLineLinkSettingRepo) Save(_ context.Context, _ uint64, _ *model.Lin
 type mockLineLinkAuditService struct{}
 
 func (m *mockLineLinkAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *mockLineLinkAuditService) LogAuthLogin(_ context.Context, _ *uint64, _ *uint64, _, _, _ string) error {
+func (m *mockLineLinkAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
 	return nil
 }
 func (m *mockLineLinkAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {

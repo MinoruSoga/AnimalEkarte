@@ -45,7 +45,7 @@ type checkupSyncResultResponse struct {
 	FailedOwnerIDs []string `json:"failed_owner_ids"`
 }
 
-func toCheckupSyncPreviewOwnerResponse(o service.CheckupSyncPreviewOwner) checkupSyncPreviewOwnerResponse {
+func toCheckupSyncPreviewOwnerResponse(o *service.CheckupSyncPreviewOwner) checkupSyncPreviewOwnerResponse {
 	r := checkupSyncPreviewOwnerResponse{
 		OwnerID:     strconv.FormatUint(o.OwnerID, 10),
 		OwnerName:   o.OwnerName,
@@ -63,8 +63,8 @@ func toCheckupSyncPreviewOwnerResponse(o service.CheckupSyncPreviewOwner) checku
 
 func toCheckupSyncPreviewResponse(result *service.PreviewCheckupSyncResult) checkupSyncPreviewResponse {
 	owners := make([]checkupSyncPreviewOwnerResponse, 0, len(result.Owners))
-	for _, o := range result.Owners {
-		owners = append(owners, toCheckupSyncPreviewOwnerResponse(o))
+	for i := range result.Owners {
+		owners = append(owners, toCheckupSyncPreviewOwnerResponse(&result.Owners[i]))
 	}
 	return checkupSyncPreviewResponse{
 		Owners:          owners,

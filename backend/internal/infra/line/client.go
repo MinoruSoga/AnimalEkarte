@@ -46,7 +46,7 @@ func NewMessagingClient(channelAccessToken string) MessagingClient {
 func (c *httpLineClient) newRequest(ctx context.Context, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, pushEndpoint, body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create line request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+c.channelAccessToken)
 	req.Header.Set("Content-Type", "application/json")
@@ -66,12 +66,12 @@ func (c *httpLineClient) doWithRetry(ctx context.Context, fn func() (*http.Respo
 			return resp, nil
 		}
 		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		lastErr = ErrRateLimit
 		if attempt < maxRetries {
 			select {
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				return nil, fmt.Errorf("line client: %w", ctx.Err())
 			case <-time.After(wait):
 				wait *= 2
 			}

@@ -19,6 +19,10 @@ import (
 )
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	var (
 		clinicID      = flag.Uint64("clinic-id", 0, "対象クリニックID（必須）")
 		dryRun        = flag.Bool("dry-run", false, "ドライラン（DB 書き込みなし）")
@@ -34,21 +38,21 @@ func main() {
 	if *clinicID == 0 {
 		fmt.Fprintln(os.Stderr, "error: --clinic-id は必須です")
 		flag.Usage()
-		os.Exit(1)
+		return 1
 	}
 	if *batchSize < 1 {
 		fmt.Fprintln(os.Stderr, "error: --batch-size は1以上を指定してください")
-		os.Exit(1)
+		return 1
 	}
 	if *rateLimitPerS < 1 {
 		fmt.Fprintln(os.Stderr, "error: --rate-limit-per-sec は1以上を指定してください")
-		os.Exit(1)
+		return 1
 	}
 
 	ownerIDs, err := parseOwnerIDs(*ownerIDsFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: --owner-ids の解析に失敗しました: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
 
 	logger.Init(logger.Config{Level: slog.LevelInfo, Format: "json", Output: os.Stdout})
@@ -57,13 +61,13 @@ func main() {
 	cfg := config.Load()
 	if err := cfg.Validate(); err != nil {
 		log.Error("config validation failed", slog.String("error", err.Error()))
-		os.Exit(1)
+		return 1
 	}
 
 	db, err := repository.NewDB(cfg)
 	if err != nil {
 		log.Error("failed to connect to database", slog.String("error", err.Error()))
-		os.Exit(1)
+		return 1
 	}
 	log.Info("database connected")
 
@@ -74,7 +78,7 @@ func main() {
 		cipher, err = appCrypto.NewAESGCMCipher(cfg.IntegrationEncryptionKey)
 		if err != nil {
 			log.Error("failed to initialize cipher", slog.String("error", err.Error()))
-			os.Exit(1)
+			return 1
 		}
 	}
 
@@ -108,26 +112,27 @@ func main() {
 	records, err := m.Run(ctx)
 	if err != nil {
 		log.Error("migration failed", slog.String("error", err.Error()))
-		os.Exit(1)
+		return 1
 	}
 
 	if len(records) == 0 {
 		log.Info("no records to report")
-		return
+		return 0
 	}
 
 	f, err := os.Create(*reportPath)
 	if err != nil {
 		log.Error("failed to create report file", slog.String("path", *reportPath), slog.String("error", err.Error()))
-		os.Exit(1)
+		return 1
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := WriteCSVReport(f, records, log); err != nil {
 		log.Error("failed to write CSV report", slog.String("error", err.Error()))
-		os.Exit(1)
+		return 1
 	}
 	log.Info("report written", slog.String("path", *reportPath))
+	return 0
 }
 
 func parseOwnerIDs(s string) ([]uint64, error) {

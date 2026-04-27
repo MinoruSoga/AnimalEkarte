@@ -102,7 +102,7 @@ func TestGetLstepTagSummary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := newGetLstepTagSummaryRouter(tt.svc, tt.wantStatus != http.StatusUnauthorized)
-			req := httptest.NewRequest(http.MethodGet, "/lstep/tag-summary", nil)
+			req := httptest.NewRequest(http.MethodGet, "/lstep/tag-summary", http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -168,7 +168,7 @@ func TestSearchLstepOwnersByTag(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := newSearchLstepOwnersByTagRouter(tt.svc, tt.wantStatus != http.StatusUnauthorized)
-			req := httptest.NewRequest(http.MethodGet, "/lstep/owners"+tt.query, nil)
+			req := httptest.NewRequest(http.MethodGet, "/lstep/owners"+tt.query, http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)

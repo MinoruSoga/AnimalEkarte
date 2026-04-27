@@ -6,8 +6,9 @@ import (
 	"strings"
 	"time"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"gorm.io/gorm"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 // CheckupSyncPreviewRow はプレビュークエリの結果行。

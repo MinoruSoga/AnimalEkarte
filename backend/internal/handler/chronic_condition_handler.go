@@ -27,7 +27,7 @@ type chronicConditionResponse struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-func toChronicConditionResponse(r model.PetChronicCondition) chronicConditionResponse {
+func toChronicConditionResponse(r *model.PetChronicCondition) chronicConditionResponse {
 	return chronicConditionResponse{
 		ID:            r.ID,
 		ClinicID:      r.ClinicID,
@@ -44,8 +44,8 @@ func toChronicConditionResponse(r model.PetChronicCondition) chronicConditionRes
 
 func toChronicConditionListResponse(records []model.PetChronicCondition) []chronicConditionResponse {
 	out := make([]chronicConditionResponse, len(records))
-	for i, r := range records {
-		out[i] = toChronicConditionResponse(r)
+	for i := range records {
+		out[i] = toChronicConditionResponse(&records[i])
 	}
 	return out
 }
@@ -129,7 +129,7 @@ func (h *Handler) CreateChronicCondition(c *gin.Context) {
 	}
 
 	c.Header("Location", fmt.Sprintf("/api/v1/pets/%d/chronic-conditions/%d", petID, record.ID))
-	c.JSON(http.StatusCreated, toChronicConditionResponse(*record))
+	c.JSON(http.StatusCreated, toChronicConditionResponse(record))
 }
 
 // UpdateChronicCondition PATCH /pets/:id/chronic-conditions/:cc_id
@@ -181,7 +181,7 @@ func (h *Handler) UpdateChronicCondition(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toChronicConditionResponse(*record))
+	c.JSON(http.StatusOK, toChronicConditionResponse(record))
 }
 
 // DeleteChronicCondition DELETE /pets/:id/chronic-conditions/:cc_id

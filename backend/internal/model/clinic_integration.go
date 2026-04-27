@@ -19,6 +19,8 @@ func (ClinicIntegration) TableName() string { return "clinic_integrations" }
 const IntegrationServiceLstep = "lstep"
 
 // key_name 定数
+//
+//nolint:gosec // these are key-name identifiers (column values), not actual credentials
 const (
 	IntegrationKeyLstepAPIKey            = "lstep_api_key"
 	IntegrationKeyLstepBaseURL           = "lstep_base_url"

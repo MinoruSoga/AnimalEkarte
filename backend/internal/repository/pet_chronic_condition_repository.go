@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"gorm.io/gorm"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"gorm.io/gorm"
 )
 
 // PetChronicConditionRepository は慢性疾患フラグの永続化インターフェース（BE-012）。

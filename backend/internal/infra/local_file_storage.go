@@ -23,14 +23,14 @@ func NewLocalFileStorage(baseDir, baseURL string) *LocalFileStorage {
 // Upload はファイルをローカルに保存する。
 func (s *LocalFileStorage) Upload(_ context.Context, key string, content io.Reader, _ string) error {
 	fullPath := filepath.Join(s.baseDir, key)
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil { //nolint:gosec
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil { //nolint:gosec // path is constructed from configured baseDir + sanitized key
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
-	f, err := os.Create(fullPath) //nolint:gosec
+	f, err := os.Create(fullPath) //nolint:gosec // path is constructed from configured baseDir + sanitized key
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer f.Close() //nolint:errcheck
+	defer f.Close() //nolint:errcheck // close error on read-only flush is not actionable
 	if _, err := io.Copy(f, content); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}

@@ -127,7 +127,7 @@ func TestPostGenerateLineLinkToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := newPostGenerateLineLinkTokenRouter(tt.svc, tt.wantStatus != http.StatusUnauthorized)
-			req := httptest.NewRequest(http.MethodPost, "/owners/"+tt.ownerID+"/line/link-token", nil)
+			req := httptest.NewRequest(http.MethodPost, "/owners/"+tt.ownerID+"/line/link-token", http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)

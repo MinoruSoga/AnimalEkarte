@@ -18,12 +18,12 @@ import (
 type mockLstepSettingsService struct {
 	getRawCredentialsFn func(ctx context.Context, clinicID uint64) (apiKey, baseURL, lineToken string, err error)
 	getSettingsFn       func(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error)
-	updateSettingsFn    func(ctx context.Context, clinicID uint64, input UpdateLstepSettingsInput) (*LstepSettingsResponse, error)
+	updateSettingsFn    func(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput) (*LstepSettingsResponse, error)
 	deleteSettingsFn    func(ctx context.Context, clinicID uint64) error
 	testConnectionFn    func(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error)
 }
 
-func (m *mockLstepSettingsService) GetRawCredentials(ctx context.Context, clinicID uint64) (string, string, string, error) {
+func (m *mockLstepSettingsService) GetRawCredentials(ctx context.Context, clinicID uint64) (apiKey, baseURL, lineToken string, err error) {
 	if m.getRawCredentialsFn != nil {
 		return m.getRawCredentialsFn(ctx, clinicID)
 	}
@@ -35,7 +35,7 @@ func (m *mockLstepSettingsService) GetSettings(ctx context.Context, clinicID uin
 	}
 	return &LstepSettingsResponse{}, nil
 }
-func (m *mockLstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {
+func (m *mockLstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {
 	if m.updateSettingsFn != nil {
 		return m.updateSettingsFn(ctx, clinicID, input)
 	}
@@ -168,7 +168,7 @@ func (m *mockLstepTagSyncService) SyncDormantTags(_ context.Context, _, _ uint64
 type mockAuditService struct{}
 
 func (m *mockAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *mockAuditService) LogAuthLogin(_ context.Context, _ *uint64, _ *uint64, _, _, _ string) error {
+func (m *mockAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
 	return nil
 }
 func (m *mockAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {

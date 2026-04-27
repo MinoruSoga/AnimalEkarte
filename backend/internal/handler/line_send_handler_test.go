@@ -21,11 +21,11 @@ import (
 // ---- mock LineSendService ----
 
 type mockLineSendService struct {
-	sendFn    func(ctx context.Context, clinicID uint64, input service.SendLineMessageInput) (*service.SendLineMessageResult, error)
+	sendFn    func(ctx context.Context, clinicID uint64, input *service.SendLineMessageInput) (*service.SendLineMessageResult, error)
 	getLogsFn func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LineSendLog, error)
 }
 
-func (m *mockLineSendService) Send(ctx context.Context, clinicID uint64, input service.SendLineMessageInput) (*service.SendLineMessageResult, error) {
+func (m *mockLineSendService) Send(ctx context.Context, clinicID uint64, input *service.SendLineMessageInput) (*service.SendLineMessageResult, error) {
 	if m.sendFn != nil {
 		return m.sendFn(ctx, clinicID, input)
 	}
@@ -145,7 +145,7 @@ func TestPostLineSend(t *testing.T) {
 			},
 			body: bodyMap{"message_type": "text", "text": "hello"},
 			svc: &mockLineSendService{
-				sendFn: func(_ context.Context, _ uint64, _ service.SendLineMessageInput) (*service.SendLineMessageResult, error) {
+				sendFn: func(_ context.Context, _ uint64, _ *service.SendLineMessageInput) (*service.SendLineMessageResult, error) {
 					return nil, apperrors.Wrap(assert.AnError, "send failed")
 				},
 			},
@@ -294,7 +294,7 @@ func TestGetLineSendLogs(t *testing.T) {
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
 
-			req, err := http.NewRequest(http.MethodGet, "/owners/"+tt.paramID+"/line/send-logs", nil)
+			req, err := http.NewRequest(http.MethodGet, "/owners/"+tt.paramID+"/line/send-logs", http.NoBody)
 			require.NoError(t, err)
 			c.Request = req
 

@@ -35,7 +35,7 @@ type ownerAggregationListResponse struct {
 	Owners  []ownerAggregationResponse `json:"owners"`
 }
 
-func toOwnerAggregationResponse(item service.OwnerAggregationItem) ownerAggregationResponse {
+func toOwnerAggregationResponse(item *service.OwnerAggregationItem) ownerAggregationResponse {
 	r := ownerAggregationResponse{
 		OwnerID:            strconv.FormatUint(item.OwnerID, 10),
 		OwnerName:          item.OwnerName,
@@ -87,8 +87,8 @@ func resolveAggregationSort(sortParam string) string {
 
 func toOwnerAggregationListResponse(result *service.ListOwnerAggregationResult) ownerAggregationListResponse {
 	owners := make([]ownerAggregationResponse, 0, len(result.Items))
-	for _, item := range result.Items {
-		owners = append(owners, toOwnerAggregationResponse(item))
+	for i := range result.Items {
+		owners = append(owners, toOwnerAggregationResponse(&result.Items[i]))
 	}
 	return ownerAggregationListResponse{
 		Total:   result.Total,
@@ -213,7 +213,7 @@ func (h *Handler) ListOwnerAggregation(c *gin.Context) {
 	// metric パラメータ（AGG-BE-004）— annual_sales | visit_count | last_visit
 	metric := c.DefaultQuery("metric", "annual_sales")
 
-	result, err := h.svc.Aggregation.ListOwnerAggregation(c.Request.Context(), clinicID, service.ListOwnerAggregationInput{
+	result, err := h.svc.Aggregation.ListOwnerAggregation(c.Request.Context(), clinicID, &service.ListOwnerAggregationInput{
 		Sort:            sort,
 		MinTotalAmount:  minTotalAmount,
 		MaxTotalAmount:  maxTotalAmount,

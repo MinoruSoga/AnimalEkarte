@@ -79,7 +79,7 @@ type SyncAggregationTagsResult struct {
 
 // AggregationService は顧客集計・一括タグ同期の業務ロジックインターフェース（BE-010）。
 type AggregationService interface {
-	ListOwnerAggregation(ctx context.Context, clinicID uint64, input ListOwnerAggregationInput) (*ListOwnerAggregationResult, error)
+	ListOwnerAggregation(ctx context.Context, clinicID uint64, input *ListOwnerAggregationInput) (*ListOwnerAggregationResult, error)
 	SyncAggregationTags(ctx context.Context, clinicID uint64, input SyncAggregationTagsInput) (*SyncAggregationTagsResult, error)
 }
 
@@ -93,8 +93,8 @@ func NewAggregationService(repo repository.LtvRepository, tagCacheRepo repositor
 	return &aggregationService{repo: repo, tagCacheRepo: tagCacheRepo}
 }
 
-func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID uint64, input ListOwnerAggregationInput) (*ListOwnerAggregationResult, error) {
-	rows, err := s.repo.FindOwnerLTV(ctx, repository.FindOwnerLTVParams{
+func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID uint64, input *ListOwnerAggregationInput) (*ListOwnerAggregationResult, error) {
+	rows, err := s.repo.FindOwnerLTV(ctx, &repository.FindOwnerLTVParams{
 		ClinicID:        clinicID,
 		Sort:            input.Sort,
 		MinTotalAmount:  input.MinTotalAmount,
@@ -173,7 +173,7 @@ func (s *aggregationService) SyncAggregationTags(ctx context.Context, clinicID u
 		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("tag_name %q は自動管理タグのため使用できません", input.TagName))
 	}
 
-	rows, err := s.repo.FindOwnerLTV(ctx, repository.FindOwnerLTVParams{
+	rows, err := s.repo.FindOwnerLTV(ctx, &repository.FindOwnerLTVParams{
 		ClinicID:       clinicID,
 		MinTotalAmount: input.MinTotalAmount,
 	})

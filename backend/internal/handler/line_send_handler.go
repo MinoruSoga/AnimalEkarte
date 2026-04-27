@@ -101,7 +101,7 @@ func (h *Handler) PostLineSend(c *gin.Context) {
 		purpose = "other"
 	}
 
-	result, err := h.svc.LineSend.Send(c.Request.Context(), clinicID, service.SendLineMessageInput{
+	result, err := h.svc.LineSend.Send(c.Request.Context(), clinicID, &service.SendLineMessageInput{
 		OwnerID:     ownerIDRaw,
 		StaffID:     staffID,
 		MessageType: normalizeMessageType(req.MessageType),

@@ -140,7 +140,7 @@ func TestGetOwnerLstepTags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := newGetOwnerLstepTagsRouter(tt.svc, tt.wantStatus != http.StatusUnauthorized)
-			req := httptest.NewRequest(http.MethodGet, "/owners/"+tt.ownerID+"/lstep/tags", nil)
+			req := httptest.NewRequest(http.MethodGet, "/owners/"+tt.ownerID+"/lstep/tags", http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -276,7 +276,7 @@ func TestDeleteOwnerLstepTag(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := newDeleteOwnerLstepTagRouter(tt.svc, tt.wantStatus != http.StatusUnauthorized)
-			req := httptest.NewRequest(http.MethodDelete, "/owners/"+tt.ownerID+"/lstep/tags/"+tt.tagName, nil)
+			req := httptest.NewRequest(http.MethodDelete, "/owners/"+tt.ownerID+"/lstep/tags/"+tt.tagName, http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)
