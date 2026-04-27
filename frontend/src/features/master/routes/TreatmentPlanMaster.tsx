@@ -23,8 +23,8 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 import { handleApiError } from "@/lib/handle-api-error";
 import { toast } from "sonner";
 
-// Radix UI Tabs (primitive — same as DiagnosisSettings)
-import * as TabsPrimitive from "@radix-ui/react-tabs";
+// Tabs
+import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 
 // Internal shared
 import { TableCell } from "@/components/ui/table";
@@ -587,6 +587,8 @@ export function TreatmentPlanMaster() {
     setEditTarget(target);
   }, [dirty]);
 
+  const tabItems = TABS;
+
   // Minimal CRUD object for useMasterSave (FR2 only, skip editTarget management)
   // useMasterSave only accesses editTarget, handleClose, startSaveTransition — cast is safe
   const minimalCrud = useMemo(() => ({
@@ -741,30 +743,17 @@ export function TreatmentPlanMaster() {
               ) : null
             }
           >
-            <TabsPrimitive.Root
+            <UnifiedTabs
+              items={tabItems}
               value={activeTab}
               onValueChange={handleTabChange}
               className="flex flex-col gap-4"
+              listClassName={`flex h-9 border-b ${C.borderLight} ${C.bgLight} gap-0`}
             >
-              <TabsPrimitive.List
-                className={`flex h-9 border-b ${C.borderLight} gap-0`}
-              >
-                {TABS.map((tab) => (
-                  <TabsPrimitive.Trigger
-                    key={tab.value}
-                    value={tab.value}
-                    className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
-                      ${C.dataActiveBorderB} ${C.dataActiveText} data-[state=active]:font-medium`}
-                  >
-                    {tab.label}
-                  </TabsPrimitive.Trigger>
-                ))}
-              </TabsPrimitive.List>
-
               {TABS.map((tab) => {
                 const config = tabConfigs[tab.value];
                 return (
-                  <TabsPrimitive.Content key={tab.value} value={tab.value} className="mt-4">
+                  <UnifiedTabsContent key={tab.value} value={tab.value} className="mt-4">
                     <TreatmentTabContent
                       {...config}
                       editTarget={editTarget}
@@ -775,10 +764,10 @@ export function TreatmentPlanMaster() {
                       onPendingDeleteChange={setPendingDelete}
                       canEdit={canEdit}
                     />
-                  </TabsPrimitive.Content>
+                  </UnifiedTabsContent>
                 );
               })}
-            </TabsPrimitive.Root>
+            </UnifiedTabs>
           </PageLayout>
         </div>
 

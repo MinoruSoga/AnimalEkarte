@@ -28,7 +28,7 @@ describe('AggregationFilterPanel', () => {
       />
     );
 
-    expect(screen.getByPlaceholderText('飼い主名で検索')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('飼い主名を検索...')).toBeInTheDocument();
   });
 
   it('should render revenue-specific filters', () => {
@@ -50,7 +50,7 @@ describe('AggregationFilterPanel', () => {
     );
 
     expect(screen.getByDisplayValue('2026')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('gross_total_amount')).toBeInTheDocument();
+    expect(screen.getByText('売上総額')).toBeInTheDocument();
   });
 
   it('should render visit-specific filters', () => {
@@ -70,7 +70,7 @@ describe('AggregationFilterPanel', () => {
       />
     );
 
-    expect(screen.getByDisplayValue('last_12_months')).toBeInTheDocument();
+    expect(screen.getByText('直近12ヶ月')).toBeInTheDocument();
   });
 
   it('should render last_visit-specific filters', () => {
@@ -90,7 +90,7 @@ describe('AggregationFilterPanel', () => {
       />
     );
 
-    expect(screen.getByDisplayValue('over_3m')).toBeInTheDocument();
+    expect(screen.getByText('3ヶ月以上')).toBeInTheDocument();
   });
 
   it('should call onParamsChange with updated params on search change', async () => {
@@ -110,7 +110,7 @@ describe('AggregationFilterPanel', () => {
       />
     );
 
-    const searchInput = screen.getByPlaceholderText('飼い主名で検索');
+    const searchInput = screen.getByPlaceholderText('飼い主名を検索...');
     await user.type(searchInput, '田中');
 
     await waitFor(() => {
@@ -158,7 +158,7 @@ describe('AggregationFilterPanel', () => {
       />
     );
 
-    expect(screen.queryByDisplayValue('gross_total_amount')).not.toBeInTheDocument();
+    expect(screen.queryByText('売上総額')).not.toBeInTheDocument();
   });
 
   it('should not render visit filters for non-visit tabs', () => {
@@ -179,6 +179,6 @@ describe('AggregationFilterPanel', () => {
       />
     );
 
-    expect(screen.queryByDisplayValue('last_12_months')).not.toBeInTheDocument();
+    expect(screen.queryByText('直近12ヶ月')).not.toBeInTheDocument();
   });
 });

@@ -3,11 +3,7 @@ import { useSearchParams } from "react-router";
 import { Download, RefreshCw } from "lucide-react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { useGetOwnerAggregations, type AggregationParams, type AggregationOwner } from "./api/get-aggregations";
 import { AggregationFilterPanel } from "./AggregationFilterPanel";
@@ -172,6 +168,12 @@ export function AggregationDashboardPage() {
     ? (error instanceof Error ? error.message : "データの読み込みに失敗しました")
     : undefined;
 
+  const tabItems = [
+    { value: "revenue" as const, label: "売上ランキング" },
+    { value: "visit" as const, label: "来院回数" },
+    { value: "last_visit" as const, label: "最終来院" },
+  ];
+
   return (
     <PageLayout
       title="顧客集計ダッシュボード"
@@ -190,28 +192,13 @@ export function AggregationDashboardPage() {
     >
       <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* タブUI */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className={`grid w-full grid-cols-3 ${C.bgLight}`}>
-            <TabsTrigger
-              value="revenue"
-              className={`data-[state=active]:${C.dataActiveBorderB} data-[state=active]:${C.dataActiveText}`}
-            >
-              売上ランキング
-            </TabsTrigger>
-            <TabsTrigger
-              value="visit"
-              className={`data-[state=active]:${C.dataActiveBorderB} data-[state=active]:${C.dataActiveText}`}
-            >
-              来院回数
-            </TabsTrigger>
-            <TabsTrigger
-              value="last_visit"
-              className={`data-[state=active]:${C.dataActiveBorderB} data-[state=active]:${C.dataActiveText}`}
-            >
-              最終来院
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <UnifiedTabs
+          items={tabItems}
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="w-full"
+          listClassName="grid w-full grid-cols-3 h-11 p-[3px] rounded-xl"
+        />
 
         {/* フィルタパネル */}
         <AggregationFilterPanel params={params} onParamsChange={handleParamsChange} activeTab={activeTab} />

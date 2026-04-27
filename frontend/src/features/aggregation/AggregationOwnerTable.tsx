@@ -92,7 +92,7 @@ const COMMON_COLUMNS: ColumnDef[] = [
     render: (owner) => (
       <Link
         to={`/owners/${owner.owner_id}`}
-        className={`${C.accent} hover:underline`}
+        className={`${C.text} hover:underline decoration-dotted underline-offset-2`}
         onClick={(e) => e.stopPropagation()}
       >
         {owner.owner_name}

@@ -9,7 +9,7 @@ import { Plus, LayoutGrid, List, Building2, Calendar, PawPrint } from "lucide-re
 // Internal
 import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -88,6 +88,13 @@ export function HospitalizationList() {
     handleNavigateToForm
   } = useHospitalizationList();
   const { canCreate, canEdit } = usePermission("hospitalization");
+
+  const tabItems = [
+    { value: HOSPITALIZATION_FILTER_STATUS.ACTIVE, label: "入院中" },
+    { value: HOSPITALIZATION_FILTER_STATUS.RESERVED, label: "予約" },
+    { value: HOSPITALIZATION_FILTER_STATUS.DISCHARGED, label: "退院済" },
+    { value: HOSPITALIZATION_FILTER_STATUS.ALL, label: "すべて" },
+  ];
 
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -246,14 +253,13 @@ export function HospitalizationList() {
     >
       <div className="flex flex-col gap-4">
         {/* Status Tabs */}
-        <Tabs value={statusFilter} onValueChange={(v) => isValidFilterStatus(v) && setStatusFilter(v)} className="w-full">
-            <TabsList className="grid w-[400px] grid-cols-4 h-11 p-[3px] rounded-xl">
-                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.ACTIVE} className="rounded-[10px]">入院中</TabsTrigger>
-                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.RESERVED} className="rounded-[10px]">予約</TabsTrigger>
-                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.DISCHARGED} className="rounded-[10px]">退院済</TabsTrigger>
-                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.ALL} className="rounded-[10px]">すべて</TabsTrigger>
-            </TabsList>
-        </Tabs>
+        <UnifiedTabs
+          items={tabItems}
+          value={statusFilter}
+          onValueChange={(v) => isValidFilterStatus(v) && setStatusFilter(v)}
+          className="w-full"
+          listClassName="grid w-[400px] grid-cols-4 h-11 p-[3px] rounded-xl"
+        />
 
         {/* Search & View Toggle */}
         <div className="flex items-center gap-4">

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { MemoryRouter } from 'react-router';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/testing/mocks/node';
 import { AggregationDashboardPage } from '../AggregationDashboardPage';
@@ -51,11 +51,7 @@ const createWrapper = () => {
 
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/owners/aggregation" element={children} />
-        </Routes>
-      </BrowserRouter>
+      <MemoryRouter initialEntries={["/aggregation"]}>{children}</MemoryRouter>
     </QueryClientProvider>
   );
 };
@@ -77,7 +73,7 @@ describe('AggregationDashboardPage', () => {
       expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
     });
 
-    expect(screen.getByText('年間売上')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '売上ランキング' })).toHaveAttribute('data-state', 'active');
     expect(screen.getByText('田中太郎')).toBeInTheDocument();
   });
 
@@ -89,8 +85,11 @@ describe('AggregationDashboardPage', () => {
       expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
     });
 
-    const tabs = container.querySelectorAll('button[role="tab"]');
-    expect(tabs.length).toBeGreaterThan(0);
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(3);
+
+    await user.click(tabs[1]);
+    expect(screen.getByRole('tab', { name: '来院回数' })).toHaveAttribute('data-state', 'active');
   });
 
   it('should display error message on API failure', async () => {
@@ -114,7 +113,7 @@ describe('AggregationDashboardPage', () => {
       expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
     });
 
-    expect(screen.getByText(/件中/)).toBeInTheDocument();
+    expect(screen.getByText('全2件')).toBeInTheDocument();
   });
 
   it('should display loading state initially', () => {
