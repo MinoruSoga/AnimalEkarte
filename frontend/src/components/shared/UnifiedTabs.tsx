@@ -3,9 +3,16 @@ import { Tabs as ShadcnTabs, TabsList as ShadcnTabsList, TabsTrigger as ShadcnTa
 import { C } from '@/lib/design-tokens';
 
 /**
- * Unified Tab Interface
- * Supports both shadcn/ui Tabs and custom button-based implementations
- * Applies consistent Notion-like design tokens across all variations
+ * UnifiedTabs — Notion-like bottom-line tab UI.
+ * Single shadcn-based implementation for every tab UI in the application.
+ *
+ * The defaults below cancel out the pill-style base classes from
+ * `components/ui/tabs.tsx` (rounded-xl / p-[3px] / data-[state=active]:bg-card
+ * / flex-1) so every tab UI renders as a Notion-like bottom-line.
+ *
+ * Pages should NOT pass listClassName / triggerClassName for cosmetic tweaks —
+ * they exist only for layout extensions (e.g. width). Visual style is
+ * centralised here.
  */
 
 interface TabItem {
@@ -13,80 +20,39 @@ interface TabItem {
   label: ReactNode;
 }
 
-type TabVariant = 'shadcn' | 'button'; // 'button' for custom bottom-line style
-
 interface UnifiedTabsProps {
   items: readonly TabItem[];
   value: string;
   onValueChange: (value: string) => void;
   children?: ReactNode;
-  variant?: TabVariant;
   className?: string;
   listClassName?: string;
   triggerClassName?: string;
 }
 
-/**
- * UnifiedTabs: Single entry point for all tab UI patterns in the application
- *
- * Supports:
- * - shadcn/ui Tabs (via wrapper) — used by Aggregation, Hospitalization
- * - Radix TabsPrimitive direct — used by Master settings
- * - Custom button-based (bottom-line indicator) — used by MedicalRecordForm
- *
- * All variants apply consistent design tokens:
- * - TabsList: C.bgLight (subtle gray background)
- * - TabsTrigger/Button active: C.text + C.dataActiveBorderB (1px Notion Primary bottom border)
- * - Inactive: C.text50 or C.text60
- */
+// Notion-like bottom-line defaults. Each token is chosen to defeat the
+// corresponding pill default from components/ui/tabs.tsx via tailwind-merge.
+// Background is transparent — only a thin hair-line under the strip remains.
+const DEFAULT_LIST_CLASS = `flex h-9 w-auto items-center justify-start rounded-none p-0 border-b ${C.borderLight} bg-transparent gap-0`;
+const DEFAULT_TRIGGER_CLASS = `h-9 flex-none rounded-none border-0 border-b-2 border-b-transparent bg-transparent px-4 ${C.text60} data-[state=active]:bg-transparent data-[state=active]:shadow-none ${C.dataActiveBorderB} ${C.dataActiveText}`;
+
 export function UnifiedTabs({
   items,
   value,
   onValueChange,
   children,
-  variant = 'shadcn',
   className = '',
   listClassName = '',
   triggerClassName = '',
 }: UnifiedTabsProps) {
-  if (variant === 'button') {
-    // Custom button-based tabs with bottom-line indicator (for MedicalRecordForm style)
-    return (
-      <div className={className}>
-        <div className={`flex border-b ${C.borderLight}`}>
-          {items.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => onValueChange(item.value)}
-              className={`flex items-center px-4 h-11 text-base font-medium transition-colors relative whitespace-nowrap ${
-                value === item.value
-                  ? `${C.text} ${C.bgLight}`
-                  : `${C.text60} hover:${C.text}`
-              } ${triggerClassName}`}
-            >
-              {item.label}
-              {value === item.value ? (
-                <div className={`absolute bottom-0 left-0 w-full h-[2px] ${C.bgPrimary}`} />
-              ) : null}
-            </button>
-          ))}
-        </div>
-        {children}
-      </div>
-    );
-  }
-
-  // Default: shadcn/ui Tabs (unified wrapper around Radix TabsPrimitive)
-  // Applies consistent design tokens to TabsList and TabsTrigger
   return (
     <ShadcnTabs value={value} onValueChange={onValueChange} className={className}>
-      <ShadcnTabsList className={`${C.bgLight} ${listClassName}`}>
+      <ShadcnTabsList className={`${DEFAULT_LIST_CLASS} ${listClassName}`}>
         {items.map((item) => (
           <ShadcnTabsTrigger
             key={item.value}
             value={item.value}
-            className={`rounded-[10px] ${C.dataActiveBorderB} ${C.dataActiveText} ${triggerClassName}`}
+            className={`${DEFAULT_TRIGGER_CLASS} ${triggerClassName}`}
           >
             {item.label}
           </ShadcnTabsTrigger>
@@ -114,6 +80,59 @@ export function UnifiedTabsContent({
     <ShadcnTabsContent value={value} className={className}>
       {children}
     </ShadcnTabsContent>
+  );
+}
+
+/**
+ * UnifiedTabsRoot: Headless Tabs Root provider.
+ * Use when TabsList and TabsContent must live in different branches of the tree
+ * (e.g. sticky header + scrollable content area). Pair with `UnifiedTabsList`
+ * for the styled trigger row, and `UnifiedTabsContent` for content panels.
+ */
+export function UnifiedTabsRoot({
+  value,
+  onValueChange,
+  children,
+  className,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <ShadcnTabs value={value} onValueChange={onValueChange} className={className}>
+      {children}
+    </ShadcnTabs>
+  );
+}
+
+/**
+ * UnifiedTabsList: Standalone styled trigger row. Must be rendered inside
+ * `UnifiedTabsRoot`. Shares the same Notion-like bottom-line defaults as
+ * `UnifiedTabs`.
+ */
+export function UnifiedTabsList({
+  items,
+  listClassName = '',
+  triggerClassName = '',
+}: {
+  items: readonly TabItem[];
+  listClassName?: string;
+  triggerClassName?: string;
+}) {
+  return (
+    <ShadcnTabsList className={`${DEFAULT_LIST_CLASS} ${listClassName}`}>
+      {items.map((item) => (
+        <ShadcnTabsTrigger
+          key={item.value}
+          value={item.value}
+          className={`${DEFAULT_TRIGGER_CLASS} ${triggerClassName}`}
+        >
+          {item.label}
+        </ShadcnTabsTrigger>
+      ))}
+    </ShadcnTabsList>
   );
 }
 

@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
-import { Download, RefreshCw } from "lucide-react";
+import { Download } from "lucide-react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { Pagination } from "@/components/shared/Pagination";
 import { Button } from "@/components/ui/button";
 import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
@@ -158,11 +159,12 @@ export function AggregationDashboardPage() {
   );
 
   const handleExportCsv = useCallback(() => {
-    const targets = selectedCount > 0 ? selectedOwners : owners;
-    const csv = buildCsvContent(targets, activeTab);
+    // 誤操作防止: 選択 0 件のときは早期 return（disabled 属性と二重で防御）
+    if (selectedCount === 0) return;
+    const csv = buildCsvContent(selectedOwners, activeTab);
     const date = new Date().toISOString().slice(0, 10);
     downloadCsv(csv, `aggregation-${activeTab}-${date}.csv`);
-  }, [selectedCount, selectedOwners, owners, activeTab]);
+  }, [selectedCount, selectedOwners, activeTab]);
 
   const errorMessage = isError
     ? (error instanceof Error ? error.message : "データの読み込みに失敗しました")
@@ -183,9 +185,11 @@ export function AggregationDashboardPage() {
           variant="outline"
           className={STYLE.btnOutline}
           onClick={handleExportCsv}
-          disabled={isLoading}
+          disabled={isLoading || selectedCount === 0}
+          title={selectedCount === 0 ? "出力対象を選択してください" : undefined}
+          aria-label={selectedCount === 0 ? "CSV出力 (出力対象を選択してください)" : `${selectedCount}件をCSV出力`}
         >
-          <Download className={`mr-1.5 ${ICON.sm}`} />
+          <Download className={`mr-1.5 ${ICON.action}`} />
           {selectedCount > 0 ? `${selectedCount}件をCSV出力` : "CSV出力"}
         </Button>
       }
@@ -197,33 +201,19 @@ export function AggregationDashboardPage() {
           value={activeTab}
           onValueChange={handleTabChange}
           className="w-full"
-          listClassName="grid w-full grid-cols-3 h-11 p-[3px] rounded-xl"
         />
 
         {/* フィルタパネル */}
         <AggregationFilterPanel params={params} onParamsChange={handleParamsChange} activeTab={activeTab} />
 
-        {/* ツールバー */}
-        <div className={`flex items-center gap-3 py-2 px-1 border-b ${C.borderLight}`}>
-          <span className={`text-sm ${C.text65}`}>
-            {data ? `全${data.total}件` : ""}
-          </span>
+        {/* 件数 + 選択件数 (NotionFilter のツールバーと同じ密度) */}
+        <div className="flex flex-wrap items-center gap-2">
+          {data ? <span className={STYLE.searchCount}>{data.total} 件</span> : null}
           {selectedCount > 0 ? (
-            <span className={`text-sm font-medium ${C.textBrand}`}>
+            <span className={`text-base font-medium ${C.textBrand}`}>
               {selectedCount}件選択中
             </span>
           ) : null}
-          <div className="flex items-center gap-2 ml-auto">
-            <Button
-              variant="outline"
-              className={STYLE.btnOutline}
-              onClick={() => handleParamsChange({ page: 1 })}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`mr-1.5 ${ICON.sm} ${isLoading ? "animate-spin" : ""}`} />
-              更新
-            </Button>
-          </div>
         </div>
 
         {/* テーブル */}
@@ -238,37 +228,18 @@ export function AggregationDashboardPage() {
           errorMessage={errorMessage}
         />
 
-        {/* ページネーション */}
-        {data ? (
-          <div className={`flex items-center justify-between text-sm ${C.text50}`}>
-            <span>
-              {Math.max(1, (data.page - 1) * data.per_page + 1)}
-              〜
-              {Math.min(data.total, data.page * data.per_page)}
-              件（全{data.total}件）
-            </span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleParamsChange({ page: Math.max(1, data.page - 1) })}
-                disabled={data.page <= 1 || isLoading}
-              >
-                前へ
-              </Button>
-              <span className={C.text65}>
-                {data.page} / {Math.ceil(data.total / data.per_page)}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleParamsChange({ page: data.page + 1 })}
-                disabled={data.page >= Math.ceil(data.total / data.per_page) || isLoading}
-              >
-                次へ
-              </Button>
-            </div>
-          </div>
+        {/* ページネーション (他ページと同じ共通コンポーネント) */}
+        {data && data.total > data.per_page ? (
+          <Pagination
+            currentPage={data.page}
+            totalPages={Math.ceil(data.total / data.per_page)}
+            totalCount={data.total}
+            startIndex={Math.max(1, (data.page - 1) * data.per_page + 1)}
+            endIndex={Math.min(data.total, data.page * data.per_page)}
+            onPageChange={(page) => handleParamsChange({ page })}
+            onPrev={() => handleParamsChange({ page: Math.max(1, data.page - 1) })}
+            onNext={() => handleParamsChange({ page: data.page + 1 })}
+          />
         ) : null}
       </div>
     </PageLayout>

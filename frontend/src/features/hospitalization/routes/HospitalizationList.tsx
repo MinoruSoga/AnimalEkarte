@@ -258,7 +258,6 @@ export function HospitalizationList() {
           value={statusFilter}
           onValueChange={(v) => isValidFilterStatus(v) && setStatusFilter(v)}
           className="w-full"
-          listClassName="grid w-[400px] grid-cols-4 h-11 p-[3px] rounded-xl"
         />
 
         {/* Search & View Toggle */}

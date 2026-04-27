@@ -619,7 +619,6 @@ export function DiagnosisSettings() {
               value={activeTab}
               onValueChange={handleTabChange}
               className="flex flex-col gap-4"
-              listClassName={`flex h-9 border-b ${C.borderLight} ${C.bgLight} gap-0`}
             >
               <UnifiedTabsContent value="diagnosis_type" className="mt-4">
                 <DiagnosisTypeTab

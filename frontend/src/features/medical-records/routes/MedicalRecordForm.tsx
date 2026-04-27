@@ -14,7 +14,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { LoadingFallback } from "@/components/shared/DataStates";
-import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
+import { UnifiedTabsRoot, UnifiedTabsList, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
@@ -329,6 +329,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       scrollContainerRef={scrollContainerRef}
     >
       <NavigationBlocker when={isDirty} />
+      <UnifiedTabsRoot value={activeTab} onValueChange={handleTabChange}>
       {/* Sticky Header: Patient Info + Tabs */}
       <div className={`sticky top-0 z-10 ${C.bgPage}`}>
         {/* Patient Info Card */}
@@ -355,8 +356,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         />
 
         {/* Tabs */}
-        <div className={`flex shrink-0 border-b ${C.borderMedium} overflow-x-auto ${C.bgPage}`}>
-          <UnifiedTabs items={TABS} value={activeTab} onValueChange={handleTabChange} variant="button" />
+        <div className={`flex shrink-0 overflow-x-auto ${C.bgPage}`}>
+          <UnifiedTabsList items={TABS} />
         </div>
       </div>
 
@@ -475,6 +476,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           </UnifiedTabsContent>
         ) : null}
       </div>
+      </UnifiedTabsRoot>
 
       {/* Floating Save / Delete Buttons */}
       {activeTab !== "会計(医師確認)" ? (

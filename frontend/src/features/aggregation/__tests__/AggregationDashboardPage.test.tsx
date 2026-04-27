@@ -113,7 +113,7 @@ describe('AggregationDashboardPage', () => {
       expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
     });
 
-    expect(screen.getByText('全2件')).toBeInTheDocument();
+    expect(screen.getByText('2 件')).toBeInTheDocument();
   });
 
   it('should display loading state initially', () => {
@@ -130,5 +130,32 @@ describe('AggregationDashboardPage', () => {
     });
 
     expect(screen.getByText('鈴木花子')).toBeInTheDocument();
+  });
+
+  it('should disable CSV export button when no rows are selected', async () => {
+    render(<AggregationDashboardPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+    });
+
+    const csvButton = screen.getByRole('button', { name: /CSV出力/ });
+    expect(csvButton).toBeDisabled();
+    expect(csvButton).toHaveAttribute('title', '出力対象を選択してください');
+  });
+
+  it('should enable CSV export button when at least one row is selected', async () => {
+    const user = userEvent.setup();
+    render(<AggregationDashboardPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('田中太郎')).toBeInTheDocument();
+    });
+
+    const ownerCheckbox = screen.getByRole('checkbox', { name: /田中太郎を選択/ });
+    await user.click(ownerCheckbox);
+
+    const csvButton = screen.getByRole('button', { name: /1件をCSV出力/ });
+    expect(csvButton).not.toBeDisabled();
   });
 });

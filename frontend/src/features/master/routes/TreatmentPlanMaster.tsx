@@ -748,7 +748,6 @@ export function TreatmentPlanMaster() {
               value={activeTab}
               onValueChange={handleTabChange}
               className="flex flex-col gap-4"
-              listClassName={`flex h-9 border-b ${C.borderLight} ${C.bgLight} gap-0`}
             >
               {TABS.map((tab) => {
                 const config = tabConfigs[tab.value];

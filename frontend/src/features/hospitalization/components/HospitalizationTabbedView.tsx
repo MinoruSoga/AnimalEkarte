@@ -50,7 +50,7 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
                 />
             </div>
 
-            <UnifiedTabs items={tabItems} value={activeTab} onValueChange={handleTabChange} className="flex flex-col" listClassName="w-full grid grid-cols-2">
+            <UnifiedTabs items={tabItems} value={activeTab} onValueChange={handleTabChange} className="flex flex-col">
                 <UnifiedTabsContent value="daily" className="mt-2">
                     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} shadow-sm flex flex-col`}>
                         <div className={H_STYLES.padding.box}>

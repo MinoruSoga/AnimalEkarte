@@ -133,30 +133,32 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
     [onParamsChange]
   );
 
+  // 入力スタイルは NotionFilter のツールバー高 (h-9) に揃え、
+  // 余計な装飾（外枠ボックス・大きめラベル）を排除して他ページと密度を統一する。
+  const inputClass = `h-9 ${C.borderMedium} ${C.text} bg-white text-base`;
+  const labelClass = `text-xs ${C.text50}`;
+
   return (
-    <div className={`${C.bgWhite} border ${C.borderLight} rounded-[4px] p-4 flex flex-wrap gap-4 items-end`}>
-      {/* 飼い主名検索 */}
-      <div className="flex flex-col gap-1 min-w-[200px]">
-        <label className={`text-sm ${C.text65}`}>飼い主名</label>
-        <div className="relative">
-          <Search className={STYLE.searchIcon} />
-          <Input
-            className={`${STYLE.searchInput} pl-8`}
-            placeholder="飼い主名を検索..."
-            value={params.search ?? ""}
-            onChange={handleSearchChange}
-          />
-        </div>
+    <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+      {/* 飼い主名検索 (他ページの NotionFilter 同様、ラベルは置かず placeholder で示す) */}
+      <div className="relative min-w-[220px] flex-1 max-w-sm">
+        <Search className={STYLE.searchIcon} />
+        <Input
+          className={STYLE.searchInput}
+          placeholder="飼い主名を検索..."
+          value={params.search ?? ""}
+          onChange={handleSearchChange}
+        />
       </div>
 
       {/* Revenue tab filters */}
       {activeTab === "revenue" ? (
         <>
-          <div className="flex flex-col gap-1 min-w-[120px]">
-            <label className={`text-sm ${C.text65}`}>年度</label>
+          <div className="flex flex-col gap-1 min-w-[110px]">
+            <label className={labelClass}>年度</label>
             <Input
               type="number"
-              className={`h-11 ${C.borderMedium} ${C.text} bg-white`}
+              className={inputClass}
               placeholder="年度"
               value={params.year ?? ""}
               onChange={handleYearChange}
@@ -165,12 +167,12 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
           </div>
 
           <div className="flex flex-col gap-1 min-w-[140px]">
-            <label className={`text-sm ${C.text65}`}>売上基準</label>
+            <label className={labelClass}>売上基準</label>
             <Select
               value={params.amount_basis ?? "gross_total_amount"}
               onValueChange={handleAmountBasisChange}
             >
-              <SelectTrigger className={`h-11 ${C.borderMedium} ${C.text} bg-white`}>
+              <SelectTrigger className={inputClass}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -184,11 +186,11 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className={`text-sm ${C.text65}`}>売上額</label>
+            <label className={labelClass}>売上額</label>
             <div className="flex items-center gap-2">
               <Input
                 type="number"
-                className={`h-11 w-28 ${C.borderMedium} ${C.text} bg-white`}
+                className={`${inputClass} w-28`}
                 placeholder="下限"
                 value={params.min_amount ?? ""}
                 onChange={handleMinAmountChange}
@@ -197,7 +199,7 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
               <span className={`text-sm ${C.text50}`}>〜</span>
               <Input
                 type="number"
-                className={`h-11 w-28 ${C.borderMedium} ${C.text} bg-white`}
+                className={`${inputClass} w-28`}
                 placeholder="上限"
                 value={params.max_amount ?? ""}
                 onChange={handleMaxAmountChange}
@@ -206,7 +208,7 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
             </div>
           </div>
 
-          <div className="flex items-center gap-2 pb-1">
+          <div className="flex items-center gap-2 h-9">
             <input
               type="checkbox"
               id="revenue-include-zero"
@@ -225,12 +227,12 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
       {activeTab === "visit" ? (
         <>
           <div className="flex flex-col gap-1 min-w-[140px]">
-            <label className={`text-sm ${C.text65}`}>期間</label>
+            <label className={labelClass}>期間</label>
             <Select
               value={params.period_preset ?? "last_12_months"}
               onValueChange={handlePeriodPresetChange}
             >
-              <SelectTrigger className={`h-11 ${C.borderMedium} ${C.text} bg-white`}>
+              <SelectTrigger className={inputClass}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -244,18 +246,18 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className={`text-sm ${C.text65}`}>日付範囲</label>
+            <label className={labelClass}>日付範囲</label>
             <div className="flex items-center gap-2">
               <Input
                 type="date"
-                className={`h-11 w-32 ${C.borderMedium} ${C.text} bg-white`}
+                className={`${inputClass} w-36`}
                 value={params.from ?? ""}
                 onChange={handleFromChange}
               />
               <span className={`text-sm ${C.text50}`}>〜</span>
               <Input
                 type="date"
-                className={`h-11 w-32 ${C.borderMedium} ${C.text} bg-white`}
+                className={`${inputClass} w-36`}
                 value={params.to ?? ""}
                 onChange={handleToChange}
               />
@@ -263,11 +265,11 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className={`text-sm ${C.text65}`}>来院回数</label>
+            <label className={labelClass}>来院回数</label>
             <div className="flex items-center gap-2">
               <Input
                 type="number"
-                className={`h-11 w-28 ${C.borderMedium} ${C.text} bg-white`}
+                className={`${inputClass} w-24`}
                 placeholder="下限"
                 value={params.min_visit_count ?? ""}
                 onChange={handleMinVisitCountChange}
@@ -276,7 +278,7 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
               <span className={`text-sm ${C.text50}`}>〜</span>
               <Input
                 type="number"
-                className={`h-11 w-28 ${C.borderMedium} ${C.text} bg-white`}
+                className={`${inputClass} w-24`}
                 placeholder="上限"
                 value={params.max_visit_count ?? ""}
                 onChange={handleMaxVisitCountChange}
@@ -291,12 +293,12 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
       {activeTab === "last_visit" ? (
         <>
           <div className="flex flex-col gap-1 min-w-[140px]">
-            <label className={`text-sm ${C.text65}`}>最終来院</label>
+            <label className={labelClass}>最終来院</label>
             <Select
               value={params.last_visit_bucket ?? "over_3m"}
               onValueChange={handleLastVisitBucketChange}
             >
-              <SelectTrigger className={`h-11 ${C.borderMedium} ${C.text} bg-white`}>
+              <SelectTrigger className={inputClass}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -309,7 +311,7 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
             </Select>
           </div>
 
-          <div className="flex items-center gap-2 pb-1">
+          <div className="flex items-center gap-2 h-9">
             <input
               type="checkbox"
               id="last-visit-include-no-visit"

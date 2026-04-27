@@ -394,7 +394,6 @@ export function AccountingList() {
           items={tabItems}
           value={activeTab}
           onValueChange={handleTabChange}
-          variant="button"
         >
           <UnifiedTabsContent value="unpaid" className="mt-4">
             <UnpaidTab />
