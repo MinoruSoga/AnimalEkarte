@@ -9,17 +9,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { C, STYLE, BADGE } from "@/lib/design-tokens";
-import type { LtvOwner, LastVisitBucket } from "./api/get-aggregations";
+import type { AggregationOwner, LastVisitBucket } from "./api/get-aggregations";
 
-export type LtvTab = "revenue" | "visit" | "last_visit";
+export type AggregationTab = "revenue" | "visit" | "last_visit";
 
 interface AggregationOwnerTableProps {
-  owners: LtvOwner[];
+  owners: AggregationOwner[];
   selectedOwnerIds: Set<string>;
   onSelectAll: (checked: boolean) => void;
   onSelectOwner: (ownerId: string, checked: boolean) => void;
   isLoading: boolean;
-  activeTab: LtvTab;
+  activeTab: AggregationTab;
   isError?: boolean;
   errorMessage?: string;
 }
@@ -75,7 +75,7 @@ interface ColumnDef {
   key: string;
   label: string;
   width?: string;
-  render: (owner: LtvOwner) => React.ReactNode;
+  render: (owner: AggregationOwner) => React.ReactNode;
   textAlign?: "left" | "right";
 }
 
@@ -101,7 +101,7 @@ const COMMON_COLUMNS: ColumnDef[] = [
   },
 ];
 
-const TAB_SPECIFIC_COLUMNS: Record<LtvTab, ColumnDef[]> = {
+const TAB_SPECIFIC_COLUMNS: Record<AggregationTab, ColumnDef[]> = {
   revenue: [
     ...COMMON_COLUMNS,
     {

@@ -3,13 +3,13 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, STYLE } from "@/lib/design-tokens";
-import type { LtvOwnersParams, AmountBasis, PeriodPreset } from "./api/get-aggregations";
-import type { LtvTab } from "./AggregationDashboardPage";
+import type { AggregationParams, AmountBasis, PeriodPreset } from "./api/get-aggregations";
+import type { AggregationTab } from "./AggregationDashboardPage";
 
 interface AggregationFilterPanelProps {
-  params: LtvOwnersParams;
-  onParamsChange: (params: Partial<LtvOwnersParams>) => void;
-  activeTab: LtvTab;
+  params: AggregationParams;
+  onParamsChange: (params: Partial<AggregationParams>) => void;
+  activeTab: AggregationTab;
 }
 
 const AMOUNT_BASIS_OPTIONS = [

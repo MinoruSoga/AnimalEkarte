@@ -9,15 +9,15 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { useGetOwnerAggregations, type LtvOwnersParams, type LtvOwner } from "./api/get-aggregations";
+import { useGetOwnerAggregations, type AggregationParams, type AggregationOwner } from "./api/get-aggregations";
 import { AggregationFilterPanel } from "./AggregationFilterPanel";
 import { AggregationOwnerTable } from "./AggregationOwnerTable";
 
-export type LtvTab = "revenue" | "visit" | "last_visit";
+export type AggregationTab = "revenue" | "visit" | "last_visit";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
-const TAB_DEFAULT_PARAMS: Record<LtvTab, LtvOwnersParams> = {
+const TAB_DEFAULT_PARAMS: Record<AggregationTab, AggregationParams> = {
   revenue: {
     page: 1,
     per_page: 50,
@@ -42,7 +42,7 @@ const TAB_DEFAULT_PARAMS: Record<LtvTab, LtvOwnersParams> = {
   },
 };
 
-function validateTab(value: unknown): LtvTab | null {
+function validateTab(value: unknown): AggregationTab | null {
   if (value === "revenue" || value === "visit" || value === "last_visit") {
     return value;
   }
@@ -51,7 +51,7 @@ function validateTab(value: unknown): LtvTab | null {
 
 interface CsvColumnDef {
   header: string;
-  getValue: (o: LtvOwner) => string;
+  getValue: (o: AggregationOwner) => string;
 }
 
 const CSV_COMMON_COLUMNS: CsvColumnDef[] = [
@@ -59,7 +59,7 @@ const CSV_COMMON_COLUMNS: CsvColumnDef[] = [
   { header: "owner_name", getValue: (o) => `"${o.owner_name.replace(/"/g, '""')}"` },
 ];
 
-const CSV_COLUMNS: Record<LtvTab, CsvColumnDef[]> = {
+const CSV_COLUMNS: Record<AggregationTab, CsvColumnDef[]> = {
   revenue: [
     ...CSV_COMMON_COLUMNS,
     { header: "annual_amount", getValue: (o) => String(o.annual_amount ?? "") },
@@ -85,7 +85,7 @@ const CSV_COLUMNS: Record<LtvTab, CsvColumnDef[]> = {
   ],
 };
 
-function buildCsvContent(owners: LtvOwner[], tab: LtvTab): string {
+function buildCsvContent(owners: AggregationOwner[], tab: AggregationTab): string {
   const columns = CSV_COLUMNS[tab];
   const header = columns.map((col) => col.header).join(",");
 
@@ -109,8 +109,8 @@ function downloadCsv(content: string, filename: string): void {
 
 export function AggregationDashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab: LtvTab = validateTab(searchParams.get("tab")) ?? "revenue";
-  const [params, setParams] = useState<LtvOwnersParams>(TAB_DEFAULT_PARAMS[activeTab]);
+  const activeTab: AggregationTab = validateTab(searchParams.get("tab")) ?? "revenue";
+  const [params, setParams] = useState<AggregationParams>(TAB_DEFAULT_PARAMS[activeTab]);
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<Set<string>>(new Set());
 
   const { data, isLoading, isError, error } = useGetOwnerAggregations(params);
@@ -126,7 +126,7 @@ export function AggregationDashboardPage() {
     [setSearchParams]
   );
 
-  const handleParamsChange = useCallback((partial: Partial<LtvOwnersParams>) => {
+  const handleParamsChange = useCallback((partial: Partial<AggregationParams>) => {
     setParams((prev) => ({ ...prev, ...partial }));
     setSelectedOwnerIds(new Set());
   }, []);
@@ -165,7 +165,7 @@ export function AggregationDashboardPage() {
     const targets = selectedCount > 0 ? selectedOwners : owners;
     const csv = buildCsvContent(targets, activeTab);
     const date = new Date().toISOString().slice(0, 10);
-    downloadCsv(csv, `ltv-${activeTab}-${date}.csv`);
+    downloadCsv(csv, `aggregation-${activeTab}-${date}.csv`);
   }, [selectedCount, selectedOwners, owners, activeTab]);
 
   const errorMessage = isError
