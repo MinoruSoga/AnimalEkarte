@@ -104,12 +104,12 @@ export function CheckupSyncPage() {
                 成功: <span className={`font-semibold ${C.text}`}>{syncResult.success_count}件</span>
                 {syncResult.skip_count > 0 ? (
                   <>
-                    　スキップ: <span className={`font-semibold ${C.text50}`}>{syncResult.skip_count}件</span>
+                    {'　'}スキップ: <span className={`font-semibold ${C.text50}`}>{syncResult.skip_count}件</span>
                   </>
                 ) : null}
                 {syncResult.failed_count > 0 ? (
                   <>
-                    　失敗: <span className={`font-semibold ${C.textNotice}`}>{syncResult.failed_count}件</span>
+                    {'　'}失敗: <span className={`font-semibold ${C.textNotice}`}>{syncResult.failed_count}件</span>
                   </>
                 ) : null}
               </p>
