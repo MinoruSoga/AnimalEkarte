@@ -1,5 +1,5 @@
 import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
-import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase, Smartphone, MessageSquare, Tag, ClipboardSignature, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase, Smartphone, BarChart3 } from "lucide-react";
 import { useState, useEffect, memo, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -333,7 +333,8 @@ export const Sidebar = memo(function Sidebar() {
           />
         </div>
 
-        {/* Lステップ連携 Section */}
+        {/* Lステップ連携 Section (temporary disabled until feature completion) */}
+        {/*
         <div className="space-y-px">
           {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>Lステップ連携</p> : null}
           <SidebarItemWithPermission
@@ -351,6 +352,7 @@ export const Sidebar = memo(function Sidebar() {
             collapsed={collapsed}
           />
         </div>
+        */}
 
         {/* Settings Section */}
         <div className="space-y-px">
