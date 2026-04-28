@@ -55,8 +55,34 @@ func (m *mockVaccinationService) Delete(ctx context.Context, clinicID, id uint64
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+// mockPetService は Pet サービスの最小モック（ tag sync 経由でのみ使用）
+type mockPetService struct {
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+}
+
+func (m *mockPetService) List(_ context.Context, _ uint64, _ *uint64, _, _ int, _ string) ([]model.Pet, int64, error) {
+	return nil, 0, nil
+}
+func (m *mockPetService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, clinicID, id)
+	}
+	return &model.Pet{ID: id}, nil
+}
+func (m *mockPetService) Create(_ context.Context, _ uint64, _ *service.CreatePetInput) (*model.Pet, error) {
+	return nil, nil
+}
+func (m *mockPetService) Update(_ context.Context, _, _ uint64, _ *service.UpdatePetInput) (*model.Pet, error) {
+	return nil, nil
+}
+func (m *mockPetService) Delete(_ context.Context, _, _ uint64) error { return nil }
+
 func newHandlerWithVaccinationSvc(svc service.VaccinationService) *Handler {
-	return &Handler{svc: &service.Services{Vaccination: svc}}
+	return &Handler{svc: &service.Services{
+		Vaccination:  svc,
+		Pet:          &mockPetService{},
+		LstepTagSync: &mockLstepTagSyncService{},
+	}}
 }
 
 // ---- ListVaccinations ----
@@ -313,6 +339,10 @@ func TestDeleteVaccination(t *testing.T) {
 			name:    "deletes vaccination successfully",
 			paramID: "1",
 			svc: &mockVaccinationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
+					petID := uint64(10)
+					return &model.Vaccination{ID: 1, PetID: &petID}, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
 			},
 			wantStatus: http.StatusNoContent,
@@ -327,8 +357,8 @@ func TestDeleteVaccination(t *testing.T) {
 			name:    "returns 404 when not found",
 			paramID: "999",
 			svc: &mockVaccinationService{
-				deleteFn: func(_ context.Context, _, _ uint64) error {
-					return apperrors.WrapNotFound("vaccination", "999")
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
+					return nil, apperrors.WrapNotFound("vaccination", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,

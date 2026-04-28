@@ -121,6 +121,8 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	// BE-005: 動物分類タグ同期（best-effort）
+	_ = h.svc.LstepTagSync.SyncOwnerAnimalClassificationTags(c.Request.Context(), clinicID, owner.ID)
 	c.Header("Location", fmt.Sprintf("/api/v1/owners/%d", owner.ID))
 	c.JSON(http.StatusCreated, toOwnerResponse(owner))
 }
@@ -187,6 +189,29 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 	c.JSON(http.StatusOK, toOwnerResponse(owner))
 }
 
+// PatchOwnerLineUserID godoc
+// PATCH /owners/:id/line-user-id — LINE User ID を連携または解除する（BE-005）。
+func (h *Handler) PatchOwnerLineUserID(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchOwnerLineUserIDRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if err := h.svc.Owner.LinkLineUserID(c.Request.Context(), clinicID, id, req.LineUserID); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 // DeleteOwner godoc
 func (h *Handler) DeleteOwner(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -197,6 +222,8 @@ func (h *Handler) DeleteOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
+	// BE-017: 削除前に Lステップタグを全解除（best-effort、失敗しても削除は続行）
+	_ = h.svc.LstepLifecycle.HandleOwnerDeletion(c.Request.Context(), clinicID, id)
 	if err := h.svc.Owner.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return

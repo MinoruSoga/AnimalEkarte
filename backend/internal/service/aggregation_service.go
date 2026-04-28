@@ -1,0 +1,207 @@
+package service
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"time"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/repository"
+)
+
+// OwnerAggregationItem は顧客集計の1件。
+type OwnerAggregationItem struct {
+	OwnerID            uint64
+	OwnerName          string
+	TotalAmount        int64
+	TotalVisitCount    int64
+	AnnualVisitCount   int64
+	LastVisitDate      *time.Time
+	FirstVisitDate     *time.Time
+	AnnualAmount       *int64  // 期間内年間売上（AGG-BE-001）
+	BillingCount       *int64  // 期間内会計件数（AGG-BE-001）
+	PeriodVisitCount   *int64  // 期間内来院回数（AGG-BE-001/002）
+	DaysSinceLastVisit *int    // 最終来院からの経過日数（AGG-BE-003）
+	LastVisitBucket    *string // 最終来院分類: within_3m/over_3m/over_6m/over_1y/no_visit（AGG-BE-003）
+}
+
+// ListOwnerAggregationInput はListOwnerAggregation の入力パラメータ。
+type ListOwnerAggregationInput struct {
+	// 既存フィールド
+	Sort           string
+	MinTotalAmount *int64
+	MaxTotalAmount *int64
+	MinVisitCount  *int64
+	LineLinked     bool
+	Page           int
+	PerPage        int
+	// AGG-BE-001 年間売上ランキング用
+	Year        *int
+	From        *string // YYYY-MM-DD format
+	To          *string // YYYY-MM-DD format
+	AmountBasis string  // gross_total_amount (default) / paid_amount / net_paid_amount
+	IncludeZero bool
+	Search      string // 飼い主名部分一致検索
+	// AGG-BE-002 来院回数用
+	PeriodPreset  string // last_3_months / last_6_months / last_12_months / calendar_year
+	MaxVisitCount *int64
+	// AGG-BE-003 最終来院分類用
+	LastVisitBucket string // within_3m / over_3m / over_6m / over_1y / no_visit or ""
+	IncludeNoVisit  bool
+	Order           string // asc / desc
+	// AGG-BE-004 メトリクス選択用
+	Metric string // annual_sales (default) / visit_count / last_visit
+}
+
+// ListOwnerAggregationResult はListOwnerAggregation の結果。
+type ListOwnerAggregationResult struct {
+	Total   int
+	Page    int
+	PerPage int
+	Items   []OwnerAggregationItem
+}
+
+// SyncAggregationTagsInput はSyncAggregationTags の入力パラメータ。
+type SyncAggregationTagsInput struct {
+	TagName        string
+	MinTotalAmount *int64
+	DryRun         bool
+}
+
+// SyncAggregationTagsResult はSyncAggregationTags の結果。
+type SyncAggregationTagsResult struct {
+	DryRun  bool
+	Total   int
+	Synced  int
+	Skipped int
+}
+
+// AggregationService は顧客集計・一括タグ同期の業務ロジックインターフェース（BE-010）。
+type AggregationService interface {
+	ListOwnerAggregation(ctx context.Context, clinicID uint64, input *ListOwnerAggregationInput) (*ListOwnerAggregationResult, error)
+	SyncAggregationTags(ctx context.Context, clinicID uint64, input SyncAggregationTagsInput) (*SyncAggregationTagsResult, error)
+}
+
+type aggregationService struct {
+	repo         repository.LtvRepository
+	tagCacheRepo repository.LstepTagCacheRepository
+}
+
+// NewAggregationService は AggregationService を初期化して返す。
+func NewAggregationService(repo repository.LtvRepository, tagCacheRepo repository.LstepTagCacheRepository) AggregationService {
+	return &aggregationService{repo: repo, tagCacheRepo: tagCacheRepo}
+}
+
+func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID uint64, input *ListOwnerAggregationInput) (*ListOwnerAggregationResult, error) {
+	rows, err := s.repo.FindOwnerLTV(ctx, &repository.FindOwnerLTVParams{
+		ClinicID:        clinicID,
+		Sort:            input.Sort,
+		MinTotalAmount:  input.MinTotalAmount,
+		MaxTotalAmount:  input.MaxTotalAmount,
+		MinVisitCount:   input.MinVisitCount,
+		LineLinked:      input.LineLinked,
+		Year:            input.Year,
+		From:            input.From,
+		To:              input.To,
+		AmountBasis:     input.AmountBasis,
+		IncludeZero:     input.IncludeZero,
+		Search:          input.Search,
+		PeriodPreset:    input.PeriodPreset,
+		MaxVisitCount:   input.MaxVisitCount,
+		LastVisitBucket: input.LastVisitBucket,
+		IncludeNoVisit:  input.IncludeNoVisit,
+		Order:           input.Order,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find owner aggregation", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to find owner aggregation")
+	}
+
+	var items []OwnerAggregationItem
+	for _, row := range rows {
+		item := OwnerAggregationItem{
+			OwnerID:            row.OwnerID,
+			OwnerName:          row.OwnerName,
+			TotalAmount:        row.TotalAmount,
+			TotalVisitCount:    row.TotalVisitCount,
+			AnnualVisitCount:   row.AnnualVisitCount,
+			LastVisitDate:      row.LastVisitDate,
+			FirstVisitDate:     row.FirstVisitDate,
+			AnnualAmount:       row.AnnualAmount,
+			BillingCount:       row.BillingCount,
+			PeriodVisitCount:   row.PeriodVisitCount,
+			DaysSinceLastVisit: row.DaysSinceLastVisit,
+			LastVisitBucket:    row.LastVisitBucket,
+		}
+		items = append(items, item)
+	}
+
+	total := len(items)
+
+	// Go-side pagination
+	perPage := input.PerPage
+	if perPage <= 0 {
+		perPage = 50
+	}
+	page := input.Page
+	if page <= 0 {
+		page = 1
+	}
+	offset := (page - 1) * perPage
+	if offset >= total {
+		items = nil
+	} else {
+		end := offset + perPage
+		if end > total {
+			end = total
+		}
+		items = items[offset:end]
+	}
+
+	return &ListOwnerAggregationResult{
+		Total:   total,
+		Page:    page,
+		PerPage: perPage,
+		Items:   items,
+	}, nil
+}
+
+func (s *aggregationService) SyncAggregationTags(ctx context.Context, clinicID uint64, input SyncAggregationTagsInput) (*SyncAggregationTagsResult, error) {
+	// 禁止プレフィックスチェック（BE-019と共通の isAutoManagedTag を使用）
+	if isAutoManagedTag(input.TagName) {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("tag_name %q は自動管理タグのため使用できません", input.TagName))
+	}
+
+	rows, err := s.repo.FindOwnerLTV(ctx, &repository.FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		MinTotalAmount: input.MinTotalAmount,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find owner aggregation for sync", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to find owner aggregation for sync")
+	}
+
+	result := &SyncAggregationTagsResult{DryRun: input.DryRun, Total: len(rows)}
+	for _, row := range rows {
+		if row.LstepOptOut {
+			result.Skipped++
+			continue
+		}
+		if row.LineUserID == nil {
+			result.Skipped++
+			continue
+		}
+
+		if !input.DryRun {
+			if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, row.OwnerID, input.TagName, "manual"); upsertErr != nil {
+				slog.ErrorContext(ctx, "failed to upsert aggregation tag", "owner_id", row.OwnerID, "error", upsertErr)
+				result.Skipped++
+				continue
+			}
+		}
+		result.Synced++
+	}
+
+	return result, nil
+}

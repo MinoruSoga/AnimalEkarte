@@ -18,6 +18,7 @@ import { useGetInsurances } from "../api/get-insurances";
 import { usePermission } from "@/hooks/use-permission";
 
 import { isOneOf } from "@/lib/type-utils";
+import { PetDeceasedRecordButton } from "@/features/pets";
 
 const OwnerSearchModal = lazy(() =>
   import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal }))
@@ -587,6 +588,20 @@ export const PetEditModal = memo(function PetEditModal({
                   死亡
                 </label>
               </div>
+              {/* FE-006: 既存ペットが生存中の場合、Lステップ連携を考慮した正式な死亡記録ボタンを表示 */}
+              {formData.id && formData.status === "生存" ? (
+                <div className="pt-1">
+                  <PetDeceasedRecordButton
+                    petId={formData.id}
+                    petName={formData.petName}
+                    petBreed={formData.breed}
+                    petGender={formData.gender}
+                    birthDate={formData.birthDate}
+                    deceasedAt={null}
+                    canEdit={canEdit}
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div className="space-y-1">

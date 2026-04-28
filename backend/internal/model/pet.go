@@ -61,6 +61,8 @@ type Pet struct {
 	LastVisit       *time.Time       `gorm:"type:date"                                      json:"last_visit,omitempty"`
 	InsuranceID     *uint64          `                                                      json:"insurance_id,omitempty"`
 	Remarks         string           `gorm:"default:''"                                     json:"remarks"`
+	DeceasedAt      *time.Time       `gorm:"column:deceased_at"                             json:"deceased_at,omitempty"`
+	DeceasedReason  *string          `gorm:"column:deceased_reason"                         json:"deceased_reason,omitempty"`
 	CreatedAt       time.Time        `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time        `gorm:"autoUpdateTime"                                 json:"updated_at"`
 	DeletedAt       gorm.DeletedAt   `                                                      json:"-"`

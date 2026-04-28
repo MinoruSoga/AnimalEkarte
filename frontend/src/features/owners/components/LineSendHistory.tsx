@@ -1,0 +1,104 @@
+import { useQuery } from "@tanstack/react-query";
+import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { C, BADGE } from "@/lib/design-tokens";
+import type { LineSendHistoryItem } from "../api/get-line-send-history";
+
+const TYPE_LABEL: Record<LineSendHistoryItem["message_type"], string> = {
+  text: "テキスト",
+  pdf_url: "PDF",
+  image_url: "画像",
+};
+
+const STATUS_BADGE: Record<LineSendHistoryItem["status"], string> = {
+  sent: BADGE.green,
+  failed: BADGE.red,
+  pending: BADGE.yellow,
+};
+
+const STATUS_LABEL: Record<LineSendHistoryItem["status"], string> = {
+  sent: "送信済",
+  failed: "失敗",
+  pending: "送信中",
+};
+
+function formatSentAt(sentAt: string): string {
+  const d = new Date(sentAt);
+  return d.toLocaleString("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+interface LineSendHistoryProps {
+  ownerId: string;
+}
+
+export function LineSendHistory({ ownerId }: LineSendHistoryProps) {
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+
+  const { data, isLoading, isError } = useQuery<LineSendHistoryItem[]>({
+    queryKey: ["line-send-history", ownerId],
+    queryFn: async () => {
+      const { data: res } = await axios.get<{ items: LineSendHistoryItem[] }>(
+        `/v1/clinics/${clinicId}/owners/${ownerId}/line/send-logs`
+      );
+      return res.items;
+    },
+    enabled: !!ownerId && !!clinicId,
+    staleTime: QUERY_STALE_TIMES.REALTIME,
+    gcTime: QUERY_GC_TIMES.SHORT,
+    refetchInterval: (query) => {
+      const items = query.state.data ?? [];
+      return items.some((item) => item.status === "pending") ? 5000 : false;
+    },
+  });
+
+  const recent = (data ?? []).slice(0, 5);
+
+  if (isLoading) {
+    return (
+      <div className={`h-4 w-40 rounded ${C.bgSkeleton} animate-pulse`} />
+    );
+  }
+
+  if (isError) {
+    return (
+      <p className={`text-xs ${C.danger}`}>送信履歴の取得に失敗しました</p>
+    );
+  }
+
+  if (recent.length === 0) {
+    return (
+      <p className={`text-xs ${C.text40}`}>送信履歴はありません</p>
+    );
+  }
+
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {recent.map((item) => (
+        <li
+          key={item.id}
+          className={`flex items-center gap-2 text-xs ${C.text70} px-2 py-1.5 rounded-[3px] border ${C.borderLight}`}
+        >
+          <span className={`text-xs ${C.text50} font-mono shrink-0`}>
+            {formatSentAt(item.sent_at)}
+          </span>
+          <span className={`shrink-0 ${C.text70}`}>
+            {TYPE_LABEL[item.message_type]}
+          </span>
+          {item.content_summary !== null ? (
+            <span className={`flex-1 truncate ${C.text60}`}>{item.content_summary}</span>
+          ) : null}
+          <span
+            className={`shrink-0 text-xs px-1.5 py-0.5 rounded-[3px] border font-medium ${STATUS_BADGE[item.status]}`}
+          >
+            {STATUS_LABEL[item.status]}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}

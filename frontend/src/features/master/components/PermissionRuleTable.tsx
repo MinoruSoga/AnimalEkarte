@@ -33,6 +33,11 @@ const RESOURCE_LABELS: Record<string, string> = {
   "master-staff": "スタッフ管理",
   "master-insurance": "保険マスタ",
   "master-merchandise": "物販・フード",
+  discount: "割引",
+  "cash-register-close": "レジ締め",
+  "accounting-reports": "月次売上レポート",
+  "closing-settings": "締め設定",
+  "master-payment-method": "支払方法マスタ",
 };
 
 // All available resources for permission configuration

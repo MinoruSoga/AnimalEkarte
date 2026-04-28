@@ -14,6 +14,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/handler"
 	"github.com/animal-ekarte/backend/internal/infra"
+	appCrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/logger"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -62,6 +63,73 @@ func main() {
 		FrontendURL: cfg.FrontendURL,
 	})
 
+	// LSTEP 暗号化 cipher 初期化（INTEGRATION_ENCRYPTION_KEY 未設定時は dev モード・暗号化なし）
+	var lstepCipher *appCrypto.AESGCMCipher
+	if cfg.IntegrationEncryptionKey != "" {
+		c, err := appCrypto.NewAESGCMCipher(cfg.IntegrationEncryptionKey)
+		if err != nil {
+			logger.Error("failed to initialize AES-GCM cipher", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		lstepCipher = c
+		logger.Info("LSTEP cipher: AES-256-GCM enabled")
+	} else {
+		logger.Info("INTEGRATION_ENCRYPTION_KEY not set: running without encryption (dev mode)")
+	}
+	svcs.LstepSettings = service.NewLstepSettingsService(repos.LstepSettings, lstepCipher, svcs.Audit)
+	svcs.LstepTagSync = service.NewLstepTagSyncService(
+		svcs.LstepSettings,
+		repos.Owner,
+		repos.Vaccination,
+		repos.MedicalRecord,
+		repos.Accounting,
+		repos.LstepTagCache,
+		repos.Pet,
+		repos.Prescription,
+	)
+	svcs.LstepLifecycle = service.NewLstepLifecycleService(
+		svcs.LstepSettings,
+		repos.Owner,
+		repos.Pet,
+		repos.LstepTagCache,
+		svcs.LstepTagSync,
+		svcs.Audit,
+	)
+	svcs.LstepTag = service.NewLstepTagService(
+		svcs.LstepSettings,
+		repos.Owner,
+		repos.LstepTagCache,
+		svcs.Audit,
+	)
+
+	// 共有ファイルストレージ初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
+	var sharedStorage infra.FileStorage
+	if os.Getenv("STORAGE_TYPE") == "s3" {
+		s3fs, err := infra.NewS3FileStorage(context.Background(), cfg.S3SharedBucket, cfg.S3SharedRegion)
+		if err != nil {
+			logger.Error("failed to initialize S3FileStorage", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		sharedStorage = s3fs
+		logger.Info("shared file storage: S3", slog.String("bucket", cfg.S3SharedBucket))
+	} else {
+		sharedStorage = infra.NewLocalFileStorage("/app/uploads/shared", "http://localhost:"+cfg.Port+"/uploads/shared")
+		logger.Info("shared file storage: local filesystem")
+	}
+	svcs.SharedFile = service.NewSharedFileService(repos.SharedFile, repos.Owner, sharedStorage)
+	// LSTEP-BE-012: 慢性疾患フラグ
+	svcs.ChronicCondition = service.NewChronicConditionService(repos.ChronicCondition, repos.Pet, svcs.LstepTagSync)
+	// LSTEP-BE-013: LINE個別送信
+	svcs.LineSend = service.NewLineSendService(svcs.LstepSettings, repos.Owner, svcs.SharedFile, repos.LstepTagCache, svcs.Audit, repos.LineSendLog)
+	// LSTEP-BE-014: ノーショウ検知バッチ
+	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic, repos.MedicalRecord, svcs.Audit)
+	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
+	svcs.LineLink = service.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, svcs.Audit)
+	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
+	svcs.LstepTagSummary = service.NewLstepTagSummaryService(repos.LstepTagCache)
+	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
+	svcs.CheckupSync = service.NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.LstepTagCache, svcs.LstepSettings, svcs.Audit)
+
 	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var uploader infra.FileUploader
 	if os.Getenv("STORAGE_TYPE") == "s3" {
@@ -89,6 +157,52 @@ func main() {
 	// アプリケーションライフタイムコンテキスト（バックグラウンドゴルーチン管理用）
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
+
+	// LSTEP-BE-014: ノーショウ検知バッチ — 毎時0分に起動し 10/15/20 時 (JST) のみ実行
+	go func() {
+		jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+		triggerHours := map[int]bool{10: true, 15: true, 20: true}
+		for {
+			now := time.Now().In(jst)
+			next := now.Truncate(time.Hour).Add(time.Hour)
+			timer := time.NewTimer(next.Sub(now))
+			select {
+			case <-appCtx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+				h := time.Now().In(jst).Hour()
+				if triggerHours[h] {
+					if batchErr := svcs.LstepBatch.RunNoShowCheckAllClinics(appCtx); batchErr != nil {
+						logger.Error("no-show batch failed", slog.String("error", batchErr.Error()))
+					}
+				}
+			}
+		}
+	}()
+
+	// LSTEP-BE-004: 休眠検知バッチ — 毎日 02:00 JST に実行
+	go func() {
+		jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+		for {
+			now := time.Now().In(jst)
+			// 翌日の 02:00 JST を計算
+			next := time.Date(now.Year(), now.Month(), now.Day(), 2, 0, 0, 0, jst)
+			if !next.After(now) {
+				next = next.Add(24 * time.Hour)
+			}
+			timer := time.NewTimer(next.Sub(now))
+			select {
+			case <-appCtx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+				if batchErr := svcs.LstepBatch.RunDormantDetectionAllClinics(appCtx); batchErr != nil {
+					logger.Error("dormant detection batch failed", slog.String("error", batchErr.Error()))
+				}
+			}
+		}
+	}()
 
 	// ルーター設定
 	r := gin.New()

@@ -75,10 +75,10 @@ const DIAGNOSIS_NAMES_KEY = ["masters", "diagnosis-names"] as const;
 // ─────────────────────────────────────────────────
 
 export async function listDiagnosisTypes(): Promise<DiagnosisType[]> {
-  const { data } = await axios.get<ModelDiagnosisType[]>(
+  const { data } = await axios.get<{ data: ModelDiagnosisType[] }>(
     "/v1/masters/diagnosis-types",
   );
-  return data.map(transformDiagnosisType);
+  return data.data.map(transformDiagnosisType);
 }
 
 export async function createDiagnosisType(
@@ -117,10 +117,10 @@ export async function reorderDiagnosisTypes(
 // ─────────────────────────────────────────────────
 
 export async function listDiagnosisNames(): Promise<DiagnosisName[]> {
-  const { data } = await axios.get<ModelDiagnosisName[]>(
+  const { data } = await axios.get<{ data: ModelDiagnosisName[] }>(
     "/v1/masters/diagnosis-names",
   );
-  return data.map(transformDiagnosisName);
+  return data.data.map(transformDiagnosisName);
 }
 
 export async function createDiagnosisName(

@@ -30,6 +30,14 @@ type Config struct {
 
 	// FrontendURL はパスワードリセットメール等に含めるフロントエンドのベースURL。
 	FrontendURL string
+
+	// IntegrationEncryptionKey はクリニック連携設定（LステップAPIキー等）をAES-256-GCMで暗号化するキー。
+	// 32バイトのhex文字列（64文字）。本番では必須。
+	IntegrationEncryptionKey string
+
+	// S3 ファイルストレージ設定（shared_files用）
+	S3SharedBucket string
+	S3SharedRegion string
 }
 
 func Load() *Config {
@@ -52,6 +60,10 @@ func Load() *Config {
 		SMTPFrom: os.Getenv("SMTP_FROM"),
 
 		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
+
+		IntegrationEncryptionKey: os.Getenv("INTEGRATION_ENCRYPTION_KEY"),
+		S3SharedBucket:           os.Getenv("S3_SHARED_BUCKET"),
+		S3SharedRegion:           getEnv("S3_SHARED_REGION", "ap-northeast-1"),
 	}
 }
 

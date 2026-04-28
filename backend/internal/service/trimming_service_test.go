@@ -95,6 +95,10 @@ func (m *mockTrimmingReservationRepository) CountByDateAndSource(_ context.Conte
 	return 0, nil
 }
 
+func (m *mockTrimmingReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
+	return nil, nil
+}
+
 // コンパイル時インターフェース適合チェック
 var _ repository.ReservationRepository = (*mockTrimmingReservationRepository)(nil)
 

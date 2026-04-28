@@ -1,7 +1,7 @@
 # BUG-384: `config/paths.ts` と router.tsx の settings ルート不整合による複数 dead route
 
 **作成日**: 2026-04-15
-**Status**: OPEN
+**Status**: CLOSED
 **Priority**: HIGH (運用中画面 → 404、設計一貫性破綻)
 **Affects**: `frontend/src/config/paths.ts`, `frontend/src/app/router.tsx`, `features/master/constants/category-config.ts`, `features/trimming`
 

@@ -20,6 +20,7 @@ type mockPetRepository struct {
 	createFn                      func(ctx context.Context, pet *model.Pet) error
 	updateFn                      func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
+	findLivingByOwnerFn           func(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
 }
 
 func (m *mockPetRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
@@ -57,6 +58,13 @@ func (m *mockPetRepository) Update(ctx context.Context, clinicID, id uint64, fie
 
 func (m *mockPetRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockPetRepository) FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error) {
+	if m.findLivingByOwnerFn != nil {
+		return m.findLivingByOwnerFn(ctx, clinicID, ownerID)
+	}
+	return nil, nil
 }
 
 // defaultOwnerRepo は owner を常に見つけるモック（cross-clinic validation パスさせる用）

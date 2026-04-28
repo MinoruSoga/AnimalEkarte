@@ -16,6 +16,9 @@ type createMedicalRecordRequest struct {
 	AppointmentID *string    `json:"appointment_id"`              // FE送信（string）→ uint64に変換
 	Status        string     `json:"status"                       binding:"omitempty,oneof=draft finalized"`
 
+	// BE-006: 次回来院推奨日
+	NextVisitRecommendedDate *string `json:"next_visit_recommended_date"` // "YYYY-MM-DD" or null
+
 	// ClinicalPlan関連フィールド（原子的作成用）
 	ChiefComplaint       *string `json:"chief_complaint"`
 	ChiefComplaintTypeID *uint64 `json:"chief_complaint_type_id"`
@@ -30,11 +33,12 @@ type createMedicalRecordRequest struct {
 
 // updateMedicalRecordRequest はカルテ更新のバインド struct
 type updateMedicalRecordRequest struct {
-	Date          *time.Time `json:"date"`
-	OwnerID       *uint64    `json:"owner_id"`
-	PetID         *uint64    `json:"pet_id"`
-	DoctorID      *uint64    `json:"doctor_id"`
-	AppointmentID *uint64    `json:"appointment_id"`
-	Status        *string    `json:"status"      binding:"omitempty,oneof=draft finalized"`
-	Version       *int       `json:"version"` // 楽観的ロック用
+	Date                     *time.Time `json:"date"`
+	OwnerID                  *uint64    `json:"owner_id"`
+	PetID                    *uint64    `json:"pet_id"`
+	DoctorID                 *uint64    `json:"doctor_id"`
+	AppointmentID            *uint64    `json:"appointment_id"`
+	Status                   *string    `json:"status"      binding:"omitempty,oneof=draft finalized"`
+	Version                  *int       `json:"version"`                     // 楽観的ロック用
+	NextVisitRecommendedDate *string    `json:"next_visit_recommended_date"` // "YYYY-MM-DD" or null
 }

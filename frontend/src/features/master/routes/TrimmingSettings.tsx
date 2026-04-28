@@ -14,7 +14,7 @@ import { Plus, Scissors } from "lucide-react";
 // Shared
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
+import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
@@ -600,6 +600,8 @@ export function TrimmingSettings() {
   const optionSetEditTarget = optionCrud.setEditTarget;
   const optionSetPendingDelete = optionCrud.setPendingDelete;
 
+  const tabItems = TABS;
+
   const handleTabChange = useCallback((tab: string) => {
     // BUG-380: タブ切替前に未保存破棄を確認
     if (!dirty.confirmDiscard()) return;
@@ -679,34 +681,27 @@ export function TrimmingSettings() {
             }
           >
             <div className="flex flex-col gap-4">
-              <TabsPrimitive.Root value={activeTab} onValueChange={handleTabChange} className="flex flex-col gap-4">
-                <TabsPrimitive.List className={`flex h-9 border-b ${C.borderLight} gap-0`}>
-                  {TABS.map((tab) => (
-                    <TabsPrimitive.Trigger
-                      key={tab.value}
-                      value={tab.value}
-                      className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
-                        ${C.dataActiveBorderB} ${C.dataActiveText} data-[state=active]:font-medium`}
-                    >
-                      {tab.label}
-                    </TabsPrimitive.Trigger>
-                  ))}
-                </TabsPrimitive.List>
-                <TabsPrimitive.Content value="course" className="mt-4">
+              <UnifiedTabs
+                items={tabItems}
+                value={activeTab}
+                onValueChange={handleTabChange}
+                className="flex flex-col gap-4"
+              >
+                <UnifiedTabsContent value="course" className="mt-4">
                   <TrimmingCourseTab
                     editTarget={courseCrud.editTarget}
                     onEditTargetChange={courseCrud.setEditTarget}
                     canEdit={canEdit}
                   />
-                </TabsPrimitive.Content>
-                <TabsPrimitive.Content value="option" className="mt-4">
+                </UnifiedTabsContent>
+                <UnifiedTabsContent value="option" className="mt-4">
                   <TrimmingOptionTab
                     editTarget={optionCrud.editTarget}
                     onEditTargetChange={optionCrud.setEditTarget}
                     canEdit={canEdit}
                   />
-                </TabsPrimitive.Content>
-              </TabsPrimitive.Root>
+                </UnifiedTabsContent>
+              </UnifiedTabs>
             </div>
           </PageLayout>
         </div>

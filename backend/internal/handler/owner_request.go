@@ -62,3 +62,8 @@ type updateOwnerRequest struct {
 	DiscountRate   *float64  `json:"discount_rate"`
 	MembershipType *string   `json:"membership_type"  binding:"omitempty,oneof=non_member member deceased transferred"`
 }
+
+// patchOwnerLineUserIDRequest は LINE User ID 連携リクエスト（BE-005）。nil で連携解除。
+type patchOwnerLineUserIDRequest struct {
+	LineUserID *string `json:"line_user_id"`
+}

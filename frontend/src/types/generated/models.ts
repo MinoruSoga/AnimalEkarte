@@ -201,6 +201,30 @@ export const AuditActionAuthLoginFailure = "auth.login.failure";
  * 監査アクション定数
  */
 export const AuditActionAuthLogout = "auth.logout";
+/**
+ * Lステップ / LINE連携 監査アクション
+ */
+export const AuditActionLstepSettingsSave = "lstep.settings.save";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionLstepTagSync = "lstep.tag.sync";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionLstepTagSyncBulk = "lstep.tag.sync_bulk";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionLineNotificationSend = "line.notification.send";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionOwnerLineUserIDUpdate = "owner.line_user_id.update";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionOwnerLineUserIDUnlink = "owner.line_user_id.unlink";
 
 //////////
 // source: billing_confirmation.go
@@ -422,6 +446,49 @@ export interface ClinicHoliday {
   created_at: string;
   updated_at: string;
 }
+
+//////////
+// source: clinic_integration.go
+
+/**
+ * ClinicIntegration はクリニックの外部サービス連携設定（AES-256-GCM暗号化済み）。
+ */
+export interface ClinicIntegration {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  service: string;
+  key_name: string;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * Lステップ連携の service 識別子
+ */
+export const IntegrationServiceLstep = "lstep";
+/**
+ * key_name 定数
+ */
+export const IntegrationKeyLstepAPIKey = "lstep_api_key";
+/**
+ * key_name 定数
+ */
+export const IntegrationKeyLstepBaseURL = "lstep_base_url";
+/**
+ * key_name 定数
+ */
+export const IntegrationKeyLineChannelAccessToken = "line_channel_access_token";
+/**
+ * key_name 定数
+ */
+export const IntegrationKeyLineChannelSecret = "line_channel_secret";
+/**
+ * key_name 定数
+ */
+export const IntegrationKeyLiffID = "liff_id";
+/**
+ * key_name 定数
+ */
+export const IntegrationKeyLineAccountName = "line_account_name";
 
 //////////
 // source: clinic_settings.go
@@ -1028,6 +1095,22 @@ export interface LineCustomer {
 }
 
 //////////
+// source: line_link_token.go
+
+/**
+ * LineLinkToken は LINE User ID 紐付け用の一時トークン（BE-021）。
+ */
+export interface LineLinkToken {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  token: string;
+  expires_at: string;
+  used_at?: string;
+  created_at: string;
+}
+
+//////////
 // source: line_reservation_setting.go
 
 export interface LineReservationSetting {
@@ -1064,6 +1147,38 @@ export interface LineReservationSetting {
 }
 
 //////////
+// source: line_send_log.go
+
+export interface LineSendLog {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  sent_by_user_id: number /* uint64 */;
+  message_type: string;
+  content_summary: string;
+  line_message_id?: string;
+  status: string;
+  error_message?: string;
+  sent_at: string;
+}
+
+//////////
+// source: lstep_tag_cache.go
+
+/**
+ * LstepTagCache はLステップタグのカルテ側キャッシュ。
+ * タグ操作ごとに Upsert/Delete して Lステップ API 依存を最小化する。
+ */
+export interface LstepTagCache {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  tag_name: string;
+  category: string;
+  synced_at: string;
+}
+
+//////////
 // source: medical_record.go
 
 export type MedicalRecordStatus = string;
@@ -1080,6 +1195,7 @@ export interface MedicalRecord {
   appointment_id?: number /* uint64 */;
   status: MedicalRecordStatus;
   version: number /* int */;
+  next_visit_recommended_date?: string;
   entered_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
@@ -1247,6 +1363,12 @@ export interface Owner {
   is_dangerous: boolean;
   discount_rate: number /* float64 */;
   membership_type: MembershipType;
+  line_user_id?: string;
+  lstep_opt_out: boolean;
+  lstep_opt_out_at?: string;
+  lstep_opt_out_reason?: string;
+  line_followed_at?: string;
+  line_blocked_at?: string;
   created_at: string;
   updated_at: string;
   /**
@@ -1429,6 +1551,8 @@ export interface Pet {
   last_visit?: string;
   insurance_id?: number /* uint64 */;
   remarks: string;
+  deceased_at?: string;
+  deceased_reason?: string;
   created_at: string;
   updated_at: string;
   /**
@@ -1437,6 +1561,53 @@ export interface Pet {
   owner?: Owner;
   insurance?: Insurance;
   animal_species?: AnimalSpecies;
+}
+
+//////////
+// source: pet_chronic_condition.go
+
+/**
+ * PetChronicCondition はペットの慢性疾患フラグ（LSTEP-BE-012）。
+ */
+export interface PetChronicCondition {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  pet_id: number /* uint64 */;
+  condition_code: string;
+  condition_name: string;
+  diagnosed_at: string;
+  notes?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  pet?: Pet;
+}
+
+//////////
+// source: prescription.go
+
+/**
+ * Prescription は処方薬記録（LSTEP-BE-009）
+ */
+export interface Prescription {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  pet_id?: number /* uint64 */;
+  medical_record_id?: number /* uint64 */;
+  prescribed_at: string;
+  duration_days: number /* int */;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  owner?: Owner;
+  pet?: Pet;
+  medical_record?: MedicalRecord;
 }
 
 //////////
@@ -1475,6 +1646,7 @@ export const ReservationStatusCheckedIn: ReservationStatus = "checked_in";
 export const ReservationStatusInConsultation: ReservationStatus = "in_consultation";
 export const ReservationStatusAccounting: ReservationStatus = "accounting";
 export const ReservationStatusCompleted: ReservationStatus = "completed";
+export const ReservationStatusNoShow: ReservationStatus = "no_show";
 export type VisitType = string;
 export const VisitTypeFirst: VisitType = "first";
 export const VisitTypeRevisit: VisitType = "revisit";
@@ -1625,6 +1797,54 @@ export interface ReservationTypeGroup {
   created_at: string;
   updated_at: string;
 }
+
+//////////
+// source: shared_file.go
+
+/**
+ * SharedFile はLINE個別送信用にアップロードされたファイルのメタデータ。
+ */
+export interface SharedFile {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  owner_id?: number /* uint64 */;
+  uploaded_by: number /* uint64 */;
+  file_type: string;
+  file_name: string;
+  file_size: number /* int64 */;
+  purpose: string;
+  expires_at?: string;
+  created_at: string;
+  deleted_at?: string;
+}
+/**
+ * ファイルタイプ定数
+ */
+export const SharedFileTypePDF = "pdf";
+/**
+ * ファイルタイプ定数
+ */
+export const SharedFileTypeImageJPEG = "image_jpeg";
+/**
+ * ファイルタイプ定数
+ */
+export const SharedFileTypeImagePNG = "image_png";
+/**
+ * 用途定数
+ */
+export const SharedFilePurposeInspectionResult = "inspection_result";
+/**
+ * 用途定数
+ */
+export const SharedFilePurposeVaccineCert = "vaccine_cert";
+/**
+ * 用途定数
+ */
+export const SharedFilePurposeOther = "other";
+/**
+ * MaxSharedFileSizeBytes は許可する最大ファイルサイズ（LINE Messaging API制限: 10MB）
+ */
+export const MaxSharedFileSizeBytes = 10 * 1024 * 1024;
 
 //////////
 // source: shift_entry_break.go

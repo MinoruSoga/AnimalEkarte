@@ -1,7 +1,7 @@
 # BUG-387: 2回目以降のLINE予約でお客様情報が自動復元されない
 
 **作成日**: 2026-04-15
-**Status**: OPEN
+**Status**: CLOSED
 **Priority**: **MEDIUM** (仕様上は自動復元されるべき情報が毎回手入力になり、再予約UXが破綻している)
 **Affects**: `backend/internal/service/liff_service.go`, `backend/internal/handler/liff_handler.go`, `frontend/line-reserve/src/api/liff-api.ts`, `frontend/line-reserve/src/pages/CustomerInfoPage.tsx`
 

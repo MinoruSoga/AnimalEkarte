@@ -1,7 +1,7 @@
 # BUG-381: 薬剤マスタ削除で連携在庫が孤児化する
 
 **作成日**: 2026-04-15
-**Status**: OPEN
+**Status**: CLOSED
 **Priority**: MEDIUM (data integrity / inventory 管理)
 **Affects**: `backend/internal/service/medicine_service.go`, `backend/internal/service/inventory_service.go`, `features/inventory`, `features/medicines`
 

@@ -21,7 +21,7 @@ import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list";
 // Internal
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
+import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -542,6 +542,8 @@ export function DiagnosisSettings() {
   const catSetEditTarget = catCrud.setEditTarget;
   const nameSetEditTarget = nameCrud.setEditTarget;
 
+  const tabItems = TABS;
+
   const handleTabChange = useCallback((tab: string) => {
     // BUG-380: タブ切替前に未保存破棄を確認
     if (!dirty.confirmDiscard()) return;
@@ -612,40 +614,27 @@ export function DiagnosisSettings() {
               ) : null
             }
           >
-            <TabsPrimitive.Root
+            <UnifiedTabs
+              items={tabItems}
               value={activeTab}
               onValueChange={handleTabChange}
               className="flex flex-col gap-4"
             >
-              <TabsPrimitive.List
-                className={`flex h-9 border-b ${C.borderLight} gap-0`}
-              >
-                {TABS.map((tab) => (
-                  <TabsPrimitive.Trigger
-                    key={tab.value}
-                    value={tab.value}
-                    className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
-                      ${C.dataActiveBorderB} ${C.dataActiveText} data-[state=active]:font-medium`}
-                  >
-                    {tab.label}
-                  </TabsPrimitive.Trigger>
-                ))}
-              </TabsPrimitive.List>
-              <TabsPrimitive.Content value="diagnosis_type" className="mt-4">
+              <UnifiedTabsContent value="diagnosis_type" className="mt-4">
                 <DiagnosisTypeTab
                   editTarget={catCrud.editTarget}
                   onEditTargetChange={catCrud.setEditTarget}
                   canEdit={canEdit}
                 />
-              </TabsPrimitive.Content>
-              <TabsPrimitive.Content value="diagnosis_name" className="mt-4">
+              </UnifiedTabsContent>
+              <UnifiedTabsContent value="diagnosis_name" className="mt-4">
                 <DiagnosisNameTab
                   editTarget={nameCrud.editTarget}
                   onEditTargetChange={nameCrud.setEditTarget}
                   canEdit={canEdit}
                 />
-              </TabsPrimitive.Content>
-            </TabsPrimitive.Root>
+              </UnifiedTabsContent>
+            </UnifiedTabs>
           </PageLayout>
         </div>
 

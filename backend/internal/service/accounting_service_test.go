@@ -69,6 +69,14 @@ func (m *mockAccountingRepository) GetMonthlyReport(_ context.Context, _ uint64,
 	return &repository.MonthlyReportResult{Rows: []repository.MonthlyReportRow{}}, nil
 }
 
+func (m *mockAccountingRepository) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockAccountingRepository) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func ptrString(v string) *string { return &v }
 
 func TestAccountingService_List(t *testing.T) {

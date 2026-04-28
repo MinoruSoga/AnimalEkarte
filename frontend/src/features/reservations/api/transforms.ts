@@ -49,6 +49,7 @@ export const transformReservation = (
     status: (reservation.status as ReservationStatus) ?? "pending",
     notes: reservation.notes || undefined,
     petId: reservation.pet_id ? String(reservation.pet_id) : undefined,
+    ownerId: reservation.owner_id ? String(reservation.owner_id) : reservation.owner?.id ? String(reservation.owner.id) : undefined,
     source: (reservation.source as "manual" | "line") ?? "manual",
   };
 };

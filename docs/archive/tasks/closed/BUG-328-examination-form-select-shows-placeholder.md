@@ -1,6 +1,6 @@
 # BUG-328: 検査編集フォームで検査種別・担当医 Select が「選択してください」を表示
 
-**Status**: OPEN  
+**Status**: CLOSED  
 **Priority**: Medium  
 **Discovery**: 機能テスト Section 5 検査管理 (2026-04-12)
 

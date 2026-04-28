@@ -1,6 +1,6 @@
 # BUG-332: 検査削除後にエラートーストが表示されページ遷移しない
 
-**Status**: OPEN  
+**Status**: CLOSED  
 **Priority**: Medium  
 **Discovery**: 機能テスト Section 5 検査管理 (2026-04-12)
 

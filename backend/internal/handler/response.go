@@ -68,6 +68,13 @@ func RespondError(c *gin.Context, err error) {
 		c.JSON(http.StatusForbidden, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrNotImplemented):
 		c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+	case errors.Is(err, apperrors.ErrBadGateway):
+		var appErr *apperrors.AppError
+		msg := "bad gateway"
+		if errors.As(err, &appErr) && appErr.Message != "" {
+			msg = appErr.Message
+		}
+		c.JSON(http.StatusBadGateway, gin.H{"error": msg})
 	case isPgError(err):
 		// BUG-138: FromGORM を経由しなかった PostgreSQL エラーをここでキャッチ
 		pgMsg := classifyPgError(err)
@@ -365,6 +372,21 @@ func (h *Handler) RequirePermission(resource, action string) gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+// RequirePermissionAny は指定された複数の(リソース, アクション)ペアの内、いずれかの権限を持つユーザーのみ通過させる。
+// system_admin は全権限バイパス。複数の権限オプション(OR)をサポート。
+func (h *Handler) RequirePermissionAny(permissions ...struct{ Resource, Action string }) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		for _, perm := range permissions {
+			if h.hasPermission(c, perm.Resource, perm.Action) {
+				c.Next()
+				return
+			}
+		}
+		RespondError(c, apperrors.WrapForbidden("forbidden"))
+		c.Abort()
 	}
 }
 

@@ -1,5 +1,5 @@
 import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
-import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase, Smartphone } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase, Smartphone, BarChart3 } from "lucide-react";
 import { useState, useEffect, memo, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -309,6 +309,7 @@ export const Sidebar = memo(function Sidebar() {
             { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref(), resource: ResourceHospitalization },
             { icon: <Package       className={ICON.toolbar} />, label: "在庫管理",     path: paths.inventory.getHref(),       resource: ResourceInventory },
             { icon: <CalendarDays  className={ICON.toolbar} />, label: "シフト管理",   path: paths.shifts.getHref(),          resource: ResourceShifts },
+            { icon: <BarChart3     className={ICON.toolbar} />, label: "集計・分析",   path: paths.aggregation.getHref(), resource: ResourceOwners },
           ].map(item => (
             <SidebarItemWithPermission key={item.label} item={item as MenuItem} collapsed={collapsed} />
           ))}
@@ -331,6 +332,27 @@ export const Sidebar = memo(function Sidebar() {
             collapsed={collapsed}
           />
         </div>
+
+        {/* Lステップ連携 Section (temporary disabled until feature completion) */}
+        {/*
+        <div className="space-y-px">
+          {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>Lステップ連携</p> : null}
+          <SidebarItemWithPermission
+            item={{
+              icon: <MessageSquare className={ICON.toolbar} />,
+              label: "Lステップ連携",
+              path: paths.lstep.settings.getHref(),
+              resource: ResourceHospitalSettings,
+              subItems: [
+                { icon: <MessageSquare className={ICON.toolbar} />, label: "連携設定", path: paths.lstep.settings.getHref(), resource: ResourceHospitalSettings },
+                { icon: <Tag className={ICON.toolbar} />, label: "タグ管理", path: paths.lstep.tags.getHref(), resource: ResourceOwners },
+                { icon: <ClipboardSignature className={ICON.toolbar} />, label: "健診対象者抽出", path: paths.lstep.checkupSync.getHref(), resource: ResourceOwners },
+              ],
+            } as MenuItem}
+            collapsed={collapsed}
+          />
+        </div>
+        */}
 
         {/* Settings Section */}
         <div className="space-y-px">

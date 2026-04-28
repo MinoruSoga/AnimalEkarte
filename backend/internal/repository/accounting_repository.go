@@ -26,6 +26,10 @@ type AccountingRepository interface {
 	// FEAT-368: 集計・締め機能
 	GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
 	GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
+	// SumPaidByOwner は飼い主の支払済み請求合計（LTV）を返す（Lステップタグ同期用）。
+	SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	// MaxSingleVisitAmountByOwner は飼い主の1回来院最大支払額を返す（CPMスポット判定用）。
+	MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
 
 // PaymentMethodTotal は支払方法別の売上合計。BUG-368
@@ -116,6 +120,7 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 		var sums []refundSum
 		if err := r.db.WithContext(ctx).
 			Model(&model.BillingRefund{}).
+			Unscoped().
 			Select("billing_id, COALESCE(SUM(amount), 0) AS total").
 			Where("billing_id IN ?", ids).
 			Group("billing_id").
@@ -139,8 +144,8 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 		Preload("Items", "deleted_at IS NULL").
 		Preload("Payments", "deleted_at IS NULL").
 		Preload("Payments.PaidByStaff", "deleted_at IS NULL").
-		Preload("Refunds", "deleted_at IS NULL").
-		Preload("Refunds.RefundedByStaff", "deleted_at IS NULL").
+		Preload("Refunds").
+		Preload("Refunds.RefundedByStaff").
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&billing).Error
@@ -183,7 +188,7 @@ func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID u
 	}
 	var billing model.Billing
 	if err := r.db.WithContext(ctx).
-		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Refunds", "deleted_at IS NULL").Preload("Refunds.RefundedByStaff", "deleted_at IS NULL").Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").
+		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		First(&billing, "id = ?", billingID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
@@ -384,7 +389,7 @@ type CloseBillingDetail struct {
 
 // TaxBreakdownRow は税率別の集計結果1行
 type TaxBreakdownRow struct {
-	TaxRate       int64 // 例: 10 or 8
+	TaxRate       int64 // 整数パーセント: 10 (標準) or 8 (軽減)
 	TaxableAmount int64
 	TaxAmount     int64
 }
@@ -433,6 +438,7 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
 		Joins("JOIN billing_items ON billing_items.billing_id = billings.id AND billing_items.deleted_at IS NULL").
 		Joins("LEFT JOIN billing_refunds ON billing_refunds.billing_id = billings.id").
+		Unscoped().
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", input.ClinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
 		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", input.PeriodStart).
@@ -477,6 +483,7 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		Joins("LEFT JOIN owners ON owners.id = billings.owner_id AND owners.deleted_at IS NULL").
 		Joins("LEFT JOIN pets ON pets.id = billings.pet_id AND pets.deleted_at IS NULL").
 		Joins("LEFT JOIN billing_refunds ON billing_refunds.billing_id = billings.id").
+		Unscoped().
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", input.ClinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
 		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", input.PeriodStart).
@@ -530,9 +537,9 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", input.PeriodStart).
 		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", input.PeriodEnd).
 		Select(
-			"billing_items.tax_rate AS tax_rate," +
-				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * (1 - COALESCE(billing_items.discount_rate, 0) / 100.0))), 0) AS taxable_amount," +
-				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * (1 - COALESCE(billing_items.discount_rate, 0) / 100.0) * billing_items.tax_rate / 100.0)), 0) AS tax_amount",
+			"ROUND(billing_items.tax_rate * 100)::bigint AS tax_rate," +
+				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric)), 0) AS taxable_amount," +
+				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * billing_items.tax_rate)), 0) AS tax_amount",
 		).
 		Group("billing_items.tax_rate").
 		Scan(&taxRows).Error; err != nil {
@@ -572,6 +579,7 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
 		Joins("JOIN billing_items ON billing_items.billing_id = billings.id AND billing_items.deleted_at IS NULL").
 		Joins("LEFT JOIN billing_refunds ON billing_refunds.billing_id = billings.id").
+		Unscoped().
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
 		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
@@ -647,9 +655,9 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
 		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
 		Select(
-			"billing_items.tax_rate AS tax_rate," +
-				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * (1 - COALESCE(billing_items.discount_rate, 0) / 100.0))), 0) AS taxable_amount," +
-				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * (1 - COALESCE(billing_items.discount_rate, 0) / 100.0) * billing_items.tax_rate / 100.0)), 0) AS tax_amount",
+			"ROUND(billing_items.tax_rate * 100)::bigint AS tax_rate," +
+				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric)), 0) AS taxable_amount," +
+				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * billing_items.tax_rate)), 0) AS tax_amount",
 		).
 		Group("billing_items.tax_rate").
 		Scan(&taxRows).Error; err != nil {
@@ -679,4 +687,34 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 		BillingCount: billingCount,
 		TaxBreakdown: taxBreakdown,
 	}, nil
+}
+
+// SumPaidByOwner は飼い主の支払済み請求合計（LTV）を返す（Lステップタグ同期用）。
+func (r *accountingRepository) SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	var total int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Billing{}).
+		Scopes(clinicScope(clinicID)).
+		Where("owner_id = ? AND status = ? AND deleted_at IS NULL", ownerID, model.BillingStatusCompleted).
+		Select("COALESCE(SUM(total_amount), 0)").
+		Scan(&total).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "billing", fmt.Sprintf("owner=%d", ownerID))
+	}
+	return total, nil
+}
+
+// MaxSingleVisitAmountByOwner は飼い主の1回来院最大支払額を返す（CPMスポット判定用）。
+func (r *accountingRepository) MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	var maxAmount int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Billing{}).
+		Scopes(clinicScope(clinicID)).
+		Where("owner_id = ? AND status = ? AND deleted_at IS NULL", ownerID, model.BillingStatusCompleted).
+		Select("COALESCE(MAX(total_amount), 0)").
+		Scan(&maxAmount).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "billing", fmt.Sprintf("owner=%d", ownerID))
+	}
+	return maxAmount, nil
 }

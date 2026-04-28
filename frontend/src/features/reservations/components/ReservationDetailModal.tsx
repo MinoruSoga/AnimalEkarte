@@ -3,7 +3,8 @@ import { ICON, C } from "@/lib/design-tokens";
 import type { ReactNode } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { Calendar, Clock, Stethoscope, FileText, Pencil, Scissors, Building2, FilePlus2, PawPrint, Tag } from "lucide-react";
+import { Calendar, Clock, Stethoscope, FileText, Pencil, Scissors, Building2, FilePlus2, PawPrint, Tag, AlertTriangle } from "lucide-react";
+import { useGetOwnerLineTags } from "@/features/owners";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -76,6 +77,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
   reservation,
 }: ReservationDetailModalProps) {
   const { getColor } = useReservationTypeColorMap();
+  const { data: lineData } = useGetOwnerLineTags(reservation?.ownerId ?? "");
 
   if (!reservation) return null;
 
@@ -105,6 +107,18 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
         </DialogHeader>
 
         <div className="px-5 pt-3 pb-4 space-y-4">
+          {/* LINE Warning */}
+          {lineData !== undefined && (!lineData.is_linked || lineData.lstep_opt_out) ? (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-700">
+              <AlertTriangle className="shrink-0 mt-0.5 w-4 h-4" />
+              <span>
+                {lineData.lstep_opt_out
+                  ? "この飼い主はLINE配信停止中です。Lステップ同期対象外になります。"
+                  : "この飼い主はLINE未連携です。Lステップ同期対象外になります。"}
+              </span>
+            </div>
+          ) : null}
+
           {/* Status Selector */}
           {onStatusChange ? (
             <div className={`flex items-center justify-between rounded-lg border px-3 py-2 ${currentStatus.bg} ${currentStatus.text} border-transparent`}>

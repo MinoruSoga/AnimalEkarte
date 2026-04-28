@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { formatDate } from "@/utils/format/date";
 
 // External
@@ -8,7 +8,7 @@ import { Calendar, FileText, Settings } from "lucide-react";
 
 // Internal
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 
 // Relative
 import { CarePlanTab } from "./CarePlanTab/CarePlanTab";
@@ -26,8 +26,21 @@ interface HospitalizationTabbedViewProps {
 export const HospitalizationTabbedView = memo(function HospitalizationTabbedView({
     hospitalization,
 }: HospitalizationTabbedViewProps) {
+    const [activeTab, setActiveTab] = useState<"daily" | "plan">("daily");
+
     // Determine the effective discharge date
     const dischargeDate = hospitalization.endDate || new Date().toISOString().split("T")[0];
+
+    const tabItems = [
+      { value: "daily", label: <span className="flex items-center"><FileText className={`${ICON.action} mr-2`} />デイリーカルテ</span> },
+      { value: "plan", label: <span className="flex items-center"><Settings className={`${ICON.action} mr-2`} />プラン管理・詳細</span> },
+    ] as const;
+
+    const handleTabChange = (tab: string) => {
+      if (tab === "daily" || tab === "plan") {
+        setActiveTab(tab);
+      }
+    };
 
     return (
         <div className={`lg:hidden flex flex-col ${H_STYLES.gap.default}`}>
@@ -37,19 +50,8 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
                 />
             </div>
 
-            <Tabs defaultValue="daily" className="flex flex-col">
-                <TabsList className="w-full grid grid-cols-2">
-                    <TabsTrigger value="daily" className="text-sm font-bold">
-                        <FileText className={`${ICON.action} mr-2`} />
-                        デイリーカルテ
-                    </TabsTrigger>
-                    <TabsTrigger value="plan" className="text-sm font-bold">
-                        <Settings className={`${ICON.action} mr-2`} />
-                        プラン管理・詳細
-                    </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="daily" className="mt-2">
+            <UnifiedTabs items={tabItems} value={activeTab} onValueChange={handleTabChange} className="flex flex-col">
+                <UnifiedTabsContent value="daily" className="mt-2">
                     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} shadow-sm flex flex-col`}>
                         <div className={H_STYLES.padding.box}>
                             <DailyRecordsTab
@@ -59,9 +61,9 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
                             />
                         </div>
                     </div>
-                </TabsContent>
+                </UnifiedTabsContent>
 
-                <TabsContent value="plan" className="mt-2">
+                <UnifiedTabsContent value="plan" className="mt-2">
                     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} shadow-sm mb-20`}>
                         <div className={`flex items-center gap-2 mb-4 ${C.text60} text-sm`}>
                             <Calendar className={ICON.action} />
@@ -72,8 +74,8 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
                             hospitalizationId={String(hospitalization.id)}
                         />
                     </div>
-                </TabsContent>
-            </Tabs>
+                </UnifiedTabsContent>
+            </UnifiedTabs>
         </div>
     );
 });

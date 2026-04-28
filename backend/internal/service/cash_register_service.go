@@ -343,8 +343,12 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule)
 	}
 }
 
-// parseHHMM は "HH:MM" 形式の時刻文字列を時・分に分解する
+// parseHHMM は "HH:MM" または "HH:MM:SS"（PostgreSQL time 型）形式の時刻文字列を時・分に分解する
 func parseHHMM(s string) (h, m int, err error) {
+	// PostgreSQL time 型は "HH:MM:SS" で返るので秒部分を除去する
+	if len(s) == 8 && s[2] == ':' && s[5] == ':' {
+		s = s[:5]
+	}
 	if len(s) != 5 || s[2] != ':' {
 		return 0, 0, apperrors.WrapInvalidInput("時刻は HH:MM 形式で指定してください")
 	}

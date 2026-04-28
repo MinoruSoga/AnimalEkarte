@@ -38,6 +38,18 @@ func (m *mockMedicalRecordRepoForTreatment) CountEstimatesByMedicalRecordID(_ co
 	return 0, nil
 }
 
+func (m *mockMedicalRecordRepoForTreatment) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
+	return &repository.OwnerVisitSummary{}, nil
+}
+
+func (m *mockMedicalRecordRepoForTreatment) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepoForTreatment) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+	return nil, nil
+}
+
 // ---- Treatment モック ----
 
 type mockTreatmentRepository struct {
@@ -74,6 +86,10 @@ func (m *mockTreatmentRepository) Delete(ctx context.Context, clinicID, treatmen
 
 func (m *mockTreatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates []repository.TreatmentSortUpdate) error {
 	return m.bulkUpdateSortOrderFn(ctx, updates)
+}
+
+func (m *mockTreatmentRepository) FindUnbilledByPetID(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
+	return nil, nil
 }
 
 // ---- Tests ----

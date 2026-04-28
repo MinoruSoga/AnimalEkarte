@@ -150,15 +150,32 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 		return nil, err
 	}
 
-	// 4. モデル組み立て（RecordNo は service 層で自動生成）
+	// 4. next_visit_recommended_date パース・検証
+	var nextVisitDate *time.Time
+	if input.NextVisitRecommendedDate != nil && *input.NextVisitRecommendedDate != "" {
+		parsed, err := time.Parse("2006-01-02", *input.NextVisitRecommendedDate)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
+		}
+		if !parsed.After(recordDate) {
+			return nil, apperrors.WrapInvalidInput("next_visit_recommended_date must be after the record date")
+		}
+		if parsed.After(recordDate.AddDate(2, 0, 0)) {
+			return nil, apperrors.WrapInvalidInput("next_visit_recommended_date must be within 2 years")
+		}
+		nextVisitDate = &parsed
+	}
+
+	// 5. モデル組み立て（RecordNo は service 層で自動生成）
 	record := &model.MedicalRecord{
-		ClinicID:      clinicID,
-		RecordNo:      input.RecordNo,
-		Date:          recordDate,
-		OwnerID:       ownerID,
-		PetID:         petID,
-		DoctorID:      doctorID,
-		AppointmentID: appointmentID,
+		ClinicID:                 clinicID,
+		RecordNo:                 input.RecordNo,
+		Date:                     recordDate,
+		OwnerID:                  ownerID,
+		PetID:                    petID,
+		DoctorID:                 doctorID,
+		AppointmentID:            appointmentID,
+		NextVisitRecommendedDate: nextVisitDate,
 	}
 	if input.Status != "" {
 		status, err := validateEnum(input.Status,
@@ -210,6 +227,10 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		Diagnosis2CategoryID: input.Diagnosis2CategoryID,
 		Diagnosis2NameID:     input.Diagnosis2NameID,
 	})
+	// BE-006: 次回来院推奨日タグ同期（best-effort）
+	if record.OwnerID != nil {
+		_ = h.svc.LstepTagSync.SyncNextVisitTag(ctx, clinicID, *record.OwnerID)
+	}
 	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d", record.ID))
 	c.JSON(http.StatusCreated, toMedicalRecordResponseWithVisitCount(record, 0))
 }
@@ -243,14 +264,26 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		status = &s
 	}
 
+	// BE-006: 次回来院推奨日パース
+	var nextVisitDate *time.Time
+	if input.NextVisitRecommendedDate != nil && *input.NextVisitRecommendedDate != "" {
+		parsed, err := time.Parse("2006-01-02", *input.NextVisitRecommendedDate)
+		if err != nil {
+			RespondError(c, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)"))
+			return
+		}
+		nextVisitDate = &parsed
+	}
+
 	svcInput := service.UpdateMedicalRecordInput{
-		Date:          input.Date,
-		OwnerID:       input.OwnerID,
-		PetID:         input.PetID,
-		DoctorID:      input.DoctorID,
-		AppointmentID: input.AppointmentID,
-		Status:        status,
-		Version:       input.Version,
+		Date:                     input.Date,
+		OwnerID:                  input.OwnerID,
+		PetID:                    input.PetID,
+		DoctorID:                 input.DoctorID,
+		AppointmentID:            input.AppointmentID,
+		Status:                   status,
+		Version:                  input.Version,
+		NextVisitRecommendedDate: nextVisitDate,
 	}
 
 	ctx := c.Request.Context()
@@ -258,6 +291,14 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 	if err != nil {
 		RespondError(c, err)
 		return
+	}
+	// BE-004: 診療完了タグ同期（finalized 遷移時のみ、best-effort）
+	if status != nil && *status == model.MedicalRecordStatusFinalized && record.OwnerID != nil {
+		_ = h.svc.LstepTagSync.SyncVisitCompletionTags(ctx, clinicID, *record.OwnerID)
+	}
+	// BE-006: 次回来院推奨日タグ同期（best-effort）
+	if record.OwnerID != nil {
+		_ = h.svc.LstepTagSync.SyncNextVisitTag(ctx, clinicID, *record.OwnerID)
 	}
 	c.JSON(http.StatusOK, toMedicalRecordResponse(record))
 }
@@ -272,9 +313,19 @@ func (h *Handler) DeleteMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
+	// BE-REOPEN-002: Delete 前に医療記録を取得して来院/LTV タグ再計算に必要な owner_id を確保
+	record, err := h.svc.MedicalRecord.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 	if err := h.svc.MedicalRecord.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
+	}
+	// BE-REOPEN-002: 医療記録削除後に来院/LTV タグを再計算（best-effort）
+	if record.OwnerID != nil {
+		_ = h.svc.LstepTagSync.SyncVisitCompletionTags(c.Request.Context(), clinicID, *record.OwnerID)
 	}
 	c.Status(http.StatusNoContent)
 }

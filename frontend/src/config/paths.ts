@@ -36,6 +36,11 @@ export const paths = {
     },
   },
 
+  aggregation: {
+    path: "/aggregation",
+    getHref: () => "/aggregation",
+  },
+
   reservations: {
     path: "/reservations",
     getHref: () => "/reservations",
@@ -110,6 +115,19 @@ export const paths = {
     detail: {
       path: "/examinations/:id",
       getHref: (id: string | number) => `/examinations/${id}`,
+    },
+  },
+
+  checkups: {
+    path: "/checkups",
+    getHref: () => "/checkups",
+    selectPet: {
+      path: "/checkups/select-pet",
+      getHref: () => "/checkups/select-pet",
+    },
+    new: {
+      path: "/checkups/new",
+      getHref: () => "/checkups/new",
     },
   },
 
@@ -200,6 +218,21 @@ export const paths = {
     getHref: () => "/line-reservation",
     settings: { path: "/line-reservation/settings", getHref: () => "/line-reservation/settings" },
     pageEditor: { path: "/line-reservation/page-editor", getHref: () => "/line-reservation/page-editor" },
+  },
+
+  lstep: {
+    settings: {
+      path: "/settings/integrations/lstep",
+      getHref: () => "/settings/integrations/lstep",
+    },
+    tags: {
+      path: "/settings/lstep/tags",
+      getHref: () => "/settings/lstep/tags",
+    },
+    checkupSync: {
+      path: "/lstep/checkup-sync",
+      getHref: () => "/lstep/checkup-sync",
+    },
   },
 
   settings: {

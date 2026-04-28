@@ -1,6 +1,6 @@
 # BUG-327: カルテ「検査」タブの「検査取り込み」ボタンが未実装
 
-**Status**: OPEN  
+**Status**: CLOSED  
 **Priority**: High  
 **Discovery**: 機能テスト Section 4.3 検査タブ (2026-04-12)
 

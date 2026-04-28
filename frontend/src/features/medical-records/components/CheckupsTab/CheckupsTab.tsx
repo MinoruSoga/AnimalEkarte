@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, STYLE, ICON, PALETTE } from "@/lib/design-tokens";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
 // Relative
@@ -163,13 +163,41 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
 
 // ── Props ──────────────────────────────────────────────────────────────
 
+type LstepStatus = "synced" | "not-linked" | "opt-out";
+
 interface CheckupsTabProps {
   medicalRecordId: string;
+  lstepStatus?: LstepStatus;
+}
+
+function LstepStatusBadge({ status }: { status: LstepStatus }) {
+  if (status === "synced") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full text-white"
+        style={{ backgroundColor: PALETTE.lineGreen }}
+      >
+        LINE通知対象
+      </span>
+    );
+  }
+  if (status === "not-linked") {
+    return (
+      <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.textNotice} ${C.borderNotice} ${C.bgNotice40}`}>
+        LINE未連携
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.text40} ${C.borderMediumLight} ${C.bgPage30}`}>
+      LINE受信拒否
+    </span>
+  );
 }
 
 // ── Component ──────────────────────────────────────────────────────────
 
-export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
+export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepStatus }: CheckupsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
@@ -282,6 +310,11 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: Checku
 
   return (
     <div className="flex flex-col gap-3 pb-24">
+      {lstepStatus !== undefined ? (
+        <div className="flex items-center gap-2">
+          <LstepStatusBadge status={lstepStatus} />
+        </div>
+      ) : null}
       <div className={`${STYLE.tableContainer} overflow-x-auto`}>
         <table className="w-full">
           {TABLE_HEADER}

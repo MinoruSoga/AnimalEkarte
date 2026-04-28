@@ -47,6 +47,8 @@ type ReservationQueryRepository interface {
 	// FindAllByCategory はカテゴリ（'general'/'trimming'）でフィルタした予約一覧を返す。
 	// トリミング管理APIが appointments ベースで動作するために使用（BE-119）。
 	FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
+	// FindNoShowCandidates は end_time が現在時刻以前の confirmed/pending 予約を返す（BE-014 ノーショウ検知用）。
+	FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error)
 }
 
 // ReservationRepository は 3 つのサブインターフェースを合成したフルインターフェース。
@@ -91,7 +93,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
-	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Pet.AnimalSpecies", "deleted_at IS NULL").Preload("ReservationType", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
+	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("ReservationType", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
@@ -104,7 +106,7 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner", "deleted_at IS NULL").
-		Preload("Pet.AnimalSpecies", "deleted_at IS NULL").
+		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CreatedByStaff", "deleted_at IS NULL").
@@ -294,7 +296,7 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 	var total int64
 
 	q := dbOrTx(ctx, r.db).Model(&model.Reservation{}).
-		Scopes(clinicScope(clinicID)).
+		Where("appointments.clinic_id = ?", clinicID).
 		Joins("JOIN reservation_types ON reservation_types.id = appointments.reservation_type_id AND reservation_types.deleted_at IS NULL").
 		Where("reservation_types.category = ?", category)
 
@@ -326,7 +328,7 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 	if err := q.
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner", "deleted_at IS NULL").
-		Preload("Pet.AnimalSpecies", "deleted_at IS NULL").
+		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("TrimmingDetail.Course", "deleted_at IS NULL").
@@ -352,6 +354,20 @@ func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinic
 		return 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	return count, nil
+}
+
+// FindNoShowCandidates は end_time が現在時刻以前の confirmed/pending 予約を返す（BE-014）。
+func (r *reservationRepository) FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error) {
+	var reservations []model.Reservation
+	err := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND deleted_at IS NULL AND status IN ? AND end_time <= NOW() - interval '4 hours'",
+			clinicID,
+			[]string{string(model.ReservationStatusConfirmed), string(model.ReservationStatusPending)}).
+		Find(&reservations).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation", "")
+	}
+	return reservations, nil
 }
 
 func appointmentDayRange(date time.Time) (start, end time.Time) {

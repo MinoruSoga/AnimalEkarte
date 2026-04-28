@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from "react-router";
 
 // Components
 import { UnpaidTab } from "../components/UnpaidTab";
+import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
@@ -106,6 +107,10 @@ const ACCOUNTING_SORT_PROPERTIES: SortProperty[] = [
   { key: "status", label: "ステータス" },
 ];
 
+const TABS = [
+  { value: "list", label: "会計一覧" },
+  { value: "unpaid", label: "未納者一覧" },
+] as const;
 
 function calculateTotal(accounting: AccountingType) {
   if (accounting.payment) return accounting.payment.totalAmount;
@@ -123,7 +128,8 @@ export function AccountingList() {
   const { canCreate, canEdit } = usePermission("accounting");
 
   const activeTab = searchParams.get("tab") === "unpaid" ? "unpaid" : "list";
-  const handleTabChange = useCallback((tab: "list" | "unpaid") => {
+  const tabItems = TABS;
+  const handleTabChange = useCallback((tab: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (tab === "unpaid") {
@@ -384,28 +390,15 @@ export function AccountingList() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        {/* タブナビゲーション */}
-        <div className={`flex border-b ${C.borderLight}`}>
-          {(["list", "unpaid"] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => handleTabChange(tab)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab
-                  ? `${C.accent} border-current`
-                  : `${C.text50} border-transparent hover:${C.text}`
-              }`}
-            >
-              {tab === "list" ? "会計一覧" : "未納者一覧"}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === "unpaid" ? (
-          <UnpaidTab />
-        ) : (
-          <>
+        <UnifiedTabs
+          items={tabItems}
+          value={activeTab}
+          onValueChange={handleTabChange}
+        >
+          <UnifiedTabsContent value="unpaid" className="mt-4">
+            <UnpaidTab />
+          </UnifiedTabsContent>
+          <UnifiedTabsContent value="list" className="mt-4">
             {isLoading ? <LoadingFallback /> : null}
             {isError ? <ErrorFallback /> : null}
             {!isLoading && !isError ? (
@@ -446,8 +439,8 @@ export function AccountingList() {
                 ) : null}
               </>
             ) : null}
-          </>
-        )}
+          </UnifiedTabsContent>
+        </UnifiedTabs>
       </div>
     </PageLayout>
   );

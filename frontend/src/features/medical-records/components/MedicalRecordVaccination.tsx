@@ -5,6 +5,7 @@ import { memo, useMemo, useState, useCallback, useTransition } from "react";
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
 import { useCreateVaccination } from "@/hooks/use-vaccinations";
 import { handleApiError } from "@/lib/handle-api-error";
+import { C, PALETTE } from "@/lib/design-tokens";
 
 // Relative
 import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
@@ -12,12 +13,41 @@ import type { PetVaccinationHistoryItem } from "../api/get-pet-vaccinations";
 import { VaccinationForm } from "./VaccinationForm";
 import { VaccinationHistory } from "./VaccinationHistory";
 
+type LstepStatus = "synced" | "not-linked" | "opt-out";
+
 interface MedicalRecordVaccinationProps {
   petId?: string;
+  lstepStatus?: LstepStatus;
+}
+
+function LstepStatusBadge({ status }: { status: LstepStatus }) {
+  if (status === "synced") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full text-white"
+        style={{ backgroundColor: PALETTE.lineGreen }}
+      >
+        LINE通知対象
+      </span>
+    );
+  }
+  if (status === "not-linked") {
+    return (
+      <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.textNotice} ${C.borderNotice} ${C.bgNotice40}`}>
+        LINE未連携
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.text40} ${C.borderMediumLight} ${C.bgPage30}`}>
+      LINE受信拒否
+    </span>
+  );
 }
 
 export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   petId,
+  lstepStatus,
 }: MedicalRecordVaccinationProps) {
   const [vaccineName, setVaccineName] = useState("");
   const [date, setDate] = useState("");
@@ -87,6 +117,12 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   }, [petId, vaccineName, date, lot1, lot2, lot3, lot4, nextDate, remarks, createVaccination]);
 
   return (
+    <>
+      {lstepStatus !== undefined ? (
+        <div className="flex items-center gap-2 px-1 py-1.5 shrink-0">
+          <LstepStatusBadge status={lstepStatus} />
+        </div>
+      ) : null}
     <div className="grid grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1">
       {/* Left Column: Form */}
       <VaccinationForm
@@ -123,5 +159,6 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         canCreate={!!petId}
       />
     </div>
+    </>
   );
 });

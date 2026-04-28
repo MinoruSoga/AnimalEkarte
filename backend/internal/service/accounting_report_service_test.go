@@ -54,6 +54,14 @@ func (m *mockAccountingRepositoryForReport) GetMonthlyReport(ctx context.Context
 	return &repository.MonthlyReportResult{Rows: []repository.MonthlyReportRow{}}, nil
 }
 
+func (m *mockAccountingRepositoryForReport) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockAccountingRepositoryForReport) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- ヘルパー ----
 
 func newAccountingReportService(

@@ -68,6 +68,7 @@ func allModels() []any {
 		&model.ExamResult{},
 		&model.Vaccination{},
 		&model.Checkup{},
+		&model.Prescription{},
 		&model.MedicalRecordImage{},
 		&model.Reservation{},
 		&model.Inquiry{},

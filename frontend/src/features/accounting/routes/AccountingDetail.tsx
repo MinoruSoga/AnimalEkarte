@@ -5,7 +5,7 @@ import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
 import { Plus, Save, CreditCard, Printer, RotateCcw } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 // Internal
@@ -33,6 +33,7 @@ import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
 import { updateBillingItem } from "../api/update-billing-item";
 import { createBillingItem } from "../api/create-billing-item";
+import { getUnbilledItems } from "../api/get-unbilled-items";
 import { useGetRefunds } from "../api/get-refunds";
 import { createRefund } from "../api/create-refund";
 import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
@@ -823,8 +824,23 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   // baseAccounting.items の安定参照 — useCallback deps に配列オブジェクトを渡さないための useMemo
   const baseItems = useMemo(() => baseAccounting?.items ?? [], [baseAccounting]);
 
+  // 新規作成時: 未請求の治療明細をペットIDで取得してローカル明細を初期化
+  const { data: unbilledItems } = useQuery({
+    queryKey: ["unbilledItems", newPetId],
+    queryFn: () => getUnbilledItems(newPetId),
+    enabled: !id && !!newPetId,
+    staleTime: 30_000,
+  });
+
   // ユーザー操作による追加・削除を管理するローカル明細
   const [localItems, setLocalItems] = useState<AccountingItem[] | null>(null);
+
+  // 未請求明細が取得できたらローカル明細を初期化（ユーザー未編集の場合のみ）
+  useEffect(() => {
+    if (unbilledItems && unbilledItems.length > 0 && localItems === null) {
+      setLocalItems(unbilledItems);
+    }
+  }, [unbilledItems, localItems]);
 
   // 表示する明細: ローカル編集があればそちら優先
   const displayItems = useMemo(
@@ -940,6 +956,20 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             tax_total: calculation.taxTotal,
             total_amount: calculation.totalAmount,
           });
+          // BUG-ACCOUNTING-NEW-ITEMS-LOST: 新規作成後に明細を保存する
+          for (const item of displayItems) {
+            await createBillingItem({
+              billing_id: Number(created.id),
+              category: item.category,
+              name: item.name,
+              unit_price: item.unitPrice,
+              quantity: item.quantity,
+              tax_type: item.taxType,
+              tax_rate: item.taxRate,
+              is_insurance_applicable: item.isInsuranceApplicable,
+              source: item.source,
+            });
+          }
           await updateAccounting(created.id, {
             status: "completed",
             subtotal: calculation.subtotal,

@@ -1,7 +1,24 @@
 -- =============================================================================
--- Animal Ekarte - 初期スキーマ定義 v19.0
+-- Animal Ekarte - 統合スキーマ定義 v20.0 (consolidated)
 -- PostgreSQL 18
--- テーブル数: 69
+-- テーブル数: 79 (旧 001–017 を統合)
+-- 統合内容:
+--   002: マスタシードデータ
+--   003: デモシードデータ
+--   004: ステージングシードデータ
+--   005: clinic_integrations テーブル
+--   006: shared_files テーブル
+--   007: owners.line_user_id カラム + インデックス
+--   008: lstep_tag_cache テーブル
+--   009: pets.deceased_at/deceased_reason, owners.lstep_opt_out* カラム
+--   010: medical_records.next_visit_recommended_date カラム
+--   011: prescriptions テーブル
+--   012: pet_chronic_conditions テーブル
+--   013: line_send_logs テーブル
+--   014: reservation_status ENUM に no_show 追加
+--   015: owners.line_followed_at/line_blocked_at カラム
+--   016: line_link_tokens テーブル
+--   017: lstep_migration_progress テーブル
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -52,7 +69,7 @@ CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization');
 CREATE TYPE visit_type AS ENUM ('first', 'revisit');
 CREATE TYPE reservation_status AS ENUM (
     'confirmed', 'pending', 'cancelled', 'checked_in',
-    'in_consultation', 'accounting', 'completed'
+    'in_consultation', 'accounting', 'completed', 'no_show'
 );
 CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'trimmer', 'resource');
 CREATE TYPE reservation_source AS ENUM ('manual', 'line');
@@ -122,6 +139,25 @@ CREATE TABLE clinics (
     created_at          timestamptz NOT NULL DEFAULT now(),
     updated_at          timestamptz NOT NULL DEFAULT now()
 );
+
+-- ------------------------------------
+-- 2a. clinic_integrations（Lステップ/LINE連携設定: 005 統合）
+-- ------------------------------------
+CREATE TABLE clinic_integrations (
+    id          BIGSERIAL    PRIMARY KEY,
+    clinic_id   bigint       NOT NULL REFERENCES clinics(id),
+    service     varchar(50)  NOT NULL,
+    key_name    varchar(100) NOT NULL,
+    key_value   text         NOT NULL,
+    created_at  timestamptz  NOT NULL DEFAULT now(),
+    updated_at  timestamptz  NOT NULL DEFAULT now(),
+    UNIQUE (clinic_id, service, key_name)
+);
+
+CREATE INDEX idx_clinic_integrations_clinic_service
+    ON clinic_integrations (clinic_id, service);
+
+COMMENT ON TABLE clinic_integrations IS 'Lステップ/LINE連携設定保存テーブル（005 統合）';
 
 -- ==========================================================================
 -- レイヤー2: clinics依存
@@ -217,10 +253,102 @@ CREATE TABLE owners (
     is_dangerous     boolean         NOT NULL DEFAULT false,
     discount_rate    numeric(5,2)    NOT NULL DEFAULT 0,
     membership_type  membership_type NOT NULL DEFAULT 'non_member',
+    -- 007: LINE連携
+    line_user_id     text,                                           -- LINE User ID（Lステップ連携・LINE通知用）。NULL = 未連携。
+    -- 009: Lステップオプトアウト
+    lstep_opt_out        boolean     NOT NULL DEFAULT false,         -- Lステップ配信オプトアウトフラグ。true = すべてのタグ付与をスキップ。
+    lstep_opt_out_at     timestamptz NULL,                           -- オプトアウト設定日時。
+    lstep_opt_out_reason text        NULL,                           -- オプトアウト理由（監査ログ用）。
+    -- 015: LINEフォロー・ブロック
+    line_followed_at     timestamptz,                                -- LINE フォロー日時（最終フォロー時刻）。Webhook follow イベントで更新。
+    line_blocked_at      timestamptz,                                -- LINE ブロック日時。Webhook unfollow イベントで更新。再フォロー時に NULL にリセット。
     created_at       timestamptz     NOT NULL DEFAULT now(),
     updated_at       timestamptz     NOT NULL DEFAULT now(),
     deleted_at       timestamptz
 );
+
+-- 007: owners.line_user_id インデックス
+-- 同一クリニック内で line_user_id の重複を防ぐ（NULL は一意性制約の対象外）
+CREATE UNIQUE INDEX uk_owners_clinic_line_user_id
+    ON owners(clinic_id, line_user_id)
+    WHERE line_user_id IS NOT NULL AND deleted_at IS NULL;
+
+-- 検索用インデックス（line_user_id 単体での参照も想定）
+CREATE INDEX idx_owners_line_user_id
+    ON owners(line_user_id)
+    WHERE line_user_id IS NOT NULL AND deleted_at IS NULL;
+
+COMMENT ON COLUMN owners.line_user_id       IS 'LINE User ID（Lステップ連携・LINE通知用）。NULL = 未連携。';
+COMMENT ON COLUMN owners.lstep_opt_out      IS 'Lステップ配信オプトアウトフラグ。true = すべてのタグ付与をスキップ。';
+COMMENT ON COLUMN owners.lstep_opt_out_at   IS 'オプトアウト設定日時。';
+COMMENT ON COLUMN owners.lstep_opt_out_reason IS 'オプトアウト理由（監査ログ用）。';
+COMMENT ON COLUMN owners.line_followed_at   IS 'LINE フォロー日時（最終フォロー時刻）。Webhook follow イベントで更新。';
+COMMENT ON COLUMN owners.line_blocked_at    IS 'LINE ブロック日時。Webhook unfollow イベントで更新。再フォロー時に NULL にリセット。';
+
+-- ------------------------------------
+-- 7a. lstep_tag_cache（Lステップタグキャッシュ: 008 統合）
+-- ------------------------------------
+CREATE TABLE lstep_tag_cache (
+    id          BIGSERIAL    PRIMARY KEY,
+    clinic_id   bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id    bigint       NOT NULL REFERENCES owners(id)  ON DELETE CASCADE,
+    tag_name    varchar(100) NOT NULL,
+    category    varchar(20)  NOT NULL DEFAULT 'auto'
+                CHECK (category IN ('auto', 'manual')),
+    synced_at   timestamptz  NOT NULL DEFAULT now(),
+    UNIQUE (clinic_id, owner_id, tag_name)
+);
+
+-- タグ名での集計・検索用（集計API）
+CREATE INDEX idx_lstep_tag_cache_clinic_tag ON lstep_tag_cache (clinic_id, tag_name);
+-- 飼い主のタグ一覧取得用
+CREATE INDEX idx_lstep_tag_cache_owner ON lstep_tag_cache (clinic_id, owner_id);
+
+COMMENT ON TABLE lstep_tag_cache IS 'Lステップタグのカルテ側キャッシュ。タグ操作ごとにupsert/deleteして同期を保つ。（008 統合）';
+COMMENT ON COLUMN lstep_tag_cache.category IS 'auto=各Sync*メソッドが自動付与, manual=スタッフが手動付与';
+
+-- ------------------------------------
+-- 7b. line_link_tokens（LINE User ID 紐付けトークン: 016 統合）
+-- ------------------------------------
+CREATE TABLE line_link_tokens (
+    id          BIGSERIAL    PRIMARY KEY,
+    clinic_id   bigint       NOT NULL REFERENCES clinics(id),
+    owner_id    bigint       NOT NULL REFERENCES owners(id),
+    token       varchar(64)  NOT NULL UNIQUE,
+    expires_at  timestamptz  NOT NULL,
+    used_at     timestamptz  NULL,
+    created_at  timestamptz  NOT NULL DEFAULT now()
+);
+
+-- トークン検索用（未使用のみを高速検索）
+CREATE INDEX idx_line_link_tokens_token ON line_link_tokens (token)
+    WHERE used_at IS NULL;
+
+-- 飼い主ごとの発行履歴確認用
+CREATE INDEX idx_line_link_tokens_owner ON line_link_tokens (clinic_id, owner_id);
+
+COMMENT ON TABLE line_link_tokens IS 'LINE User ID 紐付け用の一時トークン（24時間有効、1回限り使用）。（016 統合）';
+
+-- ------------------------------------
+-- 7c. lstep_migration_progress（Lステップ一括同期進捗: 017 統合）
+-- ------------------------------------
+CREATE TABLE lstep_migration_progress (
+    id            BIGSERIAL    PRIMARY KEY,
+    clinic_id     bigint       NOT NULL REFERENCES clinics(id),
+    owner_id      bigint       NOT NULL REFERENCES owners(id),
+    status        varchar(20)  NOT NULL DEFAULT 'pending',  -- pending | success | partial | failed | skipped
+    tags_added    int          NOT NULL DEFAULT 0,
+    tags_failed   int          NOT NULL DEFAULT 0,
+    error_message text,
+    started_at    timestamptz,
+    completed_at  timestamptz,
+    UNIQUE (clinic_id, owner_id)
+);
+
+CREATE INDEX idx_lstep_migration_progress_clinic_id
+    ON lstep_migration_progress (clinic_id);
+
+COMMENT ON TABLE lstep_migration_progress IS '既存飼い主データ一括同期の進捗管理テーブル（017 統合）';
 
 -- ------------------------------------
 -- 8. inventory_items（在庫管理）
@@ -608,10 +736,43 @@ CREATE TABLE pets (
     last_visit        date,
     insurance_id      bigint                   REFERENCES insurances(id) ON DELETE SET NULL,
     remarks           text            NOT NULL DEFAULT '',
+    -- 009: ペット死亡記録
+    deceased_at       timestamptz     NULL,                          -- ペット死亡日。NULL = 生存中。
+    deceased_reason   text            NULL,                          -- ペット死亡理由（任意記録）。
     created_at        timestamptz     NOT NULL DEFAULT now(),
     updated_at        timestamptz     NOT NULL DEFAULT now(),
     deleted_at        timestamptz
 );
+
+-- 009: ペット死亡記録インデックス
+CREATE INDEX idx_pets_deceased ON pets (clinic_id, deceased_at)
+    WHERE deceased_at IS NOT NULL;
+
+COMMENT ON COLUMN pets.deceased_at     IS 'ペット死亡日。NULL = 生存中。';
+COMMENT ON COLUMN pets.deceased_reason IS 'ペット死亡理由（任意記録）。';
+
+-- ------------------------------------
+-- 27a. pet_chronic_conditions（慢性疾患フラグ管理: 012 統合）
+-- ------------------------------------
+CREATE TABLE pet_chronic_conditions (
+    id             BIGSERIAL    PRIMARY KEY,
+    clinic_id      bigint       NOT NULL REFERENCES clinics(id),
+    pet_id         bigint       NOT NULL REFERENCES pets(id),
+    condition_code varchar(50)  NOT NULL,
+    condition_name varchar(100) NOT NULL,
+    diagnosed_at   date         NOT NULL,
+    notes          text,
+    is_active      boolean      NOT NULL DEFAULT true,
+    created_at     timestamptz  NOT NULL DEFAULT now(),
+    updated_at     timestamptz  NOT NULL DEFAULT now(),
+    deleted_at     timestamptz  NULL
+);
+
+CREATE INDEX idx_pet_chronic_conditions_clinic_pet
+    ON pet_chronic_conditions (clinic_id, pet_id)
+    WHERE deleted_at IS NULL;
+
+COMMENT ON TABLE pet_chronic_conditions IS '慢性疾患フラグ管理テーブル（012 統合）';
 
 -- ------------------------------------
 -- 28. staff_clinic_assignments（スタッフ-クリニック中間テーブル）
@@ -699,6 +860,53 @@ CREATE TABLE line_customers (
 );
 CREATE INDEX idx_line_customers_owner
     ON line_customers(owner_id) WHERE owner_id IS NOT NULL;
+
+-- ------------------------------------
+-- 32a. shared_files（LINE個別送信用ファイルストレージ: 006 統合）
+-- ------------------------------------
+CREATE TABLE shared_files (
+    id          BIGSERIAL    PRIMARY KEY,
+    clinic_id   bigint       NOT NULL REFERENCES clinics(id),
+    owner_id    bigint                REFERENCES owners(id),
+    uploaded_by bigint       NOT NULL REFERENCES staffs(id),
+    file_type   varchar(50)  NOT NULL,
+    file_name   varchar(255) NOT NULL,
+    file_key    varchar(500) NOT NULL,
+    file_size   bigint       NOT NULL,
+    purpose     varchar(50)  NOT NULL,
+    expires_at  timestamptz,
+    created_at  timestamptz  NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
+);
+
+CREATE INDEX idx_shared_files_clinic_owner
+    ON shared_files (clinic_id, owner_id);
+
+CREATE INDEX idx_shared_files_expires_at
+    ON shared_files (expires_at)
+    WHERE deleted_at IS NULL;
+
+COMMENT ON TABLE shared_files IS 'LINE個別送信用ファイルストレージ（006 統合）';
+
+-- ------------------------------------
+-- 32b. line_send_logs（LINE送信ログ: 013 統合）
+-- ------------------------------------
+CREATE TABLE line_send_logs (
+    id                BIGSERIAL    PRIMARY KEY,
+    clinic_id         bigint       NOT NULL REFERENCES clinics(id),
+    owner_id          bigint       NOT NULL REFERENCES owners(id),
+    sent_by_user_id   bigint       NOT NULL REFERENCES staffs(id),
+    message_type      varchar(20)  NOT NULL,
+    content_summary   text         NOT NULL,
+    line_message_id   varchar(100),
+    status            varchar(20)  NOT NULL,
+    error_message     text,
+    sent_at           timestamptz  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_line_send_logs_clinic_owner ON line_send_logs (clinic_id, owner_id, sent_at DESC);
+
+COMMENT ON TABLE line_send_logs IS 'LINE送信ログ（013 統合）';
 
 -- ==========================================================================
 -- レイヤー4: pets依存
@@ -795,21 +1003,44 @@ CREATE INDEX idx_appt_trimming_options_appointment ON appointment_trimming_optio
 -- 37. medical_records（電子カルテ）
 -- ------------------------------------
 CREATE TABLE medical_records (
-    id                         BIGSERIAL             PRIMARY KEY,
-    clinic_id                  bigint                NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    record_no                  text                  NOT NULL,
-    date                       date                  NOT NULL,
-    owner_id                   bigint                         REFERENCES owners(id) ON DELETE RESTRICT,
-    pet_id                     bigint                         REFERENCES pets(id) ON DELETE RESTRICT,
-    doctor_id                  bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
-    appointment_id             bigint                         REFERENCES appointments(id) ON DELETE SET NULL,
-    status                     medical_record_status          DEFAULT 'draft',
-    version                    INTEGER               NOT NULL DEFAULT 1,
-    entered_by                 bigint                         REFERENCES staffs(id),
-    created_at                 timestamptz           NOT NULL DEFAULT now(),
-    updated_at                 timestamptz           NOT NULL DEFAULT now(),
-    deleted_at                 timestamptz
+    id                             BIGSERIAL             PRIMARY KEY,
+    clinic_id                      bigint                NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    record_no                      text                  NOT NULL,
+    date                           date                  NOT NULL,
+    owner_id                       bigint                         REFERENCES owners(id) ON DELETE RESTRICT,
+    pet_id                         bigint                         REFERENCES pets(id) ON DELETE RESTRICT,
+    doctor_id                      bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
+    appointment_id                 bigint                         REFERENCES appointments(id) ON DELETE SET NULL,
+    status                         medical_record_status          DEFAULT 'draft',
+    version                        INTEGER               NOT NULL DEFAULT 1,
+    entered_by                     bigint                         REFERENCES staffs(id),
+    -- 010: 次回来院推奨日
+    next_visit_recommended_date    date                  NULL,
+    created_at                     timestamptz           NOT NULL DEFAULT now(),
+    updated_at                     timestamptz           NOT NULL DEFAULT now(),
+    deleted_at                     timestamptz
 );
+
+-- ------------------------------------
+-- 37a. prescriptions（処方薬記録: 011 統合）
+-- ------------------------------------
+CREATE TABLE prescriptions (
+    id                BIGSERIAL    PRIMARY KEY,
+    clinic_id         bigint       NOT NULL REFERENCES clinics(id),
+    owner_id          bigint       NOT NULL REFERENCES owners(id),
+    pet_id            bigint                REFERENCES pets(id),
+    medical_record_id bigint                REFERENCES medical_records(id),
+    prescribed_at     date         NOT NULL,
+    duration_days     int          NOT NULL DEFAULT 0,
+    deleted_at        timestamptz,
+    created_at        timestamptz  NOT NULL DEFAULT now(),
+    updated_at        timestamptz  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_prescriptions_clinic_owner    ON prescriptions(clinic_id, owner_id)       WHERE deleted_at IS NULL;
+CREATE INDEX idx_prescriptions_medical_record  ON prescriptions(medical_record_id)          WHERE deleted_at IS NULL;
+
+COMMENT ON TABLE prescriptions IS '処方薬記録テーブル（011 統合）';
 
 -- ------------------------------------
 -- 38. vaccinations（予防接種記録）
@@ -1264,6 +1495,25 @@ CREATE TABLE billing_items (
 );
 
 -- ------------------------------------
+-- 62c. payment_methods（支払方法マスタ — 旧 payment_method enum のマスタ化）
+-- ------------------------------------
+CREATE TABLE payment_methods (
+    id             BIGSERIAL    PRIMARY KEY,
+    clinic_id      bigint       NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    name           varchar(50)  NOT NULL,
+    display_order  integer      NOT NULL DEFAULT 0,
+    is_active      boolean      NOT NULL DEFAULT true,
+    created_at     timestamptz  NOT NULL DEFAULT now(),
+    updated_at     timestamptz  NOT NULL DEFAULT now(),
+    deleted_at     timestamptz
+);
+
+CREATE UNIQUE INDEX idx_payment_methods_clinic_name ON payment_methods(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE INDEX idx_payment_methods_clinic_order ON payment_methods(clinic_id, display_order) WHERE deleted_at IS NULL;
+
+COMMENT ON TABLE payment_methods IS '支払方法マスタ（FEAT-368: payment_method enum のマスタ化）';
+
+-- ------------------------------------
 -- 58. payments（支払い: billingsと1:1）
 -- ------------------------------------
 CREATE TABLE payments (
@@ -1280,6 +1530,7 @@ CREATE TABLE payments (
     received_amount  bigint                  DEFAULT 0,
     change_amount    bigint                  DEFAULT 0,
     method           payment_method          DEFAULT 'cash',
+    payment_method_id bigint                 REFERENCES payment_methods(id),
     paid_by          bigint         REFERENCES staffs(id),
     created_at       timestamptz    NOT NULL DEFAULT now(),
     updated_at       timestamptz    NOT NULL DEFAULT now(),
@@ -1368,25 +1619,6 @@ CREATE INDEX idx_closing_special_periods_clinic ON closing_special_periods(clini
 COMMENT ON TABLE closing_special_periods IS '特別診療時間設定（年末年始・お盆等, FEAT-368）';
 
 -- ------------------------------------
--- 62c. payment_methods（支払方法マスタ — 旧 payment_method enum のマスタ化）
--- ------------------------------------
-CREATE TABLE payment_methods (
-    id             BIGSERIAL    PRIMARY KEY,
-    clinic_id      bigint       NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
-    name           varchar(50)  NOT NULL,
-    display_order  integer      NOT NULL DEFAULT 0,
-    is_active      boolean      NOT NULL DEFAULT true,
-    created_at     timestamptz  NOT NULL DEFAULT now(),
-    updated_at     timestamptz  NOT NULL DEFAULT now(),
-    deleted_at     timestamptz
-);
-
-CREATE UNIQUE INDEX idx_payment_methods_clinic_name ON payment_methods(clinic_id, name) WHERE deleted_at IS NULL;
-CREATE INDEX idx_payment_methods_clinic_order ON payment_methods(clinic_id, display_order) WHERE deleted_at IS NULL;
-
-COMMENT ON TABLE payment_methods IS '支払方法マスタ（FEAT-368: payment_method enum のマスタ化）';
-
--- ------------------------------------
 -- 62d. cash_register_closes（レジ締めレコード）
 -- ------------------------------------
 CREATE TABLE cash_register_closes (
@@ -1410,11 +1642,6 @@ CREATE INDEX idx_cash_register_closes_clinic ON cash_register_closes(clinic_id, 
 
 COMMENT ON TABLE cash_register_closes IS 'レジ締めレコード（FEAT-368）';
 
--- payments に payment_method_id を追加（段階移行: method カラムは当面維持）
-ALTER TABLE payments
-    ADD COLUMN payment_method_id bigint REFERENCES payment_methods(id);
-
-CREATE INDEX idx_payments_payment_method_id ON payments(payment_method_id) WHERE payment_method_id IS NOT NULL;
 
 CREATE INDEX idx_billing_items_merchandise_item_id ON billing_items(merchandise_item_id) WHERE deleted_at IS NULL;
 
@@ -1775,6 +2002,15 @@ COMMENT ON TABLE clinic_settings IS '医院締め時間・休診曜日設定（F
 COMMENT ON TABLE closing_special_periods IS '特別診療時間設定（FEAT-368）';
 COMMENT ON TABLE payment_methods IS '支払方法マスタ（FEAT-368）';
 COMMENT ON TABLE cash_register_closes IS 'レジ締めレコード（FEAT-368）';
+-- 統合テーブルコメント（005–017）
+COMMENT ON TABLE clinic_integrations       IS 'Lステップ/LINE連携設定保存テーブル（005 統合）';
+COMMENT ON TABLE shared_files              IS 'LINE個別送信用ファイルストレージ（006 統合）';
+COMMENT ON TABLE lstep_tag_cache           IS 'Lステップタグのカルテ側キャッシュ（008 統合）';
+COMMENT ON TABLE prescriptions             IS '処方薬記録テーブル（011 統合）';
+COMMENT ON TABLE pet_chronic_conditions    IS '慢性疾患フラグ管理テーブル（012 統合）';
+COMMENT ON TABLE line_send_logs            IS 'LINE送信ログ（013 統合）';
+COMMENT ON TABLE line_link_tokens          IS 'LINE User ID 紐付け用の一時トークン（016 統合）';
+COMMENT ON TABLE lstep_migration_progress  IS '既存飼い主データ一括同期の進捗管理テーブル（017 統合）';
 
 -- ------------------------------------
 -- 62. audit_logs（権限変更・認証操作の監査ログ）
@@ -2017,3 +2253,4 @@ CREATE TRIGGER trg_create_default_payment_methods
     AFTER INSERT ON clinics
     FOR EACH ROW
     EXECUTE FUNCTION create_default_payment_methods();
+

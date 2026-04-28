@@ -26,6 +26,7 @@ type mockOwnerService struct {
 	createWithPetsFn func(ctx context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error)
 	updateFn         func(ctx context.Context, clinicID, id uint64, input *service.UpdateOwnerInput) (*model.Owner, error)
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
+	linkLineUserIDFn func(ctx context.Context, clinicID, id uint64, lineUserID *string) error
 }
 
 func (m *mockOwnerService) List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -48,11 +49,22 @@ func (m *mockOwnerService) Delete(ctx context.Context, clinicID, id uint64) erro
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockOwnerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
+	if m.linkLineUserIDFn != nil {
+		return m.linkLineUserIDFn(ctx, clinicID, id, lineUserID)
+	}
+	return nil
+}
+
 // ---- test helpers ----
 
 func newHandlerWithOwnerSvc(svc service.OwnerService) *Handler {
 	return &Handler{
-		svc: &service.Services{Owner: svc},
+		svc: &service.Services{
+			Owner:          svc,
+			LstepTagSync:   &mockLstepTagSyncService{},
+			LstepLifecycle: &mockLstepLifecycleService{},
+		},
 	}
 }
 

@@ -1,6 +1,6 @@
 # BUG-336: トリミング削除失敗時にエラートーストが表示されない
 
-**Status**: OPEN  
+**Status**: CLOSED  
 **Priority**: Medium  
 **Discovery**: コード静的解析 Section 9 トリミング管理 (2026-04-12)
 

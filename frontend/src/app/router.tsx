@@ -123,6 +123,22 @@ export const router = createBrowserRouter([
           },
         ],
       },
+
+      // ── Aggregation ──────────────────────────────────────────────
+      {
+        path: "/aggregation",
+        element: (
+          <RequirePermission resource={ResourceOwners}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        errorElement: <RouteErrorBoundary />,
+        lazy: async () => {
+          const { AggregationDashboardPage } = await import("@/features/aggregation");
+          return { Component: AggregationDashboardPage };
+        },
+      },
+
 // ── Reservations ─────────────────────────────────────────────
 {
   path: "/reservations",
@@ -543,6 +559,20 @@ export const router = createBrowserRouter([
               return { Component: CheckupsList };
             },
           },
+          {
+            path: "select-pet",
+            lazy: async () => {
+              const { CheckupPetSelection } = await import("@/features/checkups");
+              return { Component: CheckupPetSelection };
+            },
+          },
+          {
+            path: "new",
+            lazy: async () => {
+              const { CheckupForm } = await import("@/features/checkups");
+              return { Component: CheckupForm };
+            },
+          },
         ],
       },
 
@@ -878,7 +908,12 @@ export const router = createBrowserRouter([
             }],
           },
           {
+            // BUG-383: 旧URL redirect
             path: "shift-template",
+            element: <Navigate to="/settings/shift-templates" replace />,
+          },
+          {
+            path: "shift-templates",
             element: <RequirePermission resource={ResourceShifts}><Outlet /></RequirePermission>,
             children: [{
               index: true,
@@ -902,6 +937,50 @@ export const router = createBrowserRouter([
             lazy: async () => {
               const { PaymentMethodSettings } = await import("@/features/master");
               return { Component: PaymentMethodSettings };
+            },
+          },
+          // FE-001: Lステップ連携設定
+          {
+            path: "integrations/lstep",
+            element: <RequirePermission resource={ResourceHospitalSettings}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { LstepSettingsPage } = await import("@/features/settings/integrations/lstep");
+                return { Component: LstepSettingsPage };
+              },
+            }],
+          },
+          // FE-007: Lステップタグ管理
+          {
+            path: "lstep/tags",
+            element: <RequirePermission resource={ResourceHospitalSettings}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { LstepTagManagementPage } = await import("@/features/lstep");
+                return { Component: LstepTagManagementPage };
+              },
+            }],
+          },
+        ],
+      },
+
+      // ── Lステップ管理 ────────────────────────────────────────────
+      {
+        path: "/lstep",
+        element: (
+          <RequirePermission resource={ResourceHospitalSettings}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          {
+            path: "checkup-sync",
+            lazy: async () => {
+              const { CheckupSyncPage } = await import("@/features/lstep");
+              return { Component: CheckupSyncPage };
             },
           },
         ],

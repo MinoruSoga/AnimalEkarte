@@ -380,7 +380,7 @@ func TestGetClinic_SystemAdmin_ReturnsOK(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/5", http.NoBody)
-	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	c.Params = gin.Params{{Key: "clinic_id", Value: "5"}}
 	setSystemAdmin(c)
 
 	h.GetClinic(c)
@@ -402,7 +402,7 @@ func TestGetClinic_NotFound_Returns404(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/999", http.NoBody)
-	c.Params = gin.Params{{Key: "id", Value: "999"}}
+	c.Params = gin.Params{{Key: "clinic_id", Value: "999"}}
 	setSystemAdmin(c)
 
 	h.GetClinic(c)
@@ -418,7 +418,7 @@ func TestGetClinic_InvalidID_Returns400(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/abc", http.NoBody)
-	c.Params = gin.Params{{Key: "id", Value: "abc"}}
+	c.Params = gin.Params{{Key: "clinic_id", Value: "abc"}}
 	setSystemAdmin(c)
 
 	h.GetClinic(c)
@@ -440,7 +440,7 @@ func TestGetClinic_NonAdmin_OwnClinic_ReturnsOK(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/1", http.NoBody)
-	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	c.Params = gin.Params{{Key: "clinic_id", Value: "1"}}
 	// is_system_admin=false、clinic_id=1 → 自分のクリニックなのでアクセス可
 	setNonSystemAdmin(c)
 	setClinicID(c) // clinic_id=1
@@ -459,7 +459,7 @@ func TestGetClinic_NonAdmin_OtherClinic_Returns403(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/2", http.NoBody)
-	c.Params = gin.Params{{Key: "id", Value: "2"}}
+	c.Params = gin.Params{{Key: "clinic_id", Value: "2"}}
 	// is_system_admin=false、clinic_id=1 → id=2 は別クリニック → 403
 	setNonSystemAdmin(c)
 	setClinicID(c) // clinic_id=1
@@ -482,7 +482,7 @@ func TestGetClinic_ServiceError_Returns500(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/1", http.NoBody)
-	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	c.Params = gin.Params{{Key: "clinic_id", Value: "1"}}
 	setSystemAdmin(c)
 
 	h.GetClinic(c)
@@ -500,7 +500,7 @@ func TestGetClinic_MissingIsSystemAdmin_Returns401(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/1", http.NoBody)
-	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	c.Params = gin.Params{{Key: "clinic_id", Value: "1"}}
 	// is_system_admin をコンテキストに設定しない → 401
 
 	h.GetClinic(c)

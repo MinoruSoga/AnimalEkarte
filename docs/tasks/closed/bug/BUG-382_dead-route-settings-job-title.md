@@ -1,7 +1,7 @@
 # BUG-382: 複数マスタ設定ページが 404 / ドキュメントと実装の命名不整合
 
 **作成日**: 2026-04-15
-**Status**: OPEN
+**Status**: CLOSED
 **Priority**: **HIGH** (カルテ編集画面から 2 件の dead route 編集リンクを露出 → 本番運用中の医師作業が 404 で断絶するリスク)
 **Affects**: `frontend/src/app/router.tsx`, `features/staff-management`, `features/reservations`, `docs/FUNCTIONAL_TEST_REPORT.md`
 

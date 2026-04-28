@@ -1,6 +1,6 @@
 # BUG-334: 入院管理バイタル保存で400エラー後にErrorBoundaryクラッシュ
 
-**Status**: OPEN  
+**Status**: CLOSED  
 **Priority**: High  
 **Discovery**: 機能テスト Section 7 入院・ホテル管理 (2026-04-12)
 

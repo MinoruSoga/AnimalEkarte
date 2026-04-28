@@ -103,6 +103,14 @@ func (m *mockAccountingRepositoryForClose) GetMonthlyReport(ctx context.Context,
 	return &repository.MonthlyReportResult{Rows: []repository.MonthlyReportRow{}}, nil
 }
 
+func (m *mockAccountingRepositoryForClose) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockAccountingRepositoryForClose) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- モック: ClosingSettingsService（ResolveSchedule のみ） ----
 
 type mockClosingSettingsService struct {

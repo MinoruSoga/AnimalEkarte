@@ -1,7 +1,7 @@
 # BUG-386: LINE予約フォームの飼い主名・ペット名・犬種が受付/カルテ予約詳細に反映されない
 
 **作成日**: 2026-04-15
-**Status**: OPEN
+**Status**: CLOSED
 **Priority**: **HIGH** (機能定義「予約フォームからの電子カルテへの自動入力」と実装が不一致で、受付運用に必要な患者情報が欠落する)
 **Affects**: `frontend/src/features/reception/api/transforms.ts`, `backend/internal/service/reservation_validators.go`, `backend/internal/service/medical_record_service.go`, `frontend/line-reserve/src/pages/ConfirmPage.tsx`
 
