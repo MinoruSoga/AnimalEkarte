@@ -16,9 +16,12 @@ type AuditLog struct {
 	ResourceID *uint64         `json:"resource_id"`
 	OldValue   json.RawMessage `gorm:"type:jsonb"   json:"old_value"`
 	NewValue   json.RawMessage `gorm:"type:jsonb"   json:"new_value"`
-	IPAddress  string          `json:"ip_address"`
-	UserAgent  string          `json:"user_agent"`
-	CreatedAt  time.Time       `json:"created_at"`
+	// Metadata は LSTEP 操作の件数・抽出条件を保存する多次元メタデータ（ISSUE-010）。
+	// resource_id 単一 ID では表現できない情報（例: 健診対象抽出のフィルタ条件 + 件数集計）を JSON で永続化する。
+	Metadata  json.RawMessage `gorm:"type:jsonb"   json:"metadata"`
+	IPAddress string          `json:"ip_address"`
+	UserAgent string          `json:"user_agent"`
+	CreatedAt time.Time       `json:"created_at"`
 }
 
 func (AuditLog) TableName() string { return "audit_logs" }

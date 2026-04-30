@@ -1,15 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 
-// Type definitions for aggregation features
+// Type definitions for aggregation features.
+// 仕様 §4.1〜4.3 / §5.2 の sort 値を canonical とする。
+// 旧名 (`total_fee` / `annual_visit_count` / `visit_count`) は AGG-BE-005 の互換エイリアスとして残置するが、
+// 新規 UI からは canonical のみ使用すること。
 export type AggregationSortField =
-  | "total_fee"
-  | "annual_visit_count"
-  | "last_visit_date"
   | "annual_amount"
   | "period_visit_count"
-  | "visit_count"
-  | "owner_name";
+  | "last_visit_date"
+  | "days_since_last_visit"
+  | "owner_name"
+  // 互換エイリアス (BE が受理する限りは UI 側からも送られうる)
+  | "total_fee"
+  | "annual_visit_count"
+  | "visit_count";
 
 export type AmountBasis =
   | "gross_total_amount"
@@ -43,6 +48,9 @@ export interface AggregationOwner {
   period_last_visit_date?: string | null;
   days_since_last_visit?: number | null;
   last_visit_bucket?: LastVisitBucket | null;
+  // 累計診療費。BE は canonical の `total_amount` を返す。
+  // `total_fee` は AGG-BE-005 の互換エイリアス（旧FE/CSV/外部連携向け）。
+  total_amount?: number;
   total_fee?: number;
 }
 

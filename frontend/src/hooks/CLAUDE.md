@@ -87,7 +87,6 @@ export function useGetPet(petId: string) {
 | `use-master-items.ts` | 6 | マスターアイテム汎用取得（trimming / examinations 他） |
 | `use-treatment-master.ts` | 3 | 診療マスターデータ（medical-records / shared components） |
 | `use-reservation-types.ts` | 1+ | 予約タイプ＋グループ取得（shared/ReservationFormModal） |
-| `use-examinations.ts` | 1+ | 検査 CRUD（medical-records との cross-feature リンク用） |
 | `use-vaccinations.ts` | 2 | ワクチン接種 CRUD（medical-records / vaccinations） |
 | `use-staffs.ts` | 2 | スタッフ一覧取得（reception / medical-records） |
 | `use-clinic-holidays.ts` | 複数 | クリニック休診日取得 |

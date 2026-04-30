@@ -163,6 +163,18 @@ func (m *mockLstepTagSyncService) SyncDormantTags(_ context.Context, _, _ uint64
 	return nil
 }
 
+func (m *mockLstepTagSyncService) ResyncOwnerVaccineTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) ResyncOwnerCheckupTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) ResyncOwnerReservationTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 // ---- AuditService モック ----
 
 type mockAuditService struct{}
@@ -172,6 +184,10 @@ func (m *mockAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _
 	return nil
 }
 func (m *mockAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
+	return nil
+}
+
+func (m *mockAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
 	return nil
 }
 

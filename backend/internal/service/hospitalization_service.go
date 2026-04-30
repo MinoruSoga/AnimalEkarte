@@ -25,32 +25,38 @@ type DischargeWithBillingResult struct {
 
 // CreateHospitalizationInput は入院作成の入力DTO
 type CreateHospitalizationInput struct {
-	OwnerID             uint64
-	PetID               uint64
-	HospitalizationType model.HospitalizationType
-	StartDate           time.Time
-	EndDate             time.Time
-	Status              model.HospitalizationStatus
-	CageID              *uint64
-	DoctorID            *uint64
-	Memo                string
-	OwnerRequest        string
-	StaffNotes          string
+	OwnerID              uint64
+	PetID                uint64
+	HospitalizationType  model.HospitalizationType
+	StartDate            time.Time
+	EndDate              time.Time
+	Status               model.HospitalizationStatus
+	CageID               *uint64
+	DoctorID             *uint64
+	Memo                 string
+	OwnerRequest         string
+	StaffNotes           string
+	IsInsurance          bool
+	InsuranceCompanyName *string
+	InsuranceNumber      *string
 }
 
 // UpdateHospitalizationInput は入院更新のサービス入力 DTO
 type UpdateHospitalizationInput struct {
-	OwnerID             *uint64
-	PetID               *uint64
-	HospitalizationType *model.HospitalizationType
-	StartDate           *time.Time
-	EndDate             *time.Time
-	Status              *model.HospitalizationStatus
-	CageID              *uint64
-	DoctorID            *uint64
-	Memo                *string
-	OwnerRequest        *string
-	StaffNotes          *string
+	OwnerID              *uint64
+	PetID                *uint64
+	HospitalizationType  *model.HospitalizationType
+	StartDate            *time.Time
+	EndDate              *time.Time
+	Status               *model.HospitalizationStatus
+	CageID               *uint64
+	DoctorID             *uint64
+	Memo                 *string
+	OwnerRequest         *string
+	StaffNotes           *string
+	IsInsurance          *bool
+	InsuranceCompanyName *string
+	InsuranceNumber      *string
 }
 
 func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]any {
@@ -87,6 +93,28 @@ func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]an
 	}
 	if input.StaffNotes != nil {
 		fields["staff_notes"] = *input.StaffNotes
+	}
+	if input.IsInsurance != nil {
+		if !*input.IsInsurance {
+			// 保険なしに切り替えた場合は保険情報を NULL にする
+			fields["insurance_company_name"] = nil
+			fields["insurance_number"] = nil
+		} else {
+			if input.InsuranceCompanyName != nil {
+				fields["insurance_company_name"] = *input.InsuranceCompanyName
+			}
+			if input.InsuranceNumber != nil {
+				fields["insurance_number"] = *input.InsuranceNumber
+			}
+		}
+	} else {
+		// IsInsurance が nil でも保険フィールド単体の更新は許容する
+		if input.InsuranceCompanyName != nil {
+			fields["insurance_company_name"] = *input.InsuranceCompanyName
+		}
+		if input.InsuranceNumber != nil {
+			fields["insurance_number"] = *input.InsuranceNumber
+		}
 	}
 	return fields
 }
@@ -131,19 +159,28 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 	if status == "" {
 		status = model.HospitalizationStatusReserved
 	}
+	// is_insurance == false の場合は保険情報を NULL にする
+	var insuranceCompanyName *string
+	var insuranceNumber *string
+	if input.IsInsurance {
+		insuranceCompanyName = input.InsuranceCompanyName
+		insuranceNumber = input.InsuranceNumber
+	}
 	hospitalization := &model.Hospitalization{
-		ClinicID:            clinicID,
-		OwnerID:             input.OwnerID,
-		PetID:               input.PetID,
-		HospitalizationType: input.HospitalizationType,
-		StartDate:           input.StartDate,
-		EndDate:             input.EndDate,
-		Status:              status,
-		CageID:              input.CageID,
-		DoctorID:            input.DoctorID,
-		Memo:                input.Memo,
-		OwnerRequest:        input.OwnerRequest,
-		StaffNotes:          input.StaffNotes,
+		ClinicID:             clinicID,
+		OwnerID:              input.OwnerID,
+		PetID:                input.PetID,
+		HospitalizationType:  input.HospitalizationType,
+		StartDate:            input.StartDate,
+		EndDate:              input.EndDate,
+		Status:               status,
+		CageID:               input.CageID,
+		DoctorID:             input.DoctorID,
+		Memo:                 input.Memo,
+		OwnerRequest:         input.OwnerRequest,
+		StaffNotes:           input.StaffNotes,
+		InsuranceCompanyName: insuranceCompanyName,
+		InsuranceNumber:      insuranceNumber,
 	}
 	if err := s.repos.Hospitalization.Create(ctx, hospitalization); err != nil {
 		slog.ErrorContext(ctx, "failed to create hospitalization", "error", err)

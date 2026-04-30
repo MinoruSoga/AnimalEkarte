@@ -24,8 +24,10 @@
 - **リダイレクト**: ログイン済みユーザーがアクセスした場合は `/` へ自動遷移。未ログイン時はオープンリダイレクト対策済みの `from` パラメータ（または `location.state`）に基づき、元のページへ戻る。
 
 ### 2. パスワード再設定フロー (現状)
-- **制限事項**: **バックエンド API が未実装**のため、フロントエンドの画面遷移のみ存在する「開発中」のステータスです。
-- **遷移先**: `/forgot-password`（メールアドレス入力）→ `/reset-password`（新パスワード入力）。
+- **状態**: バックエンド API・フロントエンド画面ともに実装済み。`POST /api/v1/auth/forgot-password` で SHA-256 ハッシュ済みトークンを発行し、`password_reset_tokens` テーブルに 1 時間有効で保存。`POST /api/v1/auth/reset-password` で `validatePassword`（8文字以上＋英字＋数字必須）を経て更新する。両エンドポイントは `RateLimit(3req/60s, burst=3)` 適用。
+- **遷移先**: `/forgot-password`（メールアドレス入力）→ `/reset-password?token=...`（新パスワード入力）。
+- **導線**: ログイン画面（`LoginForm.tsx`）の「ログイン」ボタン直下に「パスワードをお忘れですか？」リンク（`<Link to={paths.auth.forgotPassword.getHref()}>` → `/forgot-password`）を配置済み（BUG-060 解消）。
+- **メール送信**: SMTP 設定（`SMTPHost` 等）が未設定の環境ではトークン発行のみ行いメール送信は no-op となる。本番運用時は `PasswordResetConfig` を設定する必要がある。
 
 ### 3. セキュリティ・UX
 - **エラーメッセージ**: HTTPステータスコードに基づき、「メールアドレスまたはパスワードが違います」「アクセスが制限されています」等の具体的な理由をユーザーにフィードバック（BUG-047）。
@@ -39,5 +41,6 @@
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
 | POST | `/api/v1/auth/login` | 認証実行 | 実装済 |
-| POST | `/api/v1/auth/forgot-password` | 再設定用メール送信 | **未実装** |
-| POST | `/api/v1/auth/reset-password` | 新しいパスワードの保存 | **未実装** |
+| POST | `/api/v1/auth/forgot-password` | 再設定用メール送信（rate limit 3req/min） | 実装済（Login 画面に「パスワードをお忘れですか？」リンク配置済み・BUG-060 解消） |
+| POST | `/api/v1/auth/reset-password` | 新しいパスワードの保存（`validatePassword` 適用） | 実装済 |
+| PUT | `/api/v1/users/me/password` | 認証済みユーザーの自己パスワード変更（`ChangePasswordDialog`） | 実装済（BUG-148） |

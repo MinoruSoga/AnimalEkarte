@@ -1,9 +1,15 @@
 import { useCallback } from "react";
-import { Search } from "lucide-react";
+import { ArrowDown, ArrowUp, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, STYLE } from "@/lib/design-tokens";
-import type { AggregationParams, AmountBasis, PeriodPreset } from "./api/get-aggregations";
+import type {
+  AggregationParams,
+  AggregationSortField,
+  AmountBasis,
+  PeriodPreset,
+} from "./api/get-aggregations";
 import type { AggregationTab } from "./AggregationDashboardPage";
 
 interface AggregationFilterPanelProps {
@@ -25,13 +31,44 @@ const PERIOD_PRESET_OPTIONS = [
   { value: "calendar_year", label: "今年度" },
 ] as const;
 
+// 仕様書 §4.3 準拠: within_3m は「3ヶ月未満」(0〜89日)。「以内」は誤訳。
 const LAST_VISIT_BUCKET_OPTIONS = [
-  { value: "within_3m", label: "3ヶ月以内" },
+  { value: "within_3m", label: "3ヶ月未満" },
   { value: "over_3m", label: "3ヶ月以上" },
   { value: "over_6m", label: "6ヶ月以上" },
   { value: "over_1y", label: "1年以上" },
   { value: "no_visit", label: "来院なし" },
 ] as const;
+
+// 並び替え選択肢は仕様書 §4.1〜4.3 で軸ごとに固定する。
+// 軸を跨いで存在しない sort 値を送るとBEで400になるため、画面側で軸別にホワイトリスト化する。
+type SortOption = { value: AggregationSortField; label: string };
+
+const SORT_OPTIONS_BY_TAB: Record<AggregationTab, SortOption[]> = {
+  revenue: [
+    { value: "annual_amount", label: "年間診療費" },
+    { value: "period_visit_count", label: "期間内来院回数" },
+    { value: "last_visit_date", label: "最終来院日" },
+    { value: "days_since_last_visit", label: "経過日数" },
+    { value: "owner_name", label: "飼い主名" },
+  ],
+  visit: [
+    { value: "period_visit_count", label: "期間内来院回数" },
+    { value: "last_visit_date", label: "最終来院日" },
+    { value: "owner_name", label: "飼い主名" },
+  ],
+  last_visit: [
+    { value: "last_visit_date", label: "最終来院日" },
+    { value: "days_since_last_visit", label: "経過日数" },
+    { value: "owner_name", label: "飼い主名" },
+  ],
+};
+
+const DEFAULT_SORT_BY_TAB: Record<AggregationTab, AggregationSortField> = {
+  revenue: "annual_amount",
+  visit: "period_visit_count",
+  last_visit: "last_visit_date",
+};
 
 export function AggregationFilterPanel({ params, onParamsChange, activeTab }: AggregationFilterPanelProps) {
   const handleSearchChange = useCallback(
@@ -132,6 +169,25 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
     },
     [onParamsChange]
   );
+
+  // 並び替えハンドラ。タブごとの sort オプションは SORT_OPTIONS_BY_TAB に固定。
+  const handleSortChange = useCallback(
+    (value: string) => {
+      onParamsChange({ sort: value as AggregationSortField, page: 1 });
+    },
+    [onParamsChange]
+  );
+
+  const handleOrderToggle = useCallback(() => {
+    onParamsChange({ order: params.order === "asc" ? "desc" : "asc", page: 1 });
+  }, [onParamsChange, params.order]);
+
+  const sortOptions = SORT_OPTIONS_BY_TAB[activeTab];
+  // 現在の sort が当該タブで有効でない場合は軸の既定値にフォールバック表示（state は触らない）。
+  const sortValue = sortOptions.some((opt) => opt.value === params.sort)
+    ? params.sort
+    : DEFAULT_SORT_BY_TAB[activeTab];
+  const orderValue = params.order ?? "desc";
 
   // 入力スタイルは NotionFilter のツールバー高 (h-9) に揃え、
   // 余計な装飾（外枠ボックス・大きめラベル）を排除して他ページと密度を統一する。
@@ -325,6 +381,40 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
           </div>
         </>
       ) : null}
+
+      {/* 並び替え (sort / order) — 軸ごとに選択肢が変わる。order はトグル風ボタンで asc/desc を切替。 */}
+      <div className="flex flex-col gap-1 min-w-[160px]">
+        <label className={labelClass}>並び替え</label>
+        <div className="flex items-center gap-1">
+          <Select value={sortValue} onValueChange={handleSortChange}>
+            <SelectTrigger className={inputClass} aria-label="並び替え">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {sortOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className={`h-9 w-9 shrink-0 ${C.borderMedium}`}
+            onClick={handleOrderToggle}
+            aria-label={orderValue === "asc" ? "昇順 (クリックで降順)" : "降順 (クリックで昇順)"}
+            title={orderValue === "asc" ? "昇順" : "降順"}
+          >
+            {orderValue === "asc" ? (
+              <ArrowUp className="size-4" />
+            ) : (
+              <ArrowDown className="size-4" />
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

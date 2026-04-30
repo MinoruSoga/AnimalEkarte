@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { ExaminationRecord } from "@/types";
-import { transformExamination } from "./transforms";
+import { transformExamination, type ExaminationRecord } from "./transforms";
 import type { BackendExamination } from "./types";
 
 interface ExaminationsListResponse {

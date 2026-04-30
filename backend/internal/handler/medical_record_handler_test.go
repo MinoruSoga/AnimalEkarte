@@ -151,6 +151,15 @@ func (m *mockLstepTagSyncService) SyncNoShowTag(_ context.Context, _, _ uint64, 
 func (m *mockLstepTagSyncService) SyncDormantTags(_ context.Context, _, _ uint64, _ int) error {
 	return nil
 }
+func (m *mockLstepTagSyncService) ResyncOwnerVaccineTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) ResyncOwnerCheckupTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockLstepTagSyncService) ResyncOwnerReservationTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
 
 // ---- test helper ----
 

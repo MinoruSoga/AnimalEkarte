@@ -331,6 +331,139 @@ describe("useHospitalizationForm", () => {
   });
 
   // ──────────────────────────
+  // 保険フィールド
+  // ──────────────────────────
+  describe("保険フィールド", () => {
+    beforeEach(() => {
+      mockSelectedPets.push({
+        id: "1",
+        ownerId: "2",
+        ownerName: "田中太郎",
+        name: "ポチ",
+        species: "犬",
+        breed: "柴犬",
+        gender: "male",
+      });
+    });
+
+    afterEach(() => {
+      mockSelectedPets.length = 0;
+    });
+
+    it("isInsurance = false (デフォルト) → create 時 insurance_company_name: null, insurance_number: null", async () => {
+      const { result } = renderHook(() => useHospitalizationForm());
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(mockCreateHospitalization).toHaveBeenCalledWith(
+        expect.objectContaining({
+          insurance_company_name: null,
+          insurance_number: null,
+        })
+      );
+    });
+
+    it("isInsurance = true → create 時 保険フィールドが渡される", async () => {
+      const { result } = renderHook(() => useHospitalizationForm());
+
+      act(() => {
+        result.current.handleFormDataChange({
+          isInsurance: true,
+          insuranceCompanyName: "アニコム損保",
+          insuranceNumber: "INS-001",
+        });
+      });
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(mockCreateHospitalization).toHaveBeenCalledWith(
+        expect.objectContaining({
+          is_insurance: true,
+          insurance_company_name: "アニコム損保",
+          insurance_number: "INS-001",
+        })
+      );
+    });
+
+    it("isInsurance = false → create 時 保険フィールドが null になる（文字列があっても）", async () => {
+      const { result } = renderHook(() => useHospitalizationForm());
+
+      act(() => {
+        result.current.handleFormDataChange({
+          isInsurance: false,
+          insuranceCompanyName: "残留データ",
+          insuranceNumber: "LEFTOVER",
+        });
+      });
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(mockCreateHospitalization).toHaveBeenCalledWith(
+        expect.objectContaining({
+          insurance_company_name: null,
+          insurance_number: null,
+        })
+      );
+    });
+
+    it("isInsurance = false → update 時 保険フィールドが null になる", async () => {
+      const { result } = renderHook(() => useHospitalizationForm("42"));
+
+      act(() => {
+        result.current.handleFormDataChange({
+          isInsurance: false,
+          insuranceCompanyName: "消去対象",
+          insuranceNumber: "REMOVE",
+        });
+      });
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(mockUpdateHospitalization).toHaveBeenCalledWith(
+        "42",
+        expect.objectContaining({
+          is_insurance: false,
+          insurance_company_name: null,
+          insurance_number: null,
+        })
+      );
+    });
+
+    it("isInsurance = true → update 時 保険フィールドが渡される", async () => {
+      const { result } = renderHook(() => useHospitalizationForm("42"));
+
+      act(() => {
+        result.current.handleFormDataChange({
+          isInsurance: true,
+          insuranceCompanyName: "ペット保険",
+          insuranceNumber: "P-999",
+        });
+      });
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(mockUpdateHospitalization).toHaveBeenCalledWith(
+        "42",
+        expect.objectContaining({
+          is_insurance: true,
+          insurance_company_name: "ペット保険",
+          insurance_number: "P-999",
+        })
+      );
+    });
+  });
+
+  // ──────────────────────────
   // treatmentPlans
   // ──────────────────────────
   describe("treatmentPlans", () => {

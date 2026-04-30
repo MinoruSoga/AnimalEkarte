@@ -1,8 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { ExaminationRecord } from "@/types";
 import { handleApiError } from "@/lib/handle-api-error";
-import { transformExamination } from "./transforms";
+import { transformExamination, type ExaminationRecord } from "./transforms";
 import type { BackendExamination, CreateExaminationRequest } from "./types";
 
 export const createExamination = async (

@@ -209,6 +209,10 @@ func (h *Handler) registerExaminationRoutesWithAuth(rg *gin.RouterGroup) {
 	examinations.POST("", h.RequirePermission(string(model.ResourceExaminations), "create"), h.CreateExamination)
 	examinations.PATCH("/:id", h.RequirePermission(string(model.ResourceExaminations), "edit"), h.UpdateExamination)
 	examinations.DELETE("/:id", h.RequirePermission(string(model.ResourceExaminations), "delete"), h.DeleteExamination)
+
+	// 検査項目（exam_results）— PUT 一括置換セマンティクス
+	examinations.GET("/:id/items", h.ListExaminationItems)
+	examinations.PUT("/:id/items", h.RequirePermission(string(model.ResourceExaminations), "edit"), h.ReplaceExaminationItems)
 }
 
 // registerVaccinationRoutesWithAuth はワクチンルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）

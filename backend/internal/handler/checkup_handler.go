@@ -140,9 +140,10 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	// BE-008: 健診タグ同期（best-effort）
+	// ISSUE-004: 更新後は DB 全体から checkup_done_*/next_checkup_* を再構築（best-effort）。
+	// type_id 変更時に旧 typeID のタグが残らない。
 	if checkup.MedicalRecord != nil && checkup.MedicalRecord.OwnerID != nil {
-		_ = h.svc.LstepTagSync.SyncCheckupTag(c.Request.Context(), clinicID, *checkup.MedicalRecord.OwnerID, checkup.CheckupTypeID, checkup.Date, checkup.NextDate)
+		_ = h.svc.LstepTagSync.ResyncOwnerCheckupTags(c.Request.Context(), clinicID, *checkup.MedicalRecord.OwnerID)
 	}
 	c.JSON(http.StatusOK, toCheckupResponse(checkup))
 }
@@ -164,20 +165,25 @@ func (h *Handler) DeleteCheckup(c *gin.Context) {
 		return
 	}
 
-	// BE-REOPEN-002: Delete 前に checkup を取得してタグ再計算に必要な owner_id を確保
+	// ISSUE-004: Delete 前に checkup を取得して owner_id を確保。削除後は medical_record 経由で取れない。
 	checkup, err := h.svc.Checkup.GetByID(c.Request.Context(), clinicID, medicalRecordID, checkupID)
 	if err != nil {
 		RespondError(c, err)
 		return
+	}
+	var ownerID uint64
+	if checkup.MedicalRecord != nil && checkup.MedicalRecord.OwnerID != nil {
+		ownerID = *checkup.MedicalRecord.OwnerID
 	}
 
 	if err := h.svc.Checkup.Delete(c.Request.Context(), clinicID, medicalRecordID, checkupID); err != nil {
 		RespondError(c, err)
 		return
 	}
-	// BE-REOPEN-002: 健診削除後にチェックアップタグを再計算（best-effort）
-	if checkup.MedicalRecord != nil && checkup.MedicalRecord.OwnerID != nil {
-		_ = h.svc.LstepTagSync.SyncCheckupTag(c.Request.Context(), clinicID, *checkup.MedicalRecord.OwnerID, checkup.CheckupTypeID, checkup.Date, checkup.NextDate)
+	// ISSUE-004: 削除後の DB 状態から checkup_done_*/next_checkup_* を再構築（best-effort）。
+	// 削除済みレコードのタグが再付与されない。同種別に他レコードが残れば最新日のタグを保持。
+	if ownerID != 0 {
+		_ = h.svc.LstepTagSync.ResyncOwnerCheckupTags(c.Request.Context(), clinicID, ownerID)
 	}
 	c.Status(http.StatusNoContent)
 }

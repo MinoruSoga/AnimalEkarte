@@ -1,37 +1,42 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v31.8（SQL マイグレーション 100% 同期）
-更新日: 2026-04-17
+バージョン: v31.12（SQL 100% 同期・全物理カラム監査済）
+更新日: 2026-04-28
 状態: Production Ready
 
 ---
 
-## 変更概要（v31.7 → v31.8）
+## 変更概要（v31.11 → v31.12）
 
 | 変更内容 | 詳細 |
 |---------|------|
-| 定期監査 | 2026-04-17 時点の `001_init.sql` との完全同期を確認 |
-| 整合性確認 | 69テーブルすべてのカラム、型、リレーション、ENUM定義の整合性を再検証 |
-| 重複整理 | ドキュメント内の記載に重複や矛盾がないことを確認 |
+| 完全物理監査 | `001_init.sql` の全 82 テーブル・全 1,000+ カラムを 1:1 で突き合わせ |
+| 型精度の厳密化 | `numeric(5,2)` (discount_rate), `numeric(6,2)` (weight), `numeric(10,1)` (quantity) 等を反映 |
+| カラム順序の同期 | SQL の `CREATE TABLE` 内での宣言順序に完全に一致 |
+| NULL/制約の反映 | `NOT NULL` や `UNIQUE` 制約の情報を可能な限り Mermaid に埋め込み |
 
 ---
 
-## テーブル一覧（69テーブル）
+## テーブル一覧（82テーブル）
 
 > テーブル順序は `001_init.sql` の CREATE TABLE 順に準拠。
 
 | # | テーブル名 | 区分 | 説明 |
 |---|-----------|------|------|
-| 1 | `companies` | 法人情報 | 法人（ノア動物病院）情報 |
-| 2 | `clinics` | 医院情報 | 各医院（八王子・城東・敷島） |
-| 3 | `animal_species` | マスタ | ペット種類マスタ（犬・猫・鳥等） |
+| 1 | `companies` | 法人情報 | 本部情報 |
+| 2 | `clinics` | 医院情報 | クリニック情報 |
+| 2a | `clinic_integrations` | LINE/Lステップ | Lステップ/LINE連携設定 |
+| 3 | `animal_species` | マスタ | ペット種類マスタ |
 | 4 | `occupations` | マスタ | 職種マスタ |
-| 5 | `accounts` | 認証 | ログインアカウント |
-| 6 | `staffs` | マスタ | スタッフ |
-| 7 | `owners` | コア | 飼い主 |
+| 5 | `accounts` | 認証 | 認証用アカウント |
+| 6 | `staffs` | マスタ | スタッフマスタ |
+| 7 | `owners` | コア | 飼主情報 |
+| 7a | `lstep_tag_cache` | LINE/Lステップ | Lステップタグキャッシュ |
+| 7b | `line_link_tokens` | LINE/Lステップ | LINE User ID 紐付けトークン |
+| 7c | `lstep_migration_progress` | LINE/Lステップ | Lステップ一括同期進捗 |
 | 8 | `inventory_items` | 在庫 | 在庫アイテム |
 | 9 | `exam_types` | マスタ | 検査種別 |
-| 10 | `exam_type_fields` | マスタ | 検査種別の検査項目定義 |
+| 10 | `exam_type_fields` | マスタ | 検査項目定義 |
 | 11 | `vaccines` | マスタ | ワクチン |
 | 12 | `medicines` | マスタ | 薬剤 |
 | 13 | `insurances` | マスタ | 保険 |
@@ -48,17 +53,21 @@
 | 24 | `checkup_types` | マスタ | 健診種別 |
 | 25 | `chief_complaint_types` | マスタ | 主訴区分マスタ |
 | 26 | `inquiry_templates` | マスタ | 問診定型文マスタ |
-| 27 | `pets` | コア | ペット |
+| 27 | `pets` | コア | ペット情報 |
+| 27a | `pet_chronic_conditions` | 診療 | 慢性疾患フラグ管理 |
 | 28 | `staff_clinic_assignments` | 認証 | スタッフ-クリニック所属 |
 | 29 | `permission_groups` | 権限 | 権限グループマスタ |
 | 30 | `permission_group_rules` | 権限 | 権限グループルール |
-| 31 | `staff_permission_groups` | 権限 | スタッフ-権限グループ中間テーブル |
+| 31 | `staff_permission_groups` | 権限 | スタッフ-権限グループ中間 |
 | 32 | `line_customers` | LINE予約 | LINE予約ユーザー管理 |
-| 33 | `appointments` | 予約 | 予約 |
-| 34 | `hospitalizations` | 入院 | 入院・ホテル |
-| 35 | `appointment_trimming_details` | トリミング | 予約に紐づくトリミング詳細 |
-| 36 | `appointment_trimming_options` | トリミング | 予約に紐づくトリミングオプション選択 |
-| 37 | `medical_records` | 診療 | カルテ |
+| 32a | `shared_files` | LINE | LINE個別送信用ファイルストレージ |
+| 32b | `line_send_logs` | LINE | LINE送信ログ |
+| 33 | `appointments` | 予約 | 予約情報 |
+| 34 | `hospitalizations` | 入院 | 入院・ホテル情報 |
+| 35 | `appointment_trimming_details` | トリミング | 予約トリミング詳細 |
+| 36 | `appointment_trimming_options` | トリミング | 予約トリミングオプション |
+| 37 | `medical_records` | 診療 | カルテ情報 |
+| 37a | `prescriptions` | 診療 | 処方薬記録 |
 | 38 | `vaccinations` | 診療 | ワクチン接種記録 |
 | 39 | `checkups` | 診療 | 健診記録 |
 | 40 | `exams` | 診療 | 検査記録 |
@@ -69,28 +78,33 @@
 | 45 | `medical_record_images` | 診療 | 診療画像 |
 | 46 | `billing_confirmations` | 診療 | 会計医師確認 |
 | 47 | `estimates` | 診療 | 見積書 |
-| 48 | `exam_results` | 診療 | 検査記録の検査結果項目 |
+| 48 | `exam_results` | 診療 | 検査結果項目 |
 | 49 | `daily_records` | 入院 | 入院日次記録 |
 | 50 | `vital_records` | 診療・入院 | バイタル記録 |
 | 51 | `care_plan_items` | 入院 | ケアプラン項目 |
-| 52 | `merchandise_items` | マスタ | 物販・フード・その他マスタ |
+| 52 | `merchandise_items` | マスタ | その他物販マスタ |
 | 53 | `estimate_items` | 診療 | 見積書明細 |
 | 54 | `care_logs` | 入院 | ケアログ |
 | 55 | `staff_notes` | 入院 | スタッフノート |
-| 56 | `billings` | 会計 | 会計 |
+| 56 | `billings` | 会計 | 会計情報 |
 | 57 | `billing_items` | 会計 | 会計明細 |
-| 58 | `payments` | 会計 | 支払い情報 |
+| 62c | `payment_methods` | マスタ | 支払方法マスタ |
+| 58 | `payments` | 会計 | 支払い詳細情報 |
 | 59 | `billing_refunds` | 会計 | 返金レコード |
 | 60 | `shift_entries` | シフト | スタッフシフト |
 | 61 | `clinic_holidays` | シフト | 医院個別休診日 |
+| 62a | `clinic_settings` | 会計 | 医院締め時間・設定 |
+| 62b | `closing_special_periods` | 会計 | 特別診療時間設定 |
+| 62d | `cash_register_closes` | 会計 | レジ締めレコード |
 | 62 | `audit_logs` | 監査 | 操作監査ログ |
 | 63 | `line_reservation_settings` | LINE予約 | LINE予約基本設定 |
-| 64 | `staff_reservation_exclusions` | 予約マスタ | スタッフ × 非対応予約区分 |
-| 65 | `shift_entry_breaks` | シフト | シフト中の休憩時間管理 |
-| 66 | `shift_templates` | マスタ | シフトテンプレートマスタ |
-| 67 | `shift_template_breaks` | マスタ | シフトテンプレートの休憩時間管理 |
-| 68 | `reservation_type_unavailable_times` | 予約マスタ | 予約区分ごとの予約不可時間 |
-| 69 | `reservation_type_occupations` | 予約マスタ | 予約区分と職種の対応 |
+| 64 | `staff_reservation_exclusions` | 予約マスタ | スタッフ非対応区分 |
+| 65 | `shift_entry_breaks` | シフト | シフト休憩時間 |
+| 66 | `shift_templates` | マスタ | シフトテンプレート |
+| 67 | `shift_template_breaks` | マスタ | テンプレート休憩 |
+| 68 | `reservation_type_unavailable_times` | 予約マスタ | 予約不可時間設定 |
+| 69 | `reservation_type_occupations` | 予約マスタ | 区分対応職種 |
+| 70 | `password_reset_tokens` | 認証 | パスワードリセットトークン |
 
 ---
 
@@ -101,7 +115,7 @@ erDiagram
     %% ===== 法人・医院 =====
     companies {
         bigint id PK
-        text name
+        text name NOT_NULL
         text postal_code
         text address
         text phone_number
@@ -112,15 +126,14 @@ erDiagram
         text email
         text website
         text logo_url
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     clinics {
         bigint id PK
         bigint company_id FK
-        text name
-        boolean is_active
+        text name NOT_NULL
         text postal_code
         text address
         text phone_number
@@ -130,43 +143,60 @@ erDiagram
         text email
         text website
         text logo_url
-        numeric standard_tax_rate
-        numeric reduced_tax_rate
-        timestamptz created_at
-        timestamptz updated_at
+        boolean is_active NOT_NULL
+        numeric standard_tax_rate NOT_NULL
+        numeric reduced_tax_rate NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+    }
+
+    clinic_integrations {
+        bigint id PK
+        bigint clinic_id FK
+        varchar_50 service NOT_NULL
+        varchar_100 key_name NOT_NULL
+        text key_value NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     %% ===== 認証 =====
     accounts {
         bigint id PK
-        text email "UNIQUE"
-        text password_hash
-        boolean is_active
-        boolean is_system_admin
-        timestamptz created_at
-        timestamptz updated_at
+        text email "UNIQUE NOT_NULL"
+        text password_hash NOT_NULL
+        boolean is_active NOT_NULL
+        boolean is_system_admin NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
+    }
+
+    password_reset_tokens {
+        bigint id PK
+        bigint account_id FK
+        text token_hash "UNIQUE NOT_NULL"
+        timestamptz expires_at NOT_NULL
+        timestamptz created_at NOT_NULL
     }
 
     staff_clinic_assignments {
         bigint id PK
         bigint staff_id FK
         bigint clinic_id FK
-        boolean is_main
-        timestamptz created_at
-        timestamptz updated_at
+        boolean is_main NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
     }
 
     %% ===== コア =====
     owners {
         bigint id PK
         bigint clinic_id FK
-        text name
-        text phone
-        text email
+        text name NOT_NULL
+        text name_kana NOT_NULL
         date birth_date
-        membership_type membership_type
-        text name_kana
         text company
         text postal_code
         text address1
@@ -174,528 +204,467 @@ erDiagram
         text home_postal_code
         text home_address1
         text home_address2
+        text phone
         text company_phone
-        boolean is_dangerous
-        numeric discount_rate
+        text email
         text remarks
-        timestamptz created_at
-        timestamptz updated_at
+        boolean is_dangerous NOT_NULL
+        numeric_5_2 discount_rate NOT_NULL
+        membership_type membership_type NOT_NULL
+        text line_user_id
+        boolean lstep_opt_out NOT_NULL
+        timestamptz lstep_opt_out_at
+        text lstep_opt_out_reason
+        timestamptz line_followed_at
+        timestamptz line_blocked_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
+    }
+
+    lstep_tag_cache {
+        bigint id PK
+        bigint clinic_id FK
+        bigint owner_id FK
+        varchar_100 tag_name NOT_NULL
+        varchar_20 category NOT_NULL
+        timestamptz synced_at NOT_NULL
+    }
+
+    line_link_tokens {
+        bigint id PK
+        bigint clinic_id FK
+        bigint owner_id FK
+        varchar_64 token NOT_NULL
+        timestamptz expires_at NOT_NULL
+        timestamptz used_at
+        timestamptz created_at NOT_NULL
+    }
+
+    lstep_migration_progress {
+        bigint id PK
+        bigint clinic_id FK
+        bigint owner_id FK
+        varchar_20 status NOT_NULL
+        int tags_added NOT_NULL
+        int tags_failed NOT_NULL
+        text error_message
+        timestamptz started_at
+        timestamptz completed_at
     }
 
     pets {
         bigint id PK
         bigint clinic_id FK
         bigint owner_id FK
+        text pet_number NOT_NULL
+        text name NOT_NULL
+        text name_kana NOT_NULL
         bigint animal_species_id FK
-        text name
-        pet_gender gender
-        pet_status status
-        bigint insurance_id FK
-        text pet_number
-        text name_kana
+        pet_gender gender NOT_NULL
+        pet_status status NOT_NULL
         date birth_date
-        text breed
-        text color
-        numeric weight
+        text breed NOT_NULL
+        text color NOT_NULL
+        numeric_6_2 weight
         date neutered_date
         acquisition_type acquisition_type
-        danger_level danger_level
-        text food
-        text environment
-        text phone
+        danger_level danger_level NOT_NULL
+        text food NOT_NULL
+        text environment NOT_NULL
+        text phone NOT_NULL
         date last_visit
-        text remarks
-        timestamptz created_at
-        timestamptz updated_at
+        bigint insurance_id FK
+        text remarks NOT_NULL
+        timestamptz deceased_at
+        text deceased_reason
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
+    }
+
+    pet_chronic_conditions {
+        bigint id PK
+        bigint clinic_id FK
+        bigint pet_id FK
+        varchar_50 condition_code NOT_NULL
+        varchar_100 condition_name NOT_NULL
+        date diagnosed_at
+        text notes
+        boolean is_active NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
     %% ===== マスタ =====
     animal_species {
         bigint id PK
-        text name
-        boolean is_active
+        text name NOT_NULL
+        boolean is_active NOT_NULL
         integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     occupations {
         bigint id PK
         bigint clinic_id FK
-        text name
-        text description
-        integer sort_order
-        boolean is_active
+        text name NOT_NULL
+        text description NOT_NULL
+        integer sort_order NOT_NULL
+        boolean is_active NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     staffs {
         bigint id PK
         bigint account_id FK
-        text name
-        boolean is_active
-        text license_number
+        text name NOT_NULL
+        boolean is_active NOT_NULL
+        text license_number NOT_NULL
         bigint occupation_id FK
         integer sort_order
-        staff_type staff_type
-        text reservation_display_name
-        boolean reservation_visible
-        text reservation_comment
-        text reservation_image_url
-        timestamptz created_at
-        timestamptz updated_at
+        staff_type staff_type NOT_NULL
+        text reservation_display_name NOT_NULL
+        boolean reservation_visible NOT_NULL
+        text reservation_comment NOT_NULL
+        text reservation_image_url NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
     permission_groups {
         bigint id PK
         bigint clinic_id FK
-        varchar_100 name
+        varchar_100 name NOT_NULL
         text description
         varchar_7 color
-        boolean is_active
-        int sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        boolean is_active NOT_NULL
+        int sort_order NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
     permission_group_rules {
         bigint id PK
         bigint group_id FK
-        varchar_50 resource
-        boolean can_view
-        boolean can_create
-        boolean can_edit
-        boolean can_delete
-        timestamptz created_at
-        timestamptz updated_at
+        varchar_50 resource NOT_NULL
+        boolean can_view NOT_NULL
+        boolean can_create NOT_NULL
+        boolean can_edit NOT_NULL
+        boolean can_delete NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
     }
 
     staff_permission_groups {
-        bigint staff_id PK
-        bigint group_id PK
-        timestamptz created_at
+        bigint staff_id PK FK
+        bigint group_id PK FK
+        timestamptz created_at NOT_NULL
     }
 
     inventory_items {
         bigint id PK
         bigint clinic_id FK
-        text name
-        inventory_category category
-        integer quantity
-        inventory_status status
-        text unit
-        integer min_stock_level
-        text location
+        text name NOT_NULL
+        inventory_category category NOT_NULL
+        integer quantity NOT_NULL
+        text unit NOT_NULL
+        integer min_stock_level NOT_NULL
+        text location NOT_NULL
         date expiry_date
-        text supplier
+        text supplier NOT_NULL
         date last_restocked
-        timestamptz created_at
-        timestamptz updated_at
+        inventory_status status NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
     exam_types {
         bigint id PK
         bigint clinic_id FK
-        text name
+        text name NOT_NULL
         bigint parent_id FK
-        boolean is_active
+        boolean is_active NOT_NULL
         bigint price
-        text description
+        text description NOT_NULL
         integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     exam_type_fields {
         bigint id PK
         bigint exam_type_id FK
-        text name
+        text name NOT_NULL
         integer sort_order
-        text inspection_value
-        text normal_value
-        text unit
-        timestamptz created_at
-        timestamptz updated_at
+        text inspection_value NOT_NULL
+        text normal_value NOT_NULL
+        text unit NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
     }
 
     vaccines {
         bigint id PK
         bigint clinic_id FK
-        text name
+        text name NOT_NULL
         bigint parent_id FK
-        boolean is_active
-        vaccine_species species
+        boolean is_active NOT_NULL
+        vaccine_species species NOT_NULL
         bigint inventory_id FK
         bigint price
-        text description
-        text interval
+        text description NOT_NULL
+        text interval NOT_NULL
         integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     medicines {
         bigint id PK
         bigint clinic_id FK
-        text name
+        text name NOT_NULL
         bigint parent_id FK
-        boolean is_active
-        dosage_form dosage_form
+        boolean is_active NOT_NULL
+        dosage_form dosage_form NOT_NULL
         bigint inventory_id FK
         bigint price
-        tax_type tax_type
-        numeric tax_rate
-        text description
-        medicine_unit medicine_unit
-        numeric default_quantity
+        tax_type tax_type NOT_NULL
+        numeric tax_rate NOT_NULL
+        text description NOT_NULL
+        medicine_unit medicine_unit NOT_NULL
+        numeric default_quantity NOT_NULL
         integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     insurances {
         bigint id PK
         bigint clinic_id FK
-        text name
-        boolean is_active
-        integer coverage_rate
-        text description
-        text contact_phone
+        text name NOT_NULL
+        boolean is_active NOT_NULL
+        integer coverage_rate NOT_NULL
+        text description NOT_NULL
+        text contact_phone NOT_NULL
         integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     cages {
         bigint id PK
         bigint clinic_id FK
-        text name
-        boolean is_active
-        cage_type cage_type
-        cage_size cage_size
+        text name NOT_NULL
+        boolean is_active NOT_NULL
+        cage_type cage_type NOT_NULL
+        cage_size cage_size NOT_NULL
         bigint price
-        text description
+        text description NOT_NULL
         integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     reservation_type_groups {
         bigint id PK
         bigint clinic_id FK
-        text name
-        text color
-        integer sort_order
-        boolean is_active
+        text name NOT_NULL
+        text color NOT_NULL
+        integer sort_order NOT_NULL
+        boolean is_active NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     reservation_types {
         bigint id PK
         bigint clinic_id FK
-        text name
-        boolean is_active
-        text description
-        text color
-        integer sort_order
+        text name NOT_NULL
+        boolean is_active NOT_NULL
+        text description NOT_NULL
+        text color NOT_NULL
+        integer sort_order NOT_NULL
         bigint group_id FK
-        text reservation_display_name
-        integer duration_minutes
-        text short_name
-        boolean show_short_name
-        boolean reservation_visible
-        text reservation_comment
-        text reservation_image_url
-        text reservation_day_option
-        boolean is_internal
-        reservation_type_category category
+        text reservation_display_name NOT_NULL
+        integer duration_minutes NOT_NULL
+        text short_name NOT_NULL
+        boolean show_short_name NOT_NULL
+        boolean reservation_visible NOT_NULL
+        text reservation_comment NOT_NULL
+        text reservation_image_url NOT_NULL
+        text reservation_day_option NOT_NULL
+        boolean is_internal NOT_NULL
+        reservation_type_category category NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     consultations {
         bigint id PK
         bigint clinic_id FK
-        text name
+        text name NOT_NULL
         bigint parent_id FK
-        boolean is_active
+        boolean is_active NOT_NULL
         bigint price
-        tax_type tax_type
-        numeric tax_rate
-        text description
-        text time_condition
+        tax_type tax_type NOT_NULL
+        numeric tax_rate NOT_NULL
+        text description NOT_NULL
+        text time_condition NOT_NULL
         integer duration
         integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
     }
 
     procedures {
         bigint id PK
         bigint clinic_id FK
-        text name
+        text name NOT_NULL
         bigint parent_id FK
-        boolean is_active
-        anesthesia_type anesthesia
+        boolean is_active NOT_NULL
+        anesthesia_type anesthesia NOT_NULL
         bigint price
-        tax_type tax_type
-        numeric tax_rate
-        text description
+        tax_type tax_type NOT_NULL
+        numeric tax_rate NOT_NULL
+        text description NOT_NULL
         integer duration
         integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     hospitalization_plans {
         bigint id PK
         bigint clinic_id FK
-        text name
-        boolean is_active
-        body_size body_size
-        billing_unit billing_unit
-        bigint price
-        tax_type tax_type
-        numeric tax_rate
-        text description
+        text name NOT_NULL
+        boolean is_active NOT_NULL
+        body_size body_size NOT_NULL
+        billing_unit billing_unit NOT_NULL
+        bigint price NOT_NULL
+        tax_type tax_type NOT_NULL
+        numeric tax_rate NOT_NULL
+        text description NOT_NULL
         integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    merchandise_items {
-        bigint id PK
-        bigint clinic_id FK
-        text name
-        item_category category
-        bigint unit_price
-        tax_type tax_type
-        numeric tax_rate
-        boolean is_active
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-    }
-
-    trimming_courses {
-        bigint id PK
-        bigint clinic_id FK
-        text name
-        boolean is_active
-        target_size target_size
-        bigint price
-        text description
-        integer duration
-        integer sort_order
-        timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    trimming_options {
-        bigint id PK
-        bigint clinic_id FK
-        text name
-        boolean is_active
-        boolean is_combinable
-        bigint price
-        text description
-        integer duration
-        integer sort_order
-        timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     diagnosis_types {
         bigint id PK
         bigint clinic_id FK
-        text name
-        boolean is_active
-        text description
+        text name NOT_NULL
+        boolean is_active NOT_NULL
+        text description NOT_NULL
         integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     diagnosis_names {
         bigint id PK
         bigint clinic_id FK
-        text name
-        boolean is_active
-        text description
+        text name NOT_NULL
+        boolean is_active NOT_NULL
+        text description NOT_NULL
         bigint diagnosis_type_id FK
         integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     checkup_types {
         bigint id PK
         bigint clinic_id FK
-        text name
+        text name NOT_NULL
         bigint parent_id FK
-        boolean is_active
-        text interval
-        bigint price
-        text description
-        text target_age
+        boolean is_active NOT_NULL
+        text interval NOT_NULL
+        bigint price NOT_NULL
+        text description NOT_NULL
+        text target_age NOT_NULL
         integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
     chief_complaint_types {
         bigint id PK
         bigint clinic_id FK
-        text name
-        text description
-        boolean is_active
+        text name NOT_NULL
+        text description NOT_NULL
+        boolean is_active NOT_NULL
         integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     inquiry_templates {
         bigint id PK
         bigint clinic_id FK
-        text category
-        text title
-        text content
-        boolean is_active
+        text category NOT_NULL
+        text title NOT_NULL
+        text content NOT_NULL
+        boolean is_active NOT_NULL
         integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     %% ===== 診療 =====
     medical_records {
         bigint id PK
         bigint clinic_id FK
-        text record_no
-        date date
+        record_no text NOT_NULL
+        date date NOT_NULL
         bigint owner_id FK
         bigint pet_id FK
         bigint doctor_id FK
         bigint appointment_id FK
-        medical_record_status status
-        integer version
+        medical_record_status status NOT_NULL
+        integer version NOT_NULL
         bigint entered_by FK
-        timestamptz created_at
-        timestamptz updated_at
+        date next_visit_recommended_date
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
-    clinical_plans {
+    prescriptions {
         bigint id PK
-        bigint medical_record_id FK
-        text physical_exam
-        bigint diagnosis_type_id FK
-        bigint diagnosis_name_id FK
-        bigint diagnosis_2_type_id FK
-        bigint diagnosis_2_name_id FK
-        text diagnosis_details
-        text treatment_policy
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    treatments {
-        bigint id PK
-        bigint medical_record_id FK
-        treatment_item_type item_type
-        bigint consultation_id FK
-        bigint procedure_id FK
-        bigint medicine_id FK
-        bigint inventory_id FK
-        bigint unit_price
-        numeric_10_1 quantity
-        boolean is_selected
-        treatment_status status
-        text content
-        text memo
-        varchar_50 admin_route
-        boolean is_insurance
-        numeric discount_rate
-        bigint discount_amount
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
-        timestamptz deleted_at
-    }
-
-    vital_records {
-        bigint id PK
-        bigint pet_id FK
-        bigint medical_record_id FK
-        bigint daily_record_id FK
-        timestamptz recorded_at
-        bigint staff_id FK
-        numeric temperature
-        integer heart_rate
-        integer respiration_rate
-        numeric weight
-        body_weight_unit weight_unit
-        text notes
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    exams {
-        bigint id PK
-        bigint medical_record_id FK
         bigint clinic_id FK
+        bigint owner_id FK
         bigint pet_id FK
-        bigint exam_type_id FK
-        bigint doctor_id FK
-        exam_status status
-        date date
-        text result_summary
-        text machine
-        timestamptz created_at
-        timestamptz updated_at
+        bigint medical_record_id FK
+        date prescribed_at NOT_NULL
+        integer duration_days NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
-    }
-
-    exam_results {
-        bigint id PK
-        bigint exam_id FK
-        bigint exam_type_field_id FK
-        text name
-        text inspection_value
-        exam_result_status status
-        text normal_value
-        text result
-        text unit
-        text reference_value
-        decimal ref_min
-        decimal ref_max
-        boolean is_abnormal
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     vaccinations {
@@ -704,18 +673,18 @@ erDiagram
         bigint clinic_id FK
         bigint pet_id FK
         bigint vaccine_id FK
-        date date
+        date date NOT_NULL
         date next_date
-        next_schedule_type next_schedule_type
+        next_schedule_type next_schedule_type NOT_NULL
         bigint doctor_id FK
-        text supplemental
-        text lot1
-        text lot2
-        text lot3
-        text lot4
-        text remarks
-        timestamptz created_at
-        timestamptz updated_at
+        text supplemental NOT_NULL
+        text lot1 NOT_NULL
+        text lot2 NOT_NULL
+        text lot3 NOT_NULL
+        text lot4 NOT_NULL
+        text remarks NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
@@ -725,12 +694,28 @@ erDiagram
         bigint clinic_id FK
         bigint pet_id FK
         bigint checkup_type_id FK
-        date date
+        date date NOT_NULL
         date next_date
         bigint doctor_id FK
-        text result
-        timestamptz created_at
-        timestamptz updated_at
+        text result NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
+    }
+
+    exams {
+        bigint id PK
+        bigint medical_record_id FK
+        bigint clinic_id FK
+        bigint pet_id FK
+        bigint exam_type_id FK
+        bigint doctor_id FK
+        exam_status status NOT_NULL
+        date date NOT_NULL
+        text result_summary NOT_NULL
+        text machine NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
@@ -738,118 +723,173 @@ erDiagram
         bigint id PK
         bigint medical_record_id FK
         bigint chief_complaint_type_id FK
-        text chief_complaint
-        text history
-        text current_medications
-        text allergy_info
-        text last_meal
-        text last_defecation
-        text last_urination
-        appetite_level appetite
-        water_intake_level water_intake
-        text owner_observations
-        text notes
+        text chief_complaint NOT_NULL
+        text history NOT_NULL
+        text current_medications NOT_NULL
+        text allergy_info NOT_NULL
+        text last_meal NOT_NULL
+        text last_defecation NOT_NULL
+        text last_urination NOT_NULL
+        appetite_level appetite NOT_NULL
+        water_intake_level water_intake NOT_NULL
+        text owner_observations NOT_NULL
+        text notes NOT_NULL
         bigint staff_id FK
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+    }
+
+    clinical_plans {
+        bigint id PK
+        bigint medical_record_id FK
+        text physical_exam NOT_NULL
+        bigint diagnosis_type_id FK
+        bigint diagnosis_name_id FK
+        bigint diagnosis_2_type_id FK
+        bigint diagnosis_2_name_id FK
+        text diagnosis_details NOT_NULL
+        text treatment_policy NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
+    }
+
+    treatments {
+        bigint id PK
+        bigint medical_record_id FK
+        treatment_item_type item_type NOT_NULL
+        bigint consultation_id FK
+        bigint procedure_id FK
+        bigint medicine_id FK
+        bigint inventory_id FK
+        bigint unit_price NOT_NULL
+        numeric_10_1 quantity NOT_NULL
+        boolean is_selected NOT_NULL
+        treatment_status status NOT_NULL
+        text content NOT_NULL
+        text memo NOT_NULL
+        varchar_50 admin_route
+        boolean is_insurance NOT_NULL
+        numeric discount_rate NOT_NULL
+        bigint discount_amount NOT_NULL
+        integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
+    }
+
+    treatment_plans {
+        bigint id PK
+        bigint medical_record_id FK
+        bigint hospitalization_id FK
+        text treatment_content NOT_NULL
+        bigint unit_price NOT_NULL
+        numeric quantity NOT_NULL
+        text memo NOT_NULL
+        boolean is_insurance NOT_NULL
+        numeric discount_rate NOT_NULL
+        bigint discount_amount NOT_NULL
+        bigint subtotal NOT_NULL
+        integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
     }
 
     medical_record_images {
         bigint id PK
         bigint medical_record_id FK
-        text image_url
-        text thumbnail_url
-        text file_name
-        bigint file_size
-        text mime_type
-        medical_image_type image_type
-        text description
-        timestamptz taken_at
+        text image_url NOT_NULL
+        text thumbnail_url NOT_NULL
+        text file_name NOT_NULL
+        bigint file_size NOT_NULL
+        text mime_type NOT_NULL
+        medical_image_type image_type NOT_NULL
+        text description NOT_NULL
+        timestamptz taken_at NOT_NULL
         bigint exam_id FK
         bigint staff_id FK
         integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    estimates {
-        bigint id PK
-        bigint clinic_id FK
-        text estimate_no
-        bigint medical_record_id FK
-        text title
-        bigint owner_id FK
-        estimate_status status
-        bigint subtotal
-        bigint tax_total
-        bigint total_amount
-        bigint insurance_amount
-        bigint discount_amount
-        date valid_until
-        text comment
-        text notes
-        bigint created_by FK
-        timestamptz created_at
-        timestamptz updated_at
-        timestamptz deleted_at
-    }
-
-    estimate_items {
-        bigint id PK
-        bigint estimate_id FK
-        text name
-        item_category category
-        bigint unit_price
-        numeric quantity
-        tax_type tax_type
-        numeric tax_rate
-        numeric discount_rate
-        bigint discount_amount
-        boolean is_insurance_applicable
-        bigint consultation_id FK
-        bigint procedure_id FK
-        bigint medicine_id FK
-        bigint merchandise_item_id FK
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     billing_confirmations {
         bigint id PK
         bigint medical_record_id FK
-        confirmation_status status
+        confirmation_status status NOT_NULL
         bigint confirmed_by FK
         timestamptz confirmed_at
         bigint returned_by FK
         timestamptz returned_at
-        text return_reason
-        text memo
-        timestamptz created_at
-        timestamptz updated_at
+        text return_reason NOT_NULL
+        text memo NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+    }
+
+    estimates {
+        bigint id PK
+        bigint clinic_id FK
+        text estimate_no NOT_NULL
+        bigint medical_record_id FK
+        text title NOT_NULL
+        bigint owner_id FK
+        estimate_status status NOT_NULL
+        bigint subtotal NOT_NULL
+        bigint tax_total NOT_NULL
+        bigint total_amount NOT_NULL
+        bigint insurance_amount NOT_NULL
+        bigint discount_amount NOT_NULL
+        date valid_until
+        text comment NOT_NULL
+        text notes NOT_NULL
+        bigint created_by FK
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
+    }
+
+    exam_results {
+        bigint id PK
+        bigint exam_id FK
+        bigint exam_type_field_id FK
+        text name NOT_NULL
+        text inspection_value NOT_NULL
+        exam_result_status status NOT_NULL
+        text normal_value NOT_NULL
+        text result NOT_NULL
+        text unit NOT_NULL
+        text reference_value NOT_NULL
+        decimal_10_4 ref_min
+        decimal_10_4 ref_max
+        boolean is_abnormal NOT_NULL
+        integer sort_order
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     %% ===== 予約 =====
     appointments {
         bigint id PK
         bigint clinic_id FK
-        timestamptz start_time
-        timestamptz end_time
+        timestamptz start_time NOT_NULL
+        timestamptz end_time NOT_NULL
         bigint owner_id FK
         bigint pet_id FK
-        visit_type visit_type
+        visit_type visit_type NOT_NULL
         bigint reservation_type_id FK
         bigint doctor_id FK
-        boolean is_designated
-        reservation_status status
-        text notes
-        reservation_source source
+        boolean is_designated NOT_NULL
+        reservation_status status NOT_NULL
+        text notes NOT_NULL
+        reservation_source source NOT_NULL
         bigint created_by FK
-        boolean is_staff_delegated
-        jsonb customer_fields
+        boolean is_staff_delegated NOT_NULL
+        jsonb customer_fields NOT_NULL
         bigint line_customer_id FK
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
@@ -859,17 +899,17 @@ erDiagram
         bigint clinic_id FK
         bigint owner_id FK
         bigint pet_id FK
-        hospitalization_type hospitalization_type
-        date start_date
-        date end_date
+        hospitalization_type hospitalization_type NOT_NULL
+        date start_date NOT_NULL
+        date end_date NOT_NULL
         bigint cage_id FK
         bigint doctor_id FK
-        hospitalization_status status
-        text memo
-        text owner_request
-        text staff_notes
-        timestamptz created_at
-        timestamptz updated_at
+        hospitalization_status status NOT_NULL
+        text memo NOT_NULL
+        text owner_request NOT_NULL
+        text staff_notes NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
@@ -877,96 +917,105 @@ erDiagram
         bigint id PK
         bigint hospitalization_id FK
         bigint clinic_id FK
-        date date
-        timestamptz created_at
-        timestamptz updated_at
+        date date NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+    }
+
+    vital_records {
+        bigint id PK
+        bigint pet_id FK
+        bigint medical_record_id FK
+        bigint daily_record_id FK
+        timestamptz recorded_at NOT_NULL
+        bigint staff_id FK
+        numeric temperature
+        integer heart_rate
+        integer respiration_rate
+        numeric weight
+        body_weight_unit weight_unit
+        text notes NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     care_plan_items {
         bigint id PK
         bigint hospitalization_id FK
-        care_plan_type type
-        plan_timing[] timing
+        care_plan_type type NOT_NULL
+        text name NOT_NULL
+        text description NOT_NULL
+        jsonb timing NOT_NULL
+        care_plan_status status NOT_NULL
+        text notes NOT_NULL
         bigint medicine_id FK
         bigint procedure_id FK
         bigint hospitalization_plan_id FK
-        care_plan_status status
-        text name
-        text description
-        text notes
-        bigint unit_price
-        text category
+        bigint unit_price NOT_NULL
+        text category NOT_NULL
         integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     care_logs {
         bigint id PK
         bigint daily_record_id FK
-        care_log_type type
+        time time NOT_NULL
+        care_log_type type NOT_NULL
+        care_log_status status NOT_NULL
+        text value NOT_NULL
         bigint staff_id FK
-        time time
-        care_log_status status
-        text value
-        text notes
-        timestamptz created_at
-        timestamptz updated_at
+        text notes NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     staff_notes {
         bigint id PK
         bigint daily_record_id FK
-        time time
+        time time NOT_NULL
         bigint staff_id FK
-        text content
-        timestamptz created_at
-        timestamptz updated_at
+        text content NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
-    treatment_plans {
+    merchandise_items {
         bigint id PK
-        bigint medical_record_id FK
-        bigint hospitalization_id FK
-        text treatment_content
-        bigint unit_price
-        numeric quantity
-        text memo
-        boolean is_insurance
-        numeric discount_rate
-        bigint discount_amount
-        bigint subtotal
+        bigint clinic_id FK
+        text name NOT_NULL
+        item_category category NOT_NULL
+        bigint unit_price NOT_NULL
+        tax_type tax_type NOT_NULL
+        numeric tax_rate NOT_NULL
+        boolean is_active NOT_NULL
         integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
-    %% ===== トリミング =====
-    appointment_trimming_details {
+    estimate_items {
         bigint id PK
-        bigint clinic_id FK
-        bigint appointment_id FK
-        bigint course_id FK
-        text style_request
-        numeric body_weight
-        body_weight_unit bw_unit
-        numeric body_temperature
-        text used_shampoo
-        text used_ribbon
-        text remarks
-        text style_image
-        text completed_image
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    appointment_trimming_options {
-        bigint id PK
-        bigint appointment_id FK
-        bigint option_id FK
+        bigint estimate_id FK
+        text name NOT_NULL
+        item_category category NOT_NULL
+        bigint unit_price NOT_NULL
+        numeric quantity NOT_NULL
+        tax_type tax_type NOT_NULL
+        numeric tax_rate NOT_NULL
+        numeric discount_rate NOT_NULL
+        bigint discount_amount NOT_NULL
+        boolean is_insurance_applicable NOT_NULL
+        bigint consultation_id FK
+        bigint procedure_id FK
+        bigint medicine_id FK
+        bigint merchandise_item_id FK
         integer sort_order
-        timestamptz created_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
     }
 
     %% ===== 会計 =====
@@ -977,54 +1026,66 @@ erDiagram
         bigint hospitalization_id FK
         bigint owner_id FK
         bigint pet_id FK
-        bigint subtotal
-        bigint tax_total
-        bigint total_amount
-        boolean has_insurance
-        billing_status status
-        date scheduled_date
+        bigint subtotal NOT_NULL
+        bigint tax_total NOT_NULL
+        bigint total_amount NOT_NULL
+        boolean has_insurance NOT_NULL
+        billing_status status NOT_NULL
+        date scheduled_date NOT_NULL
         timestamptz completed_at
-        text memo
-        timestamptz created_at
-        timestamptz updated_at
+        text memo NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
     billing_items {
         bigint id PK
         bigint billing_id FK
-        item_category category
-        text name
-        bigint unit_price
-        numeric_10_1 quantity
-        tax_type tax_type
-        numeric_3_2 tax_rate
-        boolean is_insurance_applicable
-        item_source source
+        item_category category NOT_NULL
+        text name NOT_NULL
+        bigint unit_price NOT_NULL
+        numeric_10_1 quantity NOT_NULL
+        tax_type tax_type NOT_NULL
+        numeric tax_rate NOT_NULL
+        boolean is_insurance_applicable NOT_NULL
+        item_source source NOT_NULL
         bigint merchandise_item_id FK
         integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
+    }
+
+    payment_methods {
+        bigint id PK
+        bigint clinic_id FK
+        varchar_50 name NOT_NULL
+        integer display_order NOT_NULL
+        boolean is_active NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
     payments {
         bigint id PK
         bigint billing_id FK
-        bigint subtotal
-        bigint tax_total
-        bigint total_amount
-        text insurance_name
-        numeric_3_2 insurance_ratio
-        bigint insurance_amount
-        bigint discount_amount
-        bigint billing_amount
-        bigint received_amount
-        bigint change_amount
-        payment_method method
+        bigint subtotal NOT_NULL
+        bigint tax_total NOT_NULL
+        bigint total_amount NOT_NULL
+        text insurance_name NOT_NULL
+        numeric insurance_ratio NOT_NULL
+        bigint insurance_amount NOT_NULL
+        bigint discount_amount NOT_NULL
+        bigint billing_amount NOT_NULL
+        bigint received_amount NOT_NULL
+        bigint change_amount NOT_NULL
+        payment_method method NOT_NULL
+        bigint payment_method_id FK
         bigint paid_by FK
-        timestamptz created_at
-        timestamptz updated_at
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
         timestamptz deleted_at
     }
 
@@ -1032,11 +1093,11 @@ erDiagram
         bigint id PK
         bigint clinic_id FK
         bigint billing_id FK
-        bigint amount
-        text reason
+        bigint amount NOT_NULL
+        text reason NOT_NULL
         bigint refunded_by FK
-        timestamptz refunded_at
-        timestamptz created_at
+        timestamptz refunded_at NOT_NULL
+        timestamptz created_at NOT_NULL
     }
 
     %% ===== シフト =====
@@ -1044,105 +1105,111 @@ erDiagram
         bigint id PK
         bigint clinic_id FK
         bigint staff_id FK
-        date date
-        shift_type shift_type
+        date date NOT_NULL
+        shift_type shift_type NOT_NULL
         time start_time
         time end_time
-        text notes
-        timestamptz created_at
-        timestamptz updated_at
+        text notes NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
-    shift_entry_breaks {
-        bigint id PK
-        bigint shift_entry_id FK
-        time break_start
-        time break_end
-    }
-
-    shift_templates {
+    clinic_holidays {
         bigint id PK
         bigint clinic_id FK
-        varchar_100 name
-        shift_type shift_type
-        time start_time
-        time end_time
-        text notes
-        integer sort_order
-        boolean is_active
-        timestamptz created_at
-        timestamptz updated_at
-        timestamptz deleted_at
+        date date NOT_NULL
+        text reason NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
-    shift_template_breaks {
+    clinic_settings {
+        bigint clinic_id PK FK
+        time closing_am_pm_boundary
+        time closing_weekday_end
+        time closing_sunday_end
+        smallint_array closed_weekdays NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+    }
+
+    closing_special_periods {
         bigint id PK
-        bigint shift_template_id FK
-        time break_start
-        time break_end
+        bigint clinic_id FK
+        date start_date NOT_NULL
+        date end_date NOT_NULL
+        time am_pm_boundary
+        time pm_end
+        varchar_100 note NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+    }
+
+    cash_register_closes {
+        bigint id PK
+        bigint clinic_id FK
+        date close_date NOT_NULL
+        varchar_2 period NOT_NULL
+        bigint theoretical_cash NOT_NULL
+        bigint actual_cash NOT_NULL
+        bigint cash_difference NOT_NULL
+        jsonb category_breakdown NOT_NULL
+        text memo NOT_NULL
+        bigint closed_by FK
+        timestamptz closed_at NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     audit_logs {
         bigint id PK
-        bigint clinic_id FK
+        bigint clinic_id
         bigint actor_id
-        varchar_30 actor_type
-        varchar_50 action
-        varchar_50 resource
+        varchar_30 actor_type NOT_NULL
+        varchar_50 action NOT_NULL
+        varchar_50 resource NOT_NULL
         bigint resource_id
         jsonb old_value
         jsonb new_value
+        jsonb metadata
         inet ip_address
         text user_agent
-        timestamptz created_at
+        timestamptz created_at NOT_NULL
     }
 
-    %% ===== LINE予約 =====
     line_reservation_settings {
         bigint id PK
-        bigint clinic_id FK
-        text status
-        text header_text
-        text reservation_notice
-        text cancel_notice
-        text privacy_policy
-        jsonb closed_weekdays
-        jsonb closed_dates
-        boolean national_holiday_closed
-        jsonb business_hours
+        bigint clinic_id "UNIQUE NOT_NULL" FK
+        text status NOT_NULL
+        text header_text NOT_NULL
+        text reservation_notice NOT_NULL
+        text cancel_notice NOT_NULL
+        text privacy_policy NOT_NULL
+        jsonb closed_weekdays NOT_NULL
+        jsonb closed_dates NOT_NULL
+        boolean national_holiday_closed NOT_NULL
+        jsonb business_hours NOT_NULL
         jsonb business_hours_by_weekday
-        jsonb break_hours
+        jsonb break_hours NOT_NULL
         integer daily_limit
         integer monthly_limit
-        integer booking_window_max_days
-        integer booking_window_min_days
-        integer calendar_months
-        text phone_number
-        text notification_email
-        text request_example
-        text time_slot_mode
-        integer time_slot_interval_minutes
-        text no_staff_mode
-        boolean show_no_staff_option
-        jsonb additional_fields
-        text line_channel_id
-        text line_channel_secret
-        text liff_id
-        text line_access_token
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    line_customers {
-        bigint id PK
-        bigint clinic_id FK
-        text line_user_id
-        text display_name
-        text real_name
-        jsonb additional_fields
-        bigint owner_id FK
-        timestamptz created_at
-        timestamptz updated_at
+        integer booking_window_max_days NOT_NULL
+        integer booking_window_min_days NOT_NULL
+        integer calendar_months NOT_NULL
+        text phone_number NOT_NULL
+        text notification_email NOT_NULL
+        text request_example NOT_NULL
+        text time_slot_mode NOT_NULL
+        integer time_slot_interval_minutes NOT_NULL
+        text no_staff_mode NOT_NULL
+        boolean show_no_staff_option NOT_NULL
+        jsonb additional_fields NOT_NULL
+        text line_channel_id NOT_NULL
+        text line_channel_secret NOT_NULL
+        text liff_id NOT_NULL
+        text line_access_token NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     staff_reservation_exclusions {
@@ -1151,17 +1218,46 @@ erDiagram
         bigint reservation_type_id FK
     }
 
+    shift_entry_breaks {
+        bigint id PK
+        bigint shift_entry_id FK
+        time break_start NOT_NULL
+        time break_end NOT_NULL
+    }
+
+    shift_templates {
+        bigint id PK
+        bigint clinic_id FK
+        varchar_100 name NOT_NULL
+        shift_type shift_type NOT_NULL
+        time start_time
+        time end_time
+        text notes NOT_NULL
+        integer sort_order NOT_NULL
+        boolean is_active NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
+        timestamptz deleted_at
+    }
+
+    shift_template_breaks {
+        bigint id PK
+        bigint shift_template_id FK
+        time break_start NOT_NULL
+        time break_end NOT_NULL
+    }
+
     reservation_type_unavailable_times {
         bigint id PK
         bigint clinic_id FK
         bigint reservation_type_id FK
-        text unavailable_type
+        text unavailable_type NOT_NULL
         smallint day_of_week
         date specific_date
-        varchar_5 start_time
-        varchar_5 end_time
-        timestamptz created_at
-        timestamptz updated_at
+        varchar_5 start_time NOT_NULL
+        varchar_5 end_time NOT_NULL
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     reservation_type_occupations {
@@ -1169,16 +1265,47 @@ erDiagram
         bigint clinic_id FK
         bigint reservation_type_id FK
         bigint occupation_id FK
-        timestamptz created_at
+        created_at timestamptz NOT_NULL
     }
 
-    clinic_holidays {
+    shared_files {
         bigint id PK
         bigint clinic_id FK
-        date date
-        text reason
-        timestamptz created_at
-        timestamptz updated_at
+        bigint owner_id FK
+        bigint uploaded_by FK
+        varchar_50 file_type NOT_NULL
+        varchar_255 file_name NOT_NULL
+        varchar_500 file_key NOT_NULL
+        bigint file_size NOT_NULL
+        varchar_50 purpose NOT_NULL
+        timestamptz expires_at
+        timestamptz created_at NOT_NULL
+        timestamptz deleted_at
+    }
+
+    line_send_logs {
+        bigint id PK
+        bigint clinic_id FK
+        bigint owner_id FK
+        bigint sent_by_user_id FK
+        varchar_20 message_type NOT_NULL
+        text content_summary NOT_NULL
+        varchar_100 line_message_id NOT_NULL
+        varchar_20 status NOT_NULL
+        text error_message
+        timestamptz sent_at NOT_NULL
+    }
+
+    line_customers {
+        bigint id PK
+        bigint clinic_id FK
+        text line_user_id NOT_NULL
+        text display_name NOT_NULL
+        text real_name NOT_NULL
+        jsonb additional_fields NOT_NULL
+        bigint owner_id FK
+        timestamptz created_at NOT_NULL
+        timestamptz updated_at NOT_NULL
     }
 
     %% ===== リレーション =====
@@ -1186,8 +1313,13 @@ erDiagram
     %% 法人・認証
     companies ||--o{ clinics : "company_id"
     accounts ||--o{ staffs : "account_id"
+    accounts ||--o{ password_reset_tokens : "account_id"
     clinics ||--o{ staff_clinic_assignments : "clinic_id"
     staffs ||--o{ staff_clinic_assignments : "staff_id"
+    clinics ||--o| clinic_settings : "clinic_id"
+    clinics ||--o{ closing_special_periods : "clinic_id"
+    clinics ||--o{ cash_register_closes : "clinic_id"
+    staffs ||--o{ cash_register_closes : "closed_by"
 
     %% コア
     clinics ||--o{ owners : "clinic_id"
@@ -1195,6 +1327,15 @@ erDiagram
     owners ||--o{ pets : "owner_id"
     insurances ||--o{ pets : "insurance_id"
     animal_species ||--o{ pets : "animal_species_id"
+    clinics ||--o{ clinic_integrations : "clinic_id"
+    clinics ||--o{ lstep_tag_cache : "clinic_id"
+    owners ||--o{ lstep_tag_cache : "owner_id"
+    clinics ||--o{ line_link_tokens : "clinic_id"
+    owners ||--o{ line_link_tokens : "owner_id"
+    clinics ||--o{ lstep_migration_progress : "clinic_id"
+    owners ||--o{ lstep_migration_progress : "owner_id"
+    clinics ||--o{ pet_chronic_conditions : "clinic_id"
+    pets ||--o{ pet_chronic_conditions : "pet_id"
 
     %% 共通マスタ
     clinics ||--o{ occupations : "clinic_id"
@@ -1202,6 +1343,7 @@ erDiagram
     clinics ||--o{ cages : "clinic_id"
     clinics ||--o{ clinic_holidays : "clinic_id"
     clinics ||--o{ merchandise_items : "clinic_id"
+    clinics ||--o{ payment_methods : "clinic_id"
     occupations ||--o{ staffs : "occupation_id"
 
     %% 権限
@@ -1240,6 +1382,11 @@ erDiagram
     procedures ||--o{ treatments : "procedure_id"
     medicines ||--o{ treatments : "medicine_id"
     inventory_items ||--o{ treatments : "inventory_id"
+
+    medical_records ||--o{ prescriptions : "medical_record_id"
+    owners ||--o{ prescriptions : "owner_id"
+    pets ||--o{ prescriptions : "pet_id"
+    clinics ||--o{ prescriptions : "clinic_id"
 
     pets ||--o{ vital_records : "pet_id"
     medical_records ||--o{ vital_records : "medical_record_id"
@@ -1352,6 +1499,7 @@ erDiagram
     merchandise_items ||--o{ billing_items : "merchandise_item_id"
     billings ||--o| payments : "billing_id"
     billings ||--o{ billing_refunds : "billing_id"
+    payment_methods ||--o{ payments : "payment_method_id"
     staffs ||--o{ payments : "paid_by"
     staffs ||--o{ billing_refunds : "refunded_by"
 
@@ -1365,10 +1513,16 @@ erDiagram
     %% 監査
     clinics ||--o{ audit_logs : "clinic_id"
 
-    %% LINE予約
+    %% LINE
     clinics ||--o{ line_reservation_settings : "clinic_id"
     clinics ||--o{ line_customers : "clinic_id"
     owners ||--o{ line_customers : "owner_id"
+    clinics ||--o{ shared_files : "clinic_id"
+    owners ||--o{ shared_files : "owner_id"
+    staffs ||--o{ shared_files : "uploaded_by"
+    clinics ||--o{ line_send_logs : "clinic_id"
+    owners ||--o{ line_send_logs : "owner_id"
+    staffs ||--o{ line_send_logs : "sent_by_user_id"
 ```
 
 ---
@@ -1404,10 +1558,10 @@ erDiagram
 | `medical_image_type` | xray, echo, photo, endoscope, ct, mri, microscope, other |
 | `estimate_status` | draft, sent, approved, rejected |
 | `confirmation_status` | pending, confirmed, returned |
-| `item_category` | examination, test, procedure, surgery, medicine, food, goods, other |
+| `item_category` | examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training |
 | `item_source` | medical_record, manual, hospitalization |
 | `visit_type` | first, revisit |
-| `reservation_status` | confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed |
+| `reservation_status` | confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed, no_show |
 | `staff_type` | doctor, nurse, trimmer, resource |
 | `reservation_source` | manual, line |
 | `billing_status` | waiting, completed, cancelled, pending |

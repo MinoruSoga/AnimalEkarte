@@ -6,7 +6,7 @@ import { Layout } from "@/components/shared/Layout/Layout";
 import { RootErrorBoundary, RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
 import { RequirePermission } from "@/components/shared/RequirePermission";
 import { AuthProvider } from "@/features/auth";
-import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceHospitalization, ResourceTrimming, ResourceExaminations, ResourceAccounting, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceEstimates, ResourceShifts, ResourceHospitalSettings, ResourceMasterStaff, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceMasterAnimalSpecies } from "@/types/generated/models";
+import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceHospitalization, ResourceTrimming, ResourceExaminations, ResourceAccounting, ResourceCashRegisterClose, ResourceAccountingReports, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceEstimates, ResourceShifts, ResourceHospitalSettings, ResourceMasterStaff, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceMasterAnimalSpecies } from "@/types/generated/models";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
 const Login = lazy(() =>
@@ -430,30 +430,6 @@ export const router = createBrowserRouter([
               },
             }],
           },
-          // FEAT-368: レジ締め
-          {
-            path: "close",
-            lazy: async () => {
-              const { CashRegisterClosePage } = await import("@/features/cash-register");
-              return { Component: CashRegisterClosePage };
-            },
-          },
-          // FEAT-368: 締め履歴
-          {
-            path: "close/history",
-            lazy: async () => {
-              const { CashRegisterHistoryPage } = await import("@/features/cash-register");
-              return { Component: CashRegisterHistoryPage };
-            },
-          },
-          // FEAT-368: 月次集計レポート
-          {
-            path: "reports",
-            lazy: async () => {
-              const { AccountingReportsPage } = await import("@/features/accounting-reports");
-              return { Component: AccountingReportsPage };
-            },
-          },
           {
             // BUG-020: create 権限ガード
             path: "new",
@@ -481,6 +457,64 @@ export const router = createBrowserRouter([
                 "@/app/pages/AccountingDetailPage"
               );
               return { Component: AccountingDetailPage };
+            },
+          },
+        ],
+      },
+
+      // ── CashRegisterClose（レジ締め / 締め履歴） ────────────────
+      {
+        path: "/accounting/close",
+        element: (
+          <RequirePermission resource={ResourceCashRegisterClose}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { CashRegisterClosePage } = await import("@/features/cash-register");
+              return { Component: CashRegisterClosePage };
+            },
+          },
+        ],
+      },
+      {
+        path: "/accounting/close/history",
+        element: (
+          <RequirePermission resource={ResourceCashRegisterClose}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { CashRegisterHistoryPage } = await import("@/features/cash-register");
+              return { Component: CashRegisterHistoryPage };
+            },
+          },
+        ],
+      },
+
+      // ── AccountingReports（月次集計レポート） ────────────────────
+      {
+        path: "/accounting/reports",
+        element: (
+          <RequirePermission resource={ResourceAccountingReports}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { AccountingReportsPage } = await import("@/features/accounting-reports");
+              return { Component: AccountingReportsPage };
             },
           },
         ],

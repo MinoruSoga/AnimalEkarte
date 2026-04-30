@@ -13,6 +13,9 @@ import (
 type VaccinationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
+	// FindByOwner は飼い主の生存ワクチン記録（ペット経由）を全件返す（ISSUE-004 タグ再同期用）。
+	// 飼い主のペットがすべて削除済みの場合は空配列を返す。
+	FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error)
 	Create(ctx context.Context, vaccination *model.Vaccination) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -61,6 +64,22 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		return nil, 0, apperrors.FromGORM(err, "vaccination", "")
 	}
 	return vaccinations, total, nil
+}
+
+// FindByOwner は飼い主の全生存ワクチン記録を返す（ISSUE-004 タグ再同期用）。
+// pets テーブルを JOIN し、飼い主に属する生存ペットのワクチンのみ取得する。
+func (r *vaccinationRepository) FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error) {
+	vaccinations := make([]model.Vaccination, 0)
+	err := r.db.WithContext(ctx).
+		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.deleted_at IS NULL").
+		Where("vaccinations.clinic_id = ? AND pets.owner_id = ?", clinicID, ownerID).
+		Preload("Vaccine", "deleted_at IS NULL").
+		Order("vaccinations.date DESC, vaccinations.created_at DESC").
+		Find(&vaccinations).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("owner=%d", ownerID))
+	}
+	return vaccinations, nil
 }
 
 func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {

@@ -22,6 +22,7 @@ Animal Ekarte は、動物病院向け電子カルテシステムです。本 AP
 
 - **Current**: `/api/v1`
 - **認証**: JWT (HttpOnly Cookie) + RBAC
+- **マルチテナント切替**: `X-Clinic-ID` ヘッダで所属クリニック切替（保護エンドポイントのみ評価。詳細は OpenAPI `components/parameters/XClinicIDHeader` を参照）
 
 ---
 
@@ -91,10 +92,143 @@ POST /api/v1/logout
 POST /api/v1/auth/refresh
 ```
 
+`refresh_token` Cookie を検証し、新しい `access_token`（15分）と `refresh_token`（7日）を発行する。Token Rotation により使用済み refresh_token は破棄される。
+
 **レスポンス (200 OK)**:
 ```json
 {
-  "access_token": "new-jwt-token"
+  "message": "token refreshed"
+}
+```
+
+**レスポンス (401 Unauthorized)** — refresh_token 不在 / 検証失敗 / staff 無効:
+```json
+{
+  "error": "invalid or expired refresh token"
+}
+```
+
+---
+
+### パスワード忘却
+
+```http
+POST /api/v1/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+```
+
+リセットトークンを発行しメール送信する。アカウント不存在でも 200 を返す（メール存在有無の漏洩防止）。
+
+**レスポンス (200 OK)**:
+```json
+{
+  "message": "If the email exists, a reset link has been sent."
+}
+```
+
+**レート制限**: 3回/分
+
+---
+
+### パスワード再設定
+
+```http
+POST /api/v1/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "raw-reset-token",
+  "password": "NewP@ssw0rd"
+}
+```
+
+`token` を検証し、新しいパスワードに更新する。`password` は **8文字以上 / 英字+数字を含む** 必要がある（BUG-139）。
+
+**レスポンス (200 OK)**:
+```json
+{
+  "message": "Password has been reset successfully."
+}
+```
+
+**レスポンス (400 Bad Request)** — トークン不正 / 期限切れ / パスワード複雑性違反:
+```json
+{
+  "error": "パスワードは英字と数字の両方を含めてください"
+}
+```
+
+**レート制限**: 3回/分
+
+---
+
+### 自分のパスワード変更
+
+```http
+PUT /api/v1/users/me/password
+Authorization: Bearer {jwt_token}
+Content-Type: application/json
+
+{
+  "current_password": "CurrentP@ss",
+  "new_password": "NewP@ssw0rd"
+}
+```
+
+認証済みユーザーが自分のパスワードを変更する（BUG-148）。`current_password` を bcrypt で検証してから `new_password` に更新する。`new_password` は **8文字以上 / 英字+数字を含む** 必要がある（BUG-139）。
+
+**レスポンス (200 OK)**:
+```json
+{
+  "message": "パスワードを変更しました"
+}
+```
+
+**レスポンス (401 Unauthorized)** — `current_password` 不一致:
+```json
+{
+  "error": "現在のパスワードが正しくありません"
+}
+```
+
+**レスポンス (400 Bad Request)** — 新パスワード複雑性違反:
+```json
+{
+  "error": "パスワードは8文字以上で入力してください"
+}
+```
+
+---
+
+### ログインユーザー情報取得
+
+```http
+GET /api/v1/me
+Authorization: Bearer {jwt_token}
+```
+
+JWT で認証されているユーザーの情報・所属クリニック・実効権限を返す。
+
+**レスポンス (200 OK)**:
+```json
+{
+  "id": "1",
+  "email": "admin@example.com",
+  "display_name": "山田 太郎",
+  "is_system_admin": false,
+  "occupation": "獣医師",
+  "main_clinic_id": "1",
+  "clinic": { "id": "1", "name": "Noah 動物病院" },
+  "clinics": [
+    { "clinic_id": "1", "clinic_name": "Noah 動物病院", "is_main": true }
+  ],
+  "permissions": {
+    "owners": { "view": true, "create": true, "edit": true, "delete": true }
+  }
 }
 ```
 
@@ -602,6 +736,186 @@ Authorization: Bearer {jwt_token}
 
 ---
 
+### 6. Lステップ連携 — 健診対象者抽出 (Checkup Sync)
+
+> **対象**: ISSUE-005 / ISSUE-008（健診抽出における除外理由対応）
+> **ルート前提**: バックエンドは `/api/v1/...`、フロントエンドの axios baseURL は `/api` を含むため `/v1/...` で参照される。
+
+#### 健診対象者プレビュー取得
+
+```http
+GET /api/v1/clinics/:clinic_id/lstep/checkup-sync/preview?checkup_type=annual&species=dog&last_visit_before=2025-10-01
+Authorization: Bearer {jwt_token}
+```
+
+健診タグ一括付与の対象者候補を抽出し、送信可否（`exclusion_reason`）と集計サマリーを返す。
+
+**クエリパラメータ**:
+
+| パラメータ | 型 | 説明 |
+|----------|-----|------|
+| `checkup_type` | string | `annual` / `dental` / `blood` / `skin` / `cancer` / `other`（監査ログ用） |
+| `species` | string | 動物種フィルタ |
+| `last_visit_before` | date (YYYY-MM-DD) | 最終来院日がこの日以前 |
+| `last_visit_after` | date (YYYY-MM-DD) | 最終来院日がこの日以降 |
+| `min_age_years` | integer | **(ISSUE-009)** 生存ペットの最小年齢以上（少なくとも1匹該当） |
+| `max_age_years` | integer | **(ISSUE-009)** 生存ペットの最大年齢以下（少なくとも1匹該当） |
+| `has_chronic_condition` | boolean | **(ISSUE-009)** アクティブ慢性疾患の有無 |
+| `cpm_stage` | string | **(ISSUE-009)** `cpm_encounter` / `cpm_growing` / `cpm_core` / `cpm_spot` / `cpm_noah` / `cpm_dormant` |
+| `min_total_amount` | integer | **(ISSUE-009)** 累計診療費（円）以上（completed billings 合計） |
+| `min_annual_visit_count` | integer | **(ISSUE-009)** 年間来院回数（過去365日 distinct visit）以上 |
+| `last_checkup_before` | date (YYYY-MM-DD) | **(ISSUE-009)** 最終健診実施日がこの日以前 |
+| `last_checkup_after` | date (YYYY-MM-DD) | **(ISSUE-009)** 最終健診実施日がこの日以降 |
+
+**権限チェック**: `owners:view`
+
+**レスポンス (200 OK)**:
+```json
+{
+  "owners": [
+    {
+      "owner_id": "1",
+      "owner_name": "山田 太郎",
+      "pet_names": ["ポチ", "タマ"],
+      "last_visit_date": "2025-09-15",
+      "has_line": true,
+      "is_opt_out": false,
+      "has_living_pet": true,
+      "exclusion_reason": null,
+      "current_tags": ["健診_年次"]
+    },
+    {
+      "owner_id": "2",
+      "owner_name": "佐藤 花子",
+      "pet_names": ["モモ"],
+      "last_visit_date": "2025-08-01",
+      "has_line": true,
+      "is_opt_out": true,
+      "has_living_pet": true,
+      "exclusion_reason": "Lステップ配信停止中",
+      "current_tags": []
+    },
+    {
+      "owner_id": "3",
+      "owner_name": "鈴木 一郎",
+      "pet_names": ["クロ"],
+      "last_visit_date": "2024-12-20",
+      "has_line": true,
+      "is_opt_out": false,
+      "has_living_pet": false,
+      "exclusion_reason": "生存ペットなし",
+      "current_tags": []
+    },
+    {
+      "owner_id": "4",
+      "owner_name": "高橋 二郎",
+      "pet_names": ["シロ"],
+      "last_visit_date": "2025-07-10",
+      "has_line": false,
+      "is_opt_out": false,
+      "has_living_pet": true,
+      "exclusion_reason": "LINE未連携",
+      "current_tags": []
+    }
+  ],
+  "total_count": 4,
+  "eligible_count": 1,
+  "line_linked_count": 3,
+  "opt_out_count": 1,
+  "no_living_pet_count": 1
+}
+```
+
+**フィールド仕様（オーナー単位）**:
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `owner_id` | string | 飼い主ID（数値の文字列表現） |
+| `owner_name` | string | 飼い主名 |
+| `pet_names` | string[] | 関連ペット名（生存・死亡を含む） |
+| `last_visit_date` | string \| null | 最終来院日（YYYY-MM-DD）。履歴なしは `null` |
+| `has_line` | boolean | LINE User ID 登録済みか |
+| `is_opt_out` | boolean | Lステップ配信停止中か |
+| `has_living_pet` | boolean | **(ISSUE-005)** 生存中ペットが1件以上あるか |
+| `exclusion_reason` | string \| null | **(ISSUE-005)** 除外理由。`null` なら送信可能 |
+| `current_tags` | string[] | 現在の Lステップタグ。LINE未連携時は `[]` |
+| `min_pet_age_years` | integer \| null | **(ISSUE-009)** 生存ペットの最小年齢（years）。誕生日未登録時は `null` |
+| `max_pet_age_years` | integer \| null | **(ISSUE-009)** 生存ペットの最大年齢（years）。誕生日未登録時は `null` |
+| `has_chronic_condition` | boolean | **(ISSUE-009)** アクティブな慢性疾患の有無（生存ペット由来） |
+| `cpm_stage` | string | **(ISSUE-009)** CPM ステージ（`CalculateCPMStage` と同一ロジック） |
+| `total_amount` | integer | **(ISSUE-009)** 累計診療費（円、completed billings 合計） |
+| `annual_visit_count` | integer | **(ISSUE-009)** 年間来院回数（過去365日 distinct visit） |
+| `last_checkup_date` | string \| null | **(ISSUE-009)** 最終健診実施日。実績なしは `null` |
+
+**フィールド仕様（全体集計）**:
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `total_count` | integer | 抽出条件マッチ総件数 |
+| `eligible_count` | integer | **(ISSUE-005)** 送信可能件数（`exclusion_reason == null`） |
+| `line_linked_count` | integer | LINE 連携済み件数 |
+| `opt_out_count` | integer | **(ISSUE-005)** opt-out 中の件数 |
+| `no_living_pet_count` | integer | **(ISSUE-005)** 生存ペットなしの件数 |
+
+**`exclusion_reason` の取り得る値（優先順位順）**:
+
+| 値 | 意味 | 優先度 |
+|----|------|--------|
+| `Lステップ配信停止中` | `is_opt_out == true` | 1 (最優先) |
+| `生存ペットなし` | `has_living_pet == false` | 2 |
+| `LINE未連携` | `has_line == false` | 3 |
+| `null` | 送信可能（上記いずれにも該当せず） | — |
+
+> **判定ロジック**: 上から順に評価し、最初に該当した理由が採用される（`backend/internal/service/checkup_sync_service.go::deriveExclusionReason`）。
+> 例えば opt-out かつ LINE未連携の飼い主は `Lステップ配信停止中` のみが返される。
+
+---
+
+#### 健診タグ一括付与
+
+```http
+POST /api/v1/clinics/:clinic_id/lstep/checkup-sync
+Authorization: Bearer {jwt_token}
+Content-Type: application/json
+
+{
+  "checkup_type": "annual",
+  "owner_ids": ["1", "5", "12"],
+  "tag_name": "健診_年次_2026"
+}
+```
+
+**リクエスト**:
+
+| フィールド | 型 | 必須 | 説明 |
+|-----------|-----|-----|------|
+| `checkup_type` | string | ✅ | `annual` / `dental` / `blood` / `skin` / `cancer` / `other` |
+| `owner_ids` | string[] | ✅ | 対象飼い主ID（最低1件） |
+| `tag_name` | string | ✅ | `^[A-Za-z0-9_-]{1,100}$`。自動管理タグ名は不可 |
+
+**権限チェック**: `owners:edit`
+
+**レスポンス (200 OK)**:
+```json
+{
+  "success_count": 2,
+  "skipped_count": 1,
+  "failed_count": 0,
+  "failed_owner_ids": []
+}
+```
+
+**スキップ判定**: プレビューの `exclusion_reason` と同じ優先度（`opt-out` > `生存ペットなし` > `LINE未連携`）で判定する。これにより API を直接叩かれた場合でも誤配信を防ぐ。
+
+**エラー (400 Bad Request)** — `tag_name` パターン違反 or 自動管理タグ:
+```json
+{
+  "error": "tag_name は英数字・アンダースコア・ハイフンのみ使用可能です（1〜100文字）"
+}
+```
+
+---
+
 ## ⚙️ エラーハンドリング
 
 ### 標準エラーレスポンス
@@ -631,11 +945,13 @@ Authorization: Bearer {jwt_token}
 ## 🔗 エンドポイント一覧（サマリー）
 
 ### 認証関連
-- `POST /api/v1/login` — ログイン
+- `POST /api/v1/login` — ログイン（5回/分レート制限）
 - `POST /api/v1/logout` — ログアウト
-- `POST /api/v1/auth/refresh` — トークン更新
-- `POST /api/v1/auth/forgot-password` — パスワード忘却
-- `POST /api/v1/auth/reset-password` — パスワード再設定
+- `POST /api/v1/auth/refresh` — トークン更新（refresh_token Cookie 検証 + Rotation）
+- `POST /api/v1/auth/forgot-password` — パスワード忘却（3回/分レート制限）
+- `POST /api/v1/auth/reset-password` — パスワード再設定（3回/分レート制限）
+- `GET /api/v1/me` — ログインユーザー情報・所属クリニック・実効権限取得
+- `PUT /api/v1/users/me/password` — 自分のパスワード変更（BUG-148）
 
 ### 飼主・ペット
 - `GET /api/v1/owners` — 飼主一覧
@@ -667,6 +983,10 @@ Authorization: Bearer {jwt_token}
 - `PATCH /api/v1/hospitalizations/:id` — 入院更新
 - `DELETE /api/v1/hospitalizations/:id` — 入院削除
 - `POST /api/v1/hospitalizations/:id/discharge-with-billing` — 退院・会計
+
+### Lステップ連携 — 健診対象者抽出
+- `GET /api/v1/clinics/:clinic_id/lstep/checkup-sync/preview` — 健診対象者プレビュー（`exclusion_reason` / 集計サマリー含む）
+- `POST /api/v1/clinics/:clinic_id/lstep/checkup-sync` — 健診タグ一括付与
 
 ### マスタ設定
 - `GET /api/v1/settings/reservation-type` — 予約種別

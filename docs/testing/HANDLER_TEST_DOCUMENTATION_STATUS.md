@@ -1,6 +1,6 @@
 # Handler Test Coverage Documentation — Complete Status
 
-**Last Updated**: 2026-04-12  
+**Last Updated**: 2026-04-30  
 **Total Handlers Documented**: 21 / 56  
 **Total Test Scenarios**: 532+ scenarios across 47 endpoints  
 **Status**: ✅ All documented handlers compile cleanly
@@ -145,7 +145,9 @@ Examples:
 | Pattern | Handlers | Notes |
 |---------|----------|-------|
 | `ResourceMasterData` | 10+ | Master data CUD (medicines, vaccines, job titles, etc.) |
-| `ResourceAccounting` | 3+ | Billing operations (refunds, billing items) |
+| `ResourceAccounting` | 3+ | Accounting operations (create/edit/cancel accountings, refunds, billing items) |
+| `ResourceCashRegisterClose` | 1 | Cash register close / history (`/v1/cash-register/closes`, preview) |
+| `ResourceAccountingReports` | 1 | Monthly accounting report (`/v1/reports/monthly`, CSV export) |
 | `ResourceHospitalization` | 5+ | Hospitalization-related (plans, care logs, daily records) |
 | None (Public) | 2+ | Inquiry submissions, merchandise items (special cases) |
 

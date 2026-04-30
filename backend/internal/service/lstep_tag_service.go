@@ -267,7 +267,19 @@ func (s *lstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, 
 		result.SyncedCount++
 	}
 
-	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "bulk_add_tag", "owner", nil)
+	// ISSUE-010: LTV/CPM 一括同期や健診一括タグ付与の件数を audit_logs.metadata に永続化する。
+	failedCount := len(result.FailedOwnerIDs)
+	_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinicID, actorID,
+		"bulk_add_tag", "owner", nil,
+		map[string]any{
+			"operation":       "bulk_add_tag",
+			"tag_name":        tagName,
+			"requested_count": len(ownerIDs),
+			"synced_count":    result.SyncedCount,
+			"skipped_count":   result.SkippedCount,
+			"failed_count":    failedCount,
+		},
+	)
 
 	return result, nil
 }

@@ -140,6 +140,9 @@ func (m *mrMockPetRepo) FindByID(ctx context.Context, clinicID, id uint64) (*mod
 	return m.findByIDFn(ctx, clinicID, id)
 }
 func (m *mrMockPetRepo) CountByOwner(_ context.Context, _, _ uint64) (int64, error) { return 0, nil }
+func (m *mrMockPetRepo) CountLivingByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
 func (m *mrMockPetRepo) CountUsageByAnimalSpeciesID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }

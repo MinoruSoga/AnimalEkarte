@@ -148,6 +148,10 @@ func (m *mockLineLinkAuditService) LogLstepOperation(_ context.Context, _ uint64
 	return nil
 }
 
+func (m *mockLineLinkAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
+	return nil
+}
+
 func newTestLineLinkService(
 	ownerRepo *mockLineLinkOwnerRepo,
 	tokenRepo *mockLineLinkTokenRepo,

@@ -95,7 +95,15 @@ func (s *lstepBatchService) RunNoShowCheckAllClinics(ctx context.Context) error 
 		}
 		if count > 0 {
 			slog.InfoContext(ctx, "no-show batch: updated reservations", "clinic_id", clinic.ID, "count", count)
-			_ = s.auditSvc.LogLstepOperation(ctx, clinic.ID, nil, "batch_no_show_detect", "clinic", &clinic.ID)
+			// ISSUE-010: 処理件数とエラー件数をメタデータとして永続化する。
+			_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
+				"batch_no_show_detect", "clinic", &clinic.ID,
+				map[string]any{
+					"operation":       "batch_no_show_detect",
+					"processed_count": count,
+					"error_count":     len(errs),
+				},
+			)
 		}
 	}
 	return nil
@@ -139,7 +147,16 @@ func (s *lstepBatchService) RunDormantDetectionAllClinics(ctx context.Context) e
 		}
 		if count > 0 {
 			slog.InfoContext(ctx, "dormant batch: synced dormant tags", "clinic_id", clinic.ID, "count", count)
-			_ = s.auditSvc.LogLstepOperation(ctx, clinic.ID, nil, "batch_dormant_detect", "clinic", &clinic.ID)
+			// ISSUE-010: 処理件数・エラー件数・閾値を永続化する。閾値は後から判定基準を再現できるよう含める。
+			_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
+				"batch_dormant_detect", "clinic", &clinic.ID,
+				map[string]any{
+					"operation":       "batch_dormant_detect",
+					"processed_count": count,
+					"error_count":     len(errs),
+					"min_days_since":  180,
+				},
+			)
 		}
 	}
 	return nil

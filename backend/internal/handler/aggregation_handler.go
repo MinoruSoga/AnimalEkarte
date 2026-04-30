@@ -25,6 +25,7 @@ type ownerAggregationResponse struct {
 	PeriodVisitCount   *int64  `json:"period_visit_count,omitempty"`    // AGG-BE-001/002
 	DaysSinceLastVisit *int    `json:"days_since_last_visit,omitempty"` // AGG-BE-003
 	LastVisitBucket    *string `json:"last_visit_bucket,omitempty"`     // AGG-BE-003
+	CPMStage           string  `json:"cpm_stage,omitempty"`             // ISSUE-006 タグ同期側と同一判定の CPM ステージ
 }
 
 // ownerAggregationListResponse は顧客集計一覧レスポンス。
@@ -48,6 +49,7 @@ func toOwnerAggregationResponse(item *service.OwnerAggregationItem) ownerAggrega
 		PeriodVisitCount:   item.PeriodVisitCount,
 		DaysSinceLastVisit: item.DaysSinceLastVisit,
 		LastVisitBucket:    item.LastVisitBucket,
+		CPMStage:           item.CPMStage,
 	}
 	if item.LastVisitDate != nil {
 		s := item.LastVisitDate.Format("2006-01-02")
@@ -117,28 +119,38 @@ func (h *Handler) ListOwnerAggregation(c *gin.Context) {
 		return
 	}
 
-	// min_total_fee / max_total_fee は FE エイリアス（min_total_amount 優先）
+	// 金額フィルタの受付優先度（仕様書 §4.1 に準拠）:
+	//   1. min_amount / max_amount       — 仕様書の正規名
+	//   2. min_total_amount / max_total_amount — 既存 BE 別名（互換維持）
+	//   3. min_total_fee / max_total_fee  — FE 既存別名（互換維持）
+	// 上位キーが空の場合のみ下位キーをフォールバックする。
 	var minTotalAmount, maxTotalAmount *int64
-	minAmountKey := "min_total_amount"
+	minAmountKey := "min_amount"
+	if c.Query(minAmountKey) == "" && c.Query("min_total_amount") != "" {
+		minAmountKey = "min_total_amount"
+	}
 	if c.Query(minAmountKey) == "" && c.Query("min_total_fee") != "" {
 		minAmountKey = "min_total_fee"
 	}
 	if s := c.Query(minAmountKey); s != "" {
 		v, pErr := strconv.ParseInt(s, 10, 64)
 		if pErr != nil || v < 0 {
-			RespondError(c, apperrors.WrapInvalidInput("min_total_amount / min_total_fee は0以上の整数で指定してください"))
+			RespondError(c, apperrors.WrapInvalidInput("min_amount / min_total_amount / min_total_fee は0以上の整数で指定してください"))
 			return
 		}
 		minTotalAmount = &v
 	}
-	maxAmountKey := "max_total_amount"
+	maxAmountKey := "max_amount"
+	if c.Query(maxAmountKey) == "" && c.Query("max_total_amount") != "" {
+		maxAmountKey = "max_total_amount"
+	}
 	if c.Query(maxAmountKey) == "" && c.Query("max_total_fee") != "" {
 		maxAmountKey = "max_total_fee"
 	}
 	if s := c.Query(maxAmountKey); s != "" {
 		v, pErr := strconv.ParseInt(s, 10, 64)
 		if pErr != nil || v < 0 {
-			RespondError(c, apperrors.WrapInvalidInput("max_total_amount / max_total_fee は0以上の整数で指定してください"))
+			RespondError(c, apperrors.WrapInvalidInput("max_amount / max_total_amount / max_total_fee は0以上の整数で指定してください"))
 			return
 		}
 		maxTotalAmount = &v
@@ -213,6 +225,9 @@ func (h *Handler) ListOwnerAggregation(c *gin.Context) {
 	// metric パラメータ（AGG-BE-004）— annual_sales | visit_count | last_visit
 	metric := c.DefaultQuery("metric", "annual_sales")
 
+	// cpm_stage パラメータ（ISSUE-006）— spot/cpm_spot/encounter/growing/core/noah/dormant
+	cpmStage := c.Query("cpm_stage")
+
 	result, err := h.svc.Aggregation.ListOwnerAggregation(c.Request.Context(), clinicID, &service.ListOwnerAggregationInput{
 		Sort:            sort,
 		MinTotalAmount:  minTotalAmount,
@@ -233,6 +248,7 @@ func (h *Handler) ListOwnerAggregation(c *gin.Context) {
 		IncludeNoVisit:  includeNoVisit,
 		Order:           order,
 		Metric:          metric,
+		CPMStage:        cpmStage,
 	})
 	if err != nil {
 		RespondError(c, err)

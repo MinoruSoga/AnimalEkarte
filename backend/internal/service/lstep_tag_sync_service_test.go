@@ -184,6 +184,142 @@ func TestBuildPetBasicInfoTags_Empty(t *testing.T) {
 	assert.Empty(t, tags)
 }
 
+// ---- buildLatestVaccineTagSet (ISSUE-004) ----
+
+func TestBuildLatestVaccineTagSet_EmptyReturnsEmpty(t *testing.T) {
+	tagSet := buildLatestVaccineTagSet(nil)
+	assert.Empty(t, tagSet)
+}
+
+func TestBuildLatestVaccineTagSet_SkipsNilVaccine(t *testing.T) {
+	vaccinations := []model.Vaccination{
+		{Date: time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC), Vaccine: nil},
+	}
+	tagSet := buildLatestVaccineTagSet(vaccinations)
+	assert.Empty(t, tagSet)
+}
+
+func TestBuildLatestVaccineTagSet_SingleDog(t *testing.T) {
+	dog := model.VaccineSpeciesDog
+	vaccinations := []model.Vaccination{
+		{
+			Date:    time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC),
+			Vaccine: &model.Vaccine{Name: "DHPP", Species: &dog},
+		},
+	}
+	tagSet := buildLatestVaccineTagSet(vaccinations)
+	_, hasDog := tagSet["vaccine_dog_2024-05-01"]
+	assert.True(t, hasDog)
+	assert.Len(t, tagSet, 1)
+}
+
+func TestBuildLatestVaccineTagSet_KeepsOnlyLatestPerSpecies(t *testing.T) {
+	// 同一種別に複数記録 → 最新日のみ保持される（仕様: 同一カテゴリ1タグ）
+	dog := model.VaccineSpeciesDog
+	vaccinations := []model.Vaccination{
+		{
+			Date:    time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC),
+			Vaccine: &model.Vaccine{Name: "DHPP", Species: &dog},
+		},
+		{
+			Date:    time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC),
+			Vaccine: &model.Vaccine{Name: "DHPP", Species: &dog},
+		},
+		{
+			Date:    time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC), // 最新
+			Vaccine: &model.Vaccine{Name: "DHPP", Species: &dog},
+		},
+	}
+	tagSet := buildLatestVaccineTagSet(vaccinations)
+	_, hasLatest := tagSet["vaccine_dog_2025-01-10"]
+	assert.True(t, hasLatest, "最新接種日のタグのみ採用される")
+	assert.NotContains(t, tagSet, "vaccine_dog_2024-05-01")
+	assert.NotContains(t, tagSet, "vaccine_dog_2023-06-15")
+	assert.Len(t, tagSet, 1)
+}
+
+func TestBuildLatestVaccineTagSet_BothSpeciesAndRabies(t *testing.T) {
+	both := model.VaccineSpeciesBoth
+	dog := model.VaccineSpeciesDog
+	vaccinations := []model.Vaccination{
+		{
+			Date:    time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC),
+			Vaccine: &model.Vaccine{Name: "総合ワクチン", Species: &both},
+		},
+		{
+			Date:    time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC),
+			Vaccine: &model.Vaccine{Name: "狂犬病ワクチン", Species: &dog},
+		},
+	}
+	tagSet := buildLatestVaccineTagSet(vaccinations)
+	assert.Contains(t, tagSet, "vaccine_dog_2024-04-01") // both で 3/1, dog で 4/1 → 4/1 が勝つ
+	assert.Contains(t, tagSet, "vaccine_cat_2024-03-01")
+	assert.Contains(t, tagSet, "vaccine_rabies_2024-04-01")
+}
+
+// ---- buildLatestCheckupTagSet (ISSUE-004) ----
+
+func TestBuildLatestCheckupTagSet_EmptyReturnsEmpty(t *testing.T) {
+	tagSet := buildLatestCheckupTagSet(nil)
+	assert.Empty(t, tagSet)
+}
+
+func TestBuildLatestCheckupTagSet_LatestPerType(t *testing.T) {
+	checkups := []model.Checkup{
+		{
+			CheckupTypeID: 1,
+			Date:          time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			CheckupTypeID: 1,
+			Date:          time.Date(2024, 8, 1, 0, 0, 0, 0, time.UTC), // 最新
+		},
+		{
+			CheckupTypeID: 2,
+			Date:          time.Date(2023, 12, 25, 0, 0, 0, 0, time.UTC),
+		},
+	}
+	tagSet := buildLatestCheckupTagSet(checkups)
+	assert.Contains(t, tagSet, "checkup_done_1_2024-08", "type=1 は最新の 2024-08")
+	assert.NotContains(t, tagSet, "checkup_done_1_2024-01")
+	assert.Contains(t, tagSet, "checkup_done_2_2023-12")
+}
+
+func TestBuildLatestCheckupTagSet_NextCheckupLatest(t *testing.T) {
+	near := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
+	far := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	checkups := []model.Checkup{
+		{
+			CheckupTypeID: 1,
+			Date:          time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			NextDate:      &near,
+		},
+		{
+			CheckupTypeID: 2,
+			Date:          time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC),
+			NextDate:      &far,
+		},
+	}
+	tagSet := buildLatestCheckupTagSet(checkups)
+	assert.Contains(t, tagSet, "next_checkup_2026-03-01", "next_checkup は最遠の next_date を採用")
+	assert.NotContains(t, tagSet, "next_checkup_2025-06-01")
+}
+
+func TestBuildLatestCheckupTagSet_SkipsNilNextDate(t *testing.T) {
+	checkups := []model.Checkup{
+		{
+			CheckupTypeID: 1,
+			Date:          time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			NextDate:      nil,
+		},
+	}
+	tagSet := buildLatestCheckupTagSet(checkups)
+	assert.Contains(t, tagSet, "checkup_done_1_2024-01")
+	for k := range tagSet {
+		assert.NotContains(t, k, "next_checkup_", "next_date=nil なら next_checkup タグは生成しない")
+	}
+}
+
 // ---- conditionTagMap ----
 
 func TestConditionTagMap(t *testing.T) {

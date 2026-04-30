@@ -92,6 +92,8 @@ func run() int {
 		repos.LstepTagCache,
 		repos.Pet,
 		repos.Prescription,
+		repos.Checkup,
+		repos.Reservation,
 	)
 
 	migCfg := Config{

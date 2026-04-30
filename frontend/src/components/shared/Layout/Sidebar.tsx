@@ -6,7 +6,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
-import { ChangePasswordDialog } from "@/components/shared/ChangePasswordDialog/ChangePasswordDialog";
+import { ChangePasswordDialog } from "@/features/auth";
 import { paths } from "@/config/paths";
 import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCashRegisterClose, ResourceClosingSettings, ResourcePaymentMethod } from "@/types/generated/models";
 import type { MenuItem } from "@/types";

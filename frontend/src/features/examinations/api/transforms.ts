@@ -11,11 +11,19 @@ const EXAM_STATUS_EN_TO_JA: Record<string, "依頼中" | "検査中" | "結果�
 export function transformExamResult(item: BackendExamResult) {
   return {
     id: String(item.id ?? 0),
+    examTypeFieldId: item.exam_type_field_id ?? undefined,
     name: item.name ?? "",
     result: item.result ?? "",
+    inspectionValue: item.inspection_value ?? "",
+    normalValue: item.normal_value ?? "",
     unit: item.unit ?? "",
-    referenceRange: item.reference_value ?? "",
+    referenceValue: item.reference_value ?? "",
+    refMin: item.ref_min ?? undefined,
+    refMax: item.ref_max ?? undefined,
     isAbnormal: item.is_abnormal ?? false,
+    // backend が ref_min/ref_max から導出した判定結果（"normal" | "high" | "low"）
+    status: (item.status ?? "normal") as "normal" | "high" | "low",
+    sortOrder: item.sort_order ?? 0,
   };
 }
 

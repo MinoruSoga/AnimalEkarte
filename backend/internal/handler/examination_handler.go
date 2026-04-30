@@ -165,6 +165,77 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 	c.JSON(http.StatusOK, toExaminationResponse(exam))
 }
 
+// ListExaminationItems godoc
+//
+//	@Summary	検査項目一覧を取得
+//	@Tags		Examinations
+//	@Produce	json
+//	@Param		id	path	int	true	"Examination ID"
+//	@Success	200	{object}	examItemsResponse
+func (h *Handler) ListExaminationItems(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	items, err := h.svc.Examination.ListItems(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toExamItemsResponse(items))
+}
+
+// ReplaceExaminationItems godoc
+//
+//	@Summary	検査項目を一括置換（PUT セマンティクス: 既存全削除→一括登録）
+//	@Tags		Examinations
+//	@Accept		json
+//	@Produce	json
+//	@Param		id		path	int						true	"Examination ID"
+//	@Param		body	body	replaceExamItemsRequest	true	"items"
+//	@Success	200	{object}	examItemsResponse
+func (h *Handler) ReplaceExaminationItems(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req replaceExamItemsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	inputs := make([]service.UpsertExamItemInput, 0, len(req.Items))
+	for _, it := range req.Items {
+		inputs = append(inputs, service.UpsertExamItemInput{
+			ExamTypeFieldID: it.ExamTypeFieldID,
+			Name:            it.Name,
+			InspectionValue: it.InspectionValue,
+			NormalValue:     it.NormalValue,
+			Unit:            it.Unit,
+			ReferenceValue:  it.ReferenceValue,
+			RefMin:          it.RefMin,
+			RefMax:          it.RefMax,
+			SortOrder:       it.SortOrder,
+		})
+	}
+
+	saved, err := h.svc.Examination.ReplaceItems(c.Request.Context(), clinicID, id, inputs)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toExamItemsResponse(saved))
+}
+
 // DeleteExamination godoc
 func (h *Handler) DeleteExamination(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)

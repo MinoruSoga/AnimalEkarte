@@ -16,6 +16,7 @@ import (
 type mockVaccinationRepository struct {
 	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
 	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
+	findByOwnerFn  func(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error)
 	createFn       func(ctx context.Context, vaccination *model.Vaccination) error
 	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
@@ -28,6 +29,13 @@ func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64
 func (m *mockVaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
+}
+
+func (m *mockVaccinationRepository) FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error) {
+	if m.findByOwnerFn != nil {
+		return m.findByOwnerFn(ctx, clinicID, ownerID)
 	}
 	return nil, nil
 }

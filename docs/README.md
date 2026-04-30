@@ -62,8 +62,8 @@
 
 - **[tasks/closed/](tasks/closed/)**: 完了済みバグ修正・機能開発タスク。
 - **[tasks/open/](tasks/open/)**: 未着手タスク。
-- **[tasks/open/aggregation/](tasks/open/aggregation/)**: 顧客集計の開発タスク（BE/FE分割）。
-- **[tasks/open/lstep/](tasks/open/lstep/)**: Lステップ連携の開発タスク（BE/FE分割）。
+- **[tasks/closed/aggregation/](tasks/closed/aggregation/)**: 顧客集計の開発タスク（BE/FE分割、2026-04-29 完了）。
+- **[tasks/closed/lstep/](tasks/closed/lstep/)**: Lステップ連携の開発タスク（BE/FE分割、ISSUE-001〜010 完了）。
 
 ## 🤖 AI 開発ワークフロー
 

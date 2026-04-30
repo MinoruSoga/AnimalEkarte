@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, memo, useTransition, useDeferredValue, 
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
-import { Plus, Save, CreditCard, Printer, RotateCcw } from "lucide-react";
+import { Plus, Save, CreditCard, Printer, RotateCcw, EyeOff } from "lucide-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -1194,6 +1194,16 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
           ) : undefined
         }
       >
+        {id && !canEdit ? (
+          <div
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-md border mb-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
+            role="status"
+            aria-label="閲覧専用モード"
+          >
+            <EyeOff className={`shrink-0 h-4 w-4 ${C.textWarningIcon}`} aria-hidden="true" />
+            <span className="text-sm font-medium">閲覧専用 — 編集権限がないため変更できません</span>
+          </div>
+        ) : null}
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
           {/* 左カラム：明細リスト */}

@@ -27,6 +27,10 @@ type OwnerLTVRow struct {
 	PeriodVisitCount   *int64     `gorm:"column:period_visit_count"`
 	DaysSinceLastVisit *int       `gorm:"column:days_since_last_visit"`
 	LastVisitBucket    *string    `gorm:"column:last_visit_bucket"`
+	// MaxSingleVisitAmount は完了済み請求の単一最大額（CPMスポット判定用、ISSUE-006）。
+	// タグ同期側 AccountingRepository.MaxSingleVisitAmountByOwner と同一の集計範囲を保つため、
+	// medical_record の JOIN を経由せず billings から直接取得する。
+	MaxSingleVisitAmount int64 `gorm:"column:max_single_visit_amount"`
 }
 
 // FindOwnerLTVParams はLTV一覧検索のパラメータ。
@@ -191,7 +195,15 @@ SELECT
     WHEN EXTRACT(DAY FROM NOW() - MAX(mr.date)) < 180 THEN 'over_3m'
     WHEN EXTRACT(DAY FROM NOW() - MAX(mr.date)) < 365 THEN 'over_6m'
     ELSE 'over_1y'
-  END AS last_visit_bucket
+  END AS last_visit_bucket,
+  COALESCE((
+    SELECT MAX(b2.total_amount)
+    FROM billings b2
+    WHERE b2.clinic_id = o.clinic_id
+      AND b2.owner_id = o.id
+      AND b2.status = 'completed'
+      AND b2.deleted_at IS NULL
+  ), 0)                                                                              AS max_single_visit_amount
 FROM owners o
 LEFT JOIN medical_records mr ON mr.owner_id = o.id AND mr.clinic_id = o.clinic_id AND mr.deleted_at IS NULL
 LEFT JOIN billings b ON b.medical_record_id = mr.id AND b.clinic_id = o.clinic_id AND b.deleted_at IS NULL AND b.status = 'completed'

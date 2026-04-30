@@ -1,6 +1,10 @@
 import type { Hospitalization } from "@/types/generated/models";
 
-export type BackendHospitalization = Hospitalization;
+// Extend generated type with fields added in migration 006 (pending codegen)
+export type BackendHospitalization = Hospitalization & {
+  insurance_company_name?: string | null;
+  insurance_number?: string | null;
+};
 
 export interface CreateHospitalizationRequest {
   pet_id: string;
@@ -12,6 +16,9 @@ export interface CreateHospitalizationRequest {
   owner_request?: string;
   staff_notes?: string;
   memo?: string;
+  is_insurance?: boolean;
+  insurance_company_name?: string | null;
+  insurance_number?: string | null;
 }
 
 export interface UpdateHospitalizationRequest {
@@ -22,4 +29,7 @@ export interface UpdateHospitalizationRequest {
   owner_request?: string;
   staff_notes?: string;
   memo?: string;
+  is_insurance?: boolean;
+  insurance_company_name?: string | null;
+  insurance_number?: string | null;
 }

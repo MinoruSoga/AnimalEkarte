@@ -44,5 +44,5 @@
 ## API連携
 | メソッド | エンドポイント | 用途 |
 |---------|--------------|------|
-| GET | `/api/v1/accountings/unpaid-by-owner` | 飼主単位での未納集計取得 |
-| GET | `/api/v1/accountings/unpaid-by-billing` | 会計単位での未納一覧取得 |
+| GET | `/api/v1/accountings/unpaid?base_date=YYYY-MM-DD&group_by=owner` | 飼主単位での未納集計取得 |
+| GET | `/api/v1/accountings/unpaid?base_date=YYYY-MM-DD&group_by=billing` | 会計単位での未納一覧取得 |

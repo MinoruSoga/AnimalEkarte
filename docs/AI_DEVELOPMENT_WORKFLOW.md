@@ -64,13 +64,13 @@
 まず以下を読んで、仕様とタスクを理解してください。
 - docs/CUSTOMER_AGGREGATION_SPEC.md
 - docs/API_SPEC.md
-- docs/tasks/open/aggregation/00-OVERVIEW.md
-- docs/tasks/open/aggregation/BE.md
-- docs/tasks/open/aggregation/ISSUE-001-be-annual-sales-ranking.md
-- docs/tasks/open/aggregation/ISSUE-002-be-visit-count-aggregation.md
-- docs/tasks/open/aggregation/ISSUE-003-be-last-visit-classification.md
-- docs/tasks/open/aggregation/ISSUE-004-be-search-sort-pagination-filters.md
-- docs/tasks/open/aggregation/ISSUE-005-be-response-tests.md
+- docs/tasks/closed/aggregation/00-OVERVIEW.md
+- docs/tasks/closed/aggregation/BE.md
+- docs/tasks/closed/aggregation/ISSUE-001-be-annual-sales-ranking.md
+- docs/tasks/closed/aggregation/ISSUE-002-be-visit-count-aggregation.md
+- docs/tasks/closed/aggregation/ISSUE-003-be-last-visit-classification.md
+- docs/tasks/closed/aggregation/ISSUE-004-be-search-sort-pagination-filters.md
+- docs/tasks/closed/aggregation/ISSUE-005-be-response-tests.md
 
 担当範囲は backend/ のみです。
 編集してよい主な対象:
@@ -106,12 +106,12 @@
 まず以下を読んで、仕様とタスクを理解してください。
 - docs/CUSTOMER_AGGREGATION_SPEC.md
 - docs/API_SPEC.md
-- docs/tasks/open/aggregation/00-OVERVIEW.md
-- docs/tasks/open/aggregation/FE.md
-- docs/tasks/open/aggregation/ISSUE-006-fe-dashboard-tabs.md
-- docs/tasks/open/aggregation/ISSUE-007-fe-list-display-switch.md
-- docs/tasks/open/aggregation/ISSUE-008-fe-filters-sort-csv.md
-- docs/tasks/open/aggregation/ISSUE-009-fe-empty-error-loading.md
+- docs/tasks/closed/aggregation/00-OVERVIEW.md
+- docs/tasks/closed/aggregation/FE.md
+- docs/tasks/closed/aggregation/ISSUE-006-fe-dashboard-tabs.md
+- docs/tasks/closed/aggregation/ISSUE-007-fe-list-display-switch.md
+- docs/tasks/closed/aggregation/ISSUE-008-fe-filters-sort-csv.md
+- docs/tasks/closed/aggregation/ISSUE-009-fe-empty-error-loading.md
 
 担当範囲は frontend/ のみです。
 編集してよい主な対象:

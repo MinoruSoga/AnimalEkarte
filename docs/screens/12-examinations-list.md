@@ -1,13 +1,18 @@
+# 検査一覧 仕様書
+
 ## 概要
 - **画面の目的**: 検査オーダー・結果の一覧管理、および進捗状況（ステータス）の把握。
 - **URLパターン**: `/examinations`
-- **アクセス権限**: 認証済ユーザー全員（`ResourceExaminations` 権限が必要）
+- **アクセス権限**: `ResourceExaminations` — `canCreate` で新規登録ボタン表示、`canEdit` で行クリック・操作ボタン表示。
 
 ## 画面構成
-- **ヘッダー**: タイトル「検査管理」、新規検査登録ボタン
-- **検索・フィルタ**: 
-  - `NotionFilter`: 日時範囲（**サーバーサイド**）、ステータス、検査種別（動的）、担当医（動的）、キーワード検索（クライアントサイド）。
-- **データテーブル**: `DataTable` による一覧表示。20件ごとのページネーション。
+- **ヘッダー**: タイトル「検査管理」、新規検査登録ボタン（`canCreate` 時のみ表示）
+- **検索・フィルタ** (`NotionFilter`):
+  - 日付範囲: **サーバーサイド**（`start_date` / `end_date` クエリパラメータ）
+  - ステータス・検査種別・担当医: **クライアントサイド**（取得済みデータを絞り込み）
+  - キーワード検索: **クライアントサイド**（飼主名・ペット名・検査種別で部分一致。`useDeferredValue` で遅延）
+  - 検査種別・担当医の選択肢: ロード済みデータから動的生成
+- **データテーブル** (`DataTable`): 20件ごとのクライアントサイドページネーション。`?page=N` による URL 同期あり（FE-144）。
 
 ## 表示項目（テーブル）
 
@@ -17,18 +22,19 @@
 | 飼主名 | string | 飼い主氏名 | ○ | `ownerName` |
 | ペット名 | string | ペット名 | ○ | `petName` |
 | 検査種別 | string | 検査の種類 | ○ | `testType` |
-| 結果概要 | string | 結果のテキストサマリ | - | `resultSummary` |
+| 結果概要 | string | 結果のテキストサマリ | - | `resultSummary`（lg 以上で表示） |
 | 担当医 | string | 担当獣医師名 | ○ | `doctor` |
-| ステータス | enum | 依頼中 / 検査中 / 完了 | ○ | `status` (getExaminationStatusColor で配色) |
-| 操作 | - | 詳細（検査フォームへ遷移） | - | `RowActionButton` |
+| ステータス | enum | 依頼中 / 検査中 / 結果入力済み / 完了 / 確定 | ○ | `status`（`getExaminationStatusColor` で配色。依頼中=黄・検査中=青・完了=緑。結果入力済み・確定はデフォルト色） |
+| 操作 | - | 詳細（検査フォームへ遷移） | - | `RowActionButton`（`canEdit` 時のみ表示） |
 
 ## ユーザーアクション
-- **新規検査登録**: `/examinations/select-pet` を経て `/examinations/new` へ遷移。
-- **詳細表示**: 行クリックまたは操作ボタンから `/examinations/:id` 編集フォームへ遷移。
+- **新規検査登録**: `canCreate` 時に「新規検査登録」ボタンを表示。`/examinations/select-pet` → `/examinations/new?petId=:id` へ遷移。
+- **詳細表示・編集**: 行クリックまたは操作ボタンから `/examinations/:id` 編集フォームへ遷移（`canEdit` 時のみ）。
 
+## ステータスフィルタの注意
+`NotionFilter` のステータス選択肢は `依頼中 / 検査中 / 完了` の3値のみ。`結果入力済み` / `確定` は一覧に表示されるが、フィルタ選択肢には含まれていない。
 
 ## API連携
 | メソッド | エンドポイント | 用途 |
 |---------|--------------|------|
-| GET | `/api/v1/examinations` | 検査一覧取得 |
-| DELETE | `/api/v1/examinations/:id` | 検査削除 |
+| GET | `/api/v1/examinations` | 検査一覧取得（query: `start_date`・`end_date`・`pet_id`）|

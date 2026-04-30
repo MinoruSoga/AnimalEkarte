@@ -12,22 +12,36 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// checkupSyncPreviewOwnerResponse はプレビュー一覧の1件レスポンス。
+// checkupSyncPreviewOwnerResponse はプレビュー一覧の1件レスポンス（ISSUE-005: 除外理由対応 / ISSUE-009: 追加フィルタ表示）。
 type checkupSyncPreviewOwnerResponse struct {
-	OwnerID       string   `json:"owner_id"`
-	OwnerName     string   `json:"owner_name"`
-	PetNames      []string `json:"pet_names"`
-	LastVisitDate *string  `json:"last_visit_date"`
-	HasLine       bool     `json:"has_line"`
-	IsOptOut      bool     `json:"is_opt_out"`
-	CurrentTags   []string `json:"current_tags"`
+	OwnerID         string   `json:"owner_id"`
+	OwnerName       string   `json:"owner_name"`
+	PetNames        []string `json:"pet_names"`
+	LastVisitDate   *string  `json:"last_visit_date"`
+	HasLine         bool     `json:"has_line"`
+	IsOptOut        bool     `json:"is_opt_out"`
+	HasLivingPet    bool     `json:"has_living_pet"`
+	ExclusionReason *string  `json:"exclusion_reason"`
+	CurrentTags     []string `json:"current_tags"`
+
+	// ISSUE-009: フィルタ確認用のメタ情報（additive）
+	MinPetAgeYears      *int    `json:"min_pet_age_years"`
+	MaxPetAgeYears      *int    `json:"max_pet_age_years"`
+	HasChronicCondition bool    `json:"has_chronic_condition"`
+	CPMStage            string  `json:"cpm_stage"`
+	TotalAmount         int64   `json:"total_amount"`
+	AnnualVisitCount    int64   `json:"annual_visit_count"`
+	LastCheckupDate     *string `json:"last_checkup_date"`
 }
 
-// checkupSyncPreviewResponse はプレビューレスポンス。
+// checkupSyncPreviewResponse はプレビューレスポンス（ISSUE-005: 除外サマリー対応）。
 type checkupSyncPreviewResponse struct {
-	Owners          []checkupSyncPreviewOwnerResponse `json:"owners"`
-	LineLinkedCount int                               `json:"line_linked_count"`
-	TotalCount      int                               `json:"total_count"`
+	Owners           []checkupSyncPreviewOwnerResponse `json:"owners"`
+	TotalCount       int                               `json:"total_count"`
+	EligibleCount    int                               `json:"eligible_count"`
+	LineLinkedCount  int                               `json:"line_linked_count"`
+	OptOutCount      int                               `json:"opt_out_count"`
+	NoLivingPetCount int                               `json:"no_living_pet_count"`
 }
 
 // checkupSyncRequest は一括タグ付与リクエスト。
@@ -47,16 +61,28 @@ type checkupSyncResultResponse struct {
 
 func toCheckupSyncPreviewOwnerResponse(o *service.CheckupSyncPreviewOwner) checkupSyncPreviewOwnerResponse {
 	r := checkupSyncPreviewOwnerResponse{
-		OwnerID:     strconv.FormatUint(o.OwnerID, 10),
-		OwnerName:   o.OwnerName,
-		PetNames:    o.PetNames,
-		HasLine:     o.HasLine,
-		IsOptOut:    o.IsOptOut,
-		CurrentTags: o.CurrentTags,
+		OwnerID:             strconv.FormatUint(o.OwnerID, 10),
+		OwnerName:           o.OwnerName,
+		PetNames:            o.PetNames,
+		HasLine:             o.HasLine,
+		IsOptOut:            o.IsOptOut,
+		HasLivingPet:        o.HasLivingPet,
+		ExclusionReason:     o.ExclusionReason,
+		CurrentTags:         o.CurrentTags,
+		MinPetAgeYears:      o.MinPetAgeYears,
+		MaxPetAgeYears:      o.MaxPetAgeYears,
+		HasChronicCondition: o.HasChronicCondition,
+		CPMStage:            o.CPMStage,
+		TotalAmount:         o.TotalAmount,
+		AnnualVisitCount:    o.AnnualVisitCount,
 	}
 	if o.LastVisitDate != nil {
 		s := o.LastVisitDate.Format("2006-01-02")
 		r.LastVisitDate = &s
+	}
+	if o.LastCheckupDate != nil {
+		s := o.LastCheckupDate.Format("2006-01-02")
+		r.LastCheckupDate = &s
 	}
 	return r
 }
@@ -67,14 +93,17 @@ func toCheckupSyncPreviewResponse(result *service.PreviewCheckupSyncResult) chec
 		owners = append(owners, toCheckupSyncPreviewOwnerResponse(&result.Owners[i]))
 	}
 	return checkupSyncPreviewResponse{
-		Owners:          owners,
-		LineLinkedCount: result.LineLinkedCount,
-		TotalCount:      result.TotalCount,
+		Owners:           owners,
+		TotalCount:       result.TotalCount,
+		EligibleCount:    result.EligibleCount,
+		LineLinkedCount:  result.LineLinkedCount,
+		OptOutCount:      result.OptOutCount,
+		NoLivingPetCount: result.NoLivingPetCount,
 	}
 }
 
 // GetCheckupSyncPreview godoc
-// GET /clinics/:clinic_id/lstep/checkup-sync/preview — 健診対象者プレビューを返す（BE-004）。
+// GET /clinics/:clinic_id/lstep/checkup-sync/preview — 健診対象者プレビューを返す（BE-004 / ISSUE-009）。
 func (h *Handler) GetCheckupSyncPreview(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -84,6 +113,7 @@ func (h *Handler) GetCheckupSyncPreview(c *gin.Context) {
 	input := service.PreviewCheckupSyncInput{
 		CheckupType: c.Query("checkup_type"),
 		Species:     c.Query("species"),
+		CPMStage:    c.Query("cpm_stage"),
 	}
 
 	if s := c.Query("last_visit_before"); s != "" {
@@ -103,7 +133,91 @@ func (h *Handler) GetCheckupSyncPreview(c *gin.Context) {
 		input.LastVisitAfter = &t
 	}
 
-	result, err := h.svc.CheckupSync.PreviewCheckupSync(c.Request.Context(), clinicID, input)
+	// ISSUE-009: 追加フィルタのパース。整数・日付・bool は形式が不正なら 400 を返す（fail-fast）。
+	if s := c.Query("min_age_years"); s != "" {
+		v, err := strconv.Atoi(s)
+		if err != nil || v < 0 {
+			RespondError(c, apperrors.WrapInvalidInput("min_age_years は 0 以上の整数で指定してください"))
+			return
+		}
+		input.MinAgeYears = &v
+	}
+	if s := c.Query("max_age_years"); s != "" {
+		v, err := strconv.Atoi(s)
+		if err != nil || v < 0 {
+			RespondError(c, apperrors.WrapInvalidInput("max_age_years は 0 以上の整数で指定してください"))
+			return
+		}
+		input.MaxAgeYears = &v
+	}
+	if s := c.Query("has_chronic_condition"); s != "" {
+		switch s {
+		case "true":
+			t := true
+			input.HasChronicCondition = &t
+		case "false":
+			f := false
+			input.HasChronicCondition = &f
+		default:
+			RespondError(c, apperrors.WrapInvalidInput("has_chronic_condition は true/false で指定してください"))
+			return
+		}
+	}
+	if s := c.Query("min_total_amount"); s != "" {
+		v, err := strconv.ParseInt(s, 10, 64)
+		if err != nil || v < 0 {
+			RespondError(c, apperrors.WrapInvalidInput("min_total_amount は 0 以上の整数で指定してください"))
+			return
+		}
+		input.MinTotalAmount = &v
+	}
+	if s := c.Query("min_annual_visit_count"); s != "" {
+		v, err := strconv.ParseInt(s, 10, 64)
+		if err != nil || v < 0 {
+			RespondError(c, apperrors.WrapInvalidInput("min_annual_visit_count は 0 以上の整数で指定してください"))
+			return
+		}
+		input.MinAnnualVisitCount = &v
+	}
+	if s := c.Query("last_checkup_before"); s != "" {
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			RespondError(c, apperrors.WrapInvalidInput("last_checkup_before は YYYY-MM-DD 形式で指定してください"))
+			return
+		}
+		input.LastCheckupBefore = &t
+	}
+	if s := c.Query("last_checkup_after"); s != "" {
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			RespondError(c, apperrors.WrapInvalidInput("last_checkup_after は YYYY-MM-DD 形式で指定してください"))
+			return
+		}
+		input.LastCheckupAfter = &t
+	}
+	// CPM ステージ値域チェック（タグ同期側の定数と一致させる）。
+	if input.CPMStage != "" {
+		switch input.CPMStage {
+		case string(service.CPMStageEncounter),
+			string(service.CPMStageGrowing),
+			string(service.CPMStageCore),
+			string(service.CPMStageSpot),
+			string(service.CPMStageNoah),
+			string(service.CPMStageDormant):
+			// ok
+		default:
+			RespondError(c, apperrors.WrapInvalidInput("cpm_stage は cpm_encounter/cpm_growing/cpm_core/cpm_spot/cpm_noah/cpm_dormant のいずれかを指定してください"))
+			return
+		}
+	}
+
+	// ISSUE-010: 抽出メタデータを audit_logs に永続化するため actorID を service に渡す。
+	var actorID *uint64
+	if staffID, ok := extractStaffID(c); ok {
+		actorID = &staffID
+	}
+
+	result, err := h.svc.CheckupSync.PreviewCheckupSync(c.Request.Context(), clinicID, input, actorID)
 	if err != nil {
 		RespondError(c, err)
 		return

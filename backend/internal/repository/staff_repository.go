@@ -59,7 +59,11 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 
 func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	var staff model.Staff
-	err := dbOrTx(ctx, r.db).Preload("Account", "deleted_at IS NULL").Preload("Occupation", "deleted_at IS NULL").First(&staff, "id = ?", id).Error
+	err := dbOrTx(ctx, r.db).
+		Where("deleted_at IS NULL").
+		Preload("Account", "deleted_at IS NULL").
+		Preload("Occupation", "deleted_at IS NULL").
+		First(&staff, "id = ?", id).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", id))
 	}
@@ -68,7 +72,7 @@ func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff
 
 func (r *staffRepository) FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error) {
 	var staff model.Staff
-	err := dbOrTx(ctx, r.db).First(&staff, "account_id = ?", accountID).Error
+	err := dbOrTx(ctx, r.db).Where("deleted_at IS NULL").First(&staff, "account_id = ?", accountID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("account_id=%d", accountID))
 	}

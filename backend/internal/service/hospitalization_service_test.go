@@ -486,3 +486,141 @@ func TestHospitalizationService_Delete(t *testing.T) {
 		})
 	}
 }
+
+func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
+	now := time.Now()
+	companyName := "アニマル保険"
+	insuranceNo := "INS-001"
+
+	tests := []struct {
+		name                 string
+		input                *CreateHospitalizationInput
+		wantInsuranceCompany *string
+		wantInsuranceNumber  *string
+	}{
+		{
+			name: "is_insurance=true の場合は保険フィールドを保存する",
+			input: &CreateHospitalizationInput{
+				OwnerID:              2,
+				PetID:                5,
+				HospitalizationType:  model.HospitalizationTypeInpatient,
+				StartDate:            now,
+				EndDate:              now.Add(24 * time.Hour),
+				IsInsurance:          true,
+				InsuranceCompanyName: &companyName,
+				InsuranceNumber:      &insuranceNo,
+			},
+			wantInsuranceCompany: &companyName,
+			wantInsuranceNumber:  &insuranceNo,
+		},
+		{
+			name: "is_insurance=false の場合は保険フィールドを NULL にする",
+			input: &CreateHospitalizationInput{
+				OwnerID:              2,
+				PetID:                5,
+				HospitalizationType:  model.HospitalizationTypeInpatient,
+				StartDate:            now,
+				EndDate:              now.Add(24 * time.Hour),
+				IsInsurance:          false,
+				InsuranceCompanyName: &companyName,
+				InsuranceNumber:      &insuranceNo,
+			},
+			wantInsuranceCompany: nil,
+			wantInsuranceNumber:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var captured *model.Hospitalization
+			repo := &mockHospitalizationRepository{
+				createFn: func(_ context.Context, h *model.Hospitalization) error {
+					captured = h
+					return nil
+				},
+			}
+			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
+
+			hosp, err := svc.Create(context.Background(), 1, tt.input)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, hosp)
+			assert.Equal(t, tt.wantInsuranceCompany, captured.InsuranceCompanyName)
+			assert.Equal(t, tt.wantInsuranceNumber, captured.InsuranceNumber)
+		})
+	}
+}
+
+func TestBuildHospitalizationUpdate_InsuranceFields(t *testing.T) {
+	companyName := "アニマル保険"
+	insuranceNo := "INS-001"
+	isInsuranceTrue := true
+	isInsuranceFalse := false
+
+	tests := []struct {
+		name                       string
+		input                      UpdateHospitalizationInput
+		wantInsuranceCompanyExists bool
+		wantInsuranceCompanyValue  any
+		wantInsuranceNumberExists  bool
+		wantInsuranceNumberValue   any
+	}{
+		{
+			name: "is_insurance=true の場合は保険フィールドをセットする",
+			input: UpdateHospitalizationInput{
+				IsInsurance:          &isInsuranceTrue,
+				InsuranceCompanyName: &companyName,
+				InsuranceNumber:      &insuranceNo,
+			},
+			wantInsuranceCompanyExists: true,
+			wantInsuranceCompanyValue:  companyName,
+			wantInsuranceNumberExists:  true,
+			wantInsuranceNumberValue:   insuranceNo,
+		},
+		{
+			name: "is_insurance=false の場合は保険フィールドを nil にする",
+			input: UpdateHospitalizationInput{
+				IsInsurance:          &isInsuranceFalse,
+				InsuranceCompanyName: &companyName,
+				InsuranceNumber:      &insuranceNo,
+			},
+			wantInsuranceCompanyExists: true,
+			wantInsuranceCompanyValue:  nil,
+			wantInsuranceNumberExists:  true,
+			wantInsuranceNumberValue:   nil,
+		},
+		{
+			name: "is_insurance が nil の場合でも保険フィールド単体を更新できる",
+			input: UpdateHospitalizationInput{
+				InsuranceCompanyName: &companyName,
+			},
+			wantInsuranceCompanyExists: true,
+			wantInsuranceCompanyValue:  companyName,
+			wantInsuranceNumberExists:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fields := buildHospitalizationUpdate(&tt.input)
+
+			if tt.wantInsuranceCompanyExists {
+				val, ok := fields["insurance_company_name"]
+				assert.True(t, ok, "insurance_company_name should be in fields map")
+				assert.Equal(t, tt.wantInsuranceCompanyValue, val)
+			} else {
+				_, ok := fields["insurance_company_name"]
+				assert.False(t, ok, "insurance_company_name should NOT be in fields map")
+			}
+
+			if tt.wantInsuranceNumberExists {
+				val, ok := fields["insurance_number"]
+				assert.True(t, ok, "insurance_number should be in fields map")
+				assert.Equal(t, tt.wantInsuranceNumberValue, val)
+			} else {
+				_, ok := fields["insurance_number"]
+				assert.False(t, ok, "insurance_number should NOT be in fields map")
+			}
+		})
+	}
+}

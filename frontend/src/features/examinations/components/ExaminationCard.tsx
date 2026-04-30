@@ -3,7 +3,7 @@ import { Calendar, FlaskConical, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BADGE, C, ICON } from "@/lib/design-tokens";
-import type { ExaminationRecord } from "@/types";
+import type { ExaminationRecord } from "../api/transforms";
 
 interface ExaminationCardProps {
   examination: ExaminationRecord;

@@ -134,6 +134,26 @@ Notion スタイルの日付入力コンポーネント。カレンダーポッ�
 
 ---
 
+## 12. パスワード変更ダイアログ（`ChangePasswordDialog`）
+
+### 概要
+認証済みユーザーが自分のパスワードを変更するための共通ダイアログ（BUG-148）。サイドバーのユーザーメニューから呼び出す。`PUT /api/v1/users/me/password` を使用。
+
+### 入力項目
+| フィールド | 入力部品 | 備考 |
+|-----------|---------|------|
+| 現在のパスワード | `Input(password)` + Eye/EyeOff トグル | `autocomplete="current-password"` |
+| 新しいパスワード | `Input(password)` + Eye/EyeOff トグル | 8文字以上必須 |
+| 新しいパスワード（確認）| `Input(password)` + Eye/EyeOff トグル | 新パスワードと一致必須 |
+
+### 動作
+- React 19 `useActionState` + `<form action>` で非同期送信。
+- 現在のパスワードは bcrypt でバックエンド検証（不一致時 401）。
+- 変更成功時: `toast.success` を表示してダイアログを閉じ、`onSuccess` コールバックを呼び出す（再ログイン誘導用）。
+- エラー時: `role="alert"` でエラーメッセージをインライン表示。
+
+---
+
 ## 13. 高度な検索・フィルタ (`NotionFilter`)
 
 ### 概要

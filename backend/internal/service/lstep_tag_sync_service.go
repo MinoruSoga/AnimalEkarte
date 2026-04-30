@@ -101,6 +101,16 @@ type LstepTagSyncService interface {
 	// SyncDormantTags は最終来院からの経過日数に基づき dormant_* タグを差分同期する（BE-005）。
 	// daysSinceLastVisit < 0 は来院なしを表す。
 	SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error
+	// ResyncOwnerVaccineTags は飼い主の生存ワクチン記録から vaccine_* タグを再構築する（ISSUE-004）。
+	// 種別ごとに最新の接種日のみタグを保持する。レコードが0件の場合は全 vaccine_* タグを解除する。
+	ResyncOwnerVaccineTags(ctx context.Context, clinicID, ownerID uint64) error
+	// ResyncOwnerCheckupTags は飼い主の生存健診記録から checkup_done_* / next_checkup_* タグを再構築する（ISSUE-004）。
+	// 種別ごとに最新の検査日のみ保持。next_checkup は最新の next_date 1件のみ保持。
+	ResyncOwnerCheckupTags(ctx context.Context, clinicID, ownerID uint64) error
+	// ResyncOwnerReservationTags は飼い主の予約から reserved_* タグを再構築する（ISSUE-004）。
+	// confirmed/pending な未来予約のうち最新1件のみ reserved_* を保持する。
+	// canceled_visit / no_show_* は別軸のため変更しない。
+	ResyncOwnerReservationTags(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 type lstepTagSyncService struct {
@@ -112,6 +122,8 @@ type lstepTagSyncService struct {
 	tagCacheRepo     repository.LstepTagCacheRepository
 	petRepo          repository.PetRepository
 	prescriptionRepo repository.PrescriptionRepository
+	checkupRepo      repository.CheckupRepository
+	reservationRepo  repository.ReservationCRUDRepository
 }
 
 // NewLstepTagSyncService は LstepTagSyncService を初期化して返す。
@@ -124,6 +136,8 @@ func NewLstepTagSyncService(
 	tagCacheRepo repository.LstepTagCacheRepository,
 	petRepo repository.PetRepository,
 	prescriptionRepo repository.PrescriptionRepository,
+	checkupRepo repository.CheckupRepository,
+	reservationRepo repository.ReservationCRUDRepository,
 ) LstepTagSyncService {
 	return &lstepTagSyncService{
 		settingsSvc:      settingsSvc,
@@ -134,6 +148,8 @@ func NewLstepTagSyncService(
 		tagCacheRepo:     tagCacheRepo,
 		petRepo:          petRepo,
 		prescriptionRepo: prescriptionRepo,
+		checkupRepo:      checkupRepo,
+		reservationRepo:  reservationRepo,
 	}
 }
 
@@ -1170,6 +1186,270 @@ func (s *lstepTagSyncService) SyncNoShowTag(ctx context.Context, clinicID, owner
 	}
 	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, "no_show_visit", "auto"); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert no_show_visit tag cache", "error", upsertErr)
+	}
+	return nil
+}
+
+// ResyncOwnerVaccineTags は飼い主の生存ワクチン記録から vaccine_* タグを再構築する（ISSUE-004）。
+// 接種記録の更新・削除後に呼び出すこと。種別ごとに最新の接種日のみタグを保持する。
+// 記録が0件の場合は全 vaccine_* タグを解除する。
+func (s *lstepTagSyncService) ResyncOwnerVaccineTags(ctx context.Context, clinicID, ownerID uint64) error {
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for vaccine resync", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to build lstep client for vaccine resync", "error", err)
+		return apperrors.Wrap(err, "failed to build lstep client")
+	}
+	if client == nil {
+		return nil
+	}
+
+	vaccinations, err := s.vacRepo.FindByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find vaccinations for resync", "error", err)
+		return apperrors.Wrap(err, "failed to find vaccinations")
+	}
+
+	newTagSet := buildLatestVaccineTagSet(vaccinations)
+
+	s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
+		[]string{"vaccine_dog_", "vaccine_cat_", "vaccine_rabies_"}, newTagSet)
+
+	for tag := range newTagSet {
+		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add vaccine tag on resync", "error", addErr, "tag", tag)
+			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add vaccine tag %s", tag))
+		}
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto"); cacheErr != nil {
+			slog.ErrorContext(ctx, "failed to upsert vaccine tag cache on resync", "error", cacheErr, "tag", tag)
+		}
+	}
+	return nil
+}
+
+// buildLatestVaccineTagSet は接種記録一覧から「種別ごとの最新接種日」のタグ集合を返す。
+// 同一種別に複数記録がある場合は最も新しい date のタグのみを採用する。
+func buildLatestVaccineTagSet(vaccinations []model.Vaccination) map[string]struct{} {
+	latestByPrefix := make(map[string]time.Time)
+	updateLatest := func(prefix string, date time.Time) {
+		if cur, ok := latestByPrefix[prefix]; !ok || date.After(cur) {
+			latestByPrefix[prefix] = date
+		}
+	}
+	for i := range vaccinations {
+		v := &vaccinations[i]
+		if v.Vaccine == nil {
+			continue
+		}
+		species := v.Vaccine.Species
+		if species != nil {
+			switch *species {
+			case model.VaccineSpeciesDog:
+				updateLatest("vaccine_dog_", v.Date)
+			case model.VaccineSpeciesCat:
+				updateLatest("vaccine_cat_", v.Date)
+			case model.VaccineSpeciesBoth:
+				updateLatest("vaccine_dog_", v.Date)
+				updateLatest("vaccine_cat_", v.Date)
+			}
+		}
+		if isRabiesVaccine(v.Vaccine.Name) {
+			updateLatest("vaccine_rabies_", v.Date)
+		}
+	}
+	tagSet := make(map[string]struct{}, len(latestByPrefix))
+	for prefix, date := range latestByPrefix {
+		tagSet[prefix+date.Format("2006-01-02")] = struct{}{}
+	}
+	return tagSet
+}
+
+// ResyncOwnerCheckupTags は飼い主の生存健診記録から checkup_done_* / next_checkup_* タグを再構築する（ISSUE-004）。
+// 健診の更新・削除後に呼び出すこと。同一健診種別では最新検査日のみ保持。next_checkup は最遠の next_date のみ保持。
+func (s *lstepTagSyncService) ResyncOwnerCheckupTags(ctx context.Context, clinicID, ownerID uint64) error {
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for checkup resync", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to build lstep client for checkup resync", "error", err)
+		return apperrors.Wrap(err, "failed to build lstep client")
+	}
+	if client == nil {
+		return nil
+	}
+
+	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find checkups for resync", "error", err)
+		return apperrors.Wrap(err, "failed to find checkups")
+	}
+
+	newTagSet := buildLatestCheckupTagSet(checkups)
+
+	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load tag cache for checkup resync", "error", err)
+		return apperrors.Wrap(err, "failed to load tag cache")
+	}
+	for _, c := range cached {
+		if !strings.HasPrefix(c.TagName, "checkup_done_") && !strings.HasPrefix(c.TagName, "next_checkup_") {
+			continue
+		}
+		if _, keep := newTagSet[c.TagName]; keep {
+			continue
+		}
+		if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove stale checkup tag", "error", delErr, "tag", c.TagName)
+		}
+		if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
+			slog.ErrorContext(ctx, "failed to delete stale checkup tag cache", "error", delErr, "tag", c.TagName)
+		}
+	}
+
+	for tag := range newTagSet {
+		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add checkup tag on resync", "error", addErr, "tag", tag)
+			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add checkup tag %s", tag))
+		}
+		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto"); upsertErr != nil {
+			slog.ErrorContext(ctx, "failed to upsert checkup tag cache on resync", "error", upsertErr, "tag", tag)
+		}
+	}
+	return nil
+}
+
+// buildLatestCheckupTagSet は健診記録から「種別ごとの最新検査日」「最遠の next_date」のタグ集合を返す。
+func buildLatestCheckupTagSet(checkups []model.Checkup) map[string]struct{} {
+	latestByType := make(map[uint64]time.Time)
+	var latestNext *time.Time
+	for i := range checkups {
+		c := &checkups[i]
+		if cur, ok := latestByType[c.CheckupTypeID]; !ok || c.Date.After(cur) {
+			latestByType[c.CheckupTypeID] = c.Date
+		}
+		if c.NextDate != nil {
+			if latestNext == nil || c.NextDate.After(*latestNext) {
+				t := *c.NextDate
+				latestNext = &t
+			}
+		}
+	}
+	tagSet := make(map[string]struct{}, len(latestByType)+1)
+	for typeID, date := range latestByType {
+		tagSet[fmt.Sprintf("checkup_done_%d_%s", typeID, date.Format("2006-01"))] = struct{}{}
+	}
+	if latestNext != nil {
+		tagSet["next_checkup_"+latestNext.Format("2006-01-02")] = struct{}{}
+	}
+	return tagSet
+}
+
+// ResyncOwnerReservationTags は飼い主の予約から reserved_* タグを再構築する（ISSUE-004）。
+// 予約の更新・削除後に呼び出すこと。confirmed/pending な未来予約のうち最新1件のみ reserved_* を保持する。
+// canceled_visit / no_show_* は別軸（履歴系）のため変更しない。
+func (s *lstepTagSyncService) ResyncOwnerReservationTags(ctx context.Context, clinicID, ownerID uint64) error {
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for reservation resync", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to build lstep client for reservation resync", "error", err)
+		return apperrors.Wrap(err, "failed to build lstep client")
+	}
+	if client == nil {
+		return nil
+	}
+
+	ownerIDPtr := ownerID
+	reservations, _, err := s.reservationRepo.FindAll(ctx, clinicID, 1, 100, nil, nil, nil, nil, &ownerIDPtr)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find reservations for resync", "error", err)
+		return apperrors.Wrap(err, "failed to find reservations")
+	}
+
+	now := time.Now()
+	var latest *time.Time
+	for i := range reservations {
+		r := &reservations[i]
+		if r.Status != model.ReservationStatusConfirmed && r.Status != model.ReservationStatusPending {
+			continue
+		}
+		if !r.StartTime.After(now) {
+			continue
+		}
+		if latest == nil || r.StartTime.After(*latest) {
+			t := r.StartTime
+			latest = &t
+		}
+	}
+
+	var newTag string
+	if latest != nil {
+		newTag = "reserved_" + latest.Format("2006-01-02")
+	}
+
+	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load tag cache for reservation resync", "error", err)
+		return apperrors.Wrap(err, "failed to load tag cache")
+	}
+	for _, c := range cached {
+		if !strings.HasPrefix(c.TagName, "reserved_") {
+			continue
+		}
+		if c.TagName == newTag {
+			continue
+		}
+		if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove stale reserved tag", "error", delErr, "tag", c.TagName)
+		}
+		if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
+			slog.ErrorContext(ctx, "failed to delete stale reserved tag cache", "error", delErr, "tag", c.TagName)
+		}
+	}
+
+	if newTag == "" {
+		return nil
+	}
+	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
+		slog.ErrorContext(ctx, "failed to add reserved tag on resync", "error", addErr, "tag", newTag)
+		return apperrors.Wrap(addErr, "failed to add reserved tag")
+	}
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto"); upsertErr != nil {
+		slog.ErrorContext(ctx, "failed to upsert reserved tag cache on resync", "error", upsertErr)
 	}
 	return nil
 }

@@ -3,7 +3,7 @@ import { useState, lazy, Suspense, memo, useCallback, useEffect } from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
 
 // External
-import { Plus, Edit, User, PawPrint, MoreHorizontal, Calendar, FileText, Scissors, Bed, CreditCard, Trash2 } from "lucide-react";
+import { Plus, Edit, User, PawPrint, MoreHorizontal, Calendar, FileText, Scissors, Bed, CreditCard, Trash2, Receipt } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
@@ -36,6 +36,10 @@ import type { PetFormData, OwnerData } from "../types";
 // Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)
 const PetEditModal = lazy(() =>
   import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
+);
+// Lazy-loaded — 編集モードでのみ必要、新規登録画面のバンドルから切り離す
+const OwnerAccountingHistory = lazy(() =>
+  import("@/features/accounting").then(m => ({ default: m.OwnerAccountingHistory }))
 );
 import { MEMBERSHIP_TYPE_VALUES } from "../types";
 import type { MembershipType } from "../types";
@@ -477,6 +481,9 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
   const { canEdit, canCreate, canDelete } = usePermission("owners");
   // BUG-372: 割引権限（値引率フィールド制御用）
   const { canEdit: canEditDiscount } = usePermission("discount");
+  // 会計履歴セクションは閲覧専用なので accounting:view で出し分ける。
+  // 権限がないユーザーにはセクション全体（見出し含む）を非表示にする。
+  const { canView: canViewAccounting } = usePermission("accounting");
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const [deletePetTarget, setDeletePetTarget] = useState<{
     id: string;
@@ -700,6 +707,31 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
       </div>
 
         </fieldset>
+
+      {/* 会計履歴セクション（編集モード + accounting:view 権限保有時のみ表示） */}
+      {/*
+       * 過去の会計を一覧し、各行から /accounting/:id 詳細へ遷移できる。
+       * 完了済の会計には「明細兼領収書」リンクを出し、詳細ページの
+       * 既存プレビュー＆印刷導線を再利用する形で再表示・再印刷を実現する。
+       * 専用の再発行 API は新設しない。
+       *
+       * 権限制御: accounting:view を持たないユーザーには、見出しを含む
+       * セクション全体を表示しない。OwnerAccountingHistory 自体は権限を
+       * 意識しない閲覧コンポーネントで、出し分けは呼び出し側 (OwnerForm) の責務。
+       */}
+      {isEdit && ownerId && canViewAccounting ? (
+        <div className="mb-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
+              <Receipt className={`${ICON.action} ${C.text60}`} />
+              会計履歴
+            </h2>
+          </div>
+          <Suspense fallback={null}>
+            <OwnerAccountingHistory ownerId={ownerId} />
+          </Suspense>
+        </div>
+      ) : null}
 
       {/* LINE連携セクション（編集モードのみ・app層から注入） */}
       {isEdit && lineSection ? (

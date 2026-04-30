@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { Download } from "lucide-react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -10,7 +10,13 @@ import { useGetOwnerAggregations, type AggregationParams, type AggregationOwner 
 import { AggregationFilterPanel } from "./AggregationFilterPanel";
 import { AggregationOwnerTable } from "./AggregationOwnerTable";
 
+// 集計軸は仕様書 §6.2 で revenue / visit / last_visit の3つに固定。
+// 既定タブは売上ランキング (revenue)。それ以外の値は URL に書き込めない。
 export type AggregationTab = "revenue" | "visit" | "last_visit";
+
+export const DEFAULT_AGGREGATION_TAB: AggregationTab = "revenue";
+
+const AGGREGATION_TABS: readonly AggregationTab[] = ["revenue", "visit", "last_visit"] as const;
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -40,10 +46,7 @@ const TAB_DEFAULT_PARAMS: Record<AggregationTab, AggregationParams> = {
 };
 
 function validateTab(value: unknown): AggregationTab | null {
-  if (value === "revenue" || value === "visit" || value === "last_visit") {
-    return value;
-  }
-  return null;
+  return AGGREGATION_TABS.find((t) => t === value) ?? null;
 }
 
 interface CsvColumnDef {
@@ -73,12 +76,16 @@ const CSV_COLUMNS: Record<AggregationTab, CsvColumnDef[]> = {
     { header: "last_visit_date", getValue: (o) => o.last_visit_date ?? "" },
     { header: "first_visit_date", getValue: (o) => o.first_visit_date ?? "" },
   ],
+  // 仕様書 §4.3 表示項目に合わせる: 飼い主名 / 最終来院日 / 経過日数 / 分類 / 累計来院回数 / 年間来院回数 / 累計診療費
+  // 画面 (TAB_SPECIFIC_COLUMNS.last_visit) と1対1で揃えること。drift 防止。
   last_visit: [
     ...CSV_COMMON_COLUMNS,
     { header: "last_visit_date", getValue: (o) => o.last_visit_date ?? "" },
     { header: "days_since_last_visit", getValue: (o) => String(o.days_since_last_visit ?? "") },
     { header: "last_visit_bucket", getValue: (o) => o.last_visit_bucket ?? "" },
-    { header: "first_visit_date", getValue: (o) => o.first_visit_date ?? "" },
+    { header: "total_visit_count", getValue: (o) => String(o.total_visit_count) },
+    { header: "annual_visit_count", getValue: (o) => String(o.annual_visit_count) },
+    { header: "total_amount", getValue: (o) => String(o.total_amount ?? o.total_fee ?? "") },
   ],
 };
 
@@ -91,6 +98,30 @@ function buildCsvContent(owners: AggregationOwner[], tab: AggregationTab): strin
   );
 
   return [header, ...rows].join("\n");
+}
+
+// エラーメッセージは「データの読み込みに失敗しました」をベースとし、
+// 利用者に原因 (HTTP ステータス等) が分かる形で補助情報を併記する。
+// axios エラーは Error インスタンスで `error.message` が `Request failed with status code 404` 等になるため、
+// それをそのまま表示すると業務利用者には伝わりにくい。
+function formatAggregationError(error: unknown): string {
+  const baseMessage = "データの読み込みに失敗しました";
+  if (error !== null && typeof error === "object") {
+    const response = (error as { response?: { status?: number; statusText?: string; data?: { error?: string } } }).response;
+    if (response?.status) {
+      const detail = response.statusText
+        ? `HTTP ${response.status} ${response.statusText}`
+        : `HTTP ${response.status}`;
+      const apiError = response.data?.error;
+      return apiError
+        ? `${baseMessage} (${detail}: ${apiError})`
+        : `${baseMessage} (${detail})`;
+    }
+    if (error instanceof Error && error.message && !error.message.startsWith("Request failed")) {
+      return `${baseMessage}: ${error.message}`;
+    }
+  }
+  return baseMessage;
 }
 
 function downloadCsv(content: string, filename: string): void {
@@ -106,25 +137,44 @@ function downloadCsv(content: string, filename: string): void {
 
 export function AggregationDashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab: AggregationTab = validateTab(searchParams.get("tab")) ?? "revenue";
+  const rawTab = searchParams.get("tab");
+  const activeTab: AggregationTab = validateTab(rawTab) ?? DEFAULT_AGGREGATION_TAB;
   const [params, setParams] = useState<AggregationParams>(TAB_DEFAULT_PARAMS[activeTab]);
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<Set<string>>(new Set());
+
+  // URL → state 同期:
+  //   1. URL に tab がない、または不正値 → URL を正規化し DEFAULT_AGGREGATION_TAB に揃える
+  //   2. ブラウザ戻る/進む等で URL の tab が変わった場合、params も該当タブの初期条件にリセットする
+  //      （ユーザー操作のタブ切り替えは handleTabChange が同時に setParams するので冪等）
+  useEffect(() => {
+    if (rawTab !== activeTab) {
+      setSearchParams({ tab: activeTab }, { replace: true });
+    }
+    setParams(TAB_DEFAULT_PARAMS[activeTab]);
+    setSelectedOwnerIds(new Set());
+    // activeTab が変わったときだけ実行する。
+  }, [activeTab, rawTab, setSearchParams]);
 
   const { data, isLoading, isError, error } = useGetOwnerAggregations(params);
   const owners = data?.owners ?? [];
 
   const handleTabChange = useCallback(
     (tab: string) => {
-      const validTab = validateTab(tab) ?? "revenue";
+      const validTab = validateTab(tab) ?? DEFAULT_AGGREGATION_TAB;
+      // setSearchParams のみで完結。useEffect が params / 選択状態のリセットを担う。
       setSearchParams({ tab: validTab }, { replace: true });
-      setParams(TAB_DEFAULT_PARAMS[validTab]);
-      setSelectedOwnerIds(new Set());
     },
     [setSearchParams]
   );
 
   const handleParamsChange = useCallback((partial: Partial<AggregationParams>) => {
-    setParams((prev) => ({ ...prev, ...partial }));
+    // フィルタ・ソート変更時は仕様 §10.2 に従い必ず1ページ目に戻す。
+    // Pagination からの呼び出しは partial.page を明示するためそちらを尊重する。
+    setParams((prev) => ({
+      ...prev,
+      ...partial,
+      page: partial.page ?? 1,
+    }));
     setSelectedOwnerIds(new Set());
   }, []);
 
@@ -166,9 +216,7 @@ export function AggregationDashboardPage() {
     downloadCsv(csv, `aggregation-${activeTab}-${date}.csv`);
   }, [selectedCount, selectedOwners, activeTab]);
 
-  const errorMessage = isError
-    ? (error instanceof Error ? error.message : "データの読み込みに失敗しました")
-    : undefined;
+  const errorMessage = isError ? formatAggregationError(error) : undefined;
 
   const tabItems = [
     { value: "revenue" as const, label: "売上ランキング" },

@@ -71,6 +71,9 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
     ownerRequest: "",
     staffNotes: "",
     cageId: "",
+    isInsurance: false,
+    insuranceCompanyName: "",
+    insuranceNumber: "",
   }));
 
   const handleFormDataChange = (updates: Partial<HospitalizationFormData>) => {
@@ -99,6 +102,9 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
             staff_notes: formData.staffNotes,
             memo: formData.memo,
             cage_id: formData.cageId || undefined,
+            is_insurance: formData.isInsurance,
+            insurance_company_name: formData.isInsurance ? (formData.insuranceCompanyName || null) : null,
+            insurance_number: formData.isInsurance ? (formData.insuranceNumber || null) : null,
           });
           toast.success("入院情報を更新しました");
         } else {
@@ -114,6 +120,9 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
             staff_notes: formData.staffNotes,
             memo: formData.memo,
             cage_id: formData.cageId || undefined,
+            is_insurance: formData.isInsurance,
+            insurance_company_name: formData.isInsurance ? (formData.insuranceCompanyName || null) : null,
+            insurance_number: formData.isInsurance ? (formData.insuranceNumber || null) : null,
           });
           toast.success("入院情報を登録しました");
         }
@@ -154,6 +163,9 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
       memo: hospitalizationData.memo ?? "",
       ownerRequest: hospitalizationData.owner_request ?? "",
       staffNotes: hospitalizationData.staff_notes ?? "",
+      isInsurance: !!(hospitalizationData.insurance_company_name || hospitalizationData.insurance_number),
+      insuranceCompanyName: hospitalizationData.insurance_company_name ?? "",
+      insuranceNumber: hospitalizationData.insurance_number ?? "",
     }));
     if (hospitalizationData.pet && hospitalizationData.owner_id) {
       setSelectedPets([

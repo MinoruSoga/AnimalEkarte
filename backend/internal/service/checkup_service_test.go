@@ -17,6 +17,7 @@ import (
 type mockCheckupRepository struct {
 	listByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
 	listByClinicFn          func(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error)
+	findByOwnerIDFn         func(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error)
 	findByIDFn              func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
 	createFn                func(ctx context.Context, checkup *model.Checkup) error
 	updateFn                func(ctx context.Context, clinicID, checkupID uint64, fields map[string]any) error
@@ -37,6 +38,13 @@ func (m *mockCheckupRepository) FindByClinicID(ctx context.Context, clinicID uin
 func (m *mockCheckupRepository) FindByID(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, checkupID)
+	}
+	return nil, nil
+}
+
+func (m *mockCheckupRepository) FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error) {
+	if m.findByOwnerIDFn != nil {
+		return m.findByOwnerIDFn(ctx, clinicID, ownerID)
 	}
 	return nil, nil
 }

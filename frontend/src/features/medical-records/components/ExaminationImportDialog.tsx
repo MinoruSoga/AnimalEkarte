@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
-import { useGetExaminations, useUpdateExamination } from "@/hooks/use-examinations";
+import { useGetExaminations, useUpdateExamination } from "@/features/examinations";
 
 interface ExaminationImportDialogProps {
   open: boolean;

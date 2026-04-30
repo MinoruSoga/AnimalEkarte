@@ -313,7 +313,7 @@ func (h *Handler) DeleteMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// BE-REOPEN-002: Delete 前に医療記録を取得して来院/LTV タグ再計算に必要な owner_id を確保
+	// ISSUE-004: Delete 前に医療記録を取得して owner_id を確保
 	record, err := h.svc.MedicalRecord.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
@@ -323,9 +323,13 @@ func (h *Handler) DeleteMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	// BE-REOPEN-002: 医療記録削除後に来院/LTV タグを再計算（best-effort）
+	// ISSUE-004: 医療記録削除後に来院/LTV/次回来院推奨日タグを再計算（best-effort）。
+	// SyncVisitCompletionTags は first_visit_/last_visit_/ltv_amount_/visit_count_annual_ を DB から再算定。
+	// SyncNextVisitTag は最新カルテの next_visit_recommended_date を参照して next_visit_* を更新する。
+	// 削除されたカルテが最新だった場合に古い next_visit_* タグが残らない。
 	if record.OwnerID != nil {
 		_ = h.svc.LstepTagSync.SyncVisitCompletionTags(c.Request.Context(), clinicID, *record.OwnerID)
+		_ = h.svc.LstepTagSync.SyncNextVisitTag(c.Request.Context(), clinicID, *record.OwnerID)
 	}
 	c.Status(http.StatusNoContent)
 }

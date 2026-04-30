@@ -149,14 +149,35 @@ func (m *batchMockTagSyncSvc) SyncDormantTags(ctx context.Context, clinicID, own
 	}
 	return nil
 }
+func (m *batchMockTagSyncSvc) ResyncOwnerVaccineTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *batchMockTagSyncSvc) ResyncOwnerCheckupTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *batchMockTagSyncSvc) ResyncOwnerReservationTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
 
-type batchMockAuditService struct{}
+type batchMockAuditService struct {
+	// ISSUE-010: 引数捕捉用の spy フィールド（既存テストでは未使用 — nil のまま）。
+	capturedAction   string
+	capturedMetadata any
+	called           bool
+}
 
 func (m *batchMockAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
 func (m *batchMockAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
 	return nil
 }
 func (m *batchMockAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
+	return nil
+}
+
+func (m *batchMockAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, action, _ string, _ *uint64, metadata any) error {
+	m.called = true
+	m.capturedAction = action
+	m.capturedMetadata = metadata
 	return nil
 }
 
@@ -167,6 +188,17 @@ func newBatchService(
 	medRepo repository.MedicalRecordRepository,
 ) LstepBatchService {
 	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{})
+}
+
+// newBatchServiceWithAuditSpy は ISSUE-010 監査 metadata 検証用に audit spy を返す。
+func newBatchServiceWithAuditSpy(
+	resRepo repository.ReservationRepository,
+	tagSvc LstepTagSyncService,
+	clinicRepo repository.ClinicRepository,
+	medRepo repository.MedicalRecordRepository,
+) (LstepBatchService, *batchMockAuditService) {
+	spy := &batchMockAuditService{}
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy), spy
 }
 
 func TestDetectNoShowReservations_Success(t *testing.T) {
@@ -375,4 +407,80 @@ func TestRunDormantDetectionAllClinics_FetchClinicsError(t *testing.T) {
 
 	err := svc.RunDormantDetectionAllClinics(context.Background())
 	assert.Error(t, err)
+}
+
+// ---- ISSUE-010: バッチ実行時の監査メタデータ永続化 ----
+
+// TestRunNoShowCheckAllClinics_PersistsAuditMetadata は no-show バッチ完了時に
+// processed_count / error_count を audit_logs.metadata に記録することを検証する。
+func TestRunNoShowCheckAllClinics_PersistsAuditMetadata(t *testing.T) {
+	ownerID := uint64(1)
+	clinics := []model.Clinic{{ID: 1}}
+
+	svc, spy := newBatchServiceWithAuditSpy(
+		&batchMockReservationRepo{
+			findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
+				return []model.Reservation{{ID: 1, OwnerID: &ownerID, StartTime: time.Now()}}, nil
+			},
+		},
+		&batchMockTagSyncSvc{},
+		&mockClinicRepository{
+			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
+				return clinics, nil
+			},
+		},
+		&batchMockMedRecordRepo{},
+	)
+
+	err := svc.RunNoShowCheckAllClinics(context.Background())
+	assert.NoError(t, err)
+	assert.True(t, spy.called, "監査ログ呼び出しが行われる")
+	assert.Equal(t, "batch_no_show_detect", spy.capturedAction)
+
+	meta, ok := spy.capturedMetadata.(map[string]any)
+	if !assert.True(t, ok) {
+		return
+	}
+	assert.Equal(t, "batch_no_show_detect", meta["operation"])
+	assert.Equal(t, 1, meta["processed_count"])
+	assert.Equal(t, 0, meta["error_count"])
+}
+
+// TestRunDormantDetectionAllClinics_PersistsAuditMetadata は休眠検知バッチで
+// processed_count / error_count / min_days_since が metadata に記録されることを検証する。
+func TestRunDormantDetectionAllClinics_PersistsAuditMetadata(t *testing.T) {
+	clinics := []model.Clinic{{ID: 1}}
+	entries := []repository.DormantOwnerEntry{
+		{OwnerID: 1, DaysSince: 200},
+		{OwnerID: 2, DaysSince: 250},
+	}
+
+	svc, spy := newBatchServiceWithAuditSpy(
+		&batchMockReservationRepo{},
+		&batchMockTagSyncSvc{},
+		&mockClinicRepository{
+			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
+				return clinics, nil
+			},
+		},
+		&batchMockMedRecordRepo{
+			findDormantFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+				return entries, nil
+			},
+		},
+	)
+
+	err := svc.RunDormantDetectionAllClinics(context.Background())
+	assert.NoError(t, err)
+	assert.True(t, spy.called)
+	assert.Equal(t, "batch_dormant_detect", spy.capturedAction)
+
+	meta, ok := spy.capturedMetadata.(map[string]any)
+	if !assert.True(t, ok) {
+		return
+	}
+	assert.Equal(t, "batch_dormant_detect", meta["operation"])
+	assert.Equal(t, 2, meta["processed_count"])
+	assert.Equal(t, 0, meta["error_count"])
+	assert.Equal(t, 180, meta["min_days_since"], "判定閾値を後で再現できる")
 }

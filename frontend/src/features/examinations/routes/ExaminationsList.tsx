@@ -38,7 +38,7 @@ import type {
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
-import type { ExaminationRecord } from "@/types";
+import type { ExaminationRecord } from "../api/transforms";
 import { ResourceExaminations } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（検査種別は動的オプションのためコンポーネント内で構築）

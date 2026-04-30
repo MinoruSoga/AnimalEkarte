@@ -117,6 +117,10 @@ func (m *mockAuditServiceForPG) LogLstepOperation(_ context.Context, _ uint64, _
 	return nil
 }
 
+func (m *mockAuditServiceForPG) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
+	return nil
+}
+
 // ---- helper ----
 
 func newHandlerWithPermissionGroupSvc(pgSvc service.PermissionGroupService) *Handler {

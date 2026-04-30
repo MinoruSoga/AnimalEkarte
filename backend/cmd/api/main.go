@@ -86,6 +86,8 @@ func main() {
 		repos.LstepTagCache,
 		repos.Pet,
 		repos.Prescription,
+		repos.Checkup,
+		repos.Reservation,
 	)
 	svcs.LstepLifecycle = service.NewLstepLifecycleService(
 		svcs.LstepSettings,
@@ -128,7 +130,7 @@ func main() {
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	svcs.LstepTagSummary = service.NewLstepTagSummaryService(repos.LstepTagCache)
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
-	svcs.CheckupSync = service.NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.LstepTagCache, svcs.LstepSettings, svcs.Audit)
+	svcs.CheckupSync = service.NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.Pet, repos.LstepTagCache, svcs.LstepSettings, svcs.Audit)
 
 	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var uploader infra.FileUploader

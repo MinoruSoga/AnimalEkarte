@@ -25,3 +25,23 @@ type updateExaminationRequest struct {
 	Machine         *string    `json:"machine"`
 	Status          *string    `json:"status"             binding:"omitempty,oneof=pending in_progress result_entered completed confirmed"`
 }
+
+// upsertExamItemRequest は検査項目 1 行分のバインド struct。
+// status / is_abnormal は受け付けない（サーバ側で ref_min/ref_max から計算する）。
+type upsertExamItemRequest struct {
+	ExamTypeFieldID *uint64  `json:"exam_type_field_id"`
+	Name            string   `json:"name"             binding:"required"`
+	InspectionValue string   `json:"inspection_value"`
+	NormalValue     string   `json:"normal_value"`
+	Unit            string   `json:"unit"`
+	ReferenceValue  string   `json:"reference_value"`
+	RefMin          *float64 `json:"ref_min"`
+	RefMax          *float64 `json:"ref_max"`
+	SortOrder       int      `json:"sort_order"`
+}
+
+// replaceExamItemsRequest は検査項目の一括置換 PUT リクエスト。
+// items が nil の場合は空配列として扱う（全削除と等価）。
+type replaceExamItemsRequest struct {
+	Items []upsertExamItemRequest `json:"items" binding:"dive"`
+}

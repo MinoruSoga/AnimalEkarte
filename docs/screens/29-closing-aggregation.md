@@ -1,6 +1,6 @@
 # 集計・締め
 
-> **専用ドキュメント**: `docs/tasks/pending/accounting/FEAT-368_closing-aggregation.md`
+> **専用ドキュメント**: `docs/tasks/closed/accounting/FEAT-368_closing-aggregation.md`
 >
 > 仕様・DB設計・API設計・未確認事項はすべて上記を参照。
 

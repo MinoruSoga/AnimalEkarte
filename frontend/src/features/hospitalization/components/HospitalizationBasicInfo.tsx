@@ -1,10 +1,12 @@
 // External
 import { memo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
-import { Building2, Calendar } from "lucide-react";
+import { Building2, Calendar, ShieldCheck } from "lucide-react";
 
 // Internal
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { Textarea } from "@/components/ui/textarea";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
@@ -108,6 +110,60 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
                   ))}
               </SelectContent>
           </Select>
+      </div>
+
+      {/* 保険 */}
+      <div className="mb-3">
+        <div className="flex items-center gap-2 mb-1.5">
+          <Checkbox
+            id="is_insurance"
+            checked={formData.isInsurance}
+            onCheckedChange={(checked) =>
+              onChange({
+                isInsurance: checked === true,
+                insuranceCompanyName: checked === true ? formData.insuranceCompanyName : "",
+                insuranceNumber: checked === true ? formData.insuranceNumber : "",
+              })
+            }
+          />
+          <Label
+            htmlFor="is_insurance"
+            className={`${H_STYLES.text.sm} ${C.text} cursor-pointer flex items-center gap-1`}
+          >
+            <ShieldCheck className={`${ICON.action} ${C.text60}`} />
+            保険適用
+          </Label>
+        </div>
+        {formData.isInsurance ? (
+          <div className={`flex flex-col ${H_STYLES.gap.default} pl-6`}>
+            <div>
+              <Label htmlFor="insurance_company_name" className={`${H_STYLES.text.xs} ${C.text60} mb-1 block`}>
+                保険会社名
+              </Label>
+              <Input
+                id="insurance_company_name"
+                value={formData.insuranceCompanyName}
+                onChange={(e) => onChange({ insuranceCompanyName: e.target.value })}
+                placeholder="保険会社名を入力..."
+                className={`h-9 ${H_STYLES.text.base} ${C.bgWhite} ${C.borderMedium}`}
+                maxLength={100}
+              />
+            </div>
+            <div>
+              <Label htmlFor="insurance_number" className={`${H_STYLES.text.xs} ${C.text60} mb-1 block`}>
+                保険番号
+              </Label>
+              <Input
+                id="insurance_number"
+                value={formData.insuranceNumber}
+                onChange={(e) => onChange({ insuranceNumber: e.target.value })}
+                placeholder="保険番号を入力..."
+                className={`h-9 ${H_STYLES.text.base} ${C.bgWhite} ${C.borderMedium}`}
+                maxLength={50}
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* メモ */}
