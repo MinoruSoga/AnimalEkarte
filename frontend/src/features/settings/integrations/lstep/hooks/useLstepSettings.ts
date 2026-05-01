@@ -16,6 +16,8 @@ export interface LstepSettingsResponse {
   line_account_name: string | null;
   is_configured: boolean;
   last_updated_at: string | null;
+  is_sync_enabled: boolean;
+  sync_enabled_at: string | null;
 }
 
 export interface LstepSettingsRequest {
@@ -25,6 +27,7 @@ export interface LstepSettingsRequest {
   line_channel_secret?: string;
   liff_id?: string;
   line_account_name?: string;
+  is_sync_enabled?: boolean;
 }
 
 // ─────────────────────────────────────────────────

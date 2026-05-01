@@ -11,3 +11,6 @@ export type { LineSendType, LineSendRequest } from "./api/send-line-message";
 export type { LineSendHistoryItem } from "./api/get-line-send-history";
 export { useGetOwnerLineTags } from "./api/get-owner-line-tags";
 export type { OwnerLineStatus } from "./api/get-owner-line-tags";
+export { useConfirmOwnerLineId } from "./api/confirm-owner-line-id";
+export { useUpdateOwnerDeliveryExclusion } from "./api/update-owner-delivery-exclusion";
+export { useUpdateOwnerTransferStatus } from "./api/update-owner-transfer-status";

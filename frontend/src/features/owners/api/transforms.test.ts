@@ -11,6 +11,9 @@ const minimalBackend: OwnerApiResponse = {
   clinic_id: 1,
   owner_name: "田中太郎",
   membership_type: "non_member",
+  delivery_excluded: false,
+  is_transferred: false,
+  lstep_opt_out: false,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -126,5 +129,89 @@ describe("transformOwner", () => {
     expect(result.postalCode).toBe("123-4567");
     expect(result.address1).toBe("東京都");
     expect(result.address2).toBe("新宿区");
+  });
+
+  it("line_user_id を lineUserId にマップする", () => {
+    const result = transformOwner({ ...minimalBackend, line_user_id: "Uabc123" });
+    expect(result.lineUserId).toBe("Uabc123");
+  });
+
+  it("line_user_id が未設定のとき undefined を返す", () => {
+    const result = transformOwner({ ...minimalBackend, line_user_id: undefined });
+    expect(result.lineUserId).toBeUndefined();
+  });
+
+  it("line_id_confirmed_at を lineIdConfirmedAt にマップする", () => {
+    const result = transformOwner({
+      ...minimalBackend,
+      line_id_confirmed_at: "2026-04-01T10:00:00Z",
+    });
+    expect(result.lineIdConfirmedAt).toBe("2026-04-01T10:00:00Z");
+  });
+
+  it("delivery_excluded を deliveryExcluded にマップする (true)", () => {
+    const result = transformOwner({ ...minimalBackend, delivery_excluded: true });
+    expect(result.deliveryExcluded).toBe(true);
+  });
+
+  it("delivery_excluded が未設定のとき false を返す", () => {
+    const result = transformOwner({
+      ...minimalBackend,
+      delivery_excluded: undefined as unknown as boolean,
+    });
+    expect(result.deliveryExcluded).toBe(false);
+  });
+
+  it("delivery_excluded_reason を deliveryExcludedReason にマップする", () => {
+    const result = transformOwner({
+      ...minimalBackend,
+      delivery_excluded: true,
+      delivery_excluded_reason: "配信不要希望",
+    });
+    expect(result.deliveryExcludedReason).toBe("配信不要希望");
+  });
+
+  it("is_transferred を isTransferred にマップする (true)", () => {
+    const result = transformOwner({ ...minimalBackend, is_transferred: true });
+    expect(result.isTransferred).toBe(true);
+  });
+
+  it("is_transferred が未設定のとき false を返す", () => {
+    const result = transformOwner({
+      ...minimalBackend,
+      is_transferred: undefined as unknown as boolean,
+    });
+    expect(result.isTransferred).toBe(false);
+  });
+
+  it("transfer_at を transferAt にマップする", () => {
+    const result = transformOwner({
+      ...minimalBackend,
+      is_transferred: true,
+      transfer_at: "2026-03-15T00:00:00Z",
+    });
+    expect(result.transferAt).toBe("2026-03-15T00:00:00Z");
+  });
+
+  it("lstep_opt_out を lstepOptOut にマップする", () => {
+    const result = transformOwner({ ...minimalBackend, lstep_opt_out: true });
+    expect(result.lstepOptOut).toBe(true);
+  });
+
+  it("lstep_opt_out が未設定のとき false を返す", () => {
+    const result = transformOwner({
+      ...minimalBackend,
+      lstep_opt_out: undefined as unknown as boolean,
+    });
+    expect(result.lstepOptOut).toBe(false);
+  });
+
+  it("lstep_opt_out_reason を lstepOptOutReason にマップする", () => {
+    const result = transformOwner({
+      ...minimalBackend,
+      lstep_opt_out: true,
+      lstep_opt_out_reason: "苦情あり",
+    });
+    expect(result.lstepOptOutReason).toBe("苦情あり");
   });
 });

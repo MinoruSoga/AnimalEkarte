@@ -1369,6 +1369,11 @@ export interface Owner {
   lstep_opt_out_reason?: string;
   line_followed_at?: string;
   line_blocked_at?: string;
+  line_id_confirmed_at?: string;
+  delivery_excluded: boolean;
+  delivery_excluded_reason?: string;
+  is_transferred: boolean;
+  transfer_at?: string;
   created_at: string;
   updated_at: string;
   /**

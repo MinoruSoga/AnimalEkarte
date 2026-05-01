@@ -4,6 +4,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import type { ActionState } from "@/types/form";
@@ -79,6 +80,14 @@ function TextField({
   );
 }
 
+function formatSyncDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("ja-JP", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
 // ─────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────
@@ -94,6 +103,10 @@ export function LstepSettingsForm() {
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
   const [lineTestResult, setLineTestResult] = useState<"success" | "error" | null>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
+
+  // undefined = サーバー値に追従。ユーザーがトグルを変更したら上書きする。
+  const [syncEnabledOverride, setSyncEnabledOverride] = useState<boolean | undefined>(undefined);
+  const isSyncEnabled = syncEnabledOverride ?? settings?.is_sync_enabled ?? false;
 
   const [_formState, formAction] = useActionState(
     async (_prevState: ActionState, formData: FormData): Promise<ActionState> => {
@@ -120,8 +133,12 @@ export function LstepSettingsForm() {
         req.lstep_base_url = lstepBaseUrl.trim();
       }
 
+      // 同期ON/OFFは常に送信（boolean は空欄という概念がないため）
+      req.is_sync_enabled = isSyncEnabled;
+
       try {
         await updateMutation.mutateAsync(req);
+        setSyncEnabledOverride(undefined); // 保存後はサーバー値に戻す
         toast.success("Lステップ設定を保存しました");
         return { success: true, timestamp: Date.now() };
       } catch (error) {
@@ -175,25 +192,40 @@ export function LstepSettingsForm() {
 
   return (
     <div className={`${STYLE.formCard} max-w-2xl`}>
-      {/* 設定状態バッジ */}
+      {/* 設定状態・同期状態バッジ */}
       <div className="flex items-center justify-between mb-6">
         <h2 className={`text-base font-semibold ${C.text}`}>
           Lステップ連携設定
         </h2>
-        {isConfigured ? (
-          <span className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full bg-[#DDEDEA] text-[#0F7B6C] border border-[#C3DFC3]`}>
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#0F7B6C]" />
-            設定済み
-          </span>
-        ) : (
-          <span className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full ${C.bgStatusGray} ${C.textStatusGray} border ${C.borderMuted}`}>
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${C.bgStatusGrayMedium}`} />
-            未設定
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {isConfigured ? (
+            <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full bg-[#DDEDEA] text-[#0F7B6C] border border-[#C3DFC3]">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#0F7B6C]" />
+              設定済み
+            </span>
+          ) : (
+            <span className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full ${C.bgStatusGray} ${C.textStatusGray} border ${C.borderMuted}`}>
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${C.bgStatusGrayMedium}`} />
+              未設定
+            </span>
+          )}
+          {isConfigured ? (
+            isSyncEnabled ? (
+              <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full bg-[#DDEDEA] text-[#0F7B6C] border border-[#C3DFC3]">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#0F7B6C]" />
+                同期中
+              </span>
+            ) : (
+              <span className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full ${C.bgStatusGray} ${C.textStatusGray} border ${C.borderMuted}`}>
+                <span className={`inline-block w-1.5 h-1.5 rounded-full ${C.bgStatusGrayMedium}`} />
+                同期停止中
+              </span>
+            )
+          ) : null}
+        </div>
       </div>
 
-      {/* 既存マスク値の表示 */}
+      {/* 既存マスク値 + 同期有効化日時の表示 */}
       {isConfigured ? (
         <div className={`mb-6 p-3 rounded-[4px] ${C.bgPage} border ${C.borderLight} text-sm ${C.text60} flex flex-col gap-1`}>
           {settings?.lstep_api_key_masked ? (
@@ -210,6 +242,9 @@ export function LstepSettingsForm() {
           ) : null}
           {settings?.lstep_base_url ? (
             <span>LステップベースURL: <span className={`font-mono ${C.text}`}>{settings.lstep_base_url}</span></span>
+          ) : null}
+          {settings?.sync_enabled_at ? (
+            <span>同期有効化日時: <span className={`font-mono ${C.text}`}>{formatSyncDate(settings.sync_enabled_at)}</span></span>
           ) : null}
         </div>
       ) : null}
@@ -248,6 +283,24 @@ export function LstepSettingsForm() {
           defaultValue={settings?.lstep_base_url ?? ""}
           placeholder="例: https://app.lstep.jp"
         />
+
+        {/* 同期 ON/OFF トグル */}
+        <div className={`flex items-center justify-between gap-4 py-3 border-t ${C.borderLight}`}>
+          <div className="flex flex-col gap-0.5">
+            <span className={`text-sm font-medium ${C.text}`}>同期を有効にする</span>
+            <span className={`text-xs ${C.text50}`}>
+              {isConfigured
+                ? "OFFにすると連携処理を一時停止します。APIキー設定は保持されます。"
+                : "APIキー保存後に同期を開始する場合はONにします。OFFの場合もAPIキー設定は保持されます。"}
+            </span>
+          </div>
+          <Switch
+            checked={isSyncEnabled}
+            onCheckedChange={setSyncEnabledOverride}
+            disabled={updateMutation.isPending}
+            aria-label="同期を有効にする"
+          />
+        </div>
 
         {/* 月間配信数の注意 */}
         <div className={`flex items-start gap-2 p-3 rounded-[4px] bg-[#FFF9E6] border border-[#F0D070] text-sm text-[#7A5C00]`}>
