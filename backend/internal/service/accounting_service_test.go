@@ -77,6 +77,10 @@ func (m *mockAccountingRepository) MaxSingleVisitAmountByOwner(_ context.Context
 	return 0, nil
 }
 
+func (m *mockAccountingRepository) FindOwnersByAnnualRevenue(_ context.Context, _ uint64) ([]repository.OwnerAnnualRevenue, error) {
+	return nil, nil
+}
+
 func ptrString(v string) *string { return &v }
 
 func TestAccountingService_List(t *testing.T) {

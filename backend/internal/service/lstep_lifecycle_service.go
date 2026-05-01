@@ -55,8 +55,15 @@ func NewLstepLifecycleService(
 }
 
 // buildClient はクリニック設定から lstep.Client を構築する。
-// API キーが未設定の場合は nil, nil を返す。
+// 同期無効（is_sync_enabled=false）または API キー未設定の場合は nil, nil を返す。
 func (s *lstepLifecycleService) buildClient(ctx context.Context, clinicID uint64) (lstep.Client, error) {
+	enabled, err := s.settingsSvc.IsSyncEnabled(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to check lstep sync enabled")
+	}
+	if !enabled {
+		return nil, nil
+	}
 	apiKey, baseURL, _, err := s.settingsSvc.GetRawCredentials(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get lstep credentials")

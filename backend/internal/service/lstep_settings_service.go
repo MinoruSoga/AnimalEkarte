@@ -24,6 +24,8 @@ type LstepSettingsResponse struct {
 	LineAccountName              string     `json:"line_account_name"`
 	IsConfigured                 bool       `json:"is_configured"`
 	LastUpdatedAt                *time.Time `json:"last_updated_at"`
+	IsSyncEnabled                bool       `json:"is_sync_enabled"`
+	SyncEnabledAt                *time.Time `json:"sync_enabled_at"`
 }
 
 // UpdateLstepSettingsInput はPATCHリクエスト用（空文字=変更なし）
@@ -34,6 +36,8 @@ type UpdateLstepSettingsInput struct {
 	LineChannelSecret      string
 	LiffID                 string
 	LineAccountName        string
+	// IsSyncEnabled が nil の場合は変更なし。false→true に変わった時のみ SyncEnabledAt を現在時刻にセット。
+	IsSyncEnabled *bool
 }
 
 // LstepConnectionTestResult は疎通確認結果
@@ -53,19 +57,23 @@ type LstepSettingsService interface {
 	// GetRawCredentials は復号済みの API キー・BASE URL・LINE アクセストークンを返す。
 	// 設定が存在しない場合は空文字を返す（エラーにはならない）。
 	GetRawCredentials(ctx context.Context, clinicID uint64) (apiKey, baseURL, lineToken string, err error)
+	// IsSyncEnabled はクリニックのLステップ同期が有効かどうかを返す。
+	// lstep_settings レコードが存在しない場合は false を返す（エラーにはならない）。
+	IsSyncEnabled(ctx context.Context, clinicID uint64) (bool, error)
 }
 
 type lstepSettingsService struct {
-	repo     repository.LstepSettingsRepository
-	cipher   *crypto.AESGCMCipher
-	auditSvc AuditService
+	repo             repository.LstepSettingsRepository
+	syncSettingsRepo repository.LstepSyncSettingsRepository
+	cipher           *crypto.AESGCMCipher
+	auditSvc         AuditService
 }
 
 // NewLstepSettingsService は LstepSettingsService を初期化して返す。
 // cipher が nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 // auditSvc が nil の場合は監査ログをスキップする（CLI ツール等での使用を想定）。
-func NewLstepSettingsService(repo repository.LstepSettingsRepository, cipher *crypto.AESGCMCipher, auditSvc AuditService) LstepSettingsService {
-	return &lstepSettingsService{repo: repo, cipher: cipher, auditSvc: auditSvc}
+func NewLstepSettingsService(repo repository.LstepSettingsRepository, syncSettingsRepo repository.LstepSyncSettingsRepository, cipher *crypto.AESGCMCipher, auditSvc AuditService) LstepSettingsService {
+	return &lstepSettingsService{repo: repo, syncSettingsRepo: syncSettingsRepo, cipher: cipher, auditSvc: auditSvc}
 }
 
 func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error) {
@@ -91,6 +99,19 @@ func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64)
 	}
 
 	resp := buildLstepSettingsResponse(kvMap, lastUpdated)
+
+	if s.syncSettingsRepo != nil {
+		syncSettings, syncErr := s.syncSettingsRepo.FindByClinicID(ctx, clinicID)
+		if syncErr != nil && !apperrors.IsNotFound(syncErr) {
+			slog.ErrorContext(ctx, "failed to find lstep sync settings", "error", syncErr, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(syncErr, "failed to find lstep sync settings")
+		}
+		if syncSettings != nil {
+			resp.IsSyncEnabled = syncSettings.IsSyncEnabled
+			resp.SyncEnabledAt = syncSettings.SyncEnabledAt
+		}
+	}
+
 	return resp, nil
 }
 
@@ -149,6 +170,13 @@ func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint
 			return nil, apperrors.Wrap(err, "failed to update lstep setting")
 		}
 	}
+
+	if input.IsSyncEnabled != nil && s.syncSettingsRepo != nil {
+		if err := s.updateSyncEnabled(ctx, clinicID, *input.IsSyncEnabled); err != nil {
+			return nil, err
+		}
+	}
+
 	resp, err := s.GetSettings(ctx, clinicID)
 	if err == nil && s.auditSvc != nil {
 		_ = s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "update_settings", "clinic", &clinicID)
@@ -283,4 +311,51 @@ func (s *lstepSettingsService) GetRawCredentials(ctx context.Context, clinicID u
 		base = "https://api.lstep.jp"
 	}
 	return kvMap[model.IntegrationKeyLstepAPIKey], base, kvMap[model.IntegrationKeyLineChannelAccessToken], nil
+}
+
+// IsSyncEnabled はクリニックの同期有効フラグを返す。レコード未作成時は false を返す。
+func (s *lstepSettingsService) IsSyncEnabled(ctx context.Context, clinicID uint64) (bool, error) {
+	if s.syncSettingsRepo == nil {
+		return false, nil
+	}
+	settings, err := s.syncSettingsRepo.FindByClinicID(ctx, clinicID)
+	if err != nil {
+		if apperrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, apperrors.Wrap(err, "failed to find lstep sync settings")
+	}
+	return settings.IsSyncEnabled, nil
+}
+
+// updateSyncEnabled は IsSyncEnabled の変化に応じて lstep_settings を Upsert する。
+// false → true の場合のみ SyncEnabledAt を現在時刻でセットする。true → false では保持する。
+func (s *lstepSettingsService) updateSyncEnabled(ctx context.Context, clinicID uint64, newEnabled bool) error {
+	current, err := s.syncSettingsRepo.FindByClinicID(ctx, clinicID)
+	if err != nil && !apperrors.IsNotFound(err) {
+		slog.ErrorContext(ctx, "failed to find lstep sync settings", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to find lstep sync settings")
+	}
+
+	record := &model.LstepSettings{
+		ClinicID:      clinicID,
+		IsSyncEnabled: newEnabled,
+	}
+
+	if current != nil {
+		record.SyncEnabledAt = current.SyncEnabledAt
+	}
+
+	// false → true の遷移時のみ SyncEnabledAt をセット
+	currentEnabled := current != nil && current.IsSyncEnabled
+	if !currentEnabled && newEnabled {
+		now := time.Now()
+		record.SyncEnabledAt = &now
+	}
+
+	if _, err := s.syncSettingsRepo.Upsert(ctx, record); err != nil {
+		slog.ErrorContext(ctx, "failed to upsert lstep sync settings", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to update lstep sync settings")
+	}
+	return nil
 }

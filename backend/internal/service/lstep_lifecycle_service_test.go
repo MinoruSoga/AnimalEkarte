@@ -21,6 +21,7 @@ type mockLstepSettingsService struct {
 	updateSettingsFn    func(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput) (*LstepSettingsResponse, error)
 	deleteSettingsFn    func(ctx context.Context, clinicID uint64) error
 	testConnectionFn    func(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error)
+	isSyncEnabledFn     func(ctx context.Context, clinicID uint64) (bool, error)
 }
 
 func (m *mockLstepSettingsService) GetRawCredentials(ctx context.Context, clinicID uint64) (apiKey, baseURL, lineToken string, err error) {
@@ -52,6 +53,12 @@ func (m *mockLstepSettingsService) TestConnection(ctx context.Context, clinicID 
 		return m.testConnectionFn(ctx, clinicID)
 	}
 	return &LstepConnectionTestResult{}, nil
+}
+func (m *mockLstepSettingsService) IsSyncEnabled(ctx context.Context, clinicID uint64) (bool, error) {
+	if m.isSyncEnabledFn != nil {
+		return m.isSyncEnabledFn(ctx, clinicID)
+	}
+	return true, nil
 }
 
 // ---- LstepTagCacheRepository モック ----
@@ -172,6 +179,30 @@ func (m *mockLstepTagSyncService) ResyncOwnerCheckupTags(_ context.Context, _, _
 }
 
 func (m *mockLstepTagSyncService) ResyncOwnerReservationTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncCPMStageTagV2(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncLTVTopPercent(_ context.Context, _ uint64) (int, []error) {
+	return 0, nil
+}
+
+func (m *mockLstepTagSyncService) SyncVisitDormantTags(_ context.Context, _, _ uint64, _ int) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncPetSpeciesTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncSeniorTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncExclusionTags(_ context.Context, _, _ uint64) error {
 	return nil
 }
 

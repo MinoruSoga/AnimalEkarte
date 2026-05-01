@@ -111,6 +111,10 @@ func (m *mockAccountingRepositoryForClose) MaxSingleVisitAmountByOwner(_ context
 	return 0, nil
 }
 
+func (m *mockAccountingRepositoryForClose) FindOwnersByAnnualRevenue(_ context.Context, _ uint64) ([]repository.OwnerAnnualRevenue, error) {
+	return nil, nil
+}
+
 // ---- モック: ClosingSettingsService（ResolveSchedule のみ） ----
 
 type mockClosingSettingsService struct {

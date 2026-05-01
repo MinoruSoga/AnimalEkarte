@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -50,6 +51,9 @@ func (m *mockLstepSettingsService) TestConnection(ctx context.Context, clinicID 
 }
 func (m *mockLstepSettingsService) GetRawCredentials(_ context.Context, _ uint64) (apiKey, baseURL, lineToken string, err error) {
 	return "", "", "", nil
+}
+func (m *mockLstepSettingsService) IsSyncEnabled(_ context.Context, _ uint64) (bool, error) {
+	return false, nil
 }
 
 // ---- helpers ----
@@ -142,6 +146,30 @@ func TestGetLstepSettings(t *testing.T) {
 	}
 }
 
+func TestGetLstepSettingsIncludesSyncFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	syncEnabledAt := time.Date(2026, 5, 1, 9, 0, 0, 0, time.UTC)
+	svc := &mockLstepSettingsService{
+		getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
+			return &service.LstepSettingsResponse{
+				IsSyncEnabled: true,
+				SyncEnabledAt: &syncEnabledAt,
+			}, nil
+		},
+	}
+
+	router := newGetLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodGet, "/lstep-settings", http.NoBody)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, true, body["is_sync_enabled"])
+	assert.NotEmpty(t, body["sync_enabled_at"])
+}
+
 func TestPatchLstepSettings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	validBody, _ := json.Marshal(map[string]string{"lstep_api_key": "key123"})
@@ -189,6 +217,29 @@ func TestPatchLstepSettings(t *testing.T) {
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
+	}
+}
+
+func TestPatchLstepSettingsPassesSyncEnabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var got *bool
+	svc := &mockLstepSettingsService{
+		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+			got = input.IsSyncEnabled
+			return &service.LstepSettingsResponse{IsSyncEnabled: true}, nil
+		},
+	}
+
+	body, _ := json.Marshal(map[string]any{"is_sync_enabled": true})
+	router := newPatchLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodPatch, "/lstep-settings", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	if assert.NotNil(t, got) {
+		assert.True(t, *got)
 	}
 }
 

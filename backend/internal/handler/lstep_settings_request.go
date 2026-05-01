@@ -8,4 +8,5 @@ type updateLstepSettingsRequest struct {
 	LineChannelSecret      string `json:"line_channel_secret"`
 	LiffID                 string `json:"liff_id"`
 	LineAccountName        string `json:"line_account_name"`
+	IsSyncEnabled          *bool  `json:"is_sync_enabled"`
 }

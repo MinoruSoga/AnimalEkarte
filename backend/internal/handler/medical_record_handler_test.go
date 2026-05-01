@@ -161,6 +161,30 @@ func (m *mockLstepTagSyncService) ResyncOwnerReservationTags(_ context.Context, 
 	return nil
 }
 
+func (m *mockLstepTagSyncService) SyncCPMStageTagV2(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncLTVTopPercent(_ context.Context, _ uint64) (int, []error) {
+	return 0, nil
+}
+
+func (m *mockLstepTagSyncService) SyncVisitDormantTags(_ context.Context, _, _ uint64, _ int) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncPetSpeciesTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncSeniorTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncExclusionTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 // ---- test helper ----
 
 func newHandlerWithMedicalRecordSvc(mrSvc service.MedicalRecordService, cpSvc service.ClinicalPlanService) *Handler {

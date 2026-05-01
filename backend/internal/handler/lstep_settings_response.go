@@ -16,6 +16,8 @@ type lstepSettingsResponse struct {
 	LineAccountName              string     `json:"line_account_name"`
 	IsConfigured                 bool       `json:"is_configured"`
 	LastUpdatedAt                *time.Time `json:"last_updated_at"`
+	IsSyncEnabled                bool       `json:"is_sync_enabled"`
+	SyncEnabledAt                *time.Time `json:"sync_enabled_at"`
 }
 
 // lstepConnectionTestResponse は疎通確認結果レスポンス
@@ -36,6 +38,8 @@ func toLstepSettingsResponse(s *service.LstepSettingsResponse) lstepSettingsResp
 		LineAccountName:              s.LineAccountName,
 		IsConfigured:                 s.IsConfigured,
 		LastUpdatedAt:                s.LastUpdatedAt,
+		IsSyncEnabled:                s.IsSyncEnabled,
+		SyncEnabledAt:                s.SyncEnabledAt,
 	}
 }
 

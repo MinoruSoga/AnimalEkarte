@@ -141,8 +141,8 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	resStaffSvc := NewReservationStaffService(repos.ReservationStaff, tx)
 
 	// LSTEP services initialization with nil cipher (production code in main.go will override with encrypted cipher)
-	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, nil, auditSvc)
-	lstepTagSyncSvc := NewLstepTagSyncService(lstepSettingsSvc, repos.Owner, repos.Vaccination, repos.MedicalRecord, repos.Accounting, repos.LstepTagCache, repos.Pet, repos.Prescription, repos.Checkup, repos.Reservation)
+	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, nil, auditSvc)
+	lstepTagSyncSvc := NewLstepTagSyncService(lstepSettingsSvc, repos.Owner, repos.Vaccination, repos.MedicalRecord, repos.Accounting, repos.LstepTagCache, repos.Pet, repos.Prescription, repos.Checkup, repos.Reservation, repos.LstepSyncErrorCounter)
 	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc)
 
 	return &Services{
@@ -150,7 +150,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		StaffClinicAssignment:          NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
 		Audit:                          auditSvc,
 		AnimalSpecies:                  NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
-		Owner:                          NewOwnerService(repos.Owner),
+		Owner:                          NewOwnerService(repos.Owner, lstepTagSyncSvc),
 		Pet:                            NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
 		Reservation:                    NewReservationService(repos.Reservation, tx),
 		MedicalRecord:                  NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr),

@@ -76,7 +76,7 @@ func main() {
 	} else {
 		logger.Info("INTEGRATION_ENCRYPTION_KEY not set: running without encryption (dev mode)")
 	}
-	svcs.LstepSettings = service.NewLstepSettingsService(repos.LstepSettings, lstepCipher, svcs.Audit)
+	svcs.LstepSettings = service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, lstepCipher, svcs.Audit)
 	svcs.LstepTagSync = service.NewLstepTagSyncService(
 		svcs.LstepSettings,
 		repos.Owner,
@@ -88,6 +88,7 @@ func main() {
 		repos.Prescription,
 		repos.Checkup,
 		repos.Reservation,
+		repos.LstepSyncErrorCounter,
 	)
 	svcs.LstepLifecycle = service.NewLstepLifecycleService(
 		svcs.LstepSettings,
@@ -124,7 +125,7 @@ func main() {
 	// LSTEP-BE-013: LINE個別送信
 	svcs.LineSend = service.NewLineSendService(svcs.LstepSettings, repos.Owner, svcs.SharedFile, repos.LstepTagCache, svcs.Audit, repos.LineSendLog)
 	// LSTEP-BE-014: ノーショウ検知バッチ
-	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic, repos.MedicalRecord, svcs.Audit)
+	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic, repos.MedicalRecord, svcs.Audit, svcs.LstepSettings)
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
 	svcs.LineLink = service.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, svcs.Audit)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索

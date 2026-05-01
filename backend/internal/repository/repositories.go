@@ -83,9 +83,10 @@ type Repositories struct {
 	PaymentMethodMaster  PaymentMethodMasterRepository
 	CashRegisterClose    CashRegisterCloseRepository
 	// LSTEP / LINE連携
-	LstepSettings LstepSettingsRepository
-	SharedFile    SharedFileRepository
-	LstepTagCache LstepTagCacheRepository
+	LstepSettings     LstepSettingsRepository
+	LstepSyncSettings LstepSyncSettingsRepository
+	SharedFile        SharedFileRepository
+	LstepTagCache     LstepTagCacheRepository
 	// LSTEP-BE-009: 処方薬記録
 	Prescription PrescriptionRepository
 	// LSTEP-BE-010: LTV集計
@@ -98,6 +99,8 @@ type Repositories struct {
 	LineLinkToken LineLinkTokenRepository
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
 	CheckupSync CheckupSyncRepository
+	// FEAT-375: Lステップ連携エラーカウンター
+	LstepSyncErrorCounter LstepSyncErrorCounterRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -172,15 +175,17 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		PaymentMethodMaster:  NewPaymentMethodMasterRepository(db),
 		CashRegisterClose:    NewCashRegisterCloseRepository(db),
 		// LSTEP / LINE連携
-		LstepSettings:    NewLstepSettingsRepository(db),
-		SharedFile:       NewSharedFileRepository(db),
-		LstepTagCache:    NewLstepTagCacheRepository(db),
-		Prescription:     NewPrescriptionRepository(db),
-		Ltv:              NewLtvRepository(db),
-		ChronicCondition: NewPetChronicConditionRepository(db),
-		LineSendLog:      NewLineSendLogRepository(db),
-		LineLinkToken:    NewLineLinkTokenRepository(db),
-		CheckupSync:      NewCheckupSyncRepository(db),
+		LstepSettings:         NewLstepSettingsRepository(db),
+		LstepSyncSettings:     NewLstepSyncSettingsRepository(db),
+		SharedFile:            NewSharedFileRepository(db),
+		LstepTagCache:         NewLstepTagCacheRepository(db),
+		Prescription:          NewPrescriptionRepository(db),
+		Ltv:                   NewLtvRepository(db),
+		ChronicCondition:      NewPetChronicConditionRepository(db),
+		LineSendLog:           NewLineSendLogRepository(db),
+		LineLinkToken:         NewLineLinkTokenRepository(db),
+		CheckupSync:           NewCheckupSyncRepository(db),
+		LstepSyncErrorCounter: NewLstepSyncErrorCounterRepository(db),
 	}
 }
 

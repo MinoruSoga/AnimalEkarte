@@ -159,6 +159,30 @@ func (m *batchMockTagSyncSvc) ResyncOwnerReservationTags(_ context.Context, _, _
 	return nil
 }
 
+func (m *batchMockTagSyncSvc) SyncCPMStageTagV2(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockTagSyncSvc) SyncLTVTopPercent(_ context.Context, _ uint64) (int, []error) {
+	return 0, nil
+}
+
+func (m *batchMockTagSyncSvc) SyncVisitDormantTags(_ context.Context, _, _ uint64, _ int) error {
+	return nil
+}
+
+func (m *batchMockTagSyncSvc) SyncPetSpeciesTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockTagSyncSvc) SyncSeniorTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockTagSyncSvc) SyncExclusionTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 type batchMockAuditService struct {
 	// ISSUE-010: 引数捕捉用の spy フィールド（既存テストでは未使用 — nil のまま）。
 	capturedAction   string
@@ -187,7 +211,7 @@ func newBatchService(
 	clinicRepo repository.ClinicRepository,
 	medRepo repository.MedicalRecordRepository,
 ) LstepBatchService {
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{})
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{}, &mockLstepSettingsService{})
 }
 
 // newBatchServiceWithAuditSpy は ISSUE-010 監査 metadata 検証用に audit spy を返す。
@@ -198,7 +222,7 @@ func newBatchServiceWithAuditSpy(
 	medRepo repository.MedicalRecordRepository,
 ) (LstepBatchService, *batchMockAuditService) {
 	spy := &batchMockAuditService{}
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy), spy
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy, &mockLstepSettingsService{}), spy
 }
 
 func TestDetectNoShowReservations_Success(t *testing.T) {

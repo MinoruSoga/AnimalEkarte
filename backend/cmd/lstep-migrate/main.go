@@ -82,7 +82,7 @@ func run() int {
 		}
 	}
 
-	settingsSvc := service.NewLstepSettingsService(repos.LstepSettings, cipher, nil)
+	settingsSvc := service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, nil)
 	tagSyncSvc := service.NewLstepTagSyncService(
 		settingsSvc,
 		repos.Owner,
@@ -94,6 +94,7 @@ func run() int {
 		repos.Prescription,
 		repos.Checkup,
 		repos.Reservation,
+		repos.LstepSyncErrorCounter,
 	)
 
 	migCfg := Config{

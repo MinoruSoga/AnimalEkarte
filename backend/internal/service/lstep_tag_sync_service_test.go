@@ -1,14 +1,74 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
+
+func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
+	settingsSvc := &mockLstepSettingsService{
+		isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) {
+			return false, nil
+		},
+	}
+	svc := NewLstepTagSyncService(
+		settingsSvc,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil, // errorCounterRepo — nil because sync is disabled, counter is never reached
+	)
+	ctx := context.Background()
+	now := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name string
+		run  func() error
+	}{
+		{name: "SyncVaccineTag", run: func() error { return svc.SyncVaccineTag(ctx, 1, 2, 3) }},
+		{name: "SyncVisitCompletionTags", run: func() error { return svc.SyncVisitCompletionTags(ctx, 1, 2) }},
+		{name: "SyncOwnerAnimalClassificationTags", run: func() error { return svc.SyncOwnerAnimalClassificationTags(ctx, 1, 2) }},
+		{name: "SyncPetBasicInfoTags", run: func() error { return svc.SyncPetBasicInfoTags(ctx, 1, 2) }},
+		{name: "SyncCPMStageTag", run: func() error { return svc.SyncCPMStageTag(ctx, 1, 2) }},
+		{name: "SyncNextVisitTag", run: func() error { return svc.SyncNextVisitTag(ctx, 1, 2) }},
+		{name: "SyncReservationTag", run: func() error { return svc.SyncReservationTag(ctx, 1, 2, now) }},
+		{name: "SyncCancellationTag", run: func() error { return svc.SyncCancellationTag(ctx, 1, 2, now) }},
+		{name: "SyncCheckupTag", run: func() error { return svc.SyncCheckupTag(ctx, 1, 2, 3, now, nil) }},
+		{name: "SyncPrescriptionTag", run: func() error { return svc.SyncPrescriptionTag(ctx, 1, 2) }},
+		{name: "SyncChronicConditionTags", run: func() error { return svc.SyncChronicConditionTags(ctx, 1, 2, []string{"kidney"}) }},
+		{name: "SyncNoShowTag", run: func() error { return svc.SyncNoShowTag(ctx, 1, 2, now) }},
+		{name: "SyncDormantTags", run: func() error { return svc.SyncDormantTags(ctx, 1, 2, 180) }},
+		{name: "ResyncOwnerVaccineTags", run: func() error { return svc.ResyncOwnerVaccineTags(ctx, 1, 2) }},
+		{name: "ResyncOwnerCheckupTags", run: func() error { return svc.ResyncOwnerCheckupTags(ctx, 1, 2) }},
+		{name: "ResyncOwnerReservationTags", run: func() error { return svc.ResyncOwnerReservationTags(ctx, 1, 2) }},
+		{name: "SyncCPMStageTagV2", run: func() error { return svc.SyncCPMStageTagV2(ctx, 1, 2) }},
+		{name: "SyncVisitDormantTags", run: func() error { return svc.SyncVisitDormantTags(ctx, 1, 2, 120) }},
+		{name: "SyncPetSpeciesTags", run: func() error { return svc.SyncPetSpeciesTags(ctx, 1, 2) }},
+		{name: "SyncSeniorTag", run: func() error { return svc.SyncSeniorTag(ctx, 1, 2) }},
+		{name: "SyncExclusionTags", run: func() error { return svc.SyncExclusionTags(ctx, 1, 2) }},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NoError(t, tc.run())
+		})
+	}
+}
 
 // ---- isPetBasicInfoTag ----
 
@@ -340,4 +400,438 @@ func TestConditionTagMap(t *testing.T) {
 	// unknown code must not be present
 	_, hasUnknown := conditionTagMap["unknown"]
 	assert.False(t, hasUnknown)
+}
+
+// ---- FEAT-375: EXCL_カルテ連携エラー 自動タグ ----
+
+// mockLstepAPIClient は lstep.Client の最小モック実装。
+type mockLstepAPIClient struct {
+	addTagFn    func(ctx context.Context, lineUserID, tagName string) error
+	removeTagFn func(ctx context.Context, lineUserID, tagName string) error
+}
+
+func (m *mockLstepAPIClient) AddTag(ctx context.Context, lineUserID, tagName string) error {
+	if m.addTagFn != nil {
+		return m.addTagFn(ctx, lineUserID, tagName)
+	}
+	return nil
+}
+func (m *mockLstepAPIClient) RemoveTag(ctx context.Context, lineUserID, tagName string) error {
+	if m.removeTagFn != nil {
+		return m.removeTagFn(ctx, lineUserID, tagName)
+	}
+	return nil
+}
+func (m *mockLstepAPIClient) GetUserTags(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+func (m *mockLstepAPIClient) AddTagBulk(_ context.Context, _ []string, _ string) error { return nil }
+func (m *mockLstepAPIClient) GetUser(_ context.Context, _ string) (*lstep.UserInfo, error) {
+	return nil, nil
+}
+func (m *mockLstepAPIClient) SetProperty(_ context.Context, _, _, _ string) error { return nil }
+
+// mockErrorCounterRepo は LstepSyncErrorCounterRepository の最小モック実装。
+type mockErrorCounterRepo struct {
+	incrementFn func(ctx context.Context, clinicID, ownerID uint64) (int, error)
+	resetFn     func(ctx context.Context, clinicID, ownerID uint64) error
+	findFn      func(ctx context.Context, clinicID, ownerID uint64) (*model.LstepSyncErrorCounter, error)
+}
+
+func (m *mockErrorCounterRepo) IncrementFailure(ctx context.Context, clinicID, ownerID uint64) (int, error) {
+	if m.incrementFn != nil {
+		return m.incrementFn(ctx, clinicID, ownerID)
+	}
+	return 0, nil
+}
+func (m *mockErrorCounterRepo) ResetFailure(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.resetFn != nil {
+		return m.resetFn(ctx, clinicID, ownerID)
+	}
+	return nil
+}
+func (m *mockErrorCounterRepo) FindByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.LstepSyncErrorCounter, error) {
+	if m.findFn != nil {
+		return m.findFn(ctx, clinicID, ownerID)
+	}
+	return nil, nil
+}
+
+func TestNotifyAPIFailure(t *testing.T) {
+	t.Run("below threshold: no EXCL tag added", func(t *testing.T) {
+		addTagCalled := false
+		client := &mockLstepAPIClient{
+			addTagFn: func(_ context.Context, _, _ string) error {
+				addTagCalled = true
+				return nil
+			},
+		}
+		repo := &mockErrorCounterRepo{
+			incrementFn: func(_ context.Context, _, _ uint64) (int, error) {
+				return lstepSyncErrorThreshold - 1, nil
+			},
+		}
+		svc := &lstepTagSyncService{errorCounterRepo: repo, tagCacheRepo: &mockLstepTagCacheRepository{}}
+		svc.notifyAPIFailure(context.Background(), client, 1, 2, "u1")
+		assert.False(t, addTagCalled)
+	})
+
+	t.Run("at threshold: EXCL tag added and cached", func(t *testing.T) {
+		var addedTag string
+		client := &mockLstepAPIClient{
+			addTagFn: func(_ context.Context, _, tagName string) error {
+				addedTag = tagName
+				return nil
+			},
+		}
+		var upsertedTag string
+		tagCache := &mockLstepTagCacheRepository{
+			upsertTagFn: func(_ context.Context, _, _ uint64, tagName, _ string) error {
+				upsertedTag = tagName
+				return nil
+			},
+		}
+		repo := &mockErrorCounterRepo{
+			incrementFn: func(_ context.Context, _, _ uint64) (int, error) {
+				return lstepSyncErrorThreshold, nil
+			},
+		}
+		svc := &lstepTagSyncService{errorCounterRepo: repo, tagCacheRepo: tagCache}
+		svc.notifyAPIFailure(context.Background(), client, 1, 2, "u1")
+		assert.Equal(t, lstepErrorTag, addedTag)
+		assert.Equal(t, lstepErrorTag, upsertedTag)
+	})
+
+	t.Run("nil errorCounterRepo is noop (sync disabled path)", func(t *testing.T) {
+		addTagCalled := false
+		client := &mockLstepAPIClient{
+			addTagFn: func(_ context.Context, _, _ string) error {
+				addTagCalled = true
+				return nil
+			},
+		}
+		svc := &lstepTagSyncService{errorCounterRepo: nil, tagCacheRepo: &mockLstepTagCacheRepository{}}
+		svc.notifyAPIFailure(context.Background(), client, 1, 2, "u1")
+		assert.False(t, addTagCalled)
+	})
+
+	t.Run("increment error is logged and does not propagate", func(t *testing.T) {
+		client := &mockLstepAPIClient{}
+		repo := &mockErrorCounterRepo{
+			incrementFn: func(_ context.Context, _, _ uint64) (int, error) {
+				return 0, errors.New("db error")
+			},
+		}
+		svc := &lstepTagSyncService{errorCounterRepo: repo, tagCacheRepo: &mockLstepTagCacheRepository{}}
+		// must not panic; best-effort — no return value to check
+		svc.notifyAPIFailure(context.Background(), client, 1, 2, "u1")
+	})
+}
+
+func TestRemoveStaleTagsByPrefixesRecordsRemoveFailure(t *testing.T) {
+	client := &mockLstepAPIClient{
+		removeTagFn: func(_ context.Context, _, _ string) error {
+			return errors.New("lstep remove failed")
+		},
+	}
+	tagCache := &mockLstepTagCacheRepository{
+		findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+			return []*model.LstepTagCache{{TagName: "vaccine_dog_2026-05-01"}}, nil
+		},
+	}
+	incrementCalled := false
+	repo := &mockErrorCounterRepo{
+		incrementFn: func(_ context.Context, _, _ uint64) (int, error) {
+			incrementCalled = true
+			return lstepSyncErrorThreshold - 1, nil
+		},
+	}
+	svc := &lstepTagSyncService{errorCounterRepo: repo, tagCacheRepo: tagCache}
+
+	apiFailed := svc.removeStaleTagsByPrefixes(
+		context.Background(),
+		client,
+		1,
+		2,
+		"u1",
+		[]string{"vaccine_dog_"},
+		map[string]struct{}{},
+	)
+
+	assert.True(t, apiFailed)
+	assert.True(t, incrementCalled)
+}
+
+func TestNotifyAPISuccess(t *testing.T) {
+	t.Run("counter zero: noop, no RemoveTag call", func(t *testing.T) {
+		removeTagCalled := false
+		client := &mockLstepAPIClient{
+			removeTagFn: func(_ context.Context, _, _ string) error {
+				removeTagCalled = true
+				return nil
+			},
+		}
+		repo := &mockErrorCounterRepo{
+			findFn: func(_ context.Context, _, _ uint64) (*model.LstepSyncErrorCounter, error) {
+				return &model.LstepSyncErrorCounter{FailureCount: 0}, nil
+			},
+		}
+		svc := &lstepTagSyncService{errorCounterRepo: repo, tagCacheRepo: &mockLstepTagCacheRepository{}}
+		svc.notifyAPISuccess(context.Background(), client, 1, 2, "u1")
+		assert.False(t, removeTagCalled)
+	})
+
+	t.Run("positive counter: reset and remove EXCL tag", func(t *testing.T) {
+		var removedTag string
+		client := &mockLstepAPIClient{
+			removeTagFn: func(_ context.Context, _, tagName string) error {
+				removedTag = tagName
+				return nil
+			},
+		}
+		resetCalled := false
+		var deletedTag string
+		tagCache := &mockLstepTagCacheRepository{
+			deleteTagFn: func(_ context.Context, _, _ uint64, tagName string) error {
+				deletedTag = tagName
+				return nil
+			},
+		}
+		repo := &mockErrorCounterRepo{
+			findFn: func(_ context.Context, _, _ uint64) (*model.LstepSyncErrorCounter, error) {
+				return &model.LstepSyncErrorCounter{FailureCount: lstepSyncErrorThreshold}, nil
+			},
+			resetFn: func(_ context.Context, _, _ uint64) error {
+				resetCalled = true
+				return nil
+			},
+		}
+		svc := &lstepTagSyncService{errorCounterRepo: repo, tagCacheRepo: tagCache}
+		svc.notifyAPISuccess(context.Background(), client, 1, 2, "u1")
+		assert.True(t, resetCalled)
+		assert.Equal(t, lstepErrorTag, removedTag)
+		assert.Equal(t, lstepErrorTag, deletedTag)
+	})
+
+	t.Run("remove EXCL failure keeps counter for retry", func(t *testing.T) {
+		client := &mockLstepAPIClient{
+			removeTagFn: func(_ context.Context, _, _ string) error {
+				return errors.New("remove failed")
+			},
+		}
+		resetCalled := false
+		repo := &mockErrorCounterRepo{
+			findFn: func(_ context.Context, _, _ uint64) (*model.LstepSyncErrorCounter, error) {
+				return &model.LstepSyncErrorCounter{FailureCount: lstepSyncErrorThreshold}, nil
+			},
+			resetFn: func(_ context.Context, _, _ uint64) error {
+				resetCalled = true
+				return nil
+			},
+		}
+		svc := &lstepTagSyncService{errorCounterRepo: repo, tagCacheRepo: &mockLstepTagCacheRepository{}}
+		svc.notifyAPISuccess(context.Background(), client, 1, 2, "u1")
+		assert.False(t, resetCalled)
+	})
+
+	t.Run("not found counter: noop (owner never failed)", func(t *testing.T) {
+		removeTagCalled := false
+		client := &mockLstepAPIClient{
+			removeTagFn: func(_ context.Context, _, _ string) error {
+				removeTagCalled = true
+				return nil
+			},
+		}
+		repo := &mockErrorCounterRepo{
+			findFn: func(_ context.Context, _, _ uint64) (*model.LstepSyncErrorCounter, error) {
+				return nil, apperrors.WrapNotFound("lstep_sync_error_counter", "owner=2")
+			},
+		}
+		svc := &lstepTagSyncService{errorCounterRepo: repo, tagCacheRepo: &mockLstepTagCacheRepository{}}
+		svc.notifyAPISuccess(context.Background(), client, 1, 2, "u1")
+		assert.False(t, removeTagCalled)
+	})
+}
+
+// ---- CalculateCPMStageV2 ----
+
+func TestCalculateCPMStageV2(t *testing.T) {
+	cases := []struct {
+		name string
+		in   CPMStageV2Input
+		want CPMStageV2
+	}{
+		{
+			name: "Noah: annual visit >= 6",
+			in:   CPMStageV2Input{AnnualVisitCount: 6},
+			want: CPMStageV2Noah,
+		},
+		{
+			name: "not Noah: annual visit = 5 (no checkup, no LTV)",
+			in:   CPMStageV2Input{AnnualVisitCount: 5, DaysSinceVisit: 30},
+			want: CPMStageV2Growing,
+		},
+		{
+			name: "Noah: annual checkup >= 4",
+			in:   CPMStageV2Input{AnnualCheckupCount: 4},
+			want: CPMStageV2Noah,
+		},
+		{
+			name: "not Noah: checkup = 3",
+			in:   CPMStageV2Input{AnnualCheckupCount: 3, DaysSinceVisit: 30},
+			want: CPMStageV2Growing,
+		},
+		{
+			name: "Noah: LTV top percent flag",
+			in:   CPMStageV2Input{IsLTVTopPercent: true, AnnualVisitCount: 1},
+			want: CPMStageV2Noah,
+		},
+		{
+			name: "Encounter: first visit within 30 days, visit count = 1",
+			in:   CPMStageV2Input{AnnualVisitCount: 1, FirstVisitDaysSince: 15},
+			want: CPMStageV2Encounter,
+		},
+		{
+			name: "not Encounter: first visit = 31 days (too old)",
+			in:   CPMStageV2Input{AnnualVisitCount: 1, FirstVisitDaysSince: 31, DaysSinceVisit: 31},
+			want: CPMStageV2Growing,
+		},
+		{
+			name: "Spot: visit 1-2, days 91-220",
+			in:   CPMStageV2Input{AnnualVisitCount: 2, DaysSinceVisit: 150},
+			want: CPMStageV2Spot,
+		},
+		{
+			name: "not Spot: days exactly 90 (boundary)",
+			in:   CPMStageV2Input{AnnualVisitCount: 1, DaysSinceVisit: 90, FirstVisitDaysSince: 100},
+			want: CPMStageV2Growing,
+		},
+		{
+			name: "not Spot: days 221 (boundary exceeded)",
+			in:   CPMStageV2Input{AnnualVisitCount: 1, DaysSinceVisit: 221, FirstVisitDaysSince: 221},
+			want: CPMStageV2Growing,
+		},
+		{
+			name: "Core: visit 3-5 with checkup >= 1",
+			in:   CPMStageV2Input{AnnualVisitCount: 4, AnnualCheckupCount: 2},
+			want: CPMStageV2Core,
+		},
+		{
+			name: "not Core: visit 3 but no checkup",
+			in:   CPMStageV2Input{AnnualVisitCount: 3, AnnualCheckupCount: 0, DaysSinceVisit: 30},
+			want: CPMStageV2Growing,
+		},
+		{
+			name: "Growing: fallback",
+			in:   CPMStageV2Input{AnnualVisitCount: 0},
+			want: CPMStageV2Growing,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := CalculateCPMStageV2(tc.in)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// ---- isVisitDormantTag ----
+
+func TestIsVisitDormantTag(t *testing.T) {
+	assert.True(t, isVisitDormantTag("VISIT_120日超"))
+	assert.True(t, isVisitDormantTag("VISIT_180日超"))
+	assert.True(t, isVisitDormantTag("VISIT_220日超"))
+	assert.True(t, isVisitDormantTag("VISIT_240日超"))
+	assert.False(t, isVisitDormantTag("dormant_180d"))
+	assert.False(t, isVisitDormantTag("VISIT_120"))
+	assert.False(t, isVisitDormantTag(""))
+}
+
+// ---- visitDormantTagsForDays (pure function) ----
+
+func TestVisitDormantTagsForDays(t *testing.T) {
+	assert.Equal(t, []string(nil), visitDormantTagsForDays(119))
+	assert.Equal(t, []string(nil), visitDormantTagsForDays(120))
+	assert.Equal(t, []string{"VISIT_120日超"}, visitDormantTagsForDays(121))
+	assert.Equal(t, []string{"VISIT_120日超"}, visitDormantTagsForDays(180))
+	assert.Equal(t, []string{"VISIT_120日超", "VISIT_180日超"}, visitDormantTagsForDays(181))
+	assert.Equal(t, []string{"VISIT_120日超", "VISIT_180日超"}, visitDormantTagsForDays(220))
+	assert.Equal(t, []string{"VISIT_120日超", "VISIT_180日超", "VISIT_220日超"}, visitDormantTagsForDays(221))
+	assert.Equal(t, []string{"VISIT_120日超", "VISIT_180日超", "VISIT_220日超"}, visitDormantTagsForDays(240))
+	assert.Equal(t, []string{"VISIT_120日超", "VISIT_180日超", "VISIT_220日超", "VISIT_240日超"}, visitDormantTagsForDays(241))
+	assert.Equal(t, []string{"VISIT_120日超", "VISIT_180日超", "VISIT_220日超", "VISIT_240日超"}, visitDormantTagsForDays(300))
+}
+
+// ---- petSpeciesFlags (pure function) ----
+
+func TestPetSpeciesFlags(t *testing.T) {
+	dog := &model.AnimalSpecies{Name: "犬"}
+	cat := &model.AnimalSpecies{Name: "猫"}
+	bird := &model.AnimalSpecies{Name: "鳥"}
+
+	hasDog, hasCat := petSpeciesFlags(nil)
+	assert.False(t, hasDog)
+	assert.False(t, hasCat)
+
+	hasDog, hasCat = petSpeciesFlags([]model.Pet{})
+	assert.False(t, hasDog)
+	assert.False(t, hasCat)
+
+	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: dog}})
+	assert.True(t, hasDog)
+	assert.False(t, hasCat)
+
+	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: cat}})
+	assert.False(t, hasDog)
+	assert.True(t, hasCat)
+
+	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: dog}, {AnimalSpecies: cat}})
+	assert.True(t, hasDog)
+	assert.True(t, hasCat)
+
+	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: bird}})
+	assert.False(t, hasDog)
+	assert.False(t, hasCat)
+
+	// nil AnimalSpecies is skipped
+	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: nil}})
+	assert.False(t, hasDog)
+	assert.False(t, hasCat)
+}
+
+// ---- hasSeniorPet (pure function) ----
+
+func TestHasSeniorPet(t *testing.T) {
+	dog := &model.AnimalSpecies{Name: "犬"}
+	cat := &model.AnimalSpecies{Name: "猫"}
+	bird := &model.AnimalSpecies{Name: "鳥"}
+	now := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+
+	bd7 := now.AddDate(-7, 0, -1) // 7歳超: senior
+	bd7e := now.AddDate(-7, 0, 0) // 7歳ちょうど: senior
+	bd6 := now.AddDate(-6, 0, -1) // 6歳: not senior
+
+	assert.False(t, hasSeniorPet(nil, now))
+	assert.False(t, hasSeniorPet([]model.Pet{}, now))
+
+	// 7歳超 犬 → senior
+	assert.True(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: &bd7}}, now))
+
+	// 7歳ちょうど 犬 → senior
+	assert.True(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: &bd7e}}, now))
+
+	// 6歳 犬 → not senior
+	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: &bd6}}, now))
+
+	// 7歳超 猫 → senior
+	assert.True(t, hasSeniorPet([]model.Pet{{AnimalSpecies: cat, BirthDate: &bd7}}, now))
+
+	// 7歳超 鳥 → not senior (犬猫以外は対象外)
+	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: bird, BirthDate: &bd7}}, now))
+
+	// BirthDate nil → not senior
+	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: nil}}, now))
+
+	// AnimalSpecies nil → not senior
+	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: nil, BirthDate: &bd7}}, now))
 }

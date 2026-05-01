@@ -48,6 +48,7 @@ func (h *Handler) UpdateLstepSettings(c *gin.Context) {
 		LineChannelSecret:      req.LineChannelSecret,
 		LiffID:                 req.LiffID,
 		LineAccountName:        req.LineAccountName,
+		IsSyncEnabled:          req.IsSyncEnabled,
 	}, actorID)
 	if err != nil {
 		RespondError(c, err)

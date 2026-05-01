@@ -62,6 +62,10 @@ func (m *mockAccountingRepositoryForReport) MaxSingleVisitAmountByOwner(_ contex
 	return 0, nil
 }
 
+func (m *mockAccountingRepositoryForReport) FindOwnersByAnnualRevenue(_ context.Context, _ uint64) ([]repository.OwnerAnnualRevenue, error) {
+	return nil, nil
+}
+
 // ---- ヘルパー ----
 
 func newAccountingReportService(
