@@ -18,6 +18,15 @@ if (typeof window !== 'undefined') {
   if (!Element.prototype.scrollIntoView) {
     Element.prototype.scrollIntoView = () => {};
   }
+  // @radix-ui/react-use-size@1.1.1 uses ResizeObserver directly without a
+  // typeof guard. jsdom does not provide it, so we stub a no-op implementation.
+  if (!window.ResizeObserver) {
+    window.ResizeObserver = class ResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  }
 }
 
 // Start server before all tests

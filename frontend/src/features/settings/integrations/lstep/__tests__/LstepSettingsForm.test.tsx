@@ -1,0 +1,306 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/testing/mocks/node';
+import { LstepSettingsForm } from '../LstepSettingsForm';
+import type { LstepSettingsResponse } from '../hooks/useLstepSettings';
+
+const CLINIC_ID = 'clinic-test-1';
+
+const configuredSyncOn: LstepSettingsResponse = {
+  lstep_api_key_masked: 'abcd',
+  lstep_base_url: 'https://app.lstep.jp',
+  line_channel_access_token_masked: 'wxyz',
+  line_channel_secret_masked: 'efgh',
+  liff_id: '1234567890-xxxxxxxx',
+  line_account_name: null,
+  is_configured: true,
+  last_updated_at: '2026-04-01T00:00:00Z',
+  is_sync_enabled: true,
+  sync_enabled_at: '2026-03-15T10:00:00Z',
+};
+
+const configuredSyncOff: LstepSettingsResponse = {
+  ...configuredSyncOn,
+  is_sync_enabled: false,
+  sync_enabled_at: null,
+};
+
+const unconfigured: LstepSettingsResponse = {
+  lstep_api_key_masked: null,
+  lstep_base_url: null,
+  line_channel_access_token_masked: null,
+  line_channel_secret_masked: null,
+  liff_id: null,
+  line_account_name: null,
+  is_configured: false,
+  last_updated_at: null,
+  is_sync_enabled: false,
+  sync_enabled_at: null,
+};
+
+function setupGetHandler(data: LstepSettingsResponse) {
+  server.use(
+    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, () =>
+      HttpResponse.json(data)
+    )
+  );
+}
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{children}</MemoryRouter>
+    </QueryClientProvider>
+  );
+}
+
+async function renderAndWait(data: LstepSettingsResponse) {
+  setupGetHandler(data);
+  render(<LstepSettingsForm />, { wrapper: createWrapper() });
+  await waitFor(() => {
+    expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+  });
+}
+
+beforeEach(() => {
+  localStorage.setItem('auth_current_clinic:v1', CLINIC_ID);
+});
+
+afterEach(() => {
+  localStorage.removeItem('auth_current_clinic:v1');
+});
+
+// ─────────────────────────────────────────────────────────────
+// A: Switch 表示・バッジ・テキスト
+// ─────────────────────────────────────────────────────────────
+
+describe('LstepSettingsForm — A: Switch 表示・バッジ (FEAT-376)', () => {
+  it('同期ON: Switch が aria-checked="true"、"同期中" バッジが表示される', async () => {
+    await renderAndWait(configuredSyncOn);
+    expect(screen.getByRole('switch', { name: '同期を有効にする' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+    expect(screen.getByText('同期中')).toBeInTheDocument();
+  });
+
+  it('同期OFF: Switch が aria-checked="false"、"同期停止中" バッジが表示される', async () => {
+    await renderAndWait(configuredSyncOff);
+    expect(screen.getByRole('switch', { name: '同期を有効にする' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+    expect(screen.getByText('同期停止中')).toBeInTheDocument();
+  });
+
+  it('未設定: 同期バッジ（"同期中"/"同期停止中"）は表示されない', async () => {
+    await renderAndWait(unconfigured);
+    expect(screen.queryByText('同期中')).not.toBeInTheDocument();
+    expect(screen.queryByText('同期停止中')).not.toBeInTheDocument();
+  });
+
+  it('masked API キー "abcd" が "••••abcd" 形式で表示される', async () => {
+    await renderAndWait(configuredSyncOn);
+    expect(screen.getByText(/••••abcd/)).toBeInTheDocument();
+  });
+
+  it('sync_enabled_at が日本語ローカライズ形式（"2026年3月15日"）で表示される', async () => {
+    await renderAndWait(configuredSyncOn);
+    expect(screen.getByText(/2026年3月15日/)).toBeInTheDocument();
+  });
+
+  it('設定済み: "OFFにすると連携処理を一時停止します" の説明コピーが表示される', async () => {
+    await renderAndWait(configuredSyncOn);
+    expect(
+      screen.getByText(/OFFにすると連携処理を一時停止します/)
+    ).toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// B: 保存・PATCH 送信
+// ─────────────────────────────────────────────────────────────
+
+describe('LstepSettingsForm — B: 保存・PATCH 送信 (FEAT-376)', () => {
+  it('"保存" ボタンが表示される', async () => {
+    await renderAndWait(configuredSyncOn);
+    expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
+  });
+
+  it('同期ON状態で保存すると PATCH body に is_sync_enabled=true が含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(configuredSyncOn);
+      })
+    );
+
+    await renderAndWait(configuredSyncOn);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.is_sync_enabled).toBe(true);
+  });
+
+  it('同期OFF状態で保存すると PATCH body に is_sync_enabled=false が含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(configuredSyncOff);
+      })
+    );
+
+    await renderAndWait(configuredSyncOff);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.is_sync_enabled).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// C: 設定削除ダイアログ
+// ─────────────────────────────────────────────────────────────
+
+describe('LstepSettingsForm — C: 設定削除ダイアログ (FEAT-376)', () => {
+  it('"設定削除" ボタンをクリックすると削除確認ダイアログが開く', async () => {
+    await renderAndWait(configuredSyncOn);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /設定削除/ }));
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText('Lステップ設定を削除しますか？')).toBeInTheDocument();
+  });
+
+  it('"削除する" ボタンをクリックすると DELETE エンドポイントが呼ばれる', async () => {
+    let deleteCount = 0;
+    server.use(
+      http.delete(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, () => {
+        deleteCount++;
+        return new HttpResponse(null, { status: 200 });
+      })
+    );
+
+    await renderAndWait(configuredSyncOn);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /設定削除/ }));
+    const dialog = screen.getByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: '削除する' }));
+
+    await waitFor(() => {
+      expect(deleteCount).toBe(1);
+    });
+  });
+
+  it('"キャンセル" ボタンをクリックするとダイアログが閉じ DELETE は呼ばれない', async () => {
+    let deleteCount = 0;
+    server.use(
+      http.delete(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, () => {
+        deleteCount++;
+        return new HttpResponse(null, { status: 200 });
+      })
+    );
+
+    await renderAndWait(configuredSyncOn);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /設定削除/ }));
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+    expect(deleteCount).toBe(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// D: 同期無効化確認ダイアログ
+// ─────────────────────────────────────────────────────────────
+
+describe('LstepSettingsForm — D: 同期無効化確認ダイアログ (FEAT-376)', () => {
+  it('同期ON→OFF: Switch をクリックすると確認ダイアログが表示される', async () => {
+    await renderAndWait(configuredSyncOn);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('switch', { name: '同期を有効にする' }));
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.getByText('同期を無効にしますか？')).toBeInTheDocument();
+  });
+
+  it('確認ダイアログの説明文が正しい', async () => {
+    await renderAndWait(configuredSyncOn);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('switch', { name: '同期を有効にする' }));
+    expect(
+      screen.getByText(
+        '同期を無効にすると Lステップへのタグ付与が停止します。よろしいですか？'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('"無効にする" をクリックするとダイアログが閉じ Switch が aria-checked="false" になる', async () => {
+    await renderAndWait(configuredSyncOn);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('switch', { name: '同期を有効にする' }));
+
+    const dialog = screen.getByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: '無効にする' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('switch', { name: '同期を有効にする' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+  });
+
+  it('"キャンセル" をクリックするとダイアログが閉じ Switch は aria-checked="true" のまま', async () => {
+    await renderAndWait(configuredSyncOn);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('switch', { name: '同期を有効にする' }));
+
+    const dialog = screen.getByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'キャンセル' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('switch', { name: '同期を有効にする' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+  });
+
+  it('同期OFF→ON: Switch をクリックするとダイアログなしで即座に aria-checked="true" になる', async () => {
+    await renderAndWait(configuredSyncOff);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('switch', { name: '同期を有効にする' }));
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: '同期を有効にする' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+  });
+});

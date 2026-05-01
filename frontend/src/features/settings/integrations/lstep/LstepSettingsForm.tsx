@@ -107,6 +107,7 @@ export function LstepSettingsForm() {
   // undefined = サーバー値に追従。ユーザーがトグルを変更したら上書きする。
   const [syncEnabledOverride, setSyncEnabledOverride] = useState<boolean | undefined>(undefined);
   const isSyncEnabled = syncEnabledOverride ?? settings?.is_sync_enabled ?? false;
+  const [showDisableSyncConfirm, setShowDisableSyncConfirm] = useState(false);
 
   const [_formState, formAction] = useActionState(
     async (_prevState: ActionState, formData: FormData): Promise<ActionState> => {
@@ -296,7 +297,13 @@ export function LstepSettingsForm() {
           </div>
           <Switch
             checked={isSyncEnabled}
-            onCheckedChange={setSyncEnabledOverride}
+            onCheckedChange={(next: boolean) => {
+              if (isSyncEnabled && !next) {
+                setShowDisableSyncConfirm(true);
+              } else {
+                setSyncEnabledOverride(next);
+              }
+            }}
             disabled={updateMutation.isPending}
             aria-label="同期を有効にする"
           />
@@ -392,6 +399,21 @@ export function LstepSettingsForm() {
         variant="destructive"
         isPending={deleteMutation.isPending}
         triggerRef={deleteButtonRef}
+      />
+
+      {/* 同期無効化確認ダイアログ */}
+      {/* data-testid="lstep-disable-sync-confirm-dialog" */}
+      <ConfirmDialog
+        open={showDisableSyncConfirm}
+        onClose={() => setShowDisableSyncConfirm(false)}
+        onConfirm={() => {
+          setSyncEnabledOverride(false);
+          setShowDisableSyncConfirm(false);
+        }}
+        title="同期を無効にしますか？"
+        description="同期を無効にすると Lステップへのタグ付与が停止します。よろしいですか？"
+        confirmLabel="無効にする"
+        cancelLabel="キャンセル"
       />
     </div>
   );
