@@ -69,6 +69,25 @@ func TestAddOwnerTag_AutoManagedTag(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err))
 }
 
+func TestIsAutoManagedTag_NewSpecPrefixes(t *testing.T) {
+	tags := []string{
+		"CPM_01_出会い",
+		"LTV_上位20",
+		"LTV_フード購入あり",
+		"VISIT_120日超",
+		"PET_犬あり",
+		"HLTH_健診あり",
+		"PREV_ワクチン期限",
+		"EXCL_配信停止",
+	}
+
+	for _, tag := range tags {
+		t.Run(tag, func(t *testing.T) {
+			assert.True(t, isAutoManagedTag(tag))
+		})
+	}
+}
+
 func TestAddOwnerTag_OwnerNotFound(t *testing.T) {
 	ownerRepo := &mockOwnerRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {

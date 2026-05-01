@@ -61,6 +61,15 @@ func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
 		{name: "SyncPetSpeciesTags", run: func() error { return svc.SyncPetSpeciesTags(ctx, 1, 2) }},
 		{name: "SyncSeniorTag", run: func() error { return svc.SyncSeniorTag(ctx, 1, 2) }},
 		{name: "SyncExclusionTags", run: func() error { return svc.SyncExclusionTags(ctx, 1, 2) }},
+		{name: "SyncHealthcheckTags", run: func() error { return svc.SyncHealthcheckTags(ctx, 1, 2) }},
+		{name: "SyncAnnual4CheckupTag", run: func() error { return svc.SyncAnnual4CheckupTag(ctx, 1, 2) }},
+		{name: "SyncVaccineDeadlineTag", run: func() error { return svc.SyncVaccineDeadlineTag(ctx, 1, 2) }},
+		{name: "SyncFilariaTag", run: func() error { return svc.SyncFilariaTag(ctx, 1, 2) }},
+		{name: "SyncFleaTickTag", run: func() error { return svc.SyncFleaTickTag(ctx, 1, 2) }},
+		{name: "SyncFoodPurchaseTag", run: func() error { return svc.SyncFoodPurchaseTag(ctx, 1, 2) }},
+		{name: "SyncSpecialCheckupCandidateTag", run: func() error {
+			return svc.SyncSpecialCheckupCandidateTag(ctx, 1, 2)
+		}},
 	}
 
 	for _, tc := range tests {
@@ -834,4 +843,123 @@ func TestHasSeniorPet(t *testing.T) {
 
 	// AnimalSpecies nil → not senior
 	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: nil, BirthDate: &bd7}}, now))
+}
+
+// ---- hasVaccineDeadlineSoon (pure function) ----
+
+func TestHasVaccineDeadlineSoon(t *testing.T) {
+	now := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	days := 60
+
+	// nil / empty slice → false
+	assert.False(t, hasVaccineDeadlineSoon(nil, now, days))
+	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{}, now, days))
+
+	// NextDate nil → skipped
+	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: nil}}, now, days))
+
+	// NextDate が now ちょうど → true (境界値)
+	exact := now
+	assert.True(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &exact}}, now, days))
+
+	// NextDate が deadline ちょうど (now + 60 days) → true
+	deadline := now.AddDate(0, 0, days)
+	assert.True(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &deadline}}, now, days))
+
+	// NextDate が deadline より 1 日先 → false
+	beyond := now.AddDate(0, 0, days+1)
+	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &beyond}}, now, days))
+
+	// NextDate が now より前 (過去) → false
+	past := now.AddDate(0, 0, -1)
+	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &past}}, now, days))
+
+	// 複数レコードのうち 1 件が範囲内 → true
+	inner := now.AddDate(0, 0, 30)
+	assert.True(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &beyond}, {NextDate: &inner}}, now, days))
+}
+
+// ---- SPEC-002 Q5 noop テスト ----
+
+func TestSyncHealthcheckTagsNoopWhenCodesEmpty(t *testing.T) {
+	orig := HealthCheckupCodes
+	defer func() { HealthCheckupCodes = orig }()
+	HealthCheckupCodes = []string{}
+
+	svc := NewLstepTagSyncService(
+		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+	)
+	assert.NoError(t, svc.SyncHealthcheckTags(context.Background(), 1, 2))
+}
+
+func TestSyncAnnual4CheckupTagNoopWhenCodesEmpty(t *testing.T) {
+	orig := HealthCheckupCodes
+	defer func() { HealthCheckupCodes = orig }()
+	HealthCheckupCodes = []string{}
+
+	svc := NewLstepTagSyncService(
+		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+	)
+	assert.NoError(t, svc.SyncAnnual4CheckupTag(context.Background(), 1, 2))
+}
+
+func TestSyncFilariaTagNoopWhenCodesEmpty(t *testing.T) {
+	origTest := FilariaTestCodes
+	origPrescription := FilariaPrescriptionCodes
+	defer func() {
+		FilariaTestCodes = origTest
+		FilariaPrescriptionCodes = origPrescription
+	}()
+	FilariaTestCodes = []string{}
+	FilariaPrescriptionCodes = []string{}
+
+	svc := NewLstepTagSyncService(
+		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+	)
+	assert.NoError(t, svc.SyncFilariaTag(context.Background(), 1, 2))
+}
+
+func TestSyncFleaTickTagNoopWhenCodesEmpty(t *testing.T) {
+	orig := FleaTickPrescriptionCodes
+	defer func() { FleaTickPrescriptionCodes = orig }()
+	FleaTickPrescriptionCodes = []string{}
+
+	svc := NewLstepTagSyncService(
+		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+	)
+	assert.NoError(t, svc.SyncFleaTickTag(context.Background(), 1, 2))
+}
+
+func TestSyncFoodPurchaseTagNoopWhenCodesEmpty(t *testing.T) {
+	orig := FoodPurchaseCodes
+	defer func() { FoodPurchaseCodes = orig }()
+	FoodPurchaseCodes = []string{}
+
+	svc := NewLstepTagSyncService(
+		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+	)
+	assert.NoError(t, svc.SyncFoodPurchaseTag(context.Background(), 1, 2))
+}
+
+func TestSyncSpecialCheckupCandidateTagAlwaysNoop(t *testing.T) {
+	svc := NewLstepTagSyncService(
+		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+	)
+	assert.NoError(t, svc.SyncSpecialCheckupCandidateTag(context.Background(), 1, 2))
+}
+
+func TestSyncHealthPreventionTagsForClinicDisabledSync(t *testing.T) {
+	svc := NewLstepTagSyncService(
+		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, nil }},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+	)
+	count, errs := svc.SyncHealthPreventionTagsForClinic(context.Background(), 1)
+	assert.Equal(t, 0, count)
+	assert.Empty(t, errs)
 }

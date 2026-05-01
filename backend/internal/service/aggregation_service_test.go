@@ -556,6 +556,8 @@ func TestSyncAggregationTags_ProhibitedTagName(t *testing.T) {
 		"first_visit_30", // first_visit_ prefix
 		"ltv_high",       // ltv_ prefix
 		"vaccine_dhppl",  // vaccine_ prefix
+		"HLTH_健診あり",      // HLTH_ prefix
+		"PREV_ワクチン期限",    // PREV_ prefix
 	}
 	for _, tag := range prohibitedTags {
 		t.Run(tag, func(t *testing.T) {

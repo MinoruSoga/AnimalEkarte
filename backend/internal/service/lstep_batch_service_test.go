@@ -183,6 +183,38 @@ func (m *batchMockTagSyncSvc) SyncExclusionTags(_ context.Context, _, _ uint64) 
 	return nil
 }
 
+func (m *batchMockTagSyncSvc) SyncHealthcheckTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockTagSyncSvc) SyncAnnual4CheckupTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockTagSyncSvc) SyncVaccineDeadlineTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockTagSyncSvc) SyncFilariaTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockTagSyncSvc) SyncFleaTickTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockTagSyncSvc) SyncFoodPurchaseTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockTagSyncSvc) SyncSpecialCheckupCandidateTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockTagSyncSvc) SyncHealthPreventionTagsForClinic(_ context.Context, _ uint64) (int, []error) {
+	return 0, nil
+}
+
 type batchMockAuditService struct {
 	// ISSUE-010: 引数捕捉用の spy フィールド（既存テストでは未使用 — nil のまま）。
 	capturedAction   string
@@ -507,4 +539,39 @@ func TestRunDormantDetectionAllClinics_PersistsAuditMetadata(t *testing.T) {
 	assert.Equal(t, 2, meta["processed_count"])
 	assert.Equal(t, 0, meta["error_count"])
 	assert.Equal(t, 180, meta["min_days_since"], "判定閾値を後で再現できる")
+}
+
+// ---- RunHealthPreventionTagSyncAllClinics (FEAT-379) ----
+
+func TestRunHealthPreventionTagSyncAllClinics_Success(t *testing.T) {
+	clinics := []model.Clinic{{ID: 1}}
+	svc := newBatchService(
+		&batchMockReservationRepo{},
+		&batchMockTagSyncSvc{},
+		&mockClinicRepository{
+			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
+				return clinics, nil
+			},
+		},
+		&batchMockMedRecordRepo{},
+	)
+
+	err := svc.RunHealthPreventionTagSyncAllClinics(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestRunHealthPreventionTagSyncAllClinics_FetchClinicsError(t *testing.T) {
+	svc := newBatchService(
+		&batchMockReservationRepo{},
+		&batchMockTagSyncSvc{},
+		&mockClinicRepository{
+			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
+				return nil, errors.New("db error")
+			},
+		},
+		&batchMockMedRecordRepo{},
+	)
+
+	err := svc.RunHealthPreventionTagSyncAllClinics(context.Background())
+	assert.Error(t, err)
 }

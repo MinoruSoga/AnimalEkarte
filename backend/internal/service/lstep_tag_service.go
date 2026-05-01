@@ -14,6 +14,7 @@ import (
 
 // autoManagedPrefixes は自動管理タグのプレフィックス一覧。手動付与・解除を禁止する（BE-019）。
 var autoManagedPrefixes = []string{
+	"CPM_", "LTV_", "VISIT_", "PET_", "HLTH_", "PREV_", "EXCL_",
 	"cpm_", "last_visit_", "first_visit_", "ltv_",
 	"visit_count_", "vaccine_", "checkup_", "next_checkup_", "refill_due_",
 	"next_visit_", "reserved_", "canceled_visit",

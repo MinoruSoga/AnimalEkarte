@@ -206,6 +206,38 @@ func (m *mockLstepTagSyncService) SyncExclusionTags(_ context.Context, _, _ uint
 	return nil
 }
 
+func (m *mockLstepTagSyncService) SyncHealthcheckTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncAnnual4CheckupTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncVaccineDeadlineTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncFilariaTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncFleaTickTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncFoodPurchaseTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncSpecialCheckupCandidateTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncHealthPreventionTagsForClinic(_ context.Context, _ uint64) (int, []error) {
+	return 0, nil
+}
+
 // ---- AuditService モック ----
 
 type mockAuditService struct{}
