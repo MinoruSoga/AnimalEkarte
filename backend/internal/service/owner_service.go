@@ -15,23 +15,31 @@ import (
 // --- Owner DB column constants ---
 
 const (
-	colOwnerName      = "name"
-	colOwnerNameKana  = "name_kana"
-	colBirthDate      = "birth_date"
-	colCompany        = "company"
-	colPostalCode     = "postal_code"
-	colAddress1       = "address1"
-	colAddress2       = "address2"
-	colHomePostalCode = "home_postal_code"
-	colHomeAddress1   = "home_address1"
-	colHomeAddress2   = "home_address2"
-	colPhone          = "phone"
-	colCompanyPhone   = "company_phone"
-	colEmail          = "email"
-	colRemarks        = "remarks"
-	colIsDangerous    = "is_dangerous"
-	colDiscountRate   = "discount_rate"
-	colMembershipType = "membership_type"
+	colOwnerName              = "name"
+	colOwnerNameKana          = "name_kana"
+	colBirthDate              = "birth_date"
+	colCompany                = "company"
+	colPostalCode             = "postal_code"
+	colAddress1               = "address1"
+	colAddress2               = "address2"
+	colHomePostalCode         = "home_postal_code"
+	colHomeAddress1           = "home_address1"
+	colHomeAddress2           = "home_address2"
+	colPhone                  = "phone"
+	colCompanyPhone           = "company_phone"
+	colEmail                  = "email"
+	colRemarks                = "remarks"
+	colIsDangerous            = "is_dangerous"
+	colDiscountRate           = "discount_rate"
+	colMembershipType         = "membership_type"
+	colLstepOptOut            = "lstep_opt_out"
+	colLstepOptOutAt          = "lstep_opt_out_at"
+	colLstepOptOutReason      = "lstep_opt_out_reason"
+	colLineIDConfirmedAt      = "line_id_confirmed_at"
+	colDeliveryExcluded       = "delivery_excluded"
+	colDeliveryExcludedReason = "delivery_excluded_reason"
+	colIsTransferred          = "is_transferred"
+	colTransferAt             = "transfer_at"
 )
 
 // --- Input DTOs（Service層の公開I/F） ---
@@ -101,6 +109,17 @@ type UpdateOwnerInput struct {
 	MembershipType *model.MembershipType
 }
 
+// UpdateDeliveryExclusionInput は配信除外フラグ更新の入力DTO（FEAT-381）
+type UpdateDeliveryExclusionInput struct {
+	Excluded bool
+	Reason   *string
+}
+
+// UpdateTransferStatusInput は転院フラグ更新の入力DTO（FEAT-381）
+type UpdateTransferStatusInput struct {
+	IsTransferred bool
+}
+
 // buildOwnerUpdate はポインタが非 nil のフィールドのみ map に追加する
 func buildOwnerUpdate(input *UpdateOwnerInput) map[string]any {
 	fields := make(map[string]any)
@@ -168,16 +187,23 @@ type OwnerService interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// LinkLineUserID は飼主の LINE User ID を設定または解除する（BE-005）。nil で解除。
 	LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error
+	// UpdateDeliveryExclusion は配信除外フラグと理由を更新し、Lステップタグを同期する（FEAT-381）。
+	UpdateDeliveryExclusion(ctx context.Context, clinicID, id uint64, input UpdateDeliveryExclusionInput) (*model.Owner, error)
+	// UpdateTransferStatus は転院フラグと転院日時を更新し、Lステップタグを同期する（FEAT-381）。
+	UpdateTransferStatus(ctx context.Context, clinicID, id uint64, input UpdateTransferStatusInput) (*model.Owner, error)
+	// ConfirmLineID は LINE ID 紐付け確認日時を現在時刻に設定する（FEAT-381）。
+	ConfirmLineID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 }
 
 // --- Implementation ---
 
 type ownerService struct {
-	repo repository.OwnerRepository
+	repo       repository.OwnerRepository
+	tagSyncSvc LstepTagSyncService
 }
 
-func NewOwnerService(repo repository.OwnerRepository) OwnerService {
-	return &ownerService{repo: repo}
+func NewOwnerService(repo repository.OwnerRepository, tagSyncSvc LstepTagSyncService) OwnerService {
+	return &ownerService{repo: repo, tagSyncSvc: tagSyncSvc}
 }
 
 func (s *ownerService) List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -466,4 +492,121 @@ func (s *ownerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, 
 		return apperrors.Wrap(err, "failed to link line user id")
 	}
 	return nil
+}
+
+func (s *ownerService) UpdateDeliveryExclusion(ctx context.Context, clinicID, id uint64, input UpdateDeliveryExclusionInput) (*model.Owner, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find owner")
+	}
+
+	var reason *string
+	if input.Excluded && input.Reason != nil {
+		trimmed := strings.TrimSpace(*input.Reason)
+		if len([]rune(trimmed)) > 100 {
+			return nil, apperrors.WrapInvalidInput("delivery_excluded_reason must be 100 characters or less")
+		}
+		if trimmed != "" {
+			reason = &trimmed
+		}
+	}
+
+	var optOutAt any
+	if input.Excluded {
+		optOutAt = time.Now()
+	}
+	fields := map[string]any{
+		colDeliveryExcluded:       input.Excluded,
+		colDeliveryExcludedReason: reason,
+		colLstepOptOut:            input.Excluded,
+		colLstepOptOutAt:          optOutAt,
+		colLstepOptOutReason:      reason,
+	}
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update delivery exclusion", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to update delivery exclusion")
+	}
+	slog.InfoContext(ctx, "delivery exclusion updated",
+		slog.Uint64("owner_id", id),
+		slog.Uint64("clinic_id", clinicID),
+		slog.Bool("excluded", input.Excluded))
+	if s.tagSyncSvc != nil {
+		if err := s.tagSyncSvc.SyncExclusionTags(ctx, clinicID, id); err != nil {
+			slog.ErrorContext(ctx, "failed to sync exclusion tag after delivery exclusion update", "error", err, "id", id, "clinic_id", clinicID)
+		}
+	}
+
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to reload owner after delivery exclusion update", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to reload owner")
+	}
+	return owner, nil
+}
+
+func (s *ownerService) UpdateTransferStatus(ctx context.Context, clinicID, id uint64, input UpdateTransferStatusInput) (*model.Owner, error) {
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find owner")
+	}
+	var transferAt any
+	if input.IsTransferred {
+		now := time.Now()
+		transferAt = now
+	}
+	fields := map[string]any{
+		colIsTransferred: input.IsTransferred,
+		colTransferAt:    transferAt,
+	}
+	if input.IsTransferred {
+		fields[colMembershipType] = model.MembershipTypeTransferred
+	} else if owner.MembershipType == model.MembershipTypeTransferred {
+		fields[colMembershipType] = model.MembershipTypeNonMember
+	}
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update transfer status", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to update transfer status")
+	}
+	slog.InfoContext(ctx, "transfer status updated",
+		slog.Uint64("owner_id", id),
+		slog.Uint64("clinic_id", clinicID),
+		slog.Bool("is_transferred", input.IsTransferred))
+	if s.tagSyncSvc != nil {
+		if err := s.tagSyncSvc.SyncExclusionTags(ctx, clinicID, id); err != nil {
+			slog.ErrorContext(ctx, "failed to sync exclusion tag after transfer status update", "error", err, "id", id, "clinic_id", clinicID)
+		}
+	}
+
+	updated, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to reload owner after transfer status update", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to reload owner")
+	}
+	return updated, nil
+}
+
+func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find owner")
+	}
+	if owner.LineUserID == nil || strings.TrimSpace(*owner.LineUserID) == "" {
+		return nil, apperrors.WrapInvalidInput("LINE User ID is not linked")
+	}
+	now := time.Now()
+	fields := map[string]any{
+		colLineIDConfirmedAt: now,
+	}
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to confirm line id", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to confirm line id")
+	}
+	slog.InfoContext(ctx, "line id confirmed",
+		slog.Uint64("owner_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	updated, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to reload owner after line id confirmation", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to reload owner")
+	}
+	return updated, nil
 }

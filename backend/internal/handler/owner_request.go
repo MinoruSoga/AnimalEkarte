@@ -67,3 +67,14 @@ type updateOwnerRequest struct {
 type patchOwnerLineUserIDRequest struct {
 	LineUserID *string `json:"line_user_id"`
 }
+
+// patchOwnerDeliveryExclusionRequest は配信除外フラグ更新リクエスト（FEAT-381）。
+type patchOwnerDeliveryExclusionRequest struct {
+	Excluded bool    `json:"excluded"`
+	Reason   *string `json:"reason"   binding:"omitempty,max=100"`
+}
+
+// patchOwnerTransferStatusRequest は転院フラグ更新リクエスト（FEAT-381）。
+type patchOwnerTransferStatusRequest struct {
+	IsTransferred bool `json:"is_transferred"`
+}

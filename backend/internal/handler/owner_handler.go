@@ -212,6 +212,80 @@ func (h *Handler) PatchOwnerLineUserID(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// PatchOwnerDeliveryExclusion godoc
+// PATCH /owners/:id/delivery-exclusion — 配信除外フラグを更新する（FEAT-381）。
+func (h *Handler) PatchOwnerDeliveryExclusion(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchOwnerDeliveryExclusionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	input := service.UpdateDeliveryExclusionInput{
+		Excluded: req.Excluded,
+		Reason:   req.Reason,
+	}
+	owner, err := h.svc.Owner.UpdateDeliveryExclusion(c.Request.Context(), clinicID, id, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toOwnerResponse(owner))
+}
+
+// PatchOwnerTransferStatus godoc
+// PATCH /owners/:id/transfer-status — 転院フラグを更新する（FEAT-381）。
+func (h *Handler) PatchOwnerTransferStatus(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchOwnerTransferStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	input := service.UpdateTransferStatusInput{
+		IsTransferred: req.IsTransferred,
+	}
+	owner, err := h.svc.Owner.UpdateTransferStatus(c.Request.Context(), clinicID, id, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toOwnerResponse(owner))
+}
+
+// PatchOwnerLineIDConfirm godoc
+// PATCH /owners/:id/line-id-confirm — LINE ID 紐付け確認日時を現在時刻に設定する（FEAT-381）。
+func (h *Handler) PatchOwnerLineIDConfirm(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	owner, err := h.svc.Owner.ConfirmLineID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toOwnerResponse(owner))
+}
+
 // DeleteOwner godoc
 func (h *Handler) DeleteOwner(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)

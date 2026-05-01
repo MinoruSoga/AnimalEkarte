@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -21,12 +23,15 @@ import (
 // ---- mock OwnerService ----
 
 type mockOwnerService struct {
-	listFn           func(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
-	getByIDFn        func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
-	createWithPetsFn func(ctx context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error)
-	updateFn         func(ctx context.Context, clinicID, id uint64, input *service.UpdateOwnerInput) (*model.Owner, error)
-	deleteFn         func(ctx context.Context, clinicID, id uint64) error
-	linkLineUserIDFn func(ctx context.Context, clinicID, id uint64, lineUserID *string) error
+	listFn                    func(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
+	getByIDFn                 func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	createWithPetsFn          func(ctx context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error)
+	updateFn                  func(ctx context.Context, clinicID, id uint64, input *service.UpdateOwnerInput) (*model.Owner, error)
+	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
+	linkLineUserIDFn          func(ctx context.Context, clinicID, id uint64, lineUserID *string) error
+	updateDeliveryExclusionFn func(ctx context.Context, clinicID, id uint64, input service.UpdateDeliveryExclusionInput) (*model.Owner, error)
+	updateTransferStatusFn    func(ctx context.Context, clinicID, id uint64, input service.UpdateTransferStatusInput) (*model.Owner, error)
+	confirmLineIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 }
 
 func (m *mockOwnerService) List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -54,6 +59,27 @@ func (m *mockOwnerService) LinkLineUserID(ctx context.Context, clinicID, id uint
 		return m.linkLineUserIDFn(ctx, clinicID, id, lineUserID)
 	}
 	return nil
+}
+
+func (m *mockOwnerService) UpdateDeliveryExclusion(ctx context.Context, clinicID, id uint64, input service.UpdateDeliveryExclusionInput) (*model.Owner, error) {
+	if m.updateDeliveryExclusionFn != nil {
+		return m.updateDeliveryExclusionFn(ctx, clinicID, id, input)
+	}
+	return &model.Owner{ID: id, ClinicID: clinicID}, nil
+}
+
+func (m *mockOwnerService) UpdateTransferStatus(ctx context.Context, clinicID, id uint64, input service.UpdateTransferStatusInput) (*model.Owner, error) {
+	if m.updateTransferStatusFn != nil {
+		return m.updateTransferStatusFn(ctx, clinicID, id, input)
+	}
+	return &model.Owner{ID: id, ClinicID: clinicID}, nil
+}
+
+func (m *mockOwnerService) ConfirmLineID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
+	if m.confirmLineIDFn != nil {
+		return m.confirmLineIDFn(ctx, clinicID, id)
+	}
+	return &model.Owner{ID: id, ClinicID: clinicID}, nil
 }
 
 // ---- test helpers ----
@@ -499,4 +525,224 @@ func TestDeleteOwner(t *testing.T) {
 		h.DeleteOwner(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+}
+
+func newPatchDeliveryExclusionRouter(svc service.OwnerService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithOwnerSvc(svc)
+	r.PATCH("/owners/:id/delivery-exclusion", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.PatchOwnerDeliveryExclusion)
+	return r
+}
+
+func TestPatchOwnerDeliveryExclusion(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       string
+		svc        *mockOwnerService
+		wantStatus int
+	}{
+		{
+			name:    "sets delivery_excluded=true",
+			paramID: "1",
+			body:    `{"excluded":true,"reason":"配信不要"}`,
+			svc: &mockOwnerService{
+				updateDeliveryExclusionFn: func(_ context.Context, clinicID, id uint64, input service.UpdateDeliveryExclusionInput) (*model.Owner, error) {
+					return &model.Owner{ID: id, ClinicID: clinicID, DeliveryExcluded: input.Excluded, DeliveryExcludedReason: input.Reason}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:    "sets delivery_excluded=false without reason",
+			paramID: "1",
+			body:    `{"excluded":false}`,
+			svc: &mockOwnerService{
+				updateDeliveryExclusionFn: func(_ context.Context, clinicID, id uint64, input service.UpdateDeliveryExclusionInput) (*model.Owner, error) {
+					return &model.Owner{ID: id, ClinicID: clinicID, DeliveryExcluded: input.Excluded}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "1",
+			body:       `{invalid}`,
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       `{"excluded":true}`,
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when owner not found",
+			paramID: "999",
+			body:    `{"excluded":true}`,
+			svc: &mockOwnerService{
+				updateDeliveryExclusionFn: func(_ context.Context, _, _ uint64, _ service.UpdateDeliveryExclusionInput) (*model.Owner, error) {
+					return nil, apperrors.WrapNotFound("owner", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newPatchDeliveryExclusionRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPatch, "/owners/"+tt.paramID+"/delivery-exclusion", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+func newPatchTransferStatusRouter(svc service.OwnerService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithOwnerSvc(svc)
+	r.PATCH("/owners/:id/transfer-status", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.PatchOwnerTransferStatus)
+	return r
+}
+
+func TestPatchOwnerTransferStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       string
+		svc        *mockOwnerService
+		wantStatus int
+	}{
+		{
+			name:    "sets is_transferred=true",
+			paramID: "1",
+			body:    `{"is_transferred":true}`,
+			svc: &mockOwnerService{
+				updateTransferStatusFn: func(_ context.Context, clinicID, id uint64, input service.UpdateTransferStatusInput) (*model.Owner, error) {
+					return &model.Owner{ID: id, ClinicID: clinicID, IsTransferred: input.IsTransferred}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:    "sets is_transferred=false",
+			paramID: "1",
+			body:    `{"is_transferred":false}`,
+			svc: &mockOwnerService{
+				updateTransferStatusFn: func(_ context.Context, clinicID, id uint64, input service.UpdateTransferStatusInput) (*model.Owner, error) {
+					return &model.Owner{ID: id, ClinicID: clinicID, IsTransferred: input.IsTransferred}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "1",
+			body:       `{invalid}`,
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       `{"is_transferred":true}`,
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when owner not found",
+			paramID: "999",
+			body:    `{"is_transferred":true}`,
+			svc: &mockOwnerService{
+				updateTransferStatusFn: func(_ context.Context, _, _ uint64, _ service.UpdateTransferStatusInput) (*model.Owner, error) {
+					return nil, apperrors.WrapNotFound("owner", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newPatchTransferStatusRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPatch, "/owners/"+tt.paramID+"/transfer-status", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+func newPatchLineIDConfirmRouter(svc service.OwnerService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithOwnerSvc(svc)
+	r.PATCH("/owners/:id/line-id-confirm", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.PatchOwnerLineIDConfirm)
+	return r
+}
+
+func TestPatchOwnerLineIDConfirm(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockOwnerService
+		wantStatus int
+	}{
+		{
+			name:    "confirms line id successfully",
+			paramID: "1",
+			svc: &mockOwnerService{
+				confirmLineIDFn: func(_ context.Context, clinicID, id uint64) (*model.Owner, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					now := time.Now()
+					return &model.Owner{ID: id, ClinicID: clinicID, LineIDConfirmedAt: &now}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when owner not found",
+			paramID: "999",
+			svc: &mockOwnerService{
+				confirmLineIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+					return nil, apperrors.WrapNotFound("owner", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newPatchLineIDConfirmRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPatch, "/owners/"+tt.paramID+"/line-id-confirm", http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
 }

@@ -134,6 +134,10 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners.DELETE("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeleteOwnerLstepOptOut)
 	// ISSUE-001: 統合opt-outエンドポイント
 	owners.PATCH("/:id/lstep/opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLstepOptOut)
+	// FEAT-381: 配信除外・転院・LINE ID確認
+	owners.PATCH("/:id/delivery-exclusion", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerDeliveryExclusion)
+	owners.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerTransferStatus)
+	owners.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineIDConfirm)
 	// BE-019: Lステップタグ CRUD
 	owners.GET("/:id/lstep/tags", h.GetOwnerLstepTags)
 	owners.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepTag)
@@ -147,6 +151,9 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	// extractClinicID は JWT コンテキストから clinic_id を取得するため :clinic_id URL パラムは無視される
 	co := rg.Group("/clinics/:clinic_id/owners")
 	co.PATCH("/:id/line-user-id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineUserID)
+	co.PATCH("/:id/delivery-exclusion", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerDeliveryExclusion)
+	co.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerTransferStatus)
+	co.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineIDConfirm)
 	co.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepOptOut)
 	co.DELETE("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeleteOwnerLstepOptOut)
 	co.GET("/:id/lstep/tags", h.GetOwnerLstepTags)
