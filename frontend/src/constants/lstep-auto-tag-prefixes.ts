@@ -4,7 +4,9 @@
 // この定数はクロス feature インポートを避けるため src/constants/ に配置する（features/ 配下禁止）。
 
 export const LSTEP_AUTO_TAG_ENTRIES = [
-  // prefix entries (trailing _)
+  // prefix entries (trailing _) — 新仕様タグ (FEAT-377/378: 日本語・接頭辞付き)
+  "CPM_", "LTV_", "VISIT_", "PET_", "EXCL_",
+  // prefix entries (trailing _) — 既存タグ (snake_case 英語)
   "cpm_", "last_visit_", "first_visit_", "ltv_",
   "visit_count_", "vaccine_", "checkup_", "next_checkup_", "refill_due_",
   "next_visit_", "reserved_",
