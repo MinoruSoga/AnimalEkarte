@@ -741,6 +741,10 @@ Authorization: Bearer {jwt_token}
 > **対象**: ISSUE-005 / ISSUE-008（健診抽出における除外理由対応）
 > **ルート前提**: バックエンドは `/api/v1/...`、フロントエンドの axios baseURL は `/api` を含むため `/v1/...` で参照される。
 
+> **クリニックスコープ（新仕様 / FEAT-375 実装後）**: Lステップ連携は `lstep_settings.is_sync_enabled = true` のクリニックのみ有効にする。
+> 運用予定は、八王子動物病院: 2026-04-30 有効化済み、城東センター: 2026-05-05 以降、敷島・猫専門病院: 対象外。
+> `is_sync_enabled = false` のクリニックでは自動同期・AllClinics バッチは noop/skip する。Lステップ API 呼び出しが必要な手動同期系 API はクライアントを生成せず、既存の未設定時と同じエラーまたは noop として扱う。詳細: `docs/line/lstep-integration.md` §1
+
 #### 健診対象者プレビュー取得
 
 ```http
@@ -761,7 +765,7 @@ Authorization: Bearer {jwt_token}
 | `min_age_years` | integer | **(ISSUE-009)** 生存ペットの最小年齢以上（少なくとも1匹該当） |
 | `max_age_years` | integer | **(ISSUE-009)** 生存ペットの最大年齢以下（少なくとも1匹該当） |
 | `has_chronic_condition` | boolean | **(ISSUE-009)** アクティブ慢性疾患の有無 |
-| `cpm_stage` | string | **(ISSUE-009)** `cpm_encounter` / `cpm_growing` / `cpm_core` / `cpm_spot` / `cpm_noah` / `cpm_dormant` |
+| `cpm_stage` | string | **(ISSUE-009)** 現行実装（V1）値: `cpm_encounter` / `cpm_growing` / `cpm_core` / `cpm_spot` / `cpm_noah` / `cpm_dormant`。⚠️ 最新仕様（V2、仮）は `CPM_01_出会い`〜`CPM_05_ノア`。V1→V2 移行は SPEC-002 Q2 確定後。`docs/line/lstep-integration.md` §5 参照 |
 | `min_total_amount` | integer | **(ISSUE-009)** 累計診療費（円）以上（completed billings 合計） |
 | `min_annual_visit_count` | integer | **(ISSUE-009)** 年間来院回数（過去365日 distinct visit）以上 |
 | `last_checkup_before` | date (YYYY-MM-DD) | **(ISSUE-009)** 最終健診実施日がこの日以前 |
@@ -842,7 +846,7 @@ Authorization: Bearer {jwt_token}
 | `min_pet_age_years` | integer \| null | **(ISSUE-009)** 生存ペットの最小年齢（years）。誕生日未登録時は `null` |
 | `max_pet_age_years` | integer \| null | **(ISSUE-009)** 生存ペットの最大年齢（years）。誕生日未登録時は `null` |
 | `has_chronic_condition` | boolean | **(ISSUE-009)** アクティブな慢性疾患の有無（生存ペット由来） |
-| `cpm_stage` | string | **(ISSUE-009)** CPM ステージ（`CalculateCPMStage` と同一ロジック） |
+| `cpm_stage` | string | **(ISSUE-009)** CPM ステージ（現行実装 V1 / `CalculateCPMStage`）。返し得る値: `cpm_encounter` / `cpm_growing` / `cpm_core` / `cpm_spot` / `cpm_noah` / `cpm_dormant`。⚠️ 最新仕様（V2、仮）は `CPM_01_出会い`〜`CPM_05_ノア`。移行は SPEC-002 Q2 確定後 |
 | `total_amount` | integer | **(ISSUE-009)** 累計診療費（円、completed billings 合計） |
 | `annual_visit_count` | integer | **(ISSUE-009)** 年間来院回数（過去365日 distinct visit） |
 | `last_checkup_date` | string \| null | **(ISSUE-009)** 最終健診実施日。実績なしは `null` |
@@ -881,7 +885,7 @@ Content-Type: application/json
 {
   "checkup_type": "annual",
   "owner_ids": ["1", "5", "12"],
-  "tag_name": "健診_年次_2026"
+  "tag_name": "checkup_annual_2026"
 }
 ```
 
@@ -891,7 +895,7 @@ Content-Type: application/json
 |-----------|-----|-----|------|
 | `checkup_type` | string | ✅ | `annual` / `dental` / `blood` / `skin` / `cancer` / `other` |
 | `owner_ids` | string[] | ✅ | 対象飼い主ID（最低1件） |
-| `tag_name` | string | ✅ | `^[A-Za-z0-9_-]{1,100}$`。自動管理タグ名は不可 |
+| `tag_name` | string | ✅ | `^[A-Za-z0-9_-]{1,100}$`（現行バリデーション）。自動管理タグ名は不可。⚠️ 最新仕様の日本語タグ名（`CPM_01_出会い`、`VISIT_120日超` 等）はこの正規表現に違反する。対応方式は SPEC-002 Q1 確定後に変更予定 |
 
 **権限チェック**: `owners:edit`
 
@@ -913,6 +917,10 @@ Content-Type: application/json
   "error": "tag_name は英数字・アンダースコア・ハイフンのみ使用可能です（1〜100文字）"
 }
 ```
+
+> ⚠️ **仕様差分 (SPEC-002 Q1)**: 上記エラーメッセージおよびバリデーション `^[A-Za-z0-9_-]{1,100}$` は現行実装を反映したもの。
+> 最新仕様書のタグ名（`CPM_01_出会い`、`VISIT_120日超`、`PET_犬あり` 等）は日本語を含み、このバリデーションに違反する。
+> バリデーション変更（日本語許容・内部キー/外部表示名分離・Lステップ側タグ名変更のいずれか）は SPEC-002 Q1 確定後に実施する。
 
 ---
 

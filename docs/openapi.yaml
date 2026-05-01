@@ -418,7 +418,12 @@ paths:
               type: object
               required: [tag_name]
               properties:
-                tag_name: { type: string }
+                tag_name:
+                  type: string
+                  description: |
+                    付与するLステップタグ名。
+                    NOTE (SPEC-002 Q1): このエンドポイントのバリデーション制約は docs/API_SPEC.md §6 を参照。
+                    最新仕様の日本語タグ名（例: CPM_01_出会い）への対応は SPEC-002 Q1 確定後に決定する。
       responses:
         '200': { description: OK }
 
@@ -435,6 +440,9 @@ paths:
 
         **除外優先順位** (deriveExclusionReason): `opt-out` > `生存ペットなし` > `LINE未連携`。
         いずれにも該当しない場合 `exclusion_reason` は `null`（送信可能）となる。
+
+        FEAT-375: `lstep_settings.is_sync_enabled=false` のクリニックでもプレビューは参照系として利用可能。
+        実際の Lステップ API 呼び出しを伴う同期処理はクライアントを生成せず、noop/skip する。
       security: [{ bearerAuth: [] }]
       parameters:
         - name: clinic_id
@@ -488,11 +496,16 @@ paths:
           in: query
           required: false
           description: |
-            (ISSUE-009) CPM ステージ絞り込み。
-            判定ロジックはタグ同期側 `CalculateCPMStage` と同一。
+            (ISSUE-009) CPM ステージ絞り込み。判定ロジックはタグ同期側 `CalculateCPMStage` と同一。
+
+            現行実装（V1）の enum 値を使用する。
+            NOTE: 最新仕様（V2、仮ロジック）では `CPM_01_出会い`〜`CPM_05_ノア` に変わる予定。
+            V1→V2 の移行方式は SPEC-002 Q2 確定後に enum を更新する。
+            詳細: docs/line/lstep-integration.md §5
           schema:
             type: string
             enum: [cpm_encounter, cpm_growing, cpm_core, cpm_spot, cpm_noah, cpm_dormant]
+            x-spec002-q2: "上記 enum は現行実装(V1)値。新仕様(V2)は CPM_01_出会い〜CPM_05_ノア。SPEC-002 Q2 確定後に更新予定。"
         - name: min_total_amount
           in: query
           required: false
@@ -539,6 +552,9 @@ paths:
         **スキップ判定** はプレビュー側 `exclusion_reason` と同じ優先度
         (`opt-out` > `生存ペットなし` > `LINE未連携`) で行い、誤配信を防ぐ。
         スキップされたケースは `skipped_count` に集計される。
+
+        FEAT-375: `lstep_settings.is_sync_enabled=false` のクリニックでは Lステップ API クライアントを生成しない。
+        API キー未設定時と同じく同期実行はエラー扱いとなる。
       security: [{ bearerAuth: [] }]
       parameters:
         - name: clinic_id
@@ -1379,8 +1395,13 @@ components:
         cpm_stage:
           type: string
           description: |
-            (ISSUE-009) CPM ステージ。判定ロジックはタグ同期側 `CalculateCPMStage` と同一。
+            (ISSUE-009) CPM ステージ（現行実装 V1 / `CalculateCPMStage`）。
+
+            NOTE: 最新仕様（V2、仮ロジック）では `CPM_01_出会い`〜`CPM_05_ノア` に変わる予定。
+            V1→V2 の移行方式は SPEC-002 Q2 確定後に enum を更新する。
+            詳細: docs/line/lstep-integration.md §5
           enum: [cpm_encounter, cpm_growing, cpm_core, cpm_spot, cpm_noah, cpm_dormant]
+          x-spec002-q2: "上記 enum は現行実装(V1)値。新仕様(V2)は CPM_01_出会い〜CPM_05_ノア。SPEC-002 Q2 確定後に更新予定。"
         total_amount:
           type: integer
           description: (ISSUE-009) 累計診療費（円、completed billings 合計）。
@@ -1442,8 +1463,14 @@ components:
           type: string
           pattern: '^[A-Za-z0-9_-]{1,100}$'
           description: |
-            付与するLステップタグ名。英数字・アンダースコア・ハイフンのみ（1〜100文字）。
+            付与するLステップタグ名（現行バリデーション: 英数字・アンダースコア・ハイフンのみ、1〜100文字）。
             自動管理タグ名は使用不可。
+
+            NOTE (SPEC-002 Q1): 最新仕様書のタグ名（例: CPM_01_出会い、VISIT_120日超、PET_犬あり）は
+            日本語を含み、この pattern に違反する。pattern の変更（日本語許容・内部キー分離・
+            Lステップ側タグ名変更のいずれか）は SPEC-002 Q1 確定後に実施する。
+            詳細: docs/tasks/open/SPEC-002-lstep-cpm-integration-clarifications-2026-04-30.md Q1
+          x-spec002-q1: "pattern は現行実装値。日本語タグ名対応は SPEC-002 Q1 確定後に変更予定。"
 
     CheckupSyncResult:
       type: object
