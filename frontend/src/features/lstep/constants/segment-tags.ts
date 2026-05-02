@@ -1,3 +1,5 @@
+import { LstepTagNames } from "./tag-names";
+
 export interface SegmentTag {
   label: string;
   tagName: string;
@@ -19,6 +21,7 @@ export const CPM_SEGMENT_TAGS: SegmentTag[] = [
 
 export const LTV_SEGMENT_TAGS: SegmentTag[] = [
   { label: "LTV 上位20%", tagName: "LTV_上位20" },
+  { label: "フード購入あり", tagName: LstepTagNames.LTV_フード購入あり },
 ];
 
 export const VISIT_SEGMENT_TAGS: SegmentTag[] = [
@@ -26,6 +29,19 @@ export const VISIT_SEGMENT_TAGS: SegmentTag[] = [
   { label: "180日超", tagName: "VISIT_180日超" },
   { label: "220日超", tagName: "VISIT_220日超" },
   { label: "240日超", tagName: "VISIT_240日超" },
+];
+
+export const HEALTH_SEGMENT_TAGS: SegmentTag[] = [
+  { label: "健診あり", tagName: LstepTagNames.HLTH_健診あり },
+  { label: "健診未受診", tagName: LstepTagNames.HLTH_健診未受診 },
+  { label: "年4回候補", tagName: LstepTagNames.HLTH_年4回候補 },
+  { label: "専門検診候補", tagName: LstepTagNames.HLTH_専門検診候補 },
+];
+
+export const PREVENTION_SEGMENT_TAGS: SegmentTag[] = [
+  { label: "ワクチン期限", tagName: LstepTagNames.PREV_ワクチン期限 },
+  { label: "フィラリア未完了", tagName: LstepTagNames.PREV_フィラリア未完了 },
+  { label: "ノミダニ対象", tagName: LstepTagNames.PREV_ノミダニ対象 },
 ];
 
 export const SEGMENT_GROUPS: SegmentGroup[] = [
@@ -37,11 +53,21 @@ export const SEGMENT_GROUPS: SegmentGroup[] = [
   {
     title: "LTV",
     tags: LTV_SEGMENT_TAGS,
-    gridCols: "grid-cols-1",
+    gridCols: "grid-cols-1 sm:grid-cols-2",
   },
   {
     title: "休眠予備軍",
     tags: VISIT_SEGMENT_TAGS,
     gridCols: "grid-cols-2 sm:grid-cols-4",
+  },
+  {
+    title: "健診状況",
+    tags: HEALTH_SEGMENT_TAGS,
+    gridCols: "grid-cols-2 sm:grid-cols-2 lg:grid-cols-4",
+  },
+  {
+    title: "予防処置",
+    tags: PREVENTION_SEGMENT_TAGS,
+    gridCols: "grid-cols-1 sm:grid-cols-3",
   },
 ];
