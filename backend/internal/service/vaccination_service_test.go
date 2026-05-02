@@ -52,6 +52,10 @@ func (m *mockVaccinationRepository) Delete(ctx context.Context, clinicID, id uin
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockVaccinationRepository) FindOwnersByVaccineDeadline(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+
 func TestVaccinationService_List(t *testing.T) {
 	now := time.Now()
 	tests := []struct {

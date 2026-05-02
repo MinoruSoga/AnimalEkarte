@@ -22,6 +22,8 @@ type PetRepository interface {
 	Create(ctx context.Context, pet *model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
+	// FindOwnersByPetBirthday は指定月日と一致する誕生日の生存ペットを持つ飼い主IDリストを返す（FEAT-383）。
+	FindOwnersByPetBirthday(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error)
 }
 
 type petRepository struct {
@@ -179,4 +181,25 @@ func (r *petRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 		return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// FindOwnersByPetBirthday は指定月日と一致する誕生日の生存ペットを持つ飼い主IDリストを返す（FEAT-383）。
+func (r *petRepository) FindOwnersByPetBirthday(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error) {
+	type row struct{ OwnerID uint64 }
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Model(&model.Pet{}).
+		Scopes(clinicScope(clinicID)).
+		Where("deceased_at IS NULL AND deleted_at IS NULL").
+		Where("EXTRACT(month FROM birth_date) = ? AND EXTRACT(day FROM birth_date) = ?", month, day).
+		Distinct("owner_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("clinic=%d birthday=%02d-%02d", clinicID, month, day))
+	}
+	ids := make([]uint64, len(rows))
+	for i, r := range rows {
+		ids[i] = r.OwnerID
+	}
+	return ids, nil
 }

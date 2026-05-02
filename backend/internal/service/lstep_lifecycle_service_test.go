@@ -110,6 +110,9 @@ func (m *mockLstepTagCacheRepository) FindOwnersByTag(ctx context.Context, clini
 func (m *mockLstepTagCacheRepository) BulkReplaceOwnerTags(ctx context.Context, clinicID, ownerID uint64, tags []repository.TagEntry) error {
 	return nil
 }
+func (m *mockLstepTagCacheRepository) FindOwnerIDsByTag(_ context.Context, _ uint64, _ string) ([]uint64, error) {
+	return nil, nil
+}
 
 // ---- LstepTagSyncService モック ----
 

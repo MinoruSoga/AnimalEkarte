@@ -95,6 +95,8 @@ func run() int {
 		repos.Checkup,
 		repos.Reservation,
 		repos.LstepSyncErrorCounter,
+		repos.LstepTagCodeMapping,
+		repos.BillingItem,
 	)
 
 	migCfg := Config{

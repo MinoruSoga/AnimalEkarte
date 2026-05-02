@@ -100,6 +100,8 @@ type Services struct {
 	LineSend LineSendService
 	// LSTEP-BE-014: ノーショウ検知バッチ
 	LstepBatch LstepBatchService
+	// FEAT-383: 自動配信トリガー
+	LstepDeliveryTrigger LstepDeliveryTriggerService
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
 	LineLink LineLinkService
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
@@ -142,7 +144,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 
 	// LSTEP services initialization with nil cipher (production code in main.go will override with encrypted cipher)
 	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, nil, auditSvc)
-	lstepTagSyncSvc := NewLstepTagSyncService(lstepSettingsSvc, repos.Owner, repos.Vaccination, repos.MedicalRecord, repos.Accounting, repos.LstepTagCache, repos.Pet, repos.Prescription, repos.Checkup, repos.Reservation, repos.LstepSyncErrorCounter)
+	lstepTagSyncSvc := NewLstepTagSyncService(lstepSettingsSvc, repos.Owner, repos.Vaccination, repos.MedicalRecord, repos.Accounting, repos.LstepTagCache, repos.Pet, repos.Prescription, repos.Checkup, repos.Reservation, repos.LstepSyncErrorCounter, repos.LstepTagCodeMapping, repos.BillingItem)
 	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc)
 
 	return &Services{

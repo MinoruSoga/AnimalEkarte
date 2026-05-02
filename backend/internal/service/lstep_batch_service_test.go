@@ -68,6 +68,9 @@ func (m *batchMockReservationRepo) FindNoShowCandidates(ctx context.Context, cli
 	}
 	return nil, nil
 }
+func (m *batchMockReservationRepo) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
+	return false, nil
+}
 
 // batchMockMedRecordRepo は batch テスト専用 MedicalRecordRepository モック
 type batchMockMedRecordRepo struct {
@@ -101,6 +104,15 @@ func (m *batchMockMedRecordRepo) FindDormantOwnerEntries(ctx context.Context, cl
 	if m.findDormantFn != nil {
 		return m.findDormantFn(ctx, clinicID, minDays)
 	}
+	return nil, nil
+}
+func (m *batchMockMedRecordRepo) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+func (m *batchMockMedRecordRepo) FindOwnersByLastVisitDays(_ context.Context, _ uint64, _ int, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+func (m *batchMockMedRecordRepo) FindOwnersByNextVisitRecommended(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 	return nil, nil
 }
 

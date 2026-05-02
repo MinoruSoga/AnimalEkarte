@@ -75,6 +75,10 @@ func (m *mockPetRepository) FindLivingByOwner(ctx context.Context, clinicID, own
 	return nil, nil
 }
 
+func (m *mockPetRepository) FindOwnersByPetBirthday(_ context.Context, _ uint64, _, _ int) ([]uint64, error) {
+	return nil, nil
+}
+
 // defaultOwnerRepo は owner を常に見つけるモック（cross-clinic validation パスさせる用）
 func defaultOwnerRepo() *mockOwnerRepository {
 	return &mockOwnerRepository{

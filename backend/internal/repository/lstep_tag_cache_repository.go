@@ -51,6 +51,8 @@ type LstepTagCacheRepository interface {
 	FindOwnersByTag(ctx context.Context, clinicID uint64, tagName, nameQuery string, offset, limit int) ([]TagOwnerRow, int64, error)
 	// BulkReplaceOwnerTags は飼い主の全タグを削除してから指定タグを一括挿入する（BE-018用）。
 	BulkReplaceOwnerTags(ctx context.Context, clinicID, ownerID uint64, tags []TagEntry) error
+	// FindOwnerIDsByTag は指定タグを持つ飼い主IDリストを全件返す（FEAT-383 バッチ用）。
+	FindOwnerIDsByTag(ctx context.Context, clinicID uint64, tagName string) ([]uint64, error)
 }
 
 type lstepTagCacheRepository struct{ db *gorm.DB }
@@ -211,6 +213,23 @@ func (r *lstepTagCacheRepository) FindOwnersByTag(ctx context.Context, clinicID 
 		result[i] = TagOwnerRow{OwnerID: s.OwnerID, OwnerName: s.OwnerName, LineUserID: s.LineUserID, Tags: tags}
 	}
 	return result, total, nil
+}
+
+func (r *lstepTagCacheRepository) FindOwnerIDsByTag(ctx context.Context, clinicID uint64, tagName string) ([]uint64, error) {
+	type row struct{ OwnerID uint64 }
+	var rows []row
+	err := r.db.WithContext(ctx).Model(&model.LstepTagCache{}).
+		Where("clinic_id = ? AND tag_name = ?", clinicID, tagName).
+		Distinct("owner_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("clinic=%d tag=%s", clinicID, tagName))
+	}
+	ids := make([]uint64, len(rows))
+	for i, r := range rows {
+		ids[i] = r.OwnerID
+	}
+	return ids, nil
 }
 
 func (r *lstepTagCacheRepository) BulkReplaceOwnerTags(ctx context.Context, clinicID, ownerID uint64, tags []TagEntry) error {

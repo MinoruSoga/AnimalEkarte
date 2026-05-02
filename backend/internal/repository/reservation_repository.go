@@ -49,6 +49,8 @@ type ReservationQueryRepository interface {
 	FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
 	// FindNoShowCandidates は end_time が現在時刻以前の confirmed/pending 予約を返す（BE-014 ノーショウ検知用）。
 	FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error)
+	// HasReservationByOwnerInRange は指定飼い主の start〜end 期間内に予約が存在するか返す（FEAT-383 次回来院リマインド用）。
+	HasReservationByOwnerInRange(ctx context.Context, clinicID, ownerID uint64, start, end time.Time) (bool, error)
 }
 
 // ReservationRepository は 3 つのサブインターフェースを合成したフルインターフェース。
@@ -368,6 +370,19 @@ func (r *reservationRepository) FindNoShowCandidates(ctx context.Context, clinic
 		return nil, apperrors.FromGORM(err, "reservation", "")
 	}
 	return reservations, nil
+}
+
+// HasReservationByOwnerInRange は指定飼い主の start〜end 期間内に予約が存在するか返す（FEAT-383）。
+func (r *reservationRepository) HasReservationByOwnerInRange(ctx context.Context, clinicID, ownerID uint64, start, end time.Time) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.Reservation{}).
+		Where("clinic_id = ? AND owner_id = ? AND deleted_at IS NULL AND start_time >= ? AND start_time < ?",
+			clinicID, ownerID, start, end).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.FromGORM(err, "reservation", fmt.Sprintf("clinic=%d owner=%d range", clinicID, ownerID))
+	}
+	return count > 0, nil
 }
 
 func appointmentDayRange(date time.Time) (start, end time.Time) {

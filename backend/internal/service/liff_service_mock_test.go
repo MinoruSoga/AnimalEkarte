@@ -383,6 +383,9 @@ func (m *mockLiffReservationRepository) FindAllByCategory(_ context.Context, _ u
 func (m *mockLiffReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
+func (m *mockLiffReservationRepository) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
+	return false, nil
+}
 
 // --- mockLiffValidators ---
 

@@ -22,6 +22,7 @@ type mockMedicalRecordRepository struct {
 	deleteFn                          func(ctx context.Context, clinicID, id uint64) error
 	countByPetIDFn                    func(ctx context.Context, clinicID, petID uint64) (int64, error)
 	countEstimatesByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) (int64, error)
+	findOwnerVisitSummaryFn           func(ctx context.Context, clinicID, ownerID uint64) (*repository.OwnerVisitSummary, error)
 }
 
 func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -64,7 +65,10 @@ func (m *mockMedicalRecordRepository) CountEstimatesByMedicalRecordID(ctx contex
 	return 0, nil
 }
 
-func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
+func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*repository.OwnerVisitSummary, error) {
+	if m.findOwnerVisitSummaryFn != nil {
+		return m.findOwnerVisitSummaryFn(ctx, clinicID, ownerID)
+	}
 	return &repository.OwnerVisitSummary{}, nil
 }
 
@@ -73,6 +77,18 @@ func (m *mockMedicalRecordRepository) FindLatestByOwner(_ context.Context, _, _ 
 }
 
 func (m *mockMedicalRecordRepository) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepository) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepository) FindOwnersByLastVisitDays(_ context.Context, _ uint64, _ int, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepository) FindOwnersByNextVisitRecommended(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 	return nil, nil
 }
 
@@ -152,6 +168,9 @@ func (m *mrMockPetRepo) Update(_ context.Context, _, _ uint64, _ map[string]any)
 }
 func (m *mrMockPetRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
 func (m *mrMockPetRepo) FindLivingByOwner(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+	return nil, nil
+}
+func (m *mrMockPetRepo) FindOwnersByPetBirthday(_ context.Context, _ uint64, _, _ int) ([]uint64, error) {
 	return nil, nil
 }
 

@@ -92,6 +92,9 @@ func (m *mockReservationQueryRepository) FindAllByCategory(_ context.Context, _ 
 func (m *mockReservationQueryRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
+func (m *mockReservationQueryRepository) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
+	return false, nil
+}
 
 func newTestReservationTypeLiffService(
 	repo *mockReservationTypeLiffRepository,

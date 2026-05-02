@@ -101,6 +101,10 @@ type Repositories struct {
 	CheckupSync CheckupSyncRepository
 	// FEAT-375: Lステップ連携エラーカウンター
 	LstepSyncErrorCounter LstepSyncErrorCounterRepository
+	// FEAT-379: per-clinic コード→タグ マッピング
+	LstepTagCodeMapping LstepTagCodeMappingRepository
+	// FEAT-383: 自動配信トリガーログ
+	LstepDeliveryTriggerLog LstepDeliveryTriggerLogRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -175,17 +179,19 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		PaymentMethodMaster:  NewPaymentMethodMasterRepository(db),
 		CashRegisterClose:    NewCashRegisterCloseRepository(db),
 		// LSTEP / LINE連携
-		LstepSettings:         NewLstepSettingsRepository(db),
-		LstepSyncSettings:     NewLstepSyncSettingsRepository(db),
-		SharedFile:            NewSharedFileRepository(db),
-		LstepTagCache:         NewLstepTagCacheRepository(db),
-		Prescription:          NewPrescriptionRepository(db),
-		Ltv:                   NewLtvRepository(db),
-		ChronicCondition:      NewPetChronicConditionRepository(db),
-		LineSendLog:           NewLineSendLogRepository(db),
-		LineLinkToken:         NewLineLinkTokenRepository(db),
-		CheckupSync:           NewCheckupSyncRepository(db),
-		LstepSyncErrorCounter: NewLstepSyncErrorCounterRepository(db),
+		LstepSettings:           NewLstepSettingsRepository(db),
+		LstepSyncSettings:       NewLstepSyncSettingsRepository(db),
+		SharedFile:              NewSharedFileRepository(db),
+		LstepTagCache:           NewLstepTagCacheRepository(db),
+		Prescription:            NewPrescriptionRepository(db),
+		Ltv:                     NewLtvRepository(db),
+		ChronicCondition:        NewPetChronicConditionRepository(db),
+		LineSendLog:             NewLineSendLogRepository(db),
+		LineLinkToken:           NewLineLinkTokenRepository(db),
+		CheckupSync:             NewCheckupSyncRepository(db),
+		LstepSyncErrorCounter:   NewLstepSyncErrorCounterRepository(db),
+		LstepTagCodeMapping:     NewLstepTagCodeMappingRepository(db),
+		LstepDeliveryTriggerLog: NewLstepDeliveryTriggerLogRepository(db),
 	}
 }
 

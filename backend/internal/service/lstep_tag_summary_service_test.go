@@ -51,6 +51,9 @@ func (m *mockTagCacheSummaryRepo) FindOwnersByTag(ctx context.Context, clinicID 
 func (m *mockTagCacheSummaryRepo) BulkReplaceOwnerTags(_ context.Context, _, _ uint64, _ []repository.TagEntry) error {
 	return nil
 }
+func (m *mockTagCacheSummaryRepo) FindOwnerIDsByTag(_ context.Context, _ uint64, _ string) ([]uint64, error) {
+	return nil, nil
+}
 
 // ---- tests ----
 
