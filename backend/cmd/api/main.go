@@ -132,6 +132,8 @@ func main() {
 	svcs.LstepTagSummary = service.NewLstepTagSummaryService(repos.LstepTagCache)
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
 	svcs.CheckupSync = service.NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.Pet, repos.LstepTagCache, svcs.LstepSettings, svcs.Audit)
+	// FEAT-384: 自動配信トリガー監視
+	svcs.LstepDeliveryMonitor = service.NewLstepDeliveryMonitorService(repos.LstepDeliveryTriggerLog)
 	// FEAT-383: 自動配信トリガー（LstepBatch / MedicalRecord / Checkup より先に初期化）
 	svcs.LstepDeliveryTrigger = service.NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.BillingItem, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, svcs.LstepSettings)
 	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に再初期化）

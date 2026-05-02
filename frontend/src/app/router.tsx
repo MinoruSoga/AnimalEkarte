@@ -1017,6 +1017,15 @@ export const router = createBrowserRouter([
               return { Component: CheckupSyncPage };
             },
           },
+          {
+            path: "delivery-monitor",
+            lazy: async () => {
+              const { LstepDeliveryMonitorPage } = await import(
+                "@/features/lstep"
+              );
+              return { Component: LstepDeliveryMonitorPage };
+            },
+          },
         ],
       },
 

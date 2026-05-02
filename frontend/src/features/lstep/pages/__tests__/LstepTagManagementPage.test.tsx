@@ -1,0 +1,212 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router";
+import { http, HttpResponse, delay } from "msw";
+import { server } from "@/testing/mocks/node";
+import { AuthContext } from "@/contexts/auth-context";
+import { LstepTagManagementPage } from "../LstepTagManagementPage";
+import type { LstepTagSummaryResponse } from "../../api/get-lstep-tag-summary";
+
+const mockAuthContext = {
+  user: null,
+  currentClinicId: "clinic-test-1",
+  isAuthenticated: true,
+  isLoading: false,
+  isSwitchingClinic: false,
+  login: async () => {},
+  logout: async () => {},
+  switchClinic: () => {},
+  hasPermission: () => true as boolean,
+  refreshPermissions: async () => {},
+};
+
+const CLINIC_ID = "clinic-test-1";
+
+const mockSummary: LstepTagSummaryResponse = {
+  tags: [
+    { tag_name: "HLTH_健診あり", owner_count: 5, category: "auto" },
+    { tag_name: "HLTH_健診未受診", owner_count: 3, category: "auto" },
+    { tag_name: "HLTH_年4回候補", owner_count: 2, category: "auto" },
+    { tag_name: "HLTH_専門検診候補", owner_count: 0, category: "auto" },
+    { tag_name: "PREV_ワクチン期限", owner_count: 8, category: "auto" },
+    { tag_name: "PREV_フィラリア未完了", owner_count: 4, category: "auto" },
+    { tag_name: "PREV_ノミダニ対象", owner_count: 6, category: "auto" },
+    { tag_name: "LTV_フード購入あり", owner_count: 10, category: "auto" },
+  ],
+  total_owners_with_lstep: 50,
+  as_of: "2026-05-01T10:00:00Z",
+};
+
+function setupSummaryHandler(data: LstepTagSummaryResponse) {
+  server.use(
+    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/tag-summary`, () =>
+      HttpResponse.json(data)
+    )
+  );
+}
+
+function setupOwnersHandler() {
+  server.use(
+    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/owners`, () =>
+      HttpResponse.json({ owners: [], total: 0 })
+    )
+  );
+}
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <AuthContext.Provider value={mockAuthContext}>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>{children}</MemoryRouter>
+      </QueryClientProvider>
+    </AuthContext.Provider>
+  );
+}
+
+async function renderAndWait(data: LstepTagSummaryResponse = mockSummary) {
+  setupSummaryHandler(data);
+  render(<LstepTagManagementPage />, { wrapper: createWrapper() });
+  await waitFor(() => {
+    expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
+  });
+}
+
+beforeEach(() => {
+  localStorage.setItem("auth_current_clinic:v1", CLINIC_ID);
+});
+
+afterEach(() => {
+  localStorage.removeItem("auth_current_clinic:v1");
+});
+
+// ─────────────────────────────────────────────────────────────
+// A: 健診状況セクション（FEAT-380）
+// ─────────────────────────────────────────────────────────────
+
+describe("LstepTagManagementPage — A: 健診状況セクション (FEAT-380)", () => {
+  it("健診タグ 4 種のラベルが描画される", async () => {
+    await renderAndWait();
+    expect(screen.getByText("健診あり")).toBeInTheDocument();
+    expect(screen.getByText("健診未受診")).toBeInTheDocument();
+    expect(screen.getByText("年4回候補")).toBeInTheDocument();
+    expect(screen.getByText("専門検診候補")).toBeInTheDocument();
+  });
+
+  it("HLTH_健診あり の件数 5 件がカードに表示される", async () => {
+    await renderAndWait();
+    // label "健診あり" はカードにのみ存在。tagName は Table にも重複するため label で特定
+    const card = screen.getByText("健診あり").closest("div");
+    expect(card).not.toBeNull();
+    expect(within(card!).getByText("5")).toBeInTheDocument();
+  });
+
+  it("HLTH_専門検診候補 は 0 件で描画される（空マッピング状態）", async () => {
+    await renderAndWait();
+    const card = screen.getByText("専門検診候補").closest("div");
+    expect(card).not.toBeNull();
+    expect(within(card!).getByText("0")).toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// B: 予防処置セクション（FEAT-380）
+// ─────────────────────────────────────────────────────────────
+
+describe("LstepTagManagementPage — B: 予防処置セクション (FEAT-380)", () => {
+  it("予防タグ 3 種のラベルが描画される", async () => {
+    await renderAndWait();
+    expect(screen.getByText("ワクチン期限")).toBeInTheDocument();
+    expect(screen.getByText("フィラリア未完了")).toBeInTheDocument();
+    expect(screen.getByText("ノミダニ対象")).toBeInTheDocument();
+  });
+
+  it("PREV_ノミダニ対象 の件数 6 件がカードに表示される", async () => {
+    await renderAndWait();
+    const card = screen.getByText("ノミダニ対象").closest("div");
+    expect(card).not.toBeNull();
+    expect(within(card!).getByText("6")).toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// C: LTV セクション拡張（FEAT-380）
+// ─────────────────────────────────────────────────────────────
+
+describe("LstepTagManagementPage — C: LTV セクション拡張 (FEAT-380)", () => {
+  it("LTV_フード購入あり カードが描画される", async () => {
+    await renderAndWait();
+    // label で card を特定してから tagName を within 内で検証
+    const card = screen.getByText("フード購入あり").closest("div");
+    expect(card).not.toBeNull();
+    expect(within(card!).getByText("LTV_フード購入あり")).toBeInTheDocument();
+  });
+
+  it("LTV_フード購入あり の件数 10 件がカードに表示される", async () => {
+    await renderAndWait();
+    const card = screen.getByText("フード購入あり").closest("div");
+    expect(card).not.toBeNull();
+    expect(within(card!).getByText("10")).toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// D: タグ別飼い主一覧ドロワー（FEAT-380）
+// ─────────────────────────────────────────────────────────────
+
+describe("LstepTagManagementPage — D: タグ別飼い主一覧ドロワー (FEAT-380)", () => {
+  it("HLTH_健診あり カードの「対象者一覧」クリックでドロワーが開く", async () => {
+    setupOwnersHandler();
+    await renderAndWait();
+
+    const card = screen.getByText("健診あり").closest("div");
+    expect(card).not.toBeNull();
+
+    const user = userEvent.setup();
+    await user.click(within(card!).getByRole("button", { name: /対象者一覧/ }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("タグ「HLTH_健診あり」の対象者一覧")
+      ).toBeInTheDocument();
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// E: ローディング・エラー状態（FEAT-380）
+// ─────────────────────────────────────────────────────────────
+
+describe("LstepTagManagementPage — E: ローディング・エラー状態 (FEAT-380)", () => {
+  it("ローディング中は「読み込み中...」がテーブルに表示される", () => {
+    server.use(
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/tag-summary`, async () => {
+        await delay("infinite");
+        return HttpResponse.json(mockSummary);
+      })
+    );
+    render(<LstepTagManagementPage />, { wrapper: createWrapper() });
+    expect(screen.getByText("読み込み中...")).toBeInTheDocument();
+  });
+
+  it("APIエラー時はテーブルに「タグが見つかりません」が表示される", async () => {
+    server.use(
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/tag-summary`, () =>
+        HttpResponse.json({ message: "Internal Server Error" }, { status: 500 })
+      )
+    );
+    render(<LstepTagManagementPage />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText("タグが見つかりません")).toBeInTheDocument();
+    });
+  });
+});
+
+// TODO(FEAT-379-supplement): lstep_tag_cache.reason カラム追加後に有効化
+// describe('LstepTagManagementPage — F: 判定理由列', () => {
+//   it('飼い主一覧テーブルに「判定理由」カラムが表示される', async () => { ... })
+// })

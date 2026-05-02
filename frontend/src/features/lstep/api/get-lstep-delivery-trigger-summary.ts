@@ -1,0 +1,31 @@
+import { useQuery } from "@tanstack/react-query";
+import { axios } from "@/lib/axios";
+
+export interface DeliveryTriggerSummaryResponse {
+  scheduled: number;
+  fired: number;
+  excluded: number;
+  failed: number;
+  excluded_reason_breakdown: Record<string, number>;
+}
+
+// GET /api/clinics/:clinic_id/lstep/delivery-monitor/summary
+export function useGetLstepDeliveryTriggerSummary(
+  from: string,
+  to: string,
+  triggerType?: string
+) {
+  return useQuery({
+    queryKey: ["lstep-delivery-trigger-summary", from, to, triggerType ?? ""],
+    queryFn: async () => {
+      const clinicId = localStorage.getItem("auth_current_clinic:v1");
+      const params = new URLSearchParams({ from, to });
+      if (triggerType) params.set("trigger_type", triggerType);
+      const { data } = await axios.get<DeliveryTriggerSummaryResponse>(
+        `/v1/clinics/${clinicId}/lstep/delivery-monitor/summary?${params}`
+      );
+      return data;
+    },
+    staleTime: 60 * 1000, // 1分キャッシュ
+  });
+}

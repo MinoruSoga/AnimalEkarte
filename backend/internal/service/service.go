@@ -108,6 +108,8 @@ type Services struct {
 	LstepTagSummary LstepTagSummaryService
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
 	CheckupSync CheckupSyncService
+	// FEAT-384: 自動配信トリガー監視
+	LstepDeliveryMonitor LstepDeliveryMonitorService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す

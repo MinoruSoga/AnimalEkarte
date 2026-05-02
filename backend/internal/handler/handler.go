@@ -108,6 +108,8 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterLstepTagSummaryRoutes(protected)
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
 	h.RegisterCheckupSyncRoutes(protected)
+	// FEAT-384: 自動配信トリガー監視
+	h.RegisterLstepDeliveryMonitorRoutes(protected)
 
 	// LIFF公開API（JWT認証なし・LINE IDトークン認証）
 	h.RegisterLiffRoutes(r)
