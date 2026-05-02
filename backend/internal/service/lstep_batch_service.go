@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -27,15 +28,18 @@ type LstepBatchService interface {
 	RunVisitDormantSyncAllClinics(ctx context.Context) error
 	// RunHealthPreventionTagSyncAllClinics は全クリニックに対して健診・予防・物販タグを同期するcronエントリポイント（FEAT-379）。
 	RunHealthPreventionTagSyncAllClinics(ctx context.Context) error
+	// RunDeliveryTriggerBatchAllClinics は全クリニックに対して自動配信トリガーバッチを実行するcronエントリポイント（FEAT-383: 10:00 JST）。
+	RunDeliveryTriggerBatchAllClinics(ctx context.Context) error
 }
 
 type lstepBatchService struct {
-	reservationRepo repository.ReservationRepository
-	tagSyncSvc      LstepTagSyncService
-	clinicRepo      repository.ClinicRepository
-	medRecordRepo   repository.MedicalRecordRepository
-	auditSvc        AuditService
-	settingsSvc     LstepSettingsService
+	reservationRepo      repository.ReservationRepository
+	tagSyncSvc           LstepTagSyncService
+	clinicRepo           repository.ClinicRepository
+	medRecordRepo        repository.MedicalRecordRepository
+	auditSvc             AuditService
+	settingsSvc          LstepSettingsService
+	lstepDeliveryTrigger LstepDeliveryTriggerService
 }
 
 // NewLstepBatchService は LstepBatchService を初期化して返す。
@@ -46,14 +50,16 @@ func NewLstepBatchService(
 	medRecordRepo repository.MedicalRecordRepository,
 	auditSvc AuditService,
 	settingsSvc LstepSettingsService,
+	lstepDeliveryTrigger LstepDeliveryTriggerService,
 ) LstepBatchService {
 	return &lstepBatchService{
-		reservationRepo: reservationRepo,
-		tagSyncSvc:      tagSyncSvc,
-		clinicRepo:      clinicRepo,
-		medRecordRepo:   medRecordRepo,
-		auditSvc:        auditSvc,
-		settingsSvc:     settingsSvc,
+		reservationRepo:      reservationRepo,
+		tagSyncSvc:           tagSyncSvc,
+		clinicRepo:           clinicRepo,
+		medRecordRepo:        medRecordRepo,
+		auditSvc:             auditSvc,
+		settingsSvc:          settingsSvc,
+		lstepDeliveryTrigger: lstepDeliveryTrigger,
 	}
 }
 
@@ -273,6 +279,77 @@ func (s *lstepBatchService) RunHealthPreventionTagSyncAllClinics(ctx context.Con
 				"batch_health_prevention", "clinic", &clinic.ID,
 				map[string]any{
 					"operation":       "batch_health_prevention",
+					"processed_count": count,
+					"error_count":     len(errs),
+				},
+			)
+		}
+	}
+	return nil
+}
+
+// runDeliveryTriggersForClinic は 1 クリニック分の全配信トリガーバッチを実行する（FEAT-383）。
+func (s *lstepBatchService) runDeliveryTriggersForClinic(ctx context.Context, clinicID uint64) (int, []error) {
+	if s.lstepDeliveryTrigger == nil {
+		return 0, nil
+	}
+	asOf := time.Now()
+	type batchFn func(context.Context, uint64, time.Time) (int, []error)
+	triggers := []batchFn{
+		s.lstepDeliveryTrigger.TriggerFirstVisitFollowUp3D,
+		s.lstepDeliveryTrigger.TriggerFirstVisitFollowUp7D,
+		s.lstepDeliveryTrigger.TriggerNextVisitReminder,
+		s.lstepDeliveryTrigger.TriggerVaccineDeadline60,
+		s.lstepDeliveryTrigger.TriggerVaccineDeadline30,
+		s.lstepDeliveryTrigger.TriggerBirthdayMessage,
+		s.lstepDeliveryTrigger.TriggerDormantPrevention120,
+		s.lstepDeliveryTrigger.TriggerDormantPrevention180,
+		s.lstepDeliveryTrigger.TriggerDormantPrevention220,
+		s.lstepDeliveryTrigger.TriggerFilariaAlert,
+		s.lstepDeliveryTrigger.TriggerFleaTickAlert,
+		s.lstepDeliveryTrigger.TriggerFoodRefillReminder,
+		s.lstepDeliveryTrigger.TriggerSuppRefillReminder,
+	}
+	totalFired := 0
+	var allErrs []error
+	for _, fn := range triggers {
+		n, errs := fn(ctx, clinicID, asOf)
+		totalFired += n
+		allErrs = append(allErrs, errs...)
+	}
+	return totalFired, allErrs
+}
+
+// RunDeliveryTriggerBatchAllClinics は全クリニックの自動配信トリガーバッチを実行する（10:00 JST）。
+func (s *lstepBatchService) RunDeliveryTriggerBatchAllClinics(ctx context.Context) error {
+	clinics, err := s.clinicRepo.FindAll(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "delivery trigger batch: failed to fetch clinics", "error", err)
+		return apperrors.Wrap(err, "failed to fetch clinics for delivery trigger batch")
+	}
+
+	for i := range clinics {
+		clinic := &clinics[i]
+		if s.settingsSvc != nil {
+			enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
+			if syncErr != nil {
+				slog.ErrorContext(ctx, "delivery trigger batch: failed to check sync enabled", "clinic_id", clinic.ID, "error", syncErr)
+				continue
+			}
+			if !enabled {
+				continue
+			}
+		}
+		count, errs := s.runDeliveryTriggersForClinic(ctx, clinic.ID)
+		if len(errs) > 0 {
+			slog.ErrorContext(ctx, "delivery trigger batch: partial errors", "clinic_id", clinic.ID, "error_count", len(errs))
+		}
+		if count > 0 {
+			slog.InfoContext(ctx, "delivery trigger batch: fired triggers", "clinic_id", clinic.ID, "count", count)
+			_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
+				"batch_delivery_trigger", "clinic", &clinic.ID,
+				map[string]any{
+					"operation":       "batch_delivery_trigger",
 					"processed_count": count,
 					"error_count":     len(errs),
 				},

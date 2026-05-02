@@ -378,12 +378,30 @@ func (s *lstepDeliveryTriggerService) TriggerSuppRefillReminder(ctx context.Cont
 	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeSuppRefillReminder, model.TriggerTypeSuppRefillReminder, asOf)
 }
 
-// TriggerFirstVisitWelcome はイベント駆動トリガーのスタブ（FEAT-383 Phase 2 で実装予定）。
-func (s *lstepDeliveryTriggerService) TriggerFirstVisitWelcome(_ context.Context, _, _ uint64) error {
-	return nil
+// TriggerFirstVisitWelcome は初診完了直後に呼び出されるイベント駆動トリガー（FEAT-383 Phase 2）。
+func (s *lstepDeliveryTriggerService) TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID uint64) error {
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "delivery trigger first_visit_welcome: failed to build lstep client", "clinic_id", clinicID, "owner_id", ownerID, "error", err)
+		return apperrors.Wrap(err, "failed to build lstep client")
+	}
+	if client == nil {
+		return nil
+	}
+	_, err = s.processSingleOwner(ctx, client, clinicID, ownerID, model.TriggerTypeFirstVisitWelcome, model.TriggerTypeFirstVisitWelcome, time.Now())
+	return err
 }
 
-// TriggerCheckupFollowUp はイベント駆動トリガーのスタブ（FEAT-383 Phase 2 で実装予定）。
-func (s *lstepDeliveryTriggerService) TriggerCheckupFollowUp(_ context.Context, _, _ uint64) error {
-	return nil
+// TriggerCheckupFollowUp は健診作成直後に呼び出されるイベント駆動トリガー（FEAT-383 Phase 2）。
+func (s *lstepDeliveryTriggerService) TriggerCheckupFollowUp(ctx context.Context, clinicID, ownerID uint64) error {
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "delivery trigger checkup_followup: failed to build lstep client", "clinic_id", clinicID, "owner_id", ownerID, "error", err)
+		return apperrors.Wrap(err, "failed to build lstep client")
+	}
+	if client == nil {
+		return nil
+	}
+	_, err = s.processSingleOwner(ctx, client, clinicID, ownerID, model.TriggerTypeCheckupFollowUp, model.TriggerTypeCheckupFollowUp, time.Now())
+	return err
 }

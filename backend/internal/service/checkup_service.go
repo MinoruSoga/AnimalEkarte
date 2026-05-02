@@ -75,12 +75,13 @@ type CheckupService interface {
 }
 
 type checkupService struct {
-	repo repository.CheckupRepository
+	repo                 repository.CheckupRepository
+	lstepDeliveryTrigger LstepDeliveryTriggerService
 }
 
 // NewCheckupService は CheckupService の実装を返す
-func NewCheckupService(repo repository.CheckupRepository) CheckupService {
-	return &checkupService{repo: repo}
+func NewCheckupService(repo repository.CheckupRepository, lstepDeliveryTrigger LstepDeliveryTriggerService) CheckupService {
+	return &checkupService{repo: repo, lstepDeliveryTrigger: lstepDeliveryTrigger}
 }
 
 func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
@@ -143,6 +144,19 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		slog.ErrorContext(ctx, "failed to get checkup after create", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get checkup after create")
 	}
+
+	// 健診フォローアップトリガー（非同期・非致命的）
+	if s.lstepDeliveryTrigger != nil && created.MedicalRecord != nil && created.MedicalRecord.OwnerID != nil {
+		clinicID := input.ClinicID
+		ownerID := *created.MedicalRecord.OwnerID
+		svc := s.lstepDeliveryTrigger
+		go func() {
+			if err := svc.TriggerCheckupFollowUp(context.Background(), clinicID, ownerID); err != nil {
+				slog.WarnContext(context.Background(), "checkup followup trigger failed (non-fatal)", "error", err, "owner_id", ownerID)
+			}
+		}()
+	}
+
 	return created, nil
 }
 

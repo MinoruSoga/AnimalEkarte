@@ -116,6 +116,10 @@ func (m *batchMockMedRecordRepo) FindOwnersByNextVisitRecommended(_ context.Cont
 	return nil, nil
 }
 
+func (m *batchMockMedRecordRepo) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // batchMockTagSyncSvc は batch テスト専用 LstepTagSyncService モック
 type batchMockTagSyncSvc struct {
 	syncNoShowTagFn  func(ctx context.Context, clinicID, ownerID uint64, t time.Time) error
@@ -255,7 +259,7 @@ func newBatchService(
 	clinicRepo repository.ClinicRepository,
 	medRepo repository.MedicalRecordRepository,
 ) LstepBatchService {
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{}, &mockLstepSettingsService{})
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{}, &mockLstepSettingsService{}, nil)
 }
 
 // newBatchServiceWithAuditSpy は ISSUE-010 監査 metadata 検証用に audit spy を返す。
@@ -266,7 +270,7 @@ func newBatchServiceWithAuditSpy(
 	medRepo repository.MedicalRecordRepository,
 ) (LstepBatchService, *batchMockAuditService) {
 	spy := &batchMockAuditService{}
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy, &mockLstepSettingsService{}), spy
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy, &mockLstepSettingsService{}, nil), spy
 }
 
 func TestDetectNoShowReservations_Success(t *testing.T) {

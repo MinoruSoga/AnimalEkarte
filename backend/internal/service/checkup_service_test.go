@@ -107,7 +107,7 @@ func TestCheckupService_List(t *testing.T) {
 					return tt.repoCheckups, tt.repoErr
 				},
 			}
-			svc := NewCheckupService(repo)
+			svc := NewCheckupService(repo, nil)
 
 			checkups, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
@@ -178,7 +178,7 @@ func TestCheckupService_Create(t *testing.T) {
 					return &model.Checkup{ID: 1, MedicalRecordID: tt.medicalRecordID}, nil
 				},
 			}
-			svc := NewCheckupService(repo)
+			svc := NewCheckupService(repo, nil)
 
 			checkup, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 
@@ -276,7 +276,7 @@ func TestCheckupService_Update(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewCheckupService(repo)
+			svc := NewCheckupService(repo, nil)
 
 			checkup, err := svc.Update(context.Background(), 1, tt.medicalRecordID, tt.checkupID, tt.input)
 
@@ -338,7 +338,7 @@ func TestCheckupService_Delete(t *testing.T) {
 					return tt.repoDeleteErr
 				},
 			}
-			svc := NewCheckupService(repo)
+			svc := NewCheckupService(repo, nil)
 
 			err := svc.Delete(context.Background(), 1, tt.medicalRecordID, tt.checkupID)
 

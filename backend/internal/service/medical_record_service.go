@@ -103,12 +103,14 @@ type CreateSubRecordsInput struct {
 }
 
 type medicalRecordService struct {
-	repo             repository.MedicalRecordRepository
-	ownerRepo        repository.OwnerRepository
-	petRepo          repository.PetRepository
-	inquiryRepo      repository.InquiryRepository
-	clinicalPlanRepo repository.ClinicalPlanRepository
-	lineCustomerRepo repository.LineCustomerRepository
+	repo                 repository.MedicalRecordRepository
+	ownerRepo            repository.OwnerRepository
+	petRepo              repository.PetRepository
+	inquiryRepo          repository.InquiryRepository
+	clinicalPlanRepo     repository.ClinicalPlanRepository
+	lineCustomerRepo     repository.LineCustomerRepository
+	reservationRepo      repository.ReservationRepository
+	lstepDeliveryTrigger LstepDeliveryTriggerService
 }
 
 func NewMedicalRecordService(
@@ -118,14 +120,18 @@ func NewMedicalRecordService(
 	inquiryRepo repository.InquiryRepository,
 	clinicalPlanRepo repository.ClinicalPlanRepository,
 	lineCustomerRepo repository.LineCustomerRepository,
+	reservationRepo repository.ReservationRepository,
+	lstepDeliveryTrigger LstepDeliveryTriggerService,
 ) MedicalRecordService {
 	return &medicalRecordService{
-		repo:             repo,
-		ownerRepo:        ownerRepo,
-		petRepo:          petRepo,
-		inquiryRepo:      inquiryRepo,
-		clinicalPlanRepo: clinicalPlanRepo,
-		lineCustomerRepo: lineCustomerRepo,
+		repo:                 repo,
+		ownerRepo:            ownerRepo,
+		petRepo:              petRepo,
+		inquiryRepo:          inquiryRepo,
+		clinicalPlanRepo:     clinicalPlanRepo,
+		lineCustomerRepo:     lineCustomerRepo,
+		reservationRepo:      reservationRepo,
+		lstepDeliveryTrigger: lstepDeliveryTrigger,
 	}
 }
 
@@ -161,6 +167,21 @@ func (s *medicalRecordService) Create(ctx context.Context, record *model.Medical
 	if record.RecordNo == "" {
 		record.RecordNo = generateRecordNo(record.Date, record.ClinicID)
 	}
+
+	// 初診判定: Reservation.VisitType 優先、AppointmentID なし or VisitType 空時は COUNT フォールバック（FEAT-383）
+	var isFirstVisit bool
+	if s.lstepDeliveryTrigger != nil && record.OwnerID != nil {
+		visitType := s.resolveVisitTypeFromAppointment(ctx, record)
+		switch {
+		case visitType == string(model.VisitTypeFirst):
+			isFirstVisit = true
+		case visitType != "":
+			isFirstVisit = false
+		default:
+			isFirstVisit = s.fallbackFirstVisitCheck(ctx, record.ClinicID, *record.OwnerID)
+		}
+	}
+
 	if err := s.repo.Create(ctx, record); err != nil {
 		slog.ErrorContext(ctx, "failed to create medical record", "error", err, "clinic_id", record.ClinicID)
 		return apperrors.Wrap(err, "failed to create medical record")
@@ -168,6 +189,14 @@ func (s *medicalRecordService) Create(ctx context.Context, record *model.Medical
 	slog.InfoContext(ctx, "medical record created",
 		slog.Uint64("record_id", record.ID),
 		slog.Uint64("clinic_id", record.ClinicID))
+
+	// 初診ウェルカムトリガー（イベント駆動・非致命的）
+	if isFirstVisit && record.OwnerID != nil {
+		if err := s.lstepDeliveryTrigger.TriggerFirstVisitWelcome(ctx, record.ClinicID, *record.OwnerID); err != nil {
+			slog.WarnContext(ctx, "first visit welcome trigger failed (non-fatal)", "owner_id", *record.OwnerID, "error", err)
+		}
+	}
+
 	return nil
 }
 
@@ -367,4 +396,36 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 
 	// サブテーブル（inquiry, clinical_plan）を空レコードで作成（best-effort）
 	s.CreateSubRecords(ctx, clinicID, record.ID, CreateSubRecordsInput{})
+}
+
+// resolveVisitTypeFromAppointment は AppointmentID 経由で Reservation.VisitType を取得する。
+// AppointmentID なし、reservationRepo 未配線、Reservation 取得失敗の場合は空文字を返す。
+func (s *medicalRecordService) resolveVisitTypeFromAppointment(ctx context.Context, record *model.MedicalRecord) string {
+	if record.AppointmentID == nil || *record.AppointmentID == 0 {
+		return ""
+	}
+	if s.reservationRepo == nil {
+		return ""
+	}
+	res, err := s.reservationRepo.FindByID(ctx, record.ClinicID, *record.AppointmentID)
+	if err != nil {
+		slog.WarnContext(ctx, "reservation lookup failed for first-visit detection (non-fatal)",
+			"appointment_id", *record.AppointmentID, "error", err)
+		return ""
+	}
+	if res == nil {
+		return ""
+	}
+	return string(res.VisitType)
+}
+
+// fallbackFirstVisitCheck は CountByOwnerID で初診判定する（飛び込みカルテ等のフォールバック）。
+func (s *medicalRecordService) fallbackFirstVisitCheck(ctx context.Context, clinicID, ownerID uint64) bool {
+	count, err := s.repo.CountByOwnerID(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.WarnContext(ctx, "first visit fallback check failed (non-fatal)",
+			"owner_id", ownerID, "error", err)
+		return false
+	}
+	return count == 0
 }

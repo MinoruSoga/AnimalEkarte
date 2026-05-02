@@ -46,6 +46,8 @@ type MedicalRecordRepository interface {
 	FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error)
 	// FindOwnersByNextVisitRecommended は次回来院推奨日が targetDate の飼い主IDリストを返す（FEAT-383）。
 	FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
+	// CountByOwnerID は飼い主に紐付く有効カルテ数を返す（初診判定用: FEAT-383 Phase 2）。
+	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
 
 type medicalRecordRepository struct {
@@ -144,6 +146,20 @@ func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, pe
 		Model(&model.MedicalRecord{}).
 		Scopes(clinicScope(clinicID)).
 		Where("pet_id = ? AND deleted_at IS NULL", petID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "medical_record", "")
+	}
+	return count, nil
+}
+
+// CountByOwnerID は飼い主に紐付く有効カルテ数を返す（初診判定用: FEAT-383 Phase 2）。
+func (r *medicalRecordRepository) CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.MedicalRecord{}).
+		Scopes(clinicScope(clinicID)).
+		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", "")

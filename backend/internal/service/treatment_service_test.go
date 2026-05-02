@@ -63,6 +63,10 @@ func (m *mockMedicalRecordRepoForTreatment) FindOwnersByNextVisitRecommended(_ c
 	return nil, nil
 }
 
+func (m *mockMedicalRecordRepoForTreatment) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- Treatment モック ----
 
 type mockTreatmentRepository struct {

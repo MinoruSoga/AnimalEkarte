@@ -74,6 +74,15 @@ func (m *mockDeliveryTriggerLogRepository) FindByClinicAndDate(ctx context.Conte
 	}
 	return nil, nil
 }
+func (m *mockDeliveryTriggerLogRepository) CountByStatusAndDateRange(_ context.Context, _ uint64, _, _ time.Time, _ string) (map[string]int64, error) {
+	return map[string]int64{}, nil
+}
+func (m *mockDeliveryTriggerLogRepository) CountExcludedReasonByDateRange(_ context.Context, _ uint64, _, _ time.Time, _ string) (map[string]int64, error) {
+	return map[string]int64{}, nil
+}
+func (m *mockDeliveryTriggerLogRepository) FindByDateRangeWithFilters(_ context.Context, _ uint64, _, _ time.Time, _, _ string, _, _ int) ([]repository.DeliveryTriggerLogRow, int64, error) {
+	return nil, 0, nil
+}
 
 // ---- OwnerRepository モック（delivery trigger 用）----
 
@@ -181,6 +190,10 @@ func (m *mockMedRecordRepoForDelivery) FindOwnersByNextVisitRecommended(ctx cont
 		return m.findOwnersByNextVisitRecFn(ctx, clinicID, targetDate)
 	}
 	return nil, nil
+}
+
+func (m *mockMedRecordRepoForDelivery) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
 }
 
 // ---- TagCacheRepository モック（delivery trigger 用）----
@@ -807,10 +820,118 @@ func TestLstepDeliveryTriggerService_RepoErrorDoesNotStopOtherOwners(t *testing.
 	assert.Len(t, errs, 1)
 }
 
-func TestLstepDeliveryTriggerService_StubMethods(t *testing.T) {
-	svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, disabledSettings())
-	assert.NoError(t, svc.TriggerFirstVisitWelcome(context.Background(), 1, 10))
-	assert.NoError(t, svc.TriggerCheckupFollowUp(context.Background(), 1, 10))
+func TestLstepDeliveryTriggerService_TriggerFirstVisitWelcome(t *testing.T) {
+	ownerID := uint64(10)
+
+	t.Run("sync disabled returns nil (noop)", func(t *testing.T) {
+		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, disabledSettings())
+		assert.NoError(t, svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID))
+	})
+
+	t.Run("happy path fires tag for owner with line_user_id", func(t *testing.T) {
+		ownerRepo := &mockOwnerRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				return defaultOwnerWithLine(id), nil
+			},
+		}
+		var firedTag string
+		client := &mockLstepClientForDelivery{
+			addTagFn: func(_ context.Context, _, tagName string) error {
+				firedTag = tagName
+				return nil
+			},
+		}
+		svc := buildDeliverySvc(ownerRepo, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		injectTestClient(svc, client)
+		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID)
+		assert.NoError(t, err)
+		assert.Equal(t, model.TriggerTypeFirstVisitWelcome, firedTag)
+	})
+
+	t.Run("buildClient error is returned", func(t *testing.T) {
+		settingsSvc := &mockLstepSettingsService{
+			isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) {
+				return false, errors.New("settings error")
+			},
+		}
+		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, settingsSvc)
+		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID)
+		assert.Error(t, err)
+	})
+
+	t.Run("AddTag error is returned from processSingleOwner", func(t *testing.T) {
+		ownerRepo := &mockOwnerRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				return defaultOwnerWithLine(id), nil
+			},
+		}
+		client := &mockLstepClientForDelivery{
+			addTagFn: func(_ context.Context, _, _ string) error {
+				return errors.New("lstep api error")
+			},
+		}
+		svc := buildDeliverySvc(ownerRepo, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		injectTestClient(svc, client)
+		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID)
+		assert.Error(t, err)
+	})
+}
+
+func TestLstepDeliveryTriggerService_TriggerCheckupFollowUp(t *testing.T) {
+	ownerID := uint64(20)
+
+	t.Run("sync disabled returns nil (noop)", func(t *testing.T) {
+		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, disabledSettings())
+		assert.NoError(t, svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID))
+	})
+
+	t.Run("happy path fires tag for owner with line_user_id", func(t *testing.T) {
+		ownerRepo := &mockOwnerRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				return defaultOwnerWithLine(id), nil
+			},
+		}
+		var firedTag string
+		client := &mockLstepClientForDelivery{
+			addTagFn: func(_ context.Context, _, tagName string) error {
+				firedTag = tagName
+				return nil
+			},
+		}
+		svc := buildDeliverySvc(ownerRepo, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		injectTestClient(svc, client)
+		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID)
+		assert.NoError(t, err)
+		assert.Equal(t, model.TriggerTypeCheckupFollowUp, firedTag)
+	})
+
+	t.Run("buildClient error is returned", func(t *testing.T) {
+		settingsSvc := &mockLstepSettingsService{
+			isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) {
+				return false, errors.New("settings error")
+			},
+		}
+		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, settingsSvc)
+		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID)
+		assert.Error(t, err)
+	})
+
+	t.Run("AddTag error is returned from processSingleOwner", func(t *testing.T) {
+		ownerRepo := &mockOwnerRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				return defaultOwnerWithLine(id), nil
+			},
+		}
+		client := &mockLstepClientForDelivery{
+			addTagFn: func(_ context.Context, _, _ string) error {
+				return errors.New("lstep api error")
+			},
+		}
+		svc := buildDeliverySvc(ownerRepo, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		injectTestClient(svc, client)
+		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID)
+		assert.Error(t, err)
+	})
 }
 
 func TestLstepDeliveryTriggerService_EmptyOwnerListIsNoop(t *testing.T) {
