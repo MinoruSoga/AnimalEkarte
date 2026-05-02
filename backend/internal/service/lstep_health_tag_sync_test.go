@@ -1,0 +1,584 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/lib/pq"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
+)
+
+// ---- mockLstepTagCodeMappingRepository ----
+
+type mockLstepTagCodeMappingRepository struct {
+	findAllByClinicIDFn        func(ctx context.Context, clinicID uint64) ([]*model.LstepTagCodeMapping, error)
+	findByClinicIDAndTagNameFn func(ctx context.Context, clinicID uint64, tagName string) ([]*model.LstepTagCodeMapping, error)
+	createFn                   func(ctx context.Context, mapping *model.LstepTagCodeMapping) error
+	updateFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LstepTagCodeMapping, error)
+	softDeleteFn               func(ctx context.Context, clinicID, id uint64) error
+}
+
+func (m *mockLstepTagCodeMappingRepository) FindAllByClinicID(ctx context.Context, clinicID uint64) ([]*model.LstepTagCodeMapping, error) {
+	if m.findAllByClinicIDFn != nil {
+		return m.findAllByClinicIDFn(ctx, clinicID)
+	}
+	return nil, nil
+}
+func (m *mockLstepTagCodeMappingRepository) FindByClinicIDAndTagName(ctx context.Context, clinicID uint64, tagName string) ([]*model.LstepTagCodeMapping, error) {
+	if m.findByClinicIDAndTagNameFn != nil {
+		return m.findByClinicIDAndTagNameFn(ctx, clinicID, tagName)
+	}
+	return nil, nil
+}
+func (m *mockLstepTagCodeMappingRepository) Create(ctx context.Context, mapping *model.LstepTagCodeMapping) error {
+	if m.createFn != nil {
+		return m.createFn(ctx, mapping)
+	}
+	return nil
+}
+func (m *mockLstepTagCodeMappingRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LstepTagCodeMapping, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, fields)
+	}
+	return nil, nil
+}
+func (m *mockLstepTagCodeMappingRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
+	if m.softDeleteFn != nil {
+		return m.softDeleteFn(ctx, clinicID, id)
+	}
+	return nil
+}
+
+// ---- テストヘルパー ----
+
+func defaultOwnerWithLineID() *model.Owner {
+	lineUserID := "line-u-test-001"
+	return &model.Owner{ID: 1, ClinicID: 10, LstepOptOut: false, LineUserID: &lineUserID}
+}
+
+func ownerRepoReturning(owner *model.Owner) *mockOwnerRepository {
+	return &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return owner, nil
+		},
+	}
+}
+
+// buildHealthSvc は健診・予防・物販タグテスト用にサービスを構築する。
+// settingsSvc: IsSyncEnabled=true, GetRawCredentials="" → buildClient→nil (APIコールなし)
+func buildHealthSvc(
+	tagCodeRepo repository.LstepTagCodeMappingRepository,
+	ownerRepo repository.OwnerRepository,
+	checkupRepo repository.CheckupRepository,
+	medRecordRepo repository.MedicalRecordRepository,
+	petRepo repository.PetRepository,
+	billingItemRepo repository.BillingItemRepository,
+) LstepTagSyncService {
+	settingsSvc := &mockLstepSettingsService{}
+	var tagCache repository.LstepTagCacheRepository = &mockLstepTagCacheRepository{}
+	return NewLstepTagSyncService(
+		settingsSvc,
+		ownerRepo,
+		nil, // vacRepo
+		medRecordRepo,
+		nil, // accountRepo
+		tagCache,
+		petRepo,
+		nil, // prescriptionRepo
+		checkupRepo,
+		nil, // reservationRepo
+		nil, // errorCounterRepo — client=nil なので notifyAPIFailure は到達しない
+		tagCodeRepo,
+		billingItemRepo,
+	)
+}
+
+func mappingWith(tagName, codeType string, codes []string) *mockLstepTagCodeMappingRepository {
+	return &mockLstepTagCodeMappingRepository{
+		findByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, tn string) ([]*model.LstepTagCodeMapping, error) {
+			if tn == tagName {
+				return []*model.LstepTagCodeMapping{{
+					TagName:  tagName,
+					CodeType: codeType,
+					Codes:    pq.StringArray(codes),
+				}}, nil
+			}
+			return nil, nil
+		},
+	}
+}
+
+func checkupRepoWithResult(checkups []model.Checkup, err error) *mockCheckupRepository {
+	return &mockCheckupRepository{
+		findByOwnerIDFn: func(_ context.Context, _, _ uint64) ([]model.Checkup, error) {
+			return checkups, err
+		},
+	}
+}
+
+func visitSummaryRepo(annualCount int64) *mockMedicalRecordRepository {
+	return &mockMedicalRecordRepository{
+		findOwnerVisitSummaryFn: func(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
+			return &repository.OwnerVisitSummary{AnnualCount: annualCount}, nil
+		},
+	}
+}
+
+func petRepoWithPets(pets []model.Pet, err error) *mockPetRepository {
+	return &mockPetRepository{
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return pets, err
+		},
+	}
+}
+
+func billingItemRepoReturning(hasItem bool, hasFood bool) *mockBillingItemRepository {
+	return &mockBillingItemRepository{
+		hasItemByOwnerSinceFn: func(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) {
+			return hasItem, nil
+		},
+		hasFoodPurchaseByOwnerSinceFn: func(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) {
+			return hasFood, nil
+		},
+	}
+}
+
+func recentCheckup(codeName string) model.Checkup {
+	return model.Checkup{
+		Date:        time.Now().AddDate(0, 0, -30), // 30日前 = lookback内
+		CheckupType: &model.CheckupType{Name: codeName},
+	}
+}
+
+func oldCheckup(codeName string) model.Checkup {
+	return model.Checkup{
+		Date:        time.Now().AddDate(0, 0, -(HealthPreventionLookbackDays + 10)), // lookback外
+		CheckupType: &model.CheckupType{Name: codeName},
+	}
+}
+
+func dogPet() model.Pet {
+	return model.Pet{ID: 1, AnimalSpecies: &model.AnimalSpecies{Name: "犬（チワワ）"}}
+}
+
+func catPet() model.Pet {
+	return model.Pet{ID: 2, AnimalSpecies: &model.AnimalSpecies{Name: "猫（アメショ）"}}
+}
+
+// ---- TestExtractTagCodes ----
+
+func TestExtractTagCodes(t *testing.T) {
+	t.Run("空mappings→空", func(t *testing.T) {
+		got := extractTagCodes(nil, model.CodeTypeCheckupType)
+		assert.Empty(t, got)
+	})
+	t.Run("一致code_type→コード返却", func(t *testing.T) {
+		m := []*model.LstepTagCodeMapping{{CodeType: model.CodeTypeCheckupType, Codes: pq.StringArray{"A", "B"}}}
+		got := extractTagCodes(m, model.CodeTypeCheckupType)
+		assert.Equal(t, []string{"A", "B"}, got)
+	})
+	t.Run("不一致code_type→空", func(t *testing.T) {
+		m := []*model.LstepTagCodeMapping{{CodeType: model.CodeTypePrescription, Codes: pq.StringArray{"RX1"}}}
+		got := extractTagCodes(m, model.CodeTypeCheckupType)
+		assert.Empty(t, got)
+	})
+	t.Run("複数エントリ同一type→連結", func(t *testing.T) {
+		m := []*model.LstepTagCodeMapping{
+			{CodeType: model.CodeTypeCheckupType, Codes: pq.StringArray{"A"}},
+			{CodeType: model.CodeTypeCheckupType, Codes: pq.StringArray{"B", "C"}},
+		}
+		got := extractTagCodes(m, model.CodeTypeCheckupType)
+		assert.Equal(t, []string{"A", "B", "C"}, got)
+	})
+	t.Run("混在type→一致のみ", func(t *testing.T) {
+		m := []*model.LstepTagCodeMapping{
+			{CodeType: model.CodeTypeCheckupType, Codes: pq.StringArray{"HC1"}},
+			{CodeType: model.CodeTypePrescription, Codes: pq.StringArray{"RX1"}},
+		}
+		got := extractTagCodes(m, model.CodeTypeCheckupType)
+		assert.Equal(t, []string{"HC1"}, got)
+	})
+}
+
+// ---- TestStrSet ----
+
+func TestStrSet(t *testing.T) {
+	t.Run("空→空マップ", func(t *testing.T) {
+		assert.Empty(t, strSet(nil))
+	})
+	t.Run("重複→dedup", func(t *testing.T) {
+		m := strSet([]string{"a", "b", "a"})
+		assert.Len(t, m, 2)
+		_, hasA := m["a"]
+		_, hasB := m["b"]
+		assert.True(t, hasA)
+		assert.True(t, hasB)
+	})
+}
+
+// ---- TestSyncHealthcheckTags ----
+
+func TestSyncHealthcheckTags(t *testing.T) {
+	ctx := context.Background()
+	const clinicID, ownerID uint64 = 10, 1
+
+	t.Run("nil tagCodeRepo→noop", func(t *testing.T) {
+		svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
+		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+	})
+
+	t.Run("コードなし→noop", func(t *testing.T) {
+		tagRepo := &mockLstepTagCodeMappingRepository{} // FindByClinicIDAndTagName → nil, nil
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
+		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+	})
+
+	t.Run("オプトアウト→noop", func(t *testing.T) {
+		owner := &model.Owner{ID: 1, LstepOptOut: true}
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(owner), checkupRepoWithResult(nil, nil), nil, nil, nil)
+		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+	})
+
+	t.Run("LineUserIDなし→noop", func(t *testing.T) {
+		owner := &model.Owner{ID: 1, LstepOptOut: false, LineUserID: nil}
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(owner), checkupRepoWithResult(nil, nil), nil, nil, nil)
+		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+	})
+
+	t.Run("lookback内で一致→hasHealthcheck=true→nil(client=nil)", func(t *testing.T) {
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
+		checkups := []model.Checkup{recentCheckup("健診A")}
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(checkups, nil), nil, nil, nil)
+		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+	})
+
+	t.Run("lookback外の健診→hasHealthcheck=false→nil", func(t *testing.T) {
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
+		checkups := []model.Checkup{oldCheckup("健診A")}
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(checkups, nil), nil, nil, nil)
+		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+	})
+
+	t.Run("コードが一致しない→hasHealthcheck=false→nil", func(t *testing.T) {
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診B"})
+		checkups := []model.Checkup{recentCheckup("健診A")} // 別コード
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(checkups, nil), nil, nil, nil)
+		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+	})
+
+	t.Run("checkupRepo エラー→エラー返却", func(t *testing.T) {
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(nil, errors.New("db error")), nil, nil, nil)
+		assert.Error(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+	})
+
+	t.Run("tagCodeRepo エラー→エラー返却", func(t *testing.T) {
+		tagRepo := &mockLstepTagCodeMappingRepository{
+			findByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, _ string) ([]*model.LstepTagCodeMapping, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
+		assert.Error(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+	})
+
+	t.Run("ownerRepo エラー→エラー返却", func(t *testing.T) {
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
+		ownerRepo := &mockOwnerRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := buildHealthSvc(tagRepo, ownerRepo, nil, nil, nil, nil)
+		assert.Error(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+	})
+}
+
+// ---- TestSyncAnnual4CheckupTag ----
+
+func TestSyncAnnual4CheckupTag(t *testing.T) {
+	ctx := context.Background()
+	const clinicID, ownerID uint64 = 10, 1
+
+	t.Run("nil tagCodeRepo→noop", func(t *testing.T) {
+		svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
+		assert.NoError(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("コードなし→noop", func(t *testing.T) {
+		svc := buildHealthSvc(&mockLstepTagCodeMappingRepository{},
+			ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
+		assert.NoError(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("healthcheck=true AnnualCount>=2→qualified→nil", func(t *testing.T) {
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
+		checkups := []model.Checkup{recentCheckup("健診A")}
+		medRepo := visitSummaryRepo(2)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(checkups, nil), medRepo, nil, nil)
+		assert.NoError(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("healthcheck=true AnnualCount<2→not qualified→nil", func(t *testing.T) {
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
+		checkups := []model.Checkup{recentCheckup("健診A")}
+		medRepo := visitSummaryRepo(1)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(checkups, nil), medRepo, nil, nil)
+		assert.NoError(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("healthcheck=false AnnualCount>=2→not qualified→nil", func(t *testing.T) {
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
+		checkups := []model.Checkup{recentCheckup("健診B")} // コード不一致
+		medRepo := visitSummaryRepo(5)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(checkups, nil), medRepo, nil, nil)
+		assert.NoError(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("medRecordRepo エラー→エラー返却", func(t *testing.T) {
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
+		checkups := []model.Checkup{recentCheckup("健診A")}
+		medRepo := &mockMedicalRecordRepository{
+			findOwnerVisitSummaryFn: func(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(checkups, nil), medRepo, nil, nil)
+		assert.Error(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("checkupRepo エラー→エラー返却", func(t *testing.T) {
+		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(nil, errors.New("db error")), visitSummaryRepo(3), nil, nil)
+		assert.Error(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+	})
+}
+
+// ---- TestSyncFilariaTag ----
+
+func TestSyncFilariaTag(t *testing.T) {
+	ctx := context.Background()
+	const clinicID, ownerID uint64 = 10, 1
+
+	t.Run("nil tagCodeRepo→noop", func(t *testing.T) {
+		svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
+		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("testCodes/rxCodes両方空→noop", func(t *testing.T) {
+		// FindByClinicIDAndTagName → 空スライス (CodeType が checkup_type でも prescription でもない)
+		tagRepo := &mockLstepTagCodeMappingRepository{
+			findByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, _ string) ([]*model.LstepTagCodeMapping, error) {
+				return []*model.LstepTagCodeMapping{
+					{CodeType: model.CodeTypeMerchandiseItem, Codes: pq.StringArray{"food1"}},
+				}, nil
+			},
+		}
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
+		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("犬なし→noop(nil返却)", func(t *testing.T) {
+		tagRepo := mappingWith(PrevFilariaTag, model.CodeTypeCheckupType, []string{"フィラリア検査"})
+		petRepo := petRepoWithPets([]model.Pet{catPet()}, nil)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(nil, nil), nil, petRepo, nil)
+		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("犬あり+testDone=true→complete→nil", func(t *testing.T) {
+		tagRepo := mappingWith(PrevFilariaTag, model.CodeTypeCheckupType, []string{"フィラリア検査"})
+		checkups := []model.Checkup{recentCheckup("フィラリア検査")}
+		petRepo := petRepoWithPets([]model.Pet{dogPet()}, nil)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(checkups, nil), nil, petRepo, nil)
+		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("犬あり+rxDone=true→complete→nil", func(t *testing.T) {
+		tagRepo := mappingWith(PrevFilariaTag, model.CodeTypePrescription, []string{"フィラリア薬"})
+		petRepo := petRepoWithPets([]model.Pet{dogPet()}, nil)
+		billingRepo := billingItemRepoReturning(true, false)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(nil, nil), nil, petRepo, billingRepo)
+		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("犬あり+両方未完了→incomplete→nil(client=nil)", func(t *testing.T) {
+		tagRepo := &mockLstepTagCodeMappingRepository{
+			findByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, _ string) ([]*model.LstepTagCodeMapping, error) {
+				return []*model.LstepTagCodeMapping{
+					{CodeType: model.CodeTypeCheckupType, Codes: pq.StringArray{"フィラリア検査"}},
+					{CodeType: model.CodeTypePrescription, Codes: pq.StringArray{"フィラリア薬"}},
+				}, nil
+			},
+		}
+		checkups := []model.Checkup{recentCheckup("別検査")} // コード不一致
+		petRepo := petRepoWithPets([]model.Pet{dogPet()}, nil)
+		billingRepo := billingItemRepoReturning(false, false)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(checkups, nil), nil, petRepo, billingRepo)
+		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("petRepo エラー→エラー返却", func(t *testing.T) {
+		tagRepo := mappingWith(PrevFilariaTag, model.CodeTypeCheckupType, []string{"フィラリア検査"})
+		petRepo := petRepoWithPets(nil, errors.New("db error"))
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			nil, nil, petRepo, nil)
+		assert.Error(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("checkupRepo エラー→エラー返却", func(t *testing.T) {
+		tagRepo := mappingWith(PrevFilariaTag, model.CodeTypeCheckupType, []string{"フィラリア検査"})
+		petRepo := petRepoWithPets([]model.Pet{dogPet()}, nil)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(nil, errors.New("db error")), nil, petRepo, nil)
+		assert.Error(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("billingItemRepo エラー→エラー返却", func(t *testing.T) {
+		tagRepo := mappingWith(PrevFilariaTag, model.CodeTypePrescription, []string{"フィラリア薬"})
+		petRepo := petRepoWithPets([]model.Pet{dogPet()}, nil)
+		billingRepo := &mockBillingItemRepository{
+			hasItemByOwnerSinceFn: func(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) {
+				return false, errors.New("db error")
+			},
+		}
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			checkupRepoWithResult(nil, nil), nil, petRepo, billingRepo)
+		assert.Error(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+	})
+}
+
+// ---- TestSyncFleaTickTag ----
+
+func TestSyncFleaTickTag(t *testing.T) {
+	ctx := context.Background()
+	const clinicID, ownerID uint64 = 10, 1
+
+	t.Run("nil tagCodeRepo→noop", func(t *testing.T) {
+		svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, billingItemRepoReturning(false, false))
+		assert.NoError(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("nil billingItemRepo→noop", func(t *testing.T) {
+		tagRepo := mappingWith(PrevFleaTickTag, model.CodeTypePrescription, []string{"ノミダニ薬"})
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
+		assert.NoError(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("rxCodesなし→noop", func(t *testing.T) {
+		tagRepo := &mockLstepTagCodeMappingRepository{} // FindByClinicIDAndTagName → nil
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			nil, nil, nil, billingItemRepoReturning(false, false))
+		assert.NoError(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("処方なし→add tag→nil(client=nil)", func(t *testing.T) {
+		tagRepo := mappingWith(PrevFleaTickTag, model.CodeTypePrescription, []string{"ノミダニ薬"})
+		billingRepo := billingItemRepoReturning(false, false)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			nil, nil, nil, billingRepo)
+		assert.NoError(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("処方あり→remove tag→nil(client=nil)", func(t *testing.T) {
+		tagRepo := mappingWith(PrevFleaTickTag, model.CodeTypePrescription, []string{"ノミダニ薬"})
+		billingRepo := billingItemRepoReturning(true, false)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			nil, nil, nil, billingRepo)
+		assert.NoError(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("billingItemRepo エラー→エラー返却", func(t *testing.T) {
+		tagRepo := mappingWith(PrevFleaTickTag, model.CodeTypePrescription, []string{"ノミダニ薬"})
+		billingRepo := &mockBillingItemRepository{
+			hasItemByOwnerSinceFn: func(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) {
+				return false, errors.New("db error")
+			},
+		}
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			nil, nil, nil, billingRepo)
+		assert.Error(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+	})
+}
+
+// ---- TestSyncFoodPurchaseTag ----
+
+func TestSyncFoodPurchaseTag(t *testing.T) {
+	ctx := context.Background()
+	const clinicID, ownerID uint64 = 10, 1
+
+	t.Run("nil tagCodeRepo→noop", func(t *testing.T) {
+		svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, billingItemRepoReturning(false, false))
+		assert.NoError(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("nil billingItemRepo→noop", func(t *testing.T) {
+		tagRepo := mappingWith(LtvFoodPurchaseTag, model.CodeTypeMerchandiseItem, []string{"フード1"})
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
+		assert.NoError(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("itemCodesなし→noop対象外(HasFoodPurchase呼ぶ)→nil", func(t *testing.T) {
+		// itemCodesが空でもHasFoodPurchaseByOwnerSinceを呼ぶ(category='food'フォールバック)
+		tagRepo := &mockLstepTagCodeMappingRepository{} // codes=空
+		billingRepo := billingItemRepoReturning(false, false)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			nil, nil, nil, billingRepo)
+		assert.NoError(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("フード購入あり→add tag→nil(client=nil)", func(t *testing.T) {
+		tagRepo := mappingWith(LtvFoodPurchaseTag, model.CodeTypeMerchandiseItem, []string{"フード1"})
+		billingRepo := billingItemRepoReturning(false, true)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			nil, nil, nil, billingRepo)
+		assert.NoError(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("フード購入なし→remove tag→nil(client=nil)", func(t *testing.T) {
+		tagRepo := mappingWith(LtvFoodPurchaseTag, model.CodeTypeMerchandiseItem, []string{"フード1"})
+		billingRepo := billingItemRepoReturning(false, false)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			nil, nil, nil, billingRepo)
+		assert.NoError(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("billingItemRepo エラー→エラー返却", func(t *testing.T) {
+		tagRepo := mappingWith(LtvFoodPurchaseTag, model.CodeTypeMerchandiseItem, []string{"フード1"})
+		billingRepo := &mockBillingItemRepository{
+			hasFoodPurchaseByOwnerSinceFn: func(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) {
+				return false, errors.New("db error")
+			},
+		}
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			nil, nil, nil, billingRepo)
+		assert.Error(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+	})
+}
+
+// ---- TestSyncSpecialCheckupCandidateTag ----
+
+func TestSyncSpecialCheckupCandidateTag(t *testing.T) {
+	ctx := context.Background()
+	svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
+	assert.NoError(t, svc.SyncSpecialCheckupCandidateTag(ctx, 10, 1), "SPEC-002 Q6未確定のため常にnoop")
+}

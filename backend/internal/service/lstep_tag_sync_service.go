@@ -227,6 +227,9 @@ type lstepTagSyncService struct {
 	checkupRepo      repository.CheckupRepository
 	reservationRepo  repository.ReservationCRUDRepository
 	errorCounterRepo repository.LstepSyncErrorCounterRepository
+	// FEAT-379
+	tagCodeRepo     repository.LstepTagCodeMappingRepository
+	billingItemRepo repository.BillingItemRepository
 }
 
 // NewLstepTagSyncService は LstepTagSyncService を初期化して返す。
@@ -242,6 +245,8 @@ func NewLstepTagSyncService(
 	checkupRepo repository.CheckupRepository,
 	reservationRepo repository.ReservationCRUDRepository,
 	errorCounterRepo repository.LstepSyncErrorCounterRepository,
+	tagCodeRepo repository.LstepTagCodeMappingRepository,
+	billingItemRepo repository.BillingItemRepository,
 ) LstepTagSyncService {
 	return &lstepTagSyncService{
 		settingsSvc:      settingsSvc,
@@ -255,6 +260,8 @@ func NewLstepTagSyncService(
 		checkupRepo:      checkupRepo,
 		reservationRepo:  reservationRepo,
 		errorCounterRepo: errorCounterRepo,
+		tagCodeRepo:      tagCodeRepo,
+		billingItemRepo:  billingItemRepo,
 	}
 }
 

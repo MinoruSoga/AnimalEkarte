@@ -3,11 +3,32 @@ package service
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// extractTagCodes は mappings から code_type が一致するコード一覧を返す（FEAT-379）。
+func extractTagCodes(mappings []*model.LstepTagCodeMapping, codeType string) []string {
+	var codes []string
+	for _, m := range mappings {
+		if m.CodeType == codeType {
+			codes = append(codes, []string(m.Codes)...)
+		}
+	}
+	return codes
+}
+
+// strSet はスライスを O(1) 検索用マップに変換する。
+func strSet(ss []string) map[string]struct{} {
+	m := make(map[string]struct{}, len(ss))
+	for _, s := range ss {
+		m[s] = struct{}{}
+	}
+	return m
+}
 
 // hasVaccineDeadlineSoon は vaccinations の中に NextDate が now から days 日以内のものがあれば true を返す。
 // pure function — モックなしでテスト可能。
@@ -27,32 +48,197 @@ func hasVaccineDeadlineSoon(vaccinations []model.Vaccination, now time.Time, day
 }
 
 // SyncHealthcheckTags は健診履歴に基づき HLTH_健診あり / HLTH_健診未受診 を同期する（FEAT-379）。
-// SPEC-002 Q5 確定待ち: HealthCheckupCodes が空なら noop。
 func (s *lstepTagSyncService) SyncHealthcheckTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if s.tagCodeRepo == nil {
+		return nil
+	}
 	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
 		return err
 	} else if skip {
 		return nil
 	}
-	if len(HealthCheckupCodes) == 0 {
+
+	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find tag code mappings for healthcheck", "error", err)
+		return apperrors.Wrap(err, "failed to find tag code mappings")
+	}
+	checkupCodes := extractTagCodes(mappings, model.CodeTypeCheckupType)
+	if len(checkupCodes) == 0 {
 		return nil
 	}
-	// TODO: SPEC-002 Q5 確定後に実装
+
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for healthcheck tags", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	since := time.Now().AddDate(0, 0, -HealthPreventionLookbackDays)
+	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find checkups for healthcheck tags", "error", err)
+		return apperrors.Wrap(err, "failed to find checkups")
+	}
+
+	codeSet := strSet(checkupCodes)
+	hasHealthcheck := false
+	for i := range checkups {
+		if checkups[i].Date.Before(since) {
+			continue
+		}
+		if checkups[i].CheckupType == nil {
+			continue
+		}
+		if _, ok := codeSet[checkups[i].CheckupType.Name]; ok {
+			hasHealthcheck = true
+			break
+		}
+	}
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if client == nil {
+		return nil
+	}
+
+	apiFailed := false
+	if hasHealthcheck {
+		if addErr := client.AddTag(ctx, lineUserID, HlthHealthcheckDoneTag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add healthcheck done tag", "error", addErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, "failed to add healthcheck done tag")
+		}
+		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthHealthcheckDoneTag, "auto")
+		if delErr := client.RemoveTag(ctx, lineUserID, HlthHealthcheckNeverTag); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove healthcheck never tag", "error", delErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthHealthcheckNeverTag)
+		}
+	} else {
+		if addErr := client.AddTag(ctx, lineUserID, HlthHealthcheckNeverTag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add healthcheck never tag", "error", addErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, "failed to add healthcheck never tag")
+		}
+		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthHealthcheckNeverTag, "auto")
+		if delErr := client.RemoveTag(ctx, lineUserID, HlthHealthcheckDoneTag); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove healthcheck done tag", "error", delErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthHealthcheckDoneTag)
+		}
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
 	return nil
 }
 
 // SyncAnnual4CheckupTag は年2回以上来院かつ健診履歴がある飼い主に HLTH_年4回候補 を付与する（FEAT-379）。
-// SPEC-002 Q5 確定待ち: HealthCheckupCodes が空なら noop。
 func (s *lstepTagSyncService) SyncAnnual4CheckupTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if s.tagCodeRepo == nil {
+		return nil
+	}
 	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
 		return err
 	} else if skip {
 		return nil
 	}
-	if len(HealthCheckupCodes) == 0 {
+
+	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find tag code mappings for annual4checkup", "error", err)
+		return apperrors.Wrap(err, "failed to find tag code mappings")
+	}
+	checkupCodes := extractTagCodes(mappings, model.CodeTypeCheckupType)
+	if len(checkupCodes) == 0 {
 		return nil
 	}
-	// TODO: SPEC-002 Q5 確定後に実装
+
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for annual4checkup tag", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	since := time.Now().AddDate(0, 0, -HealthPreventionLookbackDays)
+	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find checkups for annual4checkup tag", "error", err)
+		return apperrors.Wrap(err, "failed to find checkups")
+	}
+
+	codeSet := strSet(checkupCodes)
+	hasHealthcheck := false
+	for i := range checkups {
+		if checkups[i].Date.Before(since) {
+			continue
+		}
+		if checkups[i].CheckupType == nil {
+			continue
+		}
+		if _, ok := codeSet[checkups[i].CheckupType.Name]; ok {
+			hasHealthcheck = true
+			break
+		}
+	}
+
+	visitSummary, err := s.medRecordRepo.FindOwnerVisitSummary(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find visit summary for annual4checkup tag", "error", err)
+		return apperrors.Wrap(err, "failed to find visit summary")
+	}
+
+	qualified := hasHealthcheck && visitSummary.AnnualCount >= 2
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if client == nil {
+		return nil
+	}
+
+	apiFailed := false
+	if qualified {
+		if addErr := client.AddTag(ctx, lineUserID, HlthAnnual4CheckupTag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add annual4checkup tag", "error", addErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, "failed to add annual4checkup tag")
+		}
+		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthAnnual4CheckupTag, "auto")
+	} else {
+		if delErr := client.RemoveTag(ctx, lineUserID, HlthAnnual4CheckupTag); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove annual4checkup tag", "error", delErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthAnnual4CheckupTag)
+		}
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
 	return nil
 }
 
@@ -120,47 +306,267 @@ func (s *lstepTagSyncService) SyncVaccineDeadlineTag(ctx context.Context, clinic
 }
 
 // SyncFilariaTag はフィラリア検査・予防薬処方に基づき PREV_フィラリア未完了 を同期する（FEAT-379）。
-// SPEC-002 Q5 確定待ち: FilariaTestCodes / FilariaPrescriptionCodes が共に空なら noop。
+// 犬を飼育する飼い主のみ対象。検査・処方どちらかが完了していればタグを解除する。
 func (s *lstepTagSyncService) SyncFilariaTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if s.tagCodeRepo == nil {
+		return nil
+	}
 	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
 		return err
 	} else if skip {
 		return nil
 	}
-	if len(FilariaTestCodes) == 0 && len(FilariaPrescriptionCodes) == 0 {
+
+	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, PrevFilariaTag)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find tag code mappings for filaria tag", "error", err)
+		return apperrors.Wrap(err, "failed to find tag code mappings")
+	}
+	testCodes := extractTagCodes(mappings, model.CodeTypeCheckupType)
+	rxCodes := extractTagCodes(mappings, model.CodeTypePrescription)
+	if len(testCodes) == 0 && len(rxCodes) == 0 {
 		return nil
 	}
-	// TODO: SPEC-002 Q5 確定後に実装
+
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for filaria tag", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	// 犬を保有する飼い主のみ対象
+	pets, err := s.petRepo.FindLivingByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find pets for filaria tag", "error", err)
+		return apperrors.Wrap(err, "failed to find pets")
+	}
+	hasDog := false
+	for i := range pets {
+		if pets[i].AnimalSpecies != nil && strings.Contains(pets[i].AnimalSpecies.Name, "犬") {
+			hasDog = true
+			break
+		}
+	}
+	if !hasDog {
+		return nil
+	}
+
+	since := time.Now().AddDate(0, 0, -HealthPreventionLookbackDays)
+
+	testDone := false
+	if len(testCodes) > 0 {
+		checkups, chkErr := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
+		if chkErr != nil {
+			slog.ErrorContext(ctx, "failed to find checkups for filaria tag", "error", chkErr)
+			return apperrors.Wrap(chkErr, "failed to find checkups")
+		}
+		codeSet := strSet(testCodes)
+		for i := range checkups {
+			if checkups[i].Date.Before(since) {
+				continue
+			}
+			if checkups[i].CheckupType == nil {
+				continue
+			}
+			if _, ok := codeSet[checkups[i].CheckupType.Name]; ok {
+				testDone = true
+				break
+			}
+		}
+	}
+
+	rxDone := false
+	if len(rxCodes) > 0 && s.billingItemRepo != nil {
+		var rxErr error
+		rxDone, rxErr = s.billingItemRepo.HasItemByOwnerSince(ctx, clinicID, ownerID, since, rxCodes)
+		if rxErr != nil {
+			slog.ErrorContext(ctx, "failed to check prescription for filaria tag", "error", rxErr)
+			return apperrors.Wrap(rxErr, "failed to check prescription")
+		}
+	}
+
+	// 検査・処方どちらか完了していれば「完了」→ タグ解除
+	incomplete := !testDone && !rxDone
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if client == nil {
+		return nil
+	}
+
+	apiFailed := false
+	if incomplete {
+		if addErr := client.AddTag(ctx, lineUserID, PrevFilariaTag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add filaria tag", "error", addErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, "failed to add filaria tag")
+		}
+		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevFilariaTag, "auto")
+	} else {
+		if delErr := client.RemoveTag(ctx, lineUserID, PrevFilariaTag); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove filaria tag", "error", delErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, PrevFilariaTag)
+		}
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
 	return nil
 }
 
 // SyncFleaTickTag はノミ・マダニ駆除薬処方に基づき PREV_ノミダニ対象 を同期する（FEAT-379）。
-// SPEC-002 Q5 確定待ち: FleaTickPrescriptionCodes が空なら noop。
+// 処方実績がなければタグを付与し、あれば解除する。
 func (s *lstepTagSyncService) SyncFleaTickTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if s.tagCodeRepo == nil || s.billingItemRepo == nil {
+		return nil
+	}
 	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
 		return err
 	} else if skip {
 		return nil
 	}
-	if len(FleaTickPrescriptionCodes) == 0 {
+
+	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, PrevFleaTickTag)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find tag code mappings for flea tick tag", "error", err)
+		return apperrors.Wrap(err, "failed to find tag code mappings")
+	}
+	rxCodes := extractTagCodes(mappings, model.CodeTypePrescription)
+	if len(rxCodes) == 0 {
 		return nil
 	}
-	// TODO: SPEC-002 Q5 確定後に実装
+
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for flea tick tag", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	since := time.Now().AddDate(0, 0, -HealthPreventionLookbackDays)
+	hasRx, err := s.billingItemRepo.HasItemByOwnerSince(ctx, clinicID, ownerID, since, rxCodes)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check billing items for flea tick tag", "error", err)
+		return apperrors.Wrap(err, "failed to check billing items")
+	}
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if client == nil {
+		return nil
+	}
+
+	apiFailed := false
+	if !hasRx {
+		if addErr := client.AddTag(ctx, lineUserID, PrevFleaTickTag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add flea tick tag", "error", addErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, "failed to add flea tick tag")
+		}
+		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevFleaTickTag, "auto")
+	} else {
+		if delErr := client.RemoveTag(ctx, lineUserID, PrevFleaTickTag); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove flea tick tag", "error", delErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, PrevFleaTickTag)
+		}
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
 	return nil
 }
 
 // SyncFoodPurchaseTag はフード購入履歴に基づき LTV_フード購入あり を同期する（FEAT-379）。
-// SPEC-002 Q5 確定待ち: FoodPurchaseCodes が空なら noop。
+// codes が空の場合は category='food' でフォールバック検索する。
 func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if s.tagCodeRepo == nil || s.billingItemRepo == nil {
+		return nil
+	}
 	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
 		return err
 	} else if skip {
 		return nil
 	}
-	if len(FoodPurchaseCodes) == 0 {
+
+	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, LtvFoodPurchaseTag)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find tag code mappings for food purchase tag", "error", err)
+		return apperrors.Wrap(err, "failed to find tag code mappings")
+	}
+	// itemCodes が空でも HasFoodPurchaseByOwnerSince は category='food' にフォールバック
+	itemCodes := extractTagCodes(mappings, model.CodeTypeMerchandiseItem)
+
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for food purchase tag", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
 		return nil
 	}
-	// TODO: SPEC-002 Q5 確定後に実装
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	since := time.Now().AddDate(0, 0, -HealthPreventionLookbackDays)
+	hasPurchase, err := s.billingItemRepo.HasFoodPurchaseByOwnerSince(ctx, clinicID, ownerID, since, itemCodes)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check food purchase for tag", "error", err)
+		return apperrors.Wrap(err, "failed to check food purchase")
+	}
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if client == nil {
+		return nil
+	}
+
+	apiFailed := false
+	if hasPurchase {
+		if addErr := client.AddTag(ctx, lineUserID, LtvFoodPurchaseTag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add food purchase tag", "error", addErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, "failed to add food purchase tag")
+		}
+		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag, "auto")
+	} else {
+		if delErr := client.RemoveTag(ctx, lineUserID, LtvFoodPurchaseTag); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove food purchase tag", "error", delErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag)
+		}
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
 	return nil
 }
 

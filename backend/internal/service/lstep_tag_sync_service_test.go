@@ -32,6 +32,8 @@ func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
 		nil,
 		nil,
 		nil, // errorCounterRepo — nil because sync is disabled, counter is never reached
+		nil, // tagCodeRepo
+		nil, // billingItemRepo
 	)
 	ctx := context.Background()
 	now := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
@@ -888,7 +890,7 @@ func TestSyncHealthcheckTagsNoopWhenCodesEmpty(t *testing.T) {
 
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncHealthcheckTags(context.Background(), 1, 2))
 }
@@ -900,7 +902,7 @@ func TestSyncAnnual4CheckupTagNoopWhenCodesEmpty(t *testing.T) {
 
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncAnnual4CheckupTag(context.Background(), 1, 2))
 }
@@ -917,7 +919,7 @@ func TestSyncFilariaTagNoopWhenCodesEmpty(t *testing.T) {
 
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncFilariaTag(context.Background(), 1, 2))
 }
@@ -929,7 +931,7 @@ func TestSyncFleaTickTagNoopWhenCodesEmpty(t *testing.T) {
 
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncFleaTickTag(context.Background(), 1, 2))
 }
@@ -941,7 +943,7 @@ func TestSyncFoodPurchaseTagNoopWhenCodesEmpty(t *testing.T) {
 
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncFoodPurchaseTag(context.Background(), 1, 2))
 }
@@ -949,7 +951,7 @@ func TestSyncFoodPurchaseTagNoopWhenCodesEmpty(t *testing.T) {
 func TestSyncSpecialCheckupCandidateTagAlwaysNoop(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncSpecialCheckupCandidateTag(context.Background(), 1, 2))
 }
@@ -957,7 +959,7 @@ func TestSyncSpecialCheckupCandidateTagAlwaysNoop(t *testing.T) {
 func TestSyncHealthPreventionTagsForClinicDisabledSync(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	count, errs := svc.SyncHealthPreventionTagsForClinic(context.Background(), 1)
 	assert.Equal(t, 0, count)
