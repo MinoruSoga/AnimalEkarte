@@ -272,6 +272,7 @@ export function LineIntegrationCard({
             size="sm"
             variant="outline"
             className="h-8 px-3 text-xs shrink-0"
+            data-testid="delivery-caution-save-btn"
             disabled={isUpdatingDeliveryCaution || !owner?.deliveryCaution}
             onClick={() =>
               updateDeliveryCaution({

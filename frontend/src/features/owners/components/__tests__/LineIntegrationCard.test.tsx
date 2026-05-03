@@ -135,6 +135,7 @@ beforeEach(() => {
 
 afterEach(() => {
   localStorage.removeItem("auth_current_clinic:v1");
+  server.resetHandlers();
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -368,7 +369,7 @@ describe("LineIntegrationCard — F: 配信注意バナー + スイッチ", () =
     const reasonInput = screen.getByPlaceholderText("注意理由（任意・100文字以内）");
     await user.clear(reasonInput);
     await user.type(reasonInput, "アレルギー注意");
-    await user.click(screen.getByRole("button", { name: "理由を保存" }));
+    await user.click(screen.getByTestId("delivery-caution-save-btn"));
     await waitFor(() => {
       expect(capturedBody).toEqual(
         expect.objectContaining({ caution: true, reason: "アレルギー注意" })
