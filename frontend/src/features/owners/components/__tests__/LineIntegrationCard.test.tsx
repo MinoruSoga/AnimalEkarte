@@ -44,6 +44,7 @@ const baseOwner: Owner = {
   discountRate: 0,
   membershipType: "一般",
   deliveryExcluded: false,
+  deliveryCaution: false,
   isTransferred: false,
   lstepOptOut: false,
   createdAt: "2026-01-01T00:00:00Z",
@@ -71,6 +72,7 @@ const minimalOwnerApiResponse = {
   line_user_id: LINE_USER_ID,
   line_id_confirmed_at: "2026-05-01T00:00:00Z",
   delivery_excluded: false,
+  delivery_caution: false,
   is_transferred: false,
   lstep_opt_out: false,
   created_at: "2026-01-01T00:00:00Z",
@@ -290,6 +292,86 @@ describe("LineIntegrationCard — E: 転院確認ダイアログ", () => {
     await waitFor(() => {
       expect(capturedBody).toEqual(
         expect.objectContaining({ is_transferred: true })
+      );
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// F: 配信注意バナー + スイッチ（FEAT-382-2 Commit 1）
+// ─────────────────────────────────────────────────────────────
+
+describe("LineIntegrationCard — F: 配信注意バナー + スイッチ", () => {
+  it("caution=false → 配信注意バナー非表示、配信注意スイッチ OFF", async () => {
+    await renderAndWait({ ...baseOwner, deliveryCaution: false });
+    expect(screen.queryByTestId("delivery-caution-banner")).not.toBeInTheDocument();
+    const row = screen.getByText("配信注意").parentElement;
+    expect(row).not.toBeNull();
+    const switchEl = within(row!).getByRole("switch");
+    expect(switchEl).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("caution=true → 黄バナー表示（配信注意テキスト確認）", async () => {
+    await renderAndWait({ ...baseOwner, deliveryCaution: true });
+    const banner = screen.getByTestId("delivery-caution-banner");
+    expect(banner).toBeInTheDocument();
+    expect(within(banner).getByText("配信注意")).toBeInTheDocument();
+  });
+
+  it("caution=true かつ excluded=true → 赤バナー表示、黄バナー非表示（優先順位）", async () => {
+    await renderAndWait({ ...baseOwner, deliveryCaution: true, deliveryExcluded: true });
+    expect(screen.queryByTestId("delivery-caution-banner")).not.toBeInTheDocument();
+    expect(screen.getByText("配信停止中")).toBeInTheDocument();
+  });
+
+  it("配信注意スイッチ ON → PATCH delivery-caution に caution:true が送られる", async () => {
+    let capturedBody: unknown = null;
+    server.use(
+      http.patch(
+        `/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/delivery-caution`,
+        async ({ request }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json({ ...minimalOwnerApiResponse, delivery_caution: true });
+        }
+      )
+    );
+    await renderAndWait({ ...baseOwner, deliveryCaution: false });
+    const user = userEvent.setup();
+    const row = screen.getByText("配信注意").parentElement;
+    expect(row).not.toBeNull();
+    const switchEl = within(row!).getByRole("switch");
+    await user.click(switchEl);
+    await waitFor(() => {
+      expect(capturedBody).toEqual(
+        expect.objectContaining({ caution: true })
+      );
+    });
+  });
+
+  it("caution=true 状態で理由入力後「理由を保存」クリック → PATCH delivery-caution に reason が送られる", async () => {
+    let capturedBody: unknown = null;
+    server.use(
+      http.patch(
+        `/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/delivery-caution`,
+        async ({ request }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json({
+            ...minimalOwnerApiResponse,
+            delivery_caution: true,
+            delivery_caution_reason: "アレルギー注意",
+          });
+        }
+      )
+    );
+    await renderAndWait({ ...baseOwner, deliveryCaution: true });
+    const user = userEvent.setup();
+    const reasonInput = screen.getByPlaceholderText("注意理由（任意・100文字以内）");
+    await user.clear(reasonInput);
+    await user.type(reasonInput, "アレルギー注意");
+    await user.click(screen.getByRole("button", { name: "理由を保存" }));
+    await waitFor(() => {
+      expect(capturedBody).toEqual(
+        expect.objectContaining({ caution: true, reason: "アレルギー注意" })
       );
     });
   });

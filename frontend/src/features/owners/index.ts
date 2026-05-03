@@ -13,4 +13,5 @@ export { useGetOwnerLineTags } from "./api/get-owner-line-tags";
 export type { OwnerLineStatus } from "./api/get-owner-line-tags";
 export { useConfirmOwnerLineId } from "./api/confirm-owner-line-id";
 export { useUpdateOwnerDeliveryExclusion } from "./api/update-owner-delivery-exclusion";
+export { useUpdateOwnerDeliveryCaution } from "./api/update-owner-delivery-caution";
 export { useUpdateOwnerTransferStatus } from "./api/update-owner-transfer-status";

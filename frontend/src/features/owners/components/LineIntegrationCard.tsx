@@ -1,5 +1,5 @@
 import { useActionState, useRef, useState } from "react";
-import { CheckCircle2, Circle, Ban } from "lucide-react";
+import { CheckCircle2, Circle, Ban, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -11,6 +11,7 @@ import { useGetOwnerLineTags } from "../api/get-owner-line-tags";
 import { useUpdateOwnerLine, useDeleteOwnerLine } from "../api/update-owner-line";
 import { useConfirmOwnerLineId } from "../api/confirm-owner-line-id";
 import { useUpdateOwnerDeliveryExclusion } from "../api/update-owner-delivery-exclusion";
+import { useUpdateOwnerDeliveryCaution } from "../api/update-owner-delivery-caution";
 import { useUpdateOwnerTransferStatus } from "../api/update-owner-transfer-status";
 import { LstepTagList } from "./LstepTagList";
 import { LstepTagAddDialog } from "./LstepTagAddDialog";
@@ -42,6 +43,8 @@ export function LineIntegrationCard({
     useConfirmOwnerLineId(ownerId);
   const { mutate: updateDeliveryExclusion, isPending: isUpdatingDeliveryExclusion } =
     useUpdateOwnerDeliveryExclusion(ownerId);
+  const { mutate: updateDeliveryCaution, isPending: isUpdatingDeliveryCaution } =
+    useUpdateOwnerDeliveryCaution(ownerId);
   const { mutate: updateTransferStatus, isPending: isUpdatingTransferStatus } =
     useUpdateOwnerTransferStatus(ownerId);
 
@@ -53,6 +56,9 @@ export function LineIntegrationCard({
   const deliveryReasonInputRef = useRef<HTMLInputElement>(null);
   const getDeliveryReasonInput = () =>
     deliveryReasonInputRef.current?.value.trim() || undefined;
+  const deliveryCautionReasonInputRef = useRef<HTMLInputElement>(null);
+  const getDeliveryCautionReasonInput = () =>
+    deliveryCautionReasonInputRef.current?.value.trim() || undefined;
 
   const [lineIdState, lineIdFormAction] = useActionState(
     async (
@@ -108,8 +114,8 @@ export function LineIntegrationCard({
     ?? (owner?.isTransferred || owner?.membershipType === "他診/準" ? "転院済み" : undefined)
     ?? (hasExclusionTag ? "EXCL_配信停止" : undefined);
 
-  /** 配信停止バナー（全ブランチ共通） */
-  const deliveryStoppedBanner = isDeliveryStopped ? (
+  /** 配信停止バナー / 配信注意バナー（優先: 停止 > 注意） */
+  const bannerSection = isDeliveryStopped ? (
     <div
       className={`flex items-center gap-2 rounded-md border ${C.borderRedBadge} ${C.bgRedLight} px-4 py-3`}
     >
@@ -118,6 +124,18 @@ export function LineIntegrationCard({
       <span className={`text-xs ${C.text50}`}>この飼い主はLステップ配信対象外です</span>
       {deliveryStopReason ? (
         <span className={`text-xs ${C.text50}`}>— {deliveryStopReason}</span>
+      ) : null}
+    </div>
+  ) : owner?.deliveryCaution ? (
+    <div
+      className={`flex items-center gap-2 rounded-md border ${C.borderNotice} ${C.bgNotice} px-4 py-3`}
+      data-testid="delivery-caution-banner"
+    >
+      <AlertTriangle className={`${ICON.smXs} ${C.textNotice} shrink-0`} />
+      <span className={`text-sm font-medium ${C.textNotice}`}>配信注意</span>
+      <span className={`text-xs ${C.text50}`}>この飼い主は配信注意対象です</span>
+      {owner.deliveryCautionReason ? (
+        <span className={`text-xs ${C.text50}`}>— {owner.deliveryCautionReason}</span>
       ) : null}
     </div>
   ) : null;
@@ -214,6 +232,61 @@ export function LineIntegrationCard({
     </div>
   ) : null;
 
+  /** 配信注意スイッチ + 理由入力 */
+  const deliveryCautionSection = canEdit ? (
+    <div className={`border-t ${C.borderLight} pt-3 flex flex-col gap-2`}>
+      <div className="flex items-center justify-between gap-3">
+        <span className={`text-sm ${C.text60}`}>配信注意</span>
+        <Switch
+          checked={owner?.deliveryCaution ?? false}
+          disabled={isUpdatingDeliveryCaution || !owner}
+          onCheckedChange={(checked) => {
+            if (checked) {
+              updateDeliveryCaution({
+                caution: true,
+                reason: getDeliveryCautionReasonInput(),
+              });
+            } else {
+              updateDeliveryCaution({ caution: false, reason: null });
+              if (deliveryCautionReasonInputRef.current) {
+                deliveryCautionReasonInputRef.current.value = "";
+              }
+            }
+          }}
+        />
+      </div>
+      {owner?.deliveryCaution ? (
+        <div className="flex gap-2">
+          <input
+            key={owner?.deliveryCautionReason ?? "no-delivery-caution-reason"}
+            ref={deliveryCautionReasonInputRef}
+            type="text"
+            maxLength={100}
+            disabled={!owner || isUpdatingDeliveryCaution}
+            className={`${STYLE.formInput} flex-1 rounded-md px-3`}
+            placeholder="注意理由（任意・100文字以内）"
+            defaultValue={owner?.deliveryCautionReason ?? ""}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 px-3 text-xs shrink-0"
+            disabled={isUpdatingDeliveryCaution || !owner?.deliveryCaution}
+            onClick={() =>
+              updateDeliveryCaution({
+                caution: true,
+                reason: getDeliveryCautionReasonInput(),
+              })
+            }
+          >
+            理由を保存
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  ) : null;
+
   /** 転院ステータススイッチ */
   const transferStatusSection = canEdit ? (
     <div className={`border-t ${C.borderLight} pt-3`}>
@@ -247,7 +320,7 @@ export function LineIntegrationCard({
           LINE / Lステップ連携
         </h3>
 
-        {deliveryStoppedBanner}
+        {bannerSection}
 
         {canEdit ? (
           <div className="flex justify-end">
@@ -285,6 +358,7 @@ export function LineIntegrationCard({
         </div>
 
         {deliveryExclusionSection}
+        {deliveryCautionSection}
         {transferStatusSection}
 
         <ConfirmDialog
@@ -312,7 +386,7 @@ export function LineIntegrationCard({
           LINE / Lステップ連携
         </h3>
 
-        {deliveryStoppedBanner}
+        {bannerSection}
 
         {/* 連携ステータス */}
         <div className="flex items-center justify-between gap-3">
@@ -395,6 +469,7 @@ export function LineIntegrationCard({
         ) : null}
 
         {deliveryExclusionSection}
+        {deliveryCautionSection}
         {transferStatusSection}
 
         {/* 連携解除ConfirmDialog */}
@@ -463,7 +538,7 @@ export function LineIntegrationCard({
         LINE / Lステップ連携
       </h3>
 
-      {deliveryStoppedBanner}
+      {bannerSection}
 
       <div className="flex items-center gap-2">
         <Circle className={`${ICON.smXs} ${C.text40} shrink-0`} />
@@ -492,6 +567,7 @@ export function LineIntegrationCard({
       ) : null}
 
       {deliveryExclusionSection}
+      {deliveryCautionSection}
       {transferStatusSection}
 
       <ConfirmDialog

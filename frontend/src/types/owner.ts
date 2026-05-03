@@ -29,6 +29,8 @@ export interface Owner {
   lineIdConfirmedAt?: string;
   deliveryExcluded: boolean;
   deliveryExcludedReason?: string;
+  deliveryCaution: boolean;
+  deliveryCautionReason?: string | null;
   isTransferred: boolean;
   transferAt?: string;
   lstepOptOut: boolean;
