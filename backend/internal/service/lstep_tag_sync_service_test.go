@@ -965,3 +965,74 @@ func TestSyncHealthPreventionTagsForClinicDisabledSync(t *testing.T) {
 	assert.Equal(t, 0, count)
 	assert.Empty(t, errs)
 }
+
+func TestSyncExclusionTagsCaution(t *testing.T) {
+	lineUID := "U_test"
+
+	buildOwnerRepo := func(caution bool) *mockOwnerRepository {
+		return &mockOwnerRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return &model.Owner{
+					ID:              10,
+					ClinicID:        1,
+					LineUserID:      &lineUID,
+					DeliveryCaution: caution,
+				}, nil
+			},
+		}
+	}
+	buildPetRepo := func() *mockPetRepository {
+		return &mockPetRepository{
+			countByOwnerFn:       func(_ context.Context, _, _ uint64) (int64, error) { return 1, nil },
+			countLivingByOwnerFn: func(_ context.Context, _, _ uint64) (int64, error) { return 1, nil },
+		}
+	}
+
+	t.Run("delivery_caution=true adds EXCL_配信注意 tag", func(t *testing.T) {
+		var addedTags []string
+		client := &mockLstepAPIClient{
+			addTagFn: func(_ context.Context, _, tagName string) error {
+				addedTags = append(addedTags, tagName)
+				return nil
+			},
+			removeTagFn: func(_ context.Context, _, _ string) error { return nil },
+		}
+		svc := &lstepTagSyncService{
+			settingsSvc:      &mockLstepSettingsService{},
+			ownerRepo:        buildOwnerRepo(true),
+			petRepo:          buildPetRepo(),
+			tagCacheRepo:     &mockLstepTagCacheRepository{},
+			errorCounterRepo: nil, // nil → notifyAPISuccess は noop
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) {
+				return client, nil
+			},
+		}
+		err := svc.SyncExclusionTags(context.Background(), 1, 10)
+		assert.NoError(t, err)
+		assert.Contains(t, addedTags, "EXCL_配信注意")
+	})
+
+	t.Run("delivery_caution=false removes EXCL_配信注意 tag", func(t *testing.T) {
+		var removedTags []string
+		client := &mockLstepAPIClient{
+			addTagFn: func(_ context.Context, _, _ string) error { return nil },
+			removeTagFn: func(_ context.Context, _, tagName string) error {
+				removedTags = append(removedTags, tagName)
+				return nil
+			},
+		}
+		svc := &lstepTagSyncService{
+			settingsSvc:      &mockLstepSettingsService{},
+			ownerRepo:        buildOwnerRepo(false),
+			petRepo:          buildPetRepo(),
+			tagCacheRepo:     &mockLstepTagCacheRepository{},
+			errorCounterRepo: nil, // nil → notifyAPISuccess は noop
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) {
+				return client, nil
+			},
+		}
+		err := svc.SyncExclusionTags(context.Background(), 1, 10)
+		assert.NoError(t, err)
+		assert.Contains(t, removedTags, "EXCL_配信注意")
+	})
+}

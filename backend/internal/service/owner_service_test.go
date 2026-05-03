@@ -867,3 +867,102 @@ func TestOwnerService_ConfirmLineID(t *testing.T) {
 		})
 	}
 }
+
+func TestOwnerService_UpdateDeliveryCaution(t *testing.T) {
+	longReason := strings.Repeat("あ", 101)
+	tests := []struct {
+		name         string
+		clinicID     uint64
+		id           uint64
+		input        UpdateDeliveryCautionInput
+		findErr      error
+		updateErr    error
+		wantErr      bool
+		wantNotFound bool
+		wantInvalid  bool
+	}{
+		{
+			name:     "sets delivery_caution=true with reason",
+			clinicID: 1,
+			id:       10,
+			input:    UpdateDeliveryCautionInput{Caution: true, Reason: "  注意が必要  "},
+			wantErr:  false,
+		},
+		{
+			name:     "sets delivery_caution=false without reason",
+			clinicID: 1,
+			id:       10,
+			input:    UpdateDeliveryCautionInput{Caution: false, Reason: ""},
+			wantErr:  false,
+		},
+		{
+			name:         "returns not found when owner does not exist",
+			clinicID:     1,
+			id:           999,
+			input:        UpdateDeliveryCautionInput{Caution: true},
+			findErr:      apperrors.WrapNotFound("owner", "999"),
+			wantErr:      true,
+			wantNotFound: true,
+		},
+		{
+			name:      "returns error on repository update failure",
+			clinicID:  1,
+			id:        10,
+			input:     UpdateDeliveryCautionInput{Caution: true},
+			updateErr: errors.New("db error"),
+			wantErr:   true,
+		},
+		{
+			name:        "returns invalid input when reason is too long",
+			clinicID:    1,
+			id:          10,
+			input:       UpdateDeliveryCautionInput{Caution: true, Reason: longReason},
+			wantErr:     true,
+			wantInvalid: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedFields map[string]any
+			repo := &mockOwnerRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+					if tt.findErr != nil {
+						return nil, tt.findErr
+					}
+					return &model.Owner{ID: tt.id, ClinicID: tt.clinicID}, nil
+				},
+				updateFn: func(_ context.Context, _, _ uint64, fields map[string]any) error {
+					capturedFields = fields
+					return tt.updateErr
+				},
+			}
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{})
+
+			owner, err := svc.UpdateDeliveryCaution(context.Background(), tt.clinicID, tt.id, tt.input)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantNotFound {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantInvalid {
+					assert.True(t, apperrors.IsInvalidInput(err))
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, owner)
+				assert.Equal(t, tt.input.Caution, capturedFields[colDeliveryCaution])
+				if tt.input.Caution && strings.TrimSpace(tt.input.Reason) != "" {
+					gotReason, ok := capturedFields[colDeliveryCautionReason].(*string)
+					assert.True(t, ok)
+					if assert.NotNil(t, gotReason) {
+						assert.Equal(t, strings.TrimSpace(tt.input.Reason), *gotReason)
+					}
+				} else {
+					assert.Nil(t, capturedFields[colDeliveryCautionReason])
+				}
+			}
+		})
+	}
+}

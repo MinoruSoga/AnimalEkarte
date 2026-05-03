@@ -44,6 +44,8 @@ type Owner struct {
 	LineIDConfirmedAt      *time.Time     `gorm:"column:line_id_confirmed_at"                    json:"line_id_confirmed_at,omitempty"`
 	DeliveryExcluded       bool           `gorm:"column:delivery_excluded;default:false"         json:"delivery_excluded"`
 	DeliveryExcludedReason *string        `gorm:"column:delivery_excluded_reason"                json:"delivery_excluded_reason,omitempty"`
+	DeliveryCaution        bool           `gorm:"column:delivery_caution;default:false"          json:"delivery_caution"`
+	DeliveryCautionReason  *string        `gorm:"column:delivery_caution_reason"                 json:"delivery_caution_reason,omitempty"`
 	IsTransferred          bool           `gorm:"column:is_transferred;default:false"            json:"is_transferred"`
 	TransferAt             *time.Time     `gorm:"column:transfer_at"                             json:"transfer_at,omitempty"`
 	CreatedAt              time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`

@@ -30,6 +30,7 @@ type mockOwnerService struct {
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
 	linkLineUserIDFn          func(ctx context.Context, clinicID, id uint64, lineUserID *string) error
 	updateDeliveryExclusionFn func(ctx context.Context, clinicID, id uint64, input service.UpdateDeliveryExclusionInput) (*model.Owner, error)
+	updateDeliveryCautionFn   func(ctx context.Context, clinicID, id uint64, input service.UpdateDeliveryCautionInput) (*model.Owner, error)
 	updateTransferStatusFn    func(ctx context.Context, clinicID, id uint64, input service.UpdateTransferStatusInput) (*model.Owner, error)
 	confirmLineIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 }
@@ -71,6 +72,13 @@ func (m *mockOwnerService) UpdateDeliveryExclusion(ctx context.Context, clinicID
 func (m *mockOwnerService) UpdateTransferStatus(ctx context.Context, clinicID, id uint64, input service.UpdateTransferStatusInput) (*model.Owner, error) {
 	if m.updateTransferStatusFn != nil {
 		return m.updateTransferStatusFn(ctx, clinicID, id, input)
+	}
+	return &model.Owner{ID: id, ClinicID: clinicID}, nil
+}
+
+func (m *mockOwnerService) UpdateDeliveryCaution(ctx context.Context, clinicID, id uint64, input service.UpdateDeliveryCautionInput) (*model.Owner, error) {
+	if m.updateDeliveryCautionFn != nil {
+		return m.updateDeliveryCautionFn(ctx, clinicID, id, input)
 	}
 	return &model.Owner{ID: id, ClinicID: clinicID}, nil
 }
@@ -600,6 +608,87 @@ func TestPatchOwnerDeliveryExclusion(t *testing.T) {
 			router := newPatchDeliveryExclusionRouter(tt.svc)
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodPatch, "/owners/"+tt.paramID+"/delivery-exclusion", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+func newPatchDeliveryCautionRouter(svc service.OwnerService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithOwnerSvc(svc)
+	r.PATCH("/owners/:id/delivery-caution", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.PatchOwnerDeliveryCaution)
+	return r
+}
+
+func TestPatchOwnerDeliveryCaution(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       string
+		svc        *mockOwnerService
+		wantStatus int
+	}{
+		{
+			name:    "sets delivery_caution=true",
+			paramID: "1",
+			body:    `{"caution":true,"reason":"注意が必要"}`,
+			svc: &mockOwnerService{
+				updateDeliveryCautionFn: func(_ context.Context, clinicID, id uint64, input service.UpdateDeliveryCautionInput) (*model.Owner, error) {
+					reason := input.Reason
+					return &model.Owner{ID: id, ClinicID: clinicID, DeliveryCaution: input.Caution, DeliveryCautionReason: &reason}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:    "sets delivery_caution=false without reason",
+			paramID: "1",
+			body:    `{"caution":false}`,
+			svc: &mockOwnerService{
+				updateDeliveryCautionFn: func(_ context.Context, clinicID, id uint64, input service.UpdateDeliveryCautionInput) (*model.Owner, error) {
+					return &model.Owner{ID: id, ClinicID: clinicID, DeliveryCaution: input.Caution}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "1",
+			body:       `{invalid}`,
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       `{"caution":true}`,
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when owner not found",
+			paramID: "999",
+			body:    `{"caution":true}`,
+			svc: &mockOwnerService{
+				updateDeliveryCautionFn: func(_ context.Context, _, _ uint64, _ service.UpdateDeliveryCautionInput) (*model.Owner, error) {
+					return nil, apperrors.WrapNotFound("owner", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newPatchDeliveryCautionRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPatch, "/owners/"+tt.paramID+"/delivery-caution", strings.NewReader(tt.body))
 			req.Header.Set("Content-Type", "application/json")
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)

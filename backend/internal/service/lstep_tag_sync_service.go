@@ -230,6 +230,8 @@ type lstepTagSyncService struct {
 	// FEAT-379
 	tagCodeRepo     repository.LstepTagCodeMappingRepository
 	billingItemRepo repository.BillingItemRepository
+	// buildClientFn はテスト時にモック Client を注入するためのフック（FEAT-381-2）。
+	buildClientFn func(ctx context.Context, clinicID uint64) (lstep.Client, error)
 }
 
 // NewLstepTagSyncService は LstepTagSyncService を初期化して返す。
@@ -268,6 +270,9 @@ func NewLstepTagSyncService(
 // buildClient はクリニック設定から lstep.Client を構築する。
 // 同期無効（is_sync_enabled=false）または API キー未設定の場合は nil, nil を返す（スキップ）。
 func (s *lstepTagSyncService) buildClient(ctx context.Context, clinicID uint64) (lstep.Client, error) {
+	if s.buildClientFn != nil {
+		return s.buildClientFn(ctx, clinicID)
+	}
 	enabled, err := s.settingsSvc.IsSyncEnabled(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to check lstep sync enabled")
@@ -2497,6 +2502,26 @@ func (s *lstepTagSyncService) SyncExclusionTags(ctx context.Context, clinicID, o
 			apiFailed = true
 		} else {
 			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, exclTag)
+		}
+	}
+
+	// FEAT-381-2: EXCL_配信注意 タグは delivery_caution フラグのみで独立して制御する。
+	const cautionTag = "EXCL_配信注意"
+	if owner.DeliveryCaution {
+		if addErr := client.AddTag(ctx, lineUserID, cautionTag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add EXCL caution tag", "error", addErr)
+			apiFailed = true
+		} else {
+			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, cautionTag, "auto", ""); cacheErr != nil {
+				slog.ErrorContext(ctx, "failed to upsert EXCL caution tag cache", "error", cacheErr)
+			}
+		}
+	} else {
+		if delErr := client.RemoveTag(ctx, lineUserID, cautionTag); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove EXCL caution tag", "error", delErr)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, cautionTag)
 		}
 	}
 

@@ -240,6 +240,34 @@ func (h *Handler) PatchOwnerDeliveryExclusion(c *gin.Context) {
 	c.JSON(http.StatusOK, toOwnerResponse(owner))
 }
 
+// PatchOwnerDeliveryCaution godoc
+// PATCH /owners/:id/delivery-caution — 配信注意フラグを更新する（FEAT-381-2）。
+func (h *Handler) PatchOwnerDeliveryCaution(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchOwnerDeliveryCautionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	input := service.UpdateDeliveryCautionInput{
+		Caution: req.Caution,
+		Reason:  req.Reason,
+	}
+	owner, err := h.svc.Owner.UpdateDeliveryCaution(c.Request.Context(), clinicID, id, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toOwnerResponse(owner))
+}
+
 // PatchOwnerTransferStatus godoc
 // PATCH /owners/:id/transfer-status — 転院フラグを更新する（FEAT-381）。
 func (h *Handler) PatchOwnerTransferStatus(c *gin.Context) {

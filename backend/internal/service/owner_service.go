@@ -38,6 +38,8 @@ const (
 	colLineIDConfirmedAt      = "line_id_confirmed_at"
 	colDeliveryExcluded       = "delivery_excluded"
 	colDeliveryExcludedReason = "delivery_excluded_reason"
+	colDeliveryCaution        = "delivery_caution"
+	colDeliveryCautionReason  = "delivery_caution_reason"
 	colIsTransferred          = "is_transferred"
 	colTransferAt             = "transfer_at"
 )
@@ -115,6 +117,12 @@ type UpdateDeliveryExclusionInput struct {
 	Reason   *string
 }
 
+// UpdateDeliveryCautionInput は配信注意フラグ更新の入力DTO（FEAT-381-2 Commit 1）
+type UpdateDeliveryCautionInput struct {
+	Caution bool
+	Reason  string
+}
+
 // UpdateTransferStatusInput は転院フラグ更新の入力DTO（FEAT-381）
 type UpdateTransferStatusInput struct {
 	IsTransferred bool
@@ -189,6 +197,8 @@ type OwnerService interface {
 	LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error
 	// UpdateDeliveryExclusion は配信除外フラグと理由を更新し、Lステップタグを同期する（FEAT-381）。
 	UpdateDeliveryExclusion(ctx context.Context, clinicID, id uint64, input UpdateDeliveryExclusionInput) (*model.Owner, error)
+	// UpdateDeliveryCaution は配信注意フラグと理由を更新し、Lステップタグを同期する（FEAT-381-2）。
+	UpdateDeliveryCaution(ctx context.Context, clinicID, id uint64, input UpdateDeliveryCautionInput) (*model.Owner, error)
 	// UpdateTransferStatus は転院フラグと転院日時を更新し、Lステップタグを同期する（FEAT-381）。
 	UpdateTransferStatus(ctx context.Context, clinicID, id uint64, input UpdateTransferStatusInput) (*model.Owner, error)
 	// ConfirmLineID は LINE ID 紐付け確認日時を現在時刻に設定する（FEAT-381）。
@@ -538,6 +548,48 @@ func (s *ownerService) UpdateDeliveryExclusion(ctx context.Context, clinicID, id
 	owner, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to reload owner after delivery exclusion update", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to reload owner")
+	}
+	return owner, nil
+}
+
+func (s *ownerService) UpdateDeliveryCaution(ctx context.Context, clinicID, id uint64, input UpdateDeliveryCautionInput) (*model.Owner, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find owner")
+	}
+
+	var reason *string
+	if input.Caution {
+		trimmed := strings.TrimSpace(input.Reason)
+		if len([]rune(trimmed)) > 100 {
+			return nil, apperrors.WrapInvalidInput("delivery_caution_reason must be 100 characters or less")
+		}
+		if trimmed != "" {
+			reason = &trimmed
+		}
+	}
+
+	fields := map[string]any{
+		colDeliveryCaution:       input.Caution,
+		colDeliveryCautionReason: reason,
+	}
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update delivery caution", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to update delivery caution")
+	}
+	slog.InfoContext(ctx, "delivery caution updated",
+		slog.Uint64("owner_id", id),
+		slog.Uint64("clinic_id", clinicID),
+		slog.Bool("caution", input.Caution))
+	if s.tagSyncSvc != nil {
+		if err := s.tagSyncSvc.SyncExclusionTags(ctx, clinicID, id); err != nil {
+			slog.WarnContext(ctx, "failed to sync exclusion tag after delivery caution update", "error", err, "id", id, "clinic_id", clinicID)
+		}
+	}
+
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to reload owner after delivery caution update", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to reload owner")
 	}
 	return owner, nil

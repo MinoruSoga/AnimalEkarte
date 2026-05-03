@@ -72,6 +72,8 @@ type ownerResponse struct {
 	LineIDConfirmedAt      *time.Time           `json:"line_id_confirmed_at,omitempty"`
 	DeliveryExcluded       bool                 `json:"delivery_excluded"`
 	DeliveryExcludedReason *string              `json:"delivery_excluded_reason,omitempty"`
+	DeliveryCaution        bool                 `json:"delivery_caution"`
+	DeliveryCautionReason  *string              `json:"delivery_caution_reason,omitempty"`
 	IsTransferred          bool                 `json:"is_transferred"`
 	TransferAt             *time.Time           `json:"transfer_at,omitempty"`
 	Pets                   []petInOwnerResponse `json:"pets"`
@@ -152,6 +154,8 @@ func toOwnerResponse(o *model.Owner) ownerResponse {
 		LineIDConfirmedAt:      o.LineIDConfirmedAt,
 		DeliveryExcluded:       o.DeliveryExcluded,
 		DeliveryExcludedReason: o.DeliveryExcludedReason,
+		DeliveryCaution:        o.DeliveryCaution,
+		DeliveryCautionReason:  o.DeliveryCautionReason,
 		IsTransferred:          o.IsTransferred,
 		TransferAt:             o.TransferAt,
 		Pets:                   pets,

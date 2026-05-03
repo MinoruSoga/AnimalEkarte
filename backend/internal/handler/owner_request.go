@@ -74,6 +74,12 @@ type patchOwnerDeliveryExclusionRequest struct {
 	Reason   *string `json:"reason"   binding:"omitempty,max=100"`
 }
 
+// patchOwnerDeliveryCautionRequest は配信注意フラグ更新リクエスト（FEAT-381-2）。
+type patchOwnerDeliveryCautionRequest struct {
+	Caution bool   `json:"caution"`
+	Reason  string `json:"reason" binding:"omitempty,max=100"`
+}
+
 // patchOwnerTransferStatusRequest は転院フラグ更新リクエスト（FEAT-381）。
 type patchOwnerTransferStatusRequest struct {
 	IsTransferred bool `json:"is_transferred"`
