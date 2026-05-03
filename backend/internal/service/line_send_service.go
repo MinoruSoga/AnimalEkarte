@@ -146,7 +146,7 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *Send
 	result := &SendLineMessageResult{SentAt: sentAt}
 	tagName := lineSendPurposeTag(input.Purpose, sentAt)
 	if tagName != "" {
-		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, input.OwnerID, tagName, "auto"); upsertErr != nil {
+		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, input.OwnerID, tagName, "auto", ""); upsertErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert line send tag", "error", upsertErr, "tag", tagName)
 		} else {
 			result.TagAdded = tagName

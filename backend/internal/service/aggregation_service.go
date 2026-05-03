@@ -249,7 +249,7 @@ func (s *aggregationService) SyncAggregationTags(ctx context.Context, clinicID u
 		}
 
 		if !input.DryRun {
-			if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, row.OwnerID, input.TagName, "manual"); upsertErr != nil {
+			if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, row.OwnerID, input.TagName, "manual", ""); upsertErr != nil {
 				slog.ErrorContext(ctx, "failed to upsert aggregation tag", "owner_id", row.OwnerID, "error", upsertErr)
 				result.Skipped++
 				continue

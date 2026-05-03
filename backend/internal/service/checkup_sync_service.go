@@ -429,7 +429,7 @@ func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uin
 			continue
 		}
 
-		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, input.TagName, "manual"); upsertErr != nil {
+		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, input.TagName, "manual", ""); upsertErr != nil {
 			slog.ErrorContext(ctx, "checkup sync: failed to upsert tag cache", "error", upsertErr, "owner_id", ownerID)
 		}
 		result.SuccessCount++

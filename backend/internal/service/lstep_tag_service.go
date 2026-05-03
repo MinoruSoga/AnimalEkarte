@@ -188,7 +188,7 @@ func (s *lstepTagService) AddOwnerTag(ctx context.Context, clinicID, ownerID uin
 		return apperrors.Wrap(err, "failed to add tag")
 	}
 
-	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tagName, "manual"); cacheErr != nil {
+	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tagName, "manual", ""); cacheErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert tag cache after add", "error", cacheErr, "tag", tagName)
 	}
 
@@ -269,7 +269,7 @@ func (s *lstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, 
 			continue
 		}
 
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tagName, "manual"); cacheErr != nil {
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tagName, "manual", ""); cacheErr != nil {
 			slog.ErrorContext(ctx, "bulk tag: failed to upsert tag cache", "error", cacheErr, "owner_id", ownerID, "tag", tagName)
 		}
 		result.SyncedCount++

@@ -64,16 +64,16 @@ func (m *mockLstepSettingsService) IsSyncEnabled(ctx context.Context, clinicID u
 // ---- LstepTagCacheRepository モック ----
 
 type mockLstepTagCacheRepository struct {
-	upsertTagFn        func(ctx context.Context, clinicID, ownerID uint64, tagName, category string) error
+	upsertTagFn        func(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error
 	deleteTagFn        func(ctx context.Context, clinicID, ownerID uint64, tagName string) error
 	deleteAllByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) error
 	findByOwnerFn      func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
 	countByTagFn       func(ctx context.Context, clinicID uint64, tagName string) (int64, error)
 }
 
-func (m *mockLstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category string) error {
+func (m *mockLstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error {
 	if m.upsertTagFn != nil {
-		return m.upsertTagFn(ctx, clinicID, ownerID, tagName, category)
+		return m.upsertTagFn(ctx, clinicID, ownerID, tagName, category, reason)
 	}
 	return nil
 }

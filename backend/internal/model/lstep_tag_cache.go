@@ -10,6 +10,7 @@ type LstepTagCache struct {
 	OwnerID  uint64    `gorm:"not null"                 json:"owner_id"`
 	TagName  string    `gorm:"column:tag_name;not null" json:"tag_name"`
 	Category string    `gorm:"column:category;not null;default:'auto'" json:"category"`
+	Reason   *string   `gorm:"column:reason"            json:"reason,omitempty"`
 	SyncedAt time.Time `gorm:"column:synced_at;not null;default:now()" json:"synced_at"`
 }
 

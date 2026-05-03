@@ -215,7 +215,7 @@ func (m *mockTagCacheRepoForDelivery) FindOwnerIDsByTag(ctx context.Context, cli
 	}
 	return nil, nil
 }
-func (m *mockTagCacheRepoForDelivery) UpsertTag(_ context.Context, _, _ uint64, _, _ string) error {
+func (m *mockTagCacheRepoForDelivery) UpsertTag(_ context.Context, _, _ uint64, _, _, _ string) error {
 	return nil
 }
 func (m *mockTagCacheRepoForDelivery) DeleteTag(_ context.Context, _, _ uint64, _ string) error {

@@ -24,6 +24,7 @@ type TagOwnerRow struct {
 	OwnerID    uint64  `gorm:"column:owner_id"`
 	OwnerName  string  `gorm:"column:owner_name"`
 	LineUserID *string `gorm:"column:line_user_id"`
+	Reason     *string `gorm:"column:reason"`
 	Tags       []string
 }
 
@@ -31,12 +32,13 @@ type TagOwnerRow struct {
 type TagEntry struct {
 	TagName  string
 	Category string
+	Reason   string
 }
 
 // LstepTagCacheRepository はLステップタグキャッシュの永続化インターフェース。
 type LstepTagCacheRepository interface {
-	// UpsertTag は (clinic_id, owner_id, tag_name) でUPSERTする。
-	UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category string) error
+	// UpsertTag は (clinic_id, owner_id, tag_name) でUPSERTする。reason が空文字の場合は NULL として保存する。
+	UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error
 	// DeleteTag は特定タグを削除する。
 	DeleteTag(ctx context.Context, clinicID, ownerID uint64, tagName string) error
 	// DeleteAllByOwner は飼い主の全タグキャッシュを削除する。
@@ -62,19 +64,24 @@ func NewLstepTagCacheRepository(db *gorm.DB) LstepTagCacheRepository {
 	return &lstepTagCacheRepository{db: db}
 }
 
-func (r *lstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category string) error {
+func (r *lstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error {
+	var reasonPtr *string
+	if reason != "" {
+		reasonPtr = &reason
+	}
 	record := &model.LstepTagCache{
 		ClinicID: clinicID,
 		OwnerID:  ownerID,
 		TagName:  tagName,
 		Category: category,
+		Reason:   reasonPtr,
 		SyncedAt: time.Now(),
 	}
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "owner_id"}, {Name: "tag_name"}},
-			DoUpdates: clause.AssignmentColumns([]string{"category", "synced_at"}),
+			DoUpdates: clause.AssignmentColumns([]string{"category", "reason", "synced_at"}),
 		}).
 		Create(record).Error
 	if err != nil {
@@ -155,6 +162,7 @@ func (r *lstepTagCacheRepository) FindOwnersByTag(ctx context.Context, clinicID 
 		OwnerID    uint64  `gorm:"column:owner_id"`
 		OwnerName  string  `gorm:"column:owner_name"`
 		LineUserID *string `gorm:"column:line_user_id"`
+		Reason     *string `gorm:"column:reason"`
 	}
 	baseSQL := `FROM owners o
 		JOIN lstep_tag_cache tc ON tc.owner_id = o.id AND tc.clinic_id = ?
@@ -177,7 +185,7 @@ func (r *lstepTagCacheRepository) FindOwnersByTag(ctx context.Context, clinicID 
 	pageArgs = append(pageArgs, limit, offset)
 	var stubs []ownerStub
 	if err := r.db.WithContext(ctx).
-		Raw("SELECT DISTINCT o.id AS owner_id, o.name AS owner_name, o.line_user_id "+baseSQL+` ORDER BY o.id LIMIT ? OFFSET ?`, pageArgs...).
+		Raw("SELECT DISTINCT o.id AS owner_id, o.name AS owner_name, o.line_user_id, tc.reason "+baseSQL+` ORDER BY o.id LIMIT ? OFFSET ?`, pageArgs...).
 		Scan(&stubs).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("clinic=%d tag=%s page", clinicID, tagName))
 	}
@@ -210,7 +218,7 @@ func (r *lstepTagCacheRepository) FindOwnersByTag(ctx context.Context, clinicID 
 		if tags == nil {
 			tags = []string{}
 		}
-		result[i] = TagOwnerRow{OwnerID: s.OwnerID, OwnerName: s.OwnerName, LineUserID: s.LineUserID, Tags: tags}
+		result[i] = TagOwnerRow{OwnerID: s.OwnerID, OwnerName: s.OwnerName, LineUserID: s.LineUserID, Reason: s.Reason, Tags: tags}
 	}
 	return result, total, nil
 }
@@ -244,9 +252,13 @@ func (r *lstepTagCacheRepository) BulkReplaceOwnerTags(ctx context.Context, clin
 		now := time.Now()
 		records := make([]*model.LstepTagCache, len(tags))
 		for i, t := range tags {
+			var reasonPtr *string
+			if t.Reason != "" {
+				reasonPtr = &t.Reason
+			}
 			records[i] = &model.LstepTagCache{
 				ClinicID: clinicID, OwnerID: ownerID,
-				TagName: t.TagName, Category: t.Category, SyncedAt: now,
+				TagName: t.TagName, Category: t.Category, Reason: reasonPtr, SyncedAt: now,
 			}
 		}
 		if err := tx.Create(&records).Error; err != nil {

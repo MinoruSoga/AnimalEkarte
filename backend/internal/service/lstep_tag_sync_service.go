@@ -369,7 +369,7 @@ func (s *lstepTagSyncService) SyncVaccineTag(ctx context.Context, clinicID, owne
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add vaccine tag %s", tag))
 		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto"); cacheErr != nil {
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert tag cache", "error", cacheErr, "tag", tag)
 		}
 	}
@@ -496,7 +496,7 @@ func (s *lstepTagSyncService) SyncOwnerAnimalClassificationTags(ctx context.Cont
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, fmt.Sprintf("failed to add classification tag %s", newTag))
 	}
-	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto"); cacheErr != nil {
+	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); cacheErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert classification tag cache", "error", cacheErr, "tag", newTag)
 	}
 	if !apiFailed {
@@ -585,7 +585,7 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add pet basic info tag %s", tag))
 		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto"); cacheErr != nil {
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert pet basic info tag cache", "error", cacheErr, "tag", tag)
 		}
 	}
@@ -713,7 +713,7 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add visit tag %s", tag))
 		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto"); cacheErr != nil {
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert tag cache", "error", cacheErr, "tag", tag)
 		}
 	}
@@ -904,7 +904,7 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add next_visit tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert next_visit tag cache", "error", upsertErr)
 	}
 	if !apiFailed {
@@ -998,7 +998,7 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add CPM stage tag")
 	}
-	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, string(stage), "auto"); cacheErr != nil {
+	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, string(stage), "auto", ""); cacheErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert CPM stage tag cache", "error", cacheErr)
 	}
 
@@ -1064,7 +1064,7 @@ func (s *lstepTagSyncService) SyncReservationTag(ctx context.Context, clinicID, 
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add reservation tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert reservation tag cache", "error", upsertErr)
 	}
 	if !apiFailed {
@@ -1128,7 +1128,7 @@ func (s *lstepTagSyncService) SyncCancellationTag(ctx context.Context, clinicID,
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add canceled_visit tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, canceledVisitTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, canceledVisitTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert canceled_visit tag cache", "error", upsertErr)
 	}
 	_ = canceledDate // 将来的に canceled_visit_YYYY-MM-DD 形式に拡張する場合に使用
@@ -1232,7 +1232,7 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add refill_due tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert refill_due tag cache", "error", upsertErr)
 	}
 	if !apiFailed {
@@ -1300,7 +1300,7 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add checkup tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, checkupTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, checkupTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert checkup tag cache", "error", upsertErr)
 	}
 
@@ -1312,7 +1312,7 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add next_checkup tag")
 		}
-		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, nextTag, "auto"); upsertErr != nil {
+		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, nextTag, "auto", ""); upsertErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert next_checkup tag cache", "error", upsertErr)
 		}
 	}
@@ -1412,7 +1412,7 @@ func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clin
 			apiFailed = true
 			continue
 		}
-		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tagName, "auto"); upsertErr != nil {
+		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tagName, "auto", ""); upsertErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert chronic tag cache", "tag", tagName, "error", upsertErr)
 		}
 	}
@@ -1478,7 +1478,7 @@ func (s *lstepTagSyncService) SyncNoShowTag(ctx context.Context, clinicID, owner
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add no_show tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, noShowTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, noShowTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert no_show tag cache", "error", upsertErr)
 	}
 	// 汎用ノーショウタグ: シナリオ共通で使用
@@ -1487,7 +1487,7 @@ func (s *lstepTagSyncService) SyncNoShowTag(ctx context.Context, clinicID, owner
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add no_show_visit tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, "no_show_visit", "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, "no_show_visit", "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert no_show_visit tag cache", "error", upsertErr)
 	}
 	if !apiFailed {
@@ -1544,7 +1544,7 @@ func (s *lstepTagSyncService) ResyncOwnerVaccineTags(ctx context.Context, clinic
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add vaccine tag %s", tag))
 		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto"); cacheErr != nil {
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert vaccine tag cache on resync", "error", cacheErr, "tag", tag)
 		}
 	}
@@ -1659,7 +1659,7 @@ func (s *lstepTagSyncService) ResyncOwnerCheckupTags(ctx context.Context, clinic
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add checkup tag %s", tag))
 		}
-		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto"); upsertErr != nil {
+		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); upsertErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert checkup tag cache on resync", "error", upsertErr, "tag", tag)
 		}
 	}
@@ -1789,7 +1789,7 @@ func (s *lstepTagSyncService) ResyncOwnerReservationTags(ctx context.Context, cl
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add reserved tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert reserved tag cache on resync", "error", upsertErr)
 	}
 	if !apiFailed {
@@ -1884,7 +1884,7 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add dormant tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, targetTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, targetTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert dormant tag cache", "error", upsertErr)
 	}
 
@@ -1894,7 +1894,7 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 			slog.ErrorContext(ctx, "failed to add cpm_dormant tag", "error", addErr)
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add cpm_dormant tag")
-		} else if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, "cpm_dormant", "auto"); upsertErr != nil {
+		} else if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, "cpm_dormant", "auto", ""); upsertErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert cpm_dormant tag cache", "error", upsertErr)
 		}
 	}
@@ -1923,7 +1923,7 @@ func (s *lstepTagSyncService) notifyAPIFailure(ctx context.Context, client lstep
 		slog.ErrorContext(ctx, "failed to add EXCL error tag", "error", addErr, "owner_id", ownerID)
 		return
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, lstepErrorTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, lstepErrorTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert EXCL error tag cache", "error", upsertErr)
 	}
 }
@@ -2040,7 +2040,7 @@ func (s *lstepTagSyncService) SyncCPMStageTagV2(ctx context.Context, clinicID, o
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add CPM V2 stage tag")
 	}
-	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, string(stage), "auto"); cacheErr != nil {
+	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, string(stage), "auto", ""); cacheErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert CPM V2 stage tag cache", "error", cacheErr)
 	}
 
@@ -2104,7 +2104,7 @@ func (s *lstepTagSyncService) SyncLTVTopPercent(ctx context.Context, clinicID ui
 				errs = append(errs, apperrors.Wrap(addErr, fmt.Sprintf("failed to add LTV top20 tag for owner %d", owner.ID)))
 				continue
 			}
-			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, owner.ID, ltvTop20Tag, "auto"); cacheErr != nil {
+			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, owner.ID, ltvTop20Tag, "auto", ""); cacheErr != nil {
 				slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to upsert tag cache", "owner_id", owner.ID, "error", cacheErr)
 			}
 		} else {
@@ -2225,7 +2225,7 @@ func (s *lstepTagSyncService) SyncVisitDormantTags(ctx context.Context, clinicID
 				apiFailed = true
 				continue
 			}
-			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, th.tag, "auto"); cacheErr != nil {
+			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, th.tag, "auto", ""); cacheErr != nil {
 				slog.ErrorContext(ctx, "failed to upsert VISIT dormant tag cache", "error", cacheErr, "tag", th.tag)
 			}
 		} else if hasCached {
@@ -2341,7 +2341,7 @@ func (s *lstepTagSyncService) SyncPetSpeciesTags(ctx context.Context, clinicID, 
 				apiFailed = true
 				continue
 			}
-			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, entry.tag, "auto"); cacheErr != nil {
+			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, entry.tag, "auto", ""); cacheErr != nil {
 				slog.ErrorContext(ctx, "failed to upsert PET species tag cache", "error", cacheErr)
 			}
 		} else {
@@ -2405,7 +2405,7 @@ func (s *lstepTagSyncService) SyncSeniorTag(ctx context.Context, clinicID, owner
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add senior tag")
 		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, seniorTag, "auto"); cacheErr != nil {
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, seniorTag, "auto", ""); cacheErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert senior tag cache", "error", cacheErr)
 		}
 	} else {
@@ -2483,7 +2483,7 @@ func (s *lstepTagSyncService) SyncExclusionTags(ctx context.Context, clinicID, o
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add EXCL exclusion tag")
 		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, exclTag, "auto"); cacheErr != nil {
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, exclTag, "auto", ""); cacheErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert EXCL exclusion tag cache", "error", cacheErr)
 		}
 	} else {
