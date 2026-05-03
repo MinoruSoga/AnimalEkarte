@@ -527,7 +527,7 @@ func TestSyncAggregationTags_DryRunDoesNotMutate(t *testing.T) {
 	}
 	upsertCalls := 0
 	tagCache := &mockLstepTagCacheRepository{
-		upsertTagFn: func(_ context.Context, _, _ uint64, _, _ string) error {
+		upsertTagFn: func(_ context.Context, _, _ uint64, _, _, _ string) error {
 			upsertCalls++
 			return nil
 		},

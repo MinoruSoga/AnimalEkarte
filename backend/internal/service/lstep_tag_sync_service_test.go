@@ -497,7 +497,7 @@ func TestNotifyAPIFailure(t *testing.T) {
 		}
 		var upsertedTag string
 		tagCache := &mockLstepTagCacheRepository{
-			upsertTagFn: func(_ context.Context, _, _ uint64, tagName, _ string) error {
+			upsertTagFn: func(_ context.Context, _, _ uint64, tagName, _, _ string) error {
 				upsertedTag = tagName
 				return nil
 			},
