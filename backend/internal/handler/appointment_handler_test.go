@@ -22,11 +22,12 @@ import (
 // ---- mock ReservationService ----
 
 type mockReservationService struct {
-	listFn    func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
-	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	createFn  func(ctx context.Context, r *model.Reservation) error
-	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.Reservation, error)
-	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+	listFn                   func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
+	getByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	createFn                 func(ctx context.Context, r *model.Reservation) error
+	updateFn                 func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.Reservation, error)
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
+	updateReservationRouteFn func(ctx context.Context, clinicID, id uint64, input service.UpdateReservationRouteInput) (*model.Reservation, error)
 }
 
 func (m *mockReservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -50,6 +51,13 @@ func (m *mockReservationService) Update(ctx context.Context, clinicID, id uint64
 
 func (m *mockReservationService) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockReservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input service.UpdateReservationRouteInput) (*model.Reservation, error) {
+	if m.updateReservationRouteFn != nil {
+		return m.updateReservationRouteFn(ctx, clinicID, id, input)
+	}
+	return nil, nil
 }
 
 func newHandlerWithReservationSvc(svc service.ReservationService) *Handler {
@@ -507,6 +515,111 @@ func TestDeleteReservation(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
 		h.DeleteReservation(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- PatchReservationReservationRoute ----
+
+func newPatchReservationRouteRouter(rSvc service.ReservationService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithReservationSvc(rSvc)
+	r.PATCH("/reservations/:id/reservation-route", func(c *gin.Context) { setClinicID(c) }, h.PatchReservationReservationRoute)
+	return r
+}
+
+func TestPatchReservationReservationRoute(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	route := func(s string) string { return "/reservations/1/reservation-route" }
+
+	tests := []struct {
+		name       string
+		body       any
+		svc        *mockReservationService
+		wantStatus int
+	}{
+		{
+			name: "200 success with valid route",
+			body: map[string]any{"route": "line"},
+			svc: &mockReservationService{
+				updateReservationRouteFn: func(_ context.Context, _ uint64, _ uint64, input service.UpdateReservationRouteInput) (*model.Reservation, error) {
+					assert.Equal(t, "line", input.Route)
+					return &model.Reservation{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name: "200 success with empty route (clears to NULL)",
+			body: map[string]any{"route": ""},
+			svc: &mockReservationService{
+				updateReservationRouteFn: func(_ context.Context, _ uint64, _ uint64, input service.UpdateReservationRouteInput) (*model.Reservation, error) {
+					assert.Equal(t, "", input.Route)
+					return &model.Reservation{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "400 malformed JSON",
+			body:       "not-json",
+			svc:        &mockReservationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "400 route exceeds max=20",
+			body:       map[string]any{"route": "this_value_is_way_too_long_for_varchar20"},
+			svc:        &mockReservationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "404 reservation not found",
+			body: map[string]any{"route": "phone"},
+			svc: &mockReservationService{
+				updateReservationRouteFn: func(_ context.Context, _ uint64, _ uint64, _ service.UpdateReservationRouteInput) (*model.Reservation, error) {
+					return nil, apperrors.WrapNotFound("reservation", "1")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "500 service internal error",
+			body: map[string]any{"route": "reception"},
+			svc: &mockReservationService{
+				updateReservationRouteFn: func(_ context.Context, _ uint64, _ uint64, _ service.UpdateReservationRouteInput) (*model.Reservation, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newPatchReservationRouteRouter(tt.svc)
+			w := httptest.NewRecorder()
+			var bodyBytes []byte
+			if s, ok := tt.body.(string); ok {
+				bodyBytes = []byte(s)
+			} else {
+				bodyBytes, _ = json.Marshal(tt.body)
+			}
+			req := httptest.NewRequest(http.MethodPatch, route("1"), bytes.NewReader(bodyBytes))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("401 when clinic_id is missing", func(t *testing.T) {
+		r := gin.New()
+		h := newHandlerWithReservationSvc(&mockReservationService{})
+		r.PATCH("/reservations/:id/reservation-route", h.PatchReservationReservationRoute)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPatch, "/reservations/1/reservation-route", bytes.NewReader([]byte(`{"route":"line"}`)))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }

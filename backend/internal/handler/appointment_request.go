@@ -17,6 +17,11 @@ type createReservationRequest struct {
 	Source            string    `json:"source"              binding:"omitempty,oneof=manual line"`
 }
 
+// patchReservationReservationRouteRequest は予約経路更新リクエスト（FEAT-381-2）。
+type patchReservationReservationRouteRequest struct {
+	Route string `json:"route" binding:"max=20"`
+}
+
 // updateReservationRequest は予約更新のバインド struct
 type updateReservationRequest struct {
 	StartTime         *time.Time `json:"start_time"`

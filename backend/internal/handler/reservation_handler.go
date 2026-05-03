@@ -289,6 +289,33 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// PatchReservationReservationRoute godoc
+// PATCH /reservations/:id/reservation-route — 予約経路を更新する（FEAT-381-2）。
+func (h *Handler) PatchReservationReservationRoute(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchReservationReservationRouteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	reservation, err := h.svc.Reservation.UpdateReservationRoute(
+		c.Request.Context(), clinicID, id,
+		service.UpdateReservationRouteInput{Route: req.Route},
+	)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toReservationResponse(reservation))
+}
+
 // RegisterReservationRoutes は予約関連のルートを登録する
 func (h *Handler) RegisterReservationRoutes(rg *gin.RouterGroup) {
 	reservations := rg.Group("/reservations")
@@ -296,5 +323,6 @@ func (h *Handler) RegisterReservationRoutes(rg *gin.RouterGroup) {
 	reservations.GET("/:id", h.GetReservation)
 	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "create"), h.CreateReservation)
 	reservations.PATCH("/:id", h.RequirePermission(string(model.ResourceReservations), "edit"), h.UpdateReservation)
+	reservations.PATCH("/:id/reservation-route", h.RequirePermission(string(model.ResourceReservations), "edit"), h.PatchReservationReservationRoute)
 	reservations.DELETE("/:id", h.RequirePermission(string(model.ResourceReservations), "delete"), h.DeleteReservation)
 }

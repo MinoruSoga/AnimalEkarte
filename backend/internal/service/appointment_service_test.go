@@ -562,3 +562,87 @@ func TestReservationService_Delete(t *testing.T) {
 		})
 	}
 }
+
+func TestReservationService_UpdateReservationRoute(t *testing.T) {
+	validRoutes := []string{"line", "phone", "reception", "exam_room"}
+
+	t.Run("success: valid routes update reservation_route", func(t *testing.T) {
+		for _, route := range validRoutes {
+			route := route
+			t.Run(route, func(t *testing.T) {
+				repo := &mockReservationRepository{
+					findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
+						return &model.Reservation{ID: 1}, nil
+					},
+					updateFieldsFn: func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+						assert.Equal(t, uint64(1), clinicID)
+						assert.Equal(t, uint64(1), id)
+						assert.Equal(t, route, fields["reservation_route"])
+						return &model.Reservation{ID: 1}, nil
+					},
+				}
+				svc := NewReservationService(repo, nil)
+				result, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: route})
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+			})
+		}
+	})
+
+	t.Run("success: empty route stores NULL", func(t *testing.T) {
+		repo := &mockReservationRepository{
+			findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
+				return &model.Reservation{ID: 1}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+				assert.Nil(t, fields["reservation_route"])
+				return &model.Reservation{ID: 1}, nil
+			},
+		}
+		svc := NewReservationService(repo, nil)
+		result, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: ""})
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	t.Run("error: invalid route 'fax' returns InvalidInput", func(t *testing.T) {
+		svc := NewReservationService(&mockReservationRepository{}, nil)
+		_, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: "fax"})
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("error: uppercase 'LINE' is not valid", func(t *testing.T) {
+		svc := NewReservationService(&mockReservationRepository{}, nil)
+		_, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: "LINE"})
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("error: reservation not found returns NotFound", func(t *testing.T) {
+		repo := &mockReservationRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+				return nil, apperrors.WrapNotFound("reservation", "1")
+			},
+		}
+		svc := NewReservationService(repo, nil)
+		_, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: "line"})
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("error: wrong clinic_id returns NotFound (P4 isolation)", func(t *testing.T) {
+		repo := &mockReservationRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+				if clinicID != 1 {
+					return nil, apperrors.WrapNotFound("reservation", "1")
+				}
+				return &model.Reservation{ID: 1}, nil
+			},
+		}
+		svc := NewReservationService(repo, nil)
+		_, err := svc.UpdateReservationRoute(context.Background(), 99, 1, UpdateReservationRouteInput{Route: "line"})
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+}

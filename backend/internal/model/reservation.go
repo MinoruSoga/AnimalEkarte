@@ -52,6 +52,10 @@ type Reservation struct {
 	CreatedAt         time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
+	// FEAT-381-2 Commit 3
+	ReservationRoute    *string    `gorm:"column:reservation_route;type:varchar(20)"  json:"reservation_route,omitempty"`
+	ActualReservationAt *time.Time `gorm:"column:actual_reservation_at"               json:"actual_reservation_at,omitempty"`
+
 	// LINE予約用フィールド
 	Source           ReservationSource `gorm:"type:reservation_source;not null;default:'manual'" json:"source"`
 	CreatedBy        *uint64           `gorm:""                                                  json:"created_by,omitempty"`

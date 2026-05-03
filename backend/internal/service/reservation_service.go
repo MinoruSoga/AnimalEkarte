@@ -10,6 +10,16 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// allowedReservationRoutes は予約経路の許可値ホワイトリスト（FEAT-381-2 Commit 3）。
+var allowedReservationRoutes = map[string]struct{}{
+	"line": {}, "phone": {}, "reception": {}, "exam_room": {},
+}
+
+const colReservationRoute = "reservation_route"
+
+// UpdateReservationRouteInput は予約経路更新の入力DTO（FEAT-381-2 Commit 3）。
+type UpdateReservationRouteInput struct{ Route string }
+
 // UpdateReservationInput は予約更新のサービス入力 DTO
 type UpdateReservationInput struct {
 	StartTime         *time.Time
@@ -69,6 +79,7 @@ type ReservationService interface {
 	Create(ctx context.Context, reservation *model.Reservation) error
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error)
 }
 
 type reservationService struct {
@@ -281,6 +292,33 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		slog.Uint64("clinic_id", clinicID))
 	return result, nil
 }
+func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error) {
+	if input.Route != "" {
+		if _, ok := allowedReservationRoutes[input.Route]; !ok {
+			return nil, apperrors.WrapInvalidInput("reservation_route must be one of: line, phone, reception, exam_room")
+		}
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find reservation")
+	}
+	var routeValue any
+	if input.Route == "" {
+		routeValue = nil
+	} else {
+		routeValue = input.Route
+	}
+	reservation, err := s.repo.Update(ctx, clinicID, id, map[string]any{colReservationRoute: routeValue})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update reservation_route", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to update reservation_route")
+	}
+	slog.InfoContext(ctx, "reservation_route updated",
+		slog.Uint64("reservation_id", id),
+		slog.Uint64("clinic_id", clinicID),
+		slog.String("route", input.Route))
+	return reservation, nil
+}
+
 func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find reservation")
