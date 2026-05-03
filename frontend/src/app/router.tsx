@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, Outlet, Navigate } from "react-router";
+import { createBrowserRouter, Outlet, Navigate, type RouteObject } from "react-router";
 
 import { C } from "@/lib/design-tokens";
 import { Layout } from "@/components/shared/Layout/Layout";
@@ -13,20 +13,9 @@ const Login = lazy(() =>
   import("@/features/auth").then((m) => ({ default: m.Login })),
 );
 
-export const router = createBrowserRouter([
-  {
-    // AuthProvider をアプリ全体に配置。
-    // これにより /login でも useAuth() が使用可能になり、
-    // LoginForm で login() を直接呼び出してから navigate() できる。
-    element: (
-      <Suspense fallback={null}>
-        <AuthProvider>
-          <Outlet />
-        </AuthProvider>
-      </Suspense>
-    ),
-    errorElement: <RootErrorBoundary />,
-    children: [
+// Exported for integration testing (AccountingRouteGuards etc.)
+// createMemoryRouter(appRoutes, { initialEntries: [path] }) + AuthContext.Provider で権限ガードを検証できる。
+export const appRoutes: RouteObject[] = [
       {
         path: "/login",
         element: (
@@ -1094,6 +1083,21 @@ export const router = createBrowserRouter([
       },
         ],
       },
-    ],
+];
+
+export const router = createBrowserRouter([
+  {
+    // AuthProvider をアプリ全体に配置。
+    // これにより /login でも useAuth() が使用可能になり、
+    // LoginForm で login() を直接呼び出してから navigate() できる。
+    element: (
+      <Suspense fallback={null}>
+        <AuthProvider>
+          <Outlet />
+        </AuthProvider>
+      </Suspense>
+    ),
+    errorElement: <RootErrorBoundary />,
+    children: appRoutes,
   },
 ]);

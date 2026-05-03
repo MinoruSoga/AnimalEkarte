@@ -27,6 +27,23 @@ if (typeof window !== 'undefined') {
       disconnect() {}
     };
   }
+  // Sidebar.tsx and Radix UI call window.matchMedia for responsive breakpoints.
+  // jsdom does not implement it; stub with a no-op that always returns matches=false.
+  if (!window.matchMedia) {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    });
+  }
 }
 
 // Start server before all tests
