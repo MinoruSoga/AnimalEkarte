@@ -169,6 +169,11 @@ export function TagOwnerListDrawer({
                       <span className={`text-xs ${C.text50}`}>
                         最終来院: {formatDate(owner.last_visit_date)}
                       </span>
+                      {owner.reason ? (
+                        <span className={`text-xs ${C.text50} truncate`}>
+                          判定理由: {owner.reason}
+                        </span>
+                      ) : null}
                     </div>
                     <Link
                       to={`/owners/${owner.owner_id}`}

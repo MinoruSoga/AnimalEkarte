@@ -6,6 +6,7 @@ export interface LstepTagOwner {
   owner_name: string;
   line_user_id: string | null;
   last_visit_date: string | null;
+  reason?: string; // BE は omitempty で nil/空時に省略
 }
 
 export interface LstepTagOwnersParams {

@@ -206,7 +206,66 @@ describe("LstepTagManagementPage — E: ローディング・エラー状態 (FE
   });
 });
 
-// TODO(FEAT-379-supplement): lstep_tag_cache.reason カラム追加後に有効化
-// describe('LstepTagManagementPage — F: 判定理由列', () => {
-//   it('飼い主一覧テーブルに「判定理由」カラムが表示される', async () => { ... })
-// })
+// ─────────────────────────────────────────────────────────────
+// F: 判定理由表示（FEAT-379-supplement）
+// ─────────────────────────────────────────────────────────────
+
+describe("LstepTagManagementPage — F: 判定理由表示 (FEAT-379-supplement)", () => {
+  it("reason が存在する場合「判定理由: ...」が描画される", async () => {
+    server.use(
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/owners`, () =>
+        HttpResponse.json({
+          owners: [
+            {
+              owner_id: "1",
+              owner_name: "田中 太郎",
+              last_visit_date: null,
+              reason: "最終健診: 2025-12-01",
+            },
+          ],
+          total: 1,
+        })
+      )
+    );
+    await renderAndWait();
+
+    const card = screen.getByText("健診あり").closest("div");
+    expect(card).not.toBeNull();
+    const user = userEvent.setup();
+    await user.click(within(card!).getByRole("button", { name: /対象者一覧/ }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("判定理由: 最終健診: 2025-12-01")
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("reason が undefined の場合「判定理由」テキストは描画されない", async () => {
+    server.use(
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/owners`, () =>
+        HttpResponse.json({
+          owners: [
+            {
+              owner_id: "2",
+              owner_name: "鈴木 花子",
+              last_visit_date: null,
+            },
+          ],
+          total: 1,
+        })
+      )
+    );
+    await renderAndWait();
+
+    const card = screen.getByText("健診あり").closest("div");
+    expect(card).not.toBeNull();
+    const user = userEvent.setup();
+    await user.click(within(card!).getByRole("button", { name: /対象者一覧/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText("鈴木 花子")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/判定理由/)).not.toBeInTheDocument();
+  });
+});
