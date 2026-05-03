@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -90,6 +91,7 @@ func (s *lstepTagSyncService) SyncHealthcheckTags(ctx context.Context, clinicID,
 
 	codeSet := strSet(checkupCodes)
 	hasHealthcheck := false
+	var lastCheckupDate time.Time
 	for i := range checkups {
 		if checkups[i].Date.Before(since) {
 			continue
@@ -99,7 +101,9 @@ func (s *lstepTagSyncService) SyncHealthcheckTags(ctx context.Context, clinicID,
 		}
 		if _, ok := codeSet[checkups[i].CheckupType.Name]; ok {
 			hasHealthcheck = true
-			break
+			if checkups[i].Date.After(lastCheckupDate) {
+				lastCheckupDate = checkups[i].Date
+			}
 		}
 	}
 
@@ -118,7 +122,7 @@ func (s *lstepTagSyncService) SyncHealthcheckTags(ctx context.Context, clinicID,
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add healthcheck done tag")
 		}
-		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthHealthcheckDoneTag, "auto", "")
+		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthHealthcheckDoneTag, "auto", fmt.Sprintf("最終健診: %s", lastCheckupDate.Format("2006-01-02")))
 		if delErr := client.RemoveTag(ctx, lineUserID, HlthHealthcheckNeverTag); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove healthcheck never tag", "error", delErr)
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
@@ -269,7 +273,23 @@ func (s *lstepTagSyncService) SyncVaccineDeadlineTag(ctx context.Context, clinic
 		return apperrors.Wrap(err, "failed to find vaccinations")
 	}
 
-	deadlineSoon := hasVaccineDeadlineSoon(vaccinations, time.Now(), VaccineDeadlineDays)
+	now := time.Now()
+	deadline := now.AddDate(0, 0, VaccineDeadlineDays)
+	deadlineSoon := false
+	var earliestNextDate *time.Time
+	for i := range vaccinations {
+		nd := vaccinations[i].NextDate
+		if nd == nil {
+			continue
+		}
+		if !nd.Before(now) && !nd.After(deadline) {
+			deadlineSoon = true
+			if earliestNextDate == nil || nd.Before(*earliestNextDate) {
+				copied := *nd
+				earliestNextDate = &copied
+			}
+		}
+	}
 
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -286,7 +306,11 @@ func (s *lstepTagSyncService) SyncVaccineDeadlineTag(ctx context.Context, clinic
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add vaccine deadline tag")
 		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevVaccineDeadlineTag, "auto", ""); cacheErr != nil {
+		vaccineReason := ""
+		if earliestNextDate != nil {
+			vaccineReason = fmt.Sprintf("次回期限: %s", earliestNextDate.Format("2006-01-02"))
+		}
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevVaccineDeadlineTag, "auto", vaccineReason); cacheErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert vaccine deadline tag cache", "error", cacheErr)
 		}
 	} else {
@@ -410,7 +434,7 @@ func (s *lstepTagSyncService) SyncFilariaTag(ctx context.Context, clinicID, owne
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add filaria tag")
 		}
-		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevFilariaTag, "auto", "")
+		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevFilariaTag, "auto", "未処方")
 	} else {
 		if delErr := client.RemoveTag(ctx, lineUserID, PrevFilariaTag); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove filaria tag", "error", delErr)
@@ -483,7 +507,7 @@ func (s *lstepTagSyncService) SyncFleaTickTag(ctx context.Context, clinicID, own
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add flea tick tag")
 		}
-		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevFleaTickTag, "auto", "")
+		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevFleaTickTag, "auto", "未処方")
 	} else {
 		if delErr := client.RemoveTag(ctx, lineUserID, PrevFleaTickTag); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove flea tick tag", "error", delErr)
@@ -554,7 +578,7 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID,
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add food purchase tag")
 		}
-		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag, "auto", "")
+		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag, "auto", "購入済")
 	} else {
 		if delErr := client.RemoveTag(ctx, lineUserID, LtvFoodPurchaseTag); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove food purchase tag", "error", delErr)

@@ -582,3 +582,110 @@ func TestSyncSpecialCheckupCandidateTag(t *testing.T) {
 	svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
 	assert.NoError(t, svc.SyncSpecialCheckupCandidateTag(ctx, 10, 1), "SPEC-002 Q6未確定のため常にnoop")
 }
+
+// ---- mockVaccinationRepoForHealth ----
+
+type mockVaccinationRepoForHealth struct {
+	findByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error)
+}
+
+func (m *mockVaccinationRepoForHealth) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.Vaccination, int64, error) {
+	return nil, 0, nil
+}
+func (m *mockVaccinationRepoForHealth) FindByID(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
+	return nil, nil
+}
+func (m *mockVaccinationRepoForHealth) FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error) {
+	if m.findByOwnerFn != nil {
+		return m.findByOwnerFn(ctx, clinicID, ownerID)
+	}
+	return nil, nil
+}
+func (m *mockVaccinationRepoForHealth) Create(_ context.Context, _ *model.Vaccination) error {
+	return nil
+}
+func (m *mockVaccinationRepoForHealth) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Vaccination, error) {
+	return nil, nil
+}
+func (m *mockVaccinationRepoForHealth) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *mockVaccinationRepoForHealth) FindOwnersByVaccineDeadline(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+
+func buildVaccineSvc(ownerRepo repository.OwnerRepository, vacRepo repository.VaccinationRepository) LstepTagSyncService {
+	settingsSvc := &mockLstepSettingsService{}
+	var tagCache repository.LstepTagCacheRepository = &mockLstepTagCacheRepository{}
+	return NewLstepTagSyncService(
+		settingsSvc,
+		ownerRepo,
+		vacRepo,
+		nil, nil,
+		tagCache,
+		nil, nil, nil, nil, nil, nil, nil,
+	)
+}
+
+// ---- TestSyncVaccineDeadlineTag ----
+
+func TestSyncVaccineDeadlineTag(t *testing.T) {
+	ctx := context.Background()
+	const clinicID uint64 = 10
+	const ownerID uint64 = 1
+
+	t.Run("オプトアウト→noop", func(t *testing.T) {
+		owner := &model.Owner{ID: ownerID, ClinicID: clinicID, LstepOptOut: true}
+		svc := buildVaccineSvc(ownerRepoReturning(owner), &mockVaccinationRepoForHealth{})
+		assert.NoError(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("LineUserIDなし→noop", func(t *testing.T) {
+		owner := &model.Owner{ID: ownerID, ClinicID: clinicID, LstepOptOut: false, LineUserID: nil}
+		svc := buildVaccineSvc(ownerRepoReturning(owner), &mockVaccinationRepoForHealth{})
+		assert.NoError(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("NextDate nil→期限なし→nil(client=nil)", func(t *testing.T) {
+		vacs := []model.Vaccination{{NextDate: nil}}
+		vacRepo := &mockVaccinationRepoForHealth{
+			findByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Vaccination, error) {
+				return vacs, nil
+			},
+		}
+		svc := buildVaccineSvc(ownerRepoReturning(defaultOwnerWithLineID()), vacRepo)
+		assert.NoError(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("期限なし→nil(client=nil)", func(t *testing.T) {
+		farFuture := time.Now().AddDate(0, 0, VaccineDeadlineDays+10)
+		vacs := []model.Vaccination{{NextDate: &farFuture}}
+		vacRepo := &mockVaccinationRepoForHealth{
+			findByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Vaccination, error) {
+				return vacs, nil
+			},
+		}
+		svc := buildVaccineSvc(ownerRepoReturning(defaultOwnerWithLineID()), vacRepo)
+		assert.NoError(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("期限あり→nil(client=nil)", func(t *testing.T) {
+		withinDeadline := time.Now().AddDate(0, 0, VaccineDeadlineDays-5)
+		vacs := []model.Vaccination{{NextDate: &withinDeadline}}
+		vacRepo := &mockVaccinationRepoForHealth{
+			findByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Vaccination, error) {
+				return vacs, nil
+			},
+		}
+		svc := buildVaccineSvc(ownerRepoReturning(defaultOwnerWithLineID()), vacRepo)
+		assert.NoError(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("vacRepo エラー→エラー返却", func(t *testing.T) {
+		vacRepo := &mockVaccinationRepoForHealth{
+			findByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Vaccination, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := buildVaccineSvc(ownerRepoReturning(defaultOwnerWithLineID()), vacRepo)
+		assert.Error(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+	})
+}
