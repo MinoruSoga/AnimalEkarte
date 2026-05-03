@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,12 +23,13 @@ import (
 // ---- mock MedicalRecordService ----
 
 type mockMedicalRecordService struct {
-	listFn       func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
-	getByIDFn    func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-	countByPetFn func(ctx context.Context, clinicID, petID uint64) (int64, error)
-	createFn     func(ctx context.Context, record *model.MedicalRecord) error
-	updateFn     func(ctx context.Context, clinicID, id uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error)
-	deleteFn     func(ctx context.Context, clinicID, id uint64) error
+	listFn                       func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	getByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	countByPetFn                 func(ctx context.Context, clinicID, petID uint64) (int64, error)
+	createFn                     func(ctx context.Context, record *model.MedicalRecord) error
+	updateFn                     func(ctx context.Context, clinicID, id uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error)
+	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
+	updateRecommendationReasonFn func(ctx context.Context, clinicID, id uint64, input service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error)
 }
 
 func (m *mockMedicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -64,6 +66,13 @@ func (m *mockMedicalRecordService) CreateSubRecords(_ context.Context, _, _ uint
 }
 
 func (m *mockMedicalRecordService) AutoCreateFromReservation(_ context.Context, _ uint64, _ *model.Reservation) {
+}
+
+func (m *mockMedicalRecordService) UpdateRecommendationReason(ctx context.Context, clinicID, id uint64, input service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error) {
+	if m.updateRecommendationReasonFn != nil {
+		return m.updateRecommendationReasonFn(ctx, clinicID, id, input)
+	}
+	return &model.MedicalRecord{}, nil
 }
 
 // ---- mock ClinicalPlanService ----
@@ -723,6 +732,111 @@ func TestDeleteMedicalRecord(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
 		h.DeleteMedicalRecord(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- PatchMedicalRecordRecommendationReason ----
+
+func newPatchRecommendationReasonRouter(mrSvc service.MedicalRecordService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithMedicalRecordSvc(mrSvc, &mockClinicalPlanService{})
+	r.PATCH("/medical-records/:id/recommendation-reason", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.PatchMedicalRecordRecommendationReason)
+	return r
+}
+
+func TestPatchMedicalRecordRecommendationReason(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       string
+		svc        *mockMedicalRecordService
+		wantStatus int
+	}{
+		{
+			name:    "200 success with valid reason revisit",
+			paramID: "1",
+			body:    `{"reason":"revisit"}`,
+			svc: &mockMedicalRecordService{
+				updateRecommendationReasonFn: func(_ context.Context, _, _ uint64, _ service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error) {
+					reason := "revisit"
+					return &model.MedicalRecord{ID: 1, RecommendationReason: &reason}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:    "200 success with empty reason clears field",
+			paramID: "1",
+			body:    `{"reason":""}`,
+			svc: &mockMedicalRecordService{
+				updateRecommendationReasonFn: func(_ context.Context, _, _ uint64, _ service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "400 for malformed JSON body",
+			paramID:    "1",
+			body:       `{invalid}`,
+			svc:        &mockMedicalRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "400 for reason exceeding 100 chars",
+			paramID:    "1",
+			body:       `{"reason":"` + string(make([]byte, 101)) + `"}`,
+			svc:        &mockMedicalRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "404 when record not found",
+			paramID: "999",
+			body:    `{"reason":"checkup"}`,
+			svc: &mockMedicalRecordService{
+				updateRecommendationReasonFn: func(_ context.Context, _, _ uint64, _ service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:    "500 on service internal error",
+			paramID: "1",
+			body:    `{"reason":"exam"}`,
+			svc: &mockMedicalRecordService{
+				updateRecommendationReasonFn: func(_ context.Context, _, _ uint64, _ service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapInternalServerError("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newPatchRecommendationReasonRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPatch, "/medical-records/"+tt.paramID+"/recommendation-reason", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithMedicalRecordSvc(&mockMedicalRecordService{}, &mockClinicalPlanService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(`{"reason":"revisit"}`))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.PatchMedicalRecordRecommendationReason(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }

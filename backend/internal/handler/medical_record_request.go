@@ -31,6 +31,12 @@ type createMedicalRecordRequest struct {
 	Diagnosis2NameID     *uint64 `json:"diagnosis_2_name_id"`
 }
 
+// patchMedicalRecordRecommendationReasonRequest は受診推奨理由更新リクエスト（FEAT-381-2）。
+// Reason は revisit / checkup / prevention / exam のいずれか、または "" (未設定)。
+type patchMedicalRecordRecommendationReasonRequest struct {
+	Reason string `json:"reason" binding:"max=100"`
+}
+
 // updateMedicalRecordRequest はカルテ更新のバインド struct
 type updateMedicalRecordRequest struct {
 	Date                     *time.Time `json:"date"`

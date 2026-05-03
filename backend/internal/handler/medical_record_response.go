@@ -19,6 +19,7 @@ type medicalRecordResponse struct {
 	AccountingID             *uint64                 `json:"accounting_id,omitempty"`
 	VisitCount               int64                   `json:"visit_count"`
 	NextVisitRecommendedDate *string                 `json:"next_visit_recommended_date,omitempty"`
+	RecommendationReason     *string                 `json:"recommendation_reason,omitempty"`
 	CreatedAt                time.Time               `json:"created_at"`
 	UpdatedAt                time.Time               `json:"updated_at"`
 	Owner                    *ownerSummaryResponse   `json:"owner,omitempty"`
@@ -55,6 +56,7 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 		s := r.NextVisitRecommendedDate.Format("2006-01-02")
 		resp.NextVisitRecommendedDate = &s
 	}
+	resp.RecommendationReason = r.RecommendationReason
 	if r.Billing != nil {
 		resp.AccountingID = &r.Billing.ID
 	}

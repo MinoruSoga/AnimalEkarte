@@ -1179,3 +1179,128 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		assert.Equal(t, 1, repo.countByOwnerIDCallCount, "CountByOwnerID must be called as fallback when reservation is nil")
 	})
 }
+
+func TestMedicalRecordService_UpdateRecommendationReason(t *testing.T) {
+	const (
+		clinicID uint64 = 1
+		recordID uint64 = 10
+	)
+
+	newSvc := func(repo *mockMedicalRecordRepository) MedicalRecordService {
+		return NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil)
+	}
+
+	t.Run("valid_reason_revisit", func(t *testing.T) {
+		reason := "revisit"
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID, RecommendationReason: &reason}, nil
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "revisit"})
+		assert.NoError(t, err)
+		assert.Equal(t, "revisit", *rec.RecommendationReason)
+	})
+
+	t.Run("valid_reason_checkup", func(t *testing.T) {
+		reason := "checkup"
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID, RecommendationReason: &reason}, nil
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "checkup"})
+		assert.NoError(t, err)
+		assert.Equal(t, "checkup", *rec.RecommendationReason)
+	})
+
+	t.Run("valid_reason_prevention", func(t *testing.T) {
+		reason := "prevention"
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID, RecommendationReason: &reason}, nil
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "prevention"})
+		assert.NoError(t, err)
+		assert.Equal(t, "prevention", *rec.RecommendationReason)
+	})
+
+	t.Run("valid_reason_exam", func(t *testing.T) {
+		reason := "exam"
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID, RecommendationReason: &reason}, nil
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "exam"})
+		assert.NoError(t, err)
+		assert.Equal(t, "exam", *rec.RecommendationReason)
+	})
+
+	t.Run("empty_reason_clears_to_nil", func(t *testing.T) {
+		var capturedFields map[string]any
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.MedicalRecord, error) {
+				capturedFields = fields
+				return &model.MedicalRecord{ID: recordID, RecommendationReason: nil}, nil
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: ""})
+		assert.NoError(t, err)
+		assert.Nil(t, rec.RecommendationReason)
+		assert.Nil(t, capturedFields["recommendation_reason"], "empty reason must write nil to DB")
+	})
+
+	t.Run("invalid_reason_returns_error", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{}
+		_, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "invalid"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "recommendation_reason must be one of")
+	})
+
+	t.Run("uppercase_REVISIT_is_rejected", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{}
+		_, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "REVISIT"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "recommendation_reason must be one of")
+	})
+
+	t.Run("not_found_returns_error", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return nil, apperrors.WrapNotFound("medical_record", "10")
+			},
+		}
+		_, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "revisit"})
+		assert.Error(t, err)
+	})
+
+	t.Run("wrong_clinic_id_returns_not_found", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, cID, _ uint64) (*model.MedicalRecord, error) {
+				if cID != clinicID {
+					return nil, apperrors.WrapNotFound("medical_record", "10")
+				}
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+		}
+		_, err := newSvc(repo).UpdateRecommendationReason(context.Background(), 999, recordID, UpdateRecommendationReasonInput{Reason: "revisit"})
+		assert.Error(t, err)
+	})
+}

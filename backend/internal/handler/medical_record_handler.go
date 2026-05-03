@@ -303,6 +303,33 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, toMedicalRecordResponse(record))
 }
 
+// PatchMedicalRecordRecommendationReason godoc
+// PATCH /medical-records/:id/recommendation-reason — 受診推奨理由を更新する（FEAT-381-2）。
+func (h *Handler) PatchMedicalRecordRecommendationReason(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchMedicalRecordRecommendationReasonRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	record, err := h.svc.MedicalRecord.UpdateRecommendationReason(
+		c.Request.Context(), clinicID, id,
+		service.UpdateRecommendationReasonInput{Reason: req.Reason},
+	)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toMedicalRecordResponse(record))
+}
+
 // DeleteMedicalRecord godoc
 func (h *Handler) DeleteMedicalRecord(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)

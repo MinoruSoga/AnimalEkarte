@@ -176,6 +176,7 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	records.POST("", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateMedicalRecord)
 	records.PATCH("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateMedicalRecord)
 	records.DELETE("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteMedicalRecord)
+	records.PATCH("/:id/recommendation-reason", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.PatchMedicalRecordRecommendationReason)
 
 	h.RegisterVitalRoutes(records)
 	h.RegisterTreatmentRoutes(records)

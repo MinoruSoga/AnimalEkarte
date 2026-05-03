@@ -49,6 +49,22 @@ type UpdateMedicalRecordInput struct {
 	NextVisitRecommendedDate *time.Time
 }
 
+// FEAT-381-2 Commit 2: recommendation_reason allowed values (whitelist)
+var allowedRecommendationReasons = map[string]struct{}{
+	"revisit":    {},
+	"checkup":    {},
+	"prevention": {},
+	"exam":       {},
+}
+
+const colRecommendationReason = "recommendation_reason"
+
+// UpdateRecommendationReasonInput は受診推奨理由更新の入力DTO（FEAT-381-2 Commit 2）。
+// Reason は revisit / checkup / prevention / exam のいずれか、または "" (未設定 → NULL)。
+type UpdateRecommendationReasonInput struct {
+	Reason string
+}
+
 func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Date != nil {
@@ -87,6 +103,9 @@ type MedicalRecordService interface {
 	CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput)
 	// AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。
 	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation)
+	// UpdateRecommendationReason は受診推奨理由を更新する（FEAT-381-2）。
+	// "" は NULL として保存。4値以外は apperrors.WrapInvalidInput を返す。
+	UpdateRecommendationReason(ctx context.Context, clinicID, id uint64, input UpdateRecommendationReasonInput) (*model.MedicalRecord, error)
 }
 
 // CreateSubRecordsInput はカルテ作成時の inquiry / clinical_plan サブレコード作成 DTO
@@ -428,4 +447,42 @@ func (s *medicalRecordService) fallbackFirstVisitCheck(ctx context.Context, clin
 		return false
 	}
 	return count == 0
+}
+
+// UpdateRecommendationReason は受診推奨理由を更新する（FEAT-381-2 Commit 2）。
+// "" は NULL 保存。4値以外は InvalidInput。
+func (s *medicalRecordService) UpdateRecommendationReason(
+	ctx context.Context, clinicID, id uint64, input UpdateRecommendationReasonInput,
+) (*model.MedicalRecord, error) {
+	// 1. whitelist validation (空文字は NULL として許容)
+	if input.Reason != "" {
+		if _, ok := allowedRecommendationReasons[input.Reason]; !ok {
+			return nil, apperrors.WrapInvalidInput(
+				"recommendation_reason must be one of: revisit, checkup, prevention, exam",
+			)
+		}
+	}
+	// 2. P1: existence + clinic_id check
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find medical record")
+	}
+	// 3. build update map
+	var reasonValue any
+	if input.Reason == "" {
+		reasonValue = nil // SQL NULL
+	} else {
+		reasonValue = input.Reason
+	}
+	record, err := s.repo.Update(ctx, clinicID, id, map[string]any{
+		colRecommendationReason: reasonValue,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update recommendation_reason", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to update recommendation_reason")
+	}
+	slog.InfoContext(ctx, "recommendation_reason updated",
+		slog.Uint64("record_id", id),
+		slog.Uint64("clinic_id", clinicID),
+		slog.String("reason", input.Reason))
+	return record, nil
 }
