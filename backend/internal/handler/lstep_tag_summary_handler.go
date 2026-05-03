@@ -33,6 +33,7 @@ type tagOwnerItemResponse struct {
 	LineUserIDMasked *string  `json:"line_user_id_masked,omitempty"`
 	LastVisitDate    *string  `json:"last_visit_date,omitempty"`
 	AllTags          []string `json:"all_tags"`
+	Reason           *string  `json:"reason,omitempty"`
 }
 
 // tagOwnerListResponse は GET /lstep/owners のJSONレスポンス。
@@ -67,6 +68,7 @@ func toTagOwnerListResponse(r service.TagOwnerListResponse) tagOwnerListResponse
 			OwnerName:     o.OwnerName,
 			LastVisitDate: o.LastVisitDate,
 			AllTags:       tags,
+			Reason:        o.Reason,
 		}
 	}
 	return tagOwnerListResponse{Owners: owners, Total: r.Total, Page: r.Page, PerPage: r.PerPage}
