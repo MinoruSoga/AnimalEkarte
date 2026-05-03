@@ -1,17 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { Outlet, createMemoryRouter, RouterProvider } from "react-router";
+import { Suspense } from "react";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthContext } from "@/contexts/auth-context";
-import { Layout } from "@/components/shared/Layout/Layout";
-import { RequirePermission } from "@/components/shared/RequirePermission";
-import {
-  ResourceAccounting,
-  ResourceCashRegisterClose,
-  ResourceAccountingReports,
-} from "@/types/generated/models";
-import type { RouteObject } from "react-router";
+import { appRoutes } from "@/app/router";
 import type { ResourceAction } from "@/types/auth";
+
+vi.mock("@/features/accounting", () => ({
+  AccountingList: () => null,
+  AccountingPetSelection: () => null,
+}));
+
+vi.mock("@/app/pages/AccountingDetailPage", () => ({
+  AccountingDetailPage: () => null,
+}));
 
 /**
  * /accounting 配下 route の権限ガード振る舞いテスト
@@ -24,8 +27,8 @@ import type { ResourceAction } from "@/types/auth";
  * - `/accounting/close/history` → ResourceCashRegisterClose:view (独立 route)
  * - `/accounting/reports`       → ResourceAccountingReports:view (独立 route)
  *
- * appRoutes の lazy ロードを避けるため、実際の RequirePermission/Layout/resource 定数を
- * 使いつつ、子要素のみ軽量 <div> に置き換えたテスト専用 route 構成を使用する。
+ * 実際の appRoutes を使用し、lazy ロードを vi.mock でスタブする。
+ * RequirePermission / resource 定数はプロダクションコードそのものを使用する。
  */
 
 const CLINIC_ID = "clinic-test-1";
@@ -51,79 +54,15 @@ function makeAuthCtx(grants: PermGrant[]) {
   };
 }
 
-const ok = <div data-testid="page-ok">ok</div>;
-
-const testRoutes: RouteObject[] = [
-  {
-    element: <Layout />,
-    children: [
-      {
-        path: "/accounting",
-        element: (
-          <RequirePermission resource={ResourceAccounting}>
-            <Outlet />
-          </RequirePermission>
-        ),
-        children: [
-          { index: true, element: ok },
-          {
-            path: "select-pet",
-            element: (
-              <RequirePermission resource={ResourceAccounting} action="create">
-                <Outlet />
-              </RequirePermission>
-            ),
-            children: [{ index: true, element: ok }],
-          },
-          {
-            path: "new",
-            element: (
-              <RequirePermission resource={ResourceAccounting} action="create">
-                <Outlet />
-              </RequirePermission>
-            ),
-            children: [{ index: true, element: ok }],
-          },
-        ],
-      },
-      {
-        path: "/accounting/close",
-        element: (
-          <RequirePermission resource={ResourceCashRegisterClose}>
-            <Outlet />
-          </RequirePermission>
-        ),
-        children: [{ index: true, element: ok }],
-      },
-      {
-        path: "/accounting/close/history",
-        element: (
-          <RequirePermission resource={ResourceCashRegisterClose}>
-            <Outlet />
-          </RequirePermission>
-        ),
-        children: [{ index: true, element: ok }],
-      },
-      {
-        path: "/accounting/reports",
-        element: (
-          <RequirePermission resource={ResourceAccountingReports}>
-            <Outlet />
-          </RequirePermission>
-        ),
-        children: [{ index: true, element: ok }],
-      },
-    ],
-  },
-];
-
 function renderRoute(path: string, grants: PermGrant[]) {
-  const router = createMemoryRouter(testRoutes, { initialEntries: [path] });
+  const router = createMemoryRouter(appRoutes, { initialEntries: [path] });
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <AuthContext.Provider value={makeAuthCtx(grants)}>
       <QueryClientProvider client={qc}>
-        <RouterProvider router={router} />
+        <Suspense fallback={null}>
+          <RouterProvider router={router} />
+        </Suspense>
       </QueryClientProvider>
     </AuthContext.Provider>
   );
