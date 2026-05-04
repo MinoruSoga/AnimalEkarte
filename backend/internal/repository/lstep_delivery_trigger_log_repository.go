@@ -16,6 +16,13 @@ type DeliveryTriggerLogRow struct {
 	OwnerName string `gorm:"column:owner_name"`
 }
 
+// DeliveryStatsRow はトリガー種別 × ステータス別集計行。
+type DeliveryStatsRow struct {
+	TriggerType string `gorm:"column:trigger_type" json:"trigger_type"`
+	Status      string `gorm:"column:status"       json:"status"`
+	Count       int64  `gorm:"column:count"        json:"count"`
+}
+
 // LstepDeliveryTriggerLogRepository は lstep_delivery_trigger_log テーブルの永続化インターフェース。
 type LstepDeliveryTriggerLogRepository interface {
 	// Create は新規トリガーログを作成する。
@@ -32,6 +39,10 @@ type LstepDeliveryTriggerLogRepository interface {
 	CountExcludedReasonByDateRange(ctx context.Context, clinicID uint64, from, to time.Time, triggerType string) (map[string]int64, error)
 	// FindByDateRangeWithFilters は飼い主名 JOIN 付きでページングログ一覧と総件数を返す。
 	FindByDateRangeWithFilters(ctx context.Context, clinicID uint64, from, to time.Time, triggerType, status string, limit, offset int) ([]DeliveryTriggerLogRow, int64, error)
+	// ListByOwnerAndDateRange はクリニック・飼主単位で期間内トリガーログ一覧を返す。
+	ListByOwnerAndDateRange(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
+	// CountByTypeAndStatus はクリニック・飼主単位で期間内トリガー種別 × ステータス別集計を返す。
+	CountByTypeAndStatus(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]DeliveryStatsRow, error)
 }
 
 type lstepDeliveryTriggerLogRepository struct{ db *gorm.DB }
@@ -177,4 +188,31 @@ func (r *lstepDeliveryTriggerLogRepository) FindByDateRangeWithFilters(ctx conte
 		return nil, 0, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "find_with_filters")
 	}
 	return rows, total, nil
+}
+
+func (r *lstepDeliveryTriggerLogRepository) ListByOwnerAndDateRange(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error) {
+	var logs []model.LstepDeliveryTriggerLog
+	err := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND owner_id = ? AND scheduled_at >= ? AND scheduled_at < ?", clinicID, ownerID, from, to).
+		Order("scheduled_at DESC").
+		Find(&logs).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "list_by_owner")
+	}
+	return logs, nil
+}
+
+func (r *lstepDeliveryTriggerLogRepository) CountByTypeAndStatus(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]DeliveryStatsRow, error) {
+	var rows []DeliveryStatsRow
+	err := r.db.WithContext(ctx).
+		Table("lstep_delivery_trigger_logs").
+		Select("trigger_type, status, COUNT(*) AS count").
+		Where("clinic_id = ? AND owner_id = ? AND scheduled_at >= ? AND scheduled_at < ?", clinicID, ownerID, from, to).
+		Group("trigger_type, status").
+		Order("trigger_type, status").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "count_by_type_status")
+	}
+	return rows, nil
 }
