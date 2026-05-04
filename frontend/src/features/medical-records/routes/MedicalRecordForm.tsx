@@ -19,6 +19,7 @@ import { UnifiedTabsRoot, UnifiedTabsList, UnifiedTabsContent } from "@/componen
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
 import { NextVisitDateField } from "../components/NextVisitDateField";
+import { RecommendationReasonSelect } from "../components/RecommendationReasonSelect";
 import { MedicalRecordDiagnosisPlan } from "../components/MedicalRecordDiagnosisPlan";
 import { MedicalRecordTreatment } from "../components/MedicalRecordTreatment";
 import { MedicalRecordVaccination } from "../components/MedicalRecordVaccination";
@@ -118,6 +119,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     handleNextVisitDateChange,
     isNextVisitDateValid: _isNextVisitDateValid,
     handleNextVisitDateValidChange,
+    recommendationReason,
     } = useMedicalRecordForm(recordId);
 
     useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
@@ -401,7 +403,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
                 onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
                 diagnosis1NameIdError={formState.fieldErrors?.diagnosis1_name_id}
               />
-              <div className="px-4 pb-4 mt-4">
+              <div className="px-4 pb-4 mt-4 flex flex-col gap-6">
                 <NextVisitDateField
                   value={nextVisitDate}
                   onChange={handleNextVisitDateChange}
@@ -409,6 +411,13 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
                   hasLineIntegration={hasLineIntegration}
                   disabled={isNewRecord}
                 />
+                {!isNewRecord && recordId ? (
+                  <RecommendationReasonSelect
+                    medicalRecordId={recordId}
+                    value={recommendationReason}
+                    disabled={false}
+                  />
+                ) : null}
               </div>
             </div>
           </UnifiedTabsContent>

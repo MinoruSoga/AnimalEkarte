@@ -1,6 +1,7 @@
 import { formatDate } from "@/utils/format/date";
 import type { BackendMedicalRecord } from "./types";
 import type { InterviewHistoryItem } from "../types";
+import type { RecommendationReason } from "../constants/recommendation-reason";
 
 type MedicalRecordStatus = "作成中" | "確定済";
 
@@ -37,6 +38,7 @@ export const transformMedicalRecord = (
     accountingId: record.accounting_id ? String(record.accounting_id) : undefined,
     visitCount: record.visit_count,
     version: record.version ?? 1,
+    recommendationReason: (record.recommendation_reason ?? null) as RecommendationReason | null,
   };
 };
 

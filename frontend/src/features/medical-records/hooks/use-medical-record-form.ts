@@ -389,5 +389,7 @@ export function useMedicalRecordForm(recordId?: string) {
     handleNextVisitDateChange: setNextVisitDate,
     isNextVisitDateValid,
     handleNextVisitDateValidChange: setIsNextVisitDateValid,
+    // 推奨理由 (inline edit — useUpdateRecommendationReason で直接 PATCH)
+    recommendationReason: existingRecord?.recommendationReason ?? null,
   };
 }
