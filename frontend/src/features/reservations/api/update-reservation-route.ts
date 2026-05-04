@@ -25,6 +25,7 @@ export function useUpdateReservationRoute(reservationId: string) {
       updateReservationRoute(reservationId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["reservation", reservationId] });
     },
     onError: (error: unknown) => handleApiError(error, "予約経路更新"),
   });

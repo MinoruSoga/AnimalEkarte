@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -25,22 +24,13 @@ export function ReservationRouteSelect({
   value,
   disabled = false,
 }: ReservationRouteSelectProps) {
-  const [displayValue, setDisplayValue] = useState<ReservationRoute | null>(value);
-  // sync internal state when prop changes (modal reopened with new data)
-  useEffect(() => {
-    setDisplayValue(value);
-  }, [value]);
-
   const { mutate, isPending } = useUpdateReservationRoute(reservationId);
 
   const handleValueChange = (selected: string) => {
     if (selected === "_clear") {
-      setDisplayValue(null);
       mutate({ route: "" });
     } else {
-      const route = selected as ReservationRoute;
-      setDisplayValue(route);
-      mutate({ route });
+      mutate({ route: selected as ReservationRoute });
     }
   };
 
@@ -48,7 +38,7 @@ export function ReservationRouteSelect({
     <div className="flex flex-col gap-2">
       <label className={STYLE.formLabel}>予約経路</label>
       <Select
-        value={displayValue ?? ""}
+        value={value ?? ""}
         onValueChange={handleValueChange}
         disabled={disabled || isPending}
       >
@@ -65,7 +55,7 @@ export function ReservationRouteSelect({
               {RESERVATION_ROUTE_LABELS[v]}
             </SelectItem>
           ))}
-          {displayValue !== null ? (
+          {value !== null ? (
             <SelectItem value="_clear">クリア</SelectItem>
           ) : null}
         </SelectContent>
