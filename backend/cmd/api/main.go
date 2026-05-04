@@ -139,8 +139,24 @@ func main() {
 	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に再初期化）
 	svcs.MedicalRecord = service.NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, svcs.LstepDeliveryTrigger)
 	svcs.Checkup = service.NewCheckupService(repos.Checkup, svcs.LstepDeliveryTrigger)
+	// FEAT-383-supplement Scope 3: 起動時に全クリニックの Lステップ配信実行時刻を読み込む
+	fireHours := make(map[uint64]int)
+	{
+		allClinics, clinicFetchErr := repos.Clinic.FindAll(context.Background())
+		if clinicFetchErr == nil {
+			for i := range allClinics {
+				c := &allClinics[i]
+				cs, csErr := repos.ClinicSettings.FindByClinicID(context.Background(), c.ID)
+				if csErr == nil {
+					fireHours[c.ID] = cs.LstepFireHourJST
+				}
+			}
+		} else {
+			logger.Warn("failed to load clinic fire hours at startup, using default 10", slog.String("error", clinicFetchErr.Error()))
+		}
+	}
 	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
-	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic, repos.MedicalRecord, svcs.Audit, svcs.LstepSettings, svcs.LstepDeliveryTrigger)
+	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic, repos.MedicalRecord, svcs.Audit, svcs.LstepSettings, svcs.LstepDeliveryTrigger, fireHours)
 	// FEAT-385: Lステップ CSV インポート・分析
 	svcs.LstepCsvImport = service.NewLstepCsvImportService(repos.DB(), repos.LstepCsvImport, repos.LstepFriendAttributeSnapshot, repos.Owner)
 	svcs.LstepAnalytics = service.NewLstepAnalyticsService(repos.Owner, repos.LstepDeliveryTriggerLog, repos.LstepFriendAttributeSnapshot)
@@ -219,15 +235,11 @@ func main() {
 		}
 	}()
 
-	// FEAT-383: 自動配信トリガーバッチ — 毎日 10:00 JST に実行
+	// FEAT-383: 自動配信トリガーバッチ — 毎時0分に起動（クリニックごとの lstep_fire_hour_jst で実行判定）
 	go func() {
-		jst := time.FixedZone("Asia/Tokyo", 9*60*60)
 		for {
-			now := time.Now().In(jst)
-			next := time.Date(now.Year(), now.Month(), now.Day(), 10, 0, 0, 0, jst)
-			if !next.After(now) {
-				next = next.Add(24 * time.Hour)
-			}
+			now := time.Now()
+			next := now.Truncate(time.Hour).Add(time.Hour)
 			timer := time.NewTimer(next.Sub(now))
 			select {
 			case <-appCtx.Done():

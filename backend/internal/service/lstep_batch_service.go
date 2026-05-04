@@ -10,6 +10,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+const defaultFireHourJST = 10
+
 // LstepBatchService はバッチ処理でノーショウ検知・休眠検知を行うサービス（BE-005, BE-014）。
 type LstepBatchService interface {
 	// DetectNoShowReservations は指定クリニックのノーショウ予約を検知しタグ付与・ステータス更新を行う。
@@ -40,9 +42,12 @@ type lstepBatchService struct {
 	auditSvc             AuditService
 	settingsSvc          LstepSettingsService
 	lstepDeliveryTrigger LstepDeliveryTriggerService
+	fireHours            map[uint64]int // clinicID → 配信実行時刻（JST）
+	nowFn                func() time.Time
 }
 
 // NewLstepBatchService は LstepBatchService を初期化して返す。
+// fireHours は起動時に読み込んだクリニックごとの配信実行時刻（JST）マップ。nil の場合は全クリニックにデフォルト 10 時を使用する。
 func NewLstepBatchService(
 	reservationRepo repository.ReservationRepository,
 	tagSyncSvc LstepTagSyncService,
@@ -51,7 +56,11 @@ func NewLstepBatchService(
 	auditSvc AuditService,
 	settingsSvc LstepSettingsService,
 	lstepDeliveryTrigger LstepDeliveryTriggerService,
+	fireHours map[uint64]int,
 ) LstepBatchService {
+	if fireHours == nil {
+		fireHours = make(map[uint64]int)
+	}
 	return &lstepBatchService{
 		reservationRepo:      reservationRepo,
 		tagSyncSvc:           tagSyncSvc,
@@ -60,7 +69,17 @@ func NewLstepBatchService(
 		auditSvc:             auditSvc,
 		settingsSvc:          settingsSvc,
 		lstepDeliveryTrigger: lstepDeliveryTrigger,
+		fireHours:            fireHours,
+		nowFn:                time.Now,
 	}
+}
+
+// fireHourFor はクリニックの配信実行時刻（JST）を返す。設定がない場合は defaultFireHourJST を返す。
+func (s *lstepBatchService) fireHourFor(clinicID uint64) int {
+	if h, ok := s.fireHours[clinicID]; ok {
+		return h
+	}
+	return defaultFireHourJST
 }
 
 // DetectNoShowReservations は指定クリニックの no-show 予約を検知してステータス更新・タグ付与を行う。
@@ -320,8 +339,12 @@ func (s *lstepBatchService) runDeliveryTriggersForClinic(ctx context.Context, cl
 	return totalFired, allErrs
 }
 
-// RunDeliveryTriggerBatchAllClinics は全クリニックの自動配信トリガーバッチを実行する（10:00 JST）。
+// RunDeliveryTriggerBatchAllClinics は全クリニックの自動配信トリガーバッチを実行する。
+// クリニックごとに設定された lstep_fire_hour_jst と現在の JST 時刻が一致するクリニックのみ処理する（FEAT-383-supplement Scope 3）。
 func (s *lstepBatchService) RunDeliveryTriggerBatchAllClinics(ctx context.Context) error {
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	nowHour := s.nowFn().In(jst).Hour()
+
 	clinics, err := s.clinicRepo.FindAll(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger batch: failed to fetch clinics", "error", err)
@@ -330,6 +353,9 @@ func (s *lstepBatchService) RunDeliveryTriggerBatchAllClinics(ctx context.Contex
 
 	for i := range clinics {
 		clinic := &clinics[i]
+		if nowHour != s.fireHourFor(clinic.ID) {
+			continue
+		}
 		if s.settingsSvc != nil {
 			enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
 			if syncErr != nil {

@@ -259,7 +259,7 @@ func newBatchService(
 	clinicRepo repository.ClinicRepository,
 	medRepo repository.MedicalRecordRepository,
 ) LstepBatchService {
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{}, &mockLstepSettingsService{}, nil)
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{}, &mockLstepSettingsService{}, nil, nil)
 }
 
 // newBatchServiceWithAuditSpy は ISSUE-010 監査 metadata 検証用に audit spy を返す。
@@ -270,7 +270,7 @@ func newBatchServiceWithAuditSpy(
 	medRepo repository.MedicalRecordRepository,
 ) (LstepBatchService, *batchMockAuditService) {
 	spy := &batchMockAuditService{}
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy, &mockLstepSettingsService{}, nil), spy
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy, &mockLstepSettingsService{}, nil, nil), spy
 }
 
 func TestDetectNoShowReservations_Success(t *testing.T) {
@@ -590,4 +590,97 @@ func TestRunHealthPreventionTagSyncAllClinics_FetchClinicsError(t *testing.T) {
 
 	err := svc.RunHealthPreventionTagSyncAllClinics(context.Background())
 	assert.Error(t, err)
+}
+
+// ---- FEAT-383-supplement Scope 3: クリニック別配信実行時刻フィルタ ----
+
+// batchMockDeliveryTrigger は RunDeliveryTriggerBatchAllClinics の配信時刻フィルタ検証用モック。
+// TriggerFirstVisitFollowUp3D のみ clinicID を記録し (1, nil) を返す。他は (0, nil)。
+type batchMockDeliveryTrigger struct {
+	processedClinics []uint64
+}
+
+func (m *batchMockDeliveryTrigger) TriggerFirstVisitFollowUp3D(_ context.Context, clinicID uint64, _ time.Time) (int, []error) {
+	m.processedClinics = append(m.processedClinics, clinicID)
+	return 1, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerFirstVisitFollowUp7D(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerNextVisitReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerVaccineDeadline60(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerVaccineDeadline30(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerBirthdayMessage(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerDormantPrevention120(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerDormantPrevention180(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerDormantPrevention220(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerFilariaAlert(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerFleaTickAlert(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerFoodRefillReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerSuppRefillReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *batchMockDeliveryTrigger) TriggerFirstVisitWelcome(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *batchMockDeliveryTrigger) TriggerCheckupFollowUp(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+// TestFireHourFor_UsesDefault は fireHours マップにエントリがない場合 defaultFireHourJST (10) を返すことを検証する。
+func TestFireHourFor_UsesDefault(t *testing.T) {
+	svc := &lstepBatchService{fireHours: map[uint64]int{}}
+	assert.Equal(t, defaultFireHourJST, svc.fireHourFor(99))
+}
+
+// TestFireHourFor_UsesConfigured は fireHours マップのエントリを返すことを検証する。
+func TestFireHourFor_UsesConfigured(t *testing.T) {
+	svc := &lstepBatchService{fireHours: map[uint64]int{1: 9, 2: 22}}
+	assert.Equal(t, 9, svc.fireHourFor(1))
+	assert.Equal(t, 22, svc.fireHourFor(2))
+	assert.Equal(t, defaultFireHourJST, svc.fireHourFor(3), "未設定クリニックはデフォルト")
+}
+
+// TestRunDeliveryTriggerBatchAllClinics_FireHourFilter は配信時刻が一致するクリニックのみ処理されることを検証する。
+// clinic1: fire at 9 JST, clinic2: fire at 10 JST (default)。nowFn = 9:00 JST → clinic1 のみ処理。
+func TestRunDeliveryTriggerBatchAllClinics_FireHourFilter(t *testing.T) {
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	trigger := &batchMockDeliveryTrigger{}
+	svc := &lstepBatchService{
+		fireHours: map[uint64]int{1: 9}, // clinic2 は未設定 → デフォルト 10
+		clinicRepo: &mockClinicRepository{
+			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
+				return []model.Clinic{{ID: 1}, {ID: 2}}, nil
+			},
+		},
+		auditSvc:             &batchMockAuditService{},
+		lstepDeliveryTrigger: trigger,
+		nowFn: func() time.Time {
+			return time.Date(2026, 5, 5, 9, 0, 0, 0, jst)
+		},
+	}
+
+	err := svc.RunDeliveryTriggerBatchAllClinics(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, []uint64{1}, trigger.processedClinics, "9時設定の clinic1 のみ処理される")
 }
