@@ -17,6 +17,8 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 
 import { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
 import { useGetOwnerLineTags } from "@/features/owners";
+import { ReservationRouteSelect } from "@/features/reservations";
+import type { ReservationRoute } from "@/features/reservations";
 
 // Relative
 import { PatientSelectionTable } from "./PatientSelectionTable";
@@ -333,6 +335,13 @@ export const ReservationFormModal = memo(function ReservationFormModal({
                   holidayDates={holidayDates}
                   onMonthChange={handleCalendarMonthChange}
                 />
+                {isEditMode ? (
+                  <ReservationRouteSelect
+                    reservationId={String(initialData.id)}
+                    value={(formData.reservationRoute as ReservationRoute | undefined) ?? null}
+                    disabled={!canEdit}
+                  />
+                ) : null}
               </div>
             </div>
           </div>

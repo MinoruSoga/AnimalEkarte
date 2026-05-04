@@ -1,6 +1,6 @@
-import type { Reservation as BackendReservation } from "@/types/generated/models";
 import type { ReservationStatus } from "@/types";
-import type { CreateReservationRequest } from "./types";
+import type { BackendReservation, CreateReservationRequest } from "./types";
+import type { ReservationRoute } from "../constants/reservation-route";
 
 /** customer_fields JSON（LINE予約のオーナー未紐付け時のフォールバック用） */
 interface CustomerFieldsJSON {
@@ -51,6 +51,7 @@ export const transformReservation = (
     petId: reservation.pet_id ? String(reservation.pet_id) : undefined,
     ownerId: reservation.owner_id ? String(reservation.owner_id) : reservation.owner?.id ? String(reservation.owner.id) : undefined,
     source: (reservation.source as "manual" | "line") ?? "manual",
+    reservationRoute: (reservation.reservation_route ?? null) as ReservationRoute | null,
   };
 };
 
