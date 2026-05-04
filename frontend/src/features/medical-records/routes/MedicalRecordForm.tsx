@@ -120,6 +120,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     isNextVisitDateValid: _isNextVisitDateValid,
     handleNextVisitDateValidChange,
     recommendationReason,
+    setRecommendationReason,
     } = useMedicalRecordForm(recordId);
 
     useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
@@ -411,13 +412,21 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
                   hasLineIntegration={hasLineIntegration}
                   disabled={isNewRecord}
                 />
-                {!isNewRecord && recordId ? (
+                {recordId ? (
                   <RecommendationReasonSelect
+                    mode="edit"
                     medicalRecordId={recordId}
                     value={recommendationReason}
                     disabled={false}
                   />
-                ) : null}
+                ) : (
+                  <RecommendationReasonSelect
+                    mode="create"
+                    value={recommendationReason}
+                    onChange={setRecommendationReason}
+                    disabled={false}
+                  />
+                )}
               </div>
             </div>
           </UnifiedTabsContent>

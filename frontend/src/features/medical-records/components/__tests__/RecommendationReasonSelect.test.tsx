@@ -39,6 +39,7 @@ function createWrapper() {
 function renderSelect(value: RecommendationReason | null, disabled = false) {
   render(
     <RecommendationReasonSelect
+      mode="edit"
       medicalRecordId={RECORD_ID}
       value={value}
       disabled={disabled}
@@ -188,5 +189,61 @@ describe("RecommendationReasonSelect — D: disabled 状態", () => {
     renderSelect(null, true);
     const trigger = screen.getByTestId("recommendation-reason-trigger");
     expect(trigger).toBeDisabled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// E: create mode
+// ─────────────────────────────────────────────────────────────
+
+describe("RecommendationReasonSelect — E: create mode", () => {
+  it("create モードで Select が表示される", () => {
+    render(
+      <RecommendationReasonSelect mode="create" value={null} onChange={vi.fn()} />,
+      { wrapper: createWrapper() }
+    );
+    expect(screen.getByTestId("recommendation-reason-trigger")).toBeInTheDocument();
+    expect(screen.getByText("未選択")).toBeInTheDocument();
+  });
+
+  it("create モードで値選択時 onChange が呼ばれ PATCH は送信されない", async () => {
+    let patchCalled = false;
+    server.use(
+      http.patch(
+        `/api/v1/medical-records/${RECORD_ID}/recommendation-reason`,
+        () => {
+          patchCalled = true;
+          return HttpResponse.json({});
+        }
+      )
+    );
+    const onChange = vi.fn();
+    render(
+      <RecommendationReasonSelect mode="create" value={null} onChange={onChange} />,
+      { wrapper: createWrapper() }
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("recommendation-reason-trigger"));
+    await waitFor(() => screen.getByRole("option", { name: "健診" }));
+    await user.click(screen.getByRole("option", { name: "健診" }));
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith("checkup");
+    });
+    expect(patchCalled).toBe(false);
+  });
+
+  it("create モードで「クリア」選択時 onChange(null) が呼ばれる", async () => {
+    const onChange = vi.fn();
+    render(
+      <RecommendationReasonSelect mode="create" value={"checkup"} onChange={onChange} />,
+      { wrapper: createWrapper() }
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("recommendation-reason-trigger"));
+    await waitFor(() => screen.getByRole("option", { name: "クリア" }));
+    await user.click(screen.getByRole("option", { name: "クリア" }));
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(null);
+    });
   });
 });

@@ -13,6 +13,7 @@ import { useUpdateMedicalRecord } from "../api/update-medical-record";
 import { useUpdateInquiry } from "../api/inquiries";
 import { useUpdateClinicalPlan } from "../api/clinical-plan";
 import type { UpdateMedicalRecordRequest } from "../api/types";
+import type { RecommendationReason } from "../constants/recommendation-reason";
 import type { TreatmentItem } from "../components/TreatmentTable";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
@@ -41,6 +42,10 @@ export function useMedicalRecordForm(recordId?: string) {
   // 次回来院推奨日
   const [nextVisitDate, setNextVisitDate] = useState("");
   const [isNextVisitDateValid, setIsNextVisitDateValid] = useState(true);
+
+  // 推奨理由 (create mode 専用 state; edit mode では existingRecord から取得)
+  const [createRecommendationReason, setCreateRecommendationReason] =
+    useState<RecommendationReason | null>(null);
 
   // --- Focus Management (Accessibility) ---
   // Tab switching: previous-value pattern (no side effects during render)
@@ -321,6 +326,7 @@ export function useMedicalRecordForm(recordId?: string) {
           visit_date: today,
           visit_type: visitType,
           status: "draft",
+          recommendation_reason: createRecommendationReason ?? "",
         });
         navigate(paths.medicalRecords.detail.getHref(record.id), { replace: true });
       } catch (error) {
@@ -389,7 +395,10 @@ export function useMedicalRecordForm(recordId?: string) {
     handleNextVisitDateChange: setNextVisitDate,
     isNextVisitDateValid,
     handleNextVisitDateValidChange: setIsNextVisitDateValid,
-    // 推奨理由 (inline edit — useUpdateRecommendationReason で直接 PATCH)
-    recommendationReason: existingRecord?.recommendationReason ?? null,
+    // 推奨理由: edit mode は existingRecord から、create mode は local state から
+    recommendationReason: recordId
+      ? (existingRecord?.recommendationReason ?? null)
+      : createRecommendationReason,
+    setRecommendationReason: setCreateRecommendationReason,
   };
 }

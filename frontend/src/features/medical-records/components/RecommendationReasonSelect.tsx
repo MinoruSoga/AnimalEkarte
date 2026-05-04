@@ -13,26 +13,38 @@ import {
 } from "../constants/recommendation-reason";
 import { useUpdateRecommendationReason } from "../api/update-recommendation-reason";
 
-interface RecommendationReasonSelectProps {
-  medicalRecordId: string;
-  value: RecommendationReason | null;
-  disabled?: boolean;
-}
+type Props =
+  | {
+      mode: "edit";
+      medicalRecordId: string;
+      value: RecommendationReason | null;
+      disabled?: boolean;
+    }
+  | {
+      mode: "create";
+      value: RecommendationReason | null;
+      onChange: (value: RecommendationReason | null) => void;
+      disabled?: boolean;
+    };
 
-export function RecommendationReasonSelect({
-  medicalRecordId,
-  value,
-  disabled = false,
-}: RecommendationReasonSelectProps) {
-  const { mutate, isPending } = useUpdateRecommendationReason(medicalRecordId);
+export function RecommendationReasonSelect(props: Props) {
+  const { mutate, isPending } = useUpdateRecommendationReason(
+    props.mode === "edit" ? props.medicalRecordId : ""
+  );
 
   const handleValueChange = (selected: string) => {
-    if (selected === "_clear") {
-      mutate({ reason: null });
+    if (props.mode === "edit") {
+      if (selected === "_clear") {
+        mutate({ reason: null });
+      } else {
+        mutate({ reason: selected as RecommendationReason });
+      }
     } else {
-      mutate({ reason: selected as RecommendationReason });
+      props.onChange(selected === "_clear" ? null : (selected as RecommendationReason));
     }
   };
+
+  const { value, disabled = false } = props;
 
   return (
     <div className="flex flex-col gap-2">
@@ -40,7 +52,7 @@ export function RecommendationReasonSelect({
       <Select
         value={value ?? ""}
         onValueChange={handleValueChange}
-        disabled={disabled || isPending}
+        disabled={disabled || (props.mode === "edit" ? isPending : false)}
       >
         <SelectTrigger
           className="w-[160px] h-9 text-sm"
