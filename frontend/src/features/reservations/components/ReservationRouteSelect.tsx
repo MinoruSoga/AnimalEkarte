@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -26,12 +26,10 @@ export function ReservationRouteSelect({
   disabled = false,
 }: ReservationRouteSelectProps) {
   const [displayValue, setDisplayValue] = useState<ReservationRoute | null>(value);
-  // previous-value pattern: sync internal state when prop changes (modal reopened with new data)
-  const prevValueRef = useRef(value);
-  if (prevValueRef.current !== value) {
-    prevValueRef.current = value;
+  // sync internal state when prop changes (modal reopened with new data)
+  useEffect(() => {
     setDisplayValue(value);
-  }
+  }, [value]);
 
   const { mutate, isPending } = useUpdateReservationRoute(reservationId);
 

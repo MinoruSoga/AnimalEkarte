@@ -10,8 +10,6 @@ import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 export interface OwnerApiResponse extends Omit<BackendOwner, "name" | "name_kana"> {
   owner_name: string;
   owner_name_kana?: string;
-  delivery_caution?: boolean;
-  delivery_caution_reason?: string | null;
 }
 
 const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {

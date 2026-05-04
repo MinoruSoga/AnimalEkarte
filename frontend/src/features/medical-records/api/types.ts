@@ -4,7 +4,6 @@ import type { MedicalRecord as ApiMedicalRecord } from "@/types/generated/models
 export type BackendMedicalRecord = ApiMedicalRecord & {
   accounting_id?: number;
   visit_count?: number;
-  recommendation_reason?: string | null; // 暫定 — codegen 後に generated/models.ts から自動付与
 };
 
 // ── CreateMedicalRecordRequest ──
