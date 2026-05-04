@@ -169,6 +169,11 @@ export interface AuditLog {
   resource_id?: number /* uint64 */;
   old_value: any /* json.RawMessage */;
   new_value: any /* json.RawMessage */;
+  /**
+   * Metadata は LSTEP 操作の件数・抽出条件を保存する多次元メタデータ（ISSUE-010）。
+   * resource_id 単一 ID では表現できない情報（例: 健診対象抽出のフィルタ条件 + 件数集計）を JSON で永続化する。
+   */
+  metadata: any /* json.RawMessage */;
   ip_address: string;
   user_agent: string;
   created_at: string;
@@ -809,6 +814,8 @@ export interface Hospitalization {
   status: HospitalizationStatus;
   cage_id?: number /* uint64 */;
   doctor_id?: number /* uint64 */;
+  insurance_company_name?: string;
+  insurance_number?: string;
   memo: string;
   owner_request: string;
   staff_notes: string;
@@ -1163,6 +1170,79 @@ export interface LineSendLog {
 }
 
 //////////
+// source: lstep_delivery_trigger_log.go
+
+/**
+ * TriggerType は配信トリガーの種別を表す型エイリアス。
+ */
+export type TriggerType = string;
+/**
+ * TriggerStatus は配信トリガーログのステータスを表す型エイリアス。
+ */
+export type TriggerStatus = string;
+export const TriggerTypeFirstVisitFollowUp3D: TriggerType = "first_visit_followup_3d";
+export const TriggerTypeFirstVisitFollowUp7D: TriggerType = "first_visit_followup_7d";
+export const TriggerTypeNextVisitReminder: TriggerType = "next_visit_reminder";
+export const TriggerTypeVaccineDeadline60: TriggerType = "vaccine_deadline_60d";
+export const TriggerTypeVaccineDeadline30: TriggerType = "vaccine_deadline_30d";
+export const TriggerTypeBirthdayMessage: TriggerType = "birthday_message";
+export const TriggerTypeDormantPrevention120: TriggerType = "dormant_prevention_120d";
+export const TriggerTypeDormantPrevention180: TriggerType = "dormant_prevention_180d";
+export const TriggerTypeDormantPrevention220: TriggerType = "dormant_prevention_220d";
+export const TriggerTypeFilariaAlert: TriggerType = "filaria_alert";
+export const TriggerTypeFleaTickAlert: TriggerType = "flea_tick_alert";
+export const TriggerTypeFoodRefillReminder: TriggerType = "food_refill_reminder";
+export const TriggerTypeSuppRefillReminder: TriggerType = "supp_refill_reminder";
+export const TriggerTypeFirstVisitWelcome: TriggerType = "first_visit_welcome";
+export const TriggerTypeCheckupFollowUp: TriggerType = "checkup_followup";
+export const TriggerStatusScheduled: TriggerStatus = "scheduled";
+export const TriggerStatusFired: TriggerStatus = "fired";
+export const TriggerStatusExcluded: TriggerStatus = "excluded";
+export const TriggerStatusFailed: TriggerStatus = "failed";
+/**
+ * LstepDeliveryTriggerLog は自動配信トリガーの実行ログ。
+ */
+export interface LstepDeliveryTriggerLog {
+  ID: number /* uint64 */;
+  OwnerID: number /* uint64 */;
+  ClinicID: number /* uint64 */;
+  TriggerType: string;
+  ScheduledAt: string;
+  Status: string;
+  FiredAt?: string;
+  ExcludedReason?: string;
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+
+//////////
+// source: lstep_settings.go
+
+/**
+ * LstepSettings はクリニックごとのLステップ同期設定。
+ */
+export interface LstepSettings {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  is_sync_enabled: boolean;
+  sync_enabled_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lstep_sync_error_counter.go
+
+export interface LstepSyncErrorCounter {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  failure_count: number /* int */;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: lstep_tag_cache.go
 
 /**
@@ -1175,7 +1255,32 @@ export interface LstepTagCache {
   owner_id: number /* uint64 */;
   tag_name: string;
   category: string;
+  reason?: string;
   synced_at: string;
+}
+
+//////////
+// source: lstep_tag_code_mapping.go
+
+export const CodeTypeCheckupType = "checkup_type";
+export const CodeTypePrescription = "prescription";
+export const CodeTypeMerchandiseItem = "merchandise_item";
+export const CodeTypeSpecialtyDental = "specialty_dental";
+export const CodeTypeSpecialtySkinEar = "specialty_skin_ear";
+export const CodeTypeSpecialtyOphthalmology = "specialty_ophthalmology";
+export const CodeTypeSpecialtyKidney = "specialty_kidney";
+export const SpeciesScopeDog = "dog";
+export interface LstepTagCodeMapping {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  tag_name: string;
+  code_type: string;
+  codes: string[];
+  species_scope?: string;
+  age_min?: number /* int */;
+  deleted_at?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -1196,6 +1301,7 @@ export interface MedicalRecord {
   status: MedicalRecordStatus;
   version: number /* int */;
   next_visit_recommended_date?: string;
+  recommendation_reason?: string;
   entered_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
@@ -1372,6 +1478,8 @@ export interface Owner {
   line_id_confirmed_at?: string;
   delivery_excluded: boolean;
   delivery_excluded_reason?: string;
+  delivery_caution: boolean;
+  delivery_caution_reason?: string;
   is_transferred: boolean;
   transfer_at?: string;
   created_at: string;
@@ -1676,6 +1784,11 @@ export interface Reservation {
   notes: string;
   created_at: string;
   updated_at: string;
+  /**
+   * FEAT-381-2 Commit 3
+   */
+  reservation_route?: string;
+  actual_reservation_at?: string;
   /**
    * LINE予約用フィールド
    */
