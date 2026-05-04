@@ -445,6 +445,63 @@ func TestMedicalRecordService_Create(t *testing.T) {
 			}
 		})
 	}
+
+	// FEAT-382-2 supplement: recommendation_reason whitelist validation on Create
+	t.Run("valid recommendation_reason is accepted on Create", func(t *testing.T) {
+		reason := "checkup"
+		var capturedRecord *model.MedicalRecord
+		repo := &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, r *model.MedicalRecord) error {
+				capturedRecord = r
+				return nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil)
+		err := svc.Create(context.Background(), &model.MedicalRecord{
+			ClinicID:             1,
+			Date:                 time.Now(),
+			RecommendationReason: &reason,
+		})
+		assert.NoError(t, err)
+		if assert.NotNil(t, capturedRecord) && assert.NotNil(t, capturedRecord.RecommendationReason) {
+			assert.Equal(t, "checkup", *capturedRecord.RecommendationReason)
+		}
+	})
+
+	t.Run("invalid recommendation_reason returns InvalidInput", func(t *testing.T) {
+		reason := "invalid_value"
+		createCalled := false
+		repo := &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				createCalled = true
+				return nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil)
+		err := svc.Create(context.Background(), &model.MedicalRecord{
+			ClinicID:             1,
+			Date:                 time.Now(),
+			RecommendationReason: &reason,
+		})
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Contains(t, err.Error(), "revisit, checkup, prevention, exam")
+		assert.False(t, createCalled, "repo.Create must not be called on invalid reason")
+	})
+
+	t.Run("nil recommendation_reason bypasses whitelist (existing behavior)", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				return nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil)
+		err := svc.Create(context.Background(), &model.MedicalRecord{
+			ClinicID: 1,
+			Date:     time.Now(),
+		})
+		assert.NoError(t, err)
+	})
 }
 
 func TestMedicalRecordService_Update(t *testing.T) {
