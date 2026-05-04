@@ -110,6 +110,9 @@ type Services struct {
 	CheckupSync CheckupSyncService
 	// FEAT-384: 自動配信トリガー監視
 	LstepDeliveryMonitor LstepDeliveryMonitorService
+	// FEAT-385: Lステップ CSV インポート・分析
+	LstepCsvImport LstepCsvImportService
+	LstepAnalytics LstepAnalyticsService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す

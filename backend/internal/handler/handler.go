@@ -110,6 +110,9 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterCheckupSyncRoutes(protected)
 	// FEAT-384: 自動配信トリガー監視
 	h.RegisterLstepDeliveryMonitorRoutes(protected)
+	// FEAT-385: Lステップ CSV インポート・分析
+	h.RegisterLstepCsvImportRoutes(protected)
+	h.RegisterLstepAnalyticsRoutes(protected)
 
 	// LIFF公開API（JWT認証なし・LINE IDトークン認証）
 	h.RegisterLiffRoutes(r)
@@ -166,6 +169,8 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	co.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
 	co.POST("/:id/line/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostLineSend)
 	co.GET("/:id/line/send-logs", h.GetLineSendLogs)
+	// FEAT-385: 飼主の最新 Lステップ友だち属性
+	co.GET("/:id/lstep/friend-attributes", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepOwnerFriendAttributes)
 }
 
 // registerMedicalRecordRoutesWithAuth はカルテルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）

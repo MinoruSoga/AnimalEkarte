@@ -11,7 +11,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// MonthlyDeliveryStats はオーナー単位の月次配信集計 DTO。
+// MonthlyDeliveryStats はクリニック単位の月次配信集計 DTO。
 type MonthlyDeliveryStats struct {
 	YearMonth string                        `json:"year_month"`
 	Rows      []repository.DeliveryStatsRow `json:"rows"`
@@ -21,8 +21,8 @@ type MonthlyDeliveryStats struct {
 type LstepAnalyticsService interface {
 	// GetDeliveryHistoryByOwner は飼主単位で期間内の配信トリガーログ一覧を返す。
 	GetDeliveryHistoryByOwner(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
-	// GetMonthlyDeliveryStats は月次でトリガー種別 × ステータス別集計を返す。yearMonth は "2006-01" 形式。
-	GetMonthlyDeliveryStats(ctx context.Context, clinicID, ownerID uint64, yearMonth string) (*MonthlyDeliveryStats, error)
+	// GetMonthlyDeliveryStats は月次でトリガー種別 × ステータス別集計を返す（クリニック全体）。yearMonth は "2006-01" 形式。
+	GetMonthlyDeliveryStats(ctx context.Context, clinicID uint64, yearMonth string) (*MonthlyDeliveryStats, error)
 	// GetLatestFriendAttributes は飼主 ID から最新の Lステップ友だち属性スナップショットを返す。
 	GetLatestFriendAttributes(ctx context.Context, clinicID, ownerID uint64) (*model.LstepFriendAttributeSnapshot, error)
 }
@@ -55,7 +55,7 @@ func (s *lstepAnalyticsService) GetDeliveryHistoryByOwner(ctx context.Context, c
 	return logs, nil
 }
 
-func (s *lstepAnalyticsService) GetMonthlyDeliveryStats(ctx context.Context, clinicID, ownerID uint64, yearMonth string) (*MonthlyDeliveryStats, error) {
+func (s *lstepAnalyticsService) GetMonthlyDeliveryStats(ctx context.Context, clinicID uint64, yearMonth string) (*MonthlyDeliveryStats, error) {
 	t, err := time.ParseInLocation("2006-01", yearMonth, jst)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid year_month format: " + yearMonth)
@@ -63,9 +63,9 @@ func (s *lstepAnalyticsService) GetMonthlyDeliveryStats(ctx context.Context, cli
 	from := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, jst)
 	until := from.AddDate(0, 1, 0)
 
-	rows, err := s.triggerLogRepo.CountByTypeAndStatus(ctx, clinicID, ownerID, from, until)
+	rows, err := s.triggerLogRepo.CountByTypeAndStatus(ctx, clinicID, from, until)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count monthly delivery stats", "error", err, "owner_id", ownerID, "year_month", yearMonth)
+		slog.ErrorContext(ctx, "failed to count monthly delivery stats", "error", err, "year_month", yearMonth)
 		return nil, apperrors.Wrap(err, "failed to get monthly delivery stats")
 	}
 	return &MonthlyDeliveryStats{YearMonth: yearMonth, Rows: rows}, nil

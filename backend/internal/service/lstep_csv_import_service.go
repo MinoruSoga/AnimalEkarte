@@ -29,8 +29,8 @@ const (
 
 // LstepCsvImportService は Lステップ CSV インポートサービス（FEAT-385）。
 type LstepCsvImportService interface {
-	// ImportFriendAttributesCSV は Lステップ友だち属性 CSV をインポートし、インポート ID を返す。
-	ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID *uint64) (uuid.UUID, error)
+	// ImportFriendAttributesCSV は Lステップ友だち属性 CSV をインポートし、インポートレコードを返す。
+	ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID *uint64) (*model.LstepCsvImport, error)
 	// GetByID はクリニックスコープでインポート履歴を返す。
 	GetByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error)
 	// ListByClinic はクリニックスコープで最新順にインポート履歴一覧を返す。
@@ -59,21 +59,21 @@ func NewLstepCsvImportService(
 	}
 }
 
-func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID *uint64) (uuid.UUID, error) {
+func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID *uint64) (*model.LstepCsvImport, error) {
 	// 1. サイズ制限付き読み込み
 	limited := io.LimitReader(fileReader, maxCSVSizeBytes+1)
 	raw, err := io.ReadAll(limited)
 	if err != nil {
-		return uuid.Nil, apperrors.WrapInvalidInput("failed to read CSV file")
+		return nil, apperrors.WrapInvalidInput("failed to read CSV file")
 	}
 	if int64(len(raw)) > maxCSVSizeBytes {
-		return uuid.Nil, apperrors.WrapInvalidInput("CSV file exceeds 50MB limit")
+		return nil, apperrors.WrapInvalidInput("CSV file exceeds 50MB limit")
 	}
 
 	// 2. 文字コード判定・UTF-8 変換
 	decoded, err := decodeCsvBytes(raw)
 	if err != nil {
-		return uuid.Nil, apperrors.WrapInvalidInput("failed to decode CSV encoding")
+		return nil, apperrors.WrapInvalidInput("failed to decode CSV encoding")
 	}
 
 	// 3. CSV パース
@@ -81,10 +81,10 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 	reader.LazyQuotes = true
 	allRecords, err := reader.ReadAll()
 	if err != nil {
-		return uuid.Nil, apperrors.WrapInvalidInput("failed to parse CSV: " + err.Error())
+		return nil, apperrors.WrapInvalidInput("failed to parse CSV: " + err.Error())
 	}
 	if len(allRecords) == 0 {
-		return uuid.Nil, apperrors.WrapInvalidInput("CSV file is empty")
+		return nil, apperrors.WrapInvalidInput("CSV file is empty")
 	}
 
 	// 4. ヘッダー解析（失敗時は failed レコードを作成して終了）
@@ -100,7 +100,7 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 		if createErr := s.csvImportRepo.Create(ctx, imp); createErr != nil {
 			slog.ErrorContext(ctx, "failed to create failed csv import record", "error", createErr, "clinic_id", clinicID)
 		}
-		return uuid.Nil, apperrors.WrapInvalidInput(err.Error())
+		return nil, apperrors.WrapInvalidInput(err.Error())
 	}
 
 	// 5. processing レコード作成（メイン TX 外 — TX 失敗時も残る）
@@ -113,7 +113,7 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 	}
 	if err := s.csvImportRepo.Create(ctx, imp); err != nil {
 		slog.ErrorContext(ctx, "failed to create csv import record", "error", err, "clinic_id", clinicID)
-		return uuid.Nil, apperrors.Wrap(err, "failed to create csv import record")
+		return nil, apperrors.Wrap(err, "failed to create csv import record")
 	}
 
 	// 6. 飼主 line_user_id → owner_id マップ構築（TX 外・読み取り専用）
@@ -121,7 +121,7 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find owners with line_user_id", "error", err, "clinic_id", clinicID)
 		s.markImportFailed(ctx, imp)
-		return uuid.Nil, apperrors.Wrap(err, "failed to find owners")
+		return nil, apperrors.Wrap(err, "failed to find owners")
 	}
 	ownerIDByLineUserID := make(map[string]uint64, len(owners))
 	for i := range owners {
@@ -183,10 +183,10 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 	if txErr != nil {
 		slog.ErrorContext(ctx, "failed to commit csv import transaction", "error", txErr, "import_id", imp.ID)
 		s.markImportFailed(ctx, imp)
-		return uuid.Nil, apperrors.Wrap(txErr, "failed to save csv import results")
+		return nil, apperrors.Wrap(txErr, "failed to save csv import results")
 	}
 
-	return imp.ID, nil
+	return imp, nil
 }
 
 func (s *lstepCsvImportService) GetByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error) {

@@ -105,6 +105,9 @@ type Repositories struct {
 	LstepTagCodeMapping LstepTagCodeMappingRepository
 	// FEAT-383: 自動配信トリガーログ
 	LstepDeliveryTriggerLog LstepDeliveryTriggerLogRepository
+	// FEAT-385: Lステップ CSV インポート・分析
+	LstepCsvImport               LstepCsvImportRepository
+	LstepFriendAttributeSnapshot LstepFriendAttributeSnapshotRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -179,19 +182,21 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		PaymentMethodMaster:  NewPaymentMethodMasterRepository(db),
 		CashRegisterClose:    NewCashRegisterCloseRepository(db),
 		// LSTEP / LINE連携
-		LstepSettings:           NewLstepSettingsRepository(db),
-		LstepSyncSettings:       NewLstepSyncSettingsRepository(db),
-		SharedFile:              NewSharedFileRepository(db),
-		LstepTagCache:           NewLstepTagCacheRepository(db),
-		Prescription:            NewPrescriptionRepository(db),
-		Ltv:                     NewLtvRepository(db),
-		ChronicCondition:        NewPetChronicConditionRepository(db),
-		LineSendLog:             NewLineSendLogRepository(db),
-		LineLinkToken:           NewLineLinkTokenRepository(db),
-		CheckupSync:             NewCheckupSyncRepository(db),
-		LstepSyncErrorCounter:   NewLstepSyncErrorCounterRepository(db),
-		LstepTagCodeMapping:     NewLstepTagCodeMappingRepository(db),
-		LstepDeliveryTriggerLog: NewLstepDeliveryTriggerLogRepository(db),
+		LstepSettings:                NewLstepSettingsRepository(db),
+		LstepSyncSettings:            NewLstepSyncSettingsRepository(db),
+		SharedFile:                   NewSharedFileRepository(db),
+		LstepTagCache:                NewLstepTagCacheRepository(db),
+		Prescription:                 NewPrescriptionRepository(db),
+		Ltv:                          NewLtvRepository(db),
+		ChronicCondition:             NewPetChronicConditionRepository(db),
+		LineSendLog:                  NewLineSendLogRepository(db),
+		LineLinkToken:                NewLineLinkTokenRepository(db),
+		CheckupSync:                  NewCheckupSyncRepository(db),
+		LstepSyncErrorCounter:        NewLstepSyncErrorCounterRepository(db),
+		LstepTagCodeMapping:          NewLstepTagCodeMappingRepository(db),
+		LstepDeliveryTriggerLog:      NewLstepDeliveryTriggerLogRepository(db),
+		LstepCsvImport:               NewLstepCsvImportRepository(db),
+		LstepFriendAttributeSnapshot: NewLstepFriendAttributeSnapshotRepository(db),
 	}
 }
 
