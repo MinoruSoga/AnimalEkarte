@@ -187,6 +187,9 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 		}
 		record.Status = status
 	}
+	if input.RecommendationReason != nil && *input.RecommendationReason != "" {
+		record.RecommendationReason = input.RecommendationReason
+	}
 	return record, nil
 }
 

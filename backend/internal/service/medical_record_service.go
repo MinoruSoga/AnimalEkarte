@@ -187,6 +187,15 @@ func (s *medicalRecordService) Create(ctx context.Context, record *model.Medical
 		record.RecordNo = generateRecordNo(record.Date, record.ClinicID)
 	}
 
+	// FEAT-382-2 supplement: whitelist validation for recommendation_reason
+	if record.RecommendationReason != nil {
+		if _, ok := allowedRecommendationReasons[*record.RecommendationReason]; !ok {
+			return apperrors.WrapInvalidInput(
+				"recommendation_reason must be one of: revisit, checkup, prevention, exam",
+			)
+		}
+	}
+
 	// 初診判定: Reservation.VisitType 優先、AppointmentID なし or VisitType 空時は COUNT フォールバック（FEAT-383）
 	var isFirstVisit bool
 	if s.lstepDeliveryTrigger != nil && record.OwnerID != nil {

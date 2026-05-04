@@ -547,6 +547,58 @@ func TestCreateMedicalRecord(t *testing.T) {
 			cpSvc:      &mockClinicalPlanService{},
 			wantStatus: http.StatusInternalServerError,
 		},
+		// FEAT-382-2 supplement: recommendation_reason on create
+		{
+			name: "sets recommendation_reason when valid value provided",
+			body: func() map[string]any {
+				b := validBody()
+				b["recommendation_reason"] = "checkup"
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			mrSvc: &mockMedicalRecordService{
+				createFn: func(_ context.Context, record *model.MedicalRecord) error {
+					require.NotNil(t, record.RecommendationReason)
+					assert.Equal(t, "checkup", *record.RecommendationReason)
+					return nil
+				},
+			},
+			cpSvc:      &mockClinicalPlanService{},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "returns 400 when recommendation_reason is invalid",
+			body: func() map[string]any {
+				b := validBody()
+				b["recommendation_reason"] = "invalid_value"
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			mrSvc: &mockMedicalRecordService{
+				createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+					return apperrors.WrapInvalidInput("recommendation_reason must be one of: revisit, checkup, prevention, exam")
+				},
+			},
+			cpSvc:      &mockClinicalPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "stores recommendation_reason as NULL when empty string provided",
+			body: func() map[string]any {
+				b := validBody()
+				b["recommendation_reason"] = ""
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			mrSvc: &mockMedicalRecordService{
+				createFn: func(_ context.Context, record *model.MedicalRecord) error {
+					assert.Nil(t, record.RecommendationReason)
+					return nil
+				},
+			},
+			cpSvc:      &mockClinicalPlanService{},
+			wantStatus: http.StatusCreated,
+		},
 	}
 
 	for _, tt := range tests {
