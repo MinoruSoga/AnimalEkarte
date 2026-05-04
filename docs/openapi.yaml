@@ -509,7 +509,7 @@ paths:
         - name: min_total_amount
           in: query
           required: false
-          description: (ISSUE-009) 累計診療費（円）以上（completed billings 合計）。
+          description: (ISSUE-009) 累計診療費（円）以上（completed accountings 合計）。
           schema: { type: integer, minimum: 0 }
         - name: min_annual_visit_count
           in: query
@@ -1404,7 +1404,7 @@ components:
           x-spec002-q2: "上記 enum は現行実装(V1)値。新仕様(V2)は CPM_01_出会い〜CPM_05_ノア。SPEC-002 Q2 確定後に更新予定。"
         total_amount:
           type: integer
-          description: (ISSUE-009) 累計診療費（円、completed billings 合計）。
+          description: (ISSUE-009) 累計診療費（円、completed accountings 合計）。
         annual_visit_count:
           type: integer
           description: (ISSUE-009) 年間来院回数（過去365日 distinct visit）。

@@ -766,7 +766,7 @@ Authorization: Bearer {jwt_token}
 | `max_age_years` | integer | **(ISSUE-009)** 生存ペットの最大年齢以下（少なくとも1匹該当） |
 | `has_chronic_condition` | boolean | **(ISSUE-009)** アクティブ慢性疾患の有無 |
 | `cpm_stage` | string | **(ISSUE-009)** 現行実装（V1）値: `cpm_encounter` / `cpm_growing` / `cpm_core` / `cpm_spot` / `cpm_noah` / `cpm_dormant`。⚠️ 最新仕様（V2、仮）は `CPM_01_出会い`〜`CPM_05_ノア`。V1→V2 移行は SPEC-002 Q2 確定後。`docs/line/lstep-integration.md` §5 参照 |
-| `min_total_amount` | integer | **(ISSUE-009)** 累計診療費（円）以上（completed billings 合計） |
+| `min_total_amount` | integer | **(ISSUE-009)** 累計診療費（円）以上（completed accountings 合計） |
 | `min_annual_visit_count` | integer | **(ISSUE-009)** 年間来院回数（過去365日 distinct visit）以上 |
 | `last_checkup_before` | date (YYYY-MM-DD) | **(ISSUE-009)** 最終健診実施日がこの日以前 |
 | `last_checkup_after` | date (YYYY-MM-DD) | **(ISSUE-009)** 最終健診実施日がこの日以降 |
@@ -847,7 +847,7 @@ Authorization: Bearer {jwt_token}
 | `max_pet_age_years` | integer \| null | **(ISSUE-009)** 生存ペットの最大年齢（years）。誕生日未登録時は `null` |
 | `has_chronic_condition` | boolean | **(ISSUE-009)** アクティブな慢性疾患の有無（生存ペット由来） |
 | `cpm_stage` | string | **(ISSUE-009)** CPM ステージ（現行実装 V1 / `CalculateCPMStage`）。返し得る値: `cpm_encounter` / `cpm_growing` / `cpm_core` / `cpm_spot` / `cpm_noah` / `cpm_dormant`。⚠️ 最新仕様（V2、仮）は `CPM_01_出会い`〜`CPM_05_ノア`。移行は SPEC-002 Q2 確定後 |
-| `total_amount` | integer | **(ISSUE-009)** 累計診療費（円、completed billings 合計） |
+| `total_amount` | integer | **(ISSUE-009)** 累計診療費（円、completed accountings 合計） |
 | `annual_visit_count` | integer | **(ISSUE-009)** 年間来院回数（過去365日 distinct visit） |
 | `last_checkup_date` | string \| null | **(ISSUE-009)** 最終健診実施日。実績なしは `null` |
 
