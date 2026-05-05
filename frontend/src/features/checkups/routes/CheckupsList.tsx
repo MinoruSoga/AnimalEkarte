@@ -4,9 +4,10 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "rea
 import { useNavigate, useSearchParams } from "react-router";
 
 // External
-import { Calendar, ClipboardCheck, Plus } from "lucide-react";
+import { AlertCircle, Calendar, ClipboardCheck, Plus } from "lucide-react";
 
 // Internal
+import { Badge } from "@/components/ui/badge";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -29,8 +30,36 @@ import { useGetCheckups } from "../api/get-checkups";
 import type { FilterProperty, ActiveFilter, SortProperty } from "@/components/shared/NotionFilter/types";
 import { ResourceCheckups } from "@/types/generated/models";
 
+function toISODate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function getCheckupAlertBadge(nextDate: string | undefined) {
+  if (!nextDate) return null;
+  const today = toISODate(new Date());
+  if (nextDate < today) {
+    return <Badge variant="destructive">期限切れ</Badge>;
+  }
+  const limit = new Date(today);
+  limit.setDate(limit.getDate() + 30);
+  if (nextDate <= toISODate(limit)) {
+    return <Badge className="bg-[#F0D070] text-[#7A5C00]">期限間近</Badge>;
+  }
+  return null;
+}
+
 // rendering-hoist-jsx: 静的定数をモジュールスコープに
 const FILTER_PROPERTIES: FilterProperty[] = [
+  {
+    key: "alertStatus",
+    label: "期限状態",
+    type: "select",
+    icon: AlertCircle,
+    options: [
+      { value: "overdue", label: "期限切れ" },
+      { value: "upcoming30", label: "期限間近 (30日以内)" },
+    ],
+  },
   {
     key: "date",
     label: "日付",
@@ -56,14 +85,35 @@ export function CheckupsList() {
   const deferredSearch = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearch;
 
-  // activeFilters から日付フィルタを抽出してAPIに渡す
+  // activeFilters から日付フィルタ・アラートフィルタを抽出してAPIに渡す
   const filters = useMemo(() => {
+    const today = toISODate(new Date());
     const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
       | { from?: string; to?: string }
       | undefined;
+    const alertStatus = activeFilters.find((f) => f.key === "alertStatus")?.value as
+      | string
+      | undefined;
+
+    let nextStartDate: string | undefined;
+    let nextEndDate: string | undefined;
+
+    if (alertStatus === "overdue") {
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      nextEndDate = toISODate(yesterday);
+    } else if (alertStatus === "upcoming30") {
+      nextStartDate = today;
+      const plus30 = new Date(today);
+      plus30.setDate(plus30.getDate() + 30);
+      nextEndDate = toISODate(plus30);
+    }
+
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
+      nextStartDate,
+      nextEndDate,
     };
   }, [activeFilters]);
 
@@ -228,7 +278,10 @@ export function CheckupsList() {
                 <TableCell className={`text-base ${C.text} py-2`}>{c.petName || "-"}</TableCell>
                 <TableCell className={`text-base ${C.text} py-2`}>{c.checkupTypeName || "-"}</TableCell>
                 <TableCell className={`font-mono text-base ${C.text} py-2 hidden lg:table-cell`}>
-                  {c.nextDate ? formatDate(c.nextDate) : "-"}
+                  <div className="flex items-center gap-1.5">
+                    {c.nextDate ? formatDate(c.nextDate) : "-"}
+                    {getCheckupAlertBadge(c.nextDate)}
+                  </div>
                 </TableCell>
                 <TableCell className={`text-base ${C.text} py-2 max-w-xs truncate hidden lg:table-cell`}>
                   {c.result || "-"}
