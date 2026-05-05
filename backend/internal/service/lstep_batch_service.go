@@ -324,6 +324,7 @@ func (s *lstepBatchService) runDeliveryTriggersForClinic(ctx context.Context, cl
 		s.lstepDeliveryTrigger.TriggerDormantPrevention120,
 		s.lstepDeliveryTrigger.TriggerDormantPrevention180,
 		s.lstepDeliveryTrigger.TriggerDormantPrevention220,
+		s.lstepDeliveryTrigger.TriggerDormantPrevention240,
 		s.lstepDeliveryTrigger.TriggerFilariaAlert,
 		s.lstepDeliveryTrigger.TriggerFleaTickAlert,
 		s.lstepDeliveryTrigger.TriggerFoodRefillReminder,

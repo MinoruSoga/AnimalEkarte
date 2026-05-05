@@ -1036,6 +1036,9 @@ func (m *mockLstepDeliveryTriggerForMR) TriggerDormantPrevention180(_ context.Co
 func (m *mockLstepDeliveryTriggerForMR) TriggerDormantPrevention220(_ context.Context, _ uint64, _ time.Time) (int, []error) {
 	return 0, nil
 }
+func (m *mockLstepDeliveryTriggerForMR) TriggerDormantPrevention240(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
 func (m *mockLstepDeliveryTriggerForMR) TriggerFilariaAlert(_ context.Context, _ uint64, _ time.Time) (int, []error) {
 	return 0, nil
 }
