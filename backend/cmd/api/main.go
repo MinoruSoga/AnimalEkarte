@@ -76,7 +76,7 @@ func main() {
 	} else {
 		logger.Info("INTEGRATION_ENCRYPTION_KEY not set: running without encryption (dev mode)")
 	}
-	svcs.LstepSettings = service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, lstepCipher, svcs.Audit)
+	svcs.LstepSettings = service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, lstepCipher, svcs.Audit, repos.ClinicSettings)
 	svcs.LstepTagSync = service.NewLstepTagSyncService(
 		svcs.LstepSettings,
 		repos.Owner,

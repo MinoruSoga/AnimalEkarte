@@ -243,6 +243,32 @@ func TestPatchLstepSettingsPassesSyncEnabled(t *testing.T) {
 	}
 }
 
+func TestPatchLstepSettingsPassesFireHourJST(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var got *int
+	svc := &mockLstepSettingsService{
+		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+			got = input.FireHourJST
+			return &service.LstepSettingsResponse{FireHourJST: 9}, nil
+		},
+	}
+
+	body, _ := json.Marshal(map[string]any{"fire_hour_jst": 9})
+	router := newPatchLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodPatch, "/lstep-settings", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	if assert.NotNil(t, got) {
+		assert.Equal(t, 9, *got)
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.Equal(t, float64(9), resp["fire_hour_jst"])
+}
+
 func TestDeleteLstepSettings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tests := []struct {

@@ -9,4 +9,5 @@ type updateLstepSettingsRequest struct {
 	LiffID                 string `json:"liff_id"`
 	LineAccountName        string `json:"line_account_name"`
 	IsSyncEnabled          *bool  `json:"is_sync_enabled"`
+	FireHourJST            *int   `json:"fire_hour_jst"`
 }

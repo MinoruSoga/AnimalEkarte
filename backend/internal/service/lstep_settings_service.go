@@ -26,6 +26,7 @@ type LstepSettingsResponse struct {
 	LastUpdatedAt                *time.Time `json:"last_updated_at"`
 	IsSyncEnabled                bool       `json:"is_sync_enabled"`
 	SyncEnabledAt                *time.Time `json:"sync_enabled_at"`
+	FireHourJST                  int        `json:"fire_hour_jst"`
 }
 
 // UpdateLstepSettingsInput はPATCHリクエスト用（空文字=変更なし）
@@ -38,6 +39,8 @@ type UpdateLstepSettingsInput struct {
 	LineAccountName        string
 	// IsSyncEnabled が nil の場合は変更なし。false→true に変わった時のみ SyncEnabledAt を現在時刻にセット。
 	IsSyncEnabled *bool
+	// FireHourJST が nil の場合は変更なし。有効値は 0-23。
+	FireHourJST *int
 }
 
 // LstepConnectionTestResult は疎通確認結果
@@ -63,17 +66,19 @@ type LstepSettingsService interface {
 }
 
 type lstepSettingsService struct {
-	repo             repository.LstepSettingsRepository
-	syncSettingsRepo repository.LstepSyncSettingsRepository
-	cipher           *crypto.AESGCMCipher
-	auditSvc         AuditService
+	repo               repository.LstepSettingsRepository
+	syncSettingsRepo   repository.LstepSyncSettingsRepository
+	clinicSettingsRepo repository.ClinicSettingsRepository
+	cipher             *crypto.AESGCMCipher
+	auditSvc           AuditService
 }
 
 // NewLstepSettingsService は LstepSettingsService を初期化して返す。
 // cipher が nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 // auditSvc が nil の場合は監査ログをスキップする（CLI ツール等での使用を想定）。
-func NewLstepSettingsService(repo repository.LstepSettingsRepository, syncSettingsRepo repository.LstepSyncSettingsRepository, cipher *crypto.AESGCMCipher, auditSvc AuditService) LstepSettingsService {
-	return &lstepSettingsService{repo: repo, syncSettingsRepo: syncSettingsRepo, cipher: cipher, auditSvc: auditSvc}
+// clinicSettingsRepo が nil の場合は fire_hour_jst の読み書きをスキップする。
+func NewLstepSettingsService(repo repository.LstepSettingsRepository, syncSettingsRepo repository.LstepSyncSettingsRepository, cipher *crypto.AESGCMCipher, auditSvc AuditService, clinicSettingsRepo repository.ClinicSettingsRepository) LstepSettingsService {
+	return &lstepSettingsService{repo: repo, syncSettingsRepo: syncSettingsRepo, clinicSettingsRepo: clinicSettingsRepo, cipher: cipher, auditSvc: auditSvc}
 }
 
 func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error) {
@@ -110,6 +115,15 @@ func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64)
 			resp.IsSyncEnabled = syncSettings.IsSyncEnabled
 			resp.SyncEnabledAt = syncSettings.SyncEnabledAt
 		}
+	}
+
+	if s.clinicSettingsRepo != nil {
+		cs, csErr := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
+		if csErr != nil {
+			slog.ErrorContext(ctx, "failed to find clinic settings for fire_hour_jst", "error", csErr, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(csErr, "failed to find clinic settings")
+		}
+		resp.FireHourJST = cs.LstepFireHourJST
 	}
 
 	return resp, nil
@@ -174,6 +188,17 @@ func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint
 	if input.IsSyncEnabled != nil && s.syncSettingsRepo != nil {
 		if err := s.updateSyncEnabled(ctx, clinicID, *input.IsSyncEnabled); err != nil {
 			return nil, err
+		}
+	}
+
+	if input.FireHourJST != nil && s.clinicSettingsRepo != nil {
+		hour := *input.FireHourJST
+		if hour < 0 || hour > 23 {
+			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("fire_hour_jst must be 0-23, got %d", hour))
+		}
+		if err := s.clinicSettingsRepo.UpdateLstepFireHourJST(ctx, clinicID, hour); err != nil {
+			slog.ErrorContext(ctx, "failed to update lstep fire_hour_jst", "error", err, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(err, "failed to update fire_hour_jst")
 		}
 	}
 

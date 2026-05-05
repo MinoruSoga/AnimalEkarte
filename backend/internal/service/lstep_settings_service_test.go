@@ -84,7 +84,7 @@ func TestGetSettings(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := NewLstepSettingsService(tt.repo, &mockLstepSyncSettingsRepository{}, nil, nil)
+			svc := NewLstepSettingsService(tt.repo, &mockLstepSyncSettingsRepository{}, nil, nil, nil)
 			res, err := svc.GetSettings(context.Background(), 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -120,7 +120,7 @@ func TestDeleteSettings(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := NewLstepSettingsService(tt.repo, &mockLstepSyncSettingsRepository{}, nil, nil)
+			svc := NewLstepSettingsService(tt.repo, &mockLstepSyncSettingsRepository{}, nil, nil, nil)
 			err := svc.DeleteSettings(context.Background(), 1, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -139,7 +139,7 @@ func TestIsSyncEnabled(t *testing.T) {
 				return nil, apperrors.WrapNotFound("lstep_settings", "clinic_id=1")
 			},
 		}
-		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil)
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
 		enabled, err := svc.IsSyncEnabled(context.Background(), 1)
 		assert.NoError(t, err)
 		assert.False(t, enabled)
@@ -151,7 +151,7 @@ func TestIsSyncEnabled(t *testing.T) {
 				return &model.LstepSettings{IsSyncEnabled: true}, nil
 			},
 		}
-		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil)
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
 		enabled, err := svc.IsSyncEnabled(context.Background(), 1)
 		assert.NoError(t, err)
 		assert.True(t, enabled)
@@ -163,7 +163,7 @@ func TestIsSyncEnabled(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil)
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
 		_, err := svc.IsSyncEnabled(context.Background(), 1)
 		assert.Error(t, err)
 	})
@@ -183,7 +183,7 @@ func TestSyncEnabledAtLifecycle(t *testing.T) {
 				return s, nil
 			},
 		}
-		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil)
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
 		enabled := true
 		_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{IsSyncEnabled: &enabled}, nil)
 		assert.NoError(t, err)
@@ -205,7 +205,7 @@ func TestSyncEnabledAtLifecycle(t *testing.T) {
 				return s, nil
 			},
 		}
-		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil)
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
 		disabled := false
 		_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{IsSyncEnabled: &disabled}, nil)
 		assert.NoError(t, err)
@@ -223,7 +223,7 @@ func TestSyncEnabledAtLifecycle(t *testing.T) {
 				return nil, nil
 			},
 		}
-		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil)
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
 		_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{}, nil)
 		assert.NoError(t, err)
 		assert.False(t, upsertCalled)
@@ -279,4 +279,62 @@ func TestAllClinicsFiltersBySyncEnabled(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, []uint64{20}, processed)
 	})
+}
+
+// TestGetSettings_IncludesFireHourJST: clinicSettingsRepo からの fire_hour_jst が応答に含まれる
+func TestGetSettings_IncludesFireHourJST(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return &model.ClinicSettings{LstepFireHourJST: 14}, nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	resp, err := svc.GetSettings(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, 14, resp.FireHourJST)
+}
+
+// TestUpdateSettings_FireHourJSTValid: 有効値 (0-23) は UpdateLstepFireHourJST を呼ぶ
+func TestUpdateSettings_FireHourJSTValid(t *testing.T) {
+	var savedHour int
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return &model.ClinicSettings{LstepFireHourJST: 10}, nil
+		},
+		updateLstepFireHourJSTFn: func(_ context.Context, _ uint64, hour int) error {
+			savedHour = hour
+			return nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	hour := 9
+	_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{FireHourJST: &hour}, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 9, savedHour)
+}
+
+// TestUpdateSettings_FireHourJSTInvalid: 範囲外 (24) は InvalidInput エラー
+func TestUpdateSettings_FireHourJSTInvalid(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	hour := 24
+	_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{FireHourJST: &hour}, nil)
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+// TestUpdateSettings_FireHourJSTNil_Skips: nil の場合 UpdateLstepFireHourJST は呼ばれない
+func TestUpdateSettings_FireHourJSTNil_Skips(t *testing.T) {
+	called := false
+	csRepo := &mockClinicSettingsRepository{
+		updateLstepFireHourJSTFn: func(_ context.Context, _ uint64, _ int) error {
+			called = true
+			return nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{}, nil)
+	assert.NoError(t, err)
+	assert.False(t, called)
 }

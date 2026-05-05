@@ -82,7 +82,7 @@ func run() int {
 		}
 	}
 
-	settingsSvc := service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, nil)
+	settingsSvc := service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, nil, nil)
 	tagSyncSvc := service.NewLstepTagSyncService(
 		settingsSvc,
 		repos.Owner,

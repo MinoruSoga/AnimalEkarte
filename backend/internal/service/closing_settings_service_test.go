@@ -15,15 +15,16 @@ import (
 // ---- モックリポジトリ定義 ----
 
 type mockClinicSettingsRepository struct {
-	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
-	upsertFn         func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
+	findByClinicIDFn         func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
+	upsertFn                 func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
+	updateLstepFireHourJSTFn func(ctx context.Context, clinicID uint64, hour int) error
 }
 
 func (m *mockClinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
 	if m.findByClinicIDFn != nil {
 		return m.findByClinicIDFn(ctx, clinicID)
 	}
-	return nil, nil
+	return &model.ClinicSettings{}, nil
 }
 
 func (m *mockClinicSettingsRepository) Save(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error) {
@@ -31,6 +32,12 @@ func (m *mockClinicSettingsRepository) Save(ctx context.Context, clinicID uint64
 		return m.upsertFn(ctx, clinicID, s)
 	}
 	return s, nil
+}
+func (m *mockClinicSettingsRepository) UpdateLstepFireHourJST(ctx context.Context, clinicID uint64, hour int) error {
+	if m.updateLstepFireHourJSTFn != nil {
+		return m.updateLstepFireHourJSTFn(ctx, clinicID, hour)
+	}
+	return nil
 }
 
 type mockClosingSpecialPeriodRepository struct {
