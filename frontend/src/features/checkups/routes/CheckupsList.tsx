@@ -7,8 +7,8 @@ import { useNavigate, useSearchParams } from "react-router";
 import { AlertCircle, Calendar, ClipboardCheck, Plus } from "lucide-react";
 
 // Internal
-import { Badge } from "@/components/ui/badge";
 import { TableCell } from "@/components/ui/table";
+import { CheckupAlertBadge } from "../components/CheckupAlertBadge";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -32,20 +32,6 @@ import { ResourceCheckups } from "@/types/generated/models";
 
 function toISODate(d: Date): string {
   return d.toISOString().slice(0, 10);
-}
-
-function getCheckupAlertBadge(nextDate: string | undefined) {
-  if (!nextDate) return null;
-  const today = toISODate(new Date());
-  if (nextDate < today) {
-    return <Badge variant="destructive">期限切れ</Badge>;
-  }
-  const limit = new Date(today);
-  limit.setDate(limit.getDate() + 30);
-  if (nextDate <= toISODate(limit)) {
-    return <Badge className="bg-[#F0D070] text-[#7A5C00]">期限間近</Badge>;
-  }
-  return null;
 }
 
 // rendering-hoist-jsx: 静的定数をモジュールスコープに
@@ -280,7 +266,7 @@ export function CheckupsList() {
                 <TableCell className={`font-mono text-base ${C.text} py-2 hidden lg:table-cell`}>
                   <div className="flex items-center gap-1.5">
                     {c.nextDate ? formatDate(c.nextDate) : "-"}
-                    {getCheckupAlertBadge(c.nextDate)}
+                    <CheckupAlertBadge nextDate={c.nextDate} />
                   </div>
                 </TableCell>
                 <TableCell className={`text-base ${C.text} py-2 max-w-xs truncate hidden lg:table-cell`}>

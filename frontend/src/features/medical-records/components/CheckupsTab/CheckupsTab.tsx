@@ -13,6 +13,7 @@ import { C, STYLE, ICON, PALETTE } from "@/lib/design-tokens";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
 // Relative
+import { CheckupAlertBadge } from "@/features/checkups";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetCheckups } from "../../api/checkups";
 import { useCreateCheckup } from "../../api/checkups";
@@ -346,7 +347,14 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
                       {checkup.checkup_type?.name ?? checkup.checkup_type_id}
                     </td>
                     <td className={`px-3 text-sm ${C.text60}`}>
-                      {checkup.next_date ? checkup.next_date : "-"}
+                      {checkup.next_date ? (
+                        <div className="flex items-center gap-1.5">
+                          <span>{checkup.next_date}</span>
+                          <CheckupAlertBadge nextDate={checkup.next_date} />
+                        </div>
+                      ) : (
+                        "-"
+                      )}
                     </td>
                     <td className={`px-3 text-sm ${C.text60}`}>
                       {checkup.doctor?.name ?? (checkup.doctor_id ? checkup.doctor_id : "-")}
