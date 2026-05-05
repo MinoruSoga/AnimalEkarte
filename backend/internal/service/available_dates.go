@@ -81,8 +81,8 @@ func orEmptyJSONArray(b []byte) []byte {
 
 // CalcAvailableDates は予約可能な日付一覧を計算して返す。
 func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]AvailableDateResult, BookingWindow, error) {
-	now := time.Now().In(jstLocation())
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jstLocation())
+	now := time.Now().In(jstLocation)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jstLocation)
 
 	minDate := today.AddDate(0, 0, input.Settings.BookingWindowMinDays)
 	maxDate := today.AddDate(0, 0, input.Settings.BookingWindowMaxDays)
@@ -208,11 +208,13 @@ func checkDayOption(option string, weekday int) bool {
 	}
 }
 
-// jstLocation は JST タイムゾーンを返す。
-func jstLocation() *time.Location {
+// jstLocation は JST タイムゾーン (Asia/Tokyo) のキャッシュ済みインスタンス。
+// パッケージ初期化時に 1 回だけ time.LoadLocation を呼び出す。
+// LoadLocation が失敗した場合は固定オフセット +09:00 のフォールバックを使用。
+var jstLocation = func() *time.Location {
 	loc, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
 		return time.FixedZone("JST", 9*60*60)
 	}
 	return loc
-}
+}()

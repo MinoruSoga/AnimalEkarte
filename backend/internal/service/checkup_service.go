@@ -214,8 +214,8 @@ func (s *checkupService) GetAlerts(ctx context.Context, clinicID uint64, withinD
 		slog.ErrorContext(ctx, "failed to find checkup alerts", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to find checkup alerts")
 	}
-	nowJST := s.now().In(jstLocation())
-	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, jstLocation())
+	nowJST := s.now().In(jstLocation)
+	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, jstLocation)
 	result := &CheckupAlertsResult{
 		Overdue:  make([]model.Checkup, 0),
 		Upcoming: make([]model.Checkup, 0),

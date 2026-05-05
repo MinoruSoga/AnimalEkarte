@@ -136,7 +136,7 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to resolve schedule")
 	}
 
-	dateJST := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, jstLocation())
+	dateJST := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, jstLocation)
 
 	periodStart, periodEnd, err := resolvePeriodRange(dateJST, period, schedule)
 	if err != nil {
@@ -329,9 +329,9 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule)
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("pm_end の形式が正しくありません")
 	}
 
-	boundary := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), boundaryH, boundaryM, 0, 0, jstLocation())
-	pmEnd := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), pmEndH, pmEndM, 0, 0, jstLocation())
-	dayStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, jstLocation())
+	boundary := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), boundaryH, boundaryM, 0, 0, jstLocation)
+	pmEnd := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), pmEndH, pmEndM, 0, 0, jstLocation)
+	dayStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, jstLocation)
 
 	switch period {
 	case "am":
