@@ -18,6 +18,7 @@ export interface LstepSettingsResponse {
   last_updated_at: string | null;
   is_sync_enabled: boolean;
   sync_enabled_at: string | null;
+  fire_hour_jst: number;
 }
 
 export interface LstepSettingsRequest {
@@ -28,6 +29,7 @@ export interface LstepSettingsRequest {
   liff_id?: string;
   line_account_name?: string;
   is_sync_enabled?: boolean;
+  fire_hour_jst?: number;
 }
 
 // ─────────────────────────────────────────────────

@@ -21,6 +21,7 @@ const configuredSyncOn: LstepSettingsResponse = {
   last_updated_at: '2026-04-01T00:00:00Z',
   is_sync_enabled: true,
   sync_enabled_at: '2026-03-15T10:00:00Z',
+  fire_hour_jst: 10,
 };
 
 const configuredSyncOff: LstepSettingsResponse = {
@@ -40,6 +41,7 @@ const unconfigured: LstepSettingsResponse = {
   last_updated_at: null,
   is_sync_enabled: false,
   sync_enabled_at: null,
+  fire_hour_jst: 10,
 };
 
 function setupGetHandler(data: LstepSettingsResponse) {
@@ -302,5 +304,60 @@ describe('LstepSettingsForm — D: 同期無効化確認ダイアログ (FEAT-37
       'aria-checked',
       'true'
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// E: 自動配信時刻 (fire_hour_jst)
+// ─────────────────────────────────────────────────────────────
+
+describe('LstepSettingsForm — E: 自動配信時刻 (FEAT-383)', () => {
+  it('"自動配信実行時刻 (JST)" select が表示され defaultValue が選択されている', async () => {
+    await renderAndWait({ ...configuredSyncOn, fire_hour_jst: 14 });
+    const select = screen.getByLabelText('自動配信実行時刻 (JST)');
+    expect(select).toBeInTheDocument();
+    expect((select as HTMLSelectElement).value).toBe('14');
+  });
+
+  it('保存すると PATCH body に fire_hour_jst が数値で含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...configuredSyncOn, fire_hour_jst: 10 });
+      })
+    );
+
+    await renderAndWait({ ...configuredSyncOn, fire_hour_jst: 10 });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.fire_hour_jst).toBe(10);
+  });
+
+  it('select の値を変更すると変更後の値が PATCH body に含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...configuredSyncOn, fire_hour_jst: 14 });
+      })
+    );
+
+    await renderAndWait({ ...configuredSyncOn, fire_hour_jst: 10 });
+
+    const user = userEvent.setup();
+    const select = screen.getByLabelText('自動配信実行時刻 (JST)');
+    await user.selectOptions(select, '14:00');
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.fire_hour_jst).toBe(14);
   });
 });
