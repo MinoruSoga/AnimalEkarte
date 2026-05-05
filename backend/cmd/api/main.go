@@ -147,9 +147,13 @@ func main() {
 			for i := range allClinics {
 				c := &allClinics[i]
 				cs, csErr := repos.ClinicSettings.FindByClinicID(context.Background(), c.ID)
-				if csErr == nil {
-					fireHours[c.ID] = cs.LstepFireHourJST
+				if csErr != nil {
+					logger.Warn("failed to load clinic_settings, falling back to default fire hour 10",
+						slog.Uint64("clinic_id", c.ID),
+						slog.String("error", csErr.Error()))
+					continue
 				}
+				fireHours[c.ID] = cs.LstepFireHourJST
 			}
 		} else {
 			logger.Warn("failed to load clinic fire hours at startup, using default 10", slog.String("error", clinicFetchErr.Error()))
