@@ -1003,7 +1003,6 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add CPM stage tag")
 	}
-	// TODO(FEAT-379-supp-2): CPM ステージ reason 未定義
 	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, string(stage), "auto", ""); cacheErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert CPM stage tag cache", "error", cacheErr)
 	}
@@ -1900,7 +1899,6 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 			slog.ErrorContext(ctx, "failed to add cpm_dormant tag", "error", addErr)
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add cpm_dormant tag")
-			// TODO(FEAT-379-supp-2): cpm_dormant reason 未定義
 		} else if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, "cpm_dormant", "auto", ""); upsertErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert cpm_dormant tag cache", "error", upsertErr)
 		}
@@ -2047,7 +2045,6 @@ func (s *lstepTagSyncService) SyncCPMStageTagV2(ctx context.Context, clinicID, o
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add CPM V2 stage tag")
 	}
-	// TODO(FEAT-379-supp-2): CPM V2 ステージ reason 未定義
 	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, string(stage), "auto", ""); cacheErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert CPM V2 stage tag cache", "error", cacheErr)
 	}
@@ -2233,7 +2230,6 @@ func (s *lstepTagSyncService) SyncVisitDormantTags(ctx context.Context, clinicID
 				apiFailed = true
 				continue
 			}
-			// TODO(FEAT-379-supp-2): VISIT dormant reason 未定義
 			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, th.tag, "auto", ""); cacheErr != nil {
 				slog.ErrorContext(ctx, "failed to upsert VISIT dormant tag cache", "error", cacheErr, "tag", th.tag)
 			}
