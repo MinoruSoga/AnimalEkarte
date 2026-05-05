@@ -951,3 +951,13 @@ func TestLstepDeliveryTriggerService_EmptyOwnerListIsNoop(t *testing.T) {
 	assert.Equal(t, 0, count)
 	assert.Empty(t, errs)
 }
+
+// TestTriggerSyncTagConstantsAlignment は sync service と trigger service のタグ定数が一致することを保証する回帰テスト。
+// FEAT-379 命名移行で sync 側だけ更新して trigger 側が取り残されたバグ (P0) を再発防止する。
+func TestTriggerSyncTagConstantsAlignment(t *testing.T) {
+	assert.Equal(t, PrevFilariaTag, tagFilariaAlert, "filaria tag must match between sync and trigger")
+	assert.Equal(t, PrevFleaTickTag, tagFleaTickAlert, "flea tick tag must match between sync and trigger")
+	assert.Equal(t, LtvFoodPurchaseTag, tagFoodRefill, "food purchase tag must match between sync and trigger")
+	// tagSuppRefill: LtvSuppPurchaseTag が lstep_health_codes.go に未定義のため alignment テストを保留。
+	// sync 側に SyncSuppPurchaseTag を実装した後、LtvSuppPurchaseTag との一致確認を追加すること。
+}

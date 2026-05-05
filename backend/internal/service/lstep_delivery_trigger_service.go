@@ -14,10 +14,10 @@ import (
 
 const (
 	exclTagDeliveryStop = "EXCL_配信停止"
-	tagFilariaAlert     = "HEALTH_フィラリア対策中"
-	tagFleaTickAlert    = "HEALTH_ノミダニ予防中"
-	tagFoodRefill       = "PROD_フード購入"
-	tagSuppRefill       = "PROD_サプリメント購入"
+	tagFilariaAlert     = PrevFilariaTag     // FEAT-379 新命名 (旧: HEALTH_フィラリア対策中)
+	tagFleaTickAlert    = PrevFleaTickTag    // FEAT-379 新命名 (旧: HEALTH_ノミダニ予防中)
+	tagFoodRefill       = LtvFoodPurchaseTag // FEAT-379 新命名 (旧: PROD_フード購入)
+	tagSuppRefill       = "PROD_サプリメント購入"    // sync 側未実装のため保留 (LtvSuppPurchaseTag 追加後に置換)
 )
 
 // LstepDeliveryTriggerService は日次バッチで自動配信トリガーを判定し L ステップへタグ付与するサービス（FEAT-383）。
