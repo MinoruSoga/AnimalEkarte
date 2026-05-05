@@ -84,11 +84,19 @@ type CheckupService interface {
 type checkupService struct {
 	repo                 repository.CheckupRepository
 	lstepDeliveryTrigger LstepDeliveryTriggerService
+	nowFn                func() time.Time // test hook; nil uses time.Now
 }
 
 // NewCheckupService は CheckupService の実装を返す
 func NewCheckupService(repo repository.CheckupRepository, lstepDeliveryTrigger LstepDeliveryTriggerService) CheckupService {
 	return &checkupService{repo: repo, lstepDeliveryTrigger: lstepDeliveryTrigger}
+}
+
+func (s *checkupService) now() time.Time {
+	if s.nowFn != nil {
+		return s.nowFn()
+	}
+	return time.Now()
 }
 
 func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
@@ -206,7 +214,8 @@ func (s *checkupService) GetAlerts(ctx context.Context, clinicID uint64, withinD
 		slog.ErrorContext(ctx, "failed to find checkup alerts", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to find checkup alerts")
 	}
-	today := time.Now().Truncate(24 * time.Hour)
+	nowJST := s.now().In(jstLocation())
+	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, jstLocation())
 	result := &CheckupAlertsResult{
 		Overdue:  make([]model.Checkup, 0),
 		Upcoming: make([]model.Checkup, 0),

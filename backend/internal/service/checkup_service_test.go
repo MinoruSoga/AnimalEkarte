@@ -370,20 +370,22 @@ func TestGetAlerts_RejectsInvalidWithinDays(t *testing.T) {
 }
 
 func TestGetAlerts_SeparatesOverdueAndUpcoming(t *testing.T) {
-	yesterday := time.Now().AddDate(0, 0, -1).Truncate(24 * time.Hour)
-	today := time.Now().Truncate(24 * time.Hour)
-	inThirty := time.Now().AddDate(0, 0, 30).Truncate(24 * time.Hour)
+	fixedNow := time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation())
+	yesterdayJST := time.Date(2026, 5, 5, 0, 0, 0, 0, jstLocation())
+	todayJST := time.Date(2026, 5, 6, 0, 0, 0, 0, jstLocation())
+	inThirtyJST := time.Date(2026, 6, 5, 0, 0, 0, 0, jstLocation())
 
 	repo := &mockCheckupRepository{
 		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
 			return []model.Checkup{
-				{ID: 1, NextDate: &yesterday},
-				{ID: 2, NextDate: &today},
-				{ID: 3, NextDate: &inThirty},
+				{ID: 1, NextDate: &yesterdayJST},
+				{ID: 2, NextDate: &todayJST},
+				{ID: 3, NextDate: &inThirtyJST},
 			}, nil
 		},
 	}
 	svc := NewCheckupService(repo, nil)
+	svc.(*checkupService).nowFn = func() time.Time { return fixedNow }
 
 	result, err := svc.GetAlerts(context.Background(), 1, 30)
 	assert.NoError(t, err)
@@ -401,6 +403,9 @@ func TestGetAlerts_NilNextDateExcluded(t *testing.T) {
 		},
 	}
 	svc := NewCheckupService(repo, nil)
+	svc.(*checkupService).nowFn = func() time.Time {
+		return time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation())
+	}
 
 	result, err := svc.GetAlerts(context.Background(), 1, 30)
 	assert.NoError(t, err)
@@ -415,8 +420,37 @@ func TestGetAlerts_PropagatesRepositoryError(t *testing.T) {
 		},
 	}
 	svc := NewCheckupService(repo, nil)
+	svc.(*checkupService).nowFn = func() time.Time {
+		return time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation())
+	}
 
 	result, err := svc.GetAlerts(context.Background(), 1, 30)
 	assert.Error(t, err)
 	assert.Nil(t, result)
+}
+
+func TestGetAlerts_JSTLateNight_TodayIsCorrectJSTDate(t *testing.T) {
+	// 2026-05-06 03:00 JST = 2026-05-05 18:00 UTC
+	// 旧実装 Truncate(24h): today = 2026-05-05 00:00 UTC
+	//   → next_date (2026-05-05 00:00 UTC) は today と等しいので Before = false → Upcoming (誤)
+	// 新実装 (JST 基準): today = 2026-05-06 00:00 JST = 2026-05-05 15:00 UTC
+	//   → next_date (2026-05-05 00:00 UTC) < today → Overdue (正)
+	jstLateNight := time.Date(2026, 5, 6, 3, 0, 0, 0, jstLocation())
+	may5UTC := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
+
+	repo := &mockCheckupRepository{
+		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
+			return []model.Checkup{
+				{ID: 1, NextDate: &may5UTC},
+			}, nil
+		},
+	}
+	svc := NewCheckupService(repo, nil)
+	svc.(*checkupService).nowFn = func() time.Time { return jstLateNight }
+
+	result, err := svc.GetAlerts(context.Background(), 1, 30)
+	assert.NoError(t, err)
+	assert.Len(t, result.Overdue, 1, "2026-05-05 00:00 UTC should be overdue when JST date is 2026-05-06")
+	assert.Empty(t, result.Upcoming)
+	assert.Equal(t, uint64(1), result.Overdue[0].ID)
 }

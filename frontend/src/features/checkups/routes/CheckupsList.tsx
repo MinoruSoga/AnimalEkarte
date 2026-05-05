@@ -25,14 +25,11 @@ import { usePermission } from "@/hooks/use-permission";
 import { formatDate } from "@/utils/format/date";
 import { paths } from "@/config/paths";
 import { useGetCheckups } from "../api/get-checkups";
+import { todayISODate, addDaysISO } from "../lib/today-iso";
 
 // Types
 import type { FilterProperty, ActiveFilter, SortProperty } from "@/components/shared/NotionFilter/types";
 import { ResourceCheckups } from "@/types/generated/models";
-
-function toISODate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 // rendering-hoist-jsx: 静的定数をモジュールスコープに
 const FILTER_PROPERTIES: FilterProperty[] = [
@@ -73,7 +70,7 @@ export function CheckupsList() {
 
   // activeFilters から日付フィルタ・アラートフィルタを抽出してAPIに渡す
   const filters = useMemo(() => {
-    const today = toISODate(new Date());
+    const today = todayISODate();
     const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
       | { from?: string; to?: string }
       | undefined;
@@ -85,14 +82,10 @@ export function CheckupsList() {
     let nextEndDate: string | undefined;
 
     if (alertStatus === "overdue") {
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      nextEndDate = toISODate(yesterday);
+      nextEndDate = addDaysISO(today, -1);
     } else if (alertStatus === "upcoming30") {
       nextStartDate = today;
-      const plus30 = new Date(today);
-      plus30.setDate(plus30.getDate() + 30);
-      nextEndDate = toISODate(plus30);
+      nextEndDate = addDaysISO(today, 30);
     }
 
     return {
