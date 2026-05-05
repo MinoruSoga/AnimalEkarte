@@ -19,6 +19,7 @@ type mockCheckupRepository struct {
 	listByClinicFn          func(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error)
 	findByOwnerIDFn         func(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error)
 	findByIDFn              func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
+	findAlertsFn            func(ctx context.Context, clinicID uint64, withinDays int) ([]model.Checkup, error)
 	createFn                func(ctx context.Context, checkup *model.Checkup) error
 	updateFn                func(ctx context.Context, clinicID, checkupID uint64, fields map[string]any) error
 	deleteFn                func(ctx context.Context, clinicID, checkupID uint64) error
@@ -45,6 +46,13 @@ func (m *mockCheckupRepository) FindByID(ctx context.Context, clinicID, checkupI
 func (m *mockCheckupRepository) FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error) {
 	if m.findByOwnerIDFn != nil {
 		return m.findByOwnerIDFn(ctx, clinicID, ownerID)
+	}
+	return nil, nil
+}
+
+func (m *mockCheckupRepository) FindAlerts(ctx context.Context, clinicID uint64, withinDays int) ([]model.Checkup, error) {
+	if m.findAlertsFn != nil {
+		return m.findAlertsFn(ctx, clinicID, withinDays)
 	}
 	return nil, nil
 }
@@ -349,4 +357,66 @@ func TestCheckupService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetAlerts_RejectsInvalidWithinDays(t *testing.T) {
+	svc := NewCheckupService(&mockCheckupRepository{}, nil)
+
+	for _, days := range []int{0, -1, 366} {
+		result, err := svc.GetAlerts(context.Background(), 1, days)
+		assert.Error(t, err, "days=%d should be rejected", days)
+		assert.Nil(t, result, "days=%d should return nil result", days)
+	}
+}
+
+func TestGetAlerts_SeparatesOverdueAndUpcoming(t *testing.T) {
+	yesterday := time.Now().AddDate(0, 0, -1).Truncate(24 * time.Hour)
+	today := time.Now().Truncate(24 * time.Hour)
+	inThirty := time.Now().AddDate(0, 0, 30).Truncate(24 * time.Hour)
+
+	repo := &mockCheckupRepository{
+		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
+			return []model.Checkup{
+				{ID: 1, NextDate: &yesterday},
+				{ID: 2, NextDate: &today},
+				{ID: 3, NextDate: &inThirty},
+			}, nil
+		},
+	}
+	svc := NewCheckupService(repo, nil)
+
+	result, err := svc.GetAlerts(context.Background(), 1, 30)
+	assert.NoError(t, err)
+	assert.Len(t, result.Overdue, 1, "yesterday should be overdue")
+	assert.Len(t, result.Upcoming, 2, "today and inThirty should be upcoming")
+	assert.Equal(t, uint64(1), result.Overdue[0].ID)
+}
+
+func TestGetAlerts_NilNextDateExcluded(t *testing.T) {
+	repo := &mockCheckupRepository{
+		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
+			return []model.Checkup{
+				{ID: 1, NextDate: nil},
+			}, nil
+		},
+	}
+	svc := NewCheckupService(repo, nil)
+
+	result, err := svc.GetAlerts(context.Background(), 1, 30)
+	assert.NoError(t, err)
+	assert.Empty(t, result.Overdue)
+	assert.Empty(t, result.Upcoming)
+}
+
+func TestGetAlerts_PropagatesRepositoryError(t *testing.T) {
+	repo := &mockCheckupRepository{
+		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewCheckupService(repo, nil)
+
+	result, err := svc.GetAlerts(context.Background(), 1, 30)
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
