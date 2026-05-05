@@ -28,7 +28,19 @@ const (
 func toMeResponse(staff *model.Staff, account *model.Account, mainClinicID string, clinicNameMap map[string]string, allClinics []model.Clinic, effectivePerms EffectivePermissions) *MeResponse {
 	meClinicList := make([]MeClinicMembership, 0)
 	isSystemAdmin := account != nil && account.IsSystemAdmin
-	if staff != nil && len(staff.ClinicAssignments) > 0 {
+	if isSystemAdmin {
+		// system_admin は全クリニックを切替候補として露出
+		for i := range allClinics {
+			cl := &allClinics[i]
+			clIDStr := strconv.FormatUint(cl.ID, 10)
+			meClinicList = append(meClinicList, MeClinicMembership{
+				ClinicID:   clIDStr,
+				ClinicName: cl.Name,
+				IsMain:     clIDStr == mainClinicID,
+			})
+		}
+	} else if staff != nil && len(staff.ClinicAssignments) > 0 {
+		// 通常スタッフは assignments ベース（既存ロジック）
 		for i := range staff.ClinicAssignments {
 			asg := &staff.ClinicAssignments[i]
 			clIDStr := strconv.FormatUint(asg.ClinicID, 10)
@@ -259,6 +271,11 @@ func (h *Handler) Login(c *gin.Context) {
 	for i := range allClinics {
 		cl := &allClinics[i]
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
+	}
+
+	// system_admin で assignments なしの場合、allClinics[0] を main にフォールバック
+	if mainClinicID == "" && account.IsSystemAdmin && len(allClinics) > 0 {
+		mainClinicID = strconv.FormatUint(allClinics[0].ID, 10)
 	}
 
 	permMap := h.calculateEffectivePermissions(ctx, account.IsSystemAdmin, staff.ID)
@@ -580,6 +597,12 @@ func (h *Handler) GetMe(c *gin.Context) {
 	if account != nil {
 		isSystemAdmin = account.IsSystemAdmin
 	}
+
+	// system_admin で assignments なしの場合（JWT ClinicID が空）、allClinics[0] を main にフォールバック
+	if mainClinicIDStr == "" && isSystemAdmin && len(allClinics) > 0 {
+		mainClinicIDStr = strconv.FormatUint(allClinics[0].ID, 10)
+	}
+
 	permMap := h.calculateEffectivePermissions(ctx, isSystemAdmin, staff.ID)
 
 	c.JSON(http.StatusOK, toMeResponse(staff, account, mainClinicIDStr, clinicNameMap, allClinics, permMap))
