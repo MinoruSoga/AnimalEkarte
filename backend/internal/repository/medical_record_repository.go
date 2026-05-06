@@ -276,6 +276,8 @@ func (r *medicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Context,
 }
 
 // FindOwnersByNextVisitRecommended は次回来院推奨日が targetDate の最新カルテを持つ飼い主IDリストを返す（FEAT-383）。
+// NOTE: P4 規約逸脱 (GORM Scopes 未使用) だが clinic_id を WHERE 句に二重指定して横テナント漏洩を防ぐ。
+// リファクタ時に clinic_id WHERE のいずれか一方を削除しないこと (M-5 / AUDIT-2026-05-06 参照)。
 func (r *medicalRecordRepository) FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
 	target := targetDate.Format("2006-01-02")
 	type row struct{ OwnerID uint64 }
