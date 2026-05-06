@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"gorm.io/gorm"
 )
 
 // LstepFriendAttributeSnapshotRepository は lstep_friend_attribute_snapshots テーブルの永続化インターフェース。

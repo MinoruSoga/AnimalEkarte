@@ -75,7 +75,7 @@ func (h *Handler) PostLstepCsvImportFriendAttributes(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("file field is required"))
 		return
 	}
-	defer file.Close() //nolint:errcheck
+	defer file.Close() //nolint:errcheck // deferred Close on multipart file; error is non-actionable
 
 	var actorID *uint64
 	if staffID, ok2 := extractStaffID(c); ok2 {

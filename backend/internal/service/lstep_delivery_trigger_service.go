@@ -143,7 +143,7 @@ func (s *lstepDeliveryTriggerService) recordTrigger(ctx context.Context, clinicI
 }
 
 // applyTagAndLog は L ステップへタグを付与しログを fired 状態に更新する。
-func (s *lstepDeliveryTriggerService) applyTagAndLog(ctx context.Context, client lstep.Client, lineUserID string, tagName string, logID uint64) error {
+func (s *lstepDeliveryTriggerService) applyTagAndLog(ctx context.Context, client lstep.Client, lineUserID, tagName string, logID uint64) error {
 	if err := client.AddTag(ctx, lineUserID, tagName); err != nil {
 		slog.ErrorContext(ctx, "delivery trigger: failed to add tag", "tag", tagName, "error", err)
 		reason := fmt.Sprintf("lstep_add_tag_failed: %s", tagName)

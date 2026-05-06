@@ -71,7 +71,7 @@ func newGetCsvImportsRouter(csvSvc service.LstepCsvImportService, permSvc servic
 	return r
 }
 
-func buildCSVMultipart(t *testing.T, csvContent string) (*bytes.Buffer, string) {
+func buildCSVMultipart(t *testing.T, csvContent string) (body *bytes.Buffer, contentType string) {
 	t.Helper()
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)

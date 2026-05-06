@@ -71,7 +71,7 @@ func Load() *Config {
 // dev デフォルト値チェックは全モードで実行する（staging 認証バイパス防止）。
 func (c *Config) Validate() error {
 	if c.JWTSecret == "dev-secret-change-me" {
-		return fmt.Errorf("JWT_SECRET must not use the dev default. Set JWT_SECRET environment variable to a secure value.")
+		return fmt.Errorf("dev default JWT_SECRET is prohibited; set a secure value via the JWT_SECRET environment variable")
 	}
 	if c.GinMode != "release" {
 		return nil

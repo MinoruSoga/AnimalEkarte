@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -41,7 +40,7 @@ func (r *lstepCsvImportRepository) Update(ctx context.Context, imp *model.LstepC
 	if err := r.db.WithContext(ctx).
 		Where("clinic_id = ?", imp.ClinicID).
 		Save(imp).Error; err != nil {
-		return apperrors.FromGORM(err, "lstep_csv_import", fmt.Sprintf("%v", imp.ID))
+		return apperrors.FromGORM(err, "lstep_csv_import", imp.ID.String())
 	}
 	return nil
 }
@@ -52,7 +51,7 @@ func (r *lstepCsvImportRepository) FindByID(ctx context.Context, clinicID uint64
 		Where("clinic_id = ? AND id = ?", clinicID, id).
 		First(&imp).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "lstep_csv_import", fmt.Sprintf("%v", id))
+		return nil, apperrors.FromGORM(err, "lstep_csv_import", id.String())
 	}
 	return &imp, nil
 }

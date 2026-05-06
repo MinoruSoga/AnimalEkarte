@@ -137,7 +137,7 @@ func petRepoWithPets(pets []model.Pet, err error) *mockPetRepository {
 	}
 }
 
-func billingItemRepoReturning(hasItem bool, hasFood bool) *mockBillingItemRepository {
+func billingItemRepoReturning(hasItem, hasFood bool) *mockBillingItemRepository {
 	return &mockBillingItemRepository{
 		hasItemByOwnerSinceFn: func(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) {
 			return hasItem, nil
