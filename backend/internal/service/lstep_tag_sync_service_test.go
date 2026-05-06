@@ -679,7 +679,7 @@ func TestCalculateCPMStageV2(t *testing.T) {
 		},
 		{
 			name: "not Noah: annual visit = 5 (no checkup, no LTV)",
-			in:   CPMStageV2Input{AnnualVisitCount: 5, DaysSinceVisit: 30},
+			in:   CPMStageV2Input{AnnualVisitCount: 5, AnnualCheckupCount: 0, DaysSinceVisit: 30, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
 			want: CPMStageV2Growing,
 		},
 		{
@@ -704,7 +704,7 @@ func TestCalculateCPMStageV2(t *testing.T) {
 		},
 		{
 			name: "Encounter: first visit within 30 days, visit count = 1",
-			in:   CPMStageV2Input{AnnualVisitCount: 1, FirstVisitDaysSince: 15},
+			in:   CPMStageV2Input{AnnualVisitCount: 1, AnnualCheckupCount: 0, DaysSinceVisit: 15, FirstVisitDaysSince: 15, IsLTVTopPercent: false},
 			want: CPMStageV2Encounter,
 		},
 		{
@@ -714,7 +714,7 @@ func TestCalculateCPMStageV2(t *testing.T) {
 		},
 		{
 			name: "Spot: visit 1-2, days 91-220",
-			in:   CPMStageV2Input{AnnualVisitCount: 2, DaysSinceVisit: 150},
+			in:   CPMStageV2Input{AnnualVisitCount: 2, AnnualCheckupCount: 0, DaysSinceVisit: 150, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
 			want: CPMStageV2Spot,
 		},
 		{
@@ -729,7 +729,7 @@ func TestCalculateCPMStageV2(t *testing.T) {
 		},
 		{
 			name: "Core: visit 3-5 with checkup >= 1",
-			in:   CPMStageV2Input{AnnualVisitCount: 4, AnnualCheckupCount: 2},
+			in:   CPMStageV2Input{AnnualVisitCount: 4, AnnualCheckupCount: 2, DaysSinceVisit: 0, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
 			want: CPMStageV2Core,
 		},
 		{
