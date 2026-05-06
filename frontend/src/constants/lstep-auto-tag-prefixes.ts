@@ -21,11 +21,6 @@ export const LSTEP_AUTO_TAG_ENTRIES = [
   "spay_neutered", "intact",
 ] as const;
 
-/** @deprecated LSTEP_AUTO_TAG_ENTRIES を使用してください */
-export const LSTEP_AUTO_TAG_PREFIXES = LSTEP_AUTO_TAG_ENTRIES;
-
-export type LstepAutoTagPrefix = (typeof LSTEP_AUTO_TAG_ENTRIES)[number];
-
 /** 指定タグ名が自動管理タグかどうか判定する（BE の isAutoManagedTag と同一ロジック） */
 export function isAutoManagedTag(tagName: string): boolean {
   return LSTEP_AUTO_TAG_ENTRIES.some(
