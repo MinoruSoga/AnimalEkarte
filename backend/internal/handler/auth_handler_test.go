@@ -185,6 +185,33 @@ func TestToMeResponse_SystemAdmin_WithAssignments(t *testing.T) {
 	assert.False(t, resp.Clinics[1].IsMain)
 }
 
+// TestLogin_SystemAdminWithoutAssignments_JWTHasMainClinicID は FEAT-374 Phase 1 負債解消の担保テスト。
+// resolveSystemAdminMainClinicID が issueAuthCookies 呼び出し前に適用されることで、
+// system_admin かつ assignments 空のスタッフに対しても JWT ClinicID に allClinics[0].ID が入ることを検証する。
+// (HTTP/JWT レイヤーのテストインフラがないためヘルパー関数を直接検証)
+func TestLogin_SystemAdminWithoutAssignments_JWTHasMainClinicID(t *testing.T) {
+	allClinics := []model.Clinic{
+		{ID: 5, Name: "メインクリニック"},
+		{ID: 6, Name: "サブクリニック"},
+	}
+
+	// assignments 空 → resolveClinicInfo は mainClinicID="" を返す
+	mainClinicID := ""
+
+	// JWT 発行前にフォールバック適用
+	resolved := resolveSystemAdminMainClinicID(mainClinicID, true, allClinics)
+
+	assert.Equal(t, "5", resolved, "system_admin + assignments 空時は allClinics[0].ID がフォールバックされるべき")
+
+	// 通常スタッフ (isSystemAdmin=false) はフォールバックしない
+	resolvedNonAdmin := resolveSystemAdminMainClinicID("", false, allClinics)
+	assert.Equal(t, "", resolvedNonAdmin, "通常スタッフは mainClinicID 空のまま")
+
+	// mainClinicID が既にセットされている場合はそのまま返す (assignments あり system_admin)
+	resolvedWithID := resolveSystemAdminMainClinicID("3", true, allClinics)
+	assert.Equal(t, "3", resolvedWithID, "mainClinicID 非空時は上書きしない")
+}
+
 // TestToMeResponse_NormalStaff_AssignmentsOnly は通常スタッフが assignments のみを受け取ることを検証する。
 // allClinics に assignments 外のクリニックがあっても Clinics に含まれないことを確認（回帰防止）。
 func TestToMeResponse_NormalStaff_AssignmentsOnly(t *testing.T) {

@@ -161,6 +161,18 @@ func resolveClinicInfo(assignments []model.StaffClinicAssignment) (mainClinicID 
 	return mainClinicID, clinicIDs
 }
 
+// resolveSystemAdminMainClinicID は system_admin で assignments なしの場合に
+// allClinics[0] を main にフォールバックする。それ以外は元の mainClinicID を返す。
+func resolveSystemAdminMainClinicID(mainClinicID string, isSystemAdmin bool, allClinics []model.Clinic) string {
+	if mainClinicID != "" {
+		return mainClinicID
+	}
+	if !isSystemAdmin || len(allClinics) == 0 {
+		return mainClinicID
+	}
+	return strconv.FormatUint(allClinics[0].ID, 10)
+}
+
 // issueAuthCookies は JWT アクセストークン（15分）とリフレッシュトークン（7日）を生成して Cookie にセットする。
 // クロスオリジン対応のため SameSite=None + Secure=true を使用する。
 func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID string, isSystemAdmin bool, clinicIDs []uint64) error {
@@ -257,25 +269,24 @@ func (h *Handler) Login(c *gin.Context) {
 
 	mainClinicID, clinicIDs := resolveClinicInfo(assignments)
 
+	// クリニック一覧取得 (フォールバック適用に必要なため JWT 発行前に取得)
+	allClinics, err := h.svc.Clinic.ListClinics(ctx)
+	if err != nil {
+		allClinics = nil
+	}
+
+	// system_admin で assignments なしの場合、allClinics[0] を main にフォールバック (JWT 発行前に解決)
+	mainClinicID = resolveSystemAdminMainClinicID(mainClinicID, account.IsSystemAdmin, allClinics)
+
 	if err := h.issueAuthCookies(c, staff.ID, mainClinicID, account.IsSystemAdmin, clinicIDs); err != nil {
 		RespondError(c, err)
 		return
 	}
 
-	// クリニック一覧を取得してレスポンス構築
-	allClinics, err := h.svc.Clinic.ListClinics(ctx)
-	if err != nil {
-		allClinics = nil
-	}
 	clinicNameMap := make(map[string]string)
 	for i := range allClinics {
 		cl := &allClinics[i]
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
-	}
-
-	// system_admin で assignments なしの場合、allClinics[0] を main にフォールバック
-	if mainClinicID == "" && account.IsSystemAdmin && len(allClinics) > 0 {
-		mainClinicID = strconv.FormatUint(allClinics[0].ID, 10)
 	}
 
 	permMap := h.calculateEffectivePermissions(ctx, account.IsSystemAdmin, staff.ID)
@@ -598,10 +609,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 		isSystemAdmin = account.IsSystemAdmin
 	}
 
-	// system_admin で assignments なしの場合（JWT ClinicID が空）、allClinics[0] を main にフォールバック
-	if mainClinicIDStr == "" && isSystemAdmin && len(allClinics) > 0 {
-		mainClinicIDStr = strconv.FormatUint(allClinics[0].ID, 10)
-	}
+	mainClinicIDStr = resolveSystemAdminMainClinicID(mainClinicIDStr, isSystemAdmin, allClinics)
 
 	permMap := h.calculateEffectivePermissions(ctx, isSystemAdmin, staff.ID)
 
