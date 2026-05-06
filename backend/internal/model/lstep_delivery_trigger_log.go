@@ -18,6 +18,7 @@ const (
 	TriggerTypeDormantPrevention180 TriggerType = "dormant_prevention_180d"
 	TriggerTypeDormantPrevention210 TriggerType = "dormant_prevention_210d"
 	TriggerTypeDormantPrevention240 TriggerType = "dormant_prevention_240d"
+	TriggerTypeDormantPrevention365 TriggerType = "dormant_prevention_365d"
 	TriggerTypeFilariaAlert         TriggerType = "filaria_alert"
 	TriggerTypeFleaTickAlert        TriggerType = "flea_tick_alert"
 	TriggerTypeFoodRefillReminder   TriggerType = "food_refill_reminder"

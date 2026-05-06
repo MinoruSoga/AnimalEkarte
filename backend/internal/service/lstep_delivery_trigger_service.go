@@ -40,6 +40,8 @@ type LstepDeliveryTriggerService interface {
 	TriggerDormantPrevention210(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerDormantPrevention240 は240日間未来院の飼い主に休眠予防配信をトリガーする。
 	TriggerDormantPrevention240(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	// TriggerDormantPrevention365 は365日間未来院の飼い主に休眠予防配信をトリガーする。
+	TriggerDormantPrevention365(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerFilariaAlert はフィラリア対策タグを持つ飼い主に定期アラート配信をトリガーする。
 	TriggerFilariaAlert(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerFleaTickAlert はノミダニ予防タグを持つ飼い主に定期アラート配信をトリガーする。
@@ -340,6 +342,15 @@ func (s *lstepDeliveryTriggerService) TriggerDormantPrevention240(ctx context.Co
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}
 	}
 	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention240, model.TriggerTypeDormantPrevention240, asOf)
+}
+
+func (s *lstepDeliveryTriggerService) TriggerDormantPrevention365(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
+	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, 365, asOf)
+	if err != nil {
+		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_365d: find owners error", "clinic_id", clinicID, "error", err)
+		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}
+	}
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention365, model.TriggerTypeDormantPrevention365, asOf)
 }
 
 func (s *lstepDeliveryTriggerService) TriggerFilariaAlert(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {

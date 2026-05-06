@@ -628,6 +628,9 @@ func (m *batchMockDeliveryTrigger) TriggerDormantPrevention210(_ context.Context
 func (m *batchMockDeliveryTrigger) TriggerDormantPrevention240(_ context.Context, _ uint64, _ time.Time) (int, []error) {
 	return 0, nil
 }
+func (m *batchMockDeliveryTrigger) TriggerDormantPrevention365(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
 func (m *batchMockDeliveryTrigger) TriggerFilariaAlert(_ context.Context, _ uint64, _ time.Time) (int, []error) {
 	return 0, nil
 }

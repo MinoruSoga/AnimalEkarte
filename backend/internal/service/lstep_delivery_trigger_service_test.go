@@ -625,6 +625,13 @@ func TestLstepDeliveryTriggerService_TriggerDormantPrevention(t *testing.T) {
 			},
 			wantDays: 240,
 		},
+		{
+			name: "365d dormant",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerDormantPrevention365(ctx, 1, asOf)
+			},
+			wantDays: 365,
+		},
 	}
 
 	for _, tt := range tests {
