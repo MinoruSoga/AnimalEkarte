@@ -196,8 +196,9 @@ export function LstepSettingsForm() {
       await testMutation.mutateAsync();
       setTestResult("success");
       toast.success("Lステップ接続テスト成功");
-    } catch {
+    } catch (error) {
       setTestResult("error");
+      handleApiError(error, "Lステップ接続テスト");
     }
   };
 
@@ -207,8 +208,9 @@ export function LstepSettingsForm() {
       await lineTestMutation.mutateAsync();
       setLineTestResult("success");
       toast.success("LINE Messaging API接続テスト成功");
-    } catch {
+    } catch (error) {
       setLineTestResult("error");
+      handleApiError(error, "LINE Messaging API接続テスト");
     }
   };
 
