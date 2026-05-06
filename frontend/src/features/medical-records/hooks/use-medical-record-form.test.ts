@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useMedicalRecordForm } from "./use-medical-record-form";
 import { useGetPet } from "@/hooks/use-pet";
+import { useGetOwner } from "@/hooks/use-owner";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 
 // ──────────────────────────────────────────────────────────
@@ -33,7 +34,7 @@ const noData = { data: undefined, isLoading: false, isError: false };
 const noMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 
 vi.mock("@/hooks/use-pet", () => ({ useGetPet: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })) }));
-vi.mock("@/hooks/use-owner", () => ({ useGetOwner: () => noData }));
+vi.mock("@/hooks/use-owner", () => ({ useGetOwner: vi.fn(() => noData) }));
 vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: () => noData }));
 vi.mock("../api/create-medical-record", () => ({ useCreateMedicalRecord: vi.fn(() => noMutation) }));
 vi.mock("../api/update-medical-record", () => ({ useUpdateMedicalRecord: () => noMutation }));
@@ -52,6 +53,8 @@ describe("useMedicalRecordForm", () => {
     localStorage.clear();
     // デフォルト: pet データなし
     vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    // デフォルト: owner データなし
+    vi.mocked(useGetOwner).mockReturnValue(noData as never);
   });
 
   // ──────────────────────────
@@ -310,7 +313,8 @@ describe("useMedicalRecordForm", () => {
   describe("飼主変更", () => {
     it("recordId なしの場合、confirmOwnerChange は mutateAsync を呼ばない", async () => {
       const { result } = renderHook(() => useMedicalRecordForm());
-      act(() => { result.current.requestOwnerChange({ id: "5", name: "佐藤" }); });
+      // owner が undefined のため needsConfirm = true → dialog が表示される
+      act(() => { result.current.requestOwnerChange({ id: "5", name: "佐藤", discountRate: 0, membershipType: "" }); });
       // pendingOwnerChange がセットされる
       expect(result.current.pendingOwnerChange).toEqual({ id: "5", name: "佐藤" });
       // recordId なしのため confirm しても mutation は呼ばれない
@@ -320,10 +324,76 @@ describe("useMedicalRecordForm", () => {
 
     it("cancelOwnerChange で pending をリセットできる", () => {
       const { result } = renderHook(() => useMedicalRecordForm("10"));
-      act(() => { result.current.requestOwnerChange({ id: "5", name: "佐藤" }); });
+      act(() => { result.current.requestOwnerChange({ id: "5", name: "佐藤", discountRate: 0, membershipType: "" }); });
       expect(result.current.pendingOwnerChange).not.toBeNull();
       act(() => { result.current.cancelOwnerChange(); });
       expect(result.current.pendingOwnerChange).toBeNull();
+    });
+  });
+
+  // ──────────────────────────
+  // BUG-373: requestOwnerChange 条件付き確認ダイアログ
+  // ──────────────────────────
+  describe("BUG-373: requestOwnerChange — 飼主変更 条件付き確認", () => {
+    const ownerQueryWith = (discountRate: number, membershipType: string) => ({
+      data: { discountRate, membershipType } as never,
+      isLoading: false,
+      isError: false,
+    } as never);
+
+    it("owner 未ロード(undefined) → 安全策として dialog を表示する", () => {
+      // デフォルト: useGetOwner → noData (data: undefined)
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+      act(() => {
+        result.current.requestOwnerChange({ id: "5", name: "鈴木", discountRate: 10, membershipType: "会員" });
+      });
+      expect(result.current.pendingOwnerChange).toEqual({ id: "5", name: "鈴木" });
+    });
+
+    it("discount_rate・membershipType が同じ → dialog なし・mutation を即時実行", async () => {
+      vi.mocked(useGetOwner).mockReturnValue(ownerQueryWith(10, "会員"));
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+      await act(async () => {
+        result.current.requestOwnerChange({ id: "5", name: "鈴木", discountRate: 10, membershipType: "会員" });
+        await Promise.resolve();
+      });
+      expect(result.current.pendingOwnerChange).toBeNull();
+      expect(noMutation.mutateAsync).toHaveBeenCalled();
+    });
+
+    it("discount_rate が異なる → dialog を表示する", () => {
+      vi.mocked(useGetOwner).mockReturnValue(ownerQueryWith(10, "会員"));
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+      act(() => {
+        result.current.requestOwnerChange({ id: "5", name: "鈴木", discountRate: 20, membershipType: "会員" });
+      });
+      expect(result.current.pendingOwnerChange).toEqual({ id: "5", name: "鈴木" });
+    });
+
+    it("membershipType が異なる → dialog を表示する", () => {
+      vi.mocked(useGetOwner).mockReturnValue(ownerQueryWith(10, "会員"));
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+      act(() => {
+        result.current.requestOwnerChange({ id: "5", name: "鈴木", discountRate: 10, membershipType: "非会員" });
+      });
+      expect(result.current.pendingOwnerChange).toEqual({ id: "5", name: "鈴木" });
+    });
+
+    it("confirmOwnerChange → pendingOwnerChange をクリアし mutation を呼ぶ", async () => {
+      vi.mocked(useGetOwner).mockReturnValue(ownerQueryWith(10, "会員"));
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+      // discount_rate 違い → dialog 表示
+      act(() => {
+        result.current.requestOwnerChange({ id: "5", name: "鈴木", discountRate: 20, membershipType: "会員" });
+      });
+      expect(result.current.pendingOwnerChange).not.toBeNull();
+      // 続行 → mutation 実行
+      await act(async () => {
+        result.current.confirmOwnerChange();
+        await Promise.resolve();
+      });
+      expect(result.current.pendingOwnerChange).toBeNull();
+      expect(noMutation.mutateAsync).toHaveBeenCalled();
     });
   });
 

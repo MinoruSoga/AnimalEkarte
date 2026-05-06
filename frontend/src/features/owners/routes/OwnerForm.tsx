@@ -551,13 +551,31 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
     navigate(paths.owners.getHref());
   };
 
-  // BUG-373: 飼主変更 — 確認モーダルを経由してから実行
+  // BUG-373: 飼主変更 — discount_rate/membership_type が異なる時のみ確認モーダル
   const handlePetChangeOwner = useCallback(
-    (newOwner: { id: string; name: string }) => {
+    (newOwner: { id: string; name: string; discountRate: number; membershipType: string }) => {
       if (!editingPet?.id || !petMutations) return;
-      setPendingOwnerChange(newOwner);
+      const needsConfirm =
+        (ownerData.discountRate ?? 0) !== newOwner.discountRate ||
+        ownerData.membershipType !== newOwner.membershipType;
+      if (needsConfirm) {
+        setPendingOwnerChange({ id: newOwner.id, name: newOwner.name });
+      } else {
+        petMutations.updatePetMutate(
+          { id: editingPet.id, req: { owner_id: Number(newOwner.id) } },
+          {
+            onSuccess: () => {
+              toast.success(`飼主を ${newOwner.name} に変更しました`);
+              setPetModalOpen(false);
+            },
+            onError: (error) => {
+              handleApiError(error, "飼主変更");
+            },
+          },
+        );
+      }
     },
-    [editingPet, petMutations],
+    [editingPet, petMutations, ownerData.discountRate, ownerData.membershipType, setPetModalOpen],
   );
 
   const handleConfirmOwnerChange = useCallback(() => {
@@ -764,14 +782,14 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
         variant="destructive"
       />
 
-      {/* BUG-373: 飼主変更 確認ダイアログ */}
+      {/* BUG-373: 飼主変更 確認ダイアログ (discount_rate/membership_type 不一致時のみ表示) */}
       <ConfirmDialog
         open={!!pendingOwnerChange}
         onClose={() => setPendingOwnerChange(null)}
         onConfirm={handleConfirmOwnerChange}
-        title="飼主を変更しますか？"
-        description={`飼主を「${pendingOwnerChange?.name}」に変更します。飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。`}
-        confirmLabel="変更する"
+        title="飼主変更の確認"
+        description="飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。変更を続行してよろしいですか?"
+        confirmLabel="続行"
         cancelLabel="キャンセル"
       />
     </PageLayout>

@@ -69,7 +69,7 @@ interface PetEditModalProps {
   ownerName?: string;
   petData?: PetFormData;
   onSave: (data: PetFormData) => void;
-  onChangeOwner?: (newOwner: { id: string; name: string }) => void;
+  onChangeOwner?: (newOwner: { id: string; name: string; discountRate: number; membershipType: string }) => void;
 }
 
 export const PetEditModal = memo(function PetEditModal({
@@ -248,7 +248,7 @@ export const PetEditModal = memo(function PetEditModal({
   const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
 
   const handleOwnerChange = useCallback(
-    (newOwner: { id: string; name: string }) => {
+    (newOwner: { id: string; name: string; discountRate: number; membershipType: string }) => {
       setIsOwnerSearchOpen(false);
       onChangeOwner?.(newOwner);
     },

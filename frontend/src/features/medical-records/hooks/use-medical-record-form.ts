@@ -284,10 +284,32 @@ export function useMedicalRecordForm(recordId?: string) {
   } | null>(null);
 
   const requestOwnerChange = useCallback(
-    (newOwner: { id: string; name: string }) => {
-      setPendingOwnerChange(newOwner);
+    (newOwner: { id: string; name: string; discountRate: number; membershipType: string }) => {
+      const needsConfirm =
+        !owner ||
+        owner.discountRate !== newOwner.discountRate ||
+        owner.membershipType !== newOwner.membershipType;
+      if (needsConfirm) {
+        setPendingOwnerChange({ id: newOwner.id, name: newOwner.name });
+        return;
+      }
+      if (!recordId) return;
+      startSaveTransition(async () => {
+        try {
+          await updateMutation.mutateAsync({
+            id: recordId,
+            req: {
+              owner_id: Number(newOwner.id),
+              version: existingRecord?.version,
+            } as UpdateMedicalRecordRequest,
+          });
+          toast.success(`飼主を ${newOwner.name} に変更しました`);
+        } catch (error) {
+          handleApiError(error, "飼主変更");
+        }
+      });
     },
-    [],
+    [owner, recordId, existingRecord, updateMutation, startSaveTransition],
   );
 
   const confirmOwnerChange = () => {

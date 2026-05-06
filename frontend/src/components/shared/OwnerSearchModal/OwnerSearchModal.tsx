@@ -14,18 +14,21 @@ import { axios } from "@/lib/axios";
 
 // Types
 import type { Owner as BackendOwner } from "@/types/generated/models";
+import { MEMBERSHIP_TYPE_FROM_API } from "@/lib/transforms/owner";
 
 interface OwnerSummary {
   id: string;
   name: string;
   phone: string;
   address: string;
+  discountRate: number;
+  membershipType: string;
 }
 
 interface OwnerSearchModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect: (owner: { id: string; name: string }) => void;
+  onSelect: (owner: { id: string; name: string; discountRate: number; membershipType: string }) => void;
   currentOwnerName?: string;
 }
 
@@ -35,6 +38,8 @@ function transformOwner(o: BackendOwner): OwnerSummary {
     name: o.name ?? "",
     phone: o.phone ?? "",
     address: [o.address1, o.address2].filter(Boolean).join(" "),
+    discountRate: o.discount_rate ?? 0,
+    membershipType: MEMBERSHIP_TYPE_FROM_API[o.membership_type ?? ""] ?? o.membership_type ?? "",
   };
 }
 
@@ -79,7 +84,12 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
 
   const handleConfirm = useCallback(() => {
     if (!confirmTarget) return;
-    onSelect({ id: confirmTarget.id, name: confirmTarget.name });
+    onSelect({
+      id: confirmTarget.id,
+      name: confirmTarget.name,
+      discountRate: confirmTarget.discountRate,
+      membershipType: confirmTarget.membershipType,
+    });
     setConfirmTarget(null);
     onOpenChange(false);
     // reset

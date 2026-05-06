@@ -507,6 +507,7 @@ export interface ClinicSettings {
   closing_weekday_end: string;
   closing_sunday_end: string;
   closed_weekdays: any /* pq.Int64Array */;
+  lstep_fire_hour_jst: number /* int */;
   created_at: string;
   updated_at: string;
 }
@@ -1170,6 +1171,27 @@ export interface LineSendLog {
 }
 
 //////////
+// source: lstep_csv_import.go
+
+/**
+ * LstepCsvImport は Lステップ CSV インポート履歴。
+ */
+export interface LstepCsvImport {
+  id: any /* uuid.UUID */;
+  clinic_id: number /* uint64 */;
+  csv_type: string;
+  file_name: string;
+  uploaded_by_user_id?: number /* uint64 */;
+  row_count: number /* int */;
+  success_count: number /* int */;
+  error_count: number /* int */;
+  status: string;
+  error_log?: any /* datatypes.JSON */;
+  imported_at?: string;
+  created_at: string;
+}
+
+//////////
 // source: lstep_delivery_trigger_log.go
 
 /**
@@ -1186,9 +1208,10 @@ export const TriggerTypeNextVisitReminder: TriggerType = "next_visit_reminder";
 export const TriggerTypeVaccineDeadline60: TriggerType = "vaccine_deadline_60d";
 export const TriggerTypeVaccineDeadline30: TriggerType = "vaccine_deadline_30d";
 export const TriggerTypeBirthdayMessage: TriggerType = "birthday_message";
-export const TriggerTypeDormantPrevention120: TriggerType = "dormant_prevention_120d";
 export const TriggerTypeDormantPrevention180: TriggerType = "dormant_prevention_180d";
-export const TriggerTypeDormantPrevention220: TriggerType = "dormant_prevention_220d";
+export const TriggerTypeDormantPrevention210: TriggerType = "dormant_prevention_210d";
+export const TriggerTypeDormantPrevention240: TriggerType = "dormant_prevention_240d";
+export const TriggerTypeDormantPrevention365: TriggerType = "dormant_prevention_365d";
 export const TriggerTypeFilariaAlert: TriggerType = "filaria_alert";
 export const TriggerTypeFleaTickAlert: TriggerType = "flea_tick_alert";
 export const TriggerTypeFoodRefillReminder: TriggerType = "food_refill_reminder";
@@ -1213,6 +1236,29 @@ export interface LstepDeliveryTriggerLog {
   ExcludedReason?: string;
   CreatedAt: string;
   UpdatedAt: string;
+}
+
+//////////
+// source: lstep_friend_attribute_snapshot.go
+
+/**
+ * LstepFriendAttributeSnapshot は Lステップ友だち属性スナップショット。
+ */
+export interface LstepFriendAttributeSnapshot {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  line_user_id: string;
+  display_name?: string;
+  registered_at?: string;
+  tags?: any /* datatypes.JSON */;
+  scenarios?: any /* datatypes.JSON */;
+  traffic_source?: string;
+  block_status?: string;
+  last_message_at?: string;
+  snapshot_taken_at: string;
+  csv_import_id?: any /* uuid.UUID */;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -1567,6 +1613,11 @@ export const ResourceClosingSettings: Resource = "closing-settings"; // 締め�
  * 支払方法マスタ
  */
 export const ResourcePaymentMethod: Resource = "master-payment-method";
+/**
+ * FEAT-385: Lステップ CSV インポート・分析
+ */
+export const ResourceLstepCsvImport: Resource = "lstep-csv-import";
+export const ResourceLstepAnalytics: Resource = "lstep-analytics";
 
 //////////
 // source: permission_group.go

@@ -620,14 +620,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         </Suspense>
       ) : null}
 
-      {/* BUG-373: 飼主変更 確認ダイアログ */}
+      {/* BUG-373: 飼主変更 確認ダイアログ (discount_rate/membership_type 不一致時のみ表示) */}
       <ConfirmDialog
         open={!!pendingOwnerChange}
         onClose={cancelOwnerChange}
         onConfirm={confirmOwnerChange}
-        title="飼主を変更しますか？"
-        description={`飼主を「${pendingOwnerChange?.name}」に変更します。飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。`}
-        confirmLabel="変更する"
+        title="飼主変更の確認"
+        description="飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。変更を続行してよろしいですか?"
+        confirmLabel="続行"
         cancelLabel="キャンセル"
       />
     </PageLayout>
