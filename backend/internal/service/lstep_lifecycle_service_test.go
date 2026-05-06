@@ -661,7 +661,7 @@ func TestCalculateCPMStage(t *testing.T) {
 		{"noah条件満たす → noah", CPMData{DaysSinceVisit: 30, FirstVisitDaysSince: 365, AnnualVisitCount: 3, LTVAmount: 80_000}, CPMStageNoah},
 		{"core条件満たす → core", CPMData{DaysSinceVisit: 30, FirstVisitDaysSince: 180, AnnualVisitCount: 2, LTVAmount: 50_000}, CPMStageCore},
 		{"spot条件 高単価・90日超 → spot", CPMData{DaysSinceVisit: 100, MaxSingleVisitAmount: 30_000}, CPMStageSpot},
-		{"2〜3回来院・90日以内 → growing", CPMData{DaysSinceVisit: 10, TotalVisitCount: 2}, CPMStageGrowing},
+		{"2〜3回来院・90日以内 → growing", CPMData{DaysSinceVisit: 10, TotalVisitCount: 2, LTVAmount: 25_000}, CPMStageGrowing},
 		{"初回来院 → encounter", CPMData{DaysSinceVisit: 5, TotalVisitCount: 1}, CPMStageEncounter},
 		{"累計4回・条件未達 → encounter", CPMData{DaysSinceVisit: 10, TotalVisitCount: 4}, CPMStageEncounter},
 	}

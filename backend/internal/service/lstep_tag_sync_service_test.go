@@ -693,9 +693,14 @@ func TestCalculateCPMStageV2(t *testing.T) {
 			want: CPMStageV2Growing,
 		},
 		{
-			name: "Noah: LTV top percent flag",
-			in:   CPMStageV2Input{IsLTVTopPercent: true, AnnualVisitCount: 1},
+			name: "Noah: LTV top percent flag with annual visit >= 3",
+			in:   CPMStageV2Input{IsLTVTopPercent: true, AnnualVisitCount: 3},
 			want: CPMStageV2Noah,
+		},
+		{
+			name: "V2 Noah 非該当: LTV 上位 20% かつ来院 0 件 (仕様書「年3回以上」整合)",
+			in:   CPMStageV2Input{AnnualVisitCount: 0, IsLTVTopPercent: true, DaysSinceVisit: -1},
+			want: CPMStageV2Encounter,
 		},
 		{
 			name: "Encounter: first visit within 30 days, visit count = 1",
