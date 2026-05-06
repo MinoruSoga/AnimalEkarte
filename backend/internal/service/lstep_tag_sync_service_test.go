@@ -689,7 +689,7 @@ func TestCalculateCPMStageV2(t *testing.T) {
 		},
 		{
 			name: "not Noah: checkup = 3",
-			in:   CPMStageV2Input{AnnualVisitCount: 2, AnnualCheckupCount: 3, DaysSinceVisit: 30},
+			in:   CPMStageV2Input{AnnualVisitCount: 2, AnnualCheckupCount: 3, DaysSinceVisit: 30, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
 			want: CPMStageV2Growing,
 		},
 		{
@@ -709,7 +709,7 @@ func TestCalculateCPMStageV2(t *testing.T) {
 		},
 		{
 			name: "not Encounter: first visit = 31 days (too old)",
-			in:   CPMStageV2Input{AnnualVisitCount: 1, FirstVisitDaysSince: 31, DaysSinceVisit: 31},
+			in:   CPMStageV2Input{AnnualVisitCount: 1, AnnualCheckupCount: 0, DaysSinceVisit: 31, FirstVisitDaysSince: 31, IsLTVTopPercent: false},
 			want: CPMStageV2Growing,
 		},
 		{
@@ -719,12 +719,12 @@ func TestCalculateCPMStageV2(t *testing.T) {
 		},
 		{
 			name: "not Spot: days exactly 90 (boundary)",
-			in:   CPMStageV2Input{AnnualVisitCount: 1, DaysSinceVisit: 90, FirstVisitDaysSince: 100},
+			in:   CPMStageV2Input{AnnualVisitCount: 1, AnnualCheckupCount: 0, DaysSinceVisit: 90, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
 			want: CPMStageV2Growing,
 		},
 		{
 			name: "not Spot: days 221 (boundary exceeded)",
-			in:   CPMStageV2Input{AnnualVisitCount: 1, DaysSinceVisit: 221, FirstVisitDaysSince: 221},
+			in:   CPMStageV2Input{AnnualVisitCount: 1, AnnualCheckupCount: 0, DaysSinceVisit: 221, FirstVisitDaysSince: 221, IsLTVTopPercent: false},
 			want: CPMStageV2Growing,
 		},
 		{
@@ -734,12 +734,12 @@ func TestCalculateCPMStageV2(t *testing.T) {
 		},
 		{
 			name: "not Core: visit 3 but no checkup",
-			in:   CPMStageV2Input{AnnualVisitCount: 3, AnnualCheckupCount: 0, DaysSinceVisit: 30},
+			in:   CPMStageV2Input{AnnualVisitCount: 3, AnnualCheckupCount: 0, DaysSinceVisit: 30, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
 			want: CPMStageV2Growing,
 		},
 		{
 			name: "Growing: fallback (visit > 0, not matching any stage)",
-			in:   CPMStageV2Input{AnnualVisitCount: 2, DaysSinceVisit: 30},
+			in:   CPMStageV2Input{AnnualVisitCount: 2, AnnualCheckupCount: 0, DaysSinceVisit: 30, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
 			want: CPMStageV2Growing,
 		},
 		{
