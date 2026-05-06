@@ -619,9 +619,6 @@ func (m *batchMockDeliveryTrigger) TriggerVaccineDeadline30(_ context.Context, _
 func (m *batchMockDeliveryTrigger) TriggerBirthdayMessage(_ context.Context, _ uint64, _ time.Time) (int, []error) {
 	return 0, nil
 }
-func (m *batchMockDeliveryTrigger) TriggerDormantPrevention120(_ context.Context, _ uint64, _ time.Time) (int, []error) {
-	return 0, nil
-}
 func (m *batchMockDeliveryTrigger) TriggerDormantPrevention180(_ context.Context, _ uint64, _ time.Time) (int, []error) {
 	return 0, nil
 }

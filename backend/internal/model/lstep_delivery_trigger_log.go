@@ -15,7 +15,6 @@ const (
 	TriggerTypeVaccineDeadline60    TriggerType = "vaccine_deadline_60d"
 	TriggerTypeVaccineDeadline30    TriggerType = "vaccine_deadline_30d"
 	TriggerTypeBirthdayMessage      TriggerType = "birthday_message"
-	TriggerTypeDormantPrevention120 TriggerType = "dormant_prevention_120d"
 	TriggerTypeDormantPrevention180 TriggerType = "dormant_prevention_180d"
 	TriggerTypeDormantPrevention210 TriggerType = "dormant_prevention_210d"
 	TriggerTypeDormantPrevention240 TriggerType = "dormant_prevention_240d"

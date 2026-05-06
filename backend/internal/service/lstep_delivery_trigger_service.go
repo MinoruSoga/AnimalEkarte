@@ -34,8 +34,6 @@ type LstepDeliveryTriggerService interface {
 	TriggerVaccineDeadline30(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerBirthdayMessage はペット誕生日当日の誕生日メッセージ配信をトリガーする。
 	TriggerBirthdayMessage(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
-	// TriggerDormantPrevention120 は120日間未来院の飼い主に休眠予防配信をトリガーする。
-	TriggerDormantPrevention120(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerDormantPrevention180 は180日間未来院の飼い主に休眠予防配信をトリガーする。
 	TriggerDormantPrevention180(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerDormantPrevention210 は210日間未来院の飼い主に休眠予防配信をトリガーする。
@@ -315,15 +313,6 @@ func (s *lstepDeliveryTriggerService) TriggerBirthdayMessage(ctx context.Context
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by pet birthday")}
 	}
 	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeBirthdayMessage, model.TriggerTypeBirthdayMessage, asOf)
-}
-
-func (s *lstepDeliveryTriggerService) TriggerDormantPrevention120(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
-	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, 120, asOf)
-	if err != nil {
-		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_120d: find owners error", "clinic_id", clinicID, "error", err)
-		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}
-	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention120, model.TriggerTypeDormantPrevention120, asOf)
 }
 
 func (s *lstepDeliveryTriggerService) TriggerDormantPrevention180(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
