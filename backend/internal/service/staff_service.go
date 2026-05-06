@@ -368,7 +368,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 		return nil, apperrors.Wrap(err, "failed to create staff")
 	}
 
-	slog.InfoContext(ctx, "staff with account created", slog.Uint64("clinic_id", input.ClinicID), slog.String("email", input.Email), slog.Uint64("staff_id", staff.ID))
+	slog.InfoContext(ctx, "staff with account created", slog.Uint64("clinic_id", input.ClinicID), slog.Uint64("staff_id", staff.ID))
 	return staff, nil
 }
 
