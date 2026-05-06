@@ -619,11 +619,11 @@ func TestLstepDeliveryTriggerService_TriggerDormantPrevention(t *testing.T) {
 			wantDays: 180,
 		},
 		{
-			name: "220d dormant",
+			name: "210d dormant",
 			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
-				return svc.TriggerDormantPrevention220(ctx, 1, asOf)
+				return svc.TriggerDormantPrevention210(ctx, 1, asOf)
 			},
-			wantDays: 220,
+			wantDays: 210,
 		},
 		{
 			name: "240d dormant",

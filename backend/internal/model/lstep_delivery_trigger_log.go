@@ -17,7 +17,7 @@ const (
 	TriggerTypeBirthdayMessage      TriggerType = "birthday_message"
 	TriggerTypeDormantPrevention120 TriggerType = "dormant_prevention_120d"
 	TriggerTypeDormantPrevention180 TriggerType = "dormant_prevention_180d"
-	TriggerTypeDormantPrevention220 TriggerType = "dormant_prevention_220d"
+	TriggerTypeDormantPrevention210 TriggerType = "dormant_prevention_210d"
 	TriggerTypeDormantPrevention240 TriggerType = "dormant_prevention_240d"
 	TriggerTypeFilariaAlert         TriggerType = "filaria_alert"
 	TriggerTypeFleaTickAlert        TriggerType = "flea_tick_alert"

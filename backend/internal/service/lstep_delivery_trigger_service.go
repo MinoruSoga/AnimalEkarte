@@ -38,8 +38,8 @@ type LstepDeliveryTriggerService interface {
 	TriggerDormantPrevention120(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerDormantPrevention180 は180日間未来院の飼い主に休眠予防配信をトリガーする。
 	TriggerDormantPrevention180(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
-	// TriggerDormantPrevention220 は220日間未来院の飼い主に休眠予防配信をトリガーする。
-	TriggerDormantPrevention220(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	// TriggerDormantPrevention210 は210日間未来院の飼い主に休眠予防配信をトリガーする。
+	TriggerDormantPrevention210(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerDormantPrevention240 は240日間未来院の飼い主に休眠予防配信をトリガーする。
 	TriggerDormantPrevention240(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerFilariaAlert はフィラリア対策タグを持つ飼い主に定期アラート配信をトリガーする。
@@ -335,13 +335,13 @@ func (s *lstepDeliveryTriggerService) TriggerDormantPrevention180(ctx context.Co
 	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention180, model.TriggerTypeDormantPrevention180, asOf)
 }
 
-func (s *lstepDeliveryTriggerService) TriggerDormantPrevention220(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
-	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, 220, asOf)
+func (s *lstepDeliveryTriggerService) TriggerDormantPrevention210(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
+	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, 210, asOf)
 	if err != nil {
-		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_220d: find owners error", "clinic_id", clinicID, "error", err)
+		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_210d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention220, model.TriggerTypeDormantPrevention220, asOf)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention210, model.TriggerTypeDormantPrevention210, asOf)
 }
 
 func (s *lstepDeliveryTriggerService) TriggerDormantPrevention240(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {

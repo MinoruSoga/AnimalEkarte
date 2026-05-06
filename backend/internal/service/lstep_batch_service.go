@@ -26,7 +26,7 @@ type LstepBatchService interface {
 	RunDormantDetectionAllClinics(ctx context.Context) error
 	// RunLTVTopPercentSyncAllClinics は全クリニックに対して LTV 上位 20% タグを同期するcronエントリポイント（FEAT-377）。
 	RunLTVTopPercentSyncAllClinics(ctx context.Context) error
-	// RunVisitDormantSyncAllClinics は全クリニックに対して VISIT_* タグ（120/180/220/240日超）を同期するcronエントリポイント（FEAT-377）。
+	// RunVisitDormantSyncAllClinics は全クリニックに対して VISIT_* タグ（120/180/210/240日超）を同期するcronエントリポイント（FEAT-377）。
 	RunVisitDormantSyncAllClinics(ctx context.Context) error
 	// RunHealthPreventionTagSyncAllClinics は全クリニックに対して健診・予防・物販タグを同期するcronエントリポイント（FEAT-379）。
 	RunHealthPreventionTagSyncAllClinics(ctx context.Context) error
@@ -323,7 +323,7 @@ func (s *lstepBatchService) runDeliveryTriggersForClinic(ctx context.Context, cl
 		s.lstepDeliveryTrigger.TriggerBirthdayMessage,
 		s.lstepDeliveryTrigger.TriggerDormantPrevention120,
 		s.lstepDeliveryTrigger.TriggerDormantPrevention180,
-		s.lstepDeliveryTrigger.TriggerDormantPrevention220,
+		s.lstepDeliveryTrigger.TriggerDormantPrevention210,
 		s.lstepDeliveryTrigger.TriggerDormantPrevention240,
 		s.lstepDeliveryTrigger.TriggerFilariaAlert,
 		s.lstepDeliveryTrigger.TriggerFleaTickAlert,
