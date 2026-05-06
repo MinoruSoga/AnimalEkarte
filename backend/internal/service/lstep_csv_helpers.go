@@ -10,6 +10,8 @@ import (
 
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 // decodeCsvBytes は CSV のバイト列を文字コード判定して UTF-8 文字列に変換する。
@@ -24,7 +26,7 @@ func decodeCsvBytes(raw []byte) (string, error) {
 	decoder := japanese.ShiftJIS.NewDecoder()
 	out, err := io.ReadAll(transform.NewReader(bytes.NewReader(raw), decoder))
 	if err != nil {
-		return "", err
+		return "", apperrors.Wrap(err, "failed to read CSV content")
 	}
 	return string(out), nil
 }

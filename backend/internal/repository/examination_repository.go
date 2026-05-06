@@ -177,7 +177,7 @@ func (r *examinationRepository) ReplaceItemsByExamID(ctx context.Context, clinic
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to replace exam items")
 	}
 	return r.FindAllItemsByExamID(ctx, clinicID, examID)
 }

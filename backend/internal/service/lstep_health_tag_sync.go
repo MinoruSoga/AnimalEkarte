@@ -33,7 +33,7 @@ func strSet(ss []string) map[string]struct{} {
 
 // hasVaccineDeadlineSoon は vaccinations の中に NextDate が now から days 日以内のものがあれば true を返す。
 // pure function — モックなしでテスト可能。
-func hasVaccineDeadlineSoon(vaccinations []model.Vaccination, now time.Time, days int) bool {
+func hasVaccineDeadlineSoon(vaccinations []model.Vaccination, now time.Time, days int) bool { //nolint:unparam // days is configurable per clinic in future
 	deadline := now.AddDate(0, 0, days)
 	for i := range vaccinations {
 		nd := vaccinations[i].NextDate
