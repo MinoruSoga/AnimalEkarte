@@ -59,7 +59,7 @@ type FindCheckupSyncPreviewParams struct {
 
 // CheckupSyncRepository は健診同期プレビューのリポジトリインターフェース（BE-004）。
 type CheckupSyncRepository interface {
-	FindCheckupSyncPreview(ctx context.Context, params FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error)
+	FindCheckupSyncPreview(ctx context.Context, params *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error)
 }
 
 type checkupSyncRepository struct {
@@ -71,7 +71,10 @@ func NewCheckupSyncRepository(db *gorm.DB) CheckupSyncRepository {
 	return &checkupSyncRepository{db: db}
 }
 
-func (r *checkupSyncRepository) FindCheckupSyncPreview(ctx context.Context, params FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
+func (r *checkupSyncRepository) FindCheckupSyncPreview(ctx context.Context, params *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
+	if params == nil {
+		return nil, apperrors.WrapInvalidInput("params is nil")
+	}
 	var args []any
 
 	where := "o.clinic_id = ? AND o.deleted_at IS NULL"

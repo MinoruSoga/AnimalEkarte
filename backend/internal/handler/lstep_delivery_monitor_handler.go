@@ -54,7 +54,8 @@ func toDeliveryTriggerSummaryResponse(s service.DeliveryTriggerSummary) delivery
 	}
 }
 
-func toDeliveryTriggerLogItemResponse(item service.DeliveryTriggerLogItem) deliveryTriggerLogItemResponse {
+// caller must pass non-nil item; panics on nil.
+func toDeliveryTriggerLogItemResponse(item *service.DeliveryTriggerLogItem) deliveryTriggerLogItemResponse {
 	var firedAt *string
 	if item.FiredAt != nil {
 		s := item.FiredAt.Format(time.RFC3339)
@@ -74,8 +75,8 @@ func toDeliveryTriggerLogItemResponse(item service.DeliveryTriggerLogItem) deliv
 
 func toDeliveryTriggerLogsPageResponse(page service.DeliveryTriggerLogsPage) deliveryTriggerLogsPageResponse {
 	items := make([]deliveryTriggerLogItemResponse, len(page.Items))
-	for i, it := range page.Items {
-		items[i] = toDeliveryTriggerLogItemResponse(it)
+	for i := range page.Items {
+		items[i] = toDeliveryTriggerLogItemResponse(&page.Items[i])
 	}
 	return deliveryTriggerLogsPageResponse{Items: items, Total: page.Total, Page: page.Page, PerPage: page.PerPage}
 }
@@ -158,7 +159,7 @@ func (h *Handler) GetLstepDeliveryTriggerLogs(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.LstepDeliveryMonitor.GetLogs(c.Request.Context(), service.GetDeliveryMonitorLogsInput{
+	result, err := h.svc.LstepDeliveryMonitor.GetLogs(c.Request.Context(), &service.GetDeliveryMonitorLogsInput{
 		ClinicID:    clinicID,
 		From:        from,
 		To:          to,

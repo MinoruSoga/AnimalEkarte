@@ -106,7 +106,7 @@ type CreateCheckupSyncResult struct {
 // ISSUE-010: PreviewCheckupSync は actorID を受け取り audit_logs にメタデータと共に永続化する。
 //   - actorID=nil はシステム実行扱い、それ以外は staff 実行扱いとして actor_type が決まる。
 type CheckupSyncService interface {
-	PreviewCheckupSync(ctx context.Context, clinicID uint64, input PreviewCheckupSyncInput, actorID *uint64) (*PreviewCheckupSyncResult, error)
+	PreviewCheckupSync(ctx context.Context, clinicID uint64, input *PreviewCheckupSyncInput, actorID *uint64) (*PreviewCheckupSyncResult, error)
 	CreateCheckupSync(ctx context.Context, clinicID uint64, input CreateCheckupSyncInput, actorID *uint64) (*CreateCheckupSyncResult, error)
 }
 
@@ -160,7 +160,8 @@ func (s *checkupSyncService) buildClient(ctx context.Context, clinicID uint64) (
 // computeCPMStageFromRow は preview 行から CPM ステージを計算する（ISSUE-009）。
 // CPM 判定は LTV/CPM サービス側 (lstep_tag_sync_service.CalculateCPMStage) と同一の純粋関数を再利用し、
 // 判定基準のドリフトを防ぐ。
-func computeCPMStageFromRow(row repository.CheckupSyncPreviewRow) CPMStage {
+// caller must pass non-nil row; panics on nil.
+func computeCPMStageFromRow(row *repository.CheckupSyncPreviewRow) CPMStage {
 	daysSince := -1
 	if row.LastVisitDate != nil {
 		daysSince = int(time.Since(*row.LastVisitDate).Hours() / 24)
@@ -179,8 +180,11 @@ func computeCPMStageFromRow(row repository.CheckupSyncPreviewRow) CPMStage {
 	})
 }
 
-func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID uint64, input PreviewCheckupSyncInput, actorID *uint64) (*PreviewCheckupSyncResult, error) {
-	rows, err := s.repo.FindCheckupSyncPreview(ctx, repository.FindCheckupSyncPreviewParams{
+func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID uint64, input *PreviewCheckupSyncInput, actorID *uint64) (*PreviewCheckupSyncResult, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input is nil")
+	}
+	rows, err := s.repo.FindCheckupSyncPreview(ctx, &repository.FindCheckupSyncPreviewParams{
 		ClinicID:            clinicID,
 		Species:             input.Species,
 		LastVisitBefore:     input.LastVisitBefore,
@@ -204,7 +208,8 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 	noLivingPetCount := 0
 	eligibleCount := 0
 
-	for _, row := range rows {
+	for i := range rows {
+		row := &rows[i]
 		// ISSUE-009: CPM ステージは集計値ベースの後段フィルタとして適用する。
 		// SQL ではなく service 層で判定することで、タグ同期側 CalculateCPMStage と同じロジックを共有する。
 		cpmStage := computeCPMStageFromRow(row)
@@ -318,7 +323,7 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 // ISSUE-009 で追加された拡張フィルタ条件も含めて永続化する。
 // 日付は YYYY-MM-DD 文字列に正規化する（タイムゾーンによる比較揺れを防ぐ）。
 func buildCheckupSyncPreviewMetadata(
-	input PreviewCheckupSyncInput,
+	input *PreviewCheckupSyncInput,
 	totalCount, eligibleCount, lineLinkedCount, optOutCount, noLivingPetCount int,
 ) map[string]any {
 	filter := map[string]any{

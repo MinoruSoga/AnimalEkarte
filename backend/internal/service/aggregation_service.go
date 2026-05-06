@@ -16,7 +16,8 @@ import (
 // AccountingRepository.MaxSingleVisitAmountByOwner と同一の集計範囲に揃える。
 // 一覧側の DaysSinceLastVisit は SQL 側で EXTRACT(DAY FROM NOW() - MAX(mr.date)) として
 // 計算されているため、来院なし（NULL）は -1 にマップする。
-func computeCPMStageFromLTVRow(row repository.OwnerLTVRow) string {
+// caller must pass non-nil row; panics on nil.
+func computeCPMStageFromLTVRow(row *repository.OwnerLTVRow) string {
 	daysSince := -1
 	if row.DaysSinceLastVisit != nil {
 		daysSince = *row.DaysSinceLastVisit
@@ -168,7 +169,8 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 	cpmStageFilter := normalizeCPMStageFilter(input.CPMStage)
 
 	var items []OwnerAggregationItem
-	for _, row := range rows {
+	for i := range rows {
+		row := &rows[i]
 		stage := computeCPMStageFromLTVRow(row)
 		if cpmStageFilter != "" && stage != cpmStageFilter {
 			continue
@@ -238,7 +240,8 @@ func (s *aggregationService) SyncAggregationTags(ctx context.Context, clinicID u
 	}
 
 	result := &SyncAggregationTagsResult{DryRun: input.DryRun, Total: len(rows)}
-	for _, row := range rows {
+	for i := range rows {
+		row := &rows[i]
 		if row.LstepOptOut {
 			result.Skipped++
 			continue

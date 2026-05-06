@@ -228,7 +228,8 @@ ORDER BY %s
 
 	// Post-processing: フィルタリング（include_zero, include_no_visit）
 	var filtered []OwnerLTVRow
-	for _, row := range rows {
+	for i := range rows {
+		row := &rows[i]
 		// include_zero フィルタ（AGG-BE-001）
 		if !params.IncludeZero && row.AnnualAmount != nil && *row.AnnualAmount == 0 {
 			continue
@@ -241,7 +242,7 @@ ORDER BY %s
 		if params.LastVisitBucket != "" && (row.LastVisitBucket == nil || *row.LastVisitBucket != params.LastVisitBucket) {
 			continue
 		}
-		filtered = append(filtered, row)
+		filtered = append(filtered, *row)
 	}
 
 	return filtered, nil

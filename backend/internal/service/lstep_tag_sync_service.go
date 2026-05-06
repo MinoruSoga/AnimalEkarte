@@ -1992,7 +1992,8 @@ func (s *lstepTagSyncService) SyncCPMStageTagV2(ctx context.Context, clinicID, o
 	}
 	annualCutoff := time.Now().AddDate(-1, 0, 0)
 	annualCheckupCount := 0
-	for _, c := range checkups {
+	for i := range checkups {
+		c := &checkups[i]
 		if c.Date.After(annualCutoff) {
 			annualCheckupCount++
 		}

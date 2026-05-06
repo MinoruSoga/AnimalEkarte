@@ -61,7 +61,7 @@ type DeliveryTriggerLogsPage struct {
 // LstepDeliveryMonitorService は自動配信トリガー監視のサービスインターフェース。
 type LstepDeliveryMonitorService interface {
 	GetSummary(ctx context.Context, input GetDeliveryMonitorSummaryInput) (DeliveryTriggerSummary, error)
-	GetLogs(ctx context.Context, input GetDeliveryMonitorLogsInput) (DeliveryTriggerLogsPage, error)
+	GetLogs(ctx context.Context, input *GetDeliveryMonitorLogsInput) (DeliveryTriggerLogsPage, error)
 }
 
 type lstepDeliveryMonitorService struct {
@@ -93,7 +93,10 @@ func (s *lstepDeliveryMonitorService) GetSummary(ctx context.Context, input GetD
 	}, nil
 }
 
-func (s *lstepDeliveryMonitorService) GetLogs(ctx context.Context, input GetDeliveryMonitorLogsInput) (DeliveryTriggerLogsPage, error) {
+func (s *lstepDeliveryMonitorService) GetLogs(ctx context.Context, input *GetDeliveryMonitorLogsInput) (DeliveryTriggerLogsPage, error) {
+	if input == nil {
+		return DeliveryTriggerLogsPage{}, apperrors.WrapInvalidInput("input is nil")
+	}
 	perPage := input.PerPage
 	if perPage <= 0 {
 		perPage = 20
@@ -114,7 +117,8 @@ func (s *lstepDeliveryMonitorService) GetLogs(ctx context.Context, input GetDeli
 	}
 
 	items := make([]DeliveryTriggerLogItem, len(rows))
-	for i, r := range rows {
+	for i := range rows {
+		r := &rows[i]
 		items[i] = DeliveryTriggerLogItem{
 			ID:             r.ID,
 			OwnerID:        r.OwnerID,

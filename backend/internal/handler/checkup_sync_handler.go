@@ -217,7 +217,7 @@ func (h *Handler) GetCheckupSyncPreview(c *gin.Context) {
 		actorID = &staffID
 	}
 
-	result, err := h.svc.CheckupSync.PreviewCheckupSync(c.Request.Context(), clinicID, input, actorID)
+	result, err := h.svc.CheckupSync.PreviewCheckupSync(c.Request.Context(), clinicID, &input, actorID)
 	if err != nil {
 		RespondError(c, err)
 		return

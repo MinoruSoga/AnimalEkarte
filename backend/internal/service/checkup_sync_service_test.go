@@ -17,10 +17,10 @@ import (
 // ---- CheckupSyncRepository モック ----
 
 type mockCheckupSyncRepository struct {
-	findCheckupSyncPreviewFn func(ctx context.Context, params repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error)
+	findCheckupSyncPreviewFn func(ctx context.Context, params *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error)
 }
 
-func (m *mockCheckupSyncRepository) FindCheckupSyncPreview(ctx context.Context, params repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
+func (m *mockCheckupSyncRepository) FindCheckupSyncPreview(ctx context.Context, params *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
 	if m.findCheckupSyncPreviewFn != nil {
 		return m.findCheckupSyncPreviewFn(ctx, params)
 	}
@@ -32,7 +32,7 @@ func (m *mockCheckupSyncRepository) FindCheckupSyncPreview(ctx context.Context, 
 
 func newCheckupSyncSvcForPreview(rows []repository.CheckupSyncPreviewRow) CheckupSyncService {
 	repo := &mockCheckupSyncRepository{
-		findCheckupSyncPreviewFn: func(_ context.Context, _ repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
+		findCheckupSyncPreviewFn: func(_ context.Context, _ *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
 			return rows, nil
 		},
 	}
@@ -99,7 +99,7 @@ func TestCheckupSyncService_PreviewCheckupSync_ExclusionAggregation(t *testing.T
 
 	svc := newCheckupSyncSvcForPreview(rows)
 
-	result, err := svc.PreviewCheckupSync(context.Background(), 1, PreviewCheckupSyncInput{CheckupType: "annual"}, nil)
+	result, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{CheckupType: "annual"}, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -136,7 +136,7 @@ func TestCheckupSyncService_PreviewCheckupSync_ExclusionAggregation(t *testing.T
 func TestCheckupSyncService_PreviewCheckupSync_EmptyResult(t *testing.T) {
 	svc := newCheckupSyncSvcForPreview([]repository.CheckupSyncPreviewRow{})
 
-	result, err := svc.PreviewCheckupSync(context.Background(), 1, PreviewCheckupSyncInput{CheckupType: "annual"}, nil)
+	result, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{CheckupType: "annual"}, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -349,8 +349,8 @@ func TestCheckupSyncService_PreviewCheckupSync_PassesExtendedFiltersToRepo(t *te
 	var captured repository.FindCheckupSyncPreviewParams
 
 	repo := &mockCheckupSyncRepository{
-		findCheckupSyncPreviewFn: func(_ context.Context, params repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
-			captured = params
+		findCheckupSyncPreviewFn: func(_ context.Context, params *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
+			captured = *params
 			return nil, nil
 		},
 	}
@@ -371,7 +371,7 @@ func TestCheckupSyncService_PreviewCheckupSync_PassesExtendedFiltersToRepo(t *te
 	lastBefore := mustParseDate(t, "2026-01-31")
 	lastAfter := mustParseDate(t, "2025-01-01")
 
-	_, err := svc.PreviewCheckupSync(context.Background(), 1, PreviewCheckupSyncInput{
+	_, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{
 		CheckupType:         "annual",
 		Species:             "dog",
 		MinAgeYears:         &minAge,
@@ -444,7 +444,7 @@ func TestCheckupSyncService_PreviewCheckupSync_CPMStageFilter(t *testing.T) {
 	svc := newCheckupSyncSvcForPreview(rows)
 
 	// cpm_noah で絞り込み → ID=1 のみ
-	resultNoah, err := svc.PreviewCheckupSync(context.Background(), 1, PreviewCheckupSyncInput{
+	resultNoah, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{
 		CheckupType: "annual",
 		CPMStage:    "cpm_noah",
 	}, nil)
@@ -458,7 +458,7 @@ func TestCheckupSyncService_PreviewCheckupSync_CPMStageFilter(t *testing.T) {
 	}
 
 	// cpm_dormant で絞り込み → ID=2 のみ
-	resultDormant, err := svc.PreviewCheckupSync(context.Background(), 1, PreviewCheckupSyncInput{
+	resultDormant, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{
 		CheckupType: "annual",
 		CPMStage:    "cpm_dormant",
 	}, nil)
@@ -472,7 +472,7 @@ func TestCheckupSyncService_PreviewCheckupSync_CPMStageFilter(t *testing.T) {
 	}
 
 	// 未指定（CPMStage == ""）→ 全件
-	resultAll, err := svc.PreviewCheckupSync(context.Background(), 1, PreviewCheckupSyncInput{
+	resultAll, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{
 		CheckupType: "annual",
 	}, nil)
 	assert.NoError(t, err)
@@ -510,7 +510,7 @@ func TestCheckupSyncService_PreviewCheckupSync_ExposesAdditionalFields(t *testin
 
 	svc := newCheckupSyncSvcForPreview(rows)
 
-	result, err := svc.PreviewCheckupSync(context.Background(), 1, PreviewCheckupSyncInput{
+	result, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{
 		CheckupType: "annual",
 	}, nil)
 	assert.NoError(t, err)
@@ -572,7 +572,7 @@ func (s *spyCheckupAuditService) LogLstepOperationWithMetadata(_ context.Context
 // newCheckupSyncSvcForAudit は audit 検証用 spy を注入したサービスを返す。
 func newCheckupSyncSvcForAudit(rows []repository.CheckupSyncPreviewRow, spy *spyCheckupAuditService) CheckupSyncService {
 	repo := &mockCheckupSyncRepository{
-		findCheckupSyncPreviewFn: func(_ context.Context, _ repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
+		findCheckupSyncPreviewFn: func(_ context.Context, _ *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
 			return rows, nil
 		},
 	}
@@ -605,7 +605,7 @@ func TestCheckupSyncService_PreviewCheckupSync_PersistsMetadata(t *testing.T) {
 	svc := newCheckupSyncSvcForAudit(rows, spy)
 
 	staffID := uint64(99)
-	_, err := svc.PreviewCheckupSync(context.Background(), 1, PreviewCheckupSyncInput{
+	_, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{
 		CheckupType:     "annual",
 		Species:         "dog",
 		LastVisitBefore: &lastBefore,
@@ -649,7 +649,7 @@ func TestCheckupSyncService_PreviewCheckupSync_PersistsMetadata_NilFilters(t *te
 	spy := &spyCheckupAuditService{}
 	svc := newCheckupSyncSvcForAudit([]repository.CheckupSyncPreviewRow{}, spy)
 
-	_, err := svc.PreviewCheckupSync(context.Background(), 1, PreviewCheckupSyncInput{
+	_, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{
 		CheckupType: "annual",
 	}, nil)
 	assert.NoError(t, err)
