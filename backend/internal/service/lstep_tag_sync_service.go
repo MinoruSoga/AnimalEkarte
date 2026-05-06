@@ -75,8 +75,9 @@ func CalculateCPMStageV2(d CPMStageV2Input) CPMStageV2 {
 	if d.AnnualVisitCount >= 6 || d.AnnualCheckupCount >= 4 || d.IsLTVTopPercent {
 		return CPMStageV2Noah
 	}
-	// CPM1: 初診30日以内かつ来院1回
-	if d.FirstVisitDaysSince >= 0 && d.FirstVisitDaysSince <= 30 && d.AnnualVisitCount == 1 {
+	// CPM1: 来院0件 OR (初診30日以内かつ来院1回) — SPEC-005 Q4
+	if d.AnnualVisitCount == 0 ||
+		(d.FirstVisitDaysSince >= 0 && d.FirstVisitDaysSince <= 30 && d.AnnualVisitCount == 1) {
 		return CPMStageV2Encounter
 	}
 	// CPM4: 年1〜2回かつ90日超〜220日以内

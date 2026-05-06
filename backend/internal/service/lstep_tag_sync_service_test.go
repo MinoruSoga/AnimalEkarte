@@ -689,7 +689,7 @@ func TestCalculateCPMStageV2(t *testing.T) {
 		},
 		{
 			name: "not Noah: checkup = 3",
-			in:   CPMStageV2Input{AnnualCheckupCount: 3, DaysSinceVisit: 30},
+			in:   CPMStageV2Input{AnnualVisitCount: 2, AnnualCheckupCount: 3, DaysSinceVisit: 30},
 			want: CPMStageV2Growing,
 		},
 		{
@@ -733,9 +733,19 @@ func TestCalculateCPMStageV2(t *testing.T) {
 			want: CPMStageV2Growing,
 		},
 		{
-			name: "Growing: fallback",
-			in:   CPMStageV2Input{AnnualVisitCount: 0},
+			name: "Growing: fallback (visit > 0, not matching any stage)",
+			in:   CPMStageV2Input{AnnualVisitCount: 2, DaysSinceVisit: 30},
 			want: CPMStageV2Growing,
+		},
+		{
+			name: "Encounter: visit 0 (default fall-through prevention SPEC-005 Q4)",
+			in:   CPMStageV2Input{AnnualVisitCount: 0, AnnualCheckupCount: 0, DaysSinceVisit: -1, FirstVisitDaysSince: 200, IsLTVTopPercent: false},
+			want: CPMStageV2Encounter,
+		},
+		{
+			name: "Encounter: first visit within 30 days, visit count = 1 (existing behavior maintained)",
+			in:   CPMStageV2Input{AnnualVisitCount: 1, AnnualCheckupCount: 0, DaysSinceVisit: 10, FirstVisitDaysSince: 20, IsLTVTopPercent: false},
+			want: CPMStageV2Encounter,
 		},
 	}
 	for _, tc := range cases {
