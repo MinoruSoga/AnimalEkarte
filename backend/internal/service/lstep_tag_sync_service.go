@@ -120,8 +120,10 @@ func CalculateCPMStage(d CPMData) CPMStage {
 	if d.MaxSingleVisitAmount >= 30_000 && d.DaysSinceVisit > 90 {
 		return CPMStageSpot
 	}
-	// cpm_growing: 初診から90日以内に再来院 (2〜3回来院) — SPEC-005 Q2 (仕様書整合)
-	if d.FirstVisitDaysSince >= 0 && d.FirstVisitDaysSince <= 90 && d.TotalVisitCount >= 2 && d.TotalVisitCount <= 3 {
+	// cpm_growing: 初診から90日以内 AND 2〜3回来院 AND LTV 20,000〜50,000円未満 (仕様書整合)
+	if d.FirstVisitDaysSince >= 0 && d.FirstVisitDaysSince <= 90 &&
+		d.TotalVisitCount >= 2 && d.TotalVisitCount <= 3 &&
+		d.LTVAmount >= 20_000 && d.LTVAmount < 50_000 {
 		return CPMStageGrowing
 	}
 	// cpm_encounter: デフォルト（初来院・新規顧客）
