@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -325,7 +326,9 @@ func (h *Handler) DeleteOwner(c *gin.Context) {
 		return
 	}
 	// BE-017: 削除前に Lステップタグを全解除（best-effort、失敗しても削除は続行）
-	_ = h.svc.LstepLifecycle.HandleOwnerDeletion(c.Request.Context(), clinicID, id)
+	if err := h.svc.LstepLifecycle.HandleOwnerDeletion(c.Request.Context(), clinicID, id); err != nil {
+		slog.WarnContext(c.Request.Context(), "lstep cleanup failed on owner deletion", "owner_id", id, "clinic_id", clinicID, "error", err)
+	}
 	if err := h.svc.Owner.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
