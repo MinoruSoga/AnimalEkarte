@@ -82,7 +82,7 @@ func (h *Handler) DeleteClinicalPlan(c *gin.Context) {
 
 // RegisterClinicalPlanRoutes はClinicalPlan関連のルートを登録する
 func (h *Handler) RegisterClinicalPlanRoutes(rg *gin.RouterGroup) {
-	rg.GET("/:id/clinical-plan", h.GetClinicalPlan)
+	rg.GET("/:id/clinical-plan", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.GetClinicalPlan)
 	rg.PATCH("/:id/clinical-plan", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateClinicalPlan)
 	rg.DELETE("/:id/clinical-plan", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteClinicalPlan)
 }

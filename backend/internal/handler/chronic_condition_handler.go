@@ -53,7 +53,7 @@ func toChronicConditionListResponse(records []model.PetChronicCondition) []chron
 // RegisterChronicConditionRoutes はペットIDネストの慢性疾患ルートを登録する（BE-012）。
 func (h *Handler) RegisterChronicConditionRoutes(rg *gin.RouterGroup) {
 	cc := rg.Group("/:id/chronic-conditions")
-	cc.GET("", h.ListChronicConditions)
+	cc.GET("", h.RequirePermission(string(model.ResourceOwners), "view"), h.ListChronicConditions)
 	cc.POST("", h.RequirePermission(string(model.ResourceOwners), "create"), h.CreateChronicCondition)
 	cc.PATCH("/:cc_id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateChronicCondition)
 	cc.DELETE("/:cc_id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteChronicCondition)

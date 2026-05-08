@@ -124,8 +124,8 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 // registerOwnerRoutesWithAuth は飼主ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners := rg.Group("/owners")
-	owners.GET("", h.ListOwners)
-	owners.GET("/:id", h.GetOwner)
+	owners.GET("", h.RequirePermission(string(model.ResourceOwners), "view"), h.ListOwners)
+	owners.GET("/:id", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetOwner)
 	owners.POST("", h.RequirePermission(string(model.ResourceOwners), "create"), h.CreateOwner)
 	owners.PATCH("/:id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwner)
 	owners.DELETE("/:id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwner)
@@ -146,7 +146,7 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerTransferStatus)
 	owners.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineIDConfirm)
 	// BE-019: Lステップタグ CRUD
-	owners.GET("/:id/lstep/tags", h.GetOwnerLstepTags)
+	owners.GET("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetOwnerLstepTags)
 	owners.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepTag)
 	owners.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
 	// BE-013: LINE個別送信
@@ -164,11 +164,11 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	co.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineIDConfirm)
 	co.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepOptOut)
 	co.DELETE("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeleteOwnerLstepOptOut)
-	co.GET("/:id/lstep/tags", h.GetOwnerLstepTags)
+	co.GET("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetOwnerLstepTags)
 	co.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepTag)
 	co.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
 	co.POST("/:id/line/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostLineSend)
-	co.GET("/:id/line/send-logs", h.GetLineSendLogs)
+	co.GET("/:id/line/send-logs", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetLineSendLogs)
 	// FEAT-385: 飼主の最新 Lステップ友だち属性
 	co.GET("/:id/lstep/friend-attributes", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepOwnerFriendAttributes)
 }
@@ -176,8 +176,8 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 // registerMedicalRecordRoutesWithAuth はカルテルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	records := rg.Group("/medical-records")
-	records.GET("", h.ListMedicalRecords)
-	records.GET("/:id", h.GetMedicalRecord)
+	records.GET("", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.ListMedicalRecords)
+	records.GET("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.GetMedicalRecord)
 	records.POST("", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateMedicalRecord)
 	records.PATCH("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateMedicalRecord)
 	records.DELETE("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteMedicalRecord)
@@ -198,8 +198,8 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 // registerHospitalizationRoutesWithAuth は入院ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerHospitalizationRoutesWithAuth(rg *gin.RouterGroup) {
 	hospitalizations := rg.Group("/hospitalizations")
-	hospitalizations.GET("", h.ListHospitalizations)
-	hospitalizations.GET("/:id", h.GetHospitalization)
+	hospitalizations.GET("", h.RequirePermission(string(model.ResourceHospitalization), "view"), h.ListHospitalizations)
+	hospitalizations.GET("/:id", h.RequirePermission(string(model.ResourceHospitalization), "view"), h.GetHospitalization)
 	hospitalizations.POST("", h.RequirePermission(string(model.ResourceHospitalization), "create"), h.CreateHospitalization)
 	hospitalizations.PATCH("/:id", h.RequirePermission(string(model.ResourceHospitalization), "edit"), h.UpdateHospitalization)
 	hospitalizations.DELETE("/:id", h.RequirePermission(string(model.ResourceHospitalization), "delete"), h.DeleteHospitalization)
@@ -213,8 +213,8 @@ func (h *Handler) registerHospitalizationRoutesWithAuth(rg *gin.RouterGroup) {
 // registerTrimmingRoutesWithAuth はトリミングルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerTrimmingRoutesWithAuth(rg *gin.RouterGroup) {
 	trimmings := rg.Group("/trimmings")
-	trimmings.GET("", h.ListTrimmings)
-	trimmings.GET("/:id", h.GetTrimming)
+	trimmings.GET("", h.RequirePermission(string(model.ResourceTrimming), "view"), h.ListTrimmings)
+	trimmings.GET("/:id", h.RequirePermission(string(model.ResourceTrimming), "view"), h.GetTrimming)
 	trimmings.POST("", h.RequirePermission(string(model.ResourceTrimming), "create"), h.CreateTrimming)
 	trimmings.PATCH("/:id", h.RequirePermission(string(model.ResourceTrimming), "edit"), h.UpdateTrimming)
 	trimmings.DELETE("/:id", h.RequirePermission(string(model.ResourceTrimming), "delete"), h.DeleteTrimming)
@@ -223,22 +223,22 @@ func (h *Handler) registerTrimmingRoutesWithAuth(rg *gin.RouterGroup) {
 // registerExaminationRoutesWithAuth は検査ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerExaminationRoutesWithAuth(rg *gin.RouterGroup) {
 	examinations := rg.Group("/examinations")
-	examinations.GET("", h.ListExaminations)
-	examinations.GET("/:id", h.GetExamination)
+	examinations.GET("", h.RequirePermission(string(model.ResourceExaminations), "view"), h.ListExaminations)
+	examinations.GET("/:id", h.RequirePermission(string(model.ResourceExaminations), "view"), h.GetExamination)
 	examinations.POST("", h.RequirePermission(string(model.ResourceExaminations), "create"), h.CreateExamination)
 	examinations.PATCH("/:id", h.RequirePermission(string(model.ResourceExaminations), "edit"), h.UpdateExamination)
 	examinations.DELETE("/:id", h.RequirePermission(string(model.ResourceExaminations), "delete"), h.DeleteExamination)
 
 	// 検査項目（exam_results）— PUT 一括置換セマンティクス
-	examinations.GET("/:id/items", h.ListExaminationItems)
+	examinations.GET("/:id/items", h.RequirePermission(string(model.ResourceExaminations), "view"), h.ListExaminationItems)
 	examinations.PUT("/:id/items", h.RequirePermission(string(model.ResourceExaminations), "edit"), h.ReplaceExaminationItems)
 }
 
 // registerVaccinationRoutesWithAuth はワクチンルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerVaccinationRoutesWithAuth(rg *gin.RouterGroup) {
 	vaccinations := rg.Group("/vaccinations")
-	vaccinations.GET("", h.ListVaccinations)
-	vaccinations.GET("/:id", h.GetVaccination)
+	vaccinations.GET("", h.RequirePermission(string(model.ResourceVaccinations), "view"), h.ListVaccinations)
+	vaccinations.GET("/:id", h.RequirePermission(string(model.ResourceVaccinations), "view"), h.GetVaccination)
 	vaccinations.POST("", h.RequirePermission(string(model.ResourceVaccinations), "create"), h.CreateVaccination)
 	vaccinations.PATCH("/:id", h.RequirePermission(string(model.ResourceVaccinations), "edit"), h.UpdateVaccination)
 	vaccinations.DELETE("/:id", h.RequirePermission(string(model.ResourceVaccinations), "delete"), h.DeleteVaccination)
@@ -247,13 +247,13 @@ func (h *Handler) registerVaccinationRoutesWithAuth(rg *gin.RouterGroup) {
 // registerAccountingRoutesWithAuth は会計ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
 	accountings := rg.Group("/accountings")
-	accountings.GET("", h.ListAccountings)
+	accountings.GET("", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListAccountings)
 	// BUG-370: 月末未納者一覧
-	accountings.GET("/unpaid", h.ListUnpaidBillings)
+	accountings.GET("/unpaid", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListUnpaidBillings)
 	// BUG-368: レジ締め日次集計
-	accountings.GET("/daily-summary", h.GetDailySummary)
-	accountings.GET("/:id", h.GetAccounting)
-	accountings.GET("/:id/refunds", h.ListRefunds)
+	accountings.GET("/daily-summary", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetDailySummary)
+	accountings.GET("/:id", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetAccounting)
+	accountings.GET("/:id/refunds", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListRefunds)
 	accountings.POST("", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateAccounting)
 	accountings.PATCH("/:id", h.RequirePermission(string(model.ResourceAccounting), "edit"), h.UpdateAccounting)
 	// BUG-371: DELETE は廃止し論理削除 (POST /:id/cancel) に統合。status=cancelled に遷移させる。
@@ -264,8 +264,8 @@ func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
 // registerInventoryRoutesWithAuth は在庫ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerInventoryRoutesWithAuth(rg *gin.RouterGroup) {
 	inventory := rg.Group("/inventory")
-	inventory.GET("", h.ListInventory)
-	inventory.GET("/:id", h.GetInventory)
+	inventory.GET("", h.RequirePermission(string(model.ResourceInventory), "view"), h.ListInventory)
+	inventory.GET("/:id", h.RequirePermission(string(model.ResourceInventory), "view"), h.GetInventory)
 	inventory.POST("", h.RequirePermission(string(model.ResourceInventory), "create"), h.CreateInventory)
 	inventory.PATCH("/:id", h.RequirePermission(string(model.ResourceInventory), "edit"), h.UpdateInventory)
 	inventory.DELETE("/:id", h.RequirePermission(string(model.ResourceInventory), "delete"), h.DeleteInventory)
@@ -274,8 +274,8 @@ func (h *Handler) registerInventoryRoutesWithAuth(rg *gin.RouterGroup) {
 // registerEstimateRoutesWithAuth は見積書ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerEstimateRoutesWithAuth(rg *gin.RouterGroup) {
 	estimates := rg.Group("/estimates")
-	estimates.GET("", h.ListEstimates)
-	estimates.GET("/:id", h.GetEstimate)
+	estimates.GET("", h.RequirePermission(string(model.ResourceEstimates), "view"), h.ListEstimates)
+	estimates.GET("/:id", h.RequirePermission(string(model.ResourceEstimates), "view"), h.GetEstimate)
 	estimates.POST("", h.RequirePermission(string(model.ResourceEstimates), "create"), h.CreateEstimate)
 	estimates.PATCH("/:id", h.RequirePermission(string(model.ResourceEstimates), "edit"), h.UpdateEstimate)
 	estimates.DELETE("/:id", h.RequirePermission(string(model.ResourceEstimates), "delete"), h.DeleteEstimate)

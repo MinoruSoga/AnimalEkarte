@@ -153,7 +153,7 @@ func (h *Handler) DeleteCarePlanItem(c *gin.Context) {
 
 // RegisterCarePlanItemRoutes はケアプランアイテム関連のルートを登録する
 func (h *Handler) RegisterCarePlanItemRoutes(rg *gin.RouterGroup) {
-	rg.GET("/:id/care-plan-items", h.ListCarePlanItems)
+	rg.GET("/:id/care-plan-items", h.RequirePermission(string(model.ResourceHospitalization), "view"), h.ListCarePlanItems)
 	rg.POST("/:id/care-plan-items", h.RequirePermission(string(model.ResourceHospitalization), "create"), h.CreateCarePlanItem)
 	rg.PATCH("/:id/care-plan-items/:itemId", h.RequirePermission(string(model.ResourceHospitalization), "edit"), h.UpdateCarePlanItem)
 	rg.DELETE("/:id/care-plan-items/:itemId", h.RequirePermission(string(model.ResourceHospitalization), "delete"), h.DeleteCarePlanItem)

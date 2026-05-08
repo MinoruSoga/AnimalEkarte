@@ -156,10 +156,10 @@ func (h *Handler) ReorderShiftTemplates(c *gin.Context) {
 // RegisterShiftTemplateRoutes はシフトテンプレートのルートを登録する
 func (h *Handler) RegisterShiftTemplateRoutes(rg *gin.RouterGroup) {
 	g := rg.Group("/shift-templates")
-	g.GET("", h.ListShiftTemplates)
+	g.GET("", h.RequirePermission(string(model.ResourceShifts), "view"), h.ListShiftTemplates)
 	g.POST("", h.RequirePermission(string(model.ResourceShifts), "create"), h.CreateShiftTemplate)
 	g.PATCH("/reorder", h.RequirePermission(string(model.ResourceShifts), "edit"), h.ReorderShiftTemplates)
-	g.GET("/:id", h.GetShiftTemplate)
+	g.GET("/:id", h.RequirePermission(string(model.ResourceShifts), "view"), h.GetShiftTemplate)
 	g.PATCH("/:id", h.RequirePermission(string(model.ResourceShifts), "edit"), h.UpdateShiftTemplate)
 	g.DELETE("/:id", h.RequirePermission(string(model.ResourceShifts), "delete"), h.DeleteShiftTemplate)
 }

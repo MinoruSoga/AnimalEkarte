@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -178,11 +179,11 @@ func (h *Handler) GetLstepDeliveryTriggerLogs(c *gin.Context) {
 // RegisterLstepDeliveryMonitorRoutes は FEAT-384 のルートを登録する。
 func (h *Handler) RegisterLstepDeliveryMonitorRoutes(rg *gin.RouterGroup) {
 	lstep := rg.Group("/lstep")
-	lstep.GET("/delivery-monitor/summary", h.GetLstepDeliveryTriggerSummary)
-	lstep.GET("/delivery-monitor/logs", h.GetLstepDeliveryTriggerLogs)
+	lstep.GET("/delivery-monitor/summary", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepDeliveryTriggerSummary)
+	lstep.GET("/delivery-monitor/logs", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepDeliveryTriggerLogs)
 
 	// FE が /clinics/:clinic_id/lstep/... で呼ぶエイリアス
 	clinicLstep := rg.Group("/clinics/:clinic_id/lstep")
-	clinicLstep.GET("/delivery-monitor/summary", h.GetLstepDeliveryTriggerSummary)
-	clinicLstep.GET("/delivery-monitor/logs", h.GetLstepDeliveryTriggerLogs)
+	clinicLstep.GET("/delivery-monitor/summary", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepDeliveryTriggerSummary)
+	clinicLstep.GET("/delivery-monitor/logs", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepDeliveryTriggerLogs)
 }

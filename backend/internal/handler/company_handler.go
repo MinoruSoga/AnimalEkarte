@@ -49,6 +49,6 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 
 // RegisterCompanyRoutes は法人情報関連のルートを登録する
 func (h *Handler) RegisterCompanyRoutes(rg *gin.RouterGroup) {
-	rg.GET("/company", h.GetCompany)
+	rg.GET("/company", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.GetCompany)
 	rg.PATCH("/company", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateCompany)
 }

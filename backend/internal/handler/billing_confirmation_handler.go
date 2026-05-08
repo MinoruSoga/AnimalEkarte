@@ -99,7 +99,7 @@ func (h *Handler) ReturnBillingConfirmation(c *gin.Context) {
 // RegisterBillingConfirmationRoutes は会計医師確認関連のルートをmedical-recordsグループに登録する
 func (h *Handler) RegisterBillingConfirmationRoutes(rg *gin.RouterGroup) {
 	permEdit := h.RequirePermission(string(model.ResourceAccounting), "edit")
-	rg.GET("/:id/billing-confirmation", h.GetBillingConfirmation)
+	rg.GET("/:id/billing-confirmation", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetBillingConfirmation)
 	rg.POST("/:id/billing-confirmation/confirm", permEdit, h.ConfirmBillingConfirmation)
 	rg.POST("/:id/billing-confirmation/return", permEdit, h.ReturnBillingConfirmation)
 }

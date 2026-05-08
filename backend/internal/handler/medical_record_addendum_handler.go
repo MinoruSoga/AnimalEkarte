@@ -13,7 +13,7 @@ import (
 )
 
 func (h *Handler) RegisterMedicalRecordAddendumRoutes(records *gin.RouterGroup) {
-	records.GET("/:id/addenda", h.ListMedicalRecordAddenda)
+	records.GET("/:id/addenda", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.ListMedicalRecordAddenda)
 	records.POST("/:id/addenda", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.CreateMedicalRecordAddendum)
 }
 

@@ -146,8 +146,8 @@ func (h *Handler) GetLineSendLogs(c *gin.Context) {
 // RegisterLineSendRoutes は LINE 個別送信ルートを /owners/:id 以下に登録する
 func (h *Handler) RegisterLineSendRoutes(owners *gin.RouterGroup) {
 	owners.POST("/:id/line/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostLineSend)
-	owners.GET("/:id/line/send-logs", h.GetLineSendLogs)
+	owners.GET("/:id/line/send-logs", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetLineSendLogs)
 	// ISSUE-002: FE統一エンドポイントのエイリアス
 	owners.POST("/:id/lstep/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostLineSend)
-	owners.GET("/:id/lstep/send-history", h.GetLineSendLogs)
+	owners.GET("/:id/lstep/send-history", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetLineSendLogs)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -260,5 +261,5 @@ func (h *Handler) ListOwnerAggregation(c *gin.Context) {
 // RegisterAggregationRoutes は顧客集計関連のルートを登録する（BE-010）。
 func (h *Handler) RegisterAggregationRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics/:clinic_id")
-	clinics.GET("/owners/aggregations", h.ListOwnerAggregation)
+	clinics.GET("/owners/aggregations", h.RequirePermission(string(model.ResourceOwners), "view"), h.ListOwnerAggregation)
 }

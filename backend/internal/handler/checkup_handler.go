@@ -255,7 +255,7 @@ func (h *Handler) RegisterGlobalCheckupRoutes(rg *gin.RouterGroup) {
 // RegisterCheckupRoutes はカルテ内の定期健診サブリソースルートを登録する。
 // 子リソースは親（medical-records）の権限に従う（BUG-133: vitals/treatments 等と統一）。
 func (h *Handler) RegisterCheckupRoutes(rg *gin.RouterGroup) {
-	rg.GET("/:id/checkups", h.ListCheckups)
+	rg.GET("/:id/checkups", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.ListCheckups)
 	rg.POST("/:id/checkups", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateCheckup)
 	rg.PATCH("/:id/checkups/:checkupId", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateCheckup)
 	rg.DELETE("/:id/checkups/:checkupId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteCheckup)

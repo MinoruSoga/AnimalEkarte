@@ -177,7 +177,7 @@ func toBodyWeightUnit(s *string) *model.BodyWeightUnit {
 
 // RegisterVitalRoutes はバイタル関連のルートをmedical-recordsグループに登録する
 func (h *Handler) RegisterVitalRoutes(rg *gin.RouterGroup) {
-	rg.GET("/:id/vitals", h.ListVitals)
+	rg.GET("/:id/vitals", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.ListVitals)
 	rg.POST("/:id/vitals", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.CreateVital)
 	rg.PATCH("/:id/vitals/:vitalId", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateVital)
 	rg.DELETE("/:id/vitals/:vitalId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteVital)

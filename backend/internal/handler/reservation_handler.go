@@ -319,8 +319,8 @@ func (h *Handler) PatchReservationReservationRoute(c *gin.Context) {
 // RegisterReservationRoutes は予約関連のルートを登録する
 func (h *Handler) RegisterReservationRoutes(rg *gin.RouterGroup) {
 	reservations := rg.Group("/reservations")
-	reservations.GET("", h.ListReservations)
-	reservations.GET("/:id", h.GetReservation)
+	reservations.GET("", h.RequirePermission(string(model.ResourceReservations), "view"), h.ListReservations)
+	reservations.GET("/:id", h.RequirePermission(string(model.ResourceReservations), "view"), h.GetReservation)
 	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "create"), h.CreateReservation)
 	reservations.PATCH("/:id", h.RequirePermission(string(model.ResourceReservations), "edit"), h.UpdateReservation)
 	reservations.PATCH("/:id/reservation-route", h.RequirePermission(string(model.ResourceReservations), "edit"), h.PatchReservationReservationRoute)
