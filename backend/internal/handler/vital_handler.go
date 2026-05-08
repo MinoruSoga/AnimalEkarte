@@ -66,6 +66,7 @@ func (h *Handler) CreateVital(c *gin.Context) {
 		petID = *mr.PetID
 	}
 	input := &service.CreateVitalInput{
+		ClinicID:        clinicID,
 		PetID:           petID,
 		RecordedAt:      req.RecordedAt,
 		StaffID:         req.StaffID,
@@ -106,6 +107,11 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 		return
 	}
 
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
+
 	var req updateVitalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
@@ -121,6 +127,7 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 		Weight:          req.Weight,
 		WeightUnit:      toBodyWeightUnit(req.WeightUnit),
 		Notes:           req.Notes,
+		ActorID:         &staffID,
 	}
 
 	vital, err := h.svc.Vital.Update(c.Request.Context(), clinicID, medicalRecordID, vitalID, input)

@@ -639,7 +639,7 @@ func TestUpdateMedicalRecord(t *testing.T) {
 			name:     "updates record successfully",
 			paramID:  "1",
 			body:     map[string]any{"status": "finalized"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockMedicalRecordService{
 				updateFn: func(_ context.Context, _, _ uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
 					require.NotNil(t, input.Status)
@@ -653,7 +653,7 @@ func TestUpdateMedicalRecord(t *testing.T) {
 			name:     "updates date field",
 			paramID:  "1",
 			body:     map[string]any{"date": now.Format(time.RFC3339)},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockMedicalRecordService{
 				updateFn: func(_ context.Context, _, _ uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
 					require.NotNil(t, input.Date)
@@ -691,7 +691,7 @@ func TestUpdateMedicalRecord(t *testing.T) {
 			name:     "returns 404 when not found",
 			paramID:  "999",
 			body:     map[string]any{"status": "finalized"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockMedicalRecordService{
 				updateFn: func(_ context.Context, _, _ uint64, _ service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
 					return nil, apperrors.WrapNotFound("medical_record", "999")

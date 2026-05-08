@@ -252,6 +252,15 @@ func (m *batchMockAuditService) LogLstepOperationWithMetadata(_ context.Context,
 	m.capturedMetadata = metadata
 	return nil
 }
+func (m *batchMockAuditService) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
+	return nil
+}
+func (m *batchMockAuditService) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
+	return nil
+}
+func (m *batchMockAuditService) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
+	return nil
+}
 
 func newBatchService(
 	resRepo repository.ReservationRepository,

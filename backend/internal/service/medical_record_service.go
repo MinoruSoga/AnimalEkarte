@@ -47,6 +47,7 @@ type UpdateMedicalRecordInput struct {
 	Status                   *model.MedicalRecordStatus
 	Version                  *int // 楽観的ロック用: nil の場合はチェックをスキップ
 	NextVisitRecommendedDate *time.Time
+	ActorID                  *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
 }
 
 // FEAT-381-2 Commit 2: recommendation_reason allowed values (whitelist)
@@ -130,6 +131,7 @@ type medicalRecordService struct {
 	lineCustomerRepo     repository.LineCustomerRepository
 	reservationRepo      repository.ReservationRepository
 	lstepDeliveryTrigger LstepDeliveryTriggerService
+	auditService         AuditService
 }
 
 func NewMedicalRecordService(
@@ -141,6 +143,7 @@ func NewMedicalRecordService(
 	lineCustomerRepo repository.LineCustomerRepository,
 	reservationRepo repository.ReservationRepository,
 	lstepDeliveryTrigger LstepDeliveryTriggerService,
+	auditService AuditService,
 ) MedicalRecordService {
 	return &medicalRecordService{
 		repo:                 repo,
@@ -151,6 +154,7 @@ func NewMedicalRecordService(
 		lineCustomerRepo:     lineCustomerRepo,
 		reservationRepo:      reservationRepo,
 		lstepDeliveryTrigger: lstepDeliveryTrigger,
+		auditService:         auditService,
 	}
 }
 
@@ -218,6 +222,14 @@ func (s *medicalRecordService) Create(ctx context.Context, record *model.Medical
 		slog.Uint64("record_id", record.ID),
 		slog.Uint64("clinic_id", record.ClinicID))
 
+	// 監査ログ: create（best-effort）
+	if s.auditService != nil {
+		newValue := extractMedicalRecordImportantFields(record)
+		if err := s.auditService.LogMedicalRecordChange(ctx, record.ClinicID, record.EnteredBy, "create", record.ID, nil, newValue); err != nil {
+			slog.ErrorContext(ctx, "audit log failed for medical record create", "error", err, "record_id", record.ID)
+		}
+	}
+
 	// 初診ウェルカムトリガー（イベント駆動・非致命的）
 	if isFirstVisit && record.OwnerID != nil {
 		if err := s.lstepDeliveryTrigger.TriggerFirstVisitWelcome(ctx, record.ClinicID, *record.OwnerID); err != nil {
@@ -270,6 +282,10 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	// バージョンをインクリメント
 	fields["version"] = existing.Version + 1
 
+	// 監査 diff は更新前に取得（finalize 検出のため）
+	wasFinalized := existing.Status == model.MedicalRecordStatusFinalized
+	isBecomingFinalized := input.Status != nil && *input.Status == model.MedicalRecordStatusFinalized && !wasFinalized
+
 	record, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update medical record", "error", err)
@@ -278,11 +294,29 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	slog.InfoContext(ctx, "medical record updated",
 		slog.Uint64("record_id", id),
 		slog.Uint64("clinic_id", clinicID))
+
+	// 監査ログ: update / finalize（best-effort）
+	if s.auditService != nil {
+		oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
+		if oldDiff != nil {
+			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, input.ActorID, "update", id, oldDiff, newDiff); err != nil {
+				slog.ErrorContext(ctx, "audit log failed for medical record update", "error", err, "record_id", id)
+			}
+		}
+		if isBecomingFinalized {
+			newValue := extractMedicalRecordImportantFields(record)
+			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, input.ActorID, "finalize", id, nil, newValue); err != nil {
+				slog.ErrorContext(ctx, "audit log failed for medical record finalize", "error", err, "record_id", id)
+			}
+		}
+	}
+
 	return record, nil
 }
 
 func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		return apperrors.Wrap(err, "failed to find medical record")
 	}
 	estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(ctx, id)
@@ -293,6 +327,7 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 	if estimateCount > 0 {
 		return apperrors.WrapConflict("この項目は使用中のため削除できません")
 	}
+	oldValue := extractMedicalRecordImportantFields(existing)
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to delete medical record", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete medical record")
@@ -300,6 +335,13 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 	slog.InfoContext(ctx, "medical record deleted",
 		slog.Uint64("record_id", id),
 		slog.Uint64("clinic_id", clinicID))
+
+	// 監査ログ: delete（best-effort, actorID=nil）
+	if s.auditService != nil {
+		if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, nil, "delete", id, oldValue, nil); err != nil {
+			slog.ErrorContext(ctx, "audit log failed for medical record delete", "error", err, "record_id", id)
+		}
+	}
 	return nil
 }
 
@@ -479,8 +521,9 @@ func (s *medicalRecordService) UpdateRecommendationReason(
 			)
 		}
 	}
-	// 2. P1: existence + clinic_id check
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	// 2. P1: existence + clinic_id check（audit diff 用にレコードを保持）
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find medical record")
 	}
 	// 3. build update map
@@ -490,6 +533,7 @@ func (s *medicalRecordService) UpdateRecommendationReason(
 	} else {
 		reasonValue = input.Reason
 	}
+
 	record, err := s.repo.Update(ctx, clinicID, id, map[string]any{
 		colRecommendationReason: reasonValue,
 	})
@@ -501,5 +545,16 @@ func (s *medicalRecordService) UpdateRecommendationReason(
 		slog.Uint64("record_id", id),
 		slog.Uint64("clinic_id", clinicID),
 		slog.String("reason", input.Reason))
+
+	// 監査ログ: update（best-effort）
+	if s.auditService != nil {
+		oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
+		if oldDiff != nil {
+			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, nil, "update", id, oldDiff, newDiff); err != nil {
+				slog.ErrorContext(ctx, "audit log failed for recommendation_reason update", "error", err, "record_id", id)
+			}
+		}
+	}
+
 	return record, nil
 }

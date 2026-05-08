@@ -158,3 +158,143 @@ func TestAuditService_LogLstepOperationWithMetadata_RepoError(t *testing.T) {
 		"bulk_add_tag", "owner", nil, map[string]any{"requested_count": 10})
 	assert.Error(t, err)
 }
+
+// TestAuditService_LogMedicalRecordChange_Create は create アクションで
+// resource="medical_record", old_value=nil, new_value 設定の確認。
+func TestAuditService_LogMedicalRecordChange_Create(t *testing.T) {
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+
+	staffID := uint64(10)
+	recordID := uint64(99)
+	newValue := map[string]any{"status": "draft", "doctor_id": uint64(5)}
+
+	err := svc.LogMedicalRecordChange(context.Background(), 1, &staffID, "create", recordID, nil, newValue)
+	assert.NoError(t, err)
+
+	if !assert.NotNil(t, repo.lastLogged) {
+		return
+	}
+	assert.Equal(t, "medical_record", repo.lastLogged.Resource)
+	assert.Equal(t, "create", repo.lastLogged.Action)
+	assert.Equal(t, "staff", repo.lastLogged.ActorType)
+	if assert.NotNil(t, repo.lastLogged.ResourceID) {
+		assert.Equal(t, recordID, *repo.lastLogged.ResourceID)
+	}
+	assert.Nil(t, repo.lastLogged.OldValue, "create 時は old_value=nil")
+	assert.NotNil(t, repo.lastLogged.NewValue, "create 時は new_value に値がある")
+}
+
+// TestAuditService_LogMedicalRecordChange_Update は update アクションで
+// old_value / new_value 両方にデータが入ることを確認。
+func TestAuditService_LogMedicalRecordChange_Update(t *testing.T) {
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+
+	staffID := uint64(10)
+	recordID := uint64(99)
+	oldValue := map[string]any{"status": "draft"}
+	newValue := map[string]any{"status": "finalized"}
+
+	err := svc.LogMedicalRecordChange(context.Background(), 1, &staffID, "update", recordID, oldValue, newValue)
+	assert.NoError(t, err)
+
+	if !assert.NotNil(t, repo.lastLogged) {
+		return
+	}
+	assert.Equal(t, "update", repo.lastLogged.Action)
+	assert.NotNil(t, repo.lastLogged.OldValue)
+	assert.NotNil(t, repo.lastLogged.NewValue)
+
+	var decodedOld, decodedNew map[string]any
+	assert.NoError(t, json.Unmarshal(repo.lastLogged.OldValue, &decodedOld))
+	assert.NoError(t, json.Unmarshal(repo.lastLogged.NewValue, &decodedNew))
+	assert.Equal(t, "draft", decodedOld["status"])
+	assert.Equal(t, "finalized", decodedNew["status"])
+}
+
+// TestAuditService_LogMedicalRecordChange_SystemActor は actorID=nil でシステム扱いになることを確認。
+func TestAuditService_LogMedicalRecordChange_SystemActor(t *testing.T) {
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+
+	err := svc.LogMedicalRecordChange(context.Background(), 1, nil, "delete", 99, map[string]any{"status": "draft"}, nil)
+	assert.NoError(t, err)
+
+	if !assert.NotNil(t, repo.lastLogged) {
+		return
+	}
+	assert.Equal(t, "system", repo.lastLogged.ActorType)
+	assert.Nil(t, repo.lastLogged.ActorID)
+}
+
+// TestAuditService_LogVitalChange は vital リソースの監査ログに medical_record_id が
+// metadata に含まれることを確認する（AUDIT-H1）。
+func TestAuditService_LogVitalChange(t *testing.T) {
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+
+	staffID := uint64(20)
+	vitalID := uint64(55)
+	medicalRecordID := uint64(77)
+
+	err := svc.LogVitalChange(context.Background(), 1, &staffID, "create", vitalID, medicalRecordID, nil, map[string]any{"weight": 3.5})
+	assert.NoError(t, err)
+
+	if !assert.NotNil(t, repo.lastLogged) {
+		return
+	}
+	assert.Equal(t, "vital", repo.lastLogged.Resource)
+	assert.Equal(t, "create", repo.lastLogged.Action)
+	if assert.NotNil(t, repo.lastLogged.ResourceID) {
+		assert.Equal(t, vitalID, *repo.lastLogged.ResourceID)
+	}
+	assert.NotNil(t, repo.lastLogged.Metadata, "metadata に medical_record_id を含む")
+
+	var meta map[string]any
+	assert.NoError(t, json.Unmarshal(repo.lastLogged.Metadata, &meta))
+	assert.EqualValues(t, medicalRecordID, meta["medical_record_id"])
+}
+
+// TestAuditService_LogAddendumCreate は addendum の監査ログで
+// new_value に before_text/after_text/reason が含まれることを確認する（AUDIT-H1）。
+func TestAuditService_LogAddendumCreate(t *testing.T) {
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+
+	actorID := uint64(30)
+	addendumID := uint64(11)
+	medicalRecordID := uint64(22)
+	addendum := &model.MedicalRecordAddendum{
+		MedicalRecordID: medicalRecordID,
+		AuthorUserID:    actorID,
+		BeforeText:      "before content",
+		AfterText:       "after content",
+		Reason:          "correction",
+	}
+
+	err := svc.LogAddendumCreate(context.Background(), 1, &actorID, addendumID, medicalRecordID, addendum)
+	assert.NoError(t, err)
+
+	if !assert.NotNil(t, repo.lastLogged) {
+		return
+	}
+	assert.Equal(t, "medical_record_addendum", repo.lastLogged.Resource)
+	assert.Equal(t, "create", repo.lastLogged.Action)
+	if assert.NotNil(t, repo.lastLogged.ResourceID) {
+		assert.Equal(t, addendumID, *repo.lastLogged.ResourceID)
+	}
+	assert.Nil(t, repo.lastLogged.OldValue, "addendum create は old_value なし")
+	assert.NotNil(t, repo.lastLogged.NewValue)
+
+	var newVal map[string]any
+	assert.NoError(t, json.Unmarshal(repo.lastLogged.NewValue, &newVal))
+	assert.Equal(t, "before content", newVal["before_text"])
+	assert.Equal(t, "after content", newVal["after_text"])
+	assert.Equal(t, "correction", newVal["reason"])
+
+	assert.NotNil(t, repo.lastLogged.Metadata)
+	var meta map[string]any
+	assert.NoError(t, json.Unmarshal(repo.lastLogged.Metadata, &meta))
+	assert.EqualValues(t, medicalRecordID, meta["medical_record_id"])
+}

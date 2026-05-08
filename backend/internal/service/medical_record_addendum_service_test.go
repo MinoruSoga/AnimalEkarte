@@ -44,13 +44,13 @@ func TestMedicalRecordAddendumService_Create(t *testing.T) {
 	draftRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Status: model.MedicalRecordStatusDraft}
 
 	tests := []struct {
-		name            string
-		input           CreateMedicalRecordAddendumInput
-		medicalRecord   *model.MedicalRecord
+		name             string
+		input            CreateMedicalRecordAddendumInput
+		medicalRecord    *model.MedicalRecord
 		medicalRecordErr error
-		repoErr         error
-		wantErr         bool
-		wantInvalid     bool
+		repoErr          error
+		wantErr          bool
+		wantInvalid      bool
 	}{
 		{
 			name: "creates addendum successfully",
@@ -139,7 +139,7 @@ func TestMedicalRecordAddendumService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo)
+			svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, nil)
 
 			addendum, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -179,7 +179,7 @@ func TestMedicalRecordAddendumService_FindByMedicalRecordID(t *testing.T) {
 				return expected, nil
 			},
 		}
-		svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo)
+		svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, nil)
 
 		addenda, err := svc.FindByMedicalRecordID(context.Background(), 1, 1)
 
@@ -193,11 +193,82 @@ func TestMedicalRecordAddendumService_FindByMedicalRecordID(t *testing.T) {
 				return nil, apperrors.WrapNotFound("medical_record", "999")
 			},
 		}
-		svc := NewMedicalRecordAddendumService(&mockMedicalRecordAddendumRepository{}, mrRepo)
+		svc := NewMedicalRecordAddendumService(&mockMedicalRecordAddendumRepository{}, mrRepo, nil)
 
 		addenda, err := svc.FindByMedicalRecordID(context.Background(), 1, 999)
 
 		assert.Error(t, err)
 		assert.Nil(t, addenda)
 	})
+}
+
+// TestMedicalRecordAddendumService_Create_AuditLog は Create 成功時に
+// LogAddendumCreate が呼ばれることを確認する（AUDIT-H1）。
+func TestMedicalRecordAddendumService_Create_AuditLog(t *testing.T) {
+	finalizedRecord := &model.MedicalRecord{
+		ID:       10,
+		ClinicID: 1,
+		Status:   model.MedicalRecordStatusFinalized,
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return finalizedRecord, nil
+		},
+	}
+	addendumRepo := &mockMedicalRecordAddendumRepository{
+		createFn: func(_ context.Context, _ *model.MedicalRecordAddendum) error {
+			return nil
+		},
+	}
+	auditSvc := &mockMedicalRecordAuditService{}
+	svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, auditSvc)
+
+	input := CreateMedicalRecordAddendumInput{
+		MedicalRecordID: 10,
+		AuthorUserID:    42,
+		AfterText:       "corrected text",
+		Reason:          "typo fix",
+	}
+	addendum, err := svc.Create(context.Background(), 1, input)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, addendum)
+	assert.Contains(t, auditSvc.calls, "create", "LogAddendumCreate が呼ばれること")
+}
+
+// TestMedicalRecordAddendumService_AuditFailure_NonFatal は audit ログが失敗しても
+// Create の主処理が正常完了することを確認する（best-effort）。
+func TestMedicalRecordAddendumService_AuditFailure_NonFatal(t *testing.T) {
+	finalizedRecord := &model.MedicalRecord{
+		ID:       20,
+		ClinicID: 1,
+		Status:   model.MedicalRecordStatusFinalized,
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return finalizedRecord, nil
+		},
+	}
+	addendumRepo := &mockMedicalRecordAddendumRepository{
+		createFn: func(_ context.Context, _ *model.MedicalRecordAddendum) error {
+			return nil
+		},
+	}
+	auditSvc := &mockMedicalRecordAuditService{
+		logAddendumCreateFn: func(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
+			return errors.New("audit db down")
+		},
+	}
+	svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, auditSvc)
+
+	input := CreateMedicalRecordAddendumInput{
+		MedicalRecordID: 20,
+		AuthorUserID:    7,
+		AfterText:       "updated note",
+		Reason:          "clarification",
+	}
+	addendum, err := svc.Create(context.Background(), 1, input)
+
+	assert.NoError(t, err, "audit エラーは主処理に影響しない")
+	assert.NotNil(t, addendum)
 }

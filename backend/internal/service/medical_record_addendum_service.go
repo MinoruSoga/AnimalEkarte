@@ -27,15 +27,18 @@ type MedicalRecordAddendumService interface {
 type medicalRecordAddendumService struct {
 	repo          repository.MedicalRecordAddendumRepository
 	medicalRecord repository.MedicalRecordRepository
+	auditService  AuditService
 }
 
 func NewMedicalRecordAddendumService(
 	repo repository.MedicalRecordAddendumRepository,
 	medicalRecord repository.MedicalRecordRepository,
+	auditService AuditService,
 ) MedicalRecordAddendumService {
 	return &medicalRecordAddendumService{
 		repo:          repo,
 		medicalRecord: medicalRecord,
+		auditService:  auditService,
 	}
 }
 
@@ -78,6 +81,14 @@ func (s *medicalRecordAddendumService) Create(ctx context.Context, clinicID uint
 	if err := s.repo.Create(ctx, addendum); err != nil {
 		slog.ErrorContext(ctx, "failed to create medical record addendum", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create medical record addendum")
+	}
+
+	// 監査ログ: create（best-effort）
+	if s.auditService != nil {
+		authorID := input.AuthorUserID
+		if err := s.auditService.LogAddendumCreate(ctx, clinicID, &authorID, addendum.ID, input.MedicalRecordID, addendum); err != nil {
+			slog.ErrorContext(ctx, "audit log failed for addendum create", "error", err, "addendum_id", addendum.ID)
+		}
 	}
 
 	return addendum, nil

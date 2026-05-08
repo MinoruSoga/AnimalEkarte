@@ -278,6 +278,11 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		nextVisitDate = &parsed
 	}
 
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
+
 	svcInput := service.UpdateMedicalRecordInput{
 		Date:                     input.Date,
 		OwnerID:                  input.OwnerID,
@@ -287,6 +292,7 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		Status:                   status,
 		Version:                  input.Version,
 		NextVisitRecommendedDate: nextVisitDate,
+		ActorID:                  &staffID,
 	}
 
 	ctx := c.Request.Context()

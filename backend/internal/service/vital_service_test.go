@@ -91,7 +91,7 @@ func TestVitalService_List(t *testing.T) {
 					return tt.repoVitals, tt.repoErr
 				},
 			}
-			svc := NewVitalService(repo, &mockMedicalRecordRepository{})
+			svc := NewVitalService(repo, &mockMedicalRecordRepository{}, nil)
 
 			vitals, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
@@ -199,7 +199,7 @@ func TestVitalService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewVitalService(repo, &mockMedicalRecordRepository{})
+			svc := NewVitalService(repo, &mockMedicalRecordRepository{}, nil)
 
 			vital, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 
@@ -356,7 +356,7 @@ func TestVitalService_Update(t *testing.T) {
 					return tt.parentRecord, tt.parentErr
 				},
 			}
-			svc := NewVitalService(repo, mrRepo)
+			svc := NewVitalService(repo, mrRepo, nil)
 
 			vital, err := svc.Update(context.Background(), tt.clinicID, tt.medicalRecordID, tt.vitalID, tt.input)
 
@@ -462,7 +462,7 @@ func TestVitalService_Delete(t *testing.T) {
 					return tt.parentRecord, tt.parentErr
 				},
 			}
-			svc := NewVitalService(repo, mrRepo)
+			svc := NewVitalService(repo, mrRepo, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.medicalRecordID, tt.vitalID)
 
@@ -485,4 +485,126 @@ func ptrFloat(f float64) *float64 {
 
 func ptrInt(i int) *int {
 	return &i
+}
+
+// TestVitalService_Create_AuditLog はバイタル作成時に audit "create" が記録されることを確認する。
+func TestVitalService_Create_AuditLog(t *testing.T) {
+	auditSvc := &mockMedicalRecordAuditService{}
+	repo := &mockVitalRepository{
+		createFn: func(_ context.Context, v *model.VitalRecord) error {
+			v.ID = 55
+			return nil
+		},
+	}
+	svc := NewVitalService(repo, &mockMedicalRecordRepository{}, auditSvc)
+
+	input := &CreateVitalInput{
+		ClinicID:    1,
+		PetID:       10,
+		RecordedAt:  time.Now(),
+		Temperature: ptrFloat(38.5),
+	}
+	_, err := svc.Create(context.Background(), 77, input)
+	assert.NoError(t, err)
+	assert.Contains(t, auditSvc.calls, "create", "create 操作が audit に記録されること")
+}
+
+// TestVitalService_Update_AuditLog はバイタル更新時に audit "update" が記録されることを確認する。
+func TestVitalService_Update_AuditLog(t *testing.T) {
+	auditSvc := &mockMedicalRecordAuditService{}
+	existingVital := &model.VitalRecord{
+		ID:              55,
+		MedicalRecordID: ptrUint64(77),
+		WeightUnit:      model.BodyWeightUnitKg,
+		RecordedAt:      time.Now(),
+		Temperature:     ptrFloat(38.5),
+	}
+	updatedVital := &model.VitalRecord{
+		ID:              55,
+		MedicalRecordID: ptrUint64(77),
+		WeightUnit:      model.BodyWeightUnitKg,
+		RecordedAt:      time.Now(),
+		Temperature:     ptrFloat(39.0),
+	}
+	callCount := 0
+	repo := &mockVitalRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.VitalRecord, error) {
+			callCount++
+			if callCount == 1 {
+				return existingVital, nil
+			}
+			return updatedVital, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{ID: 77, Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	svc := NewVitalService(repo, mrRepo, auditSvc)
+
+	staffID := uint64(20)
+	_, err := svc.Update(context.Background(), 1, 77, 55, &UpdateVitalInput{
+		Temperature: ptrFloat(39.0),
+		ActorID:     &staffID,
+	})
+	assert.NoError(t, err)
+	assert.Contains(t, auditSvc.calls, "update", "update 操作が audit に記録されること")
+}
+
+// TestVitalService_Delete_AuditLog はバイタル削除時に audit "delete" が記録されることを確認する。
+func TestVitalService_Delete_AuditLog(t *testing.T) {
+	auditSvc := &mockMedicalRecordAuditService{}
+	existingVital := &model.VitalRecord{
+		ID:              55,
+		MedicalRecordID: ptrUint64(77),
+		WeightUnit:      model.BodyWeightUnitKg,
+		RecordedAt:      time.Now(),
+	}
+	repo := &mockVitalRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.VitalRecord, error) {
+			return existingVital, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{ID: 77, Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	svc := NewVitalService(repo, mrRepo, auditSvc)
+
+	err := svc.Delete(context.Background(), 1, 77, 55)
+	assert.NoError(t, err)
+	assert.Contains(t, auditSvc.calls, "delete", "delete 操作が audit に記録されること")
+}
+
+// TestVitalService_AuditFailure_NonFatal はバイタル監査ログ失敗がメイン処理を止めないことを確認する。
+func TestVitalService_AuditFailure_NonFatal(t *testing.T) {
+	auditSvc := &mockMedicalRecordAuditService{
+		logVitalChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
+			return errors.New("audit db down")
+		},
+	}
+	repo := &mockVitalRepository{
+		createFn: func(_ context.Context, v *model.VitalRecord) error {
+			v.ID = 1
+			return nil
+		},
+	}
+	svc := NewVitalService(repo, &mockMedicalRecordRepository{}, auditSvc)
+
+	input := &CreateVitalInput{
+		ClinicID:    1,
+		PetID:       10,
+		RecordedAt:  time.Now(),
+		Temperature: ptrFloat(38.5),
+	}
+	_, err := svc.Create(context.Background(), 77, input)
+	assert.NoError(t, err, "監査ログ失敗はメイン処理のエラーを返さない（best-effort）")
 }

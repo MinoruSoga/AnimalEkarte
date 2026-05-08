@@ -19,6 +19,16 @@ type AuditService interface {
 	// nil の場合は metadata を NULL として保存する（=既存の LogLstepOperation と等価）。
 	// 既存呼び出しの後方互換のため、LogLstepOperation を破壊せずに新規メソッドとして追加した。
 	LogLstepOperationWithMetadata(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64, metadata any) error
+	// LogMedicalRecordChange は医療カルテの Create/Update/Delete/Finalize 操作を監査ログに記録する（AUDIT-H1）。
+	// action: "create" | "update" | "delete" | "finalize"
+	// actorID=nil はシステム実行として扱う。
+	LogMedicalRecordChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error
+	// LogVitalChange はバイタル記録の Create/Update/Delete 操作を監査ログに記録する（AUDIT-H1）。
+	// metadata に medical_record_id を含める。
+	LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error
+	// LogAddendumCreate は医療カルテ追記の Create 操作を監査ログに記録する（AUDIT-H1）。
+	// new_value に addendum の内容を含める。metadata に medical_record_id を含める。
+	LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error
 }
 
 type auditService struct {
@@ -73,6 +83,86 @@ func (s *auditService) LogLstepOperationWithMetadata(ctx context.Context, clinic
 		Action:     action,
 		Resource:   resource,
 		ResourceID: resourceID,
+		Metadata:   repository.MarshalAuditJSON(metadata),
+	}
+	return s.Log(ctx, log)
+}
+
+// LogMedicalRecordChange は医療カルテの Create/Update/Delete/Finalize 操作を監査ログに記録する（AUDIT-H1）。
+func (s *auditService) LogMedicalRecordChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error {
+	actorType := "system"
+	if actorID != nil {
+		actorType = "staff"
+	}
+	var oldJSON, newJSON []byte
+	if oldValue != nil {
+		oldJSON = repository.MarshalAuditJSON(oldValue)
+	}
+	if newValue != nil {
+		newJSON = repository.MarshalAuditJSON(newValue)
+	}
+	log := &model.AuditLog{
+		ClinicID:   &clinicID,
+		ActorID:    actorID,
+		ActorType:  actorType,
+		Action:     action,
+		Resource:   "medical_record",
+		ResourceID: &recordID,
+		OldValue:   oldJSON,
+		NewValue:   newJSON,
+	}
+	return s.Log(ctx, log)
+}
+
+// LogVitalChange はバイタル記録の Create/Update/Delete 操作を監査ログに記録する（AUDIT-H1）。
+func (s *auditService) LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error {
+	actorType := "system"
+	if actorID != nil {
+		actorType = "staff"
+	}
+	metadata := map[string]any{"medical_record_id": medicalRecordID}
+	var oldJSON, newJSON []byte
+	if oldValue != nil {
+		oldJSON = repository.MarshalAuditJSON(oldValue)
+	}
+	if newValue != nil {
+		newJSON = repository.MarshalAuditJSON(newValue)
+	}
+	log := &model.AuditLog{
+		ClinicID:   &clinicID,
+		ActorID:    actorID,
+		ActorType:  actorType,
+		Action:     action,
+		Resource:   "vital",
+		ResourceID: &vitalID,
+		OldValue:   oldJSON,
+		NewValue:   newJSON,
+		Metadata:   repository.MarshalAuditJSON(metadata),
+	}
+	return s.Log(ctx, log)
+}
+
+// LogAddendumCreate は医療カルテ追記の Create 操作を監査ログに記録する（AUDIT-H1）。
+func (s *auditService) LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error {
+	actorType := "system"
+	if actorID != nil {
+		actorType = "staff"
+	}
+	newValue := map[string]any{
+		"before_text":    addendum.BeforeText,
+		"after_text":     addendum.AfterText,
+		"reason":         addendum.Reason,
+		"author_user_id": addendum.AuthorUserID,
+	}
+	metadata := map[string]any{"medical_record_id": medicalRecordID}
+	log := &model.AuditLog{
+		ClinicID:   &clinicID,
+		ActorID:    actorID,
+		ActorType:  actorType,
+		Action:     "create",
+		Resource:   "medical_record_addendum",
+		ResourceID: &addendumID,
+		NewValue:   repository.MarshalAuditJSON(newValue),
 		Metadata:   repository.MarshalAuditJSON(metadata),
 	}
 	return s.Log(ctx, log)
