@@ -21,6 +21,7 @@ type Repositories struct {
 	Pet                       PetRepository
 	Reservation               ReservationRepository
 	MedicalRecord             MedicalRecordRepository
+	MedicalRecordAddendum     MedicalRecordAddendumRepository
 	Hospitalization           HospitalizationRepository
 	Accounting                AccountingRepository
 	AppointmentTrimmingDetail AppointmentTrimmingDetailRepository
@@ -121,6 +122,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Pet:                            NewPetRepository(db),
 		Reservation:                    NewReservationRepository(db),
 		MedicalRecord:                  NewMedicalRecordRepository(db),
+		MedicalRecordAddendum:          NewMedicalRecordAddendumRepository(db),
 		Hospitalization:                NewHospitalizationRepository(db),
 		Accounting:                     NewAccountingRepository(db),
 		AppointmentTrimmingDetail:      NewAppointmentTrimmingDetailRepository(db),

@@ -236,6 +236,14 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 		return nil, apperrors.Wrap(err, "failed to get medical record")
 	}
 
+	// 確定済みカルテは更新不可
+	if existing.Status == model.MedicalRecordStatusFinalized {
+		slog.WarnContext(ctx, "attempted to update finalized medical record",
+			slog.Uint64("record_id", id),
+			slog.Uint64("clinic_id", clinicID))
+		return nil, apperrors.WrapConflict("確定済みカルテは編集できません。訂正追記 (addendum) を使用してください")
+	}
+
 	// version が指定されている場合は一致確認
 	if input.Version != nil && existing.Version != *input.Version {
 		return nil, apperrors.WrapConflict("他のユーザーがこのカルテを変更しました。再読み込みしてください")

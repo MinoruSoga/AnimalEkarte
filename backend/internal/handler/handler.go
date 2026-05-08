@@ -192,6 +192,7 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	h.RegisterCheckupRoutes(records)
 	h.RegisterPrescriptionRoutes(records)
 	h.RegisterInquiryRoutes(records)
+	h.RegisterMedicalRecordAddendumRoutes(records)
 }
 
 // registerHospitalizationRoutesWithAuth は入院ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）

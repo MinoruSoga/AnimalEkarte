@@ -509,12 +509,13 @@ func TestMedicalRecordService_Update(t *testing.T) {
 	statusFinalized := model.MedicalRecordStatusFinalized
 	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0}
 	tests := []struct {
-		name        string
-		input       UpdateMedicalRecordInput
-		findByIDErr error // FindByID のエラー（nil = 正常レコード返却）
-		updateErr   error // Update のエラー
-		wantErr     bool
-		wantNF      bool
+		name         string
+		input        UpdateMedicalRecordInput
+		findByIDErr  error // FindByID のエラー（nil = 正常レコード返却）
+		updateErr    error // Update のエラー
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
 			name: "updates record successfully",
@@ -555,16 +556,32 @@ func TestMedicalRecordService_Update(t *testing.T) {
 			wantErr:     true,
 			wantNF:      false,
 		},
+		{
+			name: "returns conflict when record is already finalized",
+			input: UpdateMedicalRecordInput{
+				Date: &now,
+			},
+			findByIDErr:  nil,
+			updateErr:    nil,
+			wantErr:      true,
+			wantNF:       false,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			isFinalized := tt.name == "returns conflict when record is already finalized"
+			existingRecord := validRecord
+			if isFinalized {
+				existingRecord = &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0, Status: model.MedicalRecordStatusFinalized}
+			}
 			repo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 					if tt.findByIDErr != nil {
 						return nil, tt.findByIDErr
 					}
-					return validRecord, nil
+					return existingRecord, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
 					if tt.updateErr != nil {
@@ -582,6 +599,9 @@ func TestMedicalRecordService_Update(t *testing.T) {
 				assert.Nil(t, record)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

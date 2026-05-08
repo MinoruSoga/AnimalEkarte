@@ -14,6 +14,7 @@ type Services struct {
 	Pet                            PetService
 	Reservation                    ReservationService
 	MedicalRecord                  MedicalRecordService
+	MedicalRecordAddendum          MedicalRecordAddendumService
 	Hospitalization                HospitalizationService
 	Accounting                     AccountingService
 	Trimming                       TrimmingService
@@ -161,6 +162,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Pet:                            NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
 		Reservation:                    NewReservationService(repos.Reservation, tx),
 		MedicalRecord:                  NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, nil, nil),
+		MedicalRecordAddendum:          NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord),
 		Hospitalization:                NewHospitalizationService(repos),
 		Accounting:                     NewAccountingService(repos.Accounting),
 		Trimming:                       NewTrimmingService(repos.Reservation, repos.AppointmentTrimmingDetail, tx),

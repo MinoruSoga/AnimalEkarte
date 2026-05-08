@@ -1372,6 +1372,20 @@ export interface MedicalRecord {
 }
 
 //////////
+// source: medical_record_addendum.go
+
+export interface MedicalRecordAddendum {
+  id: number /* uint64 */;
+  medical_record_id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  author_user_id: number /* uint64 */;
+  before_text: string;
+  after_text: string;
+  reason: string;
+  created_at: string;
+}
+
+//////////
 // source: medical_record_image.go
 
 /**
