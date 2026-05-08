@@ -71,19 +71,24 @@ func mapVaccine(...)           // map
 func newVaccineResponse(...)   // new
 ```
 
-## P5: RequirePermission on write routes (MANDATORY)
+## P5: RequirePermission on ALL non-public routes (MANDATORY)
+
+GET は `"view"`, POST は `"create"`, PUT/PATCH は `"edit"`, DELETE は `"delete"`。
+**全ルートに付与必須** (AUDIT-H2 2026-05-09)。
 
 ```go
 // ✅ in RegisterXxxRoutes
-masters.POST("/vaccines", RequirePermission("edit"), h.Create)
-masters.PUT("/vaccines/:id", RequirePermission("edit"), h.Update)
-masters.DELETE("/vaccines/:id", RequirePermission("delete"), h.Delete)
+masters.GET("/vaccines", perm(model.ResourceMasterMedical, "view"), h.ListVaccines)
+masters.POST("/vaccines", perm(model.ResourceMasterMedical, "create"), h.CreateVaccine)
+masters.PATCH("/vaccines/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateVaccine)
+masters.DELETE("/vaccines/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteVaccine)
 
 // Exemptions (no RequirePermission):
-// /login, /logout, /auth/*, /me, LIFF public APIs
+// /login, /logout, /auth/*, /me, /health, LIFF public APIs, webhooks
 
 // ❌
-masters.POST("/vaccines", h.Create)  // missing RequirePermission
+masters.GET("/vaccines", h.ListVaccines)  // missing view RequirePermission
+masters.POST("/vaccines", h.Create)       // missing create RequirePermission
 ```
 
 ## P6: DELETE uses "delete" permission, not "edit" (MANDATORY)

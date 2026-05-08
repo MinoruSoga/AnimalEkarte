@@ -892,3 +892,30 @@ func TestPatchMedicalRecordRecommendationReason(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }
+
+// ---- view permission gate tests ----
+
+// TestListMedicalRecords_ViewPermissionDenied は view 権限を持たない非 system_admin が 403 を受けることを確認する。
+func TestListMedicalRecords_ViewPermissionDenied(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := &Handler{svc: &service.Services{
+		MedicalRecord:       &mockMedicalRecordService{},
+		ClinicalPlan:        &mockClinicalPlanService{},
+		Inquiry:             &mockInquiryService{},
+		LstepTagSync:        &mockLstepTagSyncService{},
+		EffectivePermission: &mockEffectivePermissionService{},
+	}}
+	r := gin.New()
+	r.GET("/owners/:owner_id/pets/:pet_id/medical-records",
+		func(c *gin.Context) { setNonSystemAdmin(c); setClinicID(c) },
+		h.RequirePermission(string(model.ResourceMedicalRecords), "view"),
+		h.ListMedicalRecords,
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/owners/1/pets/1/medical-records", http.NoBody)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}

@@ -835,3 +835,29 @@ func TestPatchOwnerLineIDConfirm(t *testing.T) {
 		})
 	}
 }
+
+// ---- view permission gate tests ----
+
+// TestListOwners_ViewPermissionDenied は view 権限を持たない非 system_admin が 403 を受けることを確認する。
+func TestListOwners_ViewPermissionDenied(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := &Handler{svc: &service.Services{
+		Owner:               &mockOwnerService{},
+		LstepTagSync:        &mockLstepTagSyncService{},
+		LstepLifecycle:      &mockLstepLifecycleService{},
+		EffectivePermission: &mockEffectivePermissionService{},
+	}}
+	r := gin.New()
+	r.GET("/owners",
+		func(c *gin.Context) { setNonSystemAdmin(c); setClinicID(c) },
+		h.RequirePermission(string(model.ResourceOwners), "view"),
+		h.ListOwners,
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/owners", http.NoBody)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
