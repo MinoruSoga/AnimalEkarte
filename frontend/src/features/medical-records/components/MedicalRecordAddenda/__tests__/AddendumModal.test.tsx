@@ -51,11 +51,12 @@ describe("AddendumModal", () => {
   });
 
   it("reason 501 文字でバリデーションエラーを表示する", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderModal();
 
     await user.type(screen.getByLabelText(/修正内容/), "内容");
-    await user.type(screen.getByLabelText(/修正理由/), "あ".repeat(501));
+    await user.click(screen.getByLabelText(/修正理由/));
+    await user.paste("あ".repeat(501));
     await user.click(screen.getByText("追記を保存"));
     await waitFor(() => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
