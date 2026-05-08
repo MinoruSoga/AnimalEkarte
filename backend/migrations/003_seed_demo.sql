@@ -2636,3 +2636,40 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (6, 'lstep-csv-import', true, false, false, false),
     (6, 'lstep-analytics',  true, false, false, false)
 ON CONFLICT DO NOTHING;
+
+-- =============================================================================
+-- AUDIT-H2 (Q41): 未登録リソースの view 権限追加（全 6 グループ）
+-- 対象: cash-register-close, accounting-reports, closing-settings, master-payment-method
+-- =============================================================================
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    -- 八王子病院 執行（group_id=1）
+    (1, 'cash-register-close',   true, true,  true,  false),
+    (1, 'accounting-reports',    true, false, false, false),
+    (1, 'closing-settings',      true, false, true,  false),
+    (1, 'master-payment-method', true, true,  true,  true),
+    -- 八王子病院 一般（group_id=2）
+    (2, 'cash-register-close',   true, false, false, false),
+    (2, 'accounting-reports',    false, false, false, false),
+    (2, 'closing-settings',      true, false, false, false),
+    (2, 'master-payment-method', true, false, false, false),
+    -- 城東センター病院 執行（group_id=3）
+    (3, 'cash-register-close',   true, true,  true,  false),
+    (3, 'accounting-reports',    true, false, false, false),
+    (3, 'closing-settings',      true, false, true,  false),
+    (3, 'master-payment-method', true, true,  true,  true),
+    -- 城東センター病院 一般（group_id=4）
+    (4, 'cash-register-close',   true, false, false, false),
+    (4, 'accounting-reports',    false, false, false, false),
+    (4, 'closing-settings',      true, false, false, false),
+    (4, 'master-payment-method', true, false, false, false),
+    -- 敷島医院 執行（group_id=5）
+    (5, 'cash-register-close',   true, true,  true,  false),
+    (5, 'accounting-reports',    true, false, false, false),
+    (5, 'closing-settings',      true, false, true,  false),
+    (5, 'master-payment-method', true, true,  true,  true),
+    -- 敷島医院 一般（group_id=6）
+    (6, 'cash-register-close',   true, false, false, false),
+    (6, 'accounting-reports',    false, false, false, false),
+    (6, 'closing-settings',      true, false, false, false),
+    (6, 'master-payment-method', true, false, false, false)
+ON CONFLICT DO NOTHING;
