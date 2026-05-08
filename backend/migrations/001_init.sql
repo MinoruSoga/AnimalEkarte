@@ -1522,6 +1522,7 @@ CREATE TABLE vital_records (
     notes             text        NOT NULL DEFAULT '',
     created_at        timestamptz NOT NULL DEFAULT now(),
     updated_at        timestamptz NOT NULL DEFAULT now(),
+    deleted_at        timestamptz,
     CONSTRAINT chk_vital_records_context CHECK (
         (medical_record_id IS NOT NULL) OR (daily_record_id IS NOT NULL)
     ),
@@ -1948,6 +1949,7 @@ CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
 CREATE INDEX idx_vital_records_medical_record_id ON vital_records(medical_record_id);
 CREATE INDEX idx_vital_records_daily_record_id ON vital_records(daily_record_id);
 CREATE INDEX idx_vital_records_pet_id ON vital_records(pet_id);
+CREATE INDEX idx_vital_records_deleted_at ON vital_records (deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id);
 CREATE INDEX idx_exams_pet_id ON exams(pet_id);
 CREATE INDEX idx_exams_exam_type_id ON exams(exam_type_id);

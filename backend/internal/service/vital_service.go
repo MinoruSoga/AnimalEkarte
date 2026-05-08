@@ -74,12 +74,13 @@ type VitalService interface {
 }
 
 type vitalService struct {
-	repo repository.VitalRepository
+	repo              repository.VitalRepository
+	medicalRecordRepo repository.MedicalRecordRepository
 }
 
 // NewVitalService はVitalServiceを初期化して返す
-func NewVitalService(repo repository.VitalRepository) VitalService {
-	return &vitalService{repo: repo}
+func NewVitalService(repo repository.VitalRepository, medicalRecordRepo repository.MedicalRecordRepository) VitalService {
+	return &vitalService{repo: repo, medicalRecordRepo: medicalRecordRepo}
 }
 
 func (s *vitalService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
@@ -131,6 +132,14 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("vital", "not found in medical record")
 	}
+	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict("確定済みカルテのバイタルは編集できません")
+	}
 
 	fields := buildVitalUpdate(input)
 	if len(fields) == 0 {
@@ -160,6 +169,14 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 	}
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("vital", "not found in medical record")
+	}
+	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return apperrors.WrapConflict("確定済みカルテのバイタルは削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, vitalID); err != nil {
 		return apperrors.Wrap(err, "failed to delete vital record")

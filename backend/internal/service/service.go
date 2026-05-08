@@ -204,7 +204,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ShiftTemplate:                  NewShiftTemplateService(repos.ShiftTemplate),
 		ClinicHoliday:                  NewClinicHolidayService(repos.ClinicHoliday),
 		TreatmentPlan:                  NewTreatmentPlanService(repos.TreatmentPlan),
-		Vital:                          NewVitalService(repos.Vital),
+		Vital:                          NewVitalService(repos.Vital, repos.MedicalRecord),
 		Treatment:                      NewTreatmentService(repos),
 		DailyRecord:                    NewDailyRecordService(repos.DailyRecord),
 		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage),

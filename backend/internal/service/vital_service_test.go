@@ -91,7 +91,7 @@ func TestVitalService_List(t *testing.T) {
 					return tt.repoVitals, tt.repoErr
 				},
 			}
-			svc := NewVitalService(repo)
+			svc := NewVitalService(repo, &mockMedicalRecordRepository{})
 
 			vitals, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
@@ -199,7 +199,7 @@ func TestVitalService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewVitalService(repo)
+			svc := NewVitalService(repo, &mockMedicalRecordRepository{})
 
 			vital, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 
@@ -229,10 +229,13 @@ func TestVitalService_Update(t *testing.T) {
 		repoVital       *model.VitalRecord
 		findByIDErr     error
 		updateErr       error
+		parentRecord    *model.MedicalRecord
+		parentErr       error
 		wantErr         bool
+		wantConflict    bool
 	}{
 		{
-			name:            "updates vital successfully",
+			name:            "updates vital on draft medical record",
 			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         1,
@@ -246,9 +249,24 @@ func TestVitalService_Update(t *testing.T) {
 				Temperature:     &updatedTemperature,
 				HeartRate:       &updatedHeartRate,
 			},
-			findByIDErr: nil,
-			updateErr:   nil,
-			wantErr:     false,
+			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
+			wantErr:      false,
+		},
+		{
+			name:            "rejects update on finalized medical record",
+			clinicID:        1,
+			medicalRecordID: 1,
+			vitalID:         1,
+			input: &UpdateVitalInput{
+				Temperature: &updatedTemperature,
+			},
+			repoVital: &model.VitalRecord{
+				ID:              1,
+				MedicalRecordID: ptrUint64(1),
+			},
+			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusFinalized},
+			wantErr:      true,
+			wantConflict: true,
 		},
 		{
 			name:            "returns error when no fields provided",
@@ -260,9 +278,8 @@ func TestVitalService_Update(t *testing.T) {
 				ID:              1,
 				MedicalRecordID: ptrUint64(1),
 			},
-			findByIDErr: nil,
-			updateErr:   nil,
-			wantErr:     true,
+			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
+			wantErr:      true,
 		},
 		{
 			name:            "returns not found error when vital does not belong to medical record",
@@ -274,11 +291,9 @@ func TestVitalService_Update(t *testing.T) {
 			},
 			repoVital: &model.VitalRecord{
 				ID:              999,
-				MedicalRecordID: ptrUint64(2), // Different medical record
+				MedicalRecordID: ptrUint64(2),
 			},
-			findByIDErr: nil,
-			updateErr:   nil,
-			wantErr:     true,
+			wantErr: true,
 		},
 		{
 			name:            "returns error when vital not found",
@@ -290,7 +305,6 @@ func TestVitalService_Update(t *testing.T) {
 			},
 			repoVital:   nil,
 			findByIDErr: apperrors.WrapNotFound("vital", "999"),
-			updateErr:   nil,
 			wantErr:     true,
 		},
 		{
@@ -305,9 +319,9 @@ func TestVitalService_Update(t *testing.T) {
 				ID:              1,
 				MedicalRecordID: ptrUint64(1),
 			},
-			findByIDErr: nil,
-			updateErr:   errors.New("db error"),
-			wantErr:     true,
+			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
+			updateErr:    errors.New("db error"),
+			wantErr:      true,
 		},
 		{
 			name:            "updates only notes field",
@@ -322,9 +336,8 @@ func TestVitalService_Update(t *testing.T) {
 				MedicalRecordID: ptrUint64(1),
 				Notes:           updatedNotes,
 			},
-			findByIDErr: nil,
-			updateErr:   nil,
-			wantErr:     false,
+			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
+			wantErr:      false,
 		},
 	}
 
@@ -338,12 +351,20 @@ func TestVitalService_Update(t *testing.T) {
 					return tt.updateErr
 				},
 			}
-			svc := NewVitalService(repo)
+			mrRepo := &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return tt.parentRecord, tt.parentErr
+				},
+			}
+			svc := NewVitalService(repo, mrRepo)
 
 			vital, err := svc.Update(context.Background(), tt.clinicID, tt.medicalRecordID, tt.vitalID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, vital)
@@ -361,10 +382,13 @@ func TestVitalService_Delete(t *testing.T) {
 		repoVital       *model.VitalRecord
 		findByIDErr     error
 		deleteErr       error
+		parentRecord    *model.MedicalRecord
+		parentErr       error
 		wantErr         bool
+		wantConflict    bool
 	}{
 		{
-			name:            "deletes vital successfully",
+			name:            "deletes vital on draft medical record",
 			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         1,
@@ -372,9 +396,21 @@ func TestVitalService_Delete(t *testing.T) {
 				ID:              1,
 				MedicalRecordID: ptrUint64(1),
 			},
-			findByIDErr: nil,
-			deleteErr:   nil,
-			wantErr:     false,
+			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
+			wantErr:      false,
+		},
+		{
+			name:            "rejects delete on finalized medical record",
+			clinicID:        1,
+			medicalRecordID: 1,
+			vitalID:         1,
+			repoVital: &model.VitalRecord{
+				ID:              1,
+				MedicalRecordID: ptrUint64(1),
+			},
+			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusFinalized},
+			wantErr:      true,
+			wantConflict: true,
 		},
 		{
 			name:            "returns not found error when vital does not belong to medical record",
@@ -383,11 +419,9 @@ func TestVitalService_Delete(t *testing.T) {
 			vitalID:         999,
 			repoVital: &model.VitalRecord{
 				ID:              999,
-				MedicalRecordID: ptrUint64(2), // Different medical record
+				MedicalRecordID: ptrUint64(2),
 			},
-			findByIDErr: nil,
-			deleteErr:   nil,
-			wantErr:     true,
+			wantErr: true,
 		},
 		{
 			name:            "returns error when vital not found",
@@ -396,7 +430,6 @@ func TestVitalService_Delete(t *testing.T) {
 			vitalID:         999,
 			repoVital:       nil,
 			findByIDErr:     apperrors.WrapNotFound("vital", "999"),
-			deleteErr:       nil,
 			wantErr:         true,
 		},
 		{
@@ -408,9 +441,9 @@ func TestVitalService_Delete(t *testing.T) {
 				ID:              1,
 				MedicalRecordID: ptrUint64(1),
 			},
-			findByIDErr: nil,
-			deleteErr:   errors.New("db error"),
-			wantErr:     true,
+			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
+			deleteErr:    errors.New("db error"),
+			wantErr:      true,
 		},
 	}
 
@@ -424,12 +457,20 @@ func TestVitalService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewVitalService(repo)
+			mrRepo := &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return tt.parentRecord, tt.parentErr
+				},
+			}
+			svc := NewVitalService(repo, mrRepo)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.medicalRecordID, tt.vitalID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
+				}
 			} else {
 				assert.NoError(t, err)
 			}
