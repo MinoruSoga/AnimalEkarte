@@ -20,6 +20,7 @@ import { UnifiedTabsRoot, UnifiedTabsList, UnifiedTabsContent } from "@/componen
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
 import { NextVisitDateField } from "../components/NextVisitDateField";
 import { RecommendationReasonSelect } from "../components/RecommendationReasonSelect";
+import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda";
 import { MedicalRecordDiagnosisPlan } from "../components/MedicalRecordDiagnosisPlan";
 import { MedicalRecordTreatment } from "../components/MedicalRecordTreatment";
 import { MedicalRecordVaccination } from "../components/MedicalRecordVaccination";
@@ -38,6 +39,7 @@ const OwnerSearchModal = lazy(() =>
   import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal }))
 );
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
+import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments } from "../api/treatments";
@@ -195,6 +197,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   // 印刷用データ（React Query キャッシュ共有 — 子コンポーネントが既にフェッチ済み）
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "");
   const { data: treatments = [] } = useGetTreatments(recordId ?? "");
+  // addenda セクション用: キャッシュ共有のため追加ネットワーク要求なし
+  const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
 
   // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
@@ -495,6 +499,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         ) : null}
       </div>
       </UnifiedTabsRoot>
+
+      {!isNewRecord ? (
+        <MedicalRecordAddenda
+          medicalRecordId={recordId ?? ""}
+          canEdit={canEdit}
+          recordStatus={currentRecord?.status ?? ""}
+        />
+      ) : null}
 
       {/* Floating Save / Delete Buttons */}
       {activeTab !== "会計(医師確認)" ? (
