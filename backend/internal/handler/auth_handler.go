@@ -363,6 +363,15 @@ func (h *Handler) Logout(c *gin.Context) {
 		Secure:   isProduction,
 		SameSite: sameSite,
 	})
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "prev_clinic_id",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   isProduction,
+		SameSite: sameSite,
+	})
 
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
