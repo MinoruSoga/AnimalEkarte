@@ -159,11 +159,11 @@ func TestCreateMedicalRecordAddendum(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 for missing after_text",
-			paramID:  "1",
-			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
-			body:     map[string]any{"reason": "some reason"},
-			svc:      &mockMedicalRecordAddendumService{},
+			name:       "returns 400 for missing after_text",
+			paramID:    "1",
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
+			body:       map[string]any{"reason": "some reason"},
+			svc:        &mockMedicalRecordAddendumService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{

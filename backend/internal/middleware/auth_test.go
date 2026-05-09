@@ -183,9 +183,11 @@ func TestAuth(t *testing.T) {
 	})
 }
 
-func clinicSwitchClaims(userID, mainClinicID string, clinicIDs []uint64) jwt.MapClaims {
+// clinicSwitchClaims は FEAT-374 Phase 2 audit テスト用の JWT claim を生成する。
+// 全 caller で user_id=1 固定のため、引数からは除外している (unparam 解消)。
+func clinicSwitchClaims(mainClinicID string, clinicIDs []uint64) jwt.MapClaims {
 	return jwt.MapClaims{
-		"user_id":         userID,
+		"user_id":         "1",
 		"clinic_id":       mainClinicID,
 		"is_system_admin": false,
 		"clinic_ids":      clinicIDs,
@@ -199,7 +201,7 @@ func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 
 	t.Run("logs clinic switch when prev cookie differs from header", func(t *testing.T) {
 		spy := &mockMiddlewareAuditService{}
-		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims("1", "1", []uint64{1, 2}))
+		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims("1", []uint64{1, 2}))
 
 		w, _ := runAuthMiddlewareWithAudit(t, "Bearer "+token, spy, func(req *http.Request) {
 			req.Header.Set("X-Clinic-ID", "2")
@@ -223,7 +225,7 @@ func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 
 	t.Run("skips audit when prev cookie matches header", func(t *testing.T) {
 		spy := &mockMiddlewareAuditService{}
-		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims("1", "1", []uint64{1, 2}))
+		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims("1", []uint64{1, 2}))
 
 		w, _ := runAuthMiddlewareWithAudit(t, "Bearer "+token, spy, func(req *http.Request) {
 			req.Header.Set("X-Clinic-ID", "2")
@@ -236,7 +238,7 @@ func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 
 	t.Run("skips audit on first access (no prev cookie), sets cookie", func(t *testing.T) {
 		spy := &mockMiddlewareAuditService{}
-		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims("1", "1", []uint64{1, 2}))
+		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims("1", []uint64{1, 2}))
 
 		w, _ := runAuthMiddlewareWithAudit(t, "Bearer "+token, spy, func(req *http.Request) {
 			req.Header.Set("X-Clinic-ID", "2")
@@ -256,7 +258,7 @@ func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 
 	t.Run("skips audit when no X-Clinic-ID header", func(t *testing.T) {
 		spy := &mockMiddlewareAuditService{}
-		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims("1", "1", []uint64{1}))
+		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims("1", []uint64{1}))
 
 		w, _ := runAuthMiddlewareWithAudit(t, "Bearer "+token, spy, func(req *http.Request) {
 			req.AddCookie(&http.Cookie{Name: "prev_clinic_id", Value: "1"})
@@ -276,7 +278,7 @@ func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 				return errors.New("db down")
 			},
 		}
-		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims("1", "1", []uint64{1, 2}))
+		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims("1", []uint64{1, 2}))
 
 		w, _ := runAuthMiddlewareWithAudit(t, "Bearer "+token, spy, func(req *http.Request) {
 			req.Header.Set("X-Clinic-ID", "2")

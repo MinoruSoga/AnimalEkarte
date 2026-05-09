@@ -1395,7 +1395,7 @@ type mockMedicalRecordAuditService struct {
 }
 
 func (m *mockMedicalRecordAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *mockMedicalRecordAuditService) LogAuthLogin(_ context.Context, _ *uint64, _ *uint64, _, _, _ string) error {
+func (m *mockMedicalRecordAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
 	return nil
 }
 func (m *mockMedicalRecordAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
