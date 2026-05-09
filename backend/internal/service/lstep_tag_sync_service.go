@@ -37,7 +37,6 @@ var allCPMStages = []CPMStage{
 }
 
 // CPMStageV2 は来院回数ベースの新ステージ分類（FEAT-377）。
-// 注: SPEC-002 Q2確定前の仮優先順。確定後に CalculateCPMStageV2 を更新すること。
 type CPMStageV2 string
 
 const (
@@ -71,7 +70,6 @@ type CPMStageV2Input struct {
 }
 
 // CalculateCPMStageV2 は来院回数ベースの新 CPM ステージを計算する（FEAT-377）。
-// 注: SPEC-002 Q2確定前の仮優先順。確定後に本関数を更新すること。
 func CalculateCPMStageV2(d CPMStageV2Input) CPMStageV2 {
 	// CPM5 Noah: 年6回以上来院 OR 年4回健診 OR (LTV上位20% AND 年3回以上来院) — 仕様書「年3回以上」整合
 	if d.AnnualVisitCount >= 6 || d.AnnualCheckupCount >= 4 ||
