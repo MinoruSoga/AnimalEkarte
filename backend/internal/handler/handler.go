@@ -67,7 +67,11 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	api.POST("/auth/reset-password", middleware.RateLimit(passwordRateStore, 3.0/60, 3), h.ResetPassword)
 
 	protected := api.Group("")
-	protected.Use(middleware.Auth(h.cfg.JWTSecret))
+	var auditSvc service.AuditService
+	if h.svc != nil {
+		auditSvc = h.svc.Audit
+	}
+	protected.Use(middleware.Auth(h.cfg.JWTSecret, h.cfg.GinMode == "release", auditSvc))
 	// NOTE: SanitizeNullBytes は main.go でグローバル登録済み（BUG-067）
 
 	protected.GET("/me", h.GetMe)
