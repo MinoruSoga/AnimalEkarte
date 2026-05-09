@@ -1425,6 +1425,9 @@ func (m *mockMedicalRecordAuditService) LogAddendumCreate(ctx context.Context, c
 	}
 	return nil
 }
+func (m *mockMedicalRecordAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
+	return nil
+}
 
 // TestMedicalRecordService_Create_AuditLog はカルテ作成時に audit "create" が記録されることを確認する。
 func TestMedicalRecordService_Create_AuditLog(t *testing.T) {

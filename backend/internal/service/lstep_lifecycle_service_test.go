@@ -265,6 +265,9 @@ func (m *mockAuditService) LogVitalChange(_ context.Context, _ uint64, _ *uint64
 func (m *mockAuditService) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
 	return nil
 }
+func (m *mockAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
+	return nil
+}
 
 // ---- ヘルパー ----
 

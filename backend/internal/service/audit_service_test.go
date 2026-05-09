@@ -256,6 +256,61 @@ func TestAuditService_LogVitalChange(t *testing.T) {
 	assert.EqualValues(t, medicalRecordID, meta["medical_record_id"])
 }
 
+// TestAuditService_LogClinicSwitch_StaffActor はスタッフによるクリニック切替で
+// resource="auth", action="switch_clinic", actor_type="staff" かつ
+// old/new_value に clinic_id が含まれることを確認する（FEAT-374 Phase 2）。
+func TestAuditService_LogClinicSwitch_StaffActor(t *testing.T) {
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+
+	actorID := uint64(5)
+	fromClinicID := uint64(1)
+	toClinicID := uint64(2)
+
+	err := svc.LogClinicSwitch(context.Background(), &actorID, fromClinicID, toClinicID, "192.168.1.1", "Mozilla/5.0")
+	assert.NoError(t, err)
+
+	if !assert.NotNil(t, repo.lastLogged) {
+		return
+	}
+	assert.Equal(t, "auth", repo.lastLogged.Resource)
+	assert.Equal(t, "switch_clinic", repo.lastLogged.Action)
+	assert.Equal(t, "staff", repo.lastLogged.ActorType)
+	if assert.NotNil(t, repo.lastLogged.ActorID) {
+		assert.Equal(t, actorID, *repo.lastLogged.ActorID)
+	}
+	if assert.NotNil(t, repo.lastLogged.ClinicID) {
+		assert.Equal(t, toClinicID, *repo.lastLogged.ClinicID)
+	}
+	assert.Equal(t, "192.168.1.1", repo.lastLogged.IPAddress)
+	assert.Equal(t, "Mozilla/5.0", repo.lastLogged.UserAgent)
+
+	var oldVal, newVal map[string]any
+	if assert.NotNil(t, repo.lastLogged.OldValue) {
+		assert.NoError(t, json.Unmarshal(repo.lastLogged.OldValue, &oldVal))
+		assert.EqualValues(t, fromClinicID, oldVal["clinic_id"])
+	}
+	if assert.NotNil(t, repo.lastLogged.NewValue) {
+		assert.NoError(t, json.Unmarshal(repo.lastLogged.NewValue, &newVal))
+		assert.EqualValues(t, toClinicID, newVal["clinic_id"])
+	}
+}
+
+// TestAuditService_LogClinicSwitch_SystemActor は actorID=nil でシステム扱いになることを確認する。
+func TestAuditService_LogClinicSwitch_SystemActor(t *testing.T) {
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+
+	err := svc.LogClinicSwitch(context.Background(), nil, 1, 3, "", "")
+	assert.NoError(t, err)
+
+	if !assert.NotNil(t, repo.lastLogged) {
+		return
+	}
+	assert.Equal(t, "system", repo.lastLogged.ActorType)
+	assert.Nil(t, repo.lastLogged.ActorID)
+}
+
 // TestAuditService_LogAddendumCreate は addendum の監査ログで
 // new_value に before_text/after_text/reason が含まれることを確認する（AUDIT-H1）。
 func TestAuditService_LogAddendumCreate(t *testing.T) {

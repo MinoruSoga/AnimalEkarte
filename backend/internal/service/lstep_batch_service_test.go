@@ -261,6 +261,9 @@ func (m *batchMockAuditService) LogVitalChange(_ context.Context, _ uint64, _ *u
 func (m *batchMockAuditService) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
 	return nil
 }
+func (m *batchMockAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
+	return nil
+}
 
 func newBatchService(
 	resRepo repository.ReservationRepository,

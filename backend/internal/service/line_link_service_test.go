@@ -160,6 +160,9 @@ func (m *mockLineLinkAuditService) LogVitalChange(_ context.Context, _ uint64, _
 func (m *mockLineLinkAuditService) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
 	return nil
 }
+func (m *mockLineLinkAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
+	return nil
+}
 
 func newTestLineLinkService(
 	ownerRepo *mockLineLinkOwnerRepo,

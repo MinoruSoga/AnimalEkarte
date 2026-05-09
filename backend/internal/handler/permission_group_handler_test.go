@@ -129,6 +129,9 @@ func (m *mockAuditServiceForPG) LogVitalChange(_ context.Context, _ uint64, _ *u
 func (m *mockAuditServiceForPG) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
 	return nil
 }
+func (m *mockAuditServiceForPG) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
+	return nil
+}
 
 // ---- helper ----
 

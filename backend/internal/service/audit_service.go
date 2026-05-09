@@ -29,6 +29,10 @@ type AuditService interface {
 	// LogAddendumCreate は医療カルテ追記の Create 操作を監査ログに記録する（AUDIT-H1）。
 	// new_value に addendum の内容を含める。metadata に medical_record_id を含める。
 	LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error
+	// LogClinicSwitch はクリニック切替操作を監査ログに記録する（FEAT-374 Phase 2）。
+	// old_value={"clinic_id": fromClinicID}, new_value={"clinic_id": toClinicID}。
+	// middleware からベストエフォートで呼ばれるため、呼び出し元はエラーを無視してよい。
+	LogClinicSwitch(ctx context.Context, actorID *uint64, fromClinicID, toClinicID uint64, ipAddress, userAgent string) error
 }
 
 type auditService struct {
@@ -138,6 +142,28 @@ func (s *auditService) LogVitalChange(ctx context.Context, clinicID uint64, acto
 		OldValue:   oldJSON,
 		NewValue:   newJSON,
 		Metadata:   repository.MarshalAuditJSON(metadata),
+	}
+	return s.Log(ctx, log)
+}
+
+// LogClinicSwitch はクリニック切替操作を監査ログに記録する（FEAT-374 Phase 2）。
+func (s *auditService) LogClinicSwitch(ctx context.Context, actorID *uint64, fromClinicID, toClinicID uint64, ipAddress, userAgent string) error {
+	actorType := "system"
+	if actorID != nil {
+		actorType = "staff"
+	}
+	oldValue := map[string]any{"clinic_id": fromClinicID}
+	newValue := map[string]any{"clinic_id": toClinicID}
+	log := &model.AuditLog{
+		ClinicID:  &toClinicID,
+		ActorID:   actorID,
+		ActorType: actorType,
+		Action:    "switch_clinic",
+		Resource:  "auth",
+		OldValue:  repository.MarshalAuditJSON(oldValue),
+		NewValue:  repository.MarshalAuditJSON(newValue),
+		IPAddress: ipAddress,
+		UserAgent: userAgent,
 	}
 	return s.Log(ctx, log)
 }
