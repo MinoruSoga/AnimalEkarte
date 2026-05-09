@@ -44,7 +44,7 @@ func extractVitalImportantFields(v *model.VitalRecord) map[string]any {
 
 // diffMedicalRecordImportantFields は変更があったフィールドのみ old/new ペアを返す。
 // 変更なしの場合は nil/nil を返す（audit をスキップするシグナル）。
-func diffMedicalRecordImportantFields(old, new *model.MedicalRecord) (oldDiff, newDiff map[string]any) {
+func diffMedicalRecordImportantFields(oldRec, newRec *model.MedicalRecord) (oldDiff, newDiff map[string]any) {
 	type comparison struct {
 		key    string
 		oldVal any
@@ -53,14 +53,14 @@ func diffMedicalRecordImportantFields(old, new *model.MedicalRecord) (oldDiff, n
 	}
 
 	comparisons := []comparison{
-		{key: "status", oldVal: string(old.Status), newVal: string(new.Status), equal: old.Status == new.Status},
-		{key: "date", oldVal: old.Date, newVal: new.Date, equal: old.Date.Equal(new.Date)},
-		{key: "doctor_id", oldVal: old.DoctorID, newVal: new.DoctorID, equal: ptrUint64Equal(old.DoctorID, new.DoctorID)},
-		{key: "owner_id", oldVal: old.OwnerID, newVal: new.OwnerID, equal: ptrUint64Equal(old.OwnerID, new.OwnerID)},
-		{key: "pet_id", oldVal: old.PetID, newVal: new.PetID, equal: ptrUint64Equal(old.PetID, new.PetID)},
-		{key: "appointment_id", oldVal: old.AppointmentID, newVal: new.AppointmentID, equal: ptrUint64Equal(old.AppointmentID, new.AppointmentID)},
-		{key: "next_visit_recommended_date", oldVal: old.NextVisitRecommendedDate, newVal: new.NextVisitRecommendedDate, equal: ptrTimeEqual(old.NextVisitRecommendedDate, new.NextVisitRecommendedDate)},
-		{key: "recommendation_reason", oldVal: old.RecommendationReason, newVal: new.RecommendationReason, equal: ptrStringEqual(old.RecommendationReason, new.RecommendationReason)},
+		{key: "status", oldVal: string(oldRec.Status), newVal: string(newRec.Status), equal: oldRec.Status == newRec.Status},
+		{key: "date", oldVal: oldRec.Date, newVal: newRec.Date, equal: oldRec.Date.Equal(newRec.Date)},
+		{key: "doctor_id", oldVal: oldRec.DoctorID, newVal: newRec.DoctorID, equal: ptrUint64Equal(oldRec.DoctorID, newRec.DoctorID)},
+		{key: "owner_id", oldVal: oldRec.OwnerID, newVal: newRec.OwnerID, equal: ptrUint64Equal(oldRec.OwnerID, newRec.OwnerID)},
+		{key: "pet_id", oldVal: oldRec.PetID, newVal: newRec.PetID, equal: ptrUint64Equal(oldRec.PetID, newRec.PetID)},
+		{key: "appointment_id", oldVal: oldRec.AppointmentID, newVal: newRec.AppointmentID, equal: ptrUint64Equal(oldRec.AppointmentID, newRec.AppointmentID)},
+		{key: "next_visit_recommended_date", oldVal: oldRec.NextVisitRecommendedDate, newVal: newRec.NextVisitRecommendedDate, equal: ptrTimeEqual(oldRec.NextVisitRecommendedDate, newRec.NextVisitRecommendedDate)},
+		{key: "recommendation_reason", oldVal: oldRec.RecommendationReason, newVal: newRec.RecommendationReason, equal: ptrStringEqual(oldRec.RecommendationReason, newRec.RecommendationReason)},
 	}
 
 	hasChange := false
@@ -86,7 +86,7 @@ func diffMedicalRecordImportantFields(old, new *model.MedicalRecord) (oldDiff, n
 }
 
 // diffVitalImportantFields はバイタルの変更があったフィールドのみ old/new ペアを返す。
-func diffVitalImportantFields(old, new *model.VitalRecord) (oldDiff, newDiff map[string]any) {
+func diffVitalImportantFields(oldRec, newRec *model.VitalRecord) (oldDiff, newDiff map[string]any) {
 	type comparison struct {
 		key    string
 		oldVal any
@@ -95,14 +95,14 @@ func diffVitalImportantFields(old, new *model.VitalRecord) (oldDiff, newDiff map
 	}
 
 	comparisons := []comparison{
-		{key: "temperature", oldVal: old.Temperature, newVal: new.Temperature, equal: ptrFloat64Equal(old.Temperature, new.Temperature)},
-		{key: "heart_rate", oldVal: old.HeartRate, newVal: new.HeartRate, equal: ptrIntEqual(old.HeartRate, new.HeartRate)},
-		{key: "respiration_rate", oldVal: old.RespirationRate, newVal: new.RespirationRate, equal: ptrIntEqual(old.RespirationRate, new.RespirationRate)},
-		{key: "weight", oldVal: old.Weight, newVal: new.Weight, equal: ptrFloat64Equal(old.Weight, new.Weight)},
-		{key: "weight_unit", oldVal: string(old.WeightUnit), newVal: string(new.WeightUnit), equal: old.WeightUnit == new.WeightUnit},
-		{key: "recorded_at", oldVal: old.RecordedAt, newVal: new.RecordedAt, equal: old.RecordedAt.Equal(new.RecordedAt)},
-		{key: "staff_id", oldVal: old.StaffID, newVal: new.StaffID, equal: ptrUint64Equal(old.StaffID, new.StaffID)},
-		{key: "notes", oldVal: old.Notes, newVal: new.Notes, equal: old.Notes == new.Notes},
+		{key: "temperature", oldVal: oldRec.Temperature, newVal: newRec.Temperature, equal: ptrFloat64Equal(oldRec.Temperature, newRec.Temperature)},
+		{key: "heart_rate", oldVal: oldRec.HeartRate, newVal: newRec.HeartRate, equal: ptrIntEqual(oldRec.HeartRate, newRec.HeartRate)},
+		{key: "respiration_rate", oldVal: oldRec.RespirationRate, newVal: newRec.RespirationRate, equal: ptrIntEqual(oldRec.RespirationRate, newRec.RespirationRate)},
+		{key: "weight", oldVal: oldRec.Weight, newVal: newRec.Weight, equal: ptrFloat64Equal(oldRec.Weight, newRec.Weight)},
+		{key: "weight_unit", oldVal: string(oldRec.WeightUnit), newVal: string(newRec.WeightUnit), equal: oldRec.WeightUnit == newRec.WeightUnit},
+		{key: "recorded_at", oldVal: oldRec.RecordedAt, newVal: newRec.RecordedAt, equal: oldRec.RecordedAt.Equal(newRec.RecordedAt)},
+		{key: "staff_id", oldVal: oldRec.StaffID, newVal: newRec.StaffID, equal: ptrUint64Equal(oldRec.StaffID, newRec.StaffID)},
+		{key: "notes", oldVal: oldRec.Notes, newVal: newRec.Notes, equal: oldRec.Notes == newRec.Notes},
 	}
 
 	hasChange := false
