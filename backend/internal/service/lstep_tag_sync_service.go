@@ -22,12 +22,14 @@ const (
 	lstepErrorTag           = "EXCL_カルテ連携エラー"
 	lstepSyncErrorThreshold = 5
 
-	CPMStageEncounter CPMStage = "cpm_encounter" // 1回来院・LTV 20,000円未満
+	CPMStageEncounter CPMStage = "cpm_encounter" // 来院1回・LTV 20,000円未満（仕様書 §3 明示）
 	CPMStageGrowing   CPMStage = "cpm_growing"   // 2〜3回来院・90日以内・LTV 20,000〜50,000円
 	CPMStageCore      CPMStage = "cpm_core"      // 在籍180日以上・年間2回以上・LTV 50,000円以上
 	CPMStageSpot      CPMStage = "cpm_spot"      // 単回高額（30,000円以上）・90日超来院なし
 	CPMStageNoah      CPMStage = "cpm_noah"      // 在籍1年以上・年間3回以上・LTV 80,000円以上
 	CPMStageDormant   CPMStage = "cpm_dormant"   // 最終来院から240日超
+	// CPMStageUnclassified は全6ステージのいずれにも該当しない異常データ検出用。配信対象外のため allCPMStages には含めない。
+	CPMStageUnclassified CPMStage = "cpm_unclassified"
 )
 
 var allCPMStages = []CPMStage{
@@ -127,8 +129,12 @@ func CalculateCPMStage(d CPMData) CPMStage {
 		d.LTVAmount >= 20_000 && d.LTVAmount < 50_000 {
 		return CPMStageGrowing
 	}
-	// cpm_encounter: デフォルト（初来院・新規顧客）
-	return CPMStageEncounter
+	// cpm_encounter: 来院1回 AND LTV 20,000円未満（仕様書 §3 明示判定）
+	if d.TotalVisitCount == 1 && d.LTVAmount < 20_000 {
+		return CPMStageEncounter
+	}
+	// cpm_unclassified: 全6ステージのいずれにも該当しない異常データ（配信対象外）
+	return CPMStageUnclassified
 }
 
 // LstepTagSyncService は Lステップタグ同期の業務ロジックインターフェース（BE-003, BE-004, BE-005, BE-011）。

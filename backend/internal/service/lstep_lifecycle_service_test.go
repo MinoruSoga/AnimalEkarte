@@ -702,7 +702,8 @@ func TestCalculateCPMStage(t *testing.T) {
 			FirstVisitDaysSince:  45,
 			MaxSingleVisitAmount: 0,
 		}, CPMStageGrowing},
-		{"初回来院 → encounter", CPMData{
+		// encounter: 来院1回 AND LTV 20,000円未満（仕様書 §3 明示判定）
+		{"初回来院 LTV=0 → encounter", CPMData{
 			TotalVisitCount:      1,
 			AnnualVisitCount:     0,
 			DaysSinceVisit:       5,
@@ -710,14 +711,39 @@ func TestCalculateCPMStage(t *testing.T) {
 			FirstVisitDaysSince:  5,
 			MaxSingleVisitAmount: 0,
 		}, CPMStageEncounter},
-		{"累計4回・条件未達 → encounter", CPMData{
+		{"来院1回 LTV=19999 → encounter", CPMData{
+			TotalVisitCount:      1,
+			AnnualVisitCount:     1,
+			DaysSinceVisit:       10,
+			LTVAmount:            19_999,
+			FirstVisitDaysSince:  10,
+			MaxSingleVisitAmount: 19_999,
+		}, CPMStageEncounter},
+		// unclassified: 全6ステージのいずれにも該当しない異常データ
+		{"来院1回 LTV>=20k → unclassified", CPMData{
+			TotalVisitCount:      1,
+			AnnualVisitCount:     1,
+			DaysSinceVisit:       10,
+			LTVAmount:            20_000,
+			FirstVisitDaysSince:  10,
+			MaxSingleVisitAmount: 20_000,
+		}, CPMStageUnclassified},
+		{"累計4回・全条件未達 → unclassified", CPMData{
 			TotalVisitCount:      4,
 			AnnualVisitCount:     2,
 			DaysSinceVisit:       10,
 			LTVAmount:            15_000,
 			FirstVisitDaysSince:  120,
 			MaxSingleVisitAmount: 0,
-		}, CPMStageEncounter},
+		}, CPMStageUnclassified},
+		{"来院0回・非dormant → unclassified", CPMData{
+			TotalVisitCount:      0,
+			AnnualVisitCount:     0,
+			DaysSinceVisit:       50,
+			LTVAmount:            100_000,
+			FirstVisitDaysSince:  50,
+			MaxSingleVisitAmount: 0,
+		}, CPMStageUnclassified},
 	}
 
 	for _, tt := range tests {

@@ -123,7 +123,7 @@ func TestListOwnerAggregation_CPMStageParity(t *testing.T) {
 			expectedStage: "cpm_growing",
 		},
 		{
-			name:          "growing 非該当: 初診90日超 (旧ロジックでは該当)",
+			name:          "growing 非該当: 初診90日超 (旧ロジックでは該当、明示判定後 unclassified)",
 			totalAmount:   25_000,
 			totalVisits:   2,
 			annualVisits:  2,
@@ -131,10 +131,10 @@ func TestListOwnerAggregation_CPMStageParity(t *testing.T) {
 			firstVisitAgo: -200,
 			maxSingle:     15_000,
 			hasFirstVisit: true,
-			expectedStage: "cpm_encounter",
+			expectedStage: "cpm_unclassified",
 		},
 		{
-			name:          "growing 非該当: LTV 2万未満 (仕様書整合 LTV 条件)",
+			name:          "growing 非該当: LTV 2万未満 (仕様書整合 LTV 条件、visit=2 で unclassified)",
 			totalAmount:   15_000,
 			totalVisits:   2,
 			annualVisits:  2,
@@ -142,10 +142,10 @@ func TestListOwnerAggregation_CPMStageParity(t *testing.T) {
 			firstVisitAgo: -50,
 			maxSingle:     10_000,
 			hasFirstVisit: true,
-			expectedStage: "cpm_encounter",
+			expectedStage: "cpm_unclassified",
 		},
 		{
-			name:          "growing 非該当: LTV 5万以上 (仕様書整合 LTV 条件)",
+			name:          "growing 非該当: LTV 5万以上 (仕様書整合 LTV 条件、visit=2 で unclassified)",
 			totalAmount:   60_000,
 			totalVisits:   2,
 			annualVisits:  2,
@@ -153,7 +153,7 @@ func TestListOwnerAggregation_CPMStageParity(t *testing.T) {
 			firstVisitAgo: -50,
 			maxSingle:     30_000,
 			hasFirstVisit: true,
-			expectedStage: "cpm_encounter",
+			expectedStage: "cpm_unclassified",
 		},
 		{
 			name:          "encounter: 単回低額・初回来院",
