@@ -110,6 +110,10 @@ func CalculateCPMStage(d CPMData) CPMStage {
 		return CPMStageDormant
 	}
 	// cpm_noah: 在籍1年以上、年間3回以上、LTV 80,000円以上
+	// V1 cpm_noah は簡略 3 条件 (LTV/visit/在籍) で判定する。
+	// 仕様書 §3 の 5 条件記述は V2 詳細化対象であり、V1 では参照しない。
+	// PO-QA Q29 (2026-05-08 設計確定) — V1 簡略判定の役割分担を明記。
+	// 詳細条件追加は V2 (CalculateCPMStageV2) で対応すること。
 	if d.FirstVisitDaysSince >= 365 && d.AnnualVisitCount >= 3 && d.LTVAmount >= 80_000 {
 		return CPMStageNoah
 	}
