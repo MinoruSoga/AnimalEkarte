@@ -508,6 +508,7 @@ export interface ClinicSettings {
   closing_sunday_end: string;
   closed_weekdays: any /* pq.Int64Array */;
   lstep_fire_hour_jst: number /* int */;
+  cpm_version: string;
   created_at: string;
   updated_at: string;
 }
