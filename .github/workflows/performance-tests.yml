@@ -217,8 +217,9 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: Install Lighthouse
-        run: pnpm install -g lighthouse
+      - name: Install frontend dependencies (lighthouse + chrome-launcher)
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
 
       - name: Create .env.local for CI
         run: |
