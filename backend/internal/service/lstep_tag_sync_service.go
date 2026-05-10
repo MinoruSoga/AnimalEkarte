@@ -36,19 +36,19 @@ var allCPMStages = []CPMStage{
 	CPMStageEncounter, CPMStageGrowing, CPMStageCore, CPMStageSpot, CPMStageNoah, CPMStageDormant,
 }
 
-// CPMStageV2 は来院回数ベースの新ステージ分類（FEAT-377）。
+// CPMStageV2 は来院累計回数ベースの 5 段階 CPM ステージ（Q19 確定 2026-05-08）。
 type CPMStageV2 string
 
 const (
-	CPMStageV2Encounter CPMStageV2 = "CPM_01_出会い"
-	CPMStageV2Growing   CPMStageV2 = "CPM_02_これから"
-	CPMStageV2Core      CPMStageV2 = "CPM_03_コア"
-	CPMStageV2Spot      CPMStageV2 = "CPM_04_スポット"
-	CPMStageV2Noah      CPMStageV2 = "CPM_05_ノア"
+	CPMStageV2Encounter CPMStageV2 = "CPM_01_出会い"   // 累計 0〜1 回
+	CPMStageV2Coming    CPMStageV2 = "CPM_02_これから" // 累計 2〜3 回
+	CPMStageV2Good      CPMStageV2 = "CPM_03_いいかんじ" // 累計 4〜7 回
+	CPMStageV2Family    CPMStageV2 = "CPM_04_ファミリー" // 累計 8〜12 回
+	CPMStageV2Noah      CPMStageV2 = "CPM_05_ノア"     // 累計 13 回以上
 )
 
 var allCPMV2Stages = []CPMStageV2{
-	CPMStageV2Encounter, CPMStageV2Growing, CPMStageV2Core, CPMStageV2Spot, CPMStageV2Noah,
+	CPMStageV2Encounter, CPMStageV2Coming, CPMStageV2Good, CPMStageV2Family, CPMStageV2Noah,
 }
 
 // VISIT dormant タグ定数 — 重複付与可（複数閾値を同時保持）。
@@ -60,36 +60,26 @@ const (
 	ltvTop20Tag = "LTV_上位20"
 )
 
-// CPMStageV2Input は CalculateCPMStageV2 に渡す集計データ（FEAT-377）。
+// CPMStageV2Input は CalculateCPMStageV2 に渡す集計データ（Q19 確定 2026-05-08）。
 type CPMStageV2Input struct {
-	AnnualVisitCount    int64
-	AnnualCheckupCount  int
-	DaysSinceVisit      int  // 最終来院からの経過日数（来院なし = -1）
-	FirstVisitDaysSince int  // 初来院からの経過日数（来院なし = 0）
-	IsLTVTopPercent     bool // LTV 上位 20% かどうか
+	TotalVisitCount int64 // 累計来院回数
 }
 
-// CalculateCPMStageV2 は来院回数ベースの新 CPM ステージを計算する（FEAT-377）。
+// CalculateCPMStageV2 は累計来院回数ベースの V2 CPM ステージを計算する（Q19 確定 2026-05-08）。
+// 仕様: 1回→出会い / 2-3回→これから / 4-7回→いいかんじ / 8-12回→ファミリー / 13回以上→ノア
 func CalculateCPMStageV2(d CPMStageV2Input) CPMStageV2 {
-	// CPM5 Noah: 年6回以上来院 OR 年4回健診 OR (LTV上位20% AND 年3回以上来院) — 仕様書「年3回以上」整合
-	if d.AnnualVisitCount >= 6 || d.AnnualCheckupCount >= 4 ||
-		(d.IsLTVTopPercent && d.AnnualVisitCount >= 3) {
+	switch {
+	case d.TotalVisitCount >= 13:
 		return CPMStageV2Noah
-	}
-	// CPM1: 来院0件 OR (初診30日以内かつ来院1回) — SPEC-005 Q4
-	if d.AnnualVisitCount == 0 ||
-		(d.FirstVisitDaysSince >= 0 && d.FirstVisitDaysSince <= 30 && d.AnnualVisitCount == 1) {
+	case d.TotalVisitCount >= 8:
+		return CPMStageV2Family
+	case d.TotalVisitCount >= 4:
+		return CPMStageV2Good
+	case d.TotalVisitCount >= 2:
+		return CPMStageV2Coming
+	default: // 0 または 1 回
 		return CPMStageV2Encounter
 	}
-	// CPM4: 年1〜2回かつ90日超〜220日以内
-	if d.AnnualVisitCount >= 1 && d.AnnualVisitCount <= 2 && d.DaysSinceVisit > 90 && d.DaysSinceVisit <= 220 {
-		return CPMStageV2Spot
-	}
-	// CPM3: 年3〜5回かつ健診あり
-	if d.AnnualVisitCount >= 3 && d.AnnualVisitCount <= 5 && d.AnnualCheckupCount >= 1 {
-		return CPMStageV2Core
-	}
-	return CPMStageV2Growing
 }
 
 // CPMData は CPM ステージ計算に必要な集計データ。
@@ -931,7 +921,16 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 }
 
 // SyncCPMStageTag は CPM ステージタグを同期する（BE-011）。
+// cpm_version が "v2" のクリニックは SyncCPMStageTagV2 に委譲する（Q19）。
 func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error {
+	version, vErr := s.settingsSvc.GetCPMVersion(ctx, clinicID)
+	if vErr != nil {
+		slog.ErrorContext(ctx, "failed to get cpm_version for CPM dispatch", "error", vErr)
+		return apperrors.Wrap(vErr, "failed to get cpm_version")
+	}
+	if version == "v2" {
+		return s.SyncCPMStageTagV2(ctx, clinicID, ownerID)
+	}
 	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
 		return err
 	} else if skip {
@@ -1993,41 +1992,8 @@ func (s *lstepTagSyncService) SyncCPMStageTagV2(ctx context.Context, clinicID, o
 		return apperrors.Wrap(err, "failed to find visit summary")
 	}
 
-	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find checkups for CPM V2", "error", err)
-		return apperrors.Wrap(err, "failed to find checkups")
-	}
-	annualCutoff := time.Now().AddDate(-1, 0, 0)
-	annualCheckupCount := 0
-	for i := range checkups {
-		c := &checkups[i]
-		if c.Date.After(annualCutoff) {
-			annualCheckupCount++
-		}
-	}
-
-	isTop, err := s.isLTVTopPercent(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check LTV top percent for CPM V2", "error", err)
-		return apperrors.Wrap(err, "failed to check LTV top percent")
-	}
-
-	daysSince := -1
-	if summary.LastVisitAt != nil {
-		daysSince = int(time.Since(*summary.LastVisitAt).Hours() / 24)
-	}
-	firstVisitDaysSince := 0
-	if summary.FirstVisitAt != nil {
-		firstVisitDaysSince = int(time.Since(*summary.FirstVisitAt).Hours() / 24)
-	}
-
 	stage := CalculateCPMStageV2(CPMStageV2Input{
-		AnnualVisitCount:    summary.AnnualCount,
-		AnnualCheckupCount:  annualCheckupCount,
-		DaysSinceVisit:      daysSince,
-		FirstVisitDaysSince: firstVisitDaysSince,
-		IsLTVTopPercent:     isTop,
+		TotalVisitCount: summary.TotalCount,
 	})
 
 	client, err := s.buildClient(ctx, clinicID)

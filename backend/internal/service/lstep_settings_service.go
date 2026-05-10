@@ -63,6 +63,8 @@ type LstepSettingsService interface {
 	// IsSyncEnabled はクリニックのLステップ同期が有効かどうかを返す。
 	// lstep_settings レコードが存在しない場合は false を返す（エラーにはならない）。
 	IsSyncEnabled(ctx context.Context, clinicID uint64) (bool, error)
+	// GetCPMVersion はクリニックの CPM 判定方式を返す。未設定時は "v1" を返す。
+	GetCPMVersion(ctx context.Context, clinicID uint64) (string, error)
 }
 
 type lstepSettingsService struct {
@@ -336,6 +338,21 @@ func (s *lstepSettingsService) GetRawCredentials(ctx context.Context, clinicID u
 		base = "https://api.lstep.jp"
 	}
 	return kvMap[model.IntegrationKeyLstepAPIKey], base, kvMap[model.IntegrationKeyLineChannelAccessToken], nil
+}
+
+// GetCPMVersion はクリニックの CPM 判定方式を返す。レコード未存在または空文字時は "v1" を返す。
+func (s *lstepSettingsService) GetCPMVersion(ctx context.Context, clinicID uint64) (string, error) {
+	if s.clinicSettingsRepo == nil {
+		return "v1", nil
+	}
+	settings, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
+	if err != nil {
+		return "", apperrors.Wrap(err, "failed to find clinic settings")
+	}
+	if settings.CPMVersion == "" {
+		return "v1", nil
+	}
+	return settings.CPMVersion, nil
 }
 
 // IsSyncEnabled はクリニックの同期有効フラグを返す。レコード未作成時は false を返す。

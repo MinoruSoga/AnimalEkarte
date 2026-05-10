@@ -60,6 +60,9 @@ func (m *mockLstepSettingsService) IsSyncEnabled(ctx context.Context, clinicID u
 	}
 	return true, nil
 }
+func (m *mockLstepSettingsService) GetCPMVersion(_ context.Context, _ uint64) (string, error) {
+	return "v1", nil
+}
 
 // ---- LstepTagCacheRepository モック ----
 

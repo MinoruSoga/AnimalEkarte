@@ -55,6 +55,9 @@ func (m *mockLstepSettingsService) GetRawCredentials(_ context.Context, _ uint64
 func (m *mockLstepSettingsService) IsSyncEnabled(_ context.Context, _ uint64) (bool, error) {
 	return false, nil
 }
+func (m *mockLstepSettingsService) GetCPMVersion(_ context.Context, _ uint64) (string, error) {
+	return "v1", nil
+}
 
 // ---- helpers ----
 

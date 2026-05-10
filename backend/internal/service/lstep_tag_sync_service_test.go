@@ -664,7 +664,7 @@ func TestNotifyAPISuccess(t *testing.T) {
 	})
 }
 
-// ---- CalculateCPMStageV2 ----
+// ---- CalculateCPMStageV2 (Q19 確定 2026-05-08) ----
 
 func TestCalculateCPMStageV2(t *testing.T) {
 	cases := []struct {
@@ -672,85 +672,65 @@ func TestCalculateCPMStageV2(t *testing.T) {
 		in   CPMStageV2Input
 		want CPMStageV2
 	}{
+		// 出会い: 累計 0 回
 		{
-			name: "Noah: annual visit >= 6",
-			in:   CPMStageV2Input{AnnualVisitCount: 6},
+			name: "Encounter: 0 visits",
+			in:   CPMStageV2Input{TotalVisitCount: 0},
+			want: CPMStageV2Encounter,
+		},
+		// 出会い: 累計 1 回
+		{
+			name: "Encounter: 1 visit",
+			in:   CPMStageV2Input{TotalVisitCount: 1},
+			want: CPMStageV2Encounter,
+		},
+		// これから: 累計 2 回（下限境界）
+		{
+			name: "Coming: 2 visits (lower boundary)",
+			in:   CPMStageV2Input{TotalVisitCount: 2},
+			want: CPMStageV2Coming,
+		},
+		// これから: 累計 3 回（上限境界）
+		{
+			name: "Coming: 3 visits (upper boundary)",
+			in:   CPMStageV2Input{TotalVisitCount: 3},
+			want: CPMStageV2Coming,
+		},
+		// いいかんじ: 累計 4 回（下限境界）
+		{
+			name: "Good: 4 visits (lower boundary)",
+			in:   CPMStageV2Input{TotalVisitCount: 4},
+			want: CPMStageV2Good,
+		},
+		// いいかんじ: 累計 7 回（上限境界）
+		{
+			name: "Good: 7 visits (upper boundary)",
+			in:   CPMStageV2Input{TotalVisitCount: 7},
+			want: CPMStageV2Good,
+		},
+		// ファミリー: 累計 8 回（下限境界）
+		{
+			name: "Family: 8 visits (lower boundary)",
+			in:   CPMStageV2Input{TotalVisitCount: 8},
+			want: CPMStageV2Family,
+		},
+		// ファミリー: 累計 12 回（上限境界）
+		{
+			name: "Family: 12 visits (upper boundary)",
+			in:   CPMStageV2Input{TotalVisitCount: 12},
+			want: CPMStageV2Family,
+		},
+		// ノア: 累計 13 回（下限境界）
+		{
+			name: "Noah: 13 visits (lower boundary)",
+			in:   CPMStageV2Input{TotalVisitCount: 13},
 			want: CPMStageV2Noah,
 		},
+		// ノア: 累計大量来院
 		{
-			name: "not Noah: annual visit = 5 (no checkup, no LTV)",
-			in:   CPMStageV2Input{AnnualVisitCount: 5, AnnualCheckupCount: 0, DaysSinceVisit: 30, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
-			want: CPMStageV2Growing,
-		},
-		{
-			name: "Noah: annual checkup >= 4",
-			in:   CPMStageV2Input{AnnualCheckupCount: 4},
+			name: "Noah: 100 visits",
+			in:   CPMStageV2Input{TotalVisitCount: 100},
 			want: CPMStageV2Noah,
-		},
-		{
-			name: "not Noah: checkup = 3",
-			in:   CPMStageV2Input{AnnualVisitCount: 2, AnnualCheckupCount: 3, DaysSinceVisit: 30, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
-			want: CPMStageV2Growing,
-		},
-		{
-			name: "Noah: LTV top percent flag with annual visit >= 3",
-			in:   CPMStageV2Input{IsLTVTopPercent: true, AnnualVisitCount: 3},
-			want: CPMStageV2Noah,
-		},
-		{
-			name: "V2 Noah 非該当: LTV 上位 20% かつ来院 0 件 (仕様書「年3回以上」整合)",
-			in:   CPMStageV2Input{AnnualVisitCount: 0, IsLTVTopPercent: true, DaysSinceVisit: -1},
-			want: CPMStageV2Encounter,
-		},
-		{
-			name: "Encounter: first visit within 30 days, visit count = 1",
-			in:   CPMStageV2Input{AnnualVisitCount: 1, AnnualCheckupCount: 0, DaysSinceVisit: 15, FirstVisitDaysSince: 15, IsLTVTopPercent: false},
-			want: CPMStageV2Encounter,
-		},
-		{
-			name: "not Encounter: first visit = 31 days (too old)",
-			in:   CPMStageV2Input{AnnualVisitCount: 1, AnnualCheckupCount: 0, DaysSinceVisit: 31, FirstVisitDaysSince: 31, IsLTVTopPercent: false},
-			want: CPMStageV2Growing,
-		},
-		{
-			name: "Spot: visit 1-2, days 91-220",
-			in:   CPMStageV2Input{AnnualVisitCount: 2, AnnualCheckupCount: 0, DaysSinceVisit: 150, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
-			want: CPMStageV2Spot,
-		},
-		{
-			name: "not Spot: days exactly 90 (boundary)",
-			in:   CPMStageV2Input{AnnualVisitCount: 1, AnnualCheckupCount: 0, DaysSinceVisit: 90, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
-			want: CPMStageV2Growing,
-		},
-		{
-			name: "not Spot: days 221 (boundary exceeded)",
-			in:   CPMStageV2Input{AnnualVisitCount: 1, AnnualCheckupCount: 0, DaysSinceVisit: 221, FirstVisitDaysSince: 221, IsLTVTopPercent: false},
-			want: CPMStageV2Growing,
-		},
-		{
-			name: "Core: visit 3-5 with checkup >= 1",
-			in:   CPMStageV2Input{AnnualVisitCount: 4, AnnualCheckupCount: 2, DaysSinceVisit: 0, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
-			want: CPMStageV2Core,
-		},
-		{
-			name: "not Core: visit 3 but no checkup",
-			in:   CPMStageV2Input{AnnualVisitCount: 3, AnnualCheckupCount: 0, DaysSinceVisit: 30, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
-			want: CPMStageV2Growing,
-		},
-		{
-			name: "Growing: fallback (visit > 0, not matching any stage)",
-			in:   CPMStageV2Input{AnnualVisitCount: 2, AnnualCheckupCount: 0, DaysSinceVisit: 30, FirstVisitDaysSince: 100, IsLTVTopPercent: false},
-			want: CPMStageV2Growing,
-		},
-		{
-			name: "Encounter: visit 0 (default fall-through prevention SPEC-005 Q4)",
-			in:   CPMStageV2Input{AnnualVisitCount: 0, AnnualCheckupCount: 0, DaysSinceVisit: -1, FirstVisitDaysSince: 200, IsLTVTopPercent: false},
-			want: CPMStageV2Encounter,
-		},
-		{
-			name: "Encounter: first visit within 30 days, visit count = 1 (existing behavior maintained)",
-			in:   CPMStageV2Input{AnnualVisitCount: 1, AnnualCheckupCount: 0, DaysSinceVisit: 10, FirstVisitDaysSince: 20, IsLTVTopPercent: false},
-			want: CPMStageV2Encounter,
 		},
 	}
 	for _, tc := range cases {
