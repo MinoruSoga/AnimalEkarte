@@ -41,10 +41,10 @@ type CPMStageV2 string
 
 const (
 	CPMStageV2Encounter CPMStageV2 = "CPM_01_出会い"   // 累計 0〜1 回
-	CPMStageV2Coming    CPMStageV2 = "CPM_02_これから" // 累計 2〜3 回
+	CPMStageV2Coming    CPMStageV2 = "CPM_02_これから"  // 累計 2〜3 回
 	CPMStageV2Good      CPMStageV2 = "CPM_03_いいかんじ" // 累計 4〜7 回
 	CPMStageV2Family    CPMStageV2 = "CPM_04_ファミリー" // 累計 8〜12 回
-	CPMStageV2Noah      CPMStageV2 = "CPM_05_ノア"     // 累計 13 回以上
+	CPMStageV2Noah      CPMStageV2 = "CPM_05_ノア"    // 累計 13 回以上
 )
 
 var allCPMV2Stages = []CPMStageV2{
@@ -1947,25 +1947,6 @@ func (s *lstepTagSyncService) notifyAPIFailure(ctx context.Context, client lstep
 // ─────────────────────────────────────────────────────────────────────────────
 // FEAT-377: CPM V2 / LTV 上位 20% / VISIT / PET / 除外タグ同期
 // ─────────────────────────────────────────────────────────────────────────────
-
-// isLTVTopPercent は ownerID がクリニックの LTV 上位 20% に該当するかを返す（FEAT-377）。
-func (s *lstepTagSyncService) isLTVTopPercent(ctx context.Context, clinicID, ownerID uint64) (bool, error) {
-	revenues, err := s.accountRepo.FindOwnersByAnnualRevenue(ctx, clinicID)
-	if err != nil {
-		return false, apperrors.Wrap(err, "failed to find owners by annual revenue for LTV top percent")
-	}
-	if len(revenues) == 0 {
-		return false, nil
-	}
-	// 上位 20% 件数（切り上げ）
-	topN := (len(revenues)*20 + 99) / 100
-	for i := 0; i < topN; i++ {
-		if revenues[i].OwnerID == ownerID {
-			return true, nil
-		}
-	}
-	return false, nil
-}
 
 // SyncCPMStageTagV2 は来院回数ベース V2 CPM ステージタグを同期する（FEAT-377）。
 func (s *lstepTagSyncService) SyncCPMStageTagV2(ctx context.Context, clinicID, ownerID uint64) error {
