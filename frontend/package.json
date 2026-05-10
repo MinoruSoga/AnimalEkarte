@@ -74,5 +74,8 @@
     "typescript-eslint": "^8.53.0",
     "vite": "^6.0.0",
     "vitest": "^4.0.17"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@swc/core", "esbuild", "msw"]
   }
 }
