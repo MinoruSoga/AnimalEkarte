@@ -42,14 +42,19 @@ func (h *Handler) UpdateLstepSettings(c *gin.Context) {
 		actorID = &staffID
 	}
 	resp, err := h.svc.LstepSettings.UpdateSettings(c.Request.Context(), clinicID, &service.UpdateLstepSettingsInput{
-		LstepAPIKey:            req.LstepAPIKey,
-		LstepBaseURL:           req.LstepBaseURL,
-		LineChannelAccessToken: req.LineChannelAccessToken,
-		LineChannelSecret:      req.LineChannelSecret,
-		LiffID:                 req.LiffID,
-		LineAccountName:        req.LineAccountName,
-		IsSyncEnabled:          req.IsSyncEnabled,
-		FireHourJST:            req.FireHourJST,
+		LstepAPIKey:              req.LstepAPIKey,
+		LstepBaseURL:             req.LstepBaseURL,
+		LineChannelAccessToken:   req.LineChannelAccessToken,
+		LineChannelSecret:        req.LineChannelSecret,
+		LiffID:                   req.LiffID,
+		LineAccountName:          req.LineAccountName,
+		IsSyncEnabled:            req.IsSyncEnabled,
+		FireHourJST:              req.FireHourJST,
+		CPMVersion:               req.CPMVersion,
+		DormantPrevention180Days: req.DormantPrevention180Days,
+		DormantPrevention210Days: req.DormantPrevention210Days,
+		DormantPrevention240Days: req.DormantPrevention240Days,
+		DormantPrevention365Days: req.DormantPrevention365Days,
 	}, actorID)
 	if err != nil {
 		RespondError(c, err)

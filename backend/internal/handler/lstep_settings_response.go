@@ -19,6 +19,11 @@ type lstepSettingsResponse struct {
 	IsSyncEnabled                bool       `json:"is_sync_enabled"`
 	SyncEnabledAt                *time.Time `json:"sync_enabled_at"`
 	FireHourJST                  int        `json:"fire_hour_jst"`
+	CPMVersion                   string     `json:"cpm_version"`
+	DormantPrevention180Days     int        `json:"dormant_prevention_180_days"`
+	DormantPrevention210Days     int        `json:"dormant_prevention_210_days"`
+	DormantPrevention240Days     int        `json:"dormant_prevention_240_days"`
+	DormantPrevention365Days     int        `json:"dormant_prevention_365_days"`
 }
 
 // lstepConnectionTestResponse は疎通確認結果レスポンス
@@ -42,6 +47,11 @@ func toLstepSettingsResponse(s *service.LstepSettingsResponse) lstepSettingsResp
 		IsSyncEnabled:                s.IsSyncEnabled,
 		SyncEnabledAt:                s.SyncEnabledAt,
 		FireHourJST:                  s.FireHourJST,
+		CPMVersion:                   s.CPMVersion,
+		DormantPrevention180Days:     s.DormantPrevention180Days,
+		DormantPrevention210Days:     s.DormantPrevention210Days,
+		DormantPrevention240Days:     s.DormantPrevention240Days,
+		DormantPrevention365Days:     s.DormantPrevention365Days,
 	}
 }
 

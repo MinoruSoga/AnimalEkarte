@@ -15,9 +15,11 @@ import (
 // ---- モックリポジトリ定義 ----
 
 type mockClinicSettingsRepository struct {
-	findByClinicIDFn         func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
-	upsertFn                 func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
-	updateLstepFireHourJSTFn func(ctx context.Context, clinicID uint64, hour int) error
+	findByClinicIDFn          func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
+	upsertFn                  func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
+	updateLstepFireHourJSTFn  func(ctx context.Context, clinicID uint64, hour int) error
+	updateCPMVersionFn        func(ctx context.Context, clinicID uint64, version string) error
+	updateDormantThresholdsFn func(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error
 }
 
 func (m *mockClinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
@@ -36,6 +38,18 @@ func (m *mockClinicSettingsRepository) Save(ctx context.Context, clinicID uint64
 func (m *mockClinicSettingsRepository) UpdateLstepFireHourJST(ctx context.Context, clinicID uint64, hour int) error {
 	if m.updateLstepFireHourJSTFn != nil {
 		return m.updateLstepFireHourJSTFn(ctx, clinicID, hour)
+	}
+	return nil
+}
+func (m *mockClinicSettingsRepository) UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error {
+	if m.updateCPMVersionFn != nil {
+		return m.updateCPMVersionFn(ctx, clinicID, version)
+	}
+	return nil
+}
+func (m *mockClinicSettingsRepository) UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error {
+	if m.updateDormantThresholdsFn != nil {
+		return m.updateDormantThresholdsFn(ctx, clinicID, thresholds)
 	}
 	return nil
 }

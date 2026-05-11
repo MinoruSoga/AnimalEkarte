@@ -112,6 +112,63 @@ function HourSelectField({
   );
 }
 
+function CPMVersionSelectField({
+  id,
+  name,
+  label,
+  defaultValue,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  defaultValue: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className={STYLE.formLabel}>
+        {label}
+      </label>
+      <select
+        id={id}
+        name={name}
+        defaultValue={defaultValue}
+        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full outline-none focus:ring-2 focus:ring-[#2383E2]/30`}
+      >
+        <option value="v1">V1</option>
+        <option value="v2">V2</option>
+      </select>
+    </div>
+  );
+}
+
+function NumberInputField({
+  id,
+  name,
+  label,
+  defaultValue,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  defaultValue: number;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className={STYLE.formLabel}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type="number"
+        name={name}
+        defaultValue={defaultValue}
+        min={1}
+        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full outline-none focus:ring-2 focus:ring-[#2383E2]/30`}
+      />
+    </div>
+  );
+}
+
 function formatSyncDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ja-JP", {
     year: "numeric",
@@ -172,6 +229,32 @@ export function LstepSettingsForm() {
         if (!isNaN(h) && h >= 0 && h <= 23) {
           req.fire_hour_jst = h;
         }
+      }
+
+      const cpmVersion = formData.get("cpm_version");
+      if (cpmVersion === "v1" || cpmVersion === "v2") {
+        req.cpm_version = cpmVersion;
+      }
+
+      const dormant180 = formData.get("dormant_prevention_180_days");
+      if (typeof dormant180 === "string" && dormant180 !== "") {
+        const v = parseInt(dormant180, 10);
+        if (!isNaN(v) && v >= 1) req.dormant_prevention_180_days = v;
+      }
+      const dormant210 = formData.get("dormant_prevention_210_days");
+      if (typeof dormant210 === "string" && dormant210 !== "") {
+        const v = parseInt(dormant210, 10);
+        if (!isNaN(v) && v >= 1) req.dormant_prevention_210_days = v;
+      }
+      const dormant240 = formData.get("dormant_prevention_240_days");
+      if (typeof dormant240 === "string" && dormant240 !== "") {
+        const v = parseInt(dormant240, 10);
+        if (!isNaN(v) && v >= 1) req.dormant_prevention_240_days = v;
+      }
+      const dormant365 = formData.get("dormant_prevention_365_days");
+      if (typeof dormant365 === "string" && dormant365 !== "") {
+        const v = parseInt(dormant365, 10);
+        if (!isNaN(v) && v >= 1) req.dormant_prevention_365_days = v;
       }
 
       // 同期ON/OFFは常に送信（boolean は空欄という概念がないため）
@@ -332,6 +415,38 @@ export function LstepSettingsForm() {
           name="fire_hour_jst"
           label="自動配信実行時刻 (JST)"
           defaultValue={settings?.fire_hour_jst ?? 10}
+        />
+
+        <CPMVersionSelectField
+          id="cpm_version"
+          name="cpm_version"
+          label="CPMバージョン"
+          defaultValue={settings?.cpm_version ?? "v1"}
+        />
+
+        <NumberInputField
+          id="dormant_prevention_180_days"
+          name="dormant_prevention_180_days"
+          label="休眠予防閾値 (180日)"
+          defaultValue={settings?.dormant_prevention_180_days ?? 180}
+        />
+        <NumberInputField
+          id="dormant_prevention_210_days"
+          name="dormant_prevention_210_days"
+          label="休眠予防閾値 (210日)"
+          defaultValue={settings?.dormant_prevention_210_days ?? 210}
+        />
+        <NumberInputField
+          id="dormant_prevention_240_days"
+          name="dormant_prevention_240_days"
+          label="休眠予防閾値 (240日)"
+          defaultValue={settings?.dormant_prevention_240_days ?? 240}
+        />
+        <NumberInputField
+          id="dormant_prevention_365_days"
+          name="dormant_prevention_365_days"
+          label="休眠予防閾値 (365日)"
+          defaultValue={settings?.dormant_prevention_365_days ?? 365}
         />
 
         {/* 配信時刻変更はサーバー再起動後に反映 */}

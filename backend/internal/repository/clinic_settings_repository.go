@@ -19,6 +19,10 @@ type ClinicSettingsRepository interface {
 	// UpdateLstepFireHourJST は lstep_fire_hour_jst のみを対象とした UPSERT。
 	// Save の DoUpdates には含まれないため専用メソッドで対応する。
 	UpdateLstepFireHourJST(ctx context.Context, clinicID uint64, hour int) error
+	// UpdateCPMVersion は cpm_version のみを対象とした UPSERT。
+	UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error
+	// UpdateDormantThresholds は dormant_prevention_*_days 4 カラムを対象とした UPSERT。
+	UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error
 }
 
 type clinicSettingsRepository struct{ db *gorm.DB }
@@ -82,6 +86,57 @@ func (r *clinicSettingsRepository) UpdateLstepFireHourJST(ctx context.Context, c
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"lstep_fire_hour_jst", "updated_at"}),
+		}).
+		Create(s).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
+	}
+	return nil
+}
+
+func (r *clinicSettingsRepository) UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error {
+	s := &model.ClinicSettings{
+		ClinicID:            clinicID,
+		ClosingAmPmBoundary: "14:00",
+		ClosingWeekdayEnd:   "18:30",
+		ClosingSundayEnd:    "17:30",
+		CPMVersion:          version,
+	}
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "clinic_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"cpm_version", "updated_at"}),
+		}).
+		Create(s).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
+	}
+	return nil
+}
+
+func (r *clinicSettingsRepository) UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error {
+	s := &model.ClinicSettings{
+		ClinicID:                 clinicID,
+		ClosingAmPmBoundary:      "14:00",
+		ClosingWeekdayEnd:        "18:30",
+		ClosingSundayEnd:         "17:30",
+		DormantPrevention180Days: thresholds.Stage180,
+		DormantPrevention210Days: thresholds.Stage210,
+		DormantPrevention240Days: thresholds.Stage240,
+		DormantPrevention365Days: thresholds.Stage365,
+	}
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "clinic_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"dormant_prevention_180_days",
+				"dormant_prevention_210_days",
+				"dormant_prevention_240_days",
+				"dormant_prevention_365_days",
+				"updated_at",
+			}),
 		}).
 		Create(s).Error
 	if err != nil {

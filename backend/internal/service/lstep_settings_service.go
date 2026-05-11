@@ -27,6 +27,11 @@ type LstepSettingsResponse struct {
 	IsSyncEnabled                bool       `json:"is_sync_enabled"`
 	SyncEnabledAt                *time.Time `json:"sync_enabled_at"`
 	FireHourJST                  int        `json:"fire_hour_jst"`
+	CPMVersion                   string     `json:"cpm_version"`
+	DormantPrevention180Days     int        `json:"dormant_prevention_180_days"`
+	DormantPrevention210Days     int        `json:"dormant_prevention_210_days"`
+	DormantPrevention240Days     int        `json:"dormant_prevention_240_days"`
+	DormantPrevention365Days     int        `json:"dormant_prevention_365_days"`
 }
 
 // UpdateLstepSettingsInput はPATCHリクエスト用（空文字=変更なし）
@@ -41,6 +46,13 @@ type UpdateLstepSettingsInput struct {
 	IsSyncEnabled *bool
 	// FireHourJST が nil の場合は変更なし。有効値は 0-23。
 	FireHourJST *int
+	// CPMVersion が nil の場合は変更なし。有効値は "v1" / "v2"。
+	CPMVersion *string
+	// DormantPrevention*Days が nil の場合は変更なし。有効値は 1 以上。
+	DormantPrevention180Days *int
+	DormantPrevention210Days *int
+	DormantPrevention240Days *int
+	DormantPrevention365Days *int
 }
 
 // LstepConnectionTestResult は疎通確認結果
@@ -128,6 +140,21 @@ func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64)
 			return nil, apperrors.Wrap(csErr, "failed to find clinic settings")
 		}
 		resp.FireHourJST = cs.LstepFireHourJST
+		if cs.CPMVersion == "" {
+			resp.CPMVersion = "v1"
+		} else {
+			resp.CPMVersion = cs.CPMVersion
+		}
+		thresholds := model.DormantThresholds{
+			Stage180: cs.DormantPrevention180Days,
+			Stage210: cs.DormantPrevention210Days,
+			Stage240: cs.DormantPrevention240Days,
+			Stage365: cs.DormantPrevention365Days,
+		}.WithDefaults()
+		resp.DormantPrevention180Days = thresholds.Stage180
+		resp.DormantPrevention210Days = thresholds.Stage210
+		resp.DormantPrevention240Days = thresholds.Stage240
+		resp.DormantPrevention365Days = thresholds.Stage365
 	}
 
 	return resp, nil
@@ -203,6 +230,61 @@ func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint
 		if err := s.clinicSettingsRepo.UpdateLstepFireHourJST(ctx, clinicID, hour); err != nil {
 			slog.ErrorContext(ctx, "failed to update lstep fire_hour_jst", "error", err, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to update fire_hour_jst")
+		}
+	}
+
+	if input.CPMVersion != nil && s.clinicSettingsRepo != nil {
+		ver := *input.CPMVersion
+		if ver != "v1" && ver != "v2" {
+			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_version must be 'v1' or 'v2', got %q", ver))
+		}
+		if err := s.clinicSettingsRepo.UpdateCPMVersion(ctx, clinicID, ver); err != nil {
+			slog.ErrorContext(ctx, "failed to update cpm_version", "error", err, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(err, "failed to update cpm_version")
+		}
+	}
+
+	if s.clinicSettingsRepo != nil &&
+		(input.DormantPrevention180Days != nil || input.DormantPrevention210Days != nil ||
+			input.DormantPrevention240Days != nil || input.DormantPrevention365Days != nil) {
+		current, csErr := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
+		if csErr != nil {
+			slog.ErrorContext(ctx, "failed to read clinic settings for dormant merge", "error", csErr, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(csErr, "failed to find clinic settings")
+		}
+		thresholds := model.DormantThresholds{
+			Stage180: current.DormantPrevention180Days,
+			Stage210: current.DormantPrevention210Days,
+			Stage240: current.DormantPrevention240Days,
+			Stage365: current.DormantPrevention365Days,
+		}.WithDefaults()
+		if input.DormantPrevention180Days != nil {
+			if *input.DormantPrevention180Days < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("dormant_prevention_180_days must be >= 1, got %d", *input.DormantPrevention180Days))
+			}
+			thresholds.Stage180 = *input.DormantPrevention180Days
+		}
+		if input.DormantPrevention210Days != nil {
+			if *input.DormantPrevention210Days < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("dormant_prevention_210_days must be >= 1, got %d", *input.DormantPrevention210Days))
+			}
+			thresholds.Stage210 = *input.DormantPrevention210Days
+		}
+		if input.DormantPrevention240Days != nil {
+			if *input.DormantPrevention240Days < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("dormant_prevention_240_days must be >= 1, got %d", *input.DormantPrevention240Days))
+			}
+			thresholds.Stage240 = *input.DormantPrevention240Days
+		}
+		if input.DormantPrevention365Days != nil {
+			if *input.DormantPrevention365Days < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("dormant_prevention_365_days must be >= 1, got %d", *input.DormantPrevention365Days))
+			}
+			thresholds.Stage365 = *input.DormantPrevention365Days
+		}
+		if err := s.clinicSettingsRepo.UpdateDormantThresholds(ctx, clinicID, thresholds); err != nil {
+			slog.ErrorContext(ctx, "failed to update dormant thresholds", "error", err, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(err, "failed to update dormant thresholds")
 		}
 	}
 

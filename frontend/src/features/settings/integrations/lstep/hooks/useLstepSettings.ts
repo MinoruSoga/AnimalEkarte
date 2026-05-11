@@ -19,6 +19,11 @@ export interface LstepSettingsResponse {
   is_sync_enabled: boolean;
   sync_enabled_at: string | null;
   fire_hour_jst: number;
+  cpm_version: string;
+  dormant_prevention_180_days: number;
+  dormant_prevention_210_days: number;
+  dormant_prevention_240_days: number;
+  dormant_prevention_365_days: number;
 }
 
 export interface LstepSettingsRequest {
@@ -30,6 +35,11 @@ export interface LstepSettingsRequest {
   line_account_name?: string;
   is_sync_enabled?: boolean;
   fire_hour_jst?: number;
+  cpm_version?: string;
+  dormant_prevention_180_days?: number;
+  dormant_prevention_210_days?: number;
+  dormant_prevention_240_days?: number;
+  dormant_prevention_365_days?: number;
 }
 
 // ─────────────────────────────────────────────────

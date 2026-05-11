@@ -22,6 +22,11 @@ const configuredSyncOn: LstepSettingsResponse = {
   is_sync_enabled: true,
   sync_enabled_at: '2026-03-15T10:00:00Z',
   fire_hour_jst: 10,
+  cpm_version: 'v1',
+  dormant_prevention_180_days: 180,
+  dormant_prevention_210_days: 210,
+  dormant_prevention_240_days: 240,
+  dormant_prevention_365_days: 365,
 };
 
 const configuredSyncOff: LstepSettingsResponse = {
@@ -42,6 +47,11 @@ const unconfigured: LstepSettingsResponse = {
   is_sync_enabled: false,
   sync_enabled_at: null,
   fire_hour_jst: 10,
+  cpm_version: 'v1',
+  dormant_prevention_180_days: 180,
+  dormant_prevention_210_days: 210,
+  dormant_prevention_240_days: 240,
+  dormant_prevention_365_days: 365,
 };
 
 function setupGetHandler(data: LstepSettingsResponse) {
@@ -359,5 +369,62 @@ describe('LstepSettingsForm — E: 自動配信時刻 (FEAT-383)', () => {
       expect(capturedBody).not.toBeNull();
     });
     expect(capturedBody?.fire_hour_jst).toBe(14);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// F: CPMバージョン・休眠閾値 (Q19+Q21)
+// ─────────────────────────────────────────────────────────────
+
+describe('LstepSettingsForm — F: CPMバージョン・休眠閾値 (Q19+Q21 Phase C-2)', () => {
+  it('"CPMバージョン" select が表示され defaultValue が選択されている', async () => {
+    await renderAndWait({ ...configuredSyncOn, cpm_version: 'v2' });
+    const select = screen.getByLabelText('CPMバージョン');
+    expect(select).toBeInTheDocument();
+    expect((select as HTMLSelectElement).value).toBe('v2');
+  });
+
+  it('休眠閾値 (180日) input の defaultValue が表示されている', async () => {
+    await renderAndWait({ ...configuredSyncOn, dormant_prevention_180_days: 200 });
+    const input = screen.getByLabelText('休眠予防閾値 (180日)');
+    expect((input as HTMLInputElement).value).toBe('200');
+  });
+
+  it('保存すると PATCH body に cpm_version が含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(configuredSyncOn);
+      })
+    );
+
+    await renderAndWait({ ...configuredSyncOn, cpm_version: 'v1' });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.cpm_version).toBe('v1');
+  });
+
+  it('保存すると PATCH body に dormant_prevention_180_days が数値で含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(configuredSyncOn);
+      })
+    );
+
+    await renderAndWait({ ...configuredSyncOn, dormant_prevention_180_days: 180 });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.dormant_prevention_180_days).toBe(180);
   });
 });
