@@ -1577,6 +1577,7 @@ export interface Owner {
   line_followed_at?: string;
   line_blocked_at?: string;
   line_id_confirmed_at?: string;
+  line_id_confirmed_by?: number /* uint64 */;
   delivery_excluded: boolean;
   delivery_excluded_reason?: string;
   delivery_caution: boolean;
