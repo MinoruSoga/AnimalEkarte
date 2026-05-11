@@ -338,3 +338,59 @@ func TestUpdateSettings_FireHourJSTNil_Skips(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, called)
 }
+
+// TestGetDormantThresholds_DBValues: DB に値があれば DB 値を返す
+func TestGetDormantThresholds_DBValues(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return &model.ClinicSettings{
+				DormantPrevention180Days: 175,
+				DormantPrevention210Days: 200,
+				DormantPrevention240Days: 230,
+				DormantPrevention365Days: 350,
+			}, nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	got, err := svc.GetDormantThresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.DormantThresholds{Stage180: 175, Stage210: 200, Stage240: 230, Stage365: 350}, got)
+}
+
+// TestGetDormantThresholds_ZeroFallback: DB 値が 0 ならデフォルト補完される
+func TestGetDormantThresholds_ZeroFallback(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return &model.ClinicSettings{
+				DormantPrevention180Days: 0,
+				DormantPrevention210Days: 0,
+				DormantPrevention240Days: 0,
+				DormantPrevention365Days: 0,
+			}, nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	got, err := svc.GetDormantThresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.DormantThresholds{Stage180: 180, Stage210: 210, Stage240: 240, Stage365: 365}, got)
+}
+
+// TestGetDormantThresholds_NilRepo: clinicSettingsRepo が nil の場合はデフォルト値を返す
+func TestGetDormantThresholds_NilRepo(t *testing.T) {
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, nil)
+	got, err := svc.GetDormantThresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.DormantThresholds{Stage180: 180, Stage210: 210, Stage240: 240, Stage365: 365}, got)
+}
+
+// TestGetDormantThresholds_RepoError: リポジトリエラー時はエラーを返す
+func TestGetDormantThresholds_RepoError(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	_, err := svc.GetDormantThresholds(context.Background(), 1)
+	assert.Error(t, err)
+}

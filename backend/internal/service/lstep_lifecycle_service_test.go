@@ -63,6 +63,9 @@ func (m *mockLstepSettingsService) IsSyncEnabled(ctx context.Context, clinicID u
 func (m *mockLstepSettingsService) GetCPMVersion(_ context.Context, _ uint64) (string, error) {
 	return "v1", nil
 }
+func (m *mockLstepSettingsService) GetDormantThresholds(_ context.Context, _ uint64) (model.DormantThresholds, error) {
+	return model.DormantThresholds{}.WithDefaults(), nil
+}
 
 // ---- LstepTagCacheRepository モック ----
 

@@ -1843,16 +1843,21 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 		return nil
 	}
 
-	// 付与すべき dormant タグを決定（閾値: 180/210/240/365）
+	// 付与すべき dormant タグを決定（閾値は clinic_settings から取得、Q21）
+	thresholds, tErr := s.settingsSvc.GetDormantThresholds(ctx, clinicID)
+	if tErr != nil {
+		slog.ErrorContext(ctx, "SyncDormantTags: failed to get dormant thresholds", "clinic_id", clinicID, "error", tErr)
+		return apperrors.Wrap(tErr, "failed to get dormant thresholds")
+	}
 	var targetTag string
 	switch {
-	case daysSinceLastVisit < 0 || daysSinceLastVisit >= 365:
+	case daysSinceLastVisit < 0 || daysSinceLastVisit >= thresholds.Stage365:
 		targetTag = "dormant_365d"
-	case daysSinceLastVisit >= 240:
+	case daysSinceLastVisit >= thresholds.Stage240:
 		targetTag = "dormant_240d"
-	case daysSinceLastVisit >= 210:
+	case daysSinceLastVisit >= thresholds.Stage210:
 		targetTag = "dormant_210d"
-	case daysSinceLastVisit >= 180:
+	case daysSinceLastVisit >= thresholds.Stage180:
 		targetTag = "dormant_180d"
 	}
 

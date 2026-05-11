@@ -318,7 +318,12 @@ func (s *lstepDeliveryTriggerService) TriggerBirthdayMessage(ctx context.Context
 }
 
 func (s *lstepDeliveryTriggerService) TriggerDormantPrevention180(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
-	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, 180, asOf)
+	thresholds, err := s.settingsSvc.GetDormantThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_180d: get thresholds error", "clinic_id", clinicID, "error", err)
+		return 0, []error{apperrors.Wrap(err, "failed to get dormant thresholds")}
+	}
+	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, thresholds.Stage180, asOf)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_180d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}
@@ -327,7 +332,12 @@ func (s *lstepDeliveryTriggerService) TriggerDormantPrevention180(ctx context.Co
 }
 
 func (s *lstepDeliveryTriggerService) TriggerDormantPrevention210(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
-	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, 210, asOf)
+	thresholds, err := s.settingsSvc.GetDormantThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_210d: get thresholds error", "clinic_id", clinicID, "error", err)
+		return 0, []error{apperrors.Wrap(err, "failed to get dormant thresholds")}
+	}
+	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, thresholds.Stage210, asOf)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_210d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}
@@ -336,7 +346,12 @@ func (s *lstepDeliveryTriggerService) TriggerDormantPrevention210(ctx context.Co
 }
 
 func (s *lstepDeliveryTriggerService) TriggerDormantPrevention240(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
-	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, 240, asOf)
+	thresholds, err := s.settingsSvc.GetDormantThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_240d: get thresholds error", "clinic_id", clinicID, "error", err)
+		return 0, []error{apperrors.Wrap(err, "failed to get dormant thresholds")}
+	}
+	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, thresholds.Stage240, asOf)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_240d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}
@@ -345,7 +360,12 @@ func (s *lstepDeliveryTriggerService) TriggerDormantPrevention240(ctx context.Co
 }
 
 func (s *lstepDeliveryTriggerService) TriggerDormantPrevention365(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
-	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, 365, asOf)
+	thresholds, err := s.settingsSvc.GetDormantThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_365d: get thresholds error", "clinic_id", clinicID, "error", err)
+		return 0, []error{apperrors.Wrap(err, "failed to get dormant thresholds")}
+	}
+	ownerIDs, err := s.medRecordRepo.FindOwnersByLastVisitDays(ctx, clinicID, thresholds.Stage365, asOf)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_365d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}

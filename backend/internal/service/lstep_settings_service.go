@@ -65,6 +65,8 @@ type LstepSettingsService interface {
 	IsSyncEnabled(ctx context.Context, clinicID uint64) (bool, error)
 	// GetCPMVersion はクリニックの CPM 判定方式を返す。未設定時は "v1" を返す。
 	GetCPMVersion(ctx context.Context, clinicID uint64) (string, error)
+	// GetDormantThresholds はクリニックの dormant prevention 4 段階閾値を返す。DB 値が 0 以下なら default で補完する。
+	GetDormantThresholds(ctx context.Context, clinicID uint64) (model.DormantThresholds, error)
 }
 
 type lstepSettingsService struct {
@@ -353,6 +355,24 @@ func (s *lstepSettingsService) GetCPMVersion(ctx context.Context, clinicID uint6
 		return "v1", nil
 	}
 	return settings.CPMVersion, nil
+}
+
+// GetDormantThresholds はクリニックの dormant prevention 4 段階閾値を返す。DB 値が 0 以下なら default で補完する。
+func (s *lstepSettingsService) GetDormantThresholds(ctx context.Context, clinicID uint64) (model.DormantThresholds, error) {
+	if s.clinicSettingsRepo == nil {
+		return model.DormantThresholds{}.WithDefaults(), nil
+	}
+	settings, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get clinic settings for dormant thresholds", "clinic_id", clinicID, "error", err)
+		return model.DormantThresholds{}, apperrors.Wrap(err, "failed to find clinic settings for dormant thresholds")
+	}
+	return model.DormantThresholds{
+		Stage180: settings.DormantPrevention180Days,
+		Stage210: settings.DormantPrevention210Days,
+		Stage240: settings.DormantPrevention240Days,
+		Stage365: settings.DormantPrevention365Days,
+	}.WithDefaults(), nil
 }
 
 // IsSyncEnabled はクリニックの同期有効フラグを返す。レコード未作成時は false を返す。
