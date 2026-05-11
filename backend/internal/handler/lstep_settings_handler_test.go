@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -57,6 +58,9 @@ func (m *mockLstepSettingsService) IsSyncEnabled(_ context.Context, _ uint64) (b
 }
 func (m *mockLstepSettingsService) GetCPMVersion(_ context.Context, _ uint64) (string, error) {
 	return "v1", nil
+}
+func (m *mockLstepSettingsService) GetDormantThresholds(_ context.Context, _ uint64) (model.DormantThresholds, error) {
+	return model.DormantThresholds{}.WithDefaults(), nil
 }
 
 // ---- helpers ----

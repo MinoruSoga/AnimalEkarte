@@ -509,6 +509,13 @@ export interface ClinicSettings {
   closed_weekdays: any /* pq.Int64Array */;
   lstep_fire_hour_jst: number /* int */;
   cpm_version: string;
+  /**
+   * Q21 SPEC-004 dormant prevention 閾値 (clinic 単位調整可能)
+   */
+  dormant_prevention_180_days: number /* int */;
+  dormant_prevention_210_days: number /* int */;
+  dormant_prevention_240_days: number /* int */;
+  dormant_prevention_365_days: number /* int */;
   created_at: string;
   updated_at: string;
 }
@@ -633,6 +640,39 @@ export interface DiagnosisName {
    * Relations
    */
   category?: DiagnosisType;
+}
+
+//////////
+// source: dormant_thresholds.go
+
+/**
+ * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
+ */
+export const DefaultDormantPrevention180Days = 180;
+/**
+ * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
+ */
+export const DefaultDormantPrevention210Days = 210;
+/**
+ * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
+ */
+export const DefaultDormantPrevention240Days = 240;
+/**
+ * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
+ */
+export const DefaultDormantPrevention365Days = 365;
+/**
+ * DormantThresholds は dormant prevention 4 段階閾値を集約した DTO。
+ */
+export interface DormantThresholds {
+  Stage180: number /* int */;
+  Stage210: number /* int */;
+  Stage240: number /* int */;
+  Stage365: number /* int */;
 }
 
 //////////
