@@ -70,6 +70,7 @@ type ownerResponse struct {
 	DiscountRate           float64              `json:"discount_rate"`
 	MembershipType         string               `json:"membership_type"`
 	LineIDConfirmedAt      *time.Time           `json:"line_id_confirmed_at,omitempty"`
+	LineIDConfirmedBy      *uint64              `json:"line_id_confirmed_by,omitempty"`
 	DeliveryExcluded       bool                 `json:"delivery_excluded"`
 	DeliveryExcludedReason *string              `json:"delivery_excluded_reason,omitempty"`
 	DeliveryCaution        bool                 `json:"delivery_caution"`
@@ -152,6 +153,7 @@ func toOwnerResponse(o *model.Owner) ownerResponse {
 		DiscountRate:           o.DiscountRate,
 		MembershipType:         string(o.MembershipType),
 		LineIDConfirmedAt:      o.LineIDConfirmedAt,
+		LineIDConfirmedBy:      o.LineIDConfirmedBy,
 		DeliveryExcluded:       o.DeliveryExcluded,
 		DeliveryExcludedReason: o.DeliveryExcludedReason,
 		DeliveryCaution:        o.DeliveryCaution,

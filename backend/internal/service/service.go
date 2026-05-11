@@ -158,7 +158,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		StaffClinicAssignment:          NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
 		Audit:                          auditSvc,
 		AnimalSpecies:                  NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
-		Owner:                          NewOwnerService(repos.Owner, lstepTagSyncSvc),
+		Owner:                          NewOwnerService(repos.Owner, lstepTagSyncSvc, auditSvc),
 		Pet:                            NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
 		Reservation:                    NewReservationService(repos.Reservation, tx),
 		MedicalRecord:                  NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, nil, nil, auditSvc),

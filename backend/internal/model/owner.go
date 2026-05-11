@@ -42,6 +42,7 @@ type Owner struct {
 	LineFollowedAt         *time.Time     `gorm:"column:line_followed_at"                        json:"line_followed_at,omitempty"`
 	LineBlockedAt          *time.Time     `gorm:"column:line_blocked_at"                         json:"line_blocked_at,omitempty"`
 	LineIDConfirmedAt      *time.Time     `gorm:"column:line_id_confirmed_at"                    json:"line_id_confirmed_at,omitempty"`
+	LineIDConfirmedBy      *uint64        `gorm:"column:line_id_confirmed_by"                    json:"line_id_confirmed_by,omitempty"`
 	DeliveryExcluded       bool           `gorm:"column:delivery_excluded;default:false"         json:"delivery_excluded"`
 	DeliveryExcludedReason *string        `gorm:"column:delivery_excluded_reason"                json:"delivery_excluded_reason,omitempty"`
 	DeliveryCaution        bool           `gorm:"column:delivery_caution;default:false"          json:"delivery_caution"`

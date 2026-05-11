@@ -36,6 +36,7 @@ const (
 	colLstepOptOutAt          = "lstep_opt_out_at"
 	colLstepOptOutReason      = "lstep_opt_out_reason"
 	colLineIDConfirmedAt      = "line_id_confirmed_at"
+	colLineIDConfirmedBy      = "line_id_confirmed_by"
 	colDeliveryExcluded       = "delivery_excluded"
 	colDeliveryExcludedReason = "delivery_excluded_reason"
 	colDeliveryCaution        = "delivery_caution"
@@ -194,15 +195,18 @@ type OwnerService interface {
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateOwnerInput) (*model.Owner, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// LinkLineUserID は飼主の LINE User ID を設定または解除する（BE-005）。nil で解除。
-	LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error
+	// 同一クリニック内で重複する lineUserID がある場合は 409 Conflict を返す。
+	// actorUserID は監査ログ記録用（nil 可）。
+	LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string, actorUserID *uint64) error
 	// UpdateDeliveryExclusion は配信除外フラグと理由を更新し、Lステップタグを同期する（FEAT-381）。
 	UpdateDeliveryExclusion(ctx context.Context, clinicID, id uint64, input UpdateDeliveryExclusionInput) (*model.Owner, error)
 	// UpdateDeliveryCaution は配信注意フラグと理由を更新し、Lステップタグを同期する（FEAT-381-2）。
 	UpdateDeliveryCaution(ctx context.Context, clinicID, id uint64, input UpdateDeliveryCautionInput) (*model.Owner, error)
 	// UpdateTransferStatus は転院フラグと転院日時を更新し、Lステップタグを同期する（FEAT-381）。
 	UpdateTransferStatus(ctx context.Context, clinicID, id uint64, input UpdateTransferStatusInput) (*model.Owner, error)
-	// ConfirmLineID は LINE ID 紐付け確認日時を現在時刻に設定する（FEAT-381）。
-	ConfirmLineID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	// ConfirmLineID は LINE ID 紐付け確認日時と確認者を設定する（FEAT-381 + Q22）。
+	// actorUserID は確認者として line_id_confirmed_by に記録される（nil 可）。
+	ConfirmLineID(ctx context.Context, clinicID, id uint64, actorUserID *uint64) (*model.Owner, error)
 }
 
 // --- Implementation ---
@@ -210,10 +214,11 @@ type OwnerService interface {
 type ownerService struct {
 	repo       repository.OwnerRepository
 	tagSyncSvc LstepTagSyncService
+	auditSvc   AuditService
 }
 
-func NewOwnerService(repo repository.OwnerRepository, tagSyncSvc LstepTagSyncService) OwnerService {
-	return &ownerService{repo: repo, tagSyncSvc: tagSyncSvc}
+func NewOwnerService(repo repository.OwnerRepository, tagSyncSvc LstepTagSyncService, auditSvc AuditService) OwnerService {
+	return &ownerService{repo: repo, tagSyncSvc: tagSyncSvc, auditSvc: auditSvc}
 }
 
 func (s *ownerService) List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -493,13 +498,30 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 	return nil
 }
 
-func (s *ownerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
+func (s *ownerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string, actorUserID *uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find owner")
+	}
+	// Q22 Guard 1: 同一クリニック内で LINE User ID が重複していないか確認する。
+	if lineUserID != nil {
+		existing, err := s.repo.FindByLineUserID(ctx, clinicID, *lineUserID)
+		if err == nil && existing != nil && existing.ID != id {
+			return apperrors.WrapConflict("この LINE User ID はすでに別の飼主に紐付けられています")
+		}
 	}
 	if err := s.repo.UpdateLineUserID(ctx, clinicID, id, lineUserID); err != nil {
 		slog.ErrorContext(ctx, "failed to link line user id", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to link line user id")
+	}
+	// Q22 Guard 3: 監査ログ（best-effort — 失敗してもリンク操作は続行）。
+	if s.auditSvc != nil {
+		action := "owner.line_id.link"
+		if lineUserID == nil {
+			action = "owner.line_id.unlink"
+		}
+		if logErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorUserID, action, "owner", &id); logErr != nil {
+			slog.WarnContext(ctx, "audit log failed for line id link", "error", logErr, "owner_id", id)
+		}
 	}
 	return nil
 }
@@ -636,7 +658,7 @@ func (s *ownerService) UpdateTransferStatus(ctx context.Context, clinicID, id ui
 	return updated, nil
 }
 
-func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
+func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64, actorUserID *uint64) (*model.Owner, error) {
 	owner, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find owner")
@@ -645,8 +667,10 @@ func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64) (
 		return nil, apperrors.WrapInvalidInput("LINE User ID is not linked")
 	}
 	now := time.Now()
+	// Q22 Guard 2: 確認者（actorUserID）を line_id_confirmed_by に記録する。
 	fields := map[string]any{
 		colLineIDConfirmedAt: now,
+		colLineIDConfirmedBy: actorUserID,
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		slog.ErrorContext(ctx, "failed to confirm line id", "error", err, "id", id, "clinic_id", clinicID)
@@ -655,6 +679,12 @@ func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64) (
 	slog.InfoContext(ctx, "line id confirmed",
 		slog.Uint64("owner_id", id),
 		slog.Uint64("clinic_id", clinicID))
+	// Q22 Guard 3: 監査ログ（best-effort）。
+	if s.auditSvc != nil {
+		if logErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorUserID, "owner.line_id.confirm", "owner", &id); logErr != nil {
+			slog.WarnContext(ctx, "audit log failed for line id confirm", "error", logErr, "owner_id", id)
+		}
+	}
 	updated, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to reload owner after line id confirmation", "error", err, "id", id, "clinic_id", clinicID)

@@ -206,7 +206,8 @@ func (h *Handler) PatchOwnerLineUserID(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	if err := h.svc.Owner.LinkLineUserID(c.Request.Context(), clinicID, id, req.LineUserID); err != nil {
+	actorID := optionalStaffID(c)
+	if err := h.svc.Owner.LinkLineUserID(c.Request.Context(), clinicID, id, req.LineUserID, actorID); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -307,7 +308,8 @@ func (h *Handler) PatchOwnerLineIDConfirm(c *gin.Context) {
 	if !ok {
 		return
 	}
-	owner, err := h.svc.Owner.ConfirmLineID(c.Request.Context(), clinicID, id)
+	actorID := optionalStaffID(c)
+	owner, err := h.svc.Owner.ConfirmLineID(c.Request.Context(), clinicID, id, actorID)
 	if err != nil {
 		RespondError(c, err)
 		return

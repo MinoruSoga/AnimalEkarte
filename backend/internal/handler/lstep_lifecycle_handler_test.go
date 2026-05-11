@@ -463,7 +463,7 @@ func TestDeleteOwnerLine(t *testing.T) {
 			name:    "returns 204 on success (unlinks LINE user)",
 			paramID: "4",
 			ownerSvc: &mockOwnerService{
-				linkLineUserIDFn: func(_ context.Context, clinicID, id uint64, lineUserID *string) error {
+				linkLineUserIDFn: func(_ context.Context, clinicID, id uint64, lineUserID *string, _ *uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(4), id)
 					assert.Nil(t, lineUserID, "unlink must pass nil")
@@ -488,7 +488,7 @@ func TestDeleteOwnerLine(t *testing.T) {
 			name:    "returns 404 when owner not found",
 			paramID: "999",
 			ownerSvc: &mockOwnerService{
-				linkLineUserIDFn: func(_ context.Context, _, _ uint64, _ *string) error {
+				linkLineUserIDFn: func(_ context.Context, _, _ uint64, _ *string, _ *uint64) error {
 					return apperrors.WrapNotFound("owner", "999")
 				},
 			},

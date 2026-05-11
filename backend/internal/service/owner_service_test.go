@@ -23,6 +23,8 @@ type mockOwnerRepository struct {
 	updateFn             func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn             func(ctx context.Context, clinicID, id uint64) error
 	countPetsByOwnerIDFn func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	findByLineUserIDFn   func(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error)
+	updateLineUserIDFn   func(ctx context.Context, clinicID, id uint64, lineUserID *string) error
 }
 
 func (m *mockOwnerRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -76,7 +78,10 @@ func (m *mockOwnerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, 
 	return 0, nil
 }
 
-func (m *mockOwnerRepository) FindByLineUserID(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+func (m *mockOwnerRepository) FindByLineUserID(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error) {
+	if m.findByLineUserIDFn != nil {
+		return m.findByLineUserIDFn(ctx, clinicID, lineUserID)
+	}
 	return nil, nil
 }
 
@@ -84,7 +89,10 @@ func (m *mockOwnerRepository) FindAllWithLineUserID(_ context.Context, _ uint64)
 	return nil, nil
 }
 
-func (m *mockOwnerRepository) UpdateLineUserID(_ context.Context, _, _ uint64, _ *string) error {
+func (m *mockOwnerRepository) UpdateLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
+	if m.updateLineUserIDFn != nil {
+		return m.updateLineUserIDFn(ctx, clinicID, id, lineUserID)
+	}
 	return nil
 }
 
@@ -182,7 +190,7 @@ func TestOwnerService_List(t *testing.T) {
 					return tt.repoOwners, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{})
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
 
 			owners, total, err := svc.List(context.Background(), tt.clinicID, tt.page, tt.limit, tt.search)
 
@@ -243,7 +251,7 @@ func TestOwnerService_GetByID(t *testing.T) {
 					return tt.repoOwner, tt.repoErr
 				},
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{})
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
 
 			owner, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -266,7 +274,7 @@ func TestOwnerService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("owner", "999")
 		},
 	}
-	svc := NewOwnerService(repo, &mockLstepTagSyncService{})
+	svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
 
 	owner, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -361,7 +369,7 @@ func TestOwnerService_CreateWithPets(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{})
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
 
 			owner, err := svc.CreateWithPets(context.Background(), tt.clinicID, &tt.input)
 
@@ -489,7 +497,7 @@ func TestOwnerService_Update(t *testing.T) {
 				},
 				findByIDFn: findByIDFn,
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{})
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
 
 			owner, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
 
@@ -569,7 +577,7 @@ func TestOwnerService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{})
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -658,7 +666,7 @@ func TestOwnerService_UpdateDeliveryExclusion(t *testing.T) {
 					return tt.updateErr
 				},
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{})
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
 
 			owner, err := svc.UpdateDeliveryExclusion(context.Background(), tt.clinicID, tt.id, tt.input)
 
@@ -758,7 +766,7 @@ func TestOwnerService_UpdateTransferStatus(t *testing.T) {
 					return tt.updateErr
 				},
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{})
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
 
 			owner, err := svc.UpdateTransferStatus(context.Background(), tt.clinicID, tt.id, tt.input)
 
@@ -781,6 +789,106 @@ func TestOwnerService_UpdateTransferStatus(t *testing.T) {
 						assert.Equal(t, model.MembershipTypeNonMember, capturedFields[colMembershipType])
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestOwnerService_LinkLineUserID(t *testing.T) {
+	lineUserID := "Uabc123"
+	existingOwnerID := uint64(99)
+	tests := []struct {
+		name            string
+		clinicID        uint64
+		id              uint64
+		lineUserID      *string
+		findErr         error
+		findByLineIDRet *model.Owner
+		updateLineErr   error
+		wantErr         bool
+		wantConflict    bool
+		wantNotFound    bool
+	}{
+		{
+			name:       "links LINE user id successfully",
+			clinicID:   1,
+			id:         10,
+			lineUserID: &lineUserID,
+			wantErr:    false,
+		},
+		{
+			name:       "unlinks LINE user id (nil) successfully",
+			clinicID:   1,
+			id:         10,
+			lineUserID: nil,
+			wantErr:    false,
+		},
+		{
+			name:            "returns 409 conflict when LINE id belongs to another owner",
+			clinicID:        1,
+			id:              10,
+			lineUserID:      &lineUserID,
+			findByLineIDRet: &model.Owner{ID: existingOwnerID, ClinicID: 1},
+			wantErr:         true,
+			wantConflict:    true,
+		},
+		{
+			name:            "no conflict when LINE id belongs to same owner",
+			clinicID:        1,
+			id:              10,
+			lineUserID:      &lineUserID,
+			findByLineIDRet: &model.Owner{ID: 10, ClinicID: 1},
+			wantErr:         false,
+		},
+		{
+			name:         "returns not found when owner does not exist",
+			clinicID:     1,
+			id:           999,
+			lineUserID:   &lineUserID,
+			findErr:      apperrors.WrapNotFound("owner", "999"),
+			wantErr:      true,
+			wantNotFound: true,
+		},
+		{
+			name:          "returns error on repository update failure",
+			clinicID:      1,
+			id:            10,
+			lineUserID:    &lineUserID,
+			updateLineErr: errors.New("db error"),
+			wantErr:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockOwnerRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+					if tt.findErr != nil {
+						return nil, tt.findErr
+					}
+					return &model.Owner{ID: tt.id, ClinicID: tt.clinicID}, nil
+				},
+				findByLineUserIDFn: func(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+					return tt.findByLineIDRet, nil
+				},
+				updateLineUserIDFn: func(_ context.Context, _, _ uint64, _ *string) error {
+					return tt.updateLineErr
+				},
+			}
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+
+			err := svc.LinkLineUserID(context.Background(), tt.clinicID, tt.id, tt.lineUserID, nil)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
+				}
+				if tt.wantNotFound {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -846,9 +954,9 @@ func TestOwnerService_ConfirmLineID(t *testing.T) {
 					return tt.updateErr
 				},
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{})
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
 
-			owner, err := svc.ConfirmLineID(context.Background(), tt.clinicID, tt.id)
+			owner, err := svc.ConfirmLineID(context.Background(), tt.clinicID, tt.id, nil)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -863,6 +971,8 @@ func TestOwnerService_ConfirmLineID(t *testing.T) {
 				assert.NotNil(t, owner)
 				_, ok := capturedFields[colLineIDConfirmedAt].(time.Time)
 				assert.True(t, ok, "line_id_confirmed_at should be set to a time.Time value")
+				_, hasConfirmedBy := capturedFields[colLineIDConfirmedBy]
+				assert.True(t, hasConfirmedBy, "line_id_confirmed_by should be present in update fields")
 			}
 		})
 	}
@@ -937,7 +1047,7 @@ func TestOwnerService_UpdateDeliveryCaution(t *testing.T) {
 					return tt.updateErr
 				},
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{})
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
 
 			owner, err := svc.UpdateDeliveryCaution(context.Background(), tt.clinicID, tt.id, tt.input)
 

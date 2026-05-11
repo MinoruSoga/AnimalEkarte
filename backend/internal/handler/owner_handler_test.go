@@ -28,11 +28,11 @@ type mockOwnerService struct {
 	createWithPetsFn          func(ctx context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error)
 	updateFn                  func(ctx context.Context, clinicID, id uint64, input *service.UpdateOwnerInput) (*model.Owner, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
-	linkLineUserIDFn          func(ctx context.Context, clinicID, id uint64, lineUserID *string) error
+	linkLineUserIDFn          func(ctx context.Context, clinicID, id uint64, lineUserID *string, actorUserID *uint64) error
 	updateDeliveryExclusionFn func(ctx context.Context, clinicID, id uint64, input service.UpdateDeliveryExclusionInput) (*model.Owner, error)
 	updateDeliveryCautionFn   func(ctx context.Context, clinicID, id uint64, input service.UpdateDeliveryCautionInput) (*model.Owner, error)
 	updateTransferStatusFn    func(ctx context.Context, clinicID, id uint64, input service.UpdateTransferStatusInput) (*model.Owner, error)
-	confirmLineIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	confirmLineIDFn           func(ctx context.Context, clinicID, id uint64, actorUserID *uint64) (*model.Owner, error)
 }
 
 func (m *mockOwnerService) List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -55,9 +55,9 @@ func (m *mockOwnerService) Delete(ctx context.Context, clinicID, id uint64) erro
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockOwnerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
+func (m *mockOwnerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string, actorUserID *uint64) error {
 	if m.linkLineUserIDFn != nil {
-		return m.linkLineUserIDFn(ctx, clinicID, id, lineUserID)
+		return m.linkLineUserIDFn(ctx, clinicID, id, lineUserID, actorUserID)
 	}
 	return nil
 }
@@ -83,9 +83,9 @@ func (m *mockOwnerService) UpdateDeliveryCaution(ctx context.Context, clinicID, 
 	return &model.Owner{ID: id, ClinicID: clinicID}, nil
 }
 
-func (m *mockOwnerService) ConfirmLineID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
+func (m *mockOwnerService) ConfirmLineID(ctx context.Context, clinicID, id uint64, actorUserID *uint64) (*model.Owner, error) {
 	if m.confirmLineIDFn != nil {
-		return m.confirmLineIDFn(ctx, clinicID, id)
+		return m.confirmLineIDFn(ctx, clinicID, id, actorUserID)
 	}
 	return &model.Owner{ID: id, ClinicID: clinicID}, nil
 }
@@ -798,7 +798,7 @@ func TestPatchOwnerLineIDConfirm(t *testing.T) {
 			name:    "confirms line id successfully",
 			paramID: "1",
 			svc: &mockOwnerService{
-				confirmLineIDFn: func(_ context.Context, clinicID, id uint64) (*model.Owner, error) {
+				confirmLineIDFn: func(_ context.Context, clinicID, id uint64, _ *uint64) (*model.Owner, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
 					now := time.Now()
@@ -817,7 +817,7 @@ func TestPatchOwnerLineIDConfirm(t *testing.T) {
 			name:    "returns 404 when owner not found",
 			paramID: "999",
 			svc: &mockOwnerService{
-				confirmLineIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				confirmLineIDFn: func(_ context.Context, _, _ uint64, _ *uint64) (*model.Owner, error) {
 					return nil, apperrors.WrapNotFound("owner", "999")
 				},
 			},
