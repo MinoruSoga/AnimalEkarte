@@ -20,3 +20,47 @@ export interface CheckupFilters {
   nextStartDate?: string;
   nextEndDate?: string;
 }
+
+// --- Checkup Alerts (GET /v1/checkups/alerts) ---
+
+export interface BackendCheckupAlertItem {
+  checkup_id: number;
+  pet_id: number;
+  pet_name: string;
+  owner_name: string;
+  checkup_type_name: string;
+  last_checkup_date: string | null;
+  next_date: string;
+  days: number;
+}
+
+export interface BackendCheckupAlertCategory {
+  count: number;
+  items: BackendCheckupAlertItem[];
+}
+
+export interface BackendCheckupAlertsResponse {
+  overdue: BackendCheckupAlertCategory;
+  upcoming: BackendCheckupAlertCategory;
+}
+
+export interface CheckupAlertItem {
+  checkupId: number;
+  petId: number;
+  petName: string;
+  ownerName: string;
+  checkupTypeName: string;
+  lastCheckupDate: string | null;
+  nextDate: string;
+  days: number;
+}
+
+export interface CheckupAlertCategory {
+  count: number;
+  items: CheckupAlertItem[];
+}
+
+export interface CheckupAlertsResponse {
+  overdue: CheckupAlertCategory;
+  upcoming: CheckupAlertCategory;
+}
