@@ -89,6 +89,12 @@ func (m *mockDeliveryTriggerLogRepository) ListByOwnerAndDateRange(_ context.Con
 func (m *mockDeliveryTriggerLogRepository) CountByTypeAndStatus(_ context.Context, _ uint64, _, _ time.Time) ([]repository.DeliveryStatsRow, error) {
 	return nil, nil
 }
+func (m *mockDeliveryTriggerLogRepository) FindByOwnerAndDate(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
+	return nil, nil
+}
+func (m *mockDeliveryTriggerLogRepository) UpdateSuppressed(_ context.Context, _ uint64, _ string) error {
+	return nil
+}
 
 // ---- OwnerRepository モック（delivery trigger 用）----
 
@@ -320,7 +326,7 @@ func buildDeliverySvc(
 	logRepo repository.LstepDeliveryTriggerLogRepository,
 	settingsSvc LstepSettingsService,
 ) LstepDeliveryTriggerService {
-	return NewLstepDeliveryTriggerService(ownerRepo, medRepo, vacRepo, billingRepo, petRepo, tagRepo, logRepo, settingsSvc)
+	return NewLstepDeliveryTriggerService(ownerRepo, medRepo, vacRepo, billingRepo, petRepo, tagRepo, logRepo, settingsSvc, nil)
 }
 
 // injectTestClient はテスト用の lstep.Client モックをサービスに注入する。

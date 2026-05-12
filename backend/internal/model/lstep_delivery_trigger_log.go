@@ -32,16 +32,40 @@ const (
 	TriggerStatusFailed    TriggerStatus = "failed"
 )
 
+// AllTriggerTypes は定義済みの全トリガー種別スライスを返す。
+func AllTriggerTypes() []string {
+	return []string{
+		TriggerTypeFirstVisitFollowUp3D,
+		TriggerTypeFirstVisitFollowUp7D,
+		TriggerTypeNextVisitReminder,
+		TriggerTypeVaccineDeadline60,
+		TriggerTypeVaccineDeadline30,
+		TriggerTypeBirthdayMessage,
+		TriggerTypeDormantPrevention180,
+		TriggerTypeDormantPrevention210,
+		TriggerTypeDormantPrevention240,
+		TriggerTypeDormantPrevention365,
+		TriggerTypeFilariaAlert,
+		TriggerTypeFleaTickAlert,
+		TriggerTypeFoodRefillReminder,
+		TriggerTypeSuppRefillReminder,
+		TriggerTypeFirstVisitWelcome,
+		TriggerTypeCheckupFollowUp,
+	}
+}
+
 // LstepDeliveryTriggerLog は自動配信トリガーの実行ログ。
 type LstepDeliveryTriggerLog struct {
-	ID             uint64    `gorm:"primaryKey;autoIncrement"`
-	OwnerID        uint64    `gorm:"not null"`
-	ClinicID       uint64    `gorm:"not null"`
-	TriggerType    string    `gorm:"type:varchar(50);not null"`
-	ScheduledAt    time.Time `gorm:"not null"`
-	Status         string    `gorm:"type:varchar(20);not null;default:'scheduled'"`
-	FiredAt        *time.Time
-	ExcludedReason *string   `gorm:"type:varchar(100)"`
-	CreatedAt      time.Time `gorm:"autoCreateTime"`
-	UpdatedAt      time.Time `gorm:"autoUpdateTime"`
+	ID                   uint64    `gorm:"primaryKey;autoIncrement"`
+	OwnerID              uint64    `gorm:"not null"`
+	ClinicID             uint64    `gorm:"not null"`
+	TriggerType          string    `gorm:"type:varchar(50);not null"`
+	ScheduledAt          time.Time `gorm:"not null"`
+	Status               string    `gorm:"type:varchar(20);not null;default:'scheduled'"`
+	FiredAt              *time.Time
+	ExcludedReason       *string   `gorm:"type:varchar(100)"`
+	SuppressedByPriority bool      `gorm:"not null;default:false" json:"suppressed_by_priority"`
+	SuppressionReason    *string   `gorm:"type:varchar(255)" json:"suppression_reason,omitempty"`
+	CreatedAt            time.Time `gorm:"autoCreateTime"`
+	UpdatedAt            time.Time `gorm:"autoUpdateTime"`
 }

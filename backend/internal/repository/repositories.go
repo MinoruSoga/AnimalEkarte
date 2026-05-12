@@ -106,6 +106,8 @@ type Repositories struct {
 	LstepTagCodeMapping LstepTagCodeMappingRepository
 	// FEAT-383: 自動配信トリガーログ
 	LstepDeliveryTriggerLog LstepDeliveryTriggerLogRepository
+	// Q23: トリガー優先順位設定
+	LstepTriggerPriority LstepTriggerPriorityRepository
 	// FEAT-385: Lステップ CSV インポート・分析
 	LstepCsvImport               LstepCsvImportRepository
 	LstepFriendAttributeSnapshot LstepFriendAttributeSnapshotRepository
@@ -197,6 +199,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		LstepSyncErrorCounter:        NewLstepSyncErrorCounterRepository(db),
 		LstepTagCodeMapping:          NewLstepTagCodeMappingRepository(db),
 		LstepDeliveryTriggerLog:      NewLstepDeliveryTriggerLogRepository(db),
+		LstepTriggerPriority:         NewLstepTriggerPriorityRepository(db),
 		LstepCsvImport:               NewLstepCsvImportRepository(db),
 		LstepFriendAttributeSnapshot: NewLstepFriendAttributeSnapshotRepository(db),
 	}

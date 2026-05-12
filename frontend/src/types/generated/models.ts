@@ -1275,6 +1275,8 @@ export interface LstepDeliveryTriggerLog {
   Status: string;
   FiredAt?: string;
   ExcludedReason?: string;
+  suppressed_by_priority: boolean;
+  suppression_reason?: string;
   CreatedAt: string;
   UpdatedAt: string;
 }
@@ -1368,6 +1370,22 @@ export interface LstepTagCodeMapping {
   deleted_at?: string;
   created_at: string;
   updated_at: string;
+}
+
+//////////
+// source: lstep_trigger_priority.go
+
+export const DefaultPriorityFallback = 99;
+/**
+ * LstepTriggerPriority はクリニック単位のトリガー配信優先順位設定 (Q23)。
+ */
+export interface LstepTriggerPriority {
+  ID: number /* uint64 */;
+  ClinicID: number /* uint64 */;
+  TriggerType: string;
+  Priority: number /* int */;
+  CreatedAt: string;
+  UpdatedAt: string;
 }
 
 //////////

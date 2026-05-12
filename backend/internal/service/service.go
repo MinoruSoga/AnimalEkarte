@@ -103,6 +103,8 @@ type Services struct {
 	LstepBatch LstepBatchService
 	// FEAT-383: 自動配信トリガー
 	LstepDeliveryTrigger LstepDeliveryTriggerService
+	// Q23: トリガー優先順位設定
+	LstepTriggerPriority LstepTriggerPriorityService
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
 	LineLink LineLinkService
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索

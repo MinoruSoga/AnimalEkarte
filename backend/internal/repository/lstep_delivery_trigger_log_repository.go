@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -43,6 +44,10 @@ type LstepDeliveryTriggerLogRepository interface {
 	ListByOwnerAndDateRange(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	// CountByTypeAndStatus はクリニック単位で期間内トリガー種別 × ステータス別集計を返す。
 	CountByTypeAndStatus(ctx context.Context, clinicID uint64, from, to time.Time) ([]DeliveryStatsRow, error)
+	// FindByOwnerAndDate は同日同 owner_id の既存ログを返す (Q23 suppressed check 用)。
+	FindByOwnerAndDate(ctx context.Context, clinicID, ownerID uint64, date time.Time) ([]model.LstepDeliveryTriggerLog, error)
+	// UpdateSuppressed は既存ログを suppressed_by_priority=true に更新する (Q23 降格処理用)。
+	UpdateSuppressed(ctx context.Context, logID uint64, reason string) error
 }
 
 type lstepDeliveryTriggerLogRepository struct{ db *gorm.DB }
@@ -215,4 +220,33 @@ func (r *lstepDeliveryTriggerLogRepository) CountByTypeAndStatus(ctx context.Con
 		return nil, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "count_by_type_status")
 	}
 	return rows, nil
+}
+
+// FindByOwnerAndDate は同日同 owner_id の既存ログを返す (Q23 suppressed check 用)。
+func (r *lstepDeliveryTriggerLogRepository) FindByOwnerAndDate(ctx context.Context, clinicID, ownerID uint64, date time.Time) ([]model.LstepDeliveryTriggerLog, error) {
+	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	dayEnd := dayStart.AddDate(0, 0, 1)
+	var logs []model.LstepDeliveryTriggerLog
+	err := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND owner_id = ? AND scheduled_at >= ? AND scheduled_at < ?", clinicID, ownerID, dayStart, dayEnd).
+		Find(&logs).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "find_by_owner_and_date")
+	}
+	return logs, nil
+}
+
+// UpdateSuppressed は既存ログを suppressed_by_priority=true に更新する (Q23 降格処理用)。
+func (r *lstepDeliveryTriggerLogRepository) UpdateSuppressed(ctx context.Context, logID uint64, reason string) error {
+	err := r.db.WithContext(ctx).
+		Model(&model.LstepDeliveryTriggerLog{}).
+		Where("id = ?", logID).
+		Updates(map[string]any{
+			"suppressed_by_priority": true,
+			"suppression_reason":     reason,
+		}).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "lstep_delivery_trigger_log", fmt.Sprintf("%d", logID))
+	}
+	return nil
 }

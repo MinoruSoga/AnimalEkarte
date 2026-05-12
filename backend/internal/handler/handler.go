@@ -112,6 +112,8 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterLstepTagSummaryRoutes(protected)
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
 	h.RegisterCheckupSyncRoutes(protected)
+	// Q23: トリガー優先順位設定
+	h.RegisterLstepTriggerPriorityRoutes(protected)
 	// FEAT-384: 自動配信トリガー監視
 	h.RegisterLstepDeliveryMonitorRoutes(protected)
 	// FEAT-385: Lステップ CSV インポート・分析
