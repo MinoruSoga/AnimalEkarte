@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { getClinicId } from "./get-clinic-id";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -31,10 +32,6 @@ const TRIGGER_PRIORITY_QUERY_KEY = (clinicId: string) =>
 // ─────────────────────────────────────────────────
 // API helpers
 // ─────────────────────────────────────────────────
-
-function getClinicId(): string {
-  return localStorage.getItem("auth_current_clinic:v1") ?? "";
-}
 
 async function fetchTriggerPriorities(): Promise<TriggerPriorityListResponse> {
   const clinicId = getClinicId();
