@@ -594,6 +594,80 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID,
 	return nil
 }
 
+// SyncSuppPurchaseTag はサプリ購入履歴に基づき LTV_サプリ購入あり を同期する（FEAT-385-supp）。
+// SuppPurchaseCodes が空の場合は noop。category フォールバックなし。
+func (s *lstepTagSyncService) SyncSuppPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if s.tagCodeRepo == nil || s.billingItemRepo == nil {
+		return nil
+	}
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
+
+	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, LtvSuppPurchaseTag)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find tag code mappings for supp purchase tag", "error", err)
+		return apperrors.Wrap(err, "failed to find tag code mappings")
+	}
+	itemCodes := extractTagCodes(mappings, model.CodeTypeMerchandiseItem)
+	if len(itemCodes) == 0 {
+		// カテゴリフォールバックなし — codes 未設定なら noop
+		return nil
+	}
+
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for supp purchase tag", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	since := time.Now().AddDate(0, 0, -HealthPreventionLookbackDays)
+	hasPurchase, err := s.billingItemRepo.HasSuppPurchaseByOwnerSince(ctx, clinicID, ownerID, since, itemCodes)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check supp purchase for tag", "error", err)
+		return apperrors.Wrap(err, "failed to check supp purchase")
+	}
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if client == nil {
+		return nil
+	}
+
+	apiFailed := false
+	if hasPurchase {
+		if addErr := client.AddTag(ctx, lineUserID, LtvSuppPurchaseTag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add supp purchase tag", "error", addErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, "failed to add supp purchase tag")
+		}
+		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, LtvSuppPurchaseTag, "auto", "購入済")
+	} else {
+		if delErr := client.RemoveTag(ctx, lineUserID, LtvSuppPurchaseTag); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove supp purchase tag", "error", delErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, LtvSuppPurchaseTag)
+		}
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
+	return nil
+}
+
 // SyncSpecialCheckupCandidateTag は専門検診候補に HLTH_専門検診候補 タグを付与する（FEAT-379）。
 // SPEC-002 Q6 確定待ち: 常に noop。
 func (s *lstepTagSyncService) SyncSpecialCheckupCandidateTag(ctx context.Context, clinicID, ownerID uint64) error {
@@ -635,6 +709,7 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 			{"SyncFilariaTag", func() error { return s.SyncFilariaTag(ctx, clinicID, ownerID) }},
 			{"SyncFleaTickTag", func() error { return s.SyncFleaTickTag(ctx, clinicID, ownerID) }},
 			{"SyncFoodPurchaseTag", func() error { return s.SyncFoodPurchaseTag(ctx, clinicID, ownerID) }},
+			{"SyncSuppPurchaseTag", func() error { return s.SyncSuppPurchaseTag(ctx, clinicID, ownerID) }},
 			{"SyncSpecialCheckupCandidateTag", func() error {
 				return s.SyncSpecialCheckupCandidateTag(ctx, clinicID, ownerID)
 			}},

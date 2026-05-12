@@ -977,6 +977,5 @@ func TestTriggerSyncTagConstantsAlignment(t *testing.T) {
 	assert.Equal(t, PrevFilariaTag, tagFilariaAlert, "filaria tag must match between sync and trigger")
 	assert.Equal(t, PrevFleaTickTag, tagFleaTickAlert, "flea tick tag must match between sync and trigger")
 	assert.Equal(t, LtvFoodPurchaseTag, tagFoodRefill, "food purchase tag must match between sync and trigger")
-	// tagSuppRefill: LtvSuppPurchaseTag が lstep_health_codes.go に未定義のため alignment テストを保留。
-	// sync 側に SyncSuppPurchaseTag を実装した後、LtvSuppPurchaseTag との一致確認を追加すること。
+	assert.Equal(t, LtvSuppPurchaseTag, tagSuppRefill, "supp purchase tag must match between sync and trigger")
 }

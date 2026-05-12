@@ -218,6 +218,10 @@ func (m *mockLstepTagSyncService) SyncFoodPurchaseTag(_ context.Context, _, _ ui
 	return nil
 }
 
+func (m *mockLstepTagSyncService) SyncSuppPurchaseTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 func (m *mockLstepTagSyncService) SyncSpecialCheckupCandidateTag(_ context.Context, _, _ uint64) error {
 	return nil
 }

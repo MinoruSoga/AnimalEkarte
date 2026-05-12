@@ -223,6 +223,10 @@ func (m *batchMockTagSyncSvc) SyncFoodPurchaseTag(_ context.Context, _, _ uint64
 	return nil
 }
 
+func (m *batchMockTagSyncSvc) SyncSuppPurchaseTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 func (m *batchMockTagSyncSvc) SyncSpecialCheckupCandidateTag(_ context.Context, _, _ uint64) error {
 	return nil
 }

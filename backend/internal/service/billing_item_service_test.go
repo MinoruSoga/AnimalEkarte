@@ -24,6 +24,7 @@ type mockBillingItemRepository struct {
 	updateBillingTotals           func(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 	hasItemByOwnerSinceFn         func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 	hasFoodPurchaseByOwnerSinceFn func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
+	hasSuppPurchaseByOwnerSinceFn func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 }
 
 func (m *mockBillingItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error) {
@@ -56,6 +57,12 @@ func (m *mockBillingItemRepository) HasItemByOwnerSince(ctx context.Context, cli
 func (m *mockBillingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
 	if m.hasFoodPurchaseByOwnerSinceFn != nil {
 		return m.hasFoodPurchaseByOwnerSinceFn(ctx, clinicID, ownerID, since, names)
+	}
+	return false, nil
+}
+func (m *mockBillingItemRepository) HasSuppPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
+	if m.hasSuppPurchaseByOwnerSinceFn != nil {
+		return m.hasSuppPurchaseByOwnerSinceFn(ctx, clinicID, ownerID, since, names)
 	}
 	return false, nil
 }

@@ -148,6 +148,14 @@ func billingItemRepoReturning(hasItem, hasFood bool) *mockBillingItemRepository 
 	}
 }
 
+func billingItemRepoReturningSupp(hasSupp bool) *mockBillingItemRepository {
+	return &mockBillingItemRepository{
+		hasSuppPurchaseByOwnerSinceFn: func(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) {
+			return hasSupp, nil
+		},
+	}
+}
+
 func recentCheckup(codeName string) model.Checkup {
 	return model.Checkup{
 		Date:        time.Now().AddDate(0, 0, -30), // 30日前 = lookback内
@@ -572,6 +580,64 @@ func TestSyncFoodPurchaseTag(t *testing.T) {
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, nil, billingRepo)
 		assert.Error(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+	})
+}
+
+// ---- TestSyncSuppPurchaseTag ----
+
+func TestSyncSuppPurchaseTag(t *testing.T) {
+	ctx := context.Background()
+	const clinicID, ownerID uint64 = 10, 1
+
+	t.Run("nil tagCodeRepo→noop", func(t *testing.T) {
+		svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, billingItemRepoReturningSupp(false))
+		assert.NoError(t, svc.SyncSuppPurchaseTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("nil billingItemRepo→noop", func(t *testing.T) {
+		tagRepo := mappingWith(LtvSuppPurchaseTag, model.CodeTypeMerchandiseItem, []string{"サプリ1"})
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
+		assert.NoError(t, svc.SyncSuppPurchaseTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("itemCodesなし→noop(カテゴリフォールバックなし)", func(t *testing.T) {
+		// codes 未設定の場合は HasSuppPurchaseByOwnerSince を呼ばずに return
+		tagRepo := &mockLstepTagCodeMappingRepository{} // codes=空
+		called := false
+		billingRepo := &mockBillingItemRepository{
+			hasSuppPurchaseByOwnerSinceFn: func(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) {
+				called = true
+				return false, nil
+			},
+		}
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, billingRepo)
+		assert.NoError(t, svc.SyncSuppPurchaseTag(ctx, clinicID, ownerID))
+		assert.False(t, called, "HasSuppPurchaseByOwnerSince should not be called when itemCodes is empty")
+	})
+
+	t.Run("サプリ購入あり→add tag→nil(client=nil)", func(t *testing.T) {
+		tagRepo := mappingWith(LtvSuppPurchaseTag, model.CodeTypeMerchandiseItem, []string{"サプリ1"})
+		billingRepo := billingItemRepoReturningSupp(true)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, billingRepo)
+		assert.NoError(t, svc.SyncSuppPurchaseTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("サプリ購入なし→remove tag→nil(client=nil)", func(t *testing.T) {
+		tagRepo := mappingWith(LtvSuppPurchaseTag, model.CodeTypeMerchandiseItem, []string{"サプリ1"})
+		billingRepo := billingItemRepoReturningSupp(false)
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, billingRepo)
+		assert.NoError(t, svc.SyncSuppPurchaseTag(ctx, clinicID, ownerID))
+	})
+
+	t.Run("billingItemRepo エラー→エラー返却", func(t *testing.T) {
+		tagRepo := mappingWith(LtvSuppPurchaseTag, model.CodeTypeMerchandiseItem, []string{"サプリ1"})
+		billingRepo := &mockBillingItemRepository{
+			hasSuppPurchaseByOwnerSinceFn: func(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) {
+				return false, errors.New("db error")
+			},
+		}
+		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, billingRepo)
+		assert.Error(t, svc.SyncSuppPurchaseTag(ctx, clinicID, ownerID))
 	})
 }
 
