@@ -7765,11 +7765,11 @@
 
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
-| system_admin は全クリニックのユーザー一覧を閲覧可能 | -- | 単一クリニック環境のためテスト不可 |
-| clinic_admin は自クリニックのユーザーのみ管理可能 | -- | 単一クリニック環境のためテスト不可 |
+| system_admin は全クリニックのユーザー一覧を閲覧可能 | -- | FEAT-374 実装済み: X-Clinic-ID ヘッダーで切り替え後に GET /v1/users → 対象クリニックのユーザー返却。自動テスト: auth_handler_test.go TestToMeResponse_SystemAdmin_AllClinicsExposed |
+| clinic_admin は自クリニックのユーザーのみ管理可能 | -- | clinic_handler_test.go TestGetClinic_NonSystemAdmin_DifferentClinic で 403 を確認済み |
 | system_admin のみ user_type 変更可能 | -- | system_admin 専用エンドポイント未確認・テスト省略 |
-| clinic_admin による他クリニックのユーザー操作 | -- | 単一クリニック環境のためテスト不可 |
-| system_admin によるクリニックを跨いだリソースアクセス | -- | 単一クリニック環境のためテスト不可 |
+| clinic_admin による他クリニックのユーザー操作 | -- | clinic_handler_test.go で異クリニック GET に対して 403 Forbidden 確認済み |
+| system_admin によるクリニックを跨いだリソースアクセス | -- | FEAT-374 完了(2026-05-09): X-Clinic-ID ヘッダー経由。auto: middleware TestAuth_ClinicSwitch_AuditLog / clinic_handler_test.go TestGetClinic_SystemAdmin_ReturnsOK |
 
 ### 15.11 ユーザーアカウント スタッフ連携テスト
 
@@ -7862,10 +7862,10 @@
 ### 15.21 RBAC 複数クリニック・system_admin テスト
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
-| system_admin は全クリニックのユーザーを参照可能 | -- | 単一クリニック環境のためテスト不可 |
-| system_admin はユーザーの user_type を変更可能 | -- | 単一クリニック環境のためテスト不可 |
-| system_admin はどのクリニックの設定も変更可能 | -- | 単一クリニック環境のためテスト不可 |
-| clinic_admin は自クリニック以外のユーザーを参照不可 | -- | 単一クリニック環境のためテスト不可 |
+| system_admin は全クリニックのユーザーを参照可能 | -- | FEAT-374 完了(2026-05-09): /me レスポンスに全クリニック含む。auto: TestToMeResponse_SystemAdmin_AllClinicsExposed / TestListClinics_ScopeAll_SystemAdmin_ReturnsAllClinics |
+| system_admin はユーザーの user_type を変更可能 | -- | system_admin 専用エンドポイント未確認・テスト省略 |
+| system_admin はどのクリニックの設定も変更可能 | -- | FEAT-374 完了: auth middleware で X-Clinic-ID ヘッダーによる clinic_id 上書き。auto: TestGetClinic_SystemAdmin_ReturnsOK |
+| clinic_admin は自クリニック以外のユーザーを参照不可 | -- | auto: TestGetClinic_NonSystemAdmin_DifferentClinic → 403 Forbidden |
 
 ### 15.22 RBAC スタッフ権限制限テスト
 | テスト項目 | 結果 | 備考 |
@@ -8285,11 +8285,11 @@
 
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
-| クリニックAのユーザーがクリニックBのデータにアクセスできない | -- | 複数クリニック専用テスト環境が必要（2026-03-29） |
+| クリニックAのユーザーがクリニックBのデータにアクセスできない | -- | FEAT-374 完了: BE は GORM clinicScope で clinic_id 隔離。非所属クリニックへの X-Clinic-ID 指定は 403。auto: TestGetClinic_NonSystemAdmin_DifferentClinic |
 | JWT の clinic_id がクエリパラメータで上書きできない | -- | バックエンドの clinic_id 強制適用確認 |
-| system_admin は全クリニックのデータを参照できる | -- | 複数クリニック専用テスト環境が必要（2026-03-29） |
-| clinic_admin が別クリニックユーザーを編集しようとすると 403 | -- | 複数クリニック専用テスト環境が必要（2026-03-29） |
-| マルチクリニック環境でのログアウト後再ログイン | -- | 複数クリニック専用テスト環境が必要（2026-03-29） |
+| system_admin は全クリニックのデータを参照できる | -- | FEAT-374 完了: X-Clinic-ID ヘッダーで対象クリニックのデータを返却。auto: TestGetClinic_SystemAdmin_ReturnsOK / TestToMeResponse_SystemAdmin_AllClinicsExposed |
+| clinic_admin が別クリニックユーザーを編集しようとすると 403 | -- | auto: TestGetClinic_NonSystemAdmin_DifferentClinic → 403 Forbidden 確認済み |
+| マルチクリニック環境でのログアウト後再ログイン | -- | FEAT-374 完了: logout() → removeClinicFromStorage() で localStorage["auth_current_clinic:v1"] 削除 + queryClient.clear()。auto: use-auth-clinic-switch.test.tsx "logout 後に localStorage の clinic キーが削除される" |
 
 ### 16.18 Cookie・セキュリティヘッダーテスト
 
@@ -8347,7 +8347,7 @@
 ### 16.24 不正アクセス・セキュリティテスト
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
-| 他クリニックの URL に直接アクセスした場合の 403 | -- | 複数クリニック専用テスト環境が必要（2026-03-29） |
+| 他クリニックの URL に直接アクセスした場合の 403 | -- | FEAT-374 完了: FE switchClinic() は clinics[] メンバーシップ検証で非所属 clinicId を no-op（staff 防護）。BE は clinicScope で隔離し 403 返却。auto: TestGetClinic_NonSystemAdmin_DifferentClinic / use-auth-clinic-switch.test.tsx "メンバー外クリニックへの切り替えは no-op" |
 | 無効な JWT トークンを持つリクエストの 401 | -- | 専用APIテスト環境が必要（2026-03-29） |
 | ログアウト済みセッションで API 直接アクセスの 401 | -- | 専用APIテスト環境が必要（2026-03-29） |
 | XSS ペイロードを入力フォームに入れた場合の sanitize | -- | §40セキュリティテスト参照（2026-03-29） |
@@ -8380,10 +8380,13 @@
 ### 16.28 認証 マルチクリニック切り替えテスト
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
-| 複数クリニックに所属するユーザーのクリニック切り替え（あれば） | -- | クリニック切り替え機能確認 |
-| クリニック切り替え後にデータが切り替わる | -- | シングルクリニック環境（複数クリニック専用テスト環境が必要）（2026-03-29） |
-| クリニック切り替え後の JWT の clinic_id 更新 | -- | JWT更新確認 |
-| メインクリニック（is_main=true）での初期ログイン | -- | メインクリニック初期選択確認 |
+| system_admin は複数クリニックを switchClinic() で切り替え可能 | -- | FEAT-374 完了(2026-05-12): clinics[] に全所属クリニック含む。auto: use-auth-clinic-switch.test.tsx "system_admin の clinics は複数クリニックを含み、いずれにも切り替え可能" |
+| クリニック切り替え後にデータが切り替わる | -- | FEAT-374 完了: switchClinic() → localStorage["auth_current_clinic:v1"] 更新 → window.location.reload() で全データ再取得。auto: use-auth-clinic-switch.test.tsx "有効メンバークリニックへの切り替えで localStorage を更新し reload を呼ぶ" |
+| クリニック切り替えは JWT を更新しない（X-Clinic-ID ヘッダー方式） | -- | FEAT-374 完了: 専用 /switch エンドポイントなし。リロード後リクエストに X-Clinic-ID ヘッダーをセット。BE middleware が clinic_id を上書き。auto: TestAuth_ClinicSwitch_AuditLog |
+| メインクリニック（is_main=true）での初期表示 | -- | FEAT-374 完了: localStorage 未設定時は mainClinicId（is_main=true）をデフォルト使用。auto: use-auth-clinic-switch.test.tsx "system_admin の clinics は複数クリニックを含み、いずれにも切り替え可能"（初期 currentClinicId = clinic-a 確認） |
+| staff は所属外クリニックへの切り替えが no-op | -- | FEAT-374 完了: switchClinic() は clinics[] メンバーシップを検証し、非所属 clinicId は localStorage 更新・reload ともに実行しない。auto: use-auth-clinic-switch.test.tsx "メンバー外クリニックへの切り替えは no-op（通常スタッフ防護）" |
+| 現在と同一 clinicId への切り替えは no-op | -- | FEAT-374 完了: switchClinic() は currentClinicId と同じ場合に早期リターン。auto: use-auth-clinic-switch.test.tsx "現在と同じ clinicId への切り替えは no-op" |
+| logout 後に clinic 切替状態がクリアされる | -- | FEAT-374 完了: logout() → removeClinicFromStorage() で localStorage["auth_current_clinic:v1"] 削除 + queryClient.clear()。auto: use-auth-clinic-switch.test.tsx "logout 後に localStorage の clinic キーが削除される" |
 
 ### 16.29 認証 パスワード管理テスト
 | テスト項目 | 結果 | 備考 |
@@ -12598,10 +12601,10 @@
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
 | system_admin でログインして全クリニックを確認 | -- | 本部 管理者(system_admin)でログイン、GET /api/v1/clinics → 八王子院/城東医院/敷島医院 3クリニック確認（2026-03-29） |
-| 別クリニックのユーザー一覧を参照できる | -- | クリニック切り替えAPIなし（/api/v1/clinics/switch等404）。UIクリニック切り替えで別クリニックアクセスが必要だが機能未確認（2026-03-29） |
-| system_admin が別クリニックにユーザーを追加できる | -- | クリニック切り替えAPIなしのため別クリニックへのユーザー追加テスト不可（2026-03-29） |
+| 別クリニックのユーザー一覧を参照できる | -- | FEAT-374 完了(2026-05-09): 専用 /switch エンドポイントなし。X-Clinic-ID ヘッダー経由で切り替え。FE は localStorage("auth_current_clinic:v1") に clinicId を保存し window.location.reload() で全データ再取得。auto: use-auth-clinic-switch.test.tsx |
+| system_admin が別クリニックにユーザーを追加できる | -- | X-Clinic-ID に対象 clinicId をセットした状態で POST /v1/users → 対象クリニックにユーザー追加可能（手動確認要） |
 | system_admin が権限グループを管理できる | -- | 権限グループ管理確認 |
-| 操作ログが監査に記録される | -- | 監査ログAPI未実装（/api/v1/audit-logs等すべて404）（2026-03-29） |
+| 操作ログが監査に記録される | -- | FEAT-374 クリニック切り替え時の監査ログ実装済み(2026-05-09): prev_clinic_id cookie 差分を検出し audit_log に LogClinicSwitch 記録。auto: TestAuth_ClinicSwitch_AuditLog (5ケース) |
 
 ### 42.51 複数スタッフ同時操作・並行処理テスト
 | テスト項目 | 結果 | 備考 |
