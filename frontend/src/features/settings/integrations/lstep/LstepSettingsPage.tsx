@@ -4,6 +4,7 @@ import { ResourceHospitalSettings } from "@/types/generated/models";
 import { C } from "@/lib/design-tokens";
 import { LstepSettingsForm } from "./LstepSettingsForm";
 import { TriggerPrioritySection } from "./TriggerPrioritySection";
+import { LstepTagCodeMappingsSection } from "./LstepTagCodeMappingsSection";
 
 export function LstepSettingsPage() {
   const { canEdit } = usePermission("hospital-settings");
@@ -22,6 +23,7 @@ export function LstepSettingsPage() {
     <PageLayout title="Lステップ連携設定" resource={ResourceHospitalSettings}>
       <LstepSettingsForm />
       <TriggerPrioritySection />
+      <LstepTagCodeMappingsSection />
     </PageLayout>
   );
 }

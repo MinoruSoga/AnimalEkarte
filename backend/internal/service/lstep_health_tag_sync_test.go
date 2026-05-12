@@ -54,6 +54,10 @@ func (m *mockLstepTagCodeMappingRepository) SoftDelete(ctx context.Context, clin
 	return nil
 }
 
+func (m *mockLstepTagCodeMappingRepository) SoftDeleteByClinicIDAndTagName(_ context.Context, _ uint64, _ string) error {
+	return nil
+}
+
 // ---- テストヘルパー ----
 
 func defaultOwnerWithLineID() *model.Owner {

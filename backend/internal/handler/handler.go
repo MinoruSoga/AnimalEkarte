@@ -114,6 +114,8 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterCheckupSyncRoutes(protected)
 	// Q23: トリガー優先順位設定
 	h.RegisterLstepTriggerPriorityRoutes(protected)
+	// FEAT-379: タグコードマッピング設定
+	h.RegisterLstepTagCodeMappingRoutes(protected)
 	// FEAT-384: 自動配信トリガー監視
 	h.RegisterLstepDeliveryMonitorRoutes(protected)
 	// FEAT-385: Lステップ CSV インポート・分析

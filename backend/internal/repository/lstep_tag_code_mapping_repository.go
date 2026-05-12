@@ -18,6 +18,8 @@ type LstepTagCodeMappingRepository interface {
 	Create(ctx context.Context, mapping *model.LstepTagCodeMapping) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LstepTagCodeMapping, error)
 	SoftDelete(ctx context.Context, clinicID, id uint64) error
+	// SoftDeleteByClinicIDAndTagName は指定タグ名に紐づく全 mapping を一括ソフトデリートする（PUT replace 用）。
+	SoftDeleteByClinicIDAndTagName(ctx context.Context, clinicID uint64, tagName string) error
 }
 
 type lstepTagCodeMappingRepository struct {
@@ -84,6 +86,18 @@ func (r *lstepTagCodeMappingRepository) SoftDelete(ctx context.Context, clinicID
 		Update("deleted_at", now).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "lstep_tag_code_mapping", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+func (r *lstepTagCodeMappingRepository) SoftDeleteByClinicIDAndTagName(ctx context.Context, clinicID uint64, tagName string) error {
+	now := time.Now()
+	err := r.db.WithContext(ctx).Model(&model.LstepTagCodeMapping{}).
+		Scopes(clinicScope(clinicID)).
+		Where("tag_name = ? AND deleted_at IS NULL", tagName).
+		Update("deleted_at", now).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "lstep_tag_code_mapping", fmt.Sprintf("clinic:%d tag:%s", clinicID, tagName))
 	}
 	return nil
 }
