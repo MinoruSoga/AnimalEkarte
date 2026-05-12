@@ -24,6 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 // Relative
 import { useGetLstepDeliveryStats } from "../api/get-lstep-delivery-stats";
+import { useGetLstepVisitConversion } from "../api/get-lstep-visit-conversion";
 import { useGetLstepCsvImports } from "../api/get-lstep-csv-imports";
 import { TriggerTypeLabels } from "../constants/trigger-types";
 
@@ -69,6 +70,10 @@ const CSV_STATUS_LABELS: Record<string, string> = {
   completed: "完了",
   failed: "失敗",
 };
+
+function formatPercent(rate: number): string {
+  return `${(rate * 100).toFixed(1)}%`;
+}
 
 interface CrossRow {
   trigger_type: string;
@@ -364,6 +369,11 @@ const MONTH_OPTIONS = generateMonthOptions(12);
 export function LstepAnalyticsPage() {
   const [yearMonth, setYearMonth] = useState(currentYearMonth());
   const { data, isLoading, isError } = useGetLstepDeliveryStats(yearMonth);
+  const {
+    data: visitConversion,
+    isLoading: isLoadingVisitConversion,
+    isError: isErrorVisitConversion,
+  } = useGetLstepVisitConversion(yearMonth, 30);
 
   const crossRows = data ? buildCrossRows(data.rows) : [];
 
@@ -406,6 +416,95 @@ export function LstepAnalyticsPage() {
             <>
               <DeliveryStatsTable rows={crossRows} />
               <DeliveryStatsChart rows={crossRows} />
+            </>
+          )}
+        </div>
+      </section>
+
+      <section
+        aria-labelledby="visit-conversion-heading"
+        className="space-y-4 mt-8"
+      >
+        <div className="flex items-center justify-between">
+          <h2
+            id="visit-conversion-heading"
+            className={`text-base font-semibold ${C.text80}`}
+          >
+            配信後来院率
+          </h2>
+          <p className={`text-xs ${C.text40}`}>
+            配信日から30日以内の来院を集計
+          </p>
+        </div>
+
+        <div className={`border ${C.borderLight} rounded-[4px] ${C.bgWhite} p-4 space-y-5`}>
+          {isLoadingVisitConversion ? (
+            <p className={`text-sm ${C.text40} py-8 text-center`}>読み込み中...</p>
+          ) : isErrorVisitConversion ? (
+            <p className={`text-sm text-[${PALETTE.danger}] py-8 text-center`}>
+              来院率データの取得に失敗しました
+            </p>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className={`${C.bgWhite} rounded-[4px] border ${C.borderLight} p-4 flex flex-col gap-1`}>
+                  <span className={`text-sm ${C.text60}`}>送信件数</span>
+                  <span className={`text-2xl font-semibold ${C.text80}`}>
+                    {visitConversion?.delivered_count.toLocaleString() ?? 0}
+                  </span>
+                </div>
+                <div className={`${C.bgWhite} rounded-[4px] border ${C.borderLight} p-4 flex flex-col gap-1`}>
+                  <span className={`text-sm ${C.text60}`}>来院件数</span>
+                  <span className={`text-2xl font-semibold ${C.text80}`}>
+                    {visitConversion?.visited_count.toLocaleString() ?? 0}
+                  </span>
+                </div>
+                <div className={`${C.bgWhite} rounded-[4px] border ${C.borderLight} p-4 flex flex-col gap-1`}>
+                  <span className={`text-sm ${C.text60}`}>来院率</span>
+                  <span className={`text-2xl font-semibold ${C.text80}`}>
+                    {formatPercent(visitConversion?.visit_rate ?? 0)}
+                  </span>
+                </div>
+              </div>
+
+              {visitConversion && visitConversion.rows.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className={`${C.bgLight} border-b ${C.borderLight}`}>
+                        <th className={`text-left px-3 py-2 font-medium ${C.text80} min-w-[180px]`}>
+                          トリガー種別
+                        </th>
+                        <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>送信件数</th>
+                        <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>来院件数</th>
+                        <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>来院率</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visitConversion.rows.map((row) => (
+                        <tr key={row.trigger_type} className={`border-b ${C.borderLight}`}>
+                          <td className={`px-3 py-2 ${C.text80}`}>
+                            {TriggerTypeLabels[row.trigger_type] ?? row.trigger_type}
+                          </td>
+                          <td className={`text-right px-3 py-2 ${C.text60} tabular-nums`}>
+                            {row.delivered_count.toLocaleString()}
+                          </td>
+                          <td className={`text-right px-3 py-2 ${C.text60} tabular-nums`}>
+                            {row.visited_count.toLocaleString()}
+                          </td>
+                          <td className={`text-right px-3 py-2 font-medium ${C.text80} tabular-nums`}>
+                            {formatPercent(row.visit_rate)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className={`text-sm ${C.text40} py-6 text-center`}>
+                  この月の来院率データはありません
+                </p>
+              )}
             </>
           )}
         </div>

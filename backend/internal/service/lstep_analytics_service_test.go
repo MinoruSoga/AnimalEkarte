@@ -18,6 +18,7 @@ import (
 type mockAnalyticsTriggerLogRepo struct {
 	listByOwnerFn          func(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	countByTypeAndStatusFn func(ctx context.Context, clinicID uint64, from, to time.Time) ([]repository.DeliveryStatsRow, error)
+	countVisitConvByTypeFn func(ctx context.Context, clinicID uint64, from, to time.Time, days int) ([]repository.VisitConversionRow, error)
 }
 
 func (m *mockAnalyticsTriggerLogRepo) Create(_ context.Context, _ *model.LstepDeliveryTriggerLog) error {
@@ -53,6 +54,12 @@ func (m *mockAnalyticsTriggerLogRepo) ListByOwnerAndDateRange(ctx context.Contex
 func (m *mockAnalyticsTriggerLogRepo) CountByTypeAndStatus(ctx context.Context, clinicID uint64, from, to time.Time) ([]repository.DeliveryStatsRow, error) {
 	if m.countByTypeAndStatusFn != nil {
 		return m.countByTypeAndStatusFn(ctx, clinicID, from, to)
+	}
+	return nil, nil
+}
+func (m *mockAnalyticsTriggerLogRepo) CountVisitConversionsByType(ctx context.Context, clinicID uint64, from, to time.Time, days int) ([]repository.VisitConversionRow, error) {
+	if m.countVisitConvByTypeFn != nil {
+		return m.countVisitConvByTypeFn(ctx, clinicID, from, to, days)
 	}
 	return nil, nil
 }
@@ -298,6 +305,59 @@ func TestLstepAnalyticsService_GetLatestFriendAttributes(t *testing.T) {
 		svc := NewLstepAnalyticsService(ownerRepo, &mockAnalyticsTriggerLogRepo{}, &mockAnalyticsSnapshotRepo{})
 
 		_, err := svc.GetLatestFriendAttributes(context.Background(), 100, 200)
+
+		assert.Error(t, err)
+	})
+}
+
+func TestLstepAnalyticsService_GetVisitConversionSummary(t *testing.T) {
+	t.Run("yearMonth + days を使って repo 集計を呼び、率を計算する", func(t *testing.T) {
+		expectedFrom := time.Date(2026, 5, 1, 0, 0, 0, 0, jst)
+		expectedUntil := time.Date(2026, 6, 1, 0, 0, 0, 0, jst)
+		triggerRepo := &mockAnalyticsTriggerLogRepo{
+			countVisitConvByTypeFn: func(ctx context.Context, clinicID uint64, from, to time.Time, days int) ([]repository.VisitConversionRow, error) {
+				assert.Equal(t, uint64(100), clinicID)
+				assert.Equal(t, 30, days)
+				assert.True(t, from.Equal(expectedFrom))
+				assert.True(t, to.Equal(expectedUntil))
+				return []repository.VisitConversionRow{
+					{TriggerType: "birthday_message", DeliveredCount: 10, VisitedCount: 4},
+					{TriggerType: "next_visit_reminder", DeliveredCount: 5, VisitedCount: 1},
+				}, nil
+			},
+		}
+		svc := NewLstepAnalyticsService(&mockAnalyticsOwnerRepo{}, triggerRepo, &mockAnalyticsSnapshotRepo{})
+
+		stats, err := svc.GetVisitConversionSummary(context.Background(), 100, "2026-05", 30)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "2026-05", stats.YearMonth)
+		assert.Equal(t, 30, stats.Days)
+		assert.Equal(t, int64(15), stats.DeliveredCount)
+		assert.Equal(t, int64(5), stats.VisitedCount)
+		assert.InDelta(t, 5.0/15.0, stats.VisitRate, 0.0001)
+		assert.Len(t, stats.Rows, 2)
+		assert.InDelta(t, 0.4, stats.Rows[0].VisitRate, 0.0001)
+	})
+
+	t.Run("days が 0 以下なら InvalidInput", func(t *testing.T) {
+		svc := NewLstepAnalyticsService(&mockAnalyticsOwnerRepo{}, &mockAnalyticsTriggerLogRepo{}, &mockAnalyticsSnapshotRepo{})
+
+		_, err := svc.GetVisitConversionSummary(context.Background(), 100, "2026-05", 0)
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("repo error は wrap されて返る", func(t *testing.T) {
+		triggerRepo := &mockAnalyticsTriggerLogRepo{
+			countVisitConvByTypeFn: func(_ context.Context, _ uint64, _, _ time.Time, _ int) ([]repository.VisitConversionRow, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewLstepAnalyticsService(&mockAnalyticsOwnerRepo{}, triggerRepo, &mockAnalyticsSnapshotRepo{})
+
+		_, err := svc.GetVisitConversionSummary(context.Background(), 100, "2026-05", 30)
 
 		assert.Error(t, err)
 	})

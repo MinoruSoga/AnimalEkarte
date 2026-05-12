@@ -24,6 +24,13 @@ type DeliveryStatsRow struct {
 	Count       int64  `gorm:"column:count"        json:"count"`
 }
 
+// VisitConversionRow はトリガー種別ごとの配信後来院集計行。
+type VisitConversionRow struct {
+	TriggerType    string `gorm:"column:trigger_type"    json:"trigger_type"`
+	DeliveredCount int64  `gorm:"column:delivered_count" json:"delivered_count"`
+	VisitedCount   int64  `gorm:"column:visited_count"   json:"visited_count"`
+}
+
 // LstepDeliveryTriggerLogRepository は lstep_delivery_trigger_log テーブルの永続化インターフェース。
 type LstepDeliveryTriggerLogRepository interface {
 	// Create は新規トリガーログを作成する。
@@ -46,6 +53,8 @@ type LstepDeliveryTriggerLogRepository interface {
 	ListByOwnerAndDateRange(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	// CountByTypeAndStatus はクリニック単位で期間内トリガー種別 × ステータス別集計を返す。
 	CountByTypeAndStatus(ctx context.Context, clinicID uint64, from, to time.Time) ([]DeliveryStatsRow, error)
+	// CountVisitConversionsByType は期間内の fired ログについてトリガー種別ごとの来院転換数を返す。
+	CountVisitConversionsByType(ctx context.Context, clinicID uint64, from, to time.Time, days int) ([]VisitConversionRow, error)
 	// FindByOwnerAndDate は同日同 owner_id の既存ログを返す (Q23 suppressed check 用)。
 	FindByOwnerAndDate(ctx context.Context, clinicID, ownerID uint64, date time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	// UpdateSuppressed は既存ログを suppressed_by_priority=true に更新する (Q23 降格処理用)。
@@ -234,6 +243,42 @@ func (r *lstepDeliveryTriggerLogRepository) CountByTypeAndStatus(ctx context.Con
 		Scan(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "count_by_type_status")
+	}
+	return rows, nil
+}
+
+func (r *lstepDeliveryTriggerLogRepository) CountVisitConversionsByType(ctx context.Context, clinicID uint64, from, to time.Time, days int) ([]VisitConversionRow, error) {
+	var rows []VisitConversionRow
+	err := r.db.WithContext(ctx).
+		Table("lstep_delivery_trigger_log l").
+		Select(`
+			l.trigger_type,
+			COUNT(*) AS delivered_count,
+			SUM(
+				CASE WHEN EXISTS (
+					SELECT 1
+					FROM medical_records mr
+					WHERE mr.clinic_id = l.clinic_id
+					  AND mr.owner_id = l.owner_id
+					  AND mr.deleted_at IS NULL
+					  AND mr.date >= DATE(l.fired_at AT TIME ZONE 'Asia/Tokyo')
+					  AND mr.date <= DATE((l.fired_at AT TIME ZONE 'Asia/Tokyo') + make_interval(days => ?))
+				) THEN 1 ELSE 0 END
+			) AS visited_count
+		`, days).
+		Where(`
+			l.clinic_id = ?
+			AND l.fired_at IS NOT NULL
+			AND l.fired_at >= ?
+			AND l.fired_at < ?
+			AND l.status = ?
+			AND l.suppressed_by_priority = FALSE
+		`, clinicID, from, to, model.TriggerStatusFired).
+		Group("l.trigger_type").
+		Order("l.trigger_type").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "count_visit_conversions")
 	}
 	return rows, nil
 }

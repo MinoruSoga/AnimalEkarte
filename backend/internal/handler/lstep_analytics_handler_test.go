@@ -20,6 +20,7 @@ import (
 type mockLstepAnalyticsService struct {
 	getDeliveryHistoryByOwnerFn func(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	getMonthlyDeliveryStatsFn   func(ctx context.Context, clinicID uint64, yearMonth string) (*service.MonthlyDeliveryStats, error)
+	getVisitConversionFn        func(ctx context.Context, clinicID uint64, yearMonth string, days int) (*service.VisitConversionSummary, error)
 	getLatestFriendAttributesFn func(ctx context.Context, clinicID, ownerID uint64) (*model.LstepFriendAttributeSnapshot, error)
 }
 
@@ -35,6 +36,13 @@ func (m *mockLstepAnalyticsService) GetMonthlyDeliveryStats(ctx context.Context,
 		return m.getMonthlyDeliveryStatsFn(ctx, clinicID, yearMonth)
 	}
 	return &service.MonthlyDeliveryStats{YearMonth: yearMonth}, nil
+}
+
+func (m *mockLstepAnalyticsService) GetVisitConversionSummary(ctx context.Context, clinicID uint64, yearMonth string, days int) (*service.VisitConversionSummary, error) {
+	if m.getVisitConversionFn != nil {
+		return m.getVisitConversionFn(ctx, clinicID, yearMonth, days)
+	}
+	return &service.VisitConversionSummary{YearMonth: yearMonth, Days: days}, nil
 }
 
 func (m *mockLstepAnalyticsService) GetLatestFriendAttributes(ctx context.Context, clinicID, ownerID uint64) (*model.LstepFriendAttributeSnapshot, error) {
@@ -64,6 +72,17 @@ func newGetOwnerFriendAttributesRouter(analyticsSvc service.LstepAnalyticsServic
 		setupCtx,
 		h.RequirePermission(string(model.ResourceLstepAnalytics), "view"),
 		h.GetLstepOwnerFriendAttributes,
+	)
+	return r
+}
+
+func newGetVisitConversionRouter(analyticsSvc service.LstepAnalyticsService, permSvc service.EffectivePermissionService, setupCtx gin.HandlerFunc) *gin.Engine {
+	h := &Handler{svc: &service.Services{LstepAnalytics: analyticsSvc, EffectivePermission: permSvc}}
+	r := gin.New()
+	r.GET("/clinics/:clinic_id/lstep/analytics/visit-conversion",
+		setupCtx,
+		h.RequirePermission(string(model.ResourceLstepAnalytics), "view"),
+		h.GetLstepVisitConversionSummary,
 	)
 	return r
 }
@@ -108,6 +127,49 @@ func TestGetLstepMonthlyDeliveryStats_H_400_MissingYearMonth(t *testing.T) {
 		func(c *gin.Context) { setSystemAdmin(c); setClinicID(c) },
 	)
 	req := httptest.NewRequest(http.MethodGet, "/clinics/1/lstep/analytics/delivery-stats", http.NoBody)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestGetLstepVisitConversionSummary_L_403_NoPermission(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := newGetVisitConversionRouter(
+		&mockLstepAnalyticsService{},
+		&mockEffectivePermissionService{},
+		func(c *gin.Context) { setNonSystemAdmin(c); setClinicID(c) },
+	)
+	req := httptest.NewRequest(http.MethodGet, "/clinics/1/lstep/analytics/visit-conversion?year_month=2026-04", http.NoBody)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestGetLstepVisitConversionSummary_M_200_OK(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	analyticsSvc := &mockLstepAnalyticsService{
+		getVisitConversionFn: func(_ context.Context, clinicID uint64, yearMonth string, days int) (*service.VisitConversionSummary, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "2026-04", yearMonth)
+			assert.Equal(t, 30, days)
+			return &service.VisitConversionSummary{YearMonth: yearMonth, Days: days}, nil
+		},
+	}
+	r := newGetVisitConversionRouter(analyticsSvc, nil, func(c *gin.Context) { setSystemAdmin(c); setClinicID(c) })
+	req := httptest.NewRequest(http.MethodGet, "/clinics/1/lstep/analytics/visit-conversion?year_month=2026-04", http.NoBody)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestGetLstepVisitConversionSummary_N_400_InvalidDays(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := newGetVisitConversionRouter(
+		&mockLstepAnalyticsService{},
+		nil,
+		func(c *gin.Context) { setSystemAdmin(c); setClinicID(c) },
+	)
+	req := httptest.NewRequest(http.MethodGet, "/clinics/1/lstep/analytics/visit-conversion?year_month=2026-04&days=0", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)

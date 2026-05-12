@@ -48,6 +48,9 @@ func (m *mockDeliveryMonitorTriggerLogRepo) ListByOwnerAndDateRange(_ context.Co
 func (m *mockDeliveryMonitorTriggerLogRepo) CountByTypeAndStatus(_ context.Context, _ uint64, _, _ time.Time) ([]repository.DeliveryStatsRow, error) {
 	return nil, nil
 }
+func (m *mockDeliveryMonitorTriggerLogRepo) CountVisitConversionsByType(_ context.Context, _ uint64, _, _ time.Time, _ int) ([]repository.VisitConversionRow, error) {
+	return nil, nil
+}
 func (m *mockDeliveryMonitorTriggerLogRepo) FindByOwnerAndDate(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 	return nil, nil
 }

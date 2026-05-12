@@ -10,6 +10,7 @@ import { axios } from "@/lib/axios";
 import { LstepAnalyticsPage } from "../LstepAnalyticsPage";
 import type { MonthlyDeliveryStatsResponse } from "../../api/get-lstep-delivery-stats";
 import type { LstepCsvImportItem } from "../../api/get-lstep-csv-imports";
+import type { VisitConversionSummaryResponse } from "../../api/get-lstep-visit-conversion";
 
 const CLINIC_ID = "clinic-test-1";
 
@@ -70,6 +71,37 @@ const mockCsvImports: LstepCsvImportItem[] = [
   },
 ];
 
+const mockVisitConversion: VisitConversionSummaryResponse = {
+  year_month: "2026-05",
+  days: 30,
+  delivered_count: 15,
+  visited_count: 5,
+  visit_rate: 5 / 15,
+  rows: [
+    {
+      trigger_type: "birthday_message",
+      delivered_count: 10,
+      visited_count: 4,
+      visit_rate: 0.4,
+    },
+    {
+      trigger_type: "next_visit_reminder",
+      delivered_count: 5,
+      visited_count: 1,
+      visit_rate: 0.2,
+    },
+  ],
+};
+
+const mockVisitConversionEmpty: VisitConversionSummaryResponse = {
+  year_month: "2026-04",
+  days: 30,
+  delivered_count: 0,
+  visited_count: 0,
+  visit_rate: 0,
+  rows: [],
+};
+
 function setupStatsHandler(data: MonthlyDeliveryStatsResponse) {
   server.use(
     http.get(
@@ -83,6 +115,15 @@ function setupCsvImportsHandler(data: LstepCsvImportItem[]) {
   server.use(
     http.get(
       `/api/v1/clinics/${CLINIC_ID}/lstep/csv-imports`,
+      () => HttpResponse.json(data)
+    )
+  );
+}
+
+function setupVisitConversionHandler(data: VisitConversionSummaryResponse) {
+  server.use(
+    http.get(
+      `/api/v1/clinics/${CLINIC_ID}/lstep/analytics/visit-conversion`,
       () => HttpResponse.json(data)
     )
   );
@@ -103,10 +144,12 @@ function createWrapper() {
 
 async function renderAndWait(
   stats: MonthlyDeliveryStatsResponse = mockStats,
-  csvImports: LstepCsvImportItem[] = mockCsvImports
+  csvImports: LstepCsvImportItem[] = mockCsvImports,
+  visitConversion: VisitConversionSummaryResponse = mockVisitConversion
 ) {
   setupStatsHandler(stats);
   setupCsvImportsHandler(csvImports);
+  setupVisitConversionHandler(visitConversion);
   render(<LstepAnalyticsPage />, { wrapper: createWrapper() });
   await waitFor(() => {
     expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
@@ -149,8 +192,9 @@ describe("LstepAnalyticsPage — A: セクション描画", () => {
 describe("LstepAnalyticsPage — B: 配信統計テーブル", () => {
   it("トリガー別の行が描画される (誕生日メッセージ・次回来院リマインド)", async () => {
     await renderAndWait();
-    expect(screen.getByText("誕生日メッセージ")).toBeInTheDocument();
-    expect(screen.getByText("次回来院リマインド")).toBeInTheDocument();
+    const statsSection = screen.getByRole("region", { name: "月次配信統計" });
+    expect(within(statsSection).getByText("誕生日メッセージ")).toBeInTheDocument();
+    expect(within(statsSection).getByText("次回来院リマインド")).toBeInTheDocument();
   });
 
   it("ステータスヘッダー「送信済」「除外」「失敗」「予定」が表示される", async () => {
@@ -187,6 +231,7 @@ describe("LstepAnalyticsPage — C: 年月フィルター", () => {
       )
     );
     setupCsvImportsHandler(mockCsvImports);
+    setupVisitConversionHandler(mockVisitConversionEmpty);
 
     render(<LstepAnalyticsPage />, { wrapper: createWrapper() });
     await waitFor(() => {
@@ -203,6 +248,47 @@ describe("LstepAnalyticsPage — C: 年月フィルター", () => {
     await waitFor(() => {
       expect(requestedYearMonth).toBe(prevMonthOption.value);
     });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// F: 配信後来院率
+// ─────────────────────────────────────────────────────────────
+
+describe("LstepAnalyticsPage — F: 配信後来院率", () => {
+  it("来院率セクション見出しと全体カードが表示される", async () => {
+    await renderAndWait();
+    const conversionSection = screen.getByRole("region", { name: "配信後来院率" });
+    expect(within(conversionSection).getByText("配信後来院率")).toBeInTheDocument();
+    const [deliveredLabel] = within(conversionSection).getAllByText("送信件数");
+    const [visitedLabel] = within(conversionSection).getAllByText("来院件数");
+    const [rateLabel] = within(conversionSection).getAllByText("来院率");
+
+    const deliveredCard = deliveredLabel.closest("div");
+    const visitedCard = visitedLabel.closest("div");
+    const rateCard = rateLabel.closest("div");
+
+    expect(deliveredCard).not.toBeNull();
+    expect(visitedCard).not.toBeNull();
+    expect(rateCard).not.toBeNull();
+
+    expect(within(deliveredCard as HTMLElement).getByText("15")).toBeInTheDocument();
+    expect(within(visitedCard as HTMLElement).getByText("5")).toBeInTheDocument();
+    expect(within(rateCard as HTMLElement).getByText("33.3%")).toBeInTheDocument();
+  });
+
+  it("トリガー別の来院率行が表示される", async () => {
+    await renderAndWait();
+    const conversionSection = screen.getByRole("region", { name: "配信後来院率" });
+    expect(within(conversionSection).getByText("誕生日メッセージ")).toBeInTheDocument();
+    expect(within(conversionSection).getByText("次回来院リマインド")).toBeInTheDocument();
+    expect(within(conversionSection).getByText("40.0%")).toBeInTheDocument();
+    expect(within(conversionSection).getByText("20.0%")).toBeInTheDocument();
+  });
+
+  it("データなしのとき空状態が表示される", async () => {
+    await renderAndWait(mockStats, mockCsvImports, mockVisitConversionEmpty);
+    expect(screen.getByText("この月の来院率データはありません")).toBeInTheDocument();
   });
 });
 
@@ -252,6 +338,7 @@ describe("LstepAnalyticsPage — E: CSV アップロード", () => {
   it("アップロード成功時に「アップロードが完了しました」が表示される", async () => {
     setupStatsHandler(mockStats);
     setupCsvImportsHandler(mockCsvImports);
+    setupVisitConversionHandler(mockVisitConversion);
 
     // axios.post を直接モック: sanitizeNullBytes が FormData を破壊する問題を回避
     const postSpy = vi
