@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 import { ChangePasswordDialog } from "@/features/auth";
 import { paths } from "@/config/paths";
-import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCashRegisterClose, ResourceClosingSettings, ResourcePaymentMethod } from "@/types/generated/models";
+import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCashRegisterClose, ResourceClosingSettings, ResourcePaymentMethod, ResourceLstepAnalytics } from "@/types/generated/models";
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */
@@ -346,6 +346,7 @@ export const Sidebar = memo(function Sidebar() {
                 { icon: <MessageSquare className={ICON.toolbar} />, label: "連携設定", path: paths.lstep.settings.getHref(), resource: ResourceHospitalSettings },
                 { icon: <Tag className={ICON.toolbar} />, label: "タグ管理", path: paths.lstep.tags.getHref(), resource: ResourceHospitalSettings },
                 { icon: <ClipboardSignature className={ICON.toolbar} />, label: "健診対象者抽出", path: paths.lstep.checkupSync.getHref(), resource: ResourceHospitalSettings },
+                { icon: <BarChart3 className={ICON.toolbar} />, label: "分析レポート", path: paths.lstep.analytics.getHref(), resource: ResourceLstepAnalytics },
               ],
             } as MenuItem}
             collapsed={collapsed}

@@ -233,6 +233,10 @@ export const paths = {
       path: "/lstep/checkup-sync",
       getHref: () => "/lstep/checkup-sync",
     },
+    analytics: {
+      path: "/lstep/analytics",
+      getHref: () => "/lstep/analytics",
+    },
   },
 
   settings: {
