@@ -80,6 +80,9 @@ func (m *mockDeliveryTriggerLogRepository) CountByStatusAndDateRange(_ context.C
 func (m *mockDeliveryTriggerLogRepository) CountExcludedReasonByDateRange(_ context.Context, _ uint64, _, _ time.Time, _ string) (map[string]int64, error) {
 	return map[string]int64{}, nil
 }
+func (m *mockDeliveryTriggerLogRepository) CountSuppressedByPriorityDateRange(_ context.Context, _ uint64, _, _ time.Time, _ string) (int64, error) {
+	return 0, nil
+}
 func (m *mockDeliveryTriggerLogRepository) FindByDateRangeWithFilters(_ context.Context, _ uint64, _, _ time.Time, _, _ string, _, _ int) ([]repository.DeliveryTriggerLogRow, int64, error) {
 	return nil, 0, nil
 }

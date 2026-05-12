@@ -30,6 +30,7 @@ const mockSummary: DeliveryTriggerSummaryResponse = {
   fired: 5,
   excluded: 3,
   failed: 2,
+  suppressed_by_priority: 4,
   excluded_reason_breakdown: { opt_out: 2, no_line_id: 1 },
 };
 
@@ -38,6 +39,7 @@ const mockSummaryNoIssue: DeliveryTriggerSummaryResponse = {
   fired: 8,
   excluded: 0,
   failed: 0,
+  suppressed_by_priority: 0,
   excluded_reason_breakdown: {},
 };
 
@@ -130,7 +132,7 @@ afterEach(() => {
 // ─────────────────────────────────────────────────────────────
 
 describe("LstepDeliveryMonitorPage — A: サマリーカード", () => {
-  it("4 枚のサマリーカードが正しい数値で描画される", async () => {
+  it("5 枚のサマリーカードが正しい数値で描画される", async () => {
     await renderAndWait();
 
     const scheduledCard = screen.getByTestId("summary-card-scheduled");
@@ -144,9 +146,14 @@ describe("LstepDeliveryMonitorPage — A: サマリーカード", () => {
 
     const failedCard = screen.getByTestId("summary-card-failed");
     expect(failedCard).toHaveTextContent("2");
+
+    const suppressedCard = screen.getByTestId(
+      "summary-card-suppressed_by_priority"
+    );
+    expect(suppressedCard).toHaveTextContent("4");
   });
 
-  it("カードラベル「予定」「送信済」「除外」「失敗」が表示される", async () => {
+  it("カードラベル「予定」「送信済」「除外」「失敗」「優先度抑制」が表示される", async () => {
     await renderAndWait();
     expect(screen.getByTestId("summary-card-scheduled")).toHaveTextContent(
       "予定"
@@ -160,6 +167,9 @@ describe("LstepDeliveryMonitorPage — A: サマリーカード", () => {
     expect(screen.getByTestId("summary-card-failed")).toHaveTextContent(
       "失敗"
     );
+    expect(
+      screen.getByTestId("summary-card-suppressed_by_priority")
+    ).toHaveTextContent("優先度抑制");
   });
 });
 

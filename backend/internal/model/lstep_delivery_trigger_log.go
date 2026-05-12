@@ -69,3 +69,5 @@ type LstepDeliveryTriggerLog struct {
 	CreatedAt            time.Time `gorm:"autoCreateTime"`
 	UpdatedAt            time.Time `gorm:"autoUpdateTime"`
 }
+
+func (LstepDeliveryTriggerLog) TableName() string { return "lstep_delivery_trigger_log" }

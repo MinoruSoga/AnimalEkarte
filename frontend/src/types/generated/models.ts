@@ -1375,7 +1375,6 @@ export interface LstepTagCodeMapping {
 //////////
 // source: lstep_trigger_priority.go
 
-export const DefaultPriorityFallback = 99;
 /**
  * LstepTriggerPriority はクリニック単位のトリガー配信優先順位設定 (Q23)。
  */
@@ -1387,6 +1386,10 @@ export interface LstepTriggerPriority {
   CreatedAt: string;
   UpdatedAt: string;
 }
+/**
+ * DefaultPriorityFallback は DefaultTriggerPriorities に未定義のトリガーに使う最後尾優先度。
+ */
+export const DefaultPriorityFallback = 99;
 
 //////////
 // source: medical_record.go

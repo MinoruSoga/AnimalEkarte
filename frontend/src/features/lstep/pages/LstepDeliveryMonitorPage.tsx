@@ -90,13 +90,19 @@ export function LstepDeliveryMonitorPage() {
     : 1;
 
   const statusCards: Array<{
-    key: "scheduled" | "fired" | "excluded" | "failed";
+    key:
+      | "scheduled"
+      | "fired"
+      | "excluded"
+      | "failed"
+      | "suppressed_by_priority";
     label: string;
   }> = [
     { key: "scheduled", label: "予定" },
     { key: "fired", label: "送信済" },
     { key: "excluded", label: "除外" },
     { key: "failed", label: "失敗" },
+    { key: "suppressed_by_priority", label: "優先度抑制" },
   ];
 
   return (
@@ -182,9 +188,9 @@ export function LstepDeliveryMonitorPage() {
           </Select>
         </div>
 
-        {/* サマリーカード 4枚 */}
+        {/* サマリーカード */}
         {summary !== undefined ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
             {statusCards.map(({ key, label }) => (
               <div
                 key={key}

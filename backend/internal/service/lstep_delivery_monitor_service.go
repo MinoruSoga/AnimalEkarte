@@ -35,6 +35,7 @@ type DeliveryTriggerSummary struct {
 	Fired                   int64
 	Excluded                int64
 	Failed                  int64
+	SuppressedByPriority    int64
 	ExcludedReasonBreakdown map[string]int64
 }
 
@@ -84,11 +85,17 @@ func (s *lstepDeliveryMonitorService) GetSummary(ctx context.Context, input GetD
 		slog.ErrorContext(ctx, "failed to count delivery trigger excluded reasons", "clinic_id", input.ClinicID, "error", err)
 		return DeliveryTriggerSummary{}, apperrors.Wrap(err, "failed to count delivery trigger excluded reasons")
 	}
+	suppressedByPriority, err := s.triggerLog.CountSuppressedByPriorityDateRange(ctx, input.ClinicID, input.From, input.To, input.TriggerType)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count priority-suppressed delivery trigger logs", "clinic_id", input.ClinicID, "error", err)
+		return DeliveryTriggerSummary{}, apperrors.Wrap(err, "failed to count priority-suppressed delivery trigger logs")
+	}
 	return DeliveryTriggerSummary{
 		Scheduled:               statusCounts[model.TriggerStatusScheduled],
 		Fired:                   statusCounts[model.TriggerStatusFired],
 		Excluded:                statusCounts[model.TriggerStatusExcluded],
 		Failed:                  statusCounts[model.TriggerStatusFailed],
+		SuppressedByPriority:    suppressedByPriority,
 		ExcludedReasonBreakdown: excludedReasons,
 	}, nil
 }

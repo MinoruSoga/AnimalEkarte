@@ -3,6 +3,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ResourceHospitalSettings } from "@/types/generated/models";
 import { C } from "@/lib/design-tokens";
 import { LstepSettingsForm } from "./LstepSettingsForm";
+import { TriggerPrioritySection } from "./TriggerPrioritySection";
 
 export function LstepSettingsPage() {
   const { canEdit } = usePermission("hospital-settings");
@@ -20,6 +21,7 @@ export function LstepSettingsPage() {
   return (
     <PageLayout title="Lステップ連携設定" resource={ResourceHospitalSettings}>
       <LstepSettingsForm />
+      <TriggerPrioritySection />
     </PageLayout>
   );
 }

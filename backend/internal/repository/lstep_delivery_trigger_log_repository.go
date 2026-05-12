@@ -38,6 +38,8 @@ type LstepDeliveryTriggerLogRepository interface {
 	CountByStatusAndDateRange(ctx context.Context, clinicID uint64, from, to time.Time, triggerType string) (map[string]int64, error)
 	// CountExcludedReasonByDateRange は除外ログを除外理由別に集計する。triggerType が空なら全種別。
 	CountExcludedReasonByDateRange(ctx context.Context, clinicID uint64, from, to time.Time, triggerType string) (map[string]int64, error)
+	// CountSuppressedByPriorityDateRange は優先順位により抑制されたログ件数を返す。triggerType が空なら全種別。
+	CountSuppressedByPriorityDateRange(ctx context.Context, clinicID uint64, from, to time.Time, triggerType string) (int64, error)
 	// FindByDateRangeWithFilters は飼い主名 JOIN 付きでページングログ一覧と総件数を返す。
 	FindByDateRangeWithFilters(ctx context.Context, clinicID uint64, from, to time.Time, triggerType, status string, limit, offset int) ([]DeliveryTriggerLogRow, int64, error)
 	// ListByOwnerAndDateRange はクリニック・飼主単位で期間内トリガーログ一覧を返す。
@@ -114,7 +116,7 @@ func (r *lstepDeliveryTriggerLogRepository) CountByStatusAndDateRange(ctx contex
 		Count  int64  `gorm:"column:count"`
 	}
 	query := r.db.WithContext(ctx).
-		Table("lstep_delivery_trigger_logs").
+		Table("lstep_delivery_trigger_log").
 		Select("status, COUNT(*) AS count").
 		Where("clinic_id = ? AND scheduled_at >= ? AND scheduled_at < ?", clinicID, from, to).
 		Group("status")
@@ -138,7 +140,7 @@ func (r *lstepDeliveryTriggerLogRepository) CountExcludedReasonByDateRange(ctx c
 		Count          int64  `gorm:"column:count"`
 	}
 	query := r.db.WithContext(ctx).
-		Table("lstep_delivery_trigger_logs").
+		Table("lstep_delivery_trigger_log").
 		Select("COALESCE(excluded_reason, '') AS excluded_reason, COUNT(*) AS count").
 		Where("clinic_id = ? AND scheduled_at >= ? AND scheduled_at < ? AND status = ?", clinicID, from, to, model.TriggerStatusExcluded).
 		Group("excluded_reason")
@@ -154,6 +156,20 @@ func (r *lstepDeliveryTriggerLogRepository) CountExcludedReasonByDateRange(ctx c
 		result[rw.ExcludedReason] = rw.Count
 	}
 	return result, nil
+}
+
+func (r *lstepDeliveryTriggerLogRepository) CountSuppressedByPriorityDateRange(ctx context.Context, clinicID uint64, from, to time.Time, triggerType string) (int64, error) {
+	query := r.db.WithContext(ctx).
+		Model(&model.LstepDeliveryTriggerLog{}).
+		Where("clinic_id = ? AND scheduled_at >= ? AND scheduled_at < ? AND suppressed_by_priority = TRUE", clinicID, from, to)
+	if triggerType != "" {
+		query = query.Where("trigger_type = ?", triggerType)
+	}
+	var count int64
+	if err := query.Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "count_suppressed_by_priority")
+	}
+	return count, nil
 }
 
 func (r *lstepDeliveryTriggerLogRepository) FindByDateRangeWithFilters(ctx context.Context, clinicID uint64, from, to time.Time, triggerType, status string, limit, offset int) ([]DeliveryTriggerLogRow, int64, error) {
@@ -174,7 +190,7 @@ func (r *lstepDeliveryTriggerLogRepository) FindByDateRangeWithFilters(ctx conte
 
 	// data query with owner name join
 	findQ := r.db.WithContext(ctx).
-		Table("lstep_delivery_trigger_logs l").
+		Table("lstep_delivery_trigger_log l").
 		Select("l.*, COALESCE(o.name, '') AS owner_name").
 		Joins("LEFT JOIN owners o ON o.id = l.owner_id").
 		Where("l.clinic_id = ? AND l.scheduled_at >= ? AND l.scheduled_at < ?", clinicID, from, to)
@@ -210,7 +226,7 @@ func (r *lstepDeliveryTriggerLogRepository) ListByOwnerAndDateRange(ctx context.
 func (r *lstepDeliveryTriggerLogRepository) CountByTypeAndStatus(ctx context.Context, clinicID uint64, from, to time.Time) ([]DeliveryStatsRow, error) {
 	var rows []DeliveryStatsRow
 	err := r.db.WithContext(ctx).
-		Table("lstep_delivery_trigger_logs").
+		Table("lstep_delivery_trigger_log").
 		Select("trigger_type, status, COUNT(*) AS count").
 		Where("clinic_id = ? AND scheduled_at >= ? AND scheduled_at < ?", clinicID, from, to).
 		Group("trigger_type, status").

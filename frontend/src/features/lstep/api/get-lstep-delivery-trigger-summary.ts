@@ -6,6 +6,7 @@ export interface DeliveryTriggerSummaryResponse {
   fired: number;
   excluded: number;
   failed: number;
+  suppressed_by_priority: number;
   excluded_reason_breakdown: Record<string, number>;
 }
 

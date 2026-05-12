@@ -18,6 +18,7 @@ type deliveryTriggerSummaryResponse struct {
 	Fired                   int64            `json:"fired"`
 	Excluded                int64            `json:"excluded"`
 	Failed                  int64            `json:"failed"`
+	SuppressedByPriority    int64            `json:"suppressed_by_priority"`
 	ExcludedReasonBreakdown map[string]int64 `json:"excluded_reason_breakdown"`
 }
 
@@ -51,6 +52,7 @@ func toDeliveryTriggerSummaryResponse(s service.DeliveryTriggerSummary) delivery
 		Fired:                   s.Fired,
 		Excluded:                s.Excluded,
 		Failed:                  s.Failed,
+		SuppressedByPriority:    s.SuppressedByPriority,
 		ExcludedReasonBreakdown: rb,
 	}
 }
