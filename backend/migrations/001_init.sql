@@ -37,6 +37,11 @@
 --   ext-019: permission_group_rules (lstep-csv-import/analytics) シード → 003 へ (group_id FK は 003 生成)
 --   ext-020: clinic_settings.lstep_fire_hour_jst カラム
 --   ext-021: medical_record_addenda テーブル
+--   mig-005: clinic_settings.cpm_version カラム
+--   mig-006: clinic_settings.dormant_prevention_* カラム
+--   mig-007: owners.line_id_confirmed_by カラム + インデックス
+--   mig-008: lstep_trigger_priorities テーブル
+--   mig-009: lstep_delivery_trigger_log.suppressed_by_priority / suppression_reason カラム + インデックス
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -281,6 +286,7 @@ CREATE TABLE owners (
     line_followed_at     timestamptz,                                -- LINE フォロー日時（最終フォロー時刻）。Webhook follow イベントで更新。
     line_blocked_at      timestamptz,                                -- LINE ブロック日時。Webhook unfollow イベントで更新。再フォロー時に NULL にリセット。
     -- ext-009: LINE確認・配信停止・転院フィールド
+    line_id_confirmed_by    bigint      REFERENCES staffs(id) ON DELETE SET NULL,
     line_id_confirmed_at    timestamptz,
     delivery_excluded       boolean     NOT NULL DEFAULT false,
     delivery_excluded_reason varchar(100),
@@ -306,6 +312,7 @@ CREATE INDEX idx_owners_line_user_id
     WHERE line_user_id IS NOT NULL AND deleted_at IS NULL;
 
 COMMENT ON COLUMN owners.line_user_id       IS 'LINE User ID（Lステップ連携・LINE通知用）。NULL = 未連携。';
+COMMENT ON COLUMN owners.line_id_confirmed_by IS 'LINE ID 紐付け確認者 (staff_id)。NULL = 未確認。';
 COMMENT ON COLUMN owners.lstep_opt_out      IS 'Lステップ配信オプトアウトフラグ。true = すべてのタグ付与をスキップ。';
 COMMENT ON COLUMN owners.lstep_opt_out_at   IS 'オプトアウト設定日時。';
 COMMENT ON COLUMN owners.lstep_opt_out_reason IS 'オプトアウト理由（監査ログ用）。';
@@ -324,6 +331,10 @@ CREATE INDEX idx_owners_is_transferred
 CREATE INDEX idx_owners_line_id_confirmed
     ON owners (clinic_id, line_id_confirmed_at)
     WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_owners_line_id_confirmed_by
+    ON owners (line_id_confirmed_by)
+    WHERE line_id_confirmed_by IS NOT NULL;
 
 -- ------------------------------------
 -- 7a. lstep_tag_cache（Lステップタグキャッシュ: 008 統合）
@@ -447,6 +458,25 @@ CREATE UNIQUE INDEX idx_lstep_tag_code_mappings_clinic_tag_type
 COMMENT ON TABLE lstep_tag_code_mappings IS 'Lステップタグ → 診療コード の対応マスタ（ext-010 統合）';
 
 -- ------------------------------------
+-- 7f-2. lstep_trigger_priorities（Q23 配信衝突優先順位: mig-008 統合）
+-- ------------------------------------
+CREATE TABLE lstep_trigger_priorities (
+    id           BIGSERIAL PRIMARY KEY,
+    clinic_id    BIGINT NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    trigger_type VARCHAR(64) NOT NULL,
+    priority     INTEGER NOT NULL CHECK (priority >= 1),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (clinic_id, trigger_type)
+);
+
+CREATE INDEX idx_lstep_trigger_priorities_clinic
+    ON lstep_trigger_priorities(clinic_id);
+
+COMMENT ON TABLE lstep_trigger_priorities IS 'Q23 配信トリガー優先順位 (clinic単位カスタマイズ可)';
+COMMENT ON COLUMN lstep_trigger_priorities.priority IS '小さいほど優先 (1=最優先)。同日複数トリガー発火時、MIN(priority) のみ実配信';
+
+-- ------------------------------------
 -- 7g. lstep_delivery_trigger_log（Lステップ配信トリガーログ: ext-012 統合）
 -- ------------------------------------
 CREATE TABLE lstep_delivery_trigger_log (
@@ -458,6 +488,8 @@ CREATE TABLE lstep_delivery_trigger_log (
     status           varchar(20)  NOT NULL DEFAULT 'scheduled',  -- scheduled | fired | excluded | cancelled
     fired_at         timestamptz,
     excluded_reason  varchar(100),
+    suppressed_by_priority BOOLEAN   NOT NULL DEFAULT FALSE,
+    suppression_reason VARCHAR(255),
     created_at       timestamptz  NOT NULL DEFAULT now(),
     updated_at       timestamptz  NOT NULL DEFAULT now()
 );
@@ -466,8 +498,13 @@ CREATE INDEX idx_lstep_delivery_trigger_log_lookup
     ON lstep_delivery_trigger_log (clinic_id, owner_id, trigger_type, scheduled_at);
 CREATE INDEX idx_lstep_delivery_trigger_log_clinic_date
     ON lstep_delivery_trigger_log (clinic_id, scheduled_at);
+CREATE INDEX idx_lstep_delivery_trigger_log_suppressed
+    ON lstep_delivery_trigger_log(clinic_id, suppressed_by_priority)
+    WHERE suppressed_by_priority = TRUE;
 
 COMMENT ON TABLE lstep_delivery_trigger_log IS 'Lステップ自動配信トリガーの実行ログ（ext-012 統合）';
+COMMENT ON COLUMN lstep_delivery_trigger_log.suppressed_by_priority IS 'Q23 優先順位により抑制されたか (FALSE=実配信 / TRUE=ログのみ)';
+COMMENT ON COLUMN lstep_delivery_trigger_log.suppression_reason IS '抑制理由 (例: "owner_id=42 already triggered by dormant_365d at 2026-05-11")';
 
 -- ------------------------------------
 -- 7h. lstep_csv_imports（Lステップ CSV インポート: ext-017 統合）
@@ -1787,6 +1824,12 @@ CREATE TABLE clinic_settings (
     closing_weekday_end    time         NOT NULL DEFAULT '18:30',
     closing_sunday_end     time         NOT NULL DEFAULT '17:30',
     closed_weekdays        smallint[]   NOT NULL DEFAULT '{}',
+    cpm_version            varchar(8)   NOT NULL DEFAULT 'v1'
+                           CHECK (cpm_version IN ('v1', 'v2')),
+    dormant_prevention_180_days integer  NOT NULL DEFAULT 180,
+    dormant_prevention_210_days integer  NOT NULL DEFAULT 210,
+    dormant_prevention_240_days integer  NOT NULL DEFAULT 240,
+    dormant_prevention_365_days integer  NOT NULL DEFAULT 365,
     lstep_fire_hour_jst    INT          NOT NULL DEFAULT 10
                            CHECK (lstep_fire_hour_jst BETWEEN 0 AND 23),  -- ext-020: Lステップ配信バッチ実行時刻（JST, 0–23）
     created_at             timestamptz  NOT NULL DEFAULT now(),
@@ -1794,6 +1837,11 @@ CREATE TABLE clinic_settings (
 );
 
 COMMENT ON TABLE clinic_settings IS '医院締め時間・休診曜日設定（FEAT-368）';
+COMMENT ON COLUMN clinic_settings.cpm_version IS 'CPM 判定方式 (v1: 既存 6-stage / v2: Q19 来院回数 5-stage, 2026-05-08 確定)';
+COMMENT ON COLUMN clinic_settings.dormant_prevention_180_days IS 'dormant_prevention_1st 配信トリガー閾値日数 (Q21、デフォルト 180)';
+COMMENT ON COLUMN clinic_settings.dormant_prevention_210_days IS 'dormant_prevention_2nd 配信トリガー閾値日数 (Q21、デフォルト 210)';
+COMMENT ON COLUMN clinic_settings.dormant_prevention_240_days IS 'dormant_prevention_3rd 配信トリガー閾値日数 (Q21、デフォルト 240)';
+COMMENT ON COLUMN clinic_settings.dormant_prevention_365_days IS 'dormant_prevention_4th 配信トリガー閾値日数 (Q21、デフォルト 365)';
 COMMENT ON COLUMN clinic_settings.lstep_fire_hour_jst IS 'Lステップ自動配信バッチを実行する時刻（JST、0–23）。デフォルト 10 時。';
 
 -- ------------------------------------
@@ -2461,4 +2509,3 @@ CREATE TRIGGER trg_create_default_payment_methods
     AFTER INSERT ON clinics
     FOR EACH ROW
     EXECUTE FUNCTION create_default_payment_methods();
-
