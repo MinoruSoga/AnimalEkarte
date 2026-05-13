@@ -49,7 +49,7 @@ func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
 		{name: "SyncCPMStageTag", run: func() error { return svc.SyncCPMStageTag(ctx, 1, 2) }},
 		{name: "SyncNextVisitTag", run: func() error { return svc.SyncNextVisitTag(ctx, 1, 2) }},
 		{name: "SyncReservationTag", run: func() error { return svc.SyncReservationTag(ctx, 1, 2, now) }},
-		{name: "SyncCancellationTag", run: func() error { return svc.SyncCancellationTag(ctx, 1, 2, now) }},
+		{name: "SyncCancellationTag", run: func() error { return svc.SyncCancellationTag(ctx, 1, 2) }},
 		{name: "SyncCheckupTag", run: func() error { return svc.SyncCheckupTag(ctx, 1, 2, 3, now, nil) }},
 		{name: "SyncPrescriptionTag", run: func() error { return svc.SyncPrescriptionTag(ctx, 1, 2) }},
 		{name: "SyncChronicConditionTags", run: func() error { return svc.SyncChronicConditionTags(ctx, 1, 2, []string{"kidney"}) }},

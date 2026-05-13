@@ -148,7 +148,7 @@ type LstepTagSyncService interface {
 	// 旧 reserved_* / canceled_visit / no_show_* タグを解除してから新タグを付与する。
 	SyncReservationTag(ctx context.Context, clinicID, ownerID uint64, reservationDate time.Time) error
 	// SyncCancellationTag は予約キャンセル時に canceled_visit タグを付与し reserved_* を解除する（BE-007）。
-	SyncCancellationTag(ctx context.Context, clinicID, ownerID uint64, canceledDate time.Time) error
+	SyncCancellationTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncCheckupTag は健診記録の作成・更新時に checkup_done_{typeID}_{YYYY-MM}/next_checkup_* タグを同期する（BE-008）。
 	// 同一健診種別の古い checkup_done タグを解除してから新タグを付与する。next_checkup_* は最新1件のみ。
 	SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error
@@ -1090,7 +1090,7 @@ func (s *lstepTagSyncService) SyncReservationTag(ctx context.Context, clinicID, 
 }
 
 // SyncCancellationTag は予約キャンセル時に canceled_visit タグを付与し reserved_* を解除する（BE-007）。
-func (s *lstepTagSyncService) SyncCancellationTag(ctx context.Context, clinicID, ownerID uint64, canceledDate time.Time) error {
+func (s *lstepTagSyncService) SyncCancellationTag(ctx context.Context, clinicID, ownerID uint64) error {
 	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
 		return err
 	} else if skip {
@@ -1147,7 +1147,6 @@ func (s *lstepTagSyncService) SyncCancellationTag(ctx context.Context, clinicID,
 	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, canceledVisitTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert canceled_visit tag cache", "error", upsertErr)
 	}
-	_ = canceledDate // 将来的に canceled_visit_YYYY-MM-DD 形式に拡張する場合に使用
 	if !apiFailed {
 		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}

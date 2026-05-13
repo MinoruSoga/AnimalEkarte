@@ -247,7 +247,7 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 	if svcInput.Status != nil && reservation.OwnerID != nil {
 		switch *svcInput.Status {
 		case model.ReservationStatusCancelled:
-			_ = h.svc.LstepTagSync.SyncCancellationTag(ctx, clinicID, *reservation.OwnerID, reservation.StartTime)
+			_ = h.svc.LstepTagSync.SyncCancellationTag(ctx, clinicID, *reservation.OwnerID)
 		case model.ReservationStatusConfirmed, model.ReservationStatusPending:
 			_ = h.svc.LstepTagSync.SyncReservationTag(ctx, clinicID, *reservation.OwnerID, reservation.StartTime)
 		}

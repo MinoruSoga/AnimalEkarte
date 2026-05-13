@@ -140,7 +140,7 @@ func (m *batchMockTagSyncSvc) SyncNextVisitTag(_ context.Context, _, _ uint64) e
 func (m *batchMockTagSyncSvc) SyncReservationTag(_ context.Context, _, _ uint64, _ time.Time) error {
 	return nil
 }
-func (m *batchMockTagSyncSvc) SyncCancellationTag(_ context.Context, _, _ uint64, _ time.Time) error {
+func (m *batchMockTagSyncSvc) SyncCancellationTag(_ context.Context, _, _ uint64) error {
 	return nil
 }
 func (m *batchMockTagSyncSvc) SyncCheckupTag(_ context.Context, _, _, _ uint64, _ time.Time, _ *time.Time) error {

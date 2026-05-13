@@ -152,7 +152,7 @@ func (m *mockLstepTagSyncService) SyncNextVisitTag(_ context.Context, _, _ uint6
 func (m *mockLstepTagSyncService) SyncReservationTag(_ context.Context, _, _ uint64, _ time.Time) error {
 	return nil
 }
-func (m *mockLstepTagSyncService) SyncCancellationTag(_ context.Context, _, _ uint64, _ time.Time) error {
+func (m *mockLstepTagSyncService) SyncCancellationTag(_ context.Context, _, _ uint64) error {
 	return nil
 }
 func (m *mockLstepTagSyncService) SyncCheckupTag(_ context.Context, _, _, _ uint64, _ time.Time, _ *time.Time) error {
