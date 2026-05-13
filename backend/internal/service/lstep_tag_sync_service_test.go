@@ -69,9 +69,6 @@ func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
 		{name: "SyncFilariaTag", run: func() error { return svc.SyncFilariaTag(ctx, 1, 2) }},
 		{name: "SyncFleaTickTag", run: func() error { return svc.SyncFleaTickTag(ctx, 1, 2) }},
 		{name: "SyncFoodPurchaseTag", run: func() error { return svc.SyncFoodPurchaseTag(ctx, 1, 2) }},
-		{name: "SyncSpecialCheckupCandidateTag", run: func() error {
-			return svc.SyncSpecialCheckupCandidateTag(ctx, 1, 2)
-		}},
 	}
 
 	for _, tc := range tests {
@@ -941,14 +938,6 @@ func TestSyncFoodPurchaseTagNoopWhenCodesEmpty(t *testing.T) {
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncFoodPurchaseTag(context.Background(), 1, 2))
-}
-
-func TestSyncSpecialCheckupCandidateTagAlwaysNoop(t *testing.T) {
-	svc := NewLstepTagSyncService(
-		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-	)
-	assert.NoError(t, svc.SyncSpecialCheckupCandidateTag(context.Background(), 1, 2))
 }
 
 func TestSyncHealthPreventionTagsForClinicDisabledSync(t *testing.T) {

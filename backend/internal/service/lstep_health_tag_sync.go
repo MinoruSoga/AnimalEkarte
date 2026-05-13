@@ -668,18 +668,6 @@ func (s *lstepTagSyncService) SyncSuppPurchaseTag(ctx context.Context, clinicID,
 	return nil
 }
 
-// SyncSpecialCheckupCandidateTag は専門検診候補に HLTH_専門検診候補 タグを付与する（FEAT-379）。
-// SPEC-002 Q6 確定待ち: 常に noop。
-func (s *lstepTagSyncService) SyncSpecialCheckupCandidateTag(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	// TODO: SPEC-002 Q6 確定後に実装
-	return nil
-}
-
 // SyncHealthPreventionTagsForClinic は指定クリニックの全飼い主に対して
 // 健診・予防・物販タグを一括同期する（FEAT-379 バッチエントリポイント）。
 func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Context, clinicID uint64) (int, []error) {
@@ -710,9 +698,6 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 			{"SyncFleaTickTag", func() error { return s.SyncFleaTickTag(ctx, clinicID, ownerID) }},
 			{"SyncFoodPurchaseTag", func() error { return s.SyncFoodPurchaseTag(ctx, clinicID, ownerID) }},
 			{"SyncSuppPurchaseTag", func() error { return s.SyncSuppPurchaseTag(ctx, clinicID, ownerID) }},
-			{"SyncSpecialCheckupCandidateTag", func() error {
-				return s.SyncSpecialCheckupCandidateTag(ctx, clinicID, ownerID)
-			}},
 		}
 		ownerFailed := false
 		for _, sf := range syncFns {

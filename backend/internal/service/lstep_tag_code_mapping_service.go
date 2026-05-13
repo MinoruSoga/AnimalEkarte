@@ -17,7 +17,6 @@ import (
 // SPEC-002 Q5 確定後にコード一覧が充填される。
 var ConfigurableTagNames = []string{
 	HlthHealthcheckDoneTag,
-	HlthSpecialCheckupCandidateTag,
 	PrevFilariaTag,
 	PrevFleaTickTag,
 	LtvFoodPurchaseTag,

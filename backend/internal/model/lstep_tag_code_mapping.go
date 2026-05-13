@@ -10,10 +10,6 @@ const (
 	CodeTypeCheckupType            = "checkup_type"
 	CodeTypePrescription           = "prescription"
 	CodeTypeMerchandiseItem        = "merchandise_item"
-	CodeTypeSpecialtyDental        = "specialty_dental"
-	CodeTypeSpecialtySkinEar       = "specialty_skin_ear"
-	CodeTypeSpecialtyOphthalmology = "specialty_ophthalmology"
-	CodeTypeSpecialtyKidney        = "specialty_kidney"
 
 	SpeciesScopeDog = "dog"
 )

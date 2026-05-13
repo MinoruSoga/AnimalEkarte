@@ -22,7 +22,7 @@ const mappings: TagCodeMappingItem[] = [
     id: 2,
     clinic_id: 1,
     tag_name: "HLTH_健診あり",
-    code_type: "specialty_dental",
+    code_type: "checkup_type",
     codes: [],
   },
 ];

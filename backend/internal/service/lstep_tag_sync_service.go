@@ -211,9 +211,6 @@ type LstepTagSyncService interface {
 	// SyncSuppPurchaseTag はサプリ購入履歴に基づき LTV_サプリ購入あり タグを同期する（FEAT-385-supp）。
 	// SuppPurchaseCodes が空の場合は noop。カテゴリフォールバックなし。
 	SyncSuppPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncSpecialCheckupCandidateTag は専門検診候補に HLTH_専門検診候補 タグを付与する（FEAT-379）。
-	// SPEC-002 Q6 確定待ち: 常に noop。
-	SyncSpecialCheckupCandidateTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncHealthPreventionTagsForClinic は指定クリニックの全飼い主に対して
 	// 健診・予防・物販タグを一括同期する（FEAT-379 バッチエントリポイント）。
 	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。

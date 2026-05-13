@@ -645,14 +645,6 @@ func TestSyncSuppPurchaseTag(t *testing.T) {
 	})
 }
 
-// ---- TestSyncSpecialCheckupCandidateTag ----
-
-func TestSyncSpecialCheckupCandidateTag(t *testing.T) {
-	ctx := context.Background()
-	svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
-	assert.NoError(t, svc.SyncSpecialCheckupCandidateTag(ctx, 10, 1), "SPEC-002 Q6未確定のため常にnoop")
-}
-
 // ---- mockVaccinationRepoForHealth ----
 
 type mockVaccinationRepoForHealth struct {

@@ -101,29 +101,22 @@ func TestLstepTagCodeMappingService_PutMappingsForTag(t *testing.T) {
 			},
 		})
 
-		ageMin := 8
-		got, err := svc.PutMappingsForTag(context.Background(), 10, HlthSpecialCheckupCandidateTag, []PutMappingEntry{
+		got, err := svc.PutMappingsForTag(context.Background(), 10, HlthHealthcheckDoneTag, []PutMappingEntry{
 			{
-				CodeType:     model.CodeTypeSpecialtyOphthalmology,
-				Codes:        []string{"EYE_01", "EYE_02"},
-				SpeciesScope: model.SpeciesScopeDog,
-				AgeMin:       &ageMin,
+				CodeType: model.CodeTypeCheckupType,
+				Codes:    []string{"CHK_01", "CHK_02"},
 			},
 		})
 
 		assert.NoError(t, err)
-		assert.Equal(t, HlthSpecialCheckupCandidateTag, deletedTag)
+		assert.Equal(t, HlthHealthcheckDoneTag, deletedTag)
 		if assert.Len(t, created, 1) {
 			assert.Equal(t, uint64(10), created[0].ClinicID)
-			assert.Equal(t, HlthSpecialCheckupCandidateTag, created[0].TagName)
-			assert.Equal(t, model.CodeTypeSpecialtyOphthalmology, created[0].CodeType)
-			assert.Equal(t, pq.StringArray{"EYE_01", "EYE_02"}, created[0].Codes)
-			if assert.NotNil(t, created[0].SpeciesScope) {
-				assert.Equal(t, model.SpeciesScopeDog, *created[0].SpeciesScope)
-			}
-			if assert.NotNil(t, created[0].AgeMin) {
-				assert.Equal(t, ageMin, *created[0].AgeMin)
-			}
+			assert.Equal(t, HlthHealthcheckDoneTag, created[0].TagName)
+			assert.Equal(t, model.CodeTypeCheckupType, created[0].CodeType)
+			assert.Equal(t, pq.StringArray{"CHK_01", "CHK_02"}, created[0].Codes)
+			assert.Nil(t, created[0].SpeciesScope)
+			assert.Nil(t, created[0].AgeMin)
 		}
 		assert.Len(t, got, 1)
 		assert.Equal(t, created[0], got[0])

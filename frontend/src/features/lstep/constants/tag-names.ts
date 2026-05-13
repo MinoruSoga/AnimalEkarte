@@ -4,7 +4,6 @@ export const LstepTagNames = {
   HLTH_健診あり: "HLTH_健診あり",
   HLTH_健診未受診: "HLTH_健診未受診",
   HLTH_年4回候補: "HLTH_年4回候補",
-  HLTH_専門検診候補: "HLTH_専門検診候補",
   PREV_ワクチン期限: "PREV_ワクチン期限",
   PREV_フィラリア未完了: "PREV_フィラリア未完了",
   PREV_ノミダニ対象: "PREV_ノミダニ対象",

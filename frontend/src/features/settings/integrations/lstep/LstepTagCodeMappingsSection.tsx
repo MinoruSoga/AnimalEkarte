@@ -11,7 +11,6 @@ import type { TagCodeMappingItem, PutMappingEntry } from "./hooks/useLstepTagCod
 // SPEC-002 Q5 確定待ちタグ名一覧（backend service.ConfigurableTagNames と同期）
 const CONFIGURABLE_TAG_NAMES = [
   "HLTH_健診あり",
-  "HLTH_専門検診候補",
   "PREV_フィラリア未完了",
   "PREV_ノミダニ対象",
   "LTV_フード購入あり",

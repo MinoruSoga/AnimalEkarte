@@ -35,7 +35,6 @@ export const HEALTH_SEGMENT_TAGS: SegmentTag[] = [
   { label: "健診あり", tagName: LstepTagNames.HLTH_健診あり },
   { label: "健診未受診", tagName: LstepTagNames.HLTH_健診未受診 },
   { label: "年4回候補", tagName: LstepTagNames.HLTH_年4回候補 },
-  { label: "専門検診候補", tagName: LstepTagNames.HLTH_専門検診候補 },
 ];
 
 export const PREVENTION_SEGMENT_TAGS: SegmentTag[] = [

@@ -5,7 +5,6 @@ const (
 	HlthHealthcheckDoneTag         = "HLTH_健診あり"
 	HlthHealthcheckNeverTag        = "HLTH_健診未受診"
 	HlthAnnual4CheckupTag          = "HLTH_年4回候補"
-	HlthSpecialCheckupCandidateTag = "HLTH_専門検診候補"
 	PrevVaccineDeadlineTag         = "PREV_ワクチン期限"
 	PrevFilariaTag                 = "PREV_フィラリア未完了"
 	PrevFleaTickTag                = "PREV_ノミダニ対象"
@@ -22,7 +21,6 @@ var (
 	FleaTickPrescriptionCodes []string
 	FoodPurchaseCodes         []string
 	SuppPurchaseCodes         []string
-	SpecialCheckupCodes       []string
 )
 
 // HealthPreventionLookbackDays は健診・予防履歴の参照期間（日数）。

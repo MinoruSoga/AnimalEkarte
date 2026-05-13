@@ -29,7 +29,6 @@ const mockSummary: LstepTagSummaryResponse = {
     { tag_name: "HLTH_健診あり", owner_count: 5, category: "auto" },
     { tag_name: "HLTH_健診未受診", owner_count: 3, category: "auto" },
     { tag_name: "HLTH_年4回候補", owner_count: 2, category: "auto" },
-    { tag_name: "HLTH_専門検診候補", owner_count: 0, category: "auto" },
     { tag_name: "PREV_ワクチン期限", owner_count: 8, category: "auto" },
     { tag_name: "PREV_フィラリア未完了", owner_count: 4, category: "auto" },
     { tag_name: "PREV_ノミダニ対象", owner_count: 6, category: "auto" },
@@ -89,12 +88,11 @@ afterEach(() => {
 // ─────────────────────────────────────────────────────────────
 
 describe("LstepTagManagementPage — A: 健診状況セクション (FEAT-380)", () => {
-  it("健診タグ 4 種のラベルが描画される", async () => {
+  it("健診タグ 3 種のラベルが描画される", async () => {
     await renderAndWait();
     expect(screen.getByText("健診あり")).toBeInTheDocument();
     expect(screen.getByText("健診未受診")).toBeInTheDocument();
     expect(screen.getByText("年4回候補")).toBeInTheDocument();
-    expect(screen.getByText("専門検診候補")).toBeInTheDocument();
   });
 
   it("HLTH_健診あり の件数 5 件がカードに表示される", async () => {
@@ -103,13 +101,6 @@ describe("LstepTagManagementPage — A: 健診状況セクション (FEAT-380)",
     const card = screen.getByText("健診あり").closest("div");
     expect(card).not.toBeNull();
     expect(within(card!).getByText("5")).toBeInTheDocument();
-  });
-
-  it("HLTH_専門検診候補 は 0 件で描画される（空マッピング状態）", async () => {
-    await renderAndWait();
-    const card = screen.getByText("専門検診候補").closest("div");
-    expect(card).not.toBeNull();
-    expect(within(card!).getByText("0")).toBeInTheDocument();
   });
 });
 
