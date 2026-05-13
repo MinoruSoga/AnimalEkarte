@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
-import { ResourceReception, ResourceReservations, ResourceMedicalRecords, ResourceAccounting, ResourceHospitalization, ResourceCheckups } from "@/types/generated/models";
+import { ResourceReception, ResourceReservations, ResourceMedicalRecords, ResourceAccounting, ResourceHospitalization } from "@/types/generated/models";
 import { usePermission } from "@/hooks/use-permission";
 
 // Shared
@@ -33,9 +33,7 @@ const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then(m => ({ default: m.ReservationFormModal }))
 );
 import { KanbanColumn } from "../components/KanbanColumn";
-import { CheckupAlertCard } from "../components/CheckupAlertCard";
 import { useReceptionKanban } from "../hooks/use-reception-kanban";
-import { useGetCheckupAlerts } from "@/features/checkups";
 
 // Types
 import type { Reservation, Pet } from "@/types";
@@ -50,8 +48,6 @@ export function Reception() {
     const { canCreate: canCreateMedicalRecord } = usePermission(ResourceMedicalRecords);
     const { canCreate: canCreateAccounting } = usePermission(ResourceAccounting);
     const { canCreate: canCreateHospitalization } = usePermission(ResourceHospitalization);
-    const { canView: canViewCheckups } = usePermission(ResourceCheckups);
-    const { data: checkupAlerts, isLoading: isLoadingAlerts, isError: isErrorAlerts } = useGetCheckupAlerts();
     const {
         columns,
         filteredColumns,
@@ -419,27 +415,6 @@ export function Reception() {
                                 <Label htmlFor="trimming-only" className={`text-base font-normal cursor-pointer ${C.text}`}>トリミングのみ表示</Label>
                             </div>
                         </div>
-                    </div>
-                </div>
-            ) : null}
-
-            {canViewCheckups ? (
-                <div className="px-5 pt-4 pb-0" data-testid="checkup-alert-cards">
-                    <div className="grid grid-cols-2 gap-3 max-w-sm">
-                        <CheckupAlertCard
-                            variant="overdue"
-                            data={checkupAlerts?.overdue}
-                            isLoading={isLoadingAlerts}
-                            isError={isErrorAlerts}
-                            onClick={() => navigate(paths.checkups.getHref())}
-                        />
-                        <CheckupAlertCard
-                            variant="upcoming"
-                            data={checkupAlerts?.upcoming}
-                            isLoading={isLoadingAlerts}
-                            isError={isErrorAlerts}
-                            onClick={() => navigate(paths.checkups.getHref())}
-                        />
                     </div>
                 </div>
             ) : null}
