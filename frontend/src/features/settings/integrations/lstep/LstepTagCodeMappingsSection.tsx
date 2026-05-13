@@ -1,6 +1,12 @@
+import { useState } from "react";
+import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
-import { useGetTagCodeMappings } from "./hooks/useLstepTagCodeMappings";
-import type { TagCodeMappingItem } from "./hooks/useLstepTagCodeMappings";
+import { Button } from "@/components/ui/button";
+import {
+  useGetTagCodeMappings,
+  usePutTagCodeMappingsForTag,
+} from "./hooks/useLstepTagCodeMappings";
+import type { TagCodeMappingItem, PutMappingEntry } from "./hooks/useLstepTagCodeMappings";
 
 // SPEC-002 Q5 確定待ちタグ名一覧（backend service.ConfigurableTagNames と同期）
 const CONFIGURABLE_TAG_NAMES = [
@@ -23,6 +29,10 @@ function groupByTagName(
   return map;
 }
 
+// ─────────────────────────────────────────────────
+// Badges
+// ─────────────────────────────────────────────────
+
 function NotEnteredBadge() {
   return (
     <span
@@ -42,6 +52,10 @@ function ConfiguredBadge() {
     </span>
   );
 }
+
+// ─────────────────────────────────────────────────
+// MappingRow (view mode)
+// ─────────────────────────────────────────────────
 
 function MappingRow({ item }: { item: TagCodeMappingItem }) {
   return (
@@ -64,6 +78,75 @@ function MappingRow({ item }: { item: TagCodeMappingItem }) {
   );
 }
 
+// ─────────────────────────────────────────────────
+// Edit form
+// ─────────────────────────────────────────────────
+
+interface EntryDraft {
+  id: number;
+  code_type: string;
+  codes_text: string;
+}
+
+let _entryIdSeq = 0;
+function newEntryDraft(partial?: { code_type: string; codes_text: string }): EntryDraft {
+  return { id: _entryIdSeq++, code_type: "", codes_text: "", ...partial };
+}
+
+function entryDraftsFromMappings(mappings: TagCodeMappingItem[]): EntryDraft[] {
+  if (mappings.length === 0) return [newEntryDraft()];
+  return mappings.map((m) =>
+    newEntryDraft({ code_type: m.code_type, codes_text: m.codes.join(", ") }),
+  );
+}
+
+function EntryEditRow({
+  entry,
+  onChange,
+  onRemove,
+}: {
+  entry: EntryDraft;
+  onChange: (updated: EntryDraft) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex gap-2 items-end">
+      <div className="flex flex-col gap-1 w-36 shrink-0">
+        <label className={`text-xs ${C.text60}`}>コード種別</label>
+        <input
+          type="text"
+          value={entry.code_type}
+          onChange={(e) => onChange({ ...entry, code_type: e.target.value })}
+          placeholder="例: checkup_type"
+          className={`${STYLE.formInput} rounded-[4px] border px-2 py-1 text-sm outline-none`}
+        />
+      </div>
+      <div className="flex flex-col gap-1 flex-1">
+        <label className={`text-xs ${C.text60}`}>コード（カンマ区切り）</label>
+        <input
+          type="text"
+          value={entry.codes_text}
+          onChange={(e) => onChange({ ...entry, codes_text: e.target.value })}
+          placeholder="例: CHK_A, CHK_B"
+          className={`${STYLE.formInput} rounded-[4px] border px-2 py-1 text-sm outline-none`}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className={`mb-0.5 text-sm ${C.text50} hover:opacity-70 shrink-0`}
+        aria-label="行を削除"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────
+// TagRow
+// ─────────────────────────────────────────────────
+
 function TagRow({
   tagName,
   mappings,
@@ -71,29 +154,124 @@ function TagRow({
   tagName: string;
   mappings: TagCodeMappingItem[];
 }) {
+  const [editing, setEditing] = useState(false);
+  const [entries, setEntries] = useState<EntryDraft[]>([]);
+  const mutation = usePutTagCodeMappingsForTag();
+
   const hasAnyCode = mappings.some((m) => m.codes.length > 0);
+
+  const handleStartEdit = () => {
+    setEntries(entryDraftsFromMappings(mappings));
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    const putEntries: PutMappingEntry[] = entries
+      .filter((e) => e.code_type.trim())
+      .map((e) => ({
+        code_type: e.code_type.trim(),
+        codes: e.codes_text
+          .split(",")
+          .map((c) => c.trim())
+          .filter(Boolean),
+      }));
+    try {
+      await mutation.mutateAsync({ tagName, req: { entries: putEntries } });
+      toast.success(`${tagName} を保存しました`);
+      setEditing(false);
+    } catch {
+      // handleApiError は mutation onError で処理済み
+    }
+  };
 
   return (
     <div className={`border ${C.borderLight} rounded-[4px] overflow-hidden`}>
+      {/* Header */}
       <div
         className={`flex items-center justify-between px-3 py-2.5 ${C.bgSubtle}`}
       >
         <span className={`text-sm font-medium ${C.text}`}>{tagName}</span>
-        {hasAnyCode ? <ConfiguredBadge /> : <NotEnteredBadge />}
-      </div>
-      {mappings.length === 0 ? (
-        <div className={`px-3 py-2 border-t ${C.borderLight}`}>
-          <span className={`text-xs ${C.text50}`}>
-            {/* TODO(SPEC-002 Q5): コードリストが確定後に追加 */}
-            コードが未設定です。SPEC-002 Q5 確定後に追加予定。
-          </span>
+        <div className="flex items-center gap-2">
+          {hasAnyCode ? <ConfiguredBadge /> : <NotEnteredBadge />}
+          {!editing ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleStartEdit}
+              className="h-6 px-2 text-xs"
+            >
+              編集
+            </Button>
+          ) : null}
         </div>
+      </div>
+
+      {/* View mode */}
+      {!editing ? (
+        mappings.length === 0 ? (
+          <div className={`px-3 py-2 border-t ${C.borderLight}`}>
+            <span className={`text-xs ${C.text50}`}>
+              {/* TODO(SPEC-002 Q5): コードリストが確定後に追加 */}
+              コードが未設定です。SPEC-002 Q5 確定後に追加予定。
+            </span>
+          </div>
+        ) : (
+          mappings.map((m) => <MappingRow key={m.id} item={m} />)
+        )
       ) : (
-        mappings.map((m) => <MappingRow key={m.id} item={m} />)
+        /* Edit mode */
+        <div className={`border-t ${C.borderLight} px-3 py-3 flex flex-col gap-2`}>
+          {entries.map((entry) => (
+            <EntryEditRow
+              key={entry.id}
+              entry={entry}
+              onChange={(updated) =>
+                setEntries((prev) =>
+                  prev.map((e) => (e.id === entry.id ? updated : e)),
+                )
+              }
+              onRemove={() =>
+                setEntries((prev) => prev.filter((e) => e.id !== entry.id))
+              }
+            />
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={() => setEntries((prev) => [...prev, newEntryDraft()])}
+            className="self-start h-7 px-2 text-xs"
+          >
+            + 行を追加
+          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={mutation.isPending}
+              className="h-7 px-3 text-xs"
+            >
+              {mutation.isPending ? "保存中..." : "保存"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditing(false)}
+              disabled={mutation.isPending}
+              className="h-7 px-3 text-xs"
+            >
+              キャンセル
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────
+// LstepTagCodeMappingsSection
+// ─────────────────────────────────────────────────
 
 export function LstepTagCodeMappingsSection() {
   const { data, isLoading, isError } = useGetTagCodeMappings();
