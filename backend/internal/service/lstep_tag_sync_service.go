@@ -720,7 +720,7 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 	for _, c := range cached {
 		if isDormantTag(c.TagName) || isVisitDormantTag(c.TagName) || c.TagName == "cpm_dormant" {
 			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove reservation/dormant tag on visit completion", "error", delErr, "tag", c.TagName)
+				slog.ErrorContext(ctx, "failed to remove dormant tag on visit completion", "error", delErr, "tag", c.TagName)
 				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 				apiFailed = true
 			} else {
