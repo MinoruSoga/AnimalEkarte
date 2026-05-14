@@ -141,7 +141,7 @@ export function useMedicalRecordForm(recordId?: string) {
   ]);
 
   // 編集モード: カルテからpetIdを取得
-  const { data: existingRecord } = useGetMedicalRecord(recordId ?? "");
+  const { data: existingRecord, isError: isRecordError, isLoading: isRecordLoading } = useGetMedicalRecord(recordId ?? "");
 
   // 既存カルテデータをフォームに反映 — previous-value pattern
   const [prevExistingRecord, setPrevExistingRecord] = useState(existingRecord);
@@ -360,6 +360,7 @@ export function useMedicalRecordForm(recordId?: string) {
   }, [isNewRecord, selectedPet?.id]);
 
   const shouldRedirectToSelectPet = isNewRecord && !petId;
+  const notFound = !isNewRecord && !!recordId && !isRecordLoading && isRecordError;
 
   return {
     isNewRecord,
@@ -370,6 +371,7 @@ export function useMedicalRecordForm(recordId?: string) {
     selectedPet: selectedPet ?? null,
     isPetLoading,
     shouldRedirectToSelectPet,
+    notFound,
     handleBack,
     formAction,
     formState,

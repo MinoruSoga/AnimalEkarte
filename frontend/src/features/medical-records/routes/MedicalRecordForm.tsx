@@ -84,6 +84,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     selectedPet,
     isPetLoading,
     shouldRedirectToSelectPet,
+    notFound,
     handleBack,
     formAction,
     formState,
@@ -317,6 +318,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const handleOpenOwnerSearch = useCallback(() => {
     setIsOwnerSearchOpen(true);
   }, []);
+
+  if (notFound) {
+    return (
+      <PageLayout title="カルテ" onBack={handleBack} icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}>
+        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>カルテが見つかりません</div>
+      </PageLayout>
+    );
+  }
 
   if (isPetLoading) {
     return <LoadingFallback />;
