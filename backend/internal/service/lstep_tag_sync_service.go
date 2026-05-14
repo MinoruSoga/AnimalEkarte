@@ -180,22 +180,22 @@ type LstepTagSyncService interface {
 	// 注: checkOptOut は呼ばない（このメソッド自体が opt-out 判定の実装）。
 	SyncExclusionTags(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncHealthcheckTags は健診履歴に基づき HLTH_健診あり / HLTH_健診未受診 タグを同期する（FEAT-379）。
-	// SPEC-002 Q5 確定待ち: HealthCheckupCodes が空の場合は noop。
+	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
 	SyncHealthcheckTags(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncAnnual4CheckupTag は年2回以上来院かつ健診履歴がある飼い主に HLTH_年4回候補 タグを付与する（FEAT-379）。
-	// SPEC-002 Q5 確定待ち: HealthCheckupCodes が空の場合は noop。
+	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
 	SyncAnnual4CheckupTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncVaccineDeadlineTag はワクチン次回予定日が VaccineDeadlineDays 以内に迫っている場合
 	// PREV_ワクチン期限 タグを付与し、それ以外は解除する（FEAT-379）。
 	SyncVaccineDeadlineTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncFilariaTag はフィラリア検査・予防薬処方履歴に基づき PREV_フィラリア未完了 タグを同期する（FEAT-379）。
-	// SPEC-002 Q5 確定待ち: FilariaTestCodes / FilariaPrescriptionCodes が共に空の場合は noop。
+	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
 	SyncFilariaTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncFleaTickTag はノミ・マダニ駆除薬処方履歴に基づき PREV_ノミダニ対象 タグを同期する（FEAT-379）。
-	// SPEC-002 Q5 確定待ち: FleaTickPrescriptionCodes が空の場合は noop。
+	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
 	SyncFleaTickTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncFoodPurchaseTag はフード購入履歴に基づき LTV_フード購入あり タグを同期する（FEAT-379）。
-	// SPEC-002 Q5 確定待ち: FoodPurchaseCodes が空の場合は noop。
+	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
 	SyncFoodPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncHealthPreventionTagsForClinic は指定クリニックの全飼い主に対して
 	// 健診・予防・物販タグを一括同期する（FEAT-379 バッチエントリポイント）。

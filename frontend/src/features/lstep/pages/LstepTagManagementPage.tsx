@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { RefreshCw, Users } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { ResourceOwners } from "@/types/generated/models";
 import { useGetLstepTagSummary } from "../api/get-lstep-tag-summary";
 import { TagSummaryTable } from "../components/TagSummaryTable";
 import { TagOwnerListDrawer } from "../components/TagOwnerListDrawer";
-import { SegmentDashboard } from "../components/SegmentDashboard";
 
 interface DrawerState {
   open: boolean;
@@ -80,25 +79,6 @@ export function LstepTagManagementPage() {
       }
     >
       <div className="flex flex-col gap-4 flex-1 min-h-0">
-        {/* Lステップ連携済みサマリーカード */}
-        {data !== undefined ? (
-          <div className={`bg-white border ${C.borderLight} rounded-[4px] px-5 py-4 flex items-center gap-3`}>
-            <Users className={`${ICON.lg} ${C.textBrand}`} />
-            <div>
-              <p className={`text-2xl font-bold ${C.text}`}>
-                {data.total_owners_with_lstep.toLocaleString("ja-JP")}名
-              </p>
-              <p className={`text-sm ${C.text50}`}>がLステップ連携済み</p>
-            </div>
-          </div>
-        ) : null}
-
-        {/* セグメントダッシュボード（CPM / LTV / 休眠予備軍） */}
-        <SegmentDashboard
-          summaryTags={tags}
-          onViewOwners={handleViewOwners}
-        />
-
         {/* タグサマリーテーブル */}
         <TagSummaryTable
           tags={tags}

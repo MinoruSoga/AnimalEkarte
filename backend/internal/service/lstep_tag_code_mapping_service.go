@@ -14,7 +14,6 @@ import (
 )
 
 // ConfigurableTagNames は管理画面から設定可能なタグ名一覧。
-// SPEC-002 Q5 確定後にコード一覧が充填される。
 var ConfigurableTagNames = []string{
 	HlthHealthcheckDoneTag,
 	PrevFilariaTag,

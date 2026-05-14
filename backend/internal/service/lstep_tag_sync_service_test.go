@@ -845,13 +845,11 @@ func TestHasVaccineDeadlineSoon(t *testing.T) {
 	assert.True(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &beyond}, {NextDate: &inner}}, now, days))
 }
 
-// ---- SPEC-002 Q5 noop テスト ----
+// ---- tagCodeRepo == nil noop テスト ----
+// 判定コードは lstep_tag_code_mappings テーブル（DB）から取得する。
+// tagCodeRepo が nil の場合、各 Sync 関数は noop（nil 返却）になる。
 
-func TestSyncHealthcheckTagsNoopWhenCodesEmpty(t *testing.T) {
-	orig := HealthCheckupCodes
-	defer func() { HealthCheckupCodes = orig }()
-	HealthCheckupCodes = []string{}
-
+func TestSyncHealthcheckTagsNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -859,11 +857,7 @@ func TestSyncHealthcheckTagsNoopWhenCodesEmpty(t *testing.T) {
 	assert.NoError(t, svc.SyncHealthcheckTags(context.Background(), 1, 2))
 }
 
-func TestSyncAnnual4CheckupTagNoopWhenCodesEmpty(t *testing.T) {
-	orig := HealthCheckupCodes
-	defer func() { HealthCheckupCodes = orig }()
-	HealthCheckupCodes = []string{}
-
+func TestSyncAnnual4CheckupTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -871,16 +865,7 @@ func TestSyncAnnual4CheckupTagNoopWhenCodesEmpty(t *testing.T) {
 	assert.NoError(t, svc.SyncAnnual4CheckupTag(context.Background(), 1, 2))
 }
 
-func TestSyncFilariaTagNoopWhenCodesEmpty(t *testing.T) {
-	origTest := FilariaTestCodes
-	origPrescription := FilariaPrescriptionCodes
-	defer func() {
-		FilariaTestCodes = origTest
-		FilariaPrescriptionCodes = origPrescription
-	}()
-	FilariaTestCodes = []string{}
-	FilariaPrescriptionCodes = []string{}
-
+func TestSyncFilariaTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -888,11 +873,7 @@ func TestSyncFilariaTagNoopWhenCodesEmpty(t *testing.T) {
 	assert.NoError(t, svc.SyncFilariaTag(context.Background(), 1, 2))
 }
 
-func TestSyncFleaTickTagNoopWhenCodesEmpty(t *testing.T) {
-	orig := FleaTickPrescriptionCodes
-	defer func() { FleaTickPrescriptionCodes = orig }()
-	FleaTickPrescriptionCodes = []string{}
-
+func TestSyncFleaTickTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -900,11 +881,7 @@ func TestSyncFleaTickTagNoopWhenCodesEmpty(t *testing.T) {
 	assert.NoError(t, svc.SyncFleaTickTag(context.Background(), 1, 2))
 }
 
-func TestSyncFoodPurchaseTagNoopWhenCodesEmpty(t *testing.T) {
-	orig := FoodPurchaseCodes
-	defer func() { FoodPurchaseCodes = orig }()
-	FoodPurchaseCodes = []string{}
-
+func TestSyncFoodPurchaseTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,

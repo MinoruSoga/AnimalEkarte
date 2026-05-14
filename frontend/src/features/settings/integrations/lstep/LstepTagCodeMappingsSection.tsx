@@ -8,7 +8,7 @@ import {
 } from "./hooks/useLstepTagCodeMappings";
 import type { TagCodeMappingItem, PutMappingEntry } from "./hooks/useLstepTagCodeMappings";
 
-// SPEC-002 Q5 確定待ちタグ名一覧（backend service.ConfigurableTagNames と同期）
+// 判定コードを設定可能なタグ名一覧（backend service.ConfigurableTagNames と同期）
 const CONFIGURABLE_TAG_NAMES = [
   "HLTH_健診あり",
   "PREV_フィラリア未完了",
@@ -209,8 +209,7 @@ function TagRow({
         mappings.length === 0 ? (
           <div className={`px-3 py-2 border-t ${C.borderLight}`}>
             <span className={`text-xs ${C.text50}`}>
-              {/* TODO(SPEC-002 Q5): コードリストが確定後に追加 */}
-              コードが未設定です。SPEC-002 Q5 確定後に追加予定。
+              コードが未設定です。
             </span>
           </div>
         ) : (
@@ -308,16 +307,6 @@ export function LstepTagCodeMappingsSection() {
       <p className={`text-sm ${C.text60} mb-4`}>
         健診・予防タグの判定に使用する診察種別・処方コードの設定。
       </p>
-
-      {/* SPEC-002 Q5 未確定バナー */}
-      <div
-        className={`mb-4 rounded-[4px] px-3 py-2.5 text-sm ${C.bgDanger8} ${C.danger} border ${C.borderLight}`}
-      >
-        <strong>⚠ SPEC-002 Q5 確定待ち</strong>
-        <span className="ml-2">
-          各タグに紐づく実コード一覧は PO 確認後に追加されます。現在は骨組みのみ表示。
-        </span>
-      </div>
 
       <div className="flex flex-col gap-3">
         {CONFIGURABLE_TAG_NAMES.map((tagName) => (

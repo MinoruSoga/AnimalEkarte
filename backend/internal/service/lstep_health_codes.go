@@ -11,16 +11,6 @@ const (
 	LtvFoodPurchaseTag             = "LTV_フード購入あり"
 )
 
-// SPEC-002 Q5/Q6 確定待ち空プレースホルダー。
-// var で宣言しテストで差し替え可能にする。本番コードは空のまま（noop）。
-var (
-	HealthCheckupCodes        []string
-	FilariaTestCodes          []string
-	FilariaPrescriptionCodes  []string
-	FleaTickPrescriptionCodes []string
-	FoodPurchaseCodes         []string
-)
-
 // HealthPreventionLookbackDays は健診・予防履歴の参照期間（日数）。
 const HealthPreventionLookbackDays = 365
 

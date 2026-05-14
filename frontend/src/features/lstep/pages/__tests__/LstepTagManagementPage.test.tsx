@@ -84,64 +84,60 @@ afterEach(() => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// A: 健診状況セクション（FEAT-380）
+// A: 健診タグ一覧（FEAT-380）
 // ─────────────────────────────────────────────────────────────
 
-describe("LstepTagManagementPage — A: 健診状況セクション (FEAT-380)", () => {
-  it("健診タグ 3 種のラベルが描画される", async () => {
+describe("LstepTagManagementPage — A: 健診タグ一覧 (FEAT-380)", () => {
+  it("健診タグ 3 種がテーブルに表示される", async () => {
     await renderAndWait();
-    expect(screen.getByText("健診あり")).toBeInTheDocument();
-    expect(screen.getByText("健診未受診")).toBeInTheDocument();
-    expect(screen.getByText("年4回候補")).toBeInTheDocument();
+    expect(screen.getByText("HLTH_健診あり")).toBeInTheDocument();
+    expect(screen.getByText("HLTH_健診未受診")).toBeInTheDocument();
+    expect(screen.getByText("HLTH_年4回候補")).toBeInTheDocument();
   });
 
-  it("HLTH_健診あり の件数 5 件がカードに表示される", async () => {
+  it("HLTH_健診あり の件数 5 件がテーブル行に表示される", async () => {
     await renderAndWait();
-    // label "健診あり" はカードにのみ存在。tagName は Table にも重複するため label で特定
-    const card = screen.getByText("健診あり").closest("div");
-    expect(card).not.toBeNull();
-    expect(within(card!).getByText("5")).toBeInTheDocument();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────
-// B: 予防処置セクション（FEAT-380）
-// ─────────────────────────────────────────────────────────────
-
-describe("LstepTagManagementPage — B: 予防処置セクション (FEAT-380)", () => {
-  it("予防タグ 3 種のラベルが描画される", async () => {
-    await renderAndWait();
-    expect(screen.getByText("ワクチン期限")).toBeInTheDocument();
-    expect(screen.getByText("フィラリア未完了")).toBeInTheDocument();
-    expect(screen.getByText("ノミダニ対象")).toBeInTheDocument();
-  });
-
-  it("PREV_ノミダニ対象 の件数 6 件がカードに表示される", async () => {
-    await renderAndWait();
-    const card = screen.getByText("ノミダニ対象").closest("div");
-    expect(card).not.toBeNull();
-    expect(within(card!).getByText("6")).toBeInTheDocument();
+    const row = screen.getByText("HLTH_健診あり").closest("tr");
+    expect(row).not.toBeNull();
+    expect(within(row!).getByText("5")).toBeInTheDocument();
   });
 });
 
 // ─────────────────────────────────────────────────────────────
-// C: LTV セクション拡張（FEAT-380）
+// B: 予防処置タグ一覧（FEAT-380）
 // ─────────────────────────────────────────────────────────────
 
-describe("LstepTagManagementPage — C: LTV セクション拡張 (FEAT-380)", () => {
-  it("LTV_フード購入あり カードが描画される", async () => {
+describe("LstepTagManagementPage — B: 予防処置タグ一覧 (FEAT-380)", () => {
+  it("予防タグ 3 種がテーブルに表示される", async () => {
     await renderAndWait();
-    // label で card を特定してから tagName を within 内で検証
-    const card = screen.getByText("フード購入あり").closest("div");
-    expect(card).not.toBeNull();
-    expect(within(card!).getByText("LTV_フード購入あり")).toBeInTheDocument();
+    expect(screen.getByText("PREV_ワクチン期限")).toBeInTheDocument();
+    expect(screen.getByText("PREV_フィラリア未完了")).toBeInTheDocument();
+    expect(screen.getByText("PREV_ノミダニ対象")).toBeInTheDocument();
   });
 
-  it("LTV_フード購入あり の件数 10 件がカードに表示される", async () => {
+  it("PREV_ノミダニ対象 の件数 6 件がテーブル行に表示される", async () => {
     await renderAndWait();
-    const card = screen.getByText("フード購入あり").closest("div");
-    expect(card).not.toBeNull();
-    expect(within(card!).getByText("10")).toBeInTheDocument();
+    const row = screen.getByText("PREV_ノミダニ対象").closest("tr");
+    expect(row).not.toBeNull();
+    expect(within(row!).getByText("6")).toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// C: LTV タグ一覧（FEAT-380）
+// ─────────────────────────────────────────────────────────────
+
+describe("LstepTagManagementPage — C: LTV タグ一覧 (FEAT-380)", () => {
+  it("LTV_フード購入あり がテーブルに表示される", async () => {
+    await renderAndWait();
+    expect(screen.getByText("LTV_フード購入あり")).toBeInTheDocument();
+  });
+
+  it("LTV_フード購入あり の件数 10 件がテーブル行に表示される", async () => {
+    await renderAndWait();
+    const row = screen.getByText("LTV_フード購入あり").closest("tr");
+    expect(row).not.toBeNull();
+    expect(within(row!).getByText("10")).toBeInTheDocument();
   });
 });
 
@@ -150,15 +146,15 @@ describe("LstepTagManagementPage — C: LTV セクション拡張 (FEAT-380)", (
 // ─────────────────────────────────────────────────────────────
 
 describe("LstepTagManagementPage — D: タグ別飼い主一覧ドロワー (FEAT-380)", () => {
-  it("HLTH_健診あり カードの「対象者一覧」クリックでドロワーが開く", async () => {
+  it("HLTH_健診あり 行の「対象者一覧」クリックでドロワーが開く", async () => {
     setupOwnersHandler();
     await renderAndWait();
 
-    const card = screen.getByText("健診あり").closest("div");
-    expect(card).not.toBeNull();
+    const row = screen.getByText("HLTH_健診あり").closest("tr");
+    expect(row).not.toBeNull();
 
     const user = userEvent.setup();
-    await user.click(within(card!).getByRole("button", { name: /対象者一覧/ }));
+    await user.click(within(row!).getByRole("button", { name: /対象者一覧/ }));
 
     await waitFor(() => {
       expect(
@@ -220,10 +216,10 @@ describe("LstepTagManagementPage — F: 判定理由表示 (FEAT-379-supplement)
     );
     await renderAndWait();
 
-    const card = screen.getByText("健診あり").closest("div");
-    expect(card).not.toBeNull();
+    const row = screen.getByText("HLTH_健診あり").closest("tr");
+    expect(row).not.toBeNull();
     const user = userEvent.setup();
-    await user.click(within(card!).getByRole("button", { name: /対象者一覧/ }));
+    await user.click(within(row!).getByRole("button", { name: /対象者一覧/ }));
 
     await waitFor(() => {
       expect(
@@ -249,10 +245,10 @@ describe("LstepTagManagementPage — F: 判定理由表示 (FEAT-379-supplement)
     );
     await renderAndWait();
 
-    const card = screen.getByText("健診あり").closest("div");
-    expect(card).not.toBeNull();
+    const row = screen.getByText("HLTH_健診あり").closest("tr");
+    expect(row).not.toBeNull();
     const user = userEvent.setup();
-    await user.click(within(card!).getByRole("button", { name: /対象者一覧/ }));
+    await user.click(within(row!).getByRole("button", { name: /対象者一覧/ }));
 
     await waitFor(() => {
       expect(screen.getByText("鈴木 花子")).toBeInTheDocument();
