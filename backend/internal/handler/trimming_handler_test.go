@@ -219,6 +219,7 @@ func TestCreateTrimming(t *testing.T) {
 			"reservation_type_id": 1,
 			"start_time":          now.Format(time.RFC3339),
 			"end_time":            end.Format(time.RFC3339),
+			"pet_id":              1,
 		}
 	}
 
@@ -251,7 +252,14 @@ func TestCreateTrimming(t *testing.T) {
 		},
 		{
 			name:       "returns 400 when reservation_type_id missing",
-			body:       map[string]any{"start_time": now.Format(time.RFC3339), "end_time": end.Format(time.RFC3339)},
+			body:       map[string]any{"start_time": now.Format(time.RFC3339), "end_time": end.Format(time.RFC3339), "pet_id": 1},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockTrimmingService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when pet_id missing",
+			body:       map[string]any{"reservation_type_id": 1, "start_time": now.Format(time.RFC3339), "end_time": end.Format(time.RFC3339)},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockTrimmingService{},
 			wantStatus: http.StatusBadRequest,

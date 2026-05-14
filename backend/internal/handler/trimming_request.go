@@ -7,7 +7,7 @@ type createTrimmingRequest struct {
 	ReservationTypeID uint64     `json:"reservation_type_id" binding:"required"`
 	StartTime         *time.Time `json:"start_time"          binding:"required"`
 	EndTime           *time.Time `json:"end_time"            binding:"required"`
-	PetID             *uint64    `json:"pet_id"`
+	PetID             *uint64    `json:"pet_id"               binding:"required"`
 	StaffID           *uint64    `json:"staff_id"`
 	Status            string     `json:"status"              binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
 	// トリミング詳細
