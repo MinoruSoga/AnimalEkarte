@@ -17,7 +17,6 @@ const (
 	tagFilariaAlert     = PrevFilariaTag     // FEAT-379 新命名 (旧: HEALTH_フィラリア対策中)
 	tagFleaTickAlert    = PrevFleaTickTag    // FEAT-379 新命名 (旧: HEALTH_ノミダニ予防中)
 	tagFoodRefill       = LtvFoodPurchaseTag // FEAT-379 新命名 (旧: PROD_フード購入)
-	tagSuppRefill       = LtvSuppPurchaseTag // FEAT-385-supp 命名整合
 )
 
 // LstepDeliveryTriggerService は日次バッチで自動配信トリガーを判定し L ステップへタグ付与するサービス（FEAT-383）。
@@ -48,8 +47,6 @@ type LstepDeliveryTriggerService interface {
 	TriggerFleaTickAlert(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerFoodRefillReminder はフード購入タグを持つ飼い主にリフィルリマインダー配信をトリガーする。
 	TriggerFoodRefillReminder(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
-	// TriggerSuppRefillReminder はサプリ購入タグを持つ飼い主にリフィルリマインダー配信をトリガーする。
-	TriggerSuppRefillReminder(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerFirstVisitWelcome はイベント駆動（初診完了直後）のウェルカム配信トリガー（スタブ）。
 	TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID uint64) error
 	// TriggerCheckupFollowUp はイベント駆動（健診後）のフォローアップ配信トリガー（スタブ）。
@@ -490,15 +487,6 @@ func (s *lstepDeliveryTriggerService) TriggerFoodRefillReminder(ctx context.Cont
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by food refill tag")}
 	}
 	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeFoodRefillReminder, model.TriggerTypeFoodRefillReminder, asOf)
-}
-
-func (s *lstepDeliveryTriggerService) TriggerSuppRefillReminder(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
-	ownerIDs, err := s.tagCacheRepo.FindOwnerIDsByTag(ctx, clinicID, tagSuppRefill)
-	if err != nil {
-		slog.ErrorContext(ctx, "delivery trigger supp_refill_reminder: find owners error", "clinic_id", clinicID, "error", err)
-		return 0, []error{apperrors.Wrap(err, "failed to find owners by supp refill tag")}
-	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeSuppRefillReminder, model.TriggerTypeSuppRefillReminder, asOf)
 }
 
 // TriggerFirstVisitWelcome は初診完了直後に呼び出されるイベント駆動トリガー（FEAT-383 Phase 2）。

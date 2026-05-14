@@ -48,16 +48,12 @@ func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
 		{name: "SyncPetBasicInfoTags", run: func() error { return svc.SyncPetBasicInfoTags(ctx, 1, 2) }},
 		{name: "SyncCPMStageTag", run: func() error { return svc.SyncCPMStageTag(ctx, 1, 2) }},
 		{name: "SyncNextVisitTag", run: func() error { return svc.SyncNextVisitTag(ctx, 1, 2) }},
-		{name: "SyncReservationTag", run: func() error { return svc.SyncReservationTag(ctx, 1, 2, now) }},
-		{name: "SyncCancellationTag", run: func() error { return svc.SyncCancellationTag(ctx, 1, 2) }},
 		{name: "SyncCheckupTag", run: func() error { return svc.SyncCheckupTag(ctx, 1, 2, 3, now, nil) }},
 		{name: "SyncPrescriptionTag", run: func() error { return svc.SyncPrescriptionTag(ctx, 1, 2) }},
 		{name: "SyncChronicConditionTags", run: func() error { return svc.SyncChronicConditionTags(ctx, 1, 2, []string{"kidney"}) }},
-		{name: "SyncNoShowTag", run: func() error { return svc.SyncNoShowTag(ctx, 1, 2, now) }},
 		{name: "SyncDormantTags", run: func() error { return svc.SyncDormantTags(ctx, 1, 2, 180) }},
 		{name: "ResyncOwnerVaccineTags", run: func() error { return svc.ResyncOwnerVaccineTags(ctx, 1, 2) }},
 		{name: "ResyncOwnerCheckupTags", run: func() error { return svc.ResyncOwnerCheckupTags(ctx, 1, 2) }},
-		{name: "ResyncOwnerReservationTags", run: func() error { return svc.ResyncOwnerReservationTags(ctx, 1, 2) }},
 		{name: "SyncCPMStageTagV2", run: func() error { return svc.SyncCPMStageTagV2(ctx, 1, 2) }},
 		{name: "SyncVisitDormantTags", run: func() error { return svc.SyncVisitDormantTags(ctx, 1, 2, 120) }},
 		{name: "SyncPetSpeciesTags", run: func() error { return svc.SyncPetSpeciesTags(ctx, 1, 2) }},
@@ -125,30 +121,6 @@ func TestIsDormantTag(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.tag, func(t *testing.T) {
 			assert.Equal(t, tc.want, isDormantTag(tc.tag))
-		})
-	}
-}
-
-// ---- isReservationRelatedTag ----
-
-func TestIsReservationRelatedTag(t *testing.T) {
-	cases := []struct {
-		tag  string
-		want bool
-	}{
-		{"reserved_2024-05-01", true},
-		{"reserved_", true},
-		{"canceled_visit", true},
-		{"no_show_3", true},
-		{"no_show_", true},
-		{"canceled", false},
-		{"cpm_core", false},
-		{"dormant_180d", false},
-		{"", false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.tag, func(t *testing.T) {
-			assert.Equal(t, tc.want, isReservationRelatedTag(tc.tag))
 		})
 	}
 }

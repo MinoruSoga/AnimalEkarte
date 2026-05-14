@@ -250,7 +250,7 @@ func TestAllClinicsFiltersBySyncEnabled(t *testing.T) {
 				return clinicID == 1, nil // clinic 1 のみ有効
 			},
 		}
-		svc := NewLstepBatchService(resRepo, &batchMockTagSyncSvc{}, clinicRepo, &batchMockMedRecordRepo{}, &batchMockAuditService{}, settingsSvc, nil, nil)
+		svc := NewLstepBatchService(resRepo, &batchMockTagSyncSvc{}, clinicRepo, &batchMockMedRecordRepo{}, &batchMockAuditService{}, settingsSvc, nil)
 		err := svc.RunNoShowCheckAllClinics(context.Background())
 		assert.NoError(t, err)
 		assert.Equal(t, []uint64{1}, processed)
@@ -274,69 +274,11 @@ func TestAllClinicsFiltersBySyncEnabled(t *testing.T) {
 				return clinicID == 20, nil // clinic 20 のみ有効
 			},
 		}
-		svc := NewLstepBatchService(&batchMockReservationRepo{}, &batchMockTagSyncSvc{}, clinicRepo, medRepo, &batchMockAuditService{}, settingsSvc, nil, nil)
+		svc := NewLstepBatchService(&batchMockReservationRepo{}, &batchMockTagSyncSvc{}, clinicRepo, medRepo, &batchMockAuditService{}, settingsSvc, nil)
 		err := svc.RunDormantDetectionAllClinics(context.Background())
 		assert.NoError(t, err)
 		assert.Equal(t, []uint64{20}, processed)
 	})
-}
-
-// TestGetSettings_IncludesFireHourJST: clinicSettingsRepo からの fire_hour_jst が応答に含まれる
-func TestGetSettings_IncludesFireHourJST(t *testing.T) {
-	csRepo := &mockClinicSettingsRepository{
-		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
-			return &model.ClinicSettings{LstepFireHourJST: 14}, nil
-		},
-	}
-	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
-	resp, err := svc.GetSettings(context.Background(), 1)
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, 14, resp.FireHourJST)
-}
-
-// TestUpdateSettings_FireHourJSTValid: 有効値 (0-23) は UpdateLstepFireHourJST を呼ぶ
-func TestUpdateSettings_FireHourJSTValid(t *testing.T) {
-	var savedHour int
-	csRepo := &mockClinicSettingsRepository{
-		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
-			return &model.ClinicSettings{LstepFireHourJST: 10}, nil
-		},
-		updateLstepFireHourJSTFn: func(_ context.Context, _ uint64, hour int) error {
-			savedHour = hour
-			return nil
-		},
-	}
-	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
-	hour := 9
-	_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{FireHourJST: &hour}, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 9, savedHour)
-}
-
-// TestUpdateSettings_FireHourJSTInvalid: 範囲外 (24) は InvalidInput エラー
-func TestUpdateSettings_FireHourJSTInvalid(t *testing.T) {
-	csRepo := &mockClinicSettingsRepository{}
-	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
-	hour := 24
-	_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{FireHourJST: &hour}, nil)
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsInvalidInput(err))
-}
-
-// TestUpdateSettings_FireHourJSTNil_Skips: nil の場合 UpdateLstepFireHourJST は呼ばれない
-func TestUpdateSettings_FireHourJSTNil_Skips(t *testing.T) {
-	called := false
-	csRepo := &mockClinicSettingsRepository{
-		updateLstepFireHourJSTFn: func(_ context.Context, _ uint64, _ int) error {
-			called = true
-			return nil
-		},
-	}
-	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
-	_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{}, nil)
-	assert.NoError(t, err)
-	assert.False(t, called)
 }
 
 // TestGetDormantThresholds_DBValues: DB に値があれば DB 値を返す

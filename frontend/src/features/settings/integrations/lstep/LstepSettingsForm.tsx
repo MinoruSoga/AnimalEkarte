@@ -80,38 +80,6 @@ function TextField({
   );
 }
 
-function HourSelectField({
-  id,
-  name,
-  label,
-  defaultValue,
-}: {
-  id: string;
-  name: string;
-  label: string;
-  defaultValue: number;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className={STYLE.formLabel}>
-        {label}
-      </label>
-      <select
-        id={id}
-        name={name}
-        defaultValue={defaultValue}
-        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full outline-none focus:ring-2 focus:ring-[#2383E2]/30`}
-      >
-        {Array.from({ length: 24 }, (_, h) => (
-          <option key={h} value={h}>
-            {String(h).padStart(2, "0")}:00
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
 function CPMVersionSelectField({
   id,
   name,
@@ -221,14 +189,6 @@ export function LstepSettingsForm() {
       const lstepBaseUrl = formData.get("lstep_base_url");
       if (typeof lstepBaseUrl === "string" && lstepBaseUrl.trim() !== "") {
         req.lstep_base_url = lstepBaseUrl.trim();
-      }
-
-      const fireHour = formData.get("fire_hour_jst");
-      if (typeof fireHour === "string" && fireHour !== "") {
-        const h = parseInt(fireHour, 10);
-        if (!isNaN(h) && h >= 0 && h <= 23) {
-          req.fire_hour_jst = h;
-        }
       }
 
       const cpmVersion = formData.get("cpm_version");
@@ -410,13 +370,6 @@ export function LstepSettingsForm() {
           placeholder="例: https://app.lstep.jp"
         />
 
-        <HourSelectField
-          id="fire_hour_jst"
-          name="fire_hour_jst"
-          label="自動配信実行時刻 (JST)"
-          defaultValue={settings?.fire_hour_jst ?? 10}
-        />
-
         <CPMVersionSelectField
           id="cpm_version"
           name="cpm_version"
@@ -448,12 +401,6 @@ export function LstepSettingsForm() {
           label="休眠予防閾値 (365日)"
           defaultValue={settings?.dormant_prevention_365_days ?? 365}
         />
-
-        {/* 配信時刻変更はサーバー再起動後に反映 */}
-        <div className="flex items-start gap-2 p-3 rounded-[4px] bg-[#FFF9E6] border border-[#F0D070] text-sm text-[#7A5C00]">
-          <Info className="shrink-0 mt-0.5 w-4 h-4" />
-          <span>配信時刻の変更はサーバー再起動後に反映されます。</span>
-        </div>
 
         {/* 同期 ON/OFF トグル */}
         <div className={`flex items-center justify-between gap-4 py-3 border-t ${C.borderLight}`}>

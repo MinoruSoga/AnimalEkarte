@@ -144,11 +144,6 @@ type LstepTagSyncService interface {
 	// SyncNextVisitTag は次回来院推奨日タグ（next_visit_YYYY-MM-DD）を同期する（BE-006）。
 	// 最新カルテの next_visit_recommended_date を参照し、古い next_visit_* タグを差し替える。
 	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncReservationTag は予約登録・変更時に reserved_YYYY-MM-DD タグを更新する（BE-007）。
-	// 旧 reserved_* / canceled_visit / no_show_* タグを解除してから新タグを付与する。
-	SyncReservationTag(ctx context.Context, clinicID, ownerID uint64, reservationDate time.Time) error
-	// SyncCancellationTag は予約キャンセル時に canceled_visit タグを付与し reserved_* を解除する（BE-007）。
-	SyncCancellationTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncCheckupTag は健診記録の作成・更新時に checkup_done_{typeID}_{YYYY-MM}/next_checkup_* タグを同期する（BE-008）。
 	// 同一健診種別の古い checkup_done タグを解除してから新タグを付与する。next_checkup_* は最新1件のみ。
 	SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error
@@ -158,8 +153,6 @@ type LstepTagSyncService interface {
 	// SyncChronicConditionTags は慢性疾患フラグに基づき chronic_* タグを差分同期する（BE-012）。
 	// activeConditionCodes は飼い主の全生存ペットのアクティブ疾患コード一覧。
 	SyncChronicConditionTags(ctx context.Context, clinicID, ownerID uint64, activeConditionCodes []string) error
-	// SyncNoShowTag は予約ノーショウ時に no_show_YYYY-MM-DD タグを付与し reserved_* を解除する（BE-014）。
-	SyncNoShowTag(ctx context.Context, clinicID, ownerID uint64, reservationDate time.Time) error
 	// SyncDormantTags は最終来院からの経過日数に基づき dormant_* タグを差分同期する（BE-005）。
 	// daysSinceLastVisit < 0 は来院なしを表す。
 	SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error
@@ -169,10 +162,6 @@ type LstepTagSyncService interface {
 	// ResyncOwnerCheckupTags は飼い主の生存健診記録から checkup_done_* / next_checkup_* タグを再構築する（ISSUE-004）。
 	// 種別ごとに最新の検査日のみ保持。next_checkup は最新の next_date 1件のみ保持。
 	ResyncOwnerCheckupTags(ctx context.Context, clinicID, ownerID uint64) error
-	// ResyncOwnerReservationTags は飼い主の予約から reserved_* タグを再構築する（ISSUE-004）。
-	// confirmed/pending な未来予約のうち最新1件のみ reserved_* を保持する。
-	// canceled_visit / no_show_* は別軸のため変更しない。
-	ResyncOwnerReservationTags(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncCPMStageTagV2 は来院回数ベース V2 CPM ステージタグを同期する（FEAT-377）。
 	SyncCPMStageTagV2(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncLTVTopPercent は LTV 上位 20% の飼い主に LTV_上位20 タグを付与し、
@@ -208,9 +197,6 @@ type LstepTagSyncService interface {
 	// SyncFoodPurchaseTag はフード購入履歴に基づき LTV_フード購入あり タグを同期する（FEAT-379）。
 	// SPEC-002 Q5 確定待ち: FoodPurchaseCodes が空の場合は noop。
 	SyncFoodPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncSuppPurchaseTag はサプリ購入履歴に基づき LTV_サプリ購入あり タグを同期する（FEAT-385-supp）。
-	// SuppPurchaseCodes が空の場合は noop。カテゴリフォールバックなし。
-	SyncSuppPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncHealthPreventionTagsForClinic は指定クリニックの全飼い主に対して
 	// 健診・予防・物販タグを一括同期する（FEAT-379 バッチエントリポイント）。
 	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。
@@ -732,7 +718,7 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 		return apperrors.Wrap(err, "failed to load tag cache")
 	}
 	for _, c := range cached {
-		if isReservationRelatedTag(c.TagName) || isDormantTag(c.TagName) || isVisitDormantTag(c.TagName) || c.TagName == "cpm_dormant" {
+		if isDormantTag(c.TagName) || isVisitDormantTag(c.TagName) || c.TagName == "cpm_dormant" {
 			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
 				slog.ErrorContext(ctx, "failed to remove reservation/dormant tag on visit completion", "error", delErr, "tag", c.TagName)
 				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
@@ -1024,142 +1010,6 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 	return nil
 }
 
-// SyncReservationTag は予約登録・変更時に reserved_YYYY-MM-DD タグを更新する（BE-007）。
-// 旧 reserved_* / canceled_visit / no_show_* タグを解除してから新タグを付与する。
-func (s *lstepTagSyncService) SyncReservationTag(ctx context.Context, clinicID, ownerID uint64, reservationDate time.Time) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for reservation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
-	}
-	if optOut {
-		return nil
-	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
-
-	client, err := s.buildClient(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to build lstep client for reservation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to build lstep client")
-	}
-	if client == nil {
-		return nil
-	}
-
-	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to load tag cache for reservation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to load tag cache")
-	}
-	apiFailed := false
-	for _, c := range cached {
-		if isReservationRelatedTag(c.TagName) {
-			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove stale reservation tag", "error", delErr, "tag", c.TagName)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-				apiFailed = true
-				continue
-			}
-			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to delete stale reservation tag cache", "error", delErr, "tag", c.TagName)
-			}
-		}
-	}
-
-	newTag := "reserved_" + reservationDate.Format("2006-01-02")
-	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add reservation tag", "error", addErr, "tag", newTag)
-		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-		return apperrors.Wrap(addErr, "failed to add reservation tag")
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert reservation tag cache", "error", upsertErr)
-	}
-	if !apiFailed {
-		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
-	}
-	return nil
-}
-
-// SyncCancellationTag は予約キャンセル時に canceled_visit タグを付与し reserved_* を解除する（BE-007）。
-func (s *lstepTagSyncService) SyncCancellationTag(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for cancellation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
-	}
-	if optOut {
-		return nil
-	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
-
-	client, err := s.buildClient(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to build lstep client for cancellation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to build lstep client")
-	}
-	if client == nil {
-		return nil
-	}
-
-	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to load tag cache for cancellation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to load tag cache")
-	}
-	apiFailed := false
-	for _, c := range cached {
-		if strings.HasPrefix(c.TagName, "reserved_") {
-			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove reserved tag on cancellation", "error", delErr, "tag", c.TagName)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-				apiFailed = true
-				continue
-			}
-			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to delete reserved tag cache on cancellation", "error", delErr, "tag", c.TagName)
-			}
-		}
-	}
-
-	const canceledVisitTag = "canceled_visit"
-	if addErr := client.AddTag(ctx, lineUserID, canceledVisitTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add canceled_visit tag", "error", addErr)
-		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-		return apperrors.Wrap(addErr, "failed to add canceled_visit tag")
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, canceledVisitTag, "auto", ""); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert canceled_visit tag cache", "error", upsertErr)
-	}
-	if !apiFailed {
-		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
-	}
-	return nil
-}
-
-// isReservationRelatedTag は BE-007 予約関連タグ（reserved_* / canceled_visit / no_show_*）かを判定する。
-func isReservationRelatedTag(tag string) bool {
-	return strings.HasPrefix(tag, "reserved_") ||
-		tag == "canceled_visit" ||
-		strings.HasPrefix(tag, "no_show_")
-}
-
 // SyncPrescriptionTag は飼い主の全アクティブ処方を取得し、補充推奨日が最も遅い処方に基づいて
 // refill_due_* タグを更新する（BE-009）。duration_days < 7 の場合は prescribed_at + 1 日を使用する。
 // 最新の refill_due が現在日時を過ぎている場合は refill_due_* タグをすべて削除して終了する。
@@ -1438,79 +1288,6 @@ func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clin
 	return nil
 }
 
-// SyncNoShowTag は予約ノーショウ時に no_show_YYYY-MM-DD タグを付与し reserved_* を解除する（BE-014）。
-func (s *lstepTagSyncService) SyncNoShowTag(ctx context.Context, clinicID, ownerID uint64, reservationDate time.Time) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for no-show tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
-	}
-	if optOut {
-		return nil
-	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
-
-	client, err := s.buildClient(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to build lstep client for no-show tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to build lstep client")
-	}
-	if client == nil {
-		return nil
-	}
-
-	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to load tag cache for no-show tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to load tag cache")
-	}
-	apiFailed := false
-	for _, c := range cached {
-		if strings.HasPrefix(c.TagName, "reserved_") {
-			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove reserved tag on no-show", "error", delErr, "tag", c.TagName)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-				apiFailed = true
-				continue
-			}
-			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to delete reserved tag cache on no-show", "error", delErr, "tag", c.TagName)
-			}
-		}
-	}
-
-	noShowTag := "no_show_" + reservationDate.Format("2006-01-02")
-	if addErr := client.AddTag(ctx, lineUserID, noShowTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add no_show tag", "error", addErr, "tag", noShowTag)
-		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-		return apperrors.Wrap(addErr, "failed to add no_show tag")
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, noShowTag, "auto", ""); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert no_show tag cache", "error", upsertErr)
-	}
-	// 汎用ノーショウタグ: シナリオ共通で使用
-	if addErr := client.AddTag(ctx, lineUserID, "no_show_visit"); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add no_show_visit tag", "error", addErr)
-		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-		return apperrors.Wrap(addErr, "failed to add no_show_visit tag")
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, "no_show_visit", "auto", ""); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert no_show_visit tag cache", "error", upsertErr)
-	}
-	if !apiFailed {
-		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
-	}
-	return nil
-}
-
 // ResyncOwnerVaccineTags は飼い主の生存ワクチン記録から vaccine_* タグを再構築する（ISSUE-004）。
 // 接種記録の更新・削除後に呼び出すこと。種別ごとに最新の接種日のみタグを保持する。
 // 記録が0件の場合は全 vaccine_* タグを解除する。
@@ -1708,109 +1485,6 @@ func buildLatestCheckupTagSet(checkups []model.Checkup) map[string]struct{} {
 		tagSet["next_checkup_"+latestNext.Format("2006-01-02")] = struct{}{}
 	}
 	return tagSet
-}
-
-// ResyncOwnerReservationTags は飼い主の予約から reserved_* タグを再構築する（ISSUE-004）。
-// 予約の更新・削除後に呼び出すこと。confirmed/pending な未来予約のうち最新1件のみ reserved_* を保持する。
-// canceled_visit / no_show_* は別軸（履歴系）のため変更しない。
-func (s *lstepTagSyncService) ResyncOwnerReservationTags(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for reservation resync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
-	}
-	if optOut {
-		return nil
-	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
-
-	client, err := s.buildClient(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to build lstep client for reservation resync", "error", err)
-		return apperrors.Wrap(err, "failed to build lstep client")
-	}
-	if client == nil {
-		return nil
-	}
-
-	ownerIDPtr := ownerID
-	reservations, _, err := s.reservationRepo.FindAll(ctx, clinicID, 1, 100, nil, nil, nil, nil, &ownerIDPtr)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find reservations for resync", "error", err)
-		return apperrors.Wrap(err, "failed to find reservations")
-	}
-
-	now := time.Now()
-	var latest *time.Time
-	for i := range reservations {
-		r := &reservations[i]
-		if r.Status != model.ReservationStatusConfirmed && r.Status != model.ReservationStatusPending {
-			continue
-		}
-		if !r.StartTime.After(now) {
-			continue
-		}
-		if latest == nil || r.StartTime.After(*latest) {
-			t := r.StartTime
-			latest = &t
-		}
-	}
-
-	var newTag string
-	if latest != nil {
-		newTag = "reserved_" + latest.Format("2006-01-02")
-	}
-
-	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to load tag cache for reservation resync", "error", err)
-		return apperrors.Wrap(err, "failed to load tag cache")
-	}
-	apiFailed := false
-	for _, c := range cached {
-		if !strings.HasPrefix(c.TagName, "reserved_") {
-			continue
-		}
-		if c.TagName == newTag {
-			continue
-		}
-		if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-			slog.ErrorContext(ctx, "failed to remove stale reserved tag", "error", delErr, "tag", c.TagName)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			apiFailed = true
-			continue
-		}
-		if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
-			slog.ErrorContext(ctx, "failed to delete stale reserved tag cache", "error", delErr, "tag", c.TagName)
-		}
-	}
-
-	if newTag == "" {
-		if !apiFailed {
-			s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
-		}
-		return nil
-	}
-	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add reserved tag on resync", "error", addErr, "tag", newTag)
-		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-		return apperrors.Wrap(addErr, "failed to add reserved tag")
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert reserved tag cache on resync", "error", upsertErr)
-	}
-	if !apiFailed {
-		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
-	}
-	return nil
 }
 
 // SyncDormantTags は最終来院からの経過日数に基づき dormant_* タグを差分同期する（BE-005）。

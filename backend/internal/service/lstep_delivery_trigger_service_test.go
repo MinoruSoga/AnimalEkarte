@@ -697,13 +697,6 @@ func TestLstepDeliveryTriggerService_TriggerTagBased(t *testing.T) {
 				return svc.TriggerFoodRefillReminder(ctx, 1, time.Now())
 			},
 		},
-		{
-			name:    "supp refill reminder uses correct tag",
-			tagName: tagSuppRefill,
-			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
-				return svc.TriggerSuppRefillReminder(ctx, 1, time.Now())
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -977,5 +970,4 @@ func TestTriggerSyncTagConstantsAlignment(t *testing.T) {
 	assert.Equal(t, PrevFilariaTag, tagFilariaAlert, "filaria tag must match between sync and trigger")
 	assert.Equal(t, PrevFleaTickTag, tagFleaTickAlert, "flea tick tag must match between sync and trigger")
 	assert.Equal(t, LtvFoodPurchaseTag, tagFoodRefill, "food purchase tag must match between sync and trigger")
-	assert.Equal(t, LtvSuppPurchaseTag, tagSuppRefill, "supp purchase tag must match between sync and trigger")
 }

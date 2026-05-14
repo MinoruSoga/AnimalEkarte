@@ -22,7 +22,6 @@ const (
 	TriggerTypeFilariaAlert         TriggerType = "filaria_alert"
 	TriggerTypeFleaTickAlert        TriggerType = "flea_tick_alert"
 	TriggerTypeFoodRefillReminder   TriggerType = "food_refill_reminder"
-	TriggerTypeSuppRefillReminder   TriggerType = "supp_refill_reminder"
 	TriggerTypeFirstVisitWelcome    TriggerType = "first_visit_welcome"
 	TriggerTypeCheckupFollowUp      TriggerType = "checkup_followup"
 
@@ -48,7 +47,6 @@ func AllTriggerTypes() []string {
 		TriggerTypeFilariaAlert,
 		TriggerTypeFleaTickAlert,
 		TriggerTypeFoodRefillReminder,
-		TriggerTypeSuppRefillReminder,
 		TriggerTypeFirstVisitWelcome,
 		TriggerTypeCheckupFollowUp,
 	}

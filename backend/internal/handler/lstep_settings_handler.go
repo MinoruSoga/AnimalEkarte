@@ -49,7 +49,6 @@ func (h *Handler) UpdateLstepSettings(c *gin.Context) {
 		LiffID:                   req.LiffID,
 		LineAccountName:          req.LineAccountName,
 		IsSyncEnabled:            req.IsSyncEnabled,
-		FireHourJST:              req.FireHourJST,
 		CPMVersion:               req.CPMVersion,
 		DormantPrevention180Days: req.DormantPrevention180Days,
 		DormantPrevention210Days: req.DormantPrevention210Days,

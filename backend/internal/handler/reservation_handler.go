@@ -165,10 +165,6 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	// BE-007: 予約登録タグ同期（best-effort）
-	if reservation.OwnerID != nil && reservation.Status != model.ReservationStatusCancelled {
-		_ = h.svc.LstepTagSync.SyncReservationTag(ctx, clinicID, *reservation.OwnerID, reservation.StartTime)
-	}
 	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", reservation.ID))
 	c.JSON(http.StatusCreated, toReservationResponse(reservation))
 }
@@ -243,15 +239,6 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		return
 	}
 
-	// BE-007: 予約ステータス変更タグ同期（best-effort）
-	if svcInput.Status != nil && reservation.OwnerID != nil {
-		switch *svcInput.Status {
-		case model.ReservationStatusCancelled:
-			_ = h.svc.LstepTagSync.SyncCancellationTag(ctx, clinicID, *reservation.OwnerID)
-		case model.ReservationStatusConfirmed, model.ReservationStatusPending:
-			_ = h.svc.LstepTagSync.SyncReservationTag(ctx, clinicID, *reservation.OwnerID, reservation.StartTime)
-		}
-	}
 	// 受付済みに変更された場合はカルテを best-effort で自動作成する（BE-reception-auto-create-medical-record）
 	if svcInput.Status != nil && *svcInput.Status == model.ReservationStatusCheckedIn {
 		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
@@ -270,21 +257,9 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// ISSUE-004: Delete 前に reservation を取得して owner_id を確保。
-	reservation, err := h.svc.Reservation.GetByID(c.Request.Context(), clinicID, id)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
 	if err := h.svc.Reservation.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
-	}
-	// ISSUE-004: 削除後の DB 状態から reserved_* を再構築（best-effort）。
-	// 削除した予約以外に未来予約があれば、その最新日タグを保持する。
-	// canceled_visit / no_show_* は削除を「キャンセル」として扱わないため変更しない。
-	if reservation.OwnerID != nil {
-		_ = h.svc.LstepTagSync.ResyncOwnerReservationTags(c.Request.Context(), clinicID, *reservation.OwnerID)
 	}
 	c.Status(http.StatusNoContent)
 }

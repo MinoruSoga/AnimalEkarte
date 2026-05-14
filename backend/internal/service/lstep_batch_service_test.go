@@ -122,7 +122,6 @@ func (m *batchMockMedRecordRepo) CountByOwnerID(_ context.Context, _, _ uint64) 
 
 // batchMockTagSyncSvc は batch テスト専用 LstepTagSyncService モック
 type batchMockTagSyncSvc struct {
-	syncNoShowTagFn  func(ctx context.Context, clinicID, ownerID uint64, t time.Time) error
 	syncDormantTagFn func(ctx context.Context, clinicID, ownerID uint64, daysSince int) error
 }
 
@@ -137,12 +136,6 @@ func (m *batchMockTagSyncSvc) SyncPetBasicInfoTags(_ context.Context, _, _ uint6
 	return nil
 }
 func (m *batchMockTagSyncSvc) SyncNextVisitTag(_ context.Context, _, _ uint64) error { return nil }
-func (m *batchMockTagSyncSvc) SyncReservationTag(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
-}
-func (m *batchMockTagSyncSvc) SyncCancellationTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
 func (m *batchMockTagSyncSvc) SyncCheckupTag(_ context.Context, _, _, _ uint64, _ time.Time, _ *time.Time) error {
 	return nil
 }
@@ -153,12 +146,6 @@ func (m *batchMockTagSyncSvc) SyncChronicConditionTags(_ context.Context, _, _ u
 	return nil
 }
 func (m *batchMockTagSyncSvc) SyncCPMStageTag(_ context.Context, _, _ uint64) error { return nil }
-func (m *batchMockTagSyncSvc) SyncNoShowTag(ctx context.Context, clinicID, ownerID uint64, t time.Time) error {
-	if m.syncNoShowTagFn != nil {
-		return m.syncNoShowTagFn(ctx, clinicID, ownerID, t)
-	}
-	return nil
-}
 func (m *batchMockTagSyncSvc) SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSince int) error {
 	if m.syncDormantTagFn != nil {
 		return m.syncDormantTagFn(ctx, clinicID, ownerID, daysSince)
@@ -169,9 +156,6 @@ func (m *batchMockTagSyncSvc) ResyncOwnerVaccineTags(_ context.Context, _, _ uin
 	return nil
 }
 func (m *batchMockTagSyncSvc) ResyncOwnerCheckupTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *batchMockTagSyncSvc) ResyncOwnerReservationTags(_ context.Context, _, _ uint64) error {
 	return nil
 }
 
@@ -223,10 +207,6 @@ func (m *batchMockTagSyncSvc) SyncFoodPurchaseTag(_ context.Context, _, _ uint64
 	return nil
 }
 
-func (m *batchMockTagSyncSvc) SyncSuppPurchaseTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
 func (m *batchMockTagSyncSvc) SyncHealthPreventionTagsForClinic(_ context.Context, _ uint64) (int, []error) {
 	return 0, nil
 }
@@ -271,7 +251,7 @@ func newBatchService(
 	clinicRepo repository.ClinicRepository,
 	medRepo repository.MedicalRecordRepository,
 ) LstepBatchService {
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{}, &mockLstepSettingsService{}, nil, nil)
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{}, &mockLstepSettingsService{}, nil)
 }
 
 // newBatchServiceWithAuditSpy は ISSUE-010 監査 metadata 検証用に audit spy を返す。
@@ -282,7 +262,7 @@ func newBatchServiceWithAuditSpy(
 	medRepo repository.MedicalRecordRepository,
 ) (LstepBatchService, *batchMockAuditService) {
 	spy := &batchMockAuditService{}
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy, &mockLstepSettingsService{}, nil, nil), spy
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy, &mockLstepSettingsService{}, nil), spy
 }
 
 func TestDetectNoShowReservations_Success(t *testing.T) {
@@ -290,22 +270,16 @@ func TestDetectNoShowReservations_Success(t *testing.T) {
 	now := time.Now()
 	reservations := []model.Reservation{
 		{ID: 1, OwnerID: &ownerID, StartTime: now},
-		{ID: 2, OwnerID: nil, StartTime: now}, // no owner — tag skip
+		{ID: 2, OwnerID: nil, StartTime: now},
 	}
 
-	tagSyncCalled := 0
 	svc := newBatchService(
 		&batchMockReservationRepo{
 			findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
 				return reservations, nil
 			},
 		},
-		&batchMockTagSyncSvc{
-			syncNoShowTagFn: func(_ context.Context, _, _ uint64, _ time.Time) error {
-				tagSyncCalled++
-				return nil
-			},
-		},
+		&batchMockTagSyncSvc{},
 		&mockClinicRepository{},
 		&batchMockMedRecordRepo{},
 	)
@@ -314,7 +288,6 @@ func TestDetectNoShowReservations_Success(t *testing.T) {
 
 	assert.Equal(t, 2, count)
 	assert.Empty(t, errs)
-	assert.Equal(t, 1, tagSyncCalled, "ownerIDなし予約はタグ同期をスキップする")
 }
 
 func TestDetectNoShowReservations_FindCandidatesError(t *testing.T) {
@@ -652,9 +625,6 @@ func (m *batchMockDeliveryTrigger) TriggerFleaTickAlert(_ context.Context, _ uin
 func (m *batchMockDeliveryTrigger) TriggerFoodRefillReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
 	return 0, nil
 }
-func (m *batchMockDeliveryTrigger) TriggerSuppRefillReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
-	return 0, nil
-}
 func (m *batchMockDeliveryTrigger) TriggerFirstVisitWelcome(_ context.Context, _, _ uint64) error {
 	return nil
 }
@@ -662,40 +632,4 @@ func (m *batchMockDeliveryTrigger) TriggerCheckupFollowUp(_ context.Context, _, 
 	return nil
 }
 
-// TestFireHourFor_UsesDefault は fireHours マップにエントリがない場合 defaultFireHourJST (10) を返すことを検証する。
-func TestFireHourFor_UsesDefault(t *testing.T) {
-	svc := &lstepBatchService{fireHours: map[uint64]int{}}
-	assert.Equal(t, defaultFireHourJST, svc.fireHourFor(99))
-}
 
-// TestFireHourFor_UsesConfigured は fireHours マップのエントリを返すことを検証する。
-func TestFireHourFor_UsesConfigured(t *testing.T) {
-	svc := &lstepBatchService{fireHours: map[uint64]int{1: 9, 2: 22}}
-	assert.Equal(t, 9, svc.fireHourFor(1))
-	assert.Equal(t, 22, svc.fireHourFor(2))
-	assert.Equal(t, defaultFireHourJST, svc.fireHourFor(3), "未設定クリニックはデフォルト")
-}
-
-// TestRunDeliveryTriggerBatchAllClinics_FireHourFilter は配信時刻が一致するクリニックのみ処理されることを検証する。
-// clinic1: fire at 9 JST, clinic2: fire at 10 JST (default)。nowFn = 9:00 JST → clinic1 のみ処理。
-func TestRunDeliveryTriggerBatchAllClinics_FireHourFilter(t *testing.T) {
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	trigger := &batchMockDeliveryTrigger{}
-	svc := &lstepBatchService{
-		fireHours: map[uint64]int{1: 9}, // clinic2 は未設定 → デフォルト 10
-		clinicRepo: &mockClinicRepository{
-			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
-				return []model.Clinic{{ID: 1}, {ID: 2}}, nil
-			},
-		},
-		auditSvc:             &batchMockAuditService{},
-		lstepDeliveryTrigger: trigger,
-		nowFn: func() time.Time {
-			return time.Date(2026, 5, 5, 9, 0, 0, 0, jst)
-		},
-	}
-
-	err := svc.RunDeliveryTriggerBatchAllClinics(context.Background())
-	assert.NoError(t, err)
-	assert.Equal(t, []uint64{1}, trigger.processedClinics, "9時設定の clinic1 のみ処理される")
-}

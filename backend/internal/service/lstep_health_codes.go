@@ -9,7 +9,6 @@ const (
 	PrevFilariaTag                 = "PREV_フィラリア未完了"
 	PrevFleaTickTag                = "PREV_ノミダニ対象"
 	LtvFoodPurchaseTag             = "LTV_フード購入あり"
-	LtvSuppPurchaseTag             = "LTV_サプリ購入あり"
 )
 
 // SPEC-002 Q5/Q6 確定待ち空プレースホルダー。
@@ -20,7 +19,6 @@ var (
 	FilariaPrescriptionCodes  []string
 	FleaTickPrescriptionCodes []string
 	FoodPurchaseCodes         []string
-	SuppPurchaseCodes         []string
 )
 
 // HealthPreventionLookbackDays は健診・予防履歴の参照期間（日数）。

@@ -17,7 +17,6 @@ import (
 type mockClinicSettingsRepository struct {
 	findByClinicIDFn          func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
 	upsertFn                  func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
-	updateLstepFireHourJSTFn  func(ctx context.Context, clinicID uint64, hour int) error
 	updateCPMVersionFn        func(ctx context.Context, clinicID uint64, version string) error
 	updateDormantThresholdsFn func(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error
 }
@@ -34,12 +33,6 @@ func (m *mockClinicSettingsRepository) Save(ctx context.Context, clinicID uint64
 		return m.upsertFn(ctx, clinicID, s)
 	}
 	return s, nil
-}
-func (m *mockClinicSettingsRepository) UpdateLstepFireHourJST(ctx context.Context, clinicID uint64, hour int) error {
-	if m.updateLstepFireHourJSTFn != nil {
-		return m.updateLstepFireHourJSTFn(ctx, clinicID, hour)
-	}
-	return nil
 }
 func (m *mockClinicSettingsRepository) UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error {
 	if m.updateCPMVersionFn != nil {

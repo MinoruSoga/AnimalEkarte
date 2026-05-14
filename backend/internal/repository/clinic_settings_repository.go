@@ -16,9 +16,6 @@ import (
 type ClinicSettingsRepository interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
 	Save(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
-	// UpdateLstepFireHourJST は lstep_fire_hour_jst のみを対象とした UPSERT。
-	// Save の DoUpdates には含まれないため専用メソッドで対応する。
-	UpdateLstepFireHourJST(ctx context.Context, clinicID uint64, hour int) error
 	// UpdateCPMVersion は cpm_version のみを対象とした UPSERT。
 	UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error
 	// UpdateDormantThresholds は dormant_prevention_*_days 4 カラムを対象とした UPSERT。
@@ -69,29 +66,6 @@ func (r *clinicSettingsRepository) Save(ctx context.Context, clinicID uint64, s 
 		return nil, apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", s.ClinicID))
 	}
 	return s, nil
-}
-
-func (r *clinicSettingsRepository) UpdateLstepFireHourJST(ctx context.Context, clinicID uint64, hour int) error {
-	// INSERT … ON CONFLICT で lstep_fire_hour_jst のみを更新する。
-	// レコード未作成時は closing 系カラムのデフォルト値で INSERT する (FindByClinicID と同値)。
-	s := &model.ClinicSettings{
-		ClinicID:            clinicID,
-		ClosingAmPmBoundary: "14:00",
-		ClosingWeekdayEnd:   "18:30",
-		ClosingSundayEnd:    "17:30",
-		LstepFireHourJST:    hour,
-	}
-	err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "clinic_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"lstep_fire_hour_jst", "updated_at"}),
-		}).
-		Create(s).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
-	}
-	return nil
 }
 
 func (r *clinicSettingsRepository) UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error {

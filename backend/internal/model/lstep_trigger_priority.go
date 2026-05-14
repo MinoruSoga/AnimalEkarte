@@ -27,7 +27,6 @@ var DefaultTriggerPriorities = map[string]int{
 	TriggerTypeVaccineDeadline30:    8,
 	TriggerTypeVaccineDeadline60:    8,
 	TriggerTypeFoodRefillReminder:   10,
-	TriggerTypeSuppRefillReminder:   10,
 	// 未マッピング (priority 11+)
 	TriggerTypeNextVisitReminder:    11,
 	TriggerTypeBirthdayMessage:      12,

@@ -18,7 +18,6 @@ type lstepSettingsResponse struct {
 	LastUpdatedAt                *time.Time `json:"last_updated_at"`
 	IsSyncEnabled                bool       `json:"is_sync_enabled"`
 	SyncEnabledAt                *time.Time `json:"sync_enabled_at"`
-	FireHourJST                  int        `json:"fire_hour_jst"`
 	CPMVersion                   string     `json:"cpm_version"`
 	DormantPrevention180Days     int        `json:"dormant_prevention_180_days"`
 	DormantPrevention210Days     int        `json:"dormant_prevention_210_days"`
@@ -46,7 +45,6 @@ func toLstepSettingsResponse(s *service.LstepSettingsResponse) lstepSettingsResp
 		LastUpdatedAt:                s.LastUpdatedAt,
 		IsSyncEnabled:                s.IsSyncEnabled,
 		SyncEnabledAt:                s.SyncEnabledAt,
-		FireHourJST:                  s.FireHourJST,
 		CPMVersion:                   s.CPMVersion,
 		DormantPrevention180Days:     s.DormantPrevention180Days,
 		DormantPrevention210Days:     s.DormantPrevention210Days,
