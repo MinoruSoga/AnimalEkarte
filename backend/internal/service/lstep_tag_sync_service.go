@@ -711,7 +711,7 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 		}
 	}
 
-	// 来院完了でキャッシュ経由の予約関連タグ（reserved_* / canceled_visit / no_show_*）とdormantタグを削除
+	// 来院完了でキャッシュ経由のdormantタグを削除
 	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load tag cache for visit completion cleanup", "error", err)

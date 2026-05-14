@@ -24,8 +24,6 @@ type BillingItemRepository interface {
 	HasItemByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 	// HasFoodPurchaseByOwnerSince は names 指定時は名前で、未指定時は category=food で判定する（FEAT-379）。
 	HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
-	// HasSuppPurchaseByOwnerSince は names で判定する。names 未指定時は false を返す（カテゴリフォールバックなし）（FEAT-385-supp）。
-	HasSuppPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 	// FindOwnersByCategoryPurchaseDate は指定カテゴリの最終購入日が purchaseDate と一致する飼い主IDリストを返す（FEAT-383）。
 	FindOwnersByCategoryPurchaseDate(ctx context.Context, clinicID uint64, category string, purchaseDate time.Time) ([]uint64, error)
 }
@@ -171,19 +169,3 @@ func (r *billingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Context,
 	return count > 0, nil
 }
 
-func (r *billingItemRepository) HasSuppPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
-	if len(names) == 0 {
-		return false, nil
-	}
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.BillingItem{}).
-		Joins("JOIN billings ON billings.id = billing_items.billing_id").
-		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.issued_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
-		Where("billing_items.deleted_at IS NULL").
-		Where("billing_items.name IN ?", names).
-		Count(&count).Error
-	if err != nil {
-		return false, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("clinic:%d owner:%d", clinicID, ownerID))
-	}
-	return count > 0, nil
-}
