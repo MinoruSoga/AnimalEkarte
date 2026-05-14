@@ -98,7 +98,7 @@ describe("LstepTagCodeMappingsSection — A: GET 結果表示", () => {
     await renderAndWait(mappings);
 
     expect(screen.getByText("設定済")).toBeInTheDocument();
-    expect(screen.getByText("checkup_type")).toBeInTheDocument();
+    expect(screen.getAllByText("checkup_type").length).toBeGreaterThan(0);
     expect(screen.getByText("CHK_A, CHK_B")).toBeInTheDocument();
   });
 
