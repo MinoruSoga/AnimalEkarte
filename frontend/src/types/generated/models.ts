@@ -1256,7 +1256,6 @@ export const TriggerTypeDormantPrevention365: TriggerType = "dormant_prevention_
 export const TriggerTypeFilariaAlert: TriggerType = "filaria_alert";
 export const TriggerTypeFleaTickAlert: TriggerType = "flea_tick_alert";
 export const TriggerTypeFoodRefillReminder: TriggerType = "food_refill_reminder";
-export const TriggerTypeSuppRefillReminder: TriggerType = "supp_refill_reminder";
 export const TriggerTypeFirstVisitWelcome: TriggerType = "first_visit_welcome";
 export const TriggerTypeCheckupFollowUp: TriggerType = "checkup_followup";
 export const TriggerStatusScheduled: TriggerStatus = "scheduled";
@@ -1354,10 +1353,6 @@ export interface LstepTagCache {
 export const CodeTypeCheckupType = "checkup_type";
 export const CodeTypePrescription = "prescription";
 export const CodeTypeMerchandiseItem = "merchandise_item";
-export const CodeTypeSpecialtyDental = "specialty_dental";
-export const CodeTypeSpecialtySkinEar = "specialty_skin_ear";
-export const CodeTypeSpecialtyOphthalmology = "specialty_ophthalmology";
-export const CodeTypeSpecialtyKidney = "specialty_kidney";
 export const SpeciesScopeDog = "dog";
 export interface LstepTagCodeMapping {
   id: number /* uint64 */;
