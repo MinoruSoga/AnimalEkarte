@@ -20,7 +20,6 @@ var ConfigurableTagNames = []string{
 	PrevFilariaTag,
 	PrevFleaTickTag,
 	LtvFoodPurchaseTag,
-	LtvSuppPurchaseTag,
 }
 
 // PutMappingEntry は PUT リクエストの 1 code_type エントリ。

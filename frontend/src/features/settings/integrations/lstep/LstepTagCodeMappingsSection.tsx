@@ -14,7 +14,6 @@ const CONFIGURABLE_TAG_NAMES = [
   "PREV_フィラリア未完了",
   "PREV_ノミダニ対象",
   "LTV_フード購入あり",
-  "LTV_サプリ購入あり",
 ] as const;
 
 function groupByTagName(

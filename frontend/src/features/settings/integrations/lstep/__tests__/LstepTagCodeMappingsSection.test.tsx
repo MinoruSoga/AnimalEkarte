@@ -92,7 +92,6 @@ describe("LstepTagCodeMappingsSection — A: GET 結果表示", () => {
     expect(screen.getByText("タグコードマッピング")).toBeInTheDocument();
     expect(screen.getByText(/SPEC-002 Q5 確定待ち/)).toBeInTheDocument();
     expect(screen.getByText("HLTH_健診あり")).toBeInTheDocument();
-    expect(screen.getByText("LTV_サプリ購入あり")).toBeInTheDocument();
     expect(screen.getAllByText("未投入").length).toBeGreaterThan(0);
   });
 
