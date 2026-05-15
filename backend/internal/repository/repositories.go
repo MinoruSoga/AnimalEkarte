@@ -111,6 +111,8 @@ type Repositories struct {
 	// FEAT-385: Lステップ CSV インポート・分析
 	LstepCsvImport               LstepCsvImportRepository
 	LstepFriendAttributeSnapshot LstepFriendAttributeSnapshotRepository
+	// 動的タグ設定 (B/C1/C2/C3 カテゴリ)
+	LstepTagConfig LstepTagConfigRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -202,6 +204,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		LstepTriggerPriority:         NewLstepTriggerPriorityRepository(db),
 		LstepCsvImport:               NewLstepCsvImportRepository(db),
 		LstepFriendAttributeSnapshot: NewLstepFriendAttributeSnapshotRepository(db),
+		LstepTagConfig:               NewLstepTagConfigRepository(db),
 	}
 }
 

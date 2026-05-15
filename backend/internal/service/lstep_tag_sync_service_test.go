@@ -34,6 +34,7 @@ func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
 		nil, // errorCounterRepo — nil because sync is disabled, counter is never reached
 		nil, // tagCodeRepo
 		nil, // billingItemRepo
+		nil, // tagConfigRepo
 	)
 	ctx := context.Background()
 	now := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
@@ -77,6 +78,14 @@ func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
 // ---- isPetBasicInfoTag ----
 
 func TestIsPetBasicInfoTag(t *testing.T) {
+	c1Prefixes := []*model.LstepAutoManagedPrefix{
+		{Prefix: "breed_", Category: "C1"},
+		{Prefix: "sex_", Category: "C1"},
+		{Prefix: "pet_birthday_", Category: "C1"},
+		{Prefix: "birth_year_", Category: "C1"},
+		{Prefix: "spay_neutered", Category: "C1"},
+		{Prefix: "intact", Category: "C1"},
+	}
 	cases := []struct {
 		tag  string
 		want bool
@@ -97,7 +106,7 @@ func TestIsPetBasicInfoTag(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.tag, func(t *testing.T) {
-			assert.Equal(t, tc.want, isPetBasicInfoTag(tc.tag))
+			assert.Equal(t, tc.want, isPetBasicInfoTagWithPrefixes(tc.tag, c1Prefixes))
 		})
 	}
 }
@@ -363,6 +372,16 @@ func TestBuildLatestCheckupTagSet_SkipsNilNextDate(t *testing.T) {
 // ---- conditionTagMap ----
 
 func TestConditionTagMap(t *testing.T) {
+	mappings := []*model.LstepConditionTagMapping{
+		{ConditionCode: "ckd", TagName: "chronic_ckd"},
+		{ConditionCode: "heart", TagName: "chronic_heart"},
+		{ConditionCode: "skin", TagName: "chronic_skin"},
+		{ConditionCode: "diabetes", TagName: "chronic_diabetes"},
+		{ConditionCode: "liver", TagName: "chronic_liver"},
+		{ConditionCode: "thyroid", TagName: "chronic_thyroid"},
+		{ConditionCode: "other", TagName: "chronic_other"},
+	}
+	m := conditionTagMapFromMappings(mappings)
 	cases := map[string]string{
 		"ckd":      "chronic_ckd",
 		"heart":    "chronic_heart",
@@ -373,12 +392,11 @@ func TestConditionTagMap(t *testing.T) {
 		"other":    "chronic_other",
 	}
 	for code, wantTag := range cases {
-		got, ok := conditionTagMap[code]
+		got, ok := m[code]
 		assert.True(t, ok, "conditionTagMap missing key: %s", code)
 		assert.Equal(t, wantTag, got)
 	}
-	// unknown code must not be present
-	_, hasUnknown := conditionTagMap["unknown"]
+	_, hasUnknown := m["unknown"]
 	assert.False(t, hasUnknown)
 }
 
@@ -852,7 +870,7 @@ func TestHasVaccineDeadlineSoon(t *testing.T) {
 func TestSyncHealthcheckTagsNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncHealthcheckTags(context.Background(), 1, 2))
 }
@@ -860,7 +878,7 @@ func TestSyncHealthcheckTagsNoopWhenTagCodeRepoNil(t *testing.T) {
 func TestSyncAnnual4CheckupTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncAnnual4CheckupTag(context.Background(), 1, 2))
 }
@@ -868,7 +886,7 @@ func TestSyncAnnual4CheckupTagNoopWhenTagCodeRepoNil(t *testing.T) {
 func TestSyncFilariaTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncFilariaTag(context.Background(), 1, 2))
 }
@@ -876,7 +894,7 @@ func TestSyncFilariaTagNoopWhenTagCodeRepoNil(t *testing.T) {
 func TestSyncFleaTickTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncFleaTickTag(context.Background(), 1, 2))
 }
@@ -884,7 +902,7 @@ func TestSyncFleaTickTagNoopWhenTagCodeRepoNil(t *testing.T) {
 func TestSyncFoodPurchaseTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	assert.NoError(t, svc.SyncFoodPurchaseTag(context.Background(), 1, 2))
 }
@@ -892,7 +910,7 @@ func TestSyncFoodPurchaseTagNoopWhenTagCodeRepoNil(t *testing.T) {
 func TestSyncHealthPreventionTagsForClinicDisabledSync(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, nil }},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	count, errs := svc.SyncHealthPreventionTagsForClinic(context.Background(), 1)
 	assert.Equal(t, 0, count)

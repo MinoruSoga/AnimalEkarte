@@ -154,7 +154,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 
 	// LSTEP services initialization with nil cipher (production code in main.go will override with encrypted cipher)
 	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, nil, auditSvc, repos.ClinicSettings)
-	lstepTagSyncSvc := NewLstepTagSyncService(lstepSettingsSvc, repos.Owner, repos.Vaccination, repos.MedicalRecord, repos.Accounting, repos.LstepTagCache, repos.Pet, repos.Prescription, repos.Checkup, repos.Reservation, repos.LstepSyncErrorCounter, repos.LstepTagCodeMapping, repos.BillingItem)
+	lstepTagSyncSvc := NewLstepTagSyncService(lstepSettingsSvc, repos.Owner, repos.Vaccination, repos.MedicalRecord, repos.Accounting, repos.LstepTagCache, repos.Pet, repos.Prescription, repos.Checkup, repos.Reservation, repos.LstepSyncErrorCounter, repos.LstepTagCodeMapping, repos.BillingItem, repos.LstepTagConfig)
 	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc)
 
 	return &Services{
@@ -233,11 +233,11 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ReservationAdmin:          NewReservationAdminService(repos.ReservationAdmin, repos.Reservation, tx),
 		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr),
 		Prescription:              NewPrescriptionService(repos.Prescription, repos.MedicalRecord),
-		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache),
+		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache, repos.LstepTagConfig),
 		LstepSettings:             lstepSettingsSvc,
 		LstepTagSync:              lstepTagSyncSvc,
 		LstepLifecycle:            lstepLifecycleSvc,
-		LstepTag:                  NewLstepTagService(lstepSettingsSvc, repos.Owner, repos.LstepTagCache, auditSvc),
+		LstepTag:                  NewLstepTagService(lstepSettingsSvc, repos.Owner, repos.LstepTagCache, auditSvc, repos.LstepTagConfig),
 		LstepTagCodeMapping:       NewLstepTagCodeMappingService(repos.LstepTagCodeMapping),
 		Liff: NewLiffService(
 			repos.LineReservationSetting,

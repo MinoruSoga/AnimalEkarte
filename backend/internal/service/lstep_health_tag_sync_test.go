@@ -99,6 +99,7 @@ func buildHealthSvc(
 		nil, // errorCounterRepo — client=nil なので notifyAPIFailure は到達しない
 		tagCodeRepo,
 		billingItemRepo,
+		nil, // tagConfigRepo
 	)
 }
 
@@ -618,6 +619,7 @@ func buildVaccineSvc(ownerRepo repository.OwnerRepository, vacRepo repository.Va
 		nil, nil,
 		tagCache,
 		nil, nil, nil, nil, nil, nil, nil,
+		nil, // tagConfigRepo
 	)
 }
 

@@ -131,13 +131,14 @@ type AggregationService interface {
 }
 
 type aggregationService struct {
-	repo         repository.LtvRepository
-	tagCacheRepo repository.LstepTagCacheRepository
+	repo          repository.LtvRepository
+	tagCacheRepo  repository.LstepTagCacheRepository
+	tagConfigRepo repository.LstepTagConfigRepository
 }
 
 // NewAggregationService は AggregationService を初期化して返す。
-func NewAggregationService(repo repository.LtvRepository, tagCacheRepo repository.LstepTagCacheRepository) AggregationService {
-	return &aggregationService{repo: repo, tagCacheRepo: tagCacheRepo}
+func NewAggregationService(repo repository.LtvRepository, tagCacheRepo repository.LstepTagCacheRepository, tagConfigRepo repository.LstepTagConfigRepository) AggregationService {
+	return &aggregationService{repo: repo, tagCacheRepo: tagCacheRepo, tagConfigRepo: tagConfigRepo}
 }
 
 func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID uint64, input *ListOwnerAggregationInput) (*ListOwnerAggregationResult, error) {
@@ -225,9 +226,17 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 }
 
 func (s *aggregationService) SyncAggregationTags(ctx context.Context, clinicID uint64, input SyncAggregationTagsInput) (*SyncAggregationTagsResult, error) {
-	// 禁止プレフィックスチェック（BE-019と共通の isAutoManagedTag を使用）
-	if isAutoManagedTag(input.TagName) {
+	// 禁止プレフィックスチェック（BE-019: システム固定 + DB 設定プレフィックスは手動使用禁止）
+	if isSystemManagedTag(input.TagName) {
 		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("tag_name %q は自動管理タグのため使用できません", input.TagName))
+	}
+	if s.tagConfigRepo != nil {
+		prefixes, prefErr := s.tagConfigRepo.FindAllAutoManagedPrefixes(ctx)
+		if prefErr != nil {
+			slog.ErrorContext(ctx, "failed to load auto managed prefixes", "error", prefErr)
+		} else if isAutoManagedTagWithPrefixes(input.TagName, prefixes) {
+			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("tag_name %q は自動管理タグのため使用できません", input.TagName))
+		}
 	}
 
 	rows, err := s.repo.FindOwnerLTV(ctx, &repository.FindOwnerLTVParams{

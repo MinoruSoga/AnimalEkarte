@@ -91,6 +91,7 @@ func main() {
 		repos.LstepSyncErrorCounter,
 		repos.LstepTagCodeMapping,
 		repos.BillingItem,
+		repos.LstepTagConfig,
 	)
 	svcs.LstepLifecycle = service.NewLstepLifecycleService(
 		svcs.LstepSettings,
@@ -105,6 +106,7 @@ func main() {
 		repos.Owner,
 		repos.LstepTagCache,
 		svcs.Audit,
+		repos.LstepTagConfig,
 	)
 
 	// 共有ファイルストレージ初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
@@ -125,7 +127,7 @@ func main() {
 	// LSTEP-BE-012: 慢性疾患フラグ
 	svcs.ChronicCondition = service.NewChronicConditionService(repos.ChronicCondition, repos.Pet, svcs.LstepTagSync)
 	// LSTEP-BE-013: LINE個別送信
-	svcs.LineSend = service.NewLineSendService(svcs.LstepSettings, repos.Owner, svcs.SharedFile, repos.LstepTagCache, svcs.Audit, repos.LineSendLog)
+	svcs.LineSend = service.NewLineSendService(svcs.LstepSettings, repos.Owner, svcs.SharedFile, repos.LstepTagCache, svcs.Audit, repos.LineSendLog, repos.LstepTagConfig)
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
 	svcs.LineLink = service.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, svcs.Audit)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索

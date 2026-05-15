@@ -12,6 +12,16 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+func purposeTagNameFromPrefixes(purpose string, t time.Time, prefixes []*model.LstepSendPurposeTagPrefix) string {
+	date := t.Format("2006-01-02")
+	for _, p := range prefixes {
+		if p.Purpose == purpose {
+			return p.TagPrefix + date
+		}
+	}
+	return ""
+}
+
 type SendLineMessageInput struct {
 	OwnerID     uint64
 	StaffID     uint64
@@ -39,6 +49,7 @@ type lineSendService struct {
 	tagCacheRepo  repository.LstepTagCacheRepository
 	auditSvc      AuditService
 	logRepo       repository.LineSendLogRepository
+	tagConfigRepo repository.LstepTagConfigRepository
 }
 
 func NewLineSendService(
@@ -48,6 +59,7 @@ func NewLineSendService(
 	tagCacheRepo repository.LstepTagCacheRepository,
 	auditSvc AuditService,
 	logRepo repository.LineSendLogRepository,
+	tagConfigRepo repository.LstepTagConfigRepository,
 ) LineSendService {
 	return &lineSendService{
 		lstepSettings: lstepSettings,
@@ -56,6 +68,7 @@ func NewLineSendService(
 		tagCacheRepo:  tagCacheRepo,
 		auditSvc:      auditSvc,
 		logRepo:       logRepo,
+		tagConfigRepo: tagConfigRepo,
 	}
 }
 
@@ -144,7 +157,15 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *Send
 	}
 
 	result := &SendLineMessageResult{SentAt: sentAt}
-	tagName := lineSendPurposeTag(input.Purpose, sentAt)
+	var purposePrefixes []*model.LstepSendPurposeTagPrefix
+	if s.tagConfigRepo != nil {
+		if pp, ppErr := s.tagConfigRepo.FindAllSendPurposeTagPrefixes(ctx); ppErr != nil {
+			slog.ErrorContext(ctx, "failed to load send purpose tag prefixes", "error", ppErr)
+		} else {
+			purposePrefixes = pp
+		}
+	}
+	tagName := purposeTagNameFromPrefixes(input.Purpose, sentAt, purposePrefixes)
 	if tagName != "" {
 		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, input.OwnerID, tagName, "auto", ""); upsertErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert line send tag", "error", upsertErr, "tag", tagName)
@@ -165,21 +186,6 @@ func (s *lineSendService) GetSendLogs(ctx context.Context, clinicID, ownerID uin
 	return logs, nil
 }
 
-func lineSendPurposeTag(purpose string, t time.Time) string {
-	date := t.Format("2006-01-02")
-	switch purpose {
-	case "vaccine_cert":
-		return "cert_sent_vaccine_" + date
-	case "inspection_result":
-		return "cert_sent_inspection_" + date
-	case "post_surgery":
-		return "post_surgery_followup_" + date
-	case "post_discharge":
-		return "post_discharge_followup_" + date
-	default:
-		return ""
-	}
-}
 
 func lineSendTruncate(s string, maxLen int) string {
 	runes := []rune(s)

@@ -372,7 +372,7 @@ func buildCheckupSyncPreviewMetadata(
 }
 
 func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uint64, input CreateCheckupSyncInput, actorID *uint64) (*CreateCheckupSyncResult, error) {
-	if isAutoManagedTag(input.TagName) {
+	if isSystemManagedTag(input.TagName) {
 		return nil, apperrors.WrapInvalidInput("tag_name は自動管理タグのため使用できません")
 	}
 

@@ -218,11 +218,14 @@ type lstepTagSyncService struct {
 	// FEAT-379
 	tagCodeRepo     repository.LstepTagCodeMappingRepository
 	billingItemRepo repository.BillingItemRepository
+	// 動的タグ設定 (B/C1/C2/C3)
+	tagConfigRepo repository.LstepTagConfigRepository
 	// buildClientFn はテスト時にモック Client を注入するためのフック（FEAT-381-2）。
 	buildClientFn func(ctx context.Context, clinicID uint64) (lstep.Client, error)
 }
 
 // NewLstepTagSyncService は LstepTagSyncService を初期化して返す。
+// tagConfigRepo が nil の場合は動的プレフィックス/条件マッピングを使用しない。
 func NewLstepTagSyncService(
 	settingsSvc LstepSettingsService,
 	ownerRepo repository.OwnerRepository,
@@ -237,6 +240,7 @@ func NewLstepTagSyncService(
 	errorCounterRepo repository.LstepSyncErrorCounterRepository,
 	tagCodeRepo repository.LstepTagCodeMappingRepository,
 	billingItemRepo repository.BillingItemRepository,
+	tagConfigRepo repository.LstepTagConfigRepository,
 ) LstepTagSyncService {
 	return &lstepTagSyncService{
 		settingsSvc:      settingsSvc,
@@ -252,6 +256,7 @@ func NewLstepTagSyncService(
 		errorCounterRepo: errorCounterRepo,
 		tagCodeRepo:      tagCodeRepo,
 		billingItemRepo:  billingItemRepo,
+		tagConfigRepo:    tagConfigRepo,
 	}
 }
 
@@ -531,6 +536,17 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 		return apperrors.Wrap(err, "failed to find tag cache")
 	}
 
+	// C1 プレフィックスを DB から一括ロード（ループ外で 1 回のみ）
+	var c1Prefixes []*model.LstepAutoManagedPrefix
+	if s.tagConfigRepo != nil {
+		loaded, loadErr := s.tagConfigRepo.FindAllAutoManagedPrefixes(ctx)
+		if loadErr != nil {
+			slog.ErrorContext(ctx, "failed to load auto managed prefixes for pet basic info sync", "error", loadErr)
+			return apperrors.Wrap(loadErr, "failed to load auto managed prefixes")
+		}
+		c1Prefixes = loaded
+	}
+
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
 		return err
@@ -543,7 +559,7 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 
 	oldSet := make(map[string]struct{})
 	for _, c := range cachedTags {
-		if isPetBasicInfoTag(c.TagName) {
+		if isPetBasicInfoTagWithPrefixes(c.TagName, c1Prefixes) {
 			oldSet[c.TagName] = struct{}{}
 		}
 	}
@@ -640,14 +656,18 @@ func buildPetBasicInfoTags(pets []model.Pet) []string {
 	return tags
 }
 
-// isPetBasicInfoTag は BE-005 ペット基本情報カテゴリのタグかを判定する。
-func isPetBasicInfoTag(tag string) bool {
-	return strings.HasPrefix(tag, "breed_") ||
-		strings.HasPrefix(tag, "sex_") ||
-		strings.HasPrefix(tag, "pet_birthday_") ||
-		strings.HasPrefix(tag, "birth_year_") ||
-		tag == "spay_neutered" ||
-		tag == "intact"
+// isPetBasicInfoTagWithPrefixes は BE-005 ペット基本情報カテゴリ (C1) のタグかを判定する（純粋関数）。
+// dbPrefixes は lstep_auto_managed_prefixes テーブルから取得した C1 カテゴリのレコード。
+func isPetBasicInfoTagWithPrefixes(tag string, dbPrefixes []*model.LstepAutoManagedPrefix) bool {
+	for _, p := range dbPrefixes {
+		if p.Category != "C1" {
+			continue
+		}
+		if tag == p.Prefix || strings.HasPrefix(tag, p.Prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // SyncVisitCompletionTags は診療完了時の来院・LTV タグを同期する（BE-004）。
@@ -1188,15 +1208,13 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 	return nil
 }
 
-// conditionTagMap は疾患コードとLステップタグ名のマッピング（BE-012）。
-var conditionTagMap = map[string]string{
-	"ckd":      "chronic_ckd",
-	"heart":    "chronic_heart",
-	"skin":     "chronic_skin",
-	"diabetes": "chronic_diabetes",
-	"liver":    "chronic_liver",
-	"thyroid":  "chronic_thyroid",
-	"other":    "chronic_other",
+// conditionTagMapFromMappings は DB レコードを疾患コード→タグ名マップに変換する（純粋関数）。
+func conditionTagMapFromMappings(mappings []*model.LstepConditionTagMapping) map[string]string {
+	m := make(map[string]string, len(mappings))
+	for _, mapping := range mappings {
+		m[mapping.ConditionCode] = mapping.TagName
+	}
+	return m
 }
 
 // SyncChronicConditionTags は慢性疾患タグを差分同期する（BE-012）。
@@ -1228,10 +1246,23 @@ func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clin
 		return nil
 	}
 
+	// 慢性疾患コードマッピングを DB から取得
+	var conditionMap map[string]string
+	if s.tagConfigRepo != nil {
+		mappings, loadErr := s.tagConfigRepo.FindAllConditionTagMappings(ctx)
+		if loadErr != nil {
+			slog.ErrorContext(ctx, "failed to load condition tag mappings", "error", loadErr)
+			return apperrors.Wrap(loadErr, "failed to load condition tag mappings")
+		}
+		conditionMap = conditionTagMapFromMappings(mappings)
+	} else {
+		conditionMap = map[string]string{}
+	}
+
 	// 目標タグセットを構築
 	activeTags := make(map[string]bool, len(activeConditionCodes))
 	for _, code := range activeConditionCodes {
-		if tag, ok := conditionTagMap[code]; ok {
+		if tag, ok := conditionMap[code]; ok {
 			activeTags[tag] = true
 		}
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -198,7 +199,7 @@ func TestListOwnerAggregation_CPMStageParity(t *testing.T) {
 			}
 
 			repoMock := &mockLtvRepository{rows: []repository.OwnerLTVRow{ltvRow}}
-			svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+			svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 
 			result, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{
 				IncludeZero:    true,
@@ -269,7 +270,7 @@ func TestListOwnerAggregation_CPMStageFilter(t *testing.T) {
 
 	t.Run("cpm_stage=spot は spot のみ抽出", func(t *testing.T) {
 		repoMock := &mockLtvRepository{rows: rows}
-		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 		result, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{
 			CPMStage: "spot",
 		})
@@ -281,7 +282,7 @@ func TestListOwnerAggregation_CPMStageFilter(t *testing.T) {
 
 	t.Run("cpm_stage=cpm_spot もエイリアスとして受け付ける", func(t *testing.T) {
 		repoMock := &mockLtvRepository{rows: rows}
-		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 		result, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{
 			CPMStage: "cpm_spot",
 		})
@@ -292,7 +293,7 @@ func TestListOwnerAggregation_CPMStageFilter(t *testing.T) {
 
 	t.Run("cpm_stage 未指定は全件返す", func(t *testing.T) {
 		repoMock := &mockLtvRepository{rows: rows}
-		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 		result, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{})
 		assert.NoError(t, err)
 		assert.Len(t, result.Items, 2)
@@ -349,7 +350,7 @@ func TestListOwnerAggregation_FieldMapping(t *testing.T) {
 		MaxSingleVisitAmount: 35_000,
 	}
 	repoMock := &mockLtvRepository{rows: []repository.OwnerLTVRow{row}}
-	svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+	svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 
 	result, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{})
 	require.NoError(t, err)
@@ -396,7 +397,7 @@ func TestListOwnerAggregation_Pagination(t *testing.T) {
 
 	t.Run("page=1, per_page=2 returns first 2", func(t *testing.T) {
 		repoMock := &mockLtvRepository{rows: rows}
-		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 		r, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{Page: 1, PerPage: 2})
 		require.NoError(t, err)
 		assert.Equal(t, 5, r.Total, "Total は全件数")
@@ -409,7 +410,7 @@ func TestListOwnerAggregation_Pagination(t *testing.T) {
 
 	t.Run("page=3, per_page=2 returns last item", func(t *testing.T) {
 		repoMock := &mockLtvRepository{rows: rows}
-		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 		r, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{Page: 3, PerPage: 2})
 		require.NoError(t, err)
 		assert.Equal(t, 5, r.Total)
@@ -419,7 +420,7 @@ func TestListOwnerAggregation_Pagination(t *testing.T) {
 
 	t.Run("page beyond total returns empty items but keeps Total", func(t *testing.T) {
 		repoMock := &mockLtvRepository{rows: rows}
-		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 		r, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{Page: 99, PerPage: 10})
 		require.NoError(t, err)
 		assert.Equal(t, 5, r.Total)
@@ -428,7 +429,7 @@ func TestListOwnerAggregation_Pagination(t *testing.T) {
 
 	t.Run("zero page/per_page falls back to defaults", func(t *testing.T) {
 		repoMock := &mockLtvRepository{rows: rows}
-		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 		r, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{Page: 0, PerPage: 0})
 		require.NoError(t, err)
 		assert.Equal(t, 1, r.Page)
@@ -463,7 +464,7 @@ func TestListOwnerAggregation_Pagination(t *testing.T) {
 			},
 		}
 		repoMock := &mockLtvRepository{rows: rows}
-		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 		r, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{
 			CPMStage: "encounter",
 			Page:     1, PerPage: 10,
@@ -481,7 +482,7 @@ func TestListOwnerAggregation_Pagination(t *testing.T) {
 func TestListOwnerAggregation_RepoError(t *testing.T) {
 	wantErr := errors.New("connection refused")
 	repoMock := &mockLtvRepository{err: wantErr}
-	svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+	svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 	r, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{})
 	require.Error(t, err)
 	assert.Nil(t, r)
@@ -501,7 +502,7 @@ func TestListOwnerAggregation_InputForwarding(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+	svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 
 	year := 2026
 	from := "2026-01-01"
@@ -577,7 +578,7 @@ func TestSyncAggregationTags_DryRunDoesNotMutate(t *testing.T) {
 		},
 	}
 	repoMock := &mockLtvRepository{rows: rows}
-	svc := NewAggregationService(repoMock, tagCache)
+	svc := NewAggregationService(repoMock, tagCache, nil)
 
 	r, err := svc.SyncAggregationTags(context.Background(), 1, SyncAggregationTagsInput{
 		TagName: "VIP", DryRun: true,
@@ -599,14 +600,23 @@ func TestSyncAggregationTags_ProhibitedTagName(t *testing.T) {
 		"last_visit_3m",  // last_visit_ prefix
 		"first_visit_30", // first_visit_ prefix
 		"ltv_high",       // ltv_ prefix
-		"vaccine_dhppl",  // vaccine_ prefix
+		"vaccine_dhppl",  // vaccine_ prefix (DB-managed C2)
 		"HLTH_健診あり",      // HLTH_ prefix
 		"PREV_ワクチン期限",    // PREV_ prefix
+	}
+	// vaccine_ is a DB-managed prefix (C2). Supply a tagConfigRepo mock so the
+	// DB-based check in SyncAggregationTags correctly rejects it.
+	tagConfigRepo := &mockLstepTagConfigRepository{
+		findAllAutoManagedPrefixesFn: func(_ context.Context) ([]*model.LstepAutoManagedPrefix, error) {
+			return []*model.LstepAutoManagedPrefix{
+				{Prefix: "vaccine_", Category: "C2"},
+			}, nil
+		},
 	}
 	for _, tag := range prohibitedTags {
 		t.Run(tag, func(t *testing.T) {
 			repoMock := &mockLtvRepository{}
-			svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+			svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, tagConfigRepo)
 			_, err := svc.SyncAggregationTags(context.Background(), 1, SyncAggregationTagsInput{
 				TagName: tag,
 			})
@@ -620,7 +630,7 @@ func TestSyncAggregationTags_ProhibitedTagName(t *testing.T) {
 // が許容されることを保証する。
 func TestSyncAggregationTags_AcceptsManualTagName(t *testing.T) {
 	repoMock := &mockLtvRepository{rows: []repository.OwnerLTVRow{}}
-	svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{})
+	svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil)
 	_, err := svc.SyncAggregationTags(context.Background(), 1, SyncAggregationTagsInput{
 		TagName: "VIP顧客", DryRun: true,
 	})

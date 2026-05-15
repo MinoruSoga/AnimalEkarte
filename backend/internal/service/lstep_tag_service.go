@@ -9,27 +9,35 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// autoManagedPrefixes は自動管理タグのプレフィックス一覧。手動付与・解除を禁止する（BE-019）。
-var autoManagedPrefixes = []string{
+// systemManagedPrefixes はシステム固定の自動管理タグプレフィックス一覧（BE-019）。
+// B/C1/C2/C3 カテゴリは DB 管理 (lstep_auto_managed_prefixes) に移行済み。
+var systemManagedPrefixes = []string{
 	"CPM_", "LTV_", "VISIT_", "PET_", "HLTH_", "PREV_", "EXCL_",
 	"cpm_", "last_visit_", "first_visit_", "ltv_",
-	"visit_count_", "vaccine_", "checkup_", "next_checkup_", "refill_due_",
-	"next_visit_", "reserved_", "canceled_visit",
-	"no_show_", "breed_",
-	"sex_", "pet_birthday_", "birth_year_",
-	"has_dog", "has_cat", "has_both",
-	"spay_neutered", "intact", "chronic_", "dormant_",
-	"cert_sent_", "post_surgery_", "post_discharge_",
-	"pet_deceased_",
+	"visit_count_", "dormant_", "has_dog", "has_cat", "has_both",
 }
 
-// isAutoManagedTag は指定タグが自動管理タグかどうかを判定する。
-func isAutoManagedTag(tagName string) bool {
-	for _, prefix := range autoManagedPrefixes {
+// isSystemManagedTag はシステム固定プレフィックスに一致するか判定する。
+func isSystemManagedTag(tagName string) bool {
+	for _, prefix := range systemManagedPrefixes {
 		if tagName == prefix || strings.HasPrefix(tagName, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// isAutoManagedTagWithPrefixes はシステム固定 + DB 登録プレフィックスに一致するか判定する（純粋関数）。
+func isAutoManagedTagWithPrefixes(tagName string, dbPrefixes []*model.LstepAutoManagedPrefix) bool {
+	if isSystemManagedTag(tagName) {
+		return true
+	}
+	for _, p := range dbPrefixes {
+		if tagName == p.Prefix || strings.HasPrefix(tagName, p.Prefix) {
 			return true
 		}
 	}
@@ -66,25 +74,45 @@ type LstepTagService interface {
 }
 
 type lstepTagService struct {
-	settingsSvc  LstepSettingsService
-	ownerRepo    repository.OwnerRepository
-	tagCacheRepo repository.LstepTagCacheRepository
-	auditSvc     AuditService
+	settingsSvc   LstepSettingsService
+	ownerRepo     repository.OwnerRepository
+	tagCacheRepo  repository.LstepTagCacheRepository
+	auditSvc      AuditService
+	tagConfigRepo repository.LstepTagConfigRepository
 }
 
 // NewLstepTagService は LstepTagService を初期化して返す。
+// tagConfigRepo が nil の場合はシステム固定プレフィックスのみチェックする。
 func NewLstepTagService(
 	settingsSvc LstepSettingsService,
 	ownerRepo repository.OwnerRepository,
 	tagCacheRepo repository.LstepTagCacheRepository,
 	auditSvc AuditService,
+	tagConfigRepo repository.LstepTagConfigRepository,
 ) LstepTagService {
 	return &lstepTagService{
-		settingsSvc:  settingsSvc,
-		ownerRepo:    ownerRepo,
-		tagCacheRepo: tagCacheRepo,
-		auditSvc:     auditSvc,
+		settingsSvc:   settingsSvc,
+		ownerRepo:     ownerRepo,
+		tagCacheRepo:  tagCacheRepo,
+		auditSvc:      auditSvc,
+		tagConfigRepo: tagConfigRepo,
 	}
+}
+
+// isAutoManagedTag はシステム固定 + DB 登録プレフィックスに一致するか判定する。
+// tagConfigRepo が nil の場合はシステム固定プレフィックスのみチェックする。
+func (s *lstepTagService) isAutoManagedTag(ctx context.Context, tagName string) (bool, error) {
+	if isSystemManagedTag(tagName) {
+		return true, nil
+	}
+	if s.tagConfigRepo == nil {
+		return false, nil
+	}
+	prefixes, err := s.tagConfigRepo.FindAllAutoManagedPrefixes(ctx)
+	if err != nil {
+		return false, apperrors.Wrap(err, "failed to load auto managed prefixes")
+	}
+	return isAutoManagedTagWithPrefixes(tagName, prefixes), nil
 }
 
 // buildClient はクリニック設定から lstep.Client を構築する。
@@ -160,7 +188,12 @@ func (s *lstepTagService) GetOwnerTags(ctx context.Context, clinicID, ownerID ui
 }
 
 func (s *lstepTagService) AddOwnerTag(ctx context.Context, clinicID, ownerID uint64, tagName string, actorID *uint64) error {
-	if isAutoManagedTag(tagName) {
+	managed, err := s.isAutoManagedTag(ctx, tagName)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check auto managed tag", "error", err, "tag", tagName)
+		return apperrors.Wrap(err, "failed to check auto managed tag")
+	}
+	if managed {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("タグ %q は自動管理タグのため手動付与できません", tagName))
 	}
 
@@ -198,7 +231,12 @@ func (s *lstepTagService) AddOwnerTag(ctx context.Context, clinicID, ownerID uin
 }
 
 func (s *lstepTagService) RemoveOwnerTag(ctx context.Context, clinicID, ownerID uint64, tagName string, actorID *uint64) error {
-	if isAutoManagedTag(tagName) {
+	managed, err := s.isAutoManagedTag(ctx, tagName)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check auto managed tag", "error", err, "tag", tagName)
+		return apperrors.Wrap(err, "failed to check auto managed tag")
+	}
+	if managed {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("タグ %q は自動管理タグのため手動解除できません", tagName))
 	}
 
@@ -238,7 +276,12 @@ func (s *lstepTagService) RemoveOwnerTag(ctx context.Context, clinicID, ownerID 
 }
 
 func (s *lstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, ownerIDs []uint64, tagName string, actorID *uint64) (*BulkAddOwnerTagResult, error) {
-	if isAutoManagedTag(tagName) {
+	managed, err := s.isAutoManagedTag(ctx, tagName)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check auto managed tag", "error", err, "tag", tagName)
+		return nil, apperrors.Wrap(err, "failed to check auto managed tag")
+	}
+	if managed {
 		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("タグ %q は自動管理タグのため手動付与できません", tagName))
 	}
 
