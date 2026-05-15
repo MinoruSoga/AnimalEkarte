@@ -960,7 +960,7 @@ func TestSyncExclusionTagsCaution(t *testing.T) {
 		}
 		err := svc.SyncExclusionTags(context.Background(), 1, 10)
 		assert.NoError(t, err)
-		assert.Contains(t, addedTags, "EXCL_配信注意")
+		assert.Contains(t, addedTags, exclTagDeliveryCaution)
 	})
 
 	t.Run("delivery_caution=false removes EXCL_配信注意 tag", func(t *testing.T) {
@@ -984,6 +984,6 @@ func TestSyncExclusionTagsCaution(t *testing.T) {
 		}
 		err := svc.SyncExclusionTags(context.Background(), 1, 10)
 		assert.NoError(t, err)
-		assert.Contains(t, removedTags, "EXCL_配信注意")
+		assert.Contains(t, removedTags, exclTagDeliveryCaution)
 	})
 }

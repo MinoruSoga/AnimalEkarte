@@ -13,10 +13,11 @@ import (
 )
 
 const (
-	exclTagDeliveryStop = "EXCL_配信停止"
-	tagFilariaAlert     = PrevFilariaTag     // FEAT-379 新命名 (旧: HEALTH_フィラリア対策中)
-	tagFleaTickAlert    = PrevFleaTickTag    // FEAT-379 新命名 (旧: HEALTH_ノミダニ予防中)
-	tagFoodRefill       = LtvFoodPurchaseTag // FEAT-379 新命名 (旧: PROD_フード購入)
+	exclTagDeliveryStop    = "EXCL_配信停止" // FE source: frontend/src/constants/lstep-tag-names.ts LSTEP_EXCL_DELIVERY_STOP
+	exclTagDeliveryCaution = "EXCL_配信注意" // FE source: frontend/src/constants/lstep-tag-names.ts LSTEP_EXCL_DELIVERY_CAUTION
+	tagFilariaAlert        = PrevFilariaTag     // FEAT-379 新命名 (旧: HEALTH_フィラリア対策中)
+	tagFleaTickAlert       = PrevFleaTickTag    // FEAT-379 新命名 (旧: HEALTH_ノミダニ予防中)
+	tagFoodRefill          = LtvFoodPurchaseTag // FEAT-379 新命名 (旧: PROD_フード購入)
 )
 
 // LstepDeliveryTriggerService は日次バッチで自動配信トリガーを判定し L ステップへタグ付与するサービス（FEAT-383）。

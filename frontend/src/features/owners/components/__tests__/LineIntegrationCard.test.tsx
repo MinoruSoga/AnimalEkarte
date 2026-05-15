@@ -8,6 +8,7 @@ import { server } from "@/testing/mocks/node";
 import { AuthContext } from "@/contexts/auth-context";
 import { LineIntegrationCard } from "../LineIntegrationCard";
 import type { Owner } from "@/types/owner";
+import { LSTEP_EXCL_DELIVERY_STOP } from "@/constants/lstep-tag-names";
 
 const CLINIC_ID = "clinic-test-1";
 const OWNER_ID = "owner-test-1";
@@ -198,7 +199,7 @@ describe("LineIntegrationCard — C: 配信停止バナー表示条件", () => {
   it("EXCL_配信停止 タグ付き → 配信停止中バナー表示", async () => {
     await renderAndWait(baseOwner, {
       ...linkedLineTags,
-      tags: ["EXCL_配信停止"],
+      tags: [LSTEP_EXCL_DELIVERY_STOP],
     });
     expect(screen.getByText("配信停止中")).toBeInTheDocument();
   });

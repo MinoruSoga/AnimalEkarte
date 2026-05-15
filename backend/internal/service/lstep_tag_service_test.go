@@ -155,7 +155,7 @@ func TestIsAutoManagedTag_NewSpecPrefixes(t *testing.T) {
 		"PET_犬あり",
 		"HLTH_健診あり",
 		"PREV_ワクチン期限",
-		"EXCL_配信停止",
+		exclTagDeliveryStop,
 	}
 
 	for _, tag := range tags {

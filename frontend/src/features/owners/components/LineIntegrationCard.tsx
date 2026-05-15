@@ -13,6 +13,7 @@ import { useConfirmOwnerLineId } from "../api/confirm-owner-line-id";
 import { useUpdateOwnerDeliveryExclusion } from "../api/update-owner-delivery-exclusion";
 import { useUpdateOwnerDeliveryCaution } from "../api/update-owner-delivery-caution";
 import { useUpdateOwnerTransferStatus } from "../api/update-owner-transfer-status";
+import { LSTEP_EXCL_DELIVERY_STOP } from "@/constants/lstep-tag-names";
 import { LstepTagList } from "./LstepTagList";
 import { LstepTagAddDialog } from "./LstepTagAddDialog";
 import { LstepTagRemoveInline } from "./LstepTagRemoveInline";
@@ -100,7 +101,7 @@ export function LineIntegrationCard({
   const { is_linked, line_user_id, tags, lstep_opt_out } = data;
   const lineUserId = owner?.lineUserId ?? line_user_id ?? undefined;
   const lineIdConfirmedAt = owner?.lineIdConfirmedAt;
-  const hasExclusionTag = tags.includes("EXCL_配信停止");
+  const hasExclusionTag = tags.includes(LSTEP_EXCL_DELIVERY_STOP);
   const isDeliveryStopped = Boolean(
     owner?.deliveryExcluded ||
     owner?.lstepOptOut ||
@@ -112,7 +113,7 @@ export function LineIntegrationCard({
   const deliveryStopReason = owner?.deliveryExcludedReason
     ?? owner?.lstepOptOutReason
     ?? (owner?.isTransferred || owner?.membershipType === "他診/準" ? "転院済み" : undefined)
-    ?? (hasExclusionTag ? "EXCL_配信停止" : undefined);
+    ?? (hasExclusionTag ? LSTEP_EXCL_DELIVERY_STOP : undefined);
 
   /** 配信停止バナー / 配信注意バナー（優先: 停止 > 注意） */
   const bannerSection = isDeliveryStopped ? (
