@@ -15,8 +15,14 @@ import (
 
 type mockLstepTagConfigRepository struct {
 	findAllAutoManagedPrefixesFn    func(ctx context.Context) ([]*model.LstepAutoManagedPrefix, error)
+	createAutoManagedPrefixFn       func(ctx context.Context, m *model.LstepAutoManagedPrefix) error
+	deleteAutoManagedPrefixFn       func(ctx context.Context, id uint64) error
 	findAllConditionTagMappingsFn   func(ctx context.Context) ([]*model.LstepConditionTagMapping, error)
+	createConditionTagMappingFn     func(ctx context.Context, m *model.LstepConditionTagMapping) error
+	deleteConditionTagMappingFn     func(ctx context.Context, id uint64) error
 	findAllSendPurposeTagPrefixesFn func(ctx context.Context) ([]*model.LstepSendPurposeTagPrefix, error)
+	createSendPurposeTagPrefixFn    func(ctx context.Context, m *model.LstepSendPurposeTagPrefix) error
+	deleteSendPurposeTagPrefixFn    func(ctx context.Context, id uint64) error
 }
 
 func (m *mockLstepTagConfigRepository) FindAllAutoManagedPrefixes(ctx context.Context) ([]*model.LstepAutoManagedPrefix, error) {
@@ -26,6 +32,20 @@ func (m *mockLstepTagConfigRepository) FindAllAutoManagedPrefixes(ctx context.Co
 	return nil, nil
 }
 
+func (m *mockLstepTagConfigRepository) CreateAutoManagedPrefix(ctx context.Context, rec *model.LstepAutoManagedPrefix) error {
+	if m.createAutoManagedPrefixFn != nil {
+		return m.createAutoManagedPrefixFn(ctx, rec)
+	}
+	return nil
+}
+
+func (m *mockLstepTagConfigRepository) DeleteAutoManagedPrefix(ctx context.Context, id uint64) error {
+	if m.deleteAutoManagedPrefixFn != nil {
+		return m.deleteAutoManagedPrefixFn(ctx, id)
+	}
+	return nil
+}
+
 func (m *mockLstepTagConfigRepository) FindAllConditionTagMappings(ctx context.Context) ([]*model.LstepConditionTagMapping, error) {
 	if m.findAllConditionTagMappingsFn != nil {
 		return m.findAllConditionTagMappingsFn(ctx)
@@ -33,11 +53,39 @@ func (m *mockLstepTagConfigRepository) FindAllConditionTagMappings(ctx context.C
 	return nil, nil
 }
 
+func (m *mockLstepTagConfigRepository) CreateConditionTagMapping(ctx context.Context, rec *model.LstepConditionTagMapping) error {
+	if m.createConditionTagMappingFn != nil {
+		return m.createConditionTagMappingFn(ctx, rec)
+	}
+	return nil
+}
+
+func (m *mockLstepTagConfigRepository) DeleteConditionTagMapping(ctx context.Context, id uint64) error {
+	if m.deleteConditionTagMappingFn != nil {
+		return m.deleteConditionTagMappingFn(ctx, id)
+	}
+	return nil
+}
+
 func (m *mockLstepTagConfigRepository) FindAllSendPurposeTagPrefixes(ctx context.Context) ([]*model.LstepSendPurposeTagPrefix, error) {
 	if m.findAllSendPurposeTagPrefixesFn != nil {
 		return m.findAllSendPurposeTagPrefixesFn(ctx)
 	}
 	return nil, nil
+}
+
+func (m *mockLstepTagConfigRepository) CreateSendPurposeTagPrefix(ctx context.Context, rec *model.LstepSendPurposeTagPrefix) error {
+	if m.createSendPurposeTagPrefixFn != nil {
+		return m.createSendPurposeTagPrefixFn(ctx, rec)
+	}
+	return nil
+}
+
+func (m *mockLstepTagConfigRepository) DeleteSendPurposeTagPrefix(ctx context.Context, id uint64) error {
+	if m.deleteSendPurposeTagPrefixFn != nil {
+		return m.deleteSendPurposeTagPrefixFn(ctx, id)
+	}
+	return nil
 }
 
 // ---- tests ----

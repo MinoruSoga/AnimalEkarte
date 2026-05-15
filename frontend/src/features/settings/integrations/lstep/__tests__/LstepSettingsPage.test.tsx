@@ -23,6 +23,12 @@ vi.mock("../LstepTagCodeMappingsSection", () => ({
   ),
 }));
 
+vi.mock("../LstepTagConfigSection", () => ({
+  LstepTagConfigSection: () => (
+    <div data-testid="lstep-tag-config-section" />
+  ),
+}));
+
 import { LstepSettingsPage } from "../LstepSettingsPage";
 
 describe("LstepSettingsPage", () => {

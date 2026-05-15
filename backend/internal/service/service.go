@@ -107,6 +107,8 @@ type Services struct {
 	LstepTriggerPriority LstepTriggerPriorityService
 	// FEAT-379: タグコードマッピング設定
 	LstepTagCodeMapping LstepTagCodeMappingService
+	// 自動管理タグプレフィックス・条件タグ・送信目的タグ設定
+	LstepTagConfig LstepTagConfigService
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
 	LineLink LineLinkService
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
@@ -239,6 +241,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		LstepLifecycle:            lstepLifecycleSvc,
 		LstepTag:                  NewLstepTagService(lstepSettingsSvc, repos.Owner, repos.LstepTagCache, auditSvc, repos.LstepTagConfig),
 		LstepTagCodeMapping:       NewLstepTagCodeMappingService(repos.LstepTagCodeMapping),
+		LstepTagConfig:            NewLstepTagConfigService(repos.LstepTagConfig),
 		Liff: NewLiffService(
 			repos.LineReservationSetting,
 			repos.ReservationTypeLiff,
