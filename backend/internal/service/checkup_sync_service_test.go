@@ -259,8 +259,9 @@ func TestCheckupSyncService_CreateCheckupSync_SkipsByExclusionReason(t *testing.
 	assert.Equal(t, 0, result.FailedCount)
 	assert.Empty(t, result.FailedOwnerIDs)
 
-	// 死亡ペットのみ owner / opt-out owner / LINE未連携 owner には AddTag が呼ばれない。
-	assert.Equal(t, 1, addTagCalls[lineID1], "ID=1 に AddTag 1回呼ばれる")
+	// AddTag は現在 noop 中（[DISABLED]）のため HTTP 呼び出しは一切発生しない。
+	// サービス層の除外ロジックは SuccessCount/SkippedCount で引き続き検証する。
+	assert.Equal(t, 0, addTagCalls[lineID1], "noop 中のため HTTP 呼び出しなし")
 	assert.Equal(t, 0, addTagCalls[lineID2], "opt-out owner には呼ばれない")
 	assert.Equal(t, 0, addTagCalls[lineID3], "死亡ペットのみ owner には呼ばれない（誤配信防止）")
 	assert.Equal(t, 0, addTagCalls[lineID5], "opt-out + 生存ペットなし owner には呼ばれない")

@@ -90,21 +90,6 @@ func (c *httpLstepClient) newRequest(ctx context.Context, method, path string, b
 	return req, nil
 }
 
-// checkResponse はLステップAPIレスポンスのステータスコードを検査する。
-// 404は ErrUserNotFound を返す。それ以外のエラーは汎用エラーとして返す。
-func checkResponse(resp *http.Response, lineUserID string) error {
-	if resp.StatusCode == http.StatusNotFound {
-		_, _ = io.Copy(io.Discard, resp.Body)
-		return fmt.Errorf("lineUserID=%s: %w", lineUserID, ErrUserNotFound)
-	}
-	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return fmt.Errorf("lstep API error: status=%d body=%s", resp.StatusCode, body)
-	}
-	_, _ = io.Copy(io.Discard, resp.Body)
-	return nil
-}
-
 // decodeJSON はレスポンスボディをJSONデコードする。
 func decodeJSON(resp *http.Response, dst any) error {
 	defer func() { _, _ = io.Copy(io.Discard, resp.Body) }()

@@ -1,9 +1,7 @@
 package lstep
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -14,12 +12,6 @@ type getUserResponse struct {
 	DisplayName string            `json:"display_name"`
 	Tags        []string          `json:"tags"`
 	Properties  map[string]string `json:"properties"`
-}
-
-// setPropertyRequest はユーザープロパティ設定APIリクエストボディ
-type setPropertyRequest struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
 }
 
 // UserInfo はLステップユーザー情報
@@ -68,28 +60,13 @@ func (c *httpLstepClient) GetUser(ctx context.Context, lineUserID string) (*User
 
 // SetProperty は指定LINE Userのカスタムプロパティを設定する。
 // lineUserID が空文字の場合は即座に ErrUserNotFound を返す。
-func (c *httpLstepClient) SetProperty(ctx context.Context, lineUserID, key, value string) error {
+//
+// Temporarily disabled: L-step write operations are paused by policy.
+func (c *httpLstepClient) SetProperty(_ context.Context, lineUserID, _, _ string) error {
 	if lineUserID == "" {
 		return fmt.Errorf("lineUserID is empty: %w", ErrUserNotFound)
 	}
-	body, err := json.Marshal(setPropertyRequest{Key: key, Value: value})
-	if err != nil {
-		return fmt.Errorf("lstep SetProperty marshal: %w", err)
-	}
-	resp, err := c.doWithRetry(ctx, func() (*http.Response, error) {
-		req, err := c.newRequest(ctx, http.MethodPost,
-			fmt.Sprintf("/contacts/%s/properties", lineUserID), bytes.NewReader(body))
-		if err != nil {
-			return nil, err
-		}
-		return c.http.Do(req)
-	})
-	if err != nil {
-		return fmt.Errorf("lstep SetProperty: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if err := checkResponse(resp, lineUserID); err != nil {
-		return fmt.Errorf("lstep SetProperty: %w", err)
-	}
+	// [DISABLED] HTTP call to POST /contacts/{id}/properties is suppressed.
+	// To re-enable, restore the original implementation from git history.
 	return nil
 }
