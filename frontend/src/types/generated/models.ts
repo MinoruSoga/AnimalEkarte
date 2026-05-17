@@ -1212,6 +1212,30 @@ export interface LineSendLog {
 }
 
 //////////
+// source: lstep_auto_managed_prefix.go
+
+export interface LstepAutoManagedPrefix {
+  id: number /* uint64 */;
+  prefix: string;
+  category: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lstep_condition_tag_mapping.go
+
+export interface LstepConditionTagMapping {
+  id: number /* uint64 */;
+  condition_code: string;
+  tag_name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: lstep_csv_import.go
 
 /**
@@ -1299,6 +1323,18 @@ export interface LstepFriendAttributeSnapshot {
   last_message_at?: string;
   snapshot_taken_at: string;
   csv_import_id?: any /* uuid.UUID */;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lstep_send_purpose_tag_prefix.go
+
+export interface LstepSendPurposeTagPrefix {
+  id: number /* uint64 */;
+  purpose: string;
+  tag_prefix: string;
+  description?: string;
   created_at: string;
   updated_at: string;
 }
