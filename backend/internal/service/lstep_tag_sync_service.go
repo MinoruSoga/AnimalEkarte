@@ -62,20 +62,22 @@ const (
 
 // CPMStageV2Input は CalculateCPMStageV2 に渡す集計データ（Q19 確定 2026-05-08）。
 type CPMStageV2Input struct {
-	TotalVisitCount int64 // 累計来院回数
+	TotalVisitCount int64                 // 累計来院回数
+	CPMV2Thresholds model.CPMV2Thresholds // クリニック単位閾値（0 以下はデフォルト補完）
 }
 
 // CalculateCPMStageV2 は累計来院回数ベースの V2 CPM ステージを計算する（Q19 確定 2026-05-08）。
-// 仕様: 1回→出会い / 2-3回→これから / 4-7回→いいかんじ / 8-12回→ファミリー / 13回以上→ノア
+// 閾値は CPMV2Thresholds.WithDefaults() で補完される。
 func CalculateCPMStageV2(d CPMStageV2Input) CPMStageV2 {
+	t := d.CPMV2Thresholds.WithDefaults()
 	switch {
-	case d.TotalVisitCount >= 13:
+	case d.TotalVisitCount >= int64(t.Noah):
 		return CPMStageV2Noah
-	case d.TotalVisitCount >= 8:
+	case d.TotalVisitCount >= int64(t.Family):
 		return CPMStageV2Family
-	case d.TotalVisitCount >= 4:
+	case d.TotalVisitCount >= int64(t.Good):
 		return CPMStageV2Good
-	case d.TotalVisitCount >= 2:
+	case d.TotalVisitCount >= int64(t.Coming):
 		return CPMStageV2Coming
 	default: // 0 または 1 回
 		return CPMStageV2Encounter
@@ -1682,8 +1684,15 @@ func (s *lstepTagSyncService) SyncCPMStageTagV2(ctx context.Context, clinicID, o
 		return apperrors.Wrap(err, "failed to find visit summary")
 	}
 
+	v2Thresholds, err := s.settingsSvc.GetCPMV2Thresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get cpm v2 thresholds", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get cpm v2 thresholds")
+	}
+
 	stage := CalculateCPMStageV2(CPMStageV2Input{
 		TotalVisitCount: summary.TotalCount,
+		CPMV2Thresholds: v2Thresholds,
 	})
 
 	client, err := s.buildClient(ctx, clinicID)

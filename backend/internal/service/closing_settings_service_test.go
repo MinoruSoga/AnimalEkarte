@@ -19,6 +19,7 @@ type mockClinicSettingsRepository struct {
 	upsertFn                  func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
 	updateCPMVersionFn        func(ctx context.Context, clinicID uint64, version string) error
 	updateDormantThresholdsFn func(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error
+	updateCPMV2ThresholdsFn   func(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error
 }
 
 func (m *mockClinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
@@ -43,6 +44,12 @@ func (m *mockClinicSettingsRepository) UpdateCPMVersion(ctx context.Context, cli
 func (m *mockClinicSettingsRepository) UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error {
 	if m.updateDormantThresholdsFn != nil {
 		return m.updateDormantThresholdsFn(ctx, clinicID, thresholds)
+	}
+	return nil
+}
+func (m *mockClinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error {
+	if m.updateCPMV2ThresholdsFn != nil {
+		return m.updateCPMV2ThresholdsFn(ctx, clinicID, thresholds)
 	}
 	return nil
 }

@@ -62,6 +62,9 @@ func (m *mockLstepSettingsService) GetCPMVersion(_ context.Context, _ uint64) (s
 func (m *mockLstepSettingsService) GetDormantThresholds(_ context.Context, _ uint64) (model.DormantThresholds, error) {
 	return model.DormantThresholds{}.WithDefaults(), nil
 }
+func (m *mockLstepSettingsService) GetCPMV2Thresholds(_ context.Context, _ uint64) (model.CPMV2Thresholds, error) {
+	return model.CPMV2Thresholds{}.WithDefaults(), nil
+}
 
 // ---- helpers ----
 

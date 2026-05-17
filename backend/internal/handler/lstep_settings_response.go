@@ -23,6 +23,10 @@ type lstepSettingsResponse struct {
 	DormantPrevention210Days     int        `json:"dormant_prevention_210_days"`
 	DormantPrevention240Days     int        `json:"dormant_prevention_240_days"`
 	DormantPrevention365Days     int        `json:"dormant_prevention_365_days"`
+	CPMV2ComingThreshold         int        `json:"cpm_v2_coming_threshold"`
+	CPMV2GoodThreshold           int        `json:"cpm_v2_good_threshold"`
+	CPMV2FamilyThreshold         int        `json:"cpm_v2_family_threshold"`
+	CPMV2NoahThreshold           int        `json:"cpm_v2_noah_threshold"`
 }
 
 // lstepConnectionTestResponse は疎通確認結果レスポンス
@@ -50,6 +54,10 @@ func toLstepSettingsResponse(s *service.LstepSettingsResponse) lstepSettingsResp
 		DormantPrevention210Days:     s.DormantPrevention210Days,
 		DormantPrevention240Days:     s.DormantPrevention240Days,
 		DormantPrevention365Days:     s.DormantPrevention365Days,
+		CPMV2ComingThreshold:         s.CPMV2ComingThreshold,
+		CPMV2GoodThreshold:           s.CPMV2GoodThreshold,
+		CPMV2FamilyThreshold:         s.CPMV2FamilyThreshold,
+		CPMV2NoahThreshold:           s.CPMV2NoahThreshold,
 	}
 }
 

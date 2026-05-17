@@ -728,6 +728,34 @@ func TestCalculateCPMStageV2(t *testing.T) {
 	}
 }
 
+// TestCalculateCPMStageV2_CustomThresholds: クリニック単位閾値を反映する
+func TestCalculateCPMStageV2_CustomThresholds(t *testing.T) {
+	custom := model.CPMV2Thresholds{Coming: 5, Good: 10, Family: 20, Noah: 30}
+	cases := []struct {
+		name  string
+		count int64
+		want  CPMStageV2
+	}{
+		{"Encounter: 4 visits (below custom Coming=5)", 4, CPMStageV2Encounter},
+		{"Coming: 5 visits (custom Coming=5 lower boundary)", 5, CPMStageV2Coming},
+		{"Coming: 9 visits (below custom Good=10)", 9, CPMStageV2Coming},
+		{"Good: 10 visits (custom Good=10 lower boundary)", 10, CPMStageV2Good},
+		{"Good: 19 visits (below custom Family=20)", 19, CPMStageV2Good},
+		{"Family: 20 visits (custom Family=20 lower boundary)", 20, CPMStageV2Family},
+		{"Family: 29 visits (below custom Noah=30)", 29, CPMStageV2Family},
+		{"Noah: 30 visits (custom Noah=30 lower boundary)", 30, CPMStageV2Noah},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := CalculateCPMStageV2(CPMStageV2Input{
+				TotalVisitCount: tc.count,
+				CPMV2Thresholds: custom,
+			})
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 // ---- isVisitDormantTag ----
 
 func TestIsVisitDormantTag(t *testing.T) {

@@ -54,6 +54,10 @@ func (h *Handler) UpdateLstepSettings(c *gin.Context) {
 		DormantPrevention210Days: req.DormantPrevention210Days,
 		DormantPrevention240Days: req.DormantPrevention240Days,
 		DormantPrevention365Days: req.DormantPrevention365Days,
+		CPMV2ComingThreshold:     req.CPMV2ComingThreshold,
+		CPMV2GoodThreshold:       req.CPMV2GoodThreshold,
+		CPMV2FamilyThreshold:     req.CPMV2FamilyThreshold,
+		CPMV2NoahThreshold:       req.CPMV2NoahThreshold,
 	}, actorID)
 	if err != nil {
 		RespondError(c, err)

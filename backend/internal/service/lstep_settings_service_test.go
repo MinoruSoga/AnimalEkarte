@@ -336,3 +336,54 @@ func TestGetDormantThresholds_RepoError(t *testing.T) {
 	_, err := svc.GetDormantThresholds(context.Background(), 1)
 	assert.Error(t, err)
 }
+
+// TestGetCPMV2Thresholds_DBValues: DB に値があれば DB 値を返す
+func TestGetCPMV2Thresholds_DBValues(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return &model.ClinicSettings{
+				CPMV2ComingThreshold: 3,
+				CPMV2GoodThreshold:   6,
+				CPMV2FamilyThreshold: 10,
+				CPMV2NoahThreshold:   15,
+			}, nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	got, err := svc.GetCPMV2Thresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.CPMV2Thresholds{Coming: 3, Good: 6, Family: 10, Noah: 15}, got)
+}
+
+// TestGetCPMV2Thresholds_ZeroFallback: DB 値が 0 ならデフォルト補完される
+func TestGetCPMV2Thresholds_ZeroFallback(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return &model.ClinicSettings{}, nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	got, err := svc.GetCPMV2Thresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.CPMV2Thresholds{Coming: 2, Good: 4, Family: 8, Noah: 13}, got)
+}
+
+// TestGetCPMV2Thresholds_NilRepo: clinicSettingsRepo が nil の場合はデフォルト値を返す
+func TestGetCPMV2Thresholds_NilRepo(t *testing.T) {
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, nil)
+	got, err := svc.GetCPMV2Thresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.CPMV2Thresholds{Coming: 2, Good: 4, Family: 8, Noah: 13}, got)
+}
+
+// TestGetCPMV2Thresholds_RepoError: リポジトリエラー時はエラーを返す
+func TestGetCPMV2Thresholds_RepoError(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	_, err := svc.GetCPMV2Thresholds(context.Background(), 1)
+	assert.Error(t, err)
+}

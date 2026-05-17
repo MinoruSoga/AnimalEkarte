@@ -31,6 +31,11 @@ type LstepSettingsResponse struct {
 	DormantPrevention210Days     int        `json:"dormant_prevention_210_days"`
 	DormantPrevention240Days     int        `json:"dormant_prevention_240_days"`
 	DormantPrevention365Days     int        `json:"dormant_prevention_365_days"`
+	// P1 CPM V2 来院回数閾値
+	CPMV2ComingThreshold int `json:"cpm_v2_coming_threshold"`
+	CPMV2GoodThreshold   int `json:"cpm_v2_good_threshold"`
+	CPMV2FamilyThreshold int `json:"cpm_v2_family_threshold"`
+	CPMV2NoahThreshold   int `json:"cpm_v2_noah_threshold"`
 }
 
 // UpdateLstepSettingsInput はPATCHリクエスト用（空文字=変更なし）
@@ -50,6 +55,11 @@ type UpdateLstepSettingsInput struct {
 	DormantPrevention210Days *int
 	DormantPrevention240Days *int
 	DormantPrevention365Days *int
+	// CPMV2*Threshold が nil の場合は変更なし。有効値は 1 以上。
+	CPMV2ComingThreshold *int
+	CPMV2GoodThreshold   *int
+	CPMV2FamilyThreshold *int
+	CPMV2NoahThreshold   *int
 }
 
 // LstepConnectionTestResult は疎通確認結果
@@ -76,6 +86,8 @@ type LstepSettingsService interface {
 	GetCPMVersion(ctx context.Context, clinicID uint64) (string, error)
 	// GetDormantThresholds はクリニックの dormant prevention 4 段階閾値を返す。DB 値が 0 以下なら default で補完する。
 	GetDormantThresholds(ctx context.Context, clinicID uint64) (model.DormantThresholds, error)
+	// GetCPMV2Thresholds はクリニックの CPM V2 来院回数閾値を返す。DB 値が 0 以下なら default で補完する。
+	GetCPMV2Thresholds(ctx context.Context, clinicID uint64) (model.CPMV2Thresholds, error)
 }
 
 type lstepSettingsService struct {
@@ -151,6 +163,16 @@ func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64)
 		resp.DormantPrevention210Days = thresholds.Stage210
 		resp.DormantPrevention240Days = thresholds.Stage240
 		resp.DormantPrevention365Days = thresholds.Stage365
+		v2t := model.CPMV2Thresholds{
+			Coming: cs.CPMV2ComingThreshold,
+			Good:   cs.CPMV2GoodThreshold,
+			Family: cs.CPMV2FamilyThreshold,
+			Noah:   cs.CPMV2NoahThreshold,
+		}.WithDefaults()
+		resp.CPMV2ComingThreshold = v2t.Coming
+		resp.CPMV2GoodThreshold = v2t.Good
+		resp.CPMV2FamilyThreshold = v2t.Family
+		resp.CPMV2NoahThreshold = v2t.Noah
 	}
 
 	return resp, nil
@@ -270,6 +292,50 @@ func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint
 		if err := s.clinicSettingsRepo.UpdateDormantThresholds(ctx, clinicID, thresholds); err != nil {
 			slog.ErrorContext(ctx, "failed to update dormant thresholds", "error", err, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to update dormant thresholds")
+		}
+	}
+
+	if s.clinicSettingsRepo != nil &&
+		(input.CPMV2ComingThreshold != nil || input.CPMV2GoodThreshold != nil ||
+			input.CPMV2FamilyThreshold != nil || input.CPMV2NoahThreshold != nil) {
+		current, csErr := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
+		if csErr != nil {
+			slog.ErrorContext(ctx, "failed to read clinic settings for cpm v2 merge", "error", csErr, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(csErr, "failed to find clinic settings")
+		}
+		v2t := model.CPMV2Thresholds{
+			Coming: current.CPMV2ComingThreshold,
+			Good:   current.CPMV2GoodThreshold,
+			Family: current.CPMV2FamilyThreshold,
+			Noah:   current.CPMV2NoahThreshold,
+		}.WithDefaults()
+		if input.CPMV2ComingThreshold != nil {
+			if *input.CPMV2ComingThreshold < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v2_coming_threshold must be >= 1, got %d", *input.CPMV2ComingThreshold))
+			}
+			v2t.Coming = *input.CPMV2ComingThreshold
+		}
+		if input.CPMV2GoodThreshold != nil {
+			if *input.CPMV2GoodThreshold < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v2_good_threshold must be >= 1, got %d", *input.CPMV2GoodThreshold))
+			}
+			v2t.Good = *input.CPMV2GoodThreshold
+		}
+		if input.CPMV2FamilyThreshold != nil {
+			if *input.CPMV2FamilyThreshold < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v2_family_threshold must be >= 1, got %d", *input.CPMV2FamilyThreshold))
+			}
+			v2t.Family = *input.CPMV2FamilyThreshold
+		}
+		if input.CPMV2NoahThreshold != nil {
+			if *input.CPMV2NoahThreshold < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v2_noah_threshold must be >= 1, got %d", *input.CPMV2NoahThreshold))
+			}
+			v2t.Noah = *input.CPMV2NoahThreshold
+		}
+		if err := s.clinicSettingsRepo.UpdateCPMV2Thresholds(ctx, clinicID, v2t); err != nil {
+			slog.ErrorContext(ctx, "failed to update cpm v2 thresholds", "error", err, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(err, "failed to update cpm v2 thresholds")
 		}
 	}
 
@@ -439,6 +505,24 @@ func (s *lstepSettingsService) GetDormantThresholds(ctx context.Context, clinicI
 		Stage210: settings.DormantPrevention210Days,
 		Stage240: settings.DormantPrevention240Days,
 		Stage365: settings.DormantPrevention365Days,
+	}.WithDefaults(), nil
+}
+
+// GetCPMV2Thresholds はクリニックの CPM V2 来院回数閾値を返す。DB 値が 0 以下なら default で補完する。
+func (s *lstepSettingsService) GetCPMV2Thresholds(ctx context.Context, clinicID uint64) (model.CPMV2Thresholds, error) {
+	if s.clinicSettingsRepo == nil {
+		return model.CPMV2Thresholds{}.WithDefaults(), nil
+	}
+	settings, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get clinic settings for cpm v2 thresholds", "clinic_id", clinicID, "error", err)
+		return model.CPMV2Thresholds{}, apperrors.Wrap(err, "failed to find clinic settings for cpm v2 thresholds")
+	}
+	return model.CPMV2Thresholds{
+		Coming: settings.CPMV2ComingThreshold,
+		Good:   settings.CPMV2GoodThreshold,
+		Family: settings.CPMV2FamilyThreshold,
+		Noah:   settings.CPMV2NoahThreshold,
 	}.WithDefaults(), nil
 }
 

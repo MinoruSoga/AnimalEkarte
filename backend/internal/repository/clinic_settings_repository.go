@@ -20,6 +20,8 @@ type ClinicSettingsRepository interface {
 	UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error
 	// UpdateDormantThresholds は dormant_prevention_*_days 4 カラムを対象とした UPSERT。
 	UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error
+	// UpdateCPMV2Thresholds は cpm_v2_*_threshold 4 カラムを対象とした UPSERT。
+	UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error
 }
 
 type clinicSettingsRepository struct{ db *gorm.DB }
@@ -109,6 +111,36 @@ func (r *clinicSettingsRepository) UpdateDormantThresholds(ctx context.Context, 
 				"dormant_prevention_210_days",
 				"dormant_prevention_240_days",
 				"dormant_prevention_365_days",
+				"updated_at",
+			}),
+		}).
+		Create(s).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
+	}
+	return nil
+}
+
+func (r *clinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error {
+	s := &model.ClinicSettings{
+		ClinicID:             clinicID,
+		ClosingAmPmBoundary:  "14:00",
+		ClosingWeekdayEnd:    "18:30",
+		ClosingSundayEnd:     "17:30",
+		CPMV2ComingThreshold: thresholds.Coming,
+		CPMV2GoodThreshold:   thresholds.Good,
+		CPMV2FamilyThreshold: thresholds.Family,
+		CPMV2NoahThreshold:   thresholds.Noah,
+	}
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "clinic_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"cpm_v2_coming_threshold",
+				"cpm_v2_good_threshold",
+				"cpm_v2_family_threshold",
+				"cpm_v2_noah_threshold",
 				"updated_at",
 			}),
 		}).
