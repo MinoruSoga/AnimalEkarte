@@ -162,7 +162,7 @@ func recentCheckup(codeName string) model.Checkup {
 
 func oldCheckup(codeName string) model.Checkup {
 	return model.Checkup{
-		Date:        time.Now().AddDate(0, 0, -(HealthPreventionLookbackDays + 10)), // lookback外
+		Date:        time.Now().AddDate(0, 0, -(model.DefaultHealthPreventionLookbackDays + 10)), // lookback外
 		CheckupType: &model.CheckupType{Name: codeName},
 	}
 }
@@ -654,7 +654,7 @@ func TestSyncVaccineDeadlineTag(t *testing.T) {
 	})
 
 	t.Run("期限なし→nil(client=nil)", func(t *testing.T) {
-		farFuture := time.Now().AddDate(0, 0, VaccineDeadlineDays+10)
+		farFuture := time.Now().AddDate(0, 0, model.DefaultVaccineDeadlineDays+10)
 		vacs := []model.Vaccination{{NextDate: &farFuture}}
 		vacRepo := &mockVaccinationRepoForHealth{
 			findByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Vaccination, error) {
@@ -666,7 +666,7 @@ func TestSyncVaccineDeadlineTag(t *testing.T) {
 	})
 
 	t.Run("期限あり→nil(client=nil)", func(t *testing.T) {
-		withinDeadline := time.Now().AddDate(0, 0, VaccineDeadlineDays-5)
+		withinDeadline := time.Now().AddDate(0, 0, model.DefaultVaccineDeadlineDays-5)
 		vacs := []model.Vaccination{{NextDate: &withinDeadline}}
 		vacRepo := &mockVaccinationRepoForHealth{
 			findByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Vaccination, error) {

@@ -118,6 +118,8 @@ type LstepSettingsService interface {
 	GetCPMV2Thresholds(ctx context.Context, clinicID uint64) (model.CPMV2Thresholds, error)
 	// GetCPMV1Thresholds はクリニックの CPM V1 判定閾値を返す。DB 値が 0 以下なら default で補完する。
 	GetCPMV1Thresholds(ctx context.Context, clinicID uint64) (model.CPMV1Thresholds, error)
+	// GetHealthPreventionThresholds はクリニックの健診・予防タグ判定閾値を返す。DB 値が 0 以下なら default で補完する。
+	GetHealthPreventionThresholds(ctx context.Context, clinicID uint64) (model.HealthPreventionThresholds, error)
 }
 
 type lstepSettingsService struct {
@@ -718,6 +720,22 @@ func (s *lstepSettingsService) GetCPMV1Thresholds(ctx context.Context, clinicID 
 		GrowingMinVisits: settings.CPMV1GrowingMinVisits,
 		GrowingMaxVisits: settings.CPMV1GrowingMaxVisits,
 		LTVBreakLow:      settings.CPMV1LTVBreakLow,
+	}.WithDefaults(), nil
+}
+
+// GetHealthPreventionThresholds はクリニックの健診・予防タグ判定閾値を返す。DB 値が 0 以下なら default で補完する。
+func (s *lstepSettingsService) GetHealthPreventionThresholds(ctx context.Context, clinicID uint64) (model.HealthPreventionThresholds, error) {
+	if s.clinicSettingsRepo == nil {
+		return model.HealthPreventionThresholds{}.WithDefaults(), nil
+	}
+	settings, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get clinic settings for health prevention thresholds", "clinic_id", clinicID, "error", err)
+		return model.HealthPreventionThresholds{}, apperrors.Wrap(err, "failed to find clinic settings for health prevention thresholds")
+	}
+	return model.HealthPreventionThresholds{
+		LookbackDays:    settings.HealthPreventionLookbackDays,
+		VaccineDeadline: settings.VaccineDeadlineDays,
 	}.WithDefaults(), nil
 }
 

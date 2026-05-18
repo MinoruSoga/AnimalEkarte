@@ -11,8 +11,3 @@ const (
 	LtvFoodPurchaseTag             = "LTV_フード購入あり"
 )
 
-// HealthPreventionLookbackDays は健診・予防履歴の参照期間（日数）。
-const HealthPreventionLookbackDays = 365
-
-// VaccineDeadlineDays はワクチン期限間近とみなす残日数の閾値。
-const VaccineDeadlineDays = 60

@@ -33,7 +33,7 @@ func strSet(ss []string) map[string]struct{} {
 
 // hasVaccineDeadlineSoon は vaccinations の中に NextDate が now から days 日以内のものがあれば true を返す。
 // pure function — モックなしでテスト可能。
-func hasVaccineDeadlineSoon(vaccinations []model.Vaccination, now time.Time, days int) bool { //nolint:unparam // days is configurable per clinic in future
+func hasVaccineDeadlineSoon(vaccinations []model.Vaccination, now time.Time, days int) bool {
 	deadline := now.AddDate(0, 0, days)
 	for i := range vaccinations {
 		nd := vaccinations[i].NextDate
@@ -82,7 +82,12 @@ func (s *lstepTagSyncService) SyncHealthcheckTags(ctx context.Context, clinicID,
 	}
 	lineUserID := *owner.LineUserID
 
-	since := time.Now().AddDate(0, 0, -HealthPreventionLookbackDays)
+	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get health prevention thresholds for healthcheck tags", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	}
+	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find checkups for healthcheck tags", "error", err)
@@ -185,7 +190,12 @@ func (s *lstepTagSyncService) SyncAnnual4CheckupTag(ctx context.Context, clinicI
 	}
 	lineUserID := *owner.LineUserID
 
-	since := time.Now().AddDate(0, 0, -HealthPreventionLookbackDays)
+	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get health prevention thresholds for annual4checkup tag", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	}
+	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find checkups for annual4checkup tag", "error", err)
@@ -273,8 +283,13 @@ func (s *lstepTagSyncService) SyncVaccineDeadlineTag(ctx context.Context, clinic
 		return apperrors.Wrap(err, "failed to find vaccinations")
 	}
 
+	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get health prevention thresholds for vaccine deadline tag", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	}
 	now := time.Now()
-	deadline := now.AddDate(0, 0, VaccineDeadlineDays)
+	deadline := now.AddDate(0, 0, thresholds.VaccineDeadline)
 	deadlineSoon := false
 	var earliestNextDate *time.Time
 	for i := range vaccinations {
@@ -382,7 +397,12 @@ func (s *lstepTagSyncService) SyncFilariaTag(ctx context.Context, clinicID, owne
 		return nil
 	}
 
-	since := time.Now().AddDate(0, 0, -HealthPreventionLookbackDays)
+	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get health prevention thresholds for filaria tag", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	}
+	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 
 	testDone := false
 	if len(testCodes) > 0 {
@@ -485,7 +505,12 @@ func (s *lstepTagSyncService) SyncFleaTickTag(ctx context.Context, clinicID, own
 	}
 	lineUserID := *owner.LineUserID
 
-	since := time.Now().AddDate(0, 0, -HealthPreventionLookbackDays)
+	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get health prevention thresholds for flea tick tag", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	}
+	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	hasRx, err := s.billingItemRepo.HasItemByOwnerSince(ctx, clinicID, ownerID, since, rxCodes)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check billing items for flea tick tag", "error", err)
@@ -556,7 +581,12 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID,
 	}
 	lineUserID := *owner.LineUserID
 
-	since := time.Now().AddDate(0, 0, -HealthPreventionLookbackDays)
+	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get health prevention thresholds for food purchase tag", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	}
+	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	hasPurchase, err := s.billingItemRepo.HasFoodPurchaseByOwnerSince(ctx, clinicID, ownerID, since, itemCodes)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check food purchase for tag", "error", err)

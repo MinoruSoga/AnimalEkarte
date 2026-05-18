@@ -73,6 +73,10 @@ func (m *mockLstepSettingsService) GetCPMV1Thresholds(_ context.Context, _ uint6
 	return model.CPMV1Thresholds{}.WithDefaults(), nil
 }
 
+func (m *mockLstepSettingsService) GetHealthPreventionThresholds(_ context.Context, _ uint64) (model.HealthPreventionThresholds, error) {
+	return model.HealthPreventionThresholds{}.WithDefaults(), nil
+}
+
 // ---- LstepTagCacheRepository モック ----
 
 type mockLstepTagCacheRepository struct {
