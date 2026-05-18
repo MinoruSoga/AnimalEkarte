@@ -269,7 +269,7 @@ func newLstepLifecycleSvc(
 	tagCacheRepo *mockLstepTagCacheRepository,
 	syncSvc *mockLstepTagSyncService,
 ) LstepLifecycleService {
-	return NewLstepLifecycleService(settingsSvc, ownerRepo, petRepo, tagCacheRepo, syncSvc, &mockAuditService{})
+	return NewLstepLifecycleService(settingsSvc, ownerRepo, petRepo, tagCacheRepo, syncSvc, &mockAuditService{}, nil)
 }
 
 func defaultLstepSettingsSvc() *mockLstepSettingsService {
@@ -840,6 +840,55 @@ func TestIsRabiesVaccine(t *testing.T) {
 	assert.True(t, isRabiesVaccine("狂犬病予防ワクチン"))
 	assert.False(t, isRabiesVaccine("混合ワクチン"))
 	assert.False(t, isRabiesVaccine("フィラリア"))
+}
+
+// ---- テスト: loadPetDerivedPrefixes ----
+
+func TestLstepLifecycleService_LoadPetDerivedPrefixes(t *testing.T) {
+	t.Run("tagConfigRepo nil → fallback prefixes", func(t *testing.T) {
+		svc := &lstepLifecycleService{tagConfigRepo: nil}
+		prefixes := svc.loadPetDerivedPrefixes(context.Background())
+		assert.Equal(t, []string{"vaccine_", tagPrefixCheckupDone}, prefixes)
+	})
+
+	t.Run("DB returns C2 prefixes → use DB values", func(t *testing.T) {
+		repo := &mockLstepTagConfigRepository{
+			findAllAutoManagedPrefixesFn: func(_ context.Context) ([]*model.LstepAutoManagedPrefix, error) {
+				return []*model.LstepAutoManagedPrefix{
+					{Category: "C2", Prefix: "vaccine_"},
+					{Category: "C2", Prefix: "checkup_done_"},
+					{Category: "B", Prefix: "next_visit_"},
+				}, nil
+			},
+		}
+		svc := &lstepLifecycleService{tagConfigRepo: repo}
+		prefixes := svc.loadPetDerivedPrefixes(context.Background())
+		assert.ElementsMatch(t, []string{"vaccine_", "checkup_done_"}, prefixes)
+	})
+
+	t.Run("DB returns no C2 prefixes → fallback", func(t *testing.T) {
+		repo := &mockLstepTagConfigRepository{
+			findAllAutoManagedPrefixesFn: func(_ context.Context) ([]*model.LstepAutoManagedPrefix, error) {
+				return []*model.LstepAutoManagedPrefix{
+					{Category: "B", Prefix: "next_visit_"},
+				}, nil
+			},
+		}
+		svc := &lstepLifecycleService{tagConfigRepo: repo}
+		prefixes := svc.loadPetDerivedPrefixes(context.Background())
+		assert.Equal(t, []string{"vaccine_", tagPrefixCheckupDone}, prefixes)
+	})
+
+	t.Run("DB error → fallback", func(t *testing.T) {
+		repo := &mockLstepTagConfigRepository{
+			findAllAutoManagedPrefixesFn: func(_ context.Context) ([]*model.LstepAutoManagedPrefix, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := &lstepLifecycleService{tagConfigRepo: repo}
+		prefixes := svc.loadPetDerivedPrefixes(context.Background())
+		assert.Equal(t, []string{"vaccine_", tagPrefixCheckupDone}, prefixes)
+	})
 }
 
 // ---- ビルドコンパイル確認: LstepTagCacheRepository インターフェース実装 ----

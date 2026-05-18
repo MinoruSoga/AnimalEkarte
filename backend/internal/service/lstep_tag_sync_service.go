@@ -17,6 +17,17 @@ import (
 // 仕様: docs/line/lstep-integration.md Section 7.2
 type CPMStage string
 
+// タグプレフィックス定数 — lstep_auto_managed_prefixes (migration 006) の DB 登録値と一致させる。
+// これらの値は Lステップ側のタグ命名プロトコルとして固定されているため変更不可。
+// 検出ロジック（strings.HasPrefix）および生成ロジック（fmt.Sprintf/+）で使用する。
+const (
+	tagPrefixNextVisit   = "next_visit_"
+	tagPrefixRefillDue   = "refill_due_"
+	tagPrefixCheckupDone = "checkup_done_"
+	tagPrefixNextCheckup = "next_checkup_"
+	tagPrefixChronic     = "chronic_"
+)
+
 const (
 	// FEAT-375: 連続失敗 N 回で付与するエラー除外タグ
 	lstepErrorTag           = "EXCL_カルテ連携エラー"
@@ -893,7 +904,7 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 	}
 	apiFailed := false
 	for _, c := range cached {
-		if strings.HasPrefix(c.TagName, "next_visit_") {
+		if strings.HasPrefix(c.TagName, tagPrefixNextVisit) {
 			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
 				slog.ErrorContext(ctx, "failed to remove next_visit tag", "error", delErr, "tag", c.TagName)
 				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
@@ -913,7 +924,7 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 		}
 		return nil
 	}
-	newTag := "next_visit_" + latest.NextVisitRecommendedDate.Format("2006-01-02")
+	newTag := tagPrefixNextVisit + latest.NextVisitRecommendedDate.Format("2006-01-02")
 	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
 		slog.ErrorContext(ctx, "failed to add next_visit tag", "error", addErr, "tag", newTag)
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
@@ -1093,7 +1104,7 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 	}
 	apiFailed := false
 	for _, c := range cached {
-		if strings.HasPrefix(c.TagName, "refill_due_") {
+		if strings.HasPrefix(c.TagName, tagPrefixRefillDue) {
 			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
 				slog.ErrorContext(ctx, "failed to remove stale refill_due tag", "error", delErr, "tag", c.TagName)
 				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
@@ -1113,7 +1124,7 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 		}
 		return nil
 	}
-	newTag := fmt.Sprintf("refill_due_%s", latestRefillDue.Format("2006-01-02"))
+	newTag := tagPrefixRefillDue + latestRefillDue.Format("2006-01-02")
 	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
 		slog.ErrorContext(ctx, "failed to add refill_due tag", "error", addErr, "tag", newTag)
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
@@ -1159,7 +1170,7 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 	}
 
 	// 同一健診種別の古い checkup_done タグ + next_checkup_* タグをキャッシュ経由で削除
-	stalePrefix := fmt.Sprintf("checkup_done_%d_", checkupTypeID)
+	stalePrefix := fmt.Sprintf("%s%d_", tagPrefixCheckupDone, checkupTypeID)
 	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load tag cache for checkup tag sync", "error", err)
@@ -1167,7 +1178,7 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 	}
 	apiFailed := false
 	for _, c := range cached {
-		if strings.HasPrefix(c.TagName, stalePrefix) || strings.HasPrefix(c.TagName, "next_checkup_") {
+		if strings.HasPrefix(c.TagName, stalePrefix) || strings.HasPrefix(c.TagName, tagPrefixNextCheckup) {
 			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
 				slog.ErrorContext(ctx, "failed to remove stale checkup tag", "error", delErr, "tag", c.TagName)
 				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
@@ -1181,7 +1192,7 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 	}
 
 	// checkup_done_{typeID}_{YYYY-MM} タグを付与
-	checkupTag := fmt.Sprintf("checkup_done_%d_%s", checkupTypeID, checkupDate.Format("2006-01"))
+	checkupTag := fmt.Sprintf("%s%d_%s", tagPrefixCheckupDone, checkupTypeID, checkupDate.Format("2006-01"))
 	if addErr := client.AddTag(ctx, lineUserID, checkupTag); addErr != nil {
 		slog.ErrorContext(ctx, "failed to add checkup tag", "error", addErr, "tag", checkupTag)
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
@@ -1193,7 +1204,7 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 
 	// next_checkup_YYYY-MM-DD タグを付与（設定時のみ）
 	if nextDate != nil {
-		nextTag := "next_checkup_" + nextDate.Format("2006-01-02")
+		nextTag := tagPrefixNextCheckup + nextDate.Format("2006-01-02")
 		if addErr := client.AddTag(ctx, lineUserID, nextTag); addErr != nil {
 			slog.ErrorContext(ctx, "failed to add next_checkup tag", "error", addErr, "tag", nextTag)
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
@@ -1279,7 +1290,7 @@ func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clin
 	existingSet := make(map[string]bool, len(cached))
 	apiFailed := false
 	for _, t := range cached {
-		if !strings.HasPrefix(t.TagName, "chronic_") {
+		if !strings.HasPrefix(t.TagName, tagPrefixChronic) {
 			continue
 		}
 		existingSet[t.TagName] = true
@@ -1461,7 +1472,7 @@ func (s *lstepTagSyncService) ResyncOwnerCheckupTags(ctx context.Context, clinic
 	}
 	apiFailed := false
 	for _, c := range cached {
-		if !strings.HasPrefix(c.TagName, "checkup_done_") && !strings.HasPrefix(c.TagName, "next_checkup_") {
+		if !strings.HasPrefix(c.TagName, tagPrefixCheckupDone) && !strings.HasPrefix(c.TagName, tagPrefixNextCheckup) {
 			continue
 		}
 		if _, keep := newTagSet[c.TagName]; keep {
@@ -1512,10 +1523,10 @@ func buildLatestCheckupTagSet(checkups []model.Checkup) map[string]struct{} {
 	}
 	tagSet := make(map[string]struct{}, len(latestByType)+1)
 	for typeID, date := range latestByType {
-		tagSet[fmt.Sprintf("checkup_done_%d_%s", typeID, date.Format("2006-01"))] = struct{}{}
+		tagSet[fmt.Sprintf("%s%d_%s", tagPrefixCheckupDone, typeID, date.Format("2006-01"))] = struct{}{}
 	}
 	if latestNext != nil {
-		tagSet["next_checkup_"+latestNext.Format("2006-01-02")] = struct{}{}
+		tagSet[tagPrefixNextCheckup+latestNext.Format("2006-01-02")] = struct{}{}
 	}
 	return tagSet
 }

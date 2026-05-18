@@ -100,6 +100,7 @@ func main() {
 		repos.LstepTagCache,
 		svcs.LstepTagSync,
 		svcs.Audit,
+		repos.LstepTagConfig,
 	)
 	svcs.LstepTag = service.NewLstepTagService(
 		svcs.LstepSettings,

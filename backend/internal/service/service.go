@@ -157,7 +157,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	// LSTEP services initialization with nil cipher (production code in main.go will override with encrypted cipher)
 	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, nil, auditSvc, repos.ClinicSettings)
 	lstepTagSyncSvc := NewLstepTagSyncService(lstepSettingsSvc, repos.Owner, repos.Vaccination, repos.MedicalRecord, repos.Accounting, repos.LstepTagCache, repos.Pet, repos.Prescription, repos.Checkup, repos.Reservation, repos.LstepSyncErrorCounter, repos.LstepTagCodeMapping, repos.BillingItem, repos.LstepTagConfig)
-	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc)
+	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc, repos.LstepTagConfig)
 
 	return &Services{
 		Account:                        NewAccountService(repos.Account),
