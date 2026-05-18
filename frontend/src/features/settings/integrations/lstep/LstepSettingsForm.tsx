@@ -217,6 +217,27 @@ export function LstepSettingsForm() {
         if (!isNaN(v) && v >= 1) req.dormant_prevention_365_days = v;
       }
 
+      const cpmV2Coming = formData.get("cpm_v2_coming_threshold");
+      if (typeof cpmV2Coming === "string" && cpmV2Coming !== "") {
+        const v = parseInt(cpmV2Coming, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v2_coming_threshold = v;
+      }
+      const cpmV2Good = formData.get("cpm_v2_good_threshold");
+      if (typeof cpmV2Good === "string" && cpmV2Good !== "") {
+        const v = parseInt(cpmV2Good, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v2_good_threshold = v;
+      }
+      const cpmV2Family = formData.get("cpm_v2_family_threshold");
+      if (typeof cpmV2Family === "string" && cpmV2Family !== "") {
+        const v = parseInt(cpmV2Family, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v2_family_threshold = v;
+      }
+      const cpmV2Noah = formData.get("cpm_v2_noah_threshold");
+      if (typeof cpmV2Noah === "string" && cpmV2Noah !== "") {
+        const v = parseInt(cpmV2Noah, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v2_noah_threshold = v;
+      }
+
       // 同期ON/OFFは常に送信（boolean は空欄という概念がないため）
       req.is_sync_enabled = isSyncEnabled;
 
@@ -375,6 +396,31 @@ export function LstepSettingsForm() {
           name="cpm_version"
           label="CPMバージョン"
           defaultValue={settings?.cpm_version ?? "v1"}
+        />
+
+        <NumberInputField
+          id="cpm_v2_coming_threshold"
+          name="cpm_v2_coming_threshold"
+          label="CPM V2 来院数閾値 (出会い→良好)"
+          defaultValue={settings?.cpm_v2_coming_threshold ?? 2}
+        />
+        <NumberInputField
+          id="cpm_v2_good_threshold"
+          name="cpm_v2_good_threshold"
+          label="CPM V2 来院数閾値 (良好→ファミリー)"
+          defaultValue={settings?.cpm_v2_good_threshold ?? 4}
+        />
+        <NumberInputField
+          id="cpm_v2_family_threshold"
+          name="cpm_v2_family_threshold"
+          label="CPM V2 来院数閾値 (ファミリー→NOAH)"
+          defaultValue={settings?.cpm_v2_family_threshold ?? 8}
+        />
+        <NumberInputField
+          id="cpm_v2_noah_threshold"
+          name="cpm_v2_noah_threshold"
+          label="CPM V2 来院数閾値 (NOAH)"
+          defaultValue={settings?.cpm_v2_noah_threshold ?? 13}
         />
 
         <NumberInputField

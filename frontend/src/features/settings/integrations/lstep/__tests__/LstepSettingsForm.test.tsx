@@ -26,6 +26,10 @@ const configuredSyncOn: LstepSettingsResponse = {
   dormant_prevention_210_days: 210,
   dormant_prevention_240_days: 240,
   dormant_prevention_365_days: 365,
+  cpm_v2_coming_threshold: 2,
+  cpm_v2_good_threshold: 4,
+  cpm_v2_family_threshold: 8,
+  cpm_v2_noah_threshold: 13,
 };
 
 const configuredSyncOff: LstepSettingsResponse = {
@@ -50,6 +54,10 @@ const unconfigured: LstepSettingsResponse = {
   dormant_prevention_210_days: 210,
   dormant_prevention_240_days: 240,
   dormant_prevention_365_days: 365,
+  cpm_v2_coming_threshold: 2,
+  cpm_v2_good_threshold: 4,
+  cpm_v2_family_threshold: 8,
+  cpm_v2_noah_threshold: 13,
 };
 
 function setupGetHandler(data: LstepSettingsResponse) {
@@ -369,5 +377,66 @@ describe('LstepSettingsForm — F: CPMバージョン・休眠閾値 (Q19+Q21 Ph
       expect(capturedBody).not.toBeNull();
     });
     expect(capturedBody?.dormant_prevention_180_days).toBe(180);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// G: CPM V2 来院数閾値 (33ca50b2)
+// ─────────────────────────────────────────────────────────────
+
+describe('LstepSettingsForm — G: CPM V2 来院数閾値', () => {
+  it('各閾値 input の defaultValue がサーバー値で表示される', async () => {
+    await renderAndWait({
+      ...configuredSyncOn,
+      cpm_v2_coming_threshold: 3,
+      cpm_v2_good_threshold: 6,
+      cpm_v2_family_threshold: 10,
+      cpm_v2_noah_threshold: 15,
+    });
+    expect((screen.getByLabelText('CPM V2 来院数閾値 (出会い→良好)') as HTMLInputElement).value).toBe('3');
+    expect((screen.getByLabelText('CPM V2 来院数閾値 (良好→ファミリー)') as HTMLInputElement).value).toBe('6');
+    expect((screen.getByLabelText('CPM V2 来院数閾値 (ファミリー→NOAH)') as HTMLInputElement).value).toBe('10');
+    expect((screen.getByLabelText('CPM V2 来院数閾値 (NOAH)') as HTMLInputElement).value).toBe('15');
+  });
+
+  it('保存すると PATCH body に cpm_v2_coming_threshold が数値で含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(configuredSyncOn);
+      })
+    );
+
+    await renderAndWait({ ...configuredSyncOn, cpm_v2_coming_threshold: 2 });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.cpm_v2_coming_threshold).toBe(2);
+  });
+
+  it('閾値を変更して保存すると PATCH body に変更後の値が含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(configuredSyncOn);
+      })
+    );
+
+    await renderAndWait({ ...configuredSyncOn, cpm_v2_noah_threshold: 13 });
+    const user = userEvent.setup();
+    const noahInput = screen.getByLabelText('CPM V2 来院数閾値 (NOAH)');
+    await user.clear(noahInput);
+    await user.type(noahInput, '20');
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.cpm_v2_noah_threshold).toBe(20);
   });
 });

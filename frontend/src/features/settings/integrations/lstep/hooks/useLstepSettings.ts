@@ -24,6 +24,11 @@ export interface LstepSettingsResponse {
   dormant_prevention_210_days: number;
   dormant_prevention_240_days: number;
   dormant_prevention_365_days: number;
+  // CPM V2 来院数閾値 (33ca50b2)
+  cpm_v2_coming_threshold: number;
+  cpm_v2_good_threshold: number;
+  cpm_v2_family_threshold: number;
+  cpm_v2_noah_threshold: number;
 }
 
 export interface LstepSettingsRequest {
@@ -39,6 +44,10 @@ export interface LstepSettingsRequest {
   dormant_prevention_210_days?: number;
   dormant_prevention_240_days?: number;
   dormant_prevention_365_days?: number;
+  cpm_v2_coming_threshold?: number;
+  cpm_v2_good_threshold?: number;
+  cpm_v2_family_threshold?: number;
+  cpm_v2_noah_threshold?: number;
 }
 
 // ─────────────────────────────────────────────────
