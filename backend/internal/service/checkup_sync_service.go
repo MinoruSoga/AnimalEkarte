@@ -8,6 +8,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -161,7 +162,7 @@ func (s *checkupSyncService) buildClient(ctx context.Context, clinicID uint64) (
 // CPM 判定は LTV/CPM サービス側 (lstep_tag_sync_service.CalculateCPMStage) と同一の純粋関数を再利用し、
 // 判定基準のドリフトを防ぐ。
 // caller must pass non-nil row; panics on nil.
-func computeCPMStageFromRow(row *repository.CheckupSyncPreviewRow) CPMStage {
+func computeCPMStageFromRow(row *repository.CheckupSyncPreviewRow, thresholds model.CPMV1Thresholds) CPMStage {
 	daysSince := -1
 	if row.LastVisitDate != nil {
 		daysSince = int(time.Since(*row.LastVisitDate).Hours() / 24)
@@ -177,6 +178,7 @@ func computeCPMStageFromRow(row *repository.CheckupSyncPreviewRow) CPMStage {
 		LTVAmount:            row.TotalAmount,
 		FirstVisitDaysSince:  firstVisitDaysSince,
 		MaxSingleVisitAmount: row.MaxSingleVisitAmount,
+		Thresholds:           thresholds,
 	})
 }
 
@@ -202,6 +204,12 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 		return nil, apperrors.Wrap(err, "failed to find checkup sync preview")
 	}
 
+	thresholds, err := s.settingsSvc.GetCPMV1Thresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get cpm v1 thresholds for checkup preview", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to get cpm v1 thresholds")
+	}
+
 	owners := make([]CheckupSyncPreviewOwner, 0, len(rows))
 	lineLinkedCount := 0
 	optOutCount := 0
@@ -212,7 +220,7 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 		row := &rows[i]
 		// ISSUE-009: CPM ステージは集計値ベースの後段フィルタとして適用する。
 		// SQL ではなく service 層で判定することで、タグ同期側 CalculateCPMStage と同じロジックを共有する。
-		cpmStage := computeCPMStageFromRow(row)
+		cpmStage := computeCPMStageFromRow(row, thresholds)
 		if input.CPMStage != "" && string(cpmStage) != input.CPMStage {
 			continue
 		}

@@ -99,43 +99,45 @@ func CalculateCPMStageV2(d CPMStageV2Input) CPMStageV2 {
 type CPMData struct {
 	TotalVisitCount      int64
 	AnnualVisitCount     int64
-	DaysSinceVisit       int   // 最終来院からの経過日数（来院なし = -1）
-	LTVAmount            int64 // 支払済み累計金額（円）
-	FirstVisitDaysSince  int   // 初来院からの経過日数＝在籍期間（来院なし = -1）
-	MaxSingleVisitAmount int64 // 単回最大支払い額（cpm_spot 判定用）
+	DaysSinceVisit       int                   // 最終来院からの経過日数（来院なし = -1）
+	LTVAmount            int64                 // 支払済み累計金額（円）
+	FirstVisitDaysSince  int                   // 初来院からの経過日数＝在籍期間（来院なし = -1）
+	MaxSingleVisitAmount int64                 // 単回最大支払い額（cpm_spot 判定用）
+	Thresholds           model.CPMV1Thresholds // P2: 設定駆動閾値（ゼロ値は WithDefaults() で補完）
 }
 
 // CalculateCPMStage は純粋関数として CPM ステージを計算する（BE-004）。
 // 仕様: docs/line/lstep-integration.md Section 7.2
 func CalculateCPMStage(d CPMData) CPMStage {
-	// cpm_dormant: 最終来院から240日超または来院なし（最優先）
-	if d.DaysSinceVisit < 0 || d.DaysSinceVisit >= 240 {
+	t := d.Thresholds.WithDefaults()
+	// cpm_dormant: 最終来院から DormantDays 日超または来院なし（最優先）
+	if d.DaysSinceVisit < 0 || d.DaysSinceVisit >= t.DormantDays {
 		return CPMStageDormant
 	}
-	// cpm_noah: 在籍1年以上、年間3回以上、LTV 80,000円以上
+	// cpm_noah: 在籍 NoahDays 日以上、年間 NoahAnnualVisits 回以上、LTV NoahLTV 円以上
 	// V1 cpm_noah は簡略 3 条件 (LTV/visit/在籍) で判定する。
 	// 仕様書 §3 の 5 条件記述は V2 詳細化対象であり、V1 では参照しない。
 	// PO-QA Q29 (2026-05-08 設計確定) — V1 簡略判定の役割分担を明記。
 	// 詳細条件追加は V2 (CalculateCPMStageV2) で対応すること。
-	if d.FirstVisitDaysSince >= 365 && d.AnnualVisitCount >= 3 && d.LTVAmount >= 80_000 {
+	if d.FirstVisitDaysSince >= t.NoahDays && d.AnnualVisitCount >= int64(t.NoahAnnualVisits) && d.LTVAmount >= t.NoahLTV {
 		return CPMStageNoah
 	}
-	// cpm_core: 在籍180日以上、年間2回以上、LTV 50,000円以上
-	if d.FirstVisitDaysSince >= 180 && d.AnnualVisitCount >= 2 && d.LTVAmount >= 50_000 {
+	// cpm_core: 在籍 CoreDays 日以上、年間 CoreAnnualVisits 回以上、LTV CoreLTV 円以上
+	if d.FirstVisitDaysSince >= t.CoreDays && d.AnnualVisitCount >= int64(t.CoreAnnualVisits) && d.LTVAmount >= t.CoreLTV {
 		return CPMStageCore
 	}
-	// cpm_spot: 単回高額（30,000円以上）かつ90日超来院なし
-	if d.MaxSingleVisitAmount >= 30_000 && d.DaysSinceVisit > 90 {
+	// cpm_spot: 単回高額（SpotMinAmount 円以上）かつ SpotInactiveDays 日超来院なし
+	if d.MaxSingleVisitAmount >= t.SpotMinAmount && d.DaysSinceVisit > t.SpotInactiveDays {
 		return CPMStageSpot
 	}
-	// cpm_growing: 初診から90日以内 AND 2〜3回来院 AND LTV 20,000〜50,000円未満 (仕様書整合)
-	if d.FirstVisitDaysSince >= 0 && d.FirstVisitDaysSince <= 90 &&
-		d.TotalVisitCount >= 2 && d.TotalVisitCount <= 3 &&
-		d.LTVAmount >= 20_000 && d.LTVAmount < 50_000 {
+	// cpm_growing: 初診から GrowingMaxDays 日以内 AND GrowingMinVisits〜GrowingMaxVisits 回来院 AND LTV LTVBreakLow〜CoreLTV 円未満
+	if d.FirstVisitDaysSince >= 0 && d.FirstVisitDaysSince <= t.GrowingMaxDays &&
+		d.TotalVisitCount >= int64(t.GrowingMinVisits) && d.TotalVisitCount <= int64(t.GrowingMaxVisits) &&
+		d.LTVAmount >= t.LTVBreakLow && d.LTVAmount < t.CoreLTV {
 		return CPMStageGrowing
 	}
-	// cpm_encounter: 来院1回 AND LTV 20,000円未満（仕様書 §3 明示判定）
-	if d.TotalVisitCount == 1 && d.LTVAmount < 20_000 {
+	// cpm_encounter: 来院1回 AND LTV LTVBreakLow 円未満（仕様書 §3 明示判定）
+	if d.TotalVisitCount == 1 && d.LTVAmount < t.LTVBreakLow {
 		return CPMStageEncounter
 	}
 	// cpm_unclassified: 全6ステージのいずれにも該当しない異常データ（配信対象外）
@@ -985,6 +987,12 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 		return apperrors.Wrap(err, "failed to get max single visit amount")
 	}
 
+	thresholds, err := s.settingsSvc.GetCPMV1Thresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get cpm v1 thresholds", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get cpm v1 thresholds")
+	}
+
 	daysSince := -1
 	if summary.LastVisitAt != nil {
 		daysSince = int(time.Since(*summary.LastVisitAt).Hours() / 24)
@@ -1001,6 +1009,7 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 		LTVAmount:            ltv,
 		FirstVisitDaysSince:  firstVisitDaysSince,
 		MaxSingleVisitAmount: maxSingle,
+		Thresholds:           thresholds,
 	})
 
 	client, err := s.buildClient(ctx, clinicID)

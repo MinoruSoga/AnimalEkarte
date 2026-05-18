@@ -8,6 +8,7 @@ import (
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -17,7 +18,7 @@ import (
 // 一覧側の DaysSinceLastVisit は SQL 側で EXTRACT(DAY FROM NOW() - MAX(mr.date)) として
 // 計算されているため、来院なし（NULL）は -1 にマップする。
 // caller must pass non-nil row; panics on nil.
-func computeCPMStageFromLTVRow(row *repository.OwnerLTVRow) string {
+func computeCPMStageFromLTVRow(row *repository.OwnerLTVRow, thresholds model.CPMV1Thresholds) string {
 	daysSince := -1
 	if row.DaysSinceLastVisit != nil {
 		daysSince = *row.DaysSinceLastVisit
@@ -33,6 +34,7 @@ func computeCPMStageFromLTVRow(row *repository.OwnerLTVRow) string {
 		LTVAmount:            row.TotalAmount,
 		FirstVisitDaysSince:  firstVisitDays,
 		MaxSingleVisitAmount: row.MaxSingleVisitAmount,
+		Thresholds:           thresholds,
 	}))
 }
 
@@ -134,11 +136,12 @@ type aggregationService struct {
 	repo          repository.LtvRepository
 	tagCacheRepo  repository.LstepTagCacheRepository
 	tagConfigRepo repository.LstepTagConfigRepository
+	settingsSvc   LstepSettingsService
 }
 
 // NewAggregationService は AggregationService を初期化して返す。
-func NewAggregationService(repo repository.LtvRepository, tagCacheRepo repository.LstepTagCacheRepository, tagConfigRepo repository.LstepTagConfigRepository) AggregationService {
-	return &aggregationService{repo: repo, tagCacheRepo: tagCacheRepo, tagConfigRepo: tagConfigRepo}
+func NewAggregationService(repo repository.LtvRepository, tagCacheRepo repository.LstepTagCacheRepository, tagConfigRepo repository.LstepTagConfigRepository, settingsSvc LstepSettingsService) AggregationService {
+	return &aggregationService{repo: repo, tagCacheRepo: tagCacheRepo, tagConfigRepo: tagConfigRepo, settingsSvc: settingsSvc}
 }
 
 func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID uint64, input *ListOwnerAggregationInput) (*ListOwnerAggregationResult, error) {
@@ -169,10 +172,16 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 	// CPMStage 絞り込み条件を正規化（"spot" → "cpm_spot" 等）。
 	cpmStageFilter := normalizeCPMStageFilter(input.CPMStage)
 
+	thresholds, err := s.settingsSvc.GetCPMV1Thresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get cpm v1 thresholds for aggregation", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to get cpm v1 thresholds")
+	}
+
 	var items []OwnerAggregationItem
 	for i := range rows {
 		row := &rows[i]
-		stage := computeCPMStageFromLTVRow(row)
+		stage := computeCPMStageFromLTVRow(row, thresholds)
 		if cpmStageFilter != "" && stage != cpmStageFilter {
 			continue
 		}

@@ -69,6 +69,9 @@ func (m *mockLstepSettingsService) GetDormantThresholds(_ context.Context, _ uin
 func (m *mockLstepSettingsService) GetCPMV2Thresholds(_ context.Context, _ uint64) (model.CPMV2Thresholds, error) {
 	return model.CPMV2Thresholds{}.WithDefaults(), nil
 }
+func (m *mockLstepSettingsService) GetCPMV1Thresholds(_ context.Context, _ uint64) (model.CPMV1Thresholds, error) {
+	return model.CPMV1Thresholds{}.WithDefaults(), nil
+}
 
 // ---- LstepTagCacheRepository モック ----
 

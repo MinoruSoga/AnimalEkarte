@@ -22,6 +22,8 @@ type ClinicSettingsRepository interface {
 	UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error
 	// UpdateCPMV2Thresholds は cpm_v2_*_threshold 4 カラムを対象とした UPSERT。
 	UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error
+	// UpdateCPMV1Thresholds は cpm_v1_* 13 カラムを対象とした UPSERT。
+	UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error
 }
 
 type clinicSettingsRepository struct{ db *gorm.DB }
@@ -141,6 +143,54 @@ func (r *clinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context, cl
 				"cpm_v2_good_threshold",
 				"cpm_v2_family_threshold",
 				"cpm_v2_noah_threshold",
+				"updated_at",
+			}),
+		}).
+		Create(s).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
+	}
+	return nil
+}
+
+func (r *clinicSettingsRepository) UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error {
+	s := &model.ClinicSettings{
+		ClinicID:              clinicID,
+		ClosingAmPmBoundary:   "14:00",
+		ClosingWeekdayEnd:     "18:30",
+		ClosingSundayEnd:      "17:30",
+		CPMV1DormantDays:      thresholds.DormantDays,
+		CPMV1NoahDays:         thresholds.NoahDays,
+		CPMV1NoahAnnualVisits: thresholds.NoahAnnualVisits,
+		CPMV1NoahLTV:          thresholds.NoahLTV,
+		CPMV1CoreDays:         thresholds.CoreDays,
+		CPMV1CoreAnnualVisits: thresholds.CoreAnnualVisits,
+		CPMV1CoreLTV:          thresholds.CoreLTV,
+		CPMV1SpotMinAmount:    thresholds.SpotMinAmount,
+		CPMV1SpotInactiveDays: thresholds.SpotInactiveDays,
+		CPMV1GrowingMaxDays:   thresholds.GrowingMaxDays,
+		CPMV1GrowingMinVisits: thresholds.GrowingMinVisits,
+		CPMV1GrowingMaxVisits: thresholds.GrowingMaxVisits,
+		CPMV1LTVBreakLow:      thresholds.LTVBreakLow,
+	}
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "clinic_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"cpm_v1_dormant_days",
+				"cpm_v1_noah_days",
+				"cpm_v1_noah_annual_visits",
+				"cpm_v1_noah_ltv",
+				"cpm_v1_core_days",
+				"cpm_v1_core_annual_visits",
+				"cpm_v1_core_ltv",
+				"cpm_v1_spot_min_amount",
+				"cpm_v1_spot_inactive_days",
+				"cpm_v1_growing_max_days",
+				"cpm_v1_growing_min_visits",
+				"cpm_v1_growing_max_visits",
+				"cpm_v1_ltv_break_low",
 				"updated_at",
 			}),
 		}).

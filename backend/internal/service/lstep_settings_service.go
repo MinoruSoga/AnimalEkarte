@@ -36,6 +36,20 @@ type LstepSettingsResponse struct {
 	CPMV2GoodThreshold   int `json:"cpm_v2_good_threshold"`
 	CPMV2FamilyThreshold int `json:"cpm_v2_family_threshold"`
 	CPMV2NoahThreshold   int `json:"cpm_v2_noah_threshold"`
+	// P2 CPM V1 判定閾値
+	CPMV1DormantDays      int   `json:"cpm_v1_dormant_days"`
+	CPMV1NoahDays         int   `json:"cpm_v1_noah_days"`
+	CPMV1NoahAnnualVisits int   `json:"cpm_v1_noah_annual_visits"`
+	CPMV1NoahLTV          int64 `json:"cpm_v1_noah_ltv"`
+	CPMV1CoreDays         int   `json:"cpm_v1_core_days"`
+	CPMV1CoreAnnualVisits int   `json:"cpm_v1_core_annual_visits"`
+	CPMV1CoreLTV          int64 `json:"cpm_v1_core_ltv"`
+	CPMV1SpotMinAmount    int64 `json:"cpm_v1_spot_min_amount"`
+	CPMV1SpotInactiveDays int   `json:"cpm_v1_spot_inactive_days"`
+	CPMV1GrowingMaxDays   int   `json:"cpm_v1_growing_max_days"`
+	CPMV1GrowingMinVisits int   `json:"cpm_v1_growing_min_visits"`
+	CPMV1GrowingMaxVisits int   `json:"cpm_v1_growing_max_visits"`
+	CPMV1LTVBreakLow      int64 `json:"cpm_v1_ltv_break_low"`
 }
 
 // UpdateLstepSettingsInput はPATCHリクエスト用（空文字=変更なし）
@@ -60,6 +74,20 @@ type UpdateLstepSettingsInput struct {
 	CPMV2GoodThreshold   *int
 	CPMV2FamilyThreshold *int
 	CPMV2NoahThreshold   *int
+	// CPMV1* が nil の場合は変更なし。
+	CPMV1DormantDays      *int
+	CPMV1NoahDays         *int
+	CPMV1NoahAnnualVisits *int
+	CPMV1NoahLTV          *int64
+	CPMV1CoreDays         *int
+	CPMV1CoreAnnualVisits *int
+	CPMV1CoreLTV          *int64
+	CPMV1SpotMinAmount    *int64
+	CPMV1SpotInactiveDays *int
+	CPMV1GrowingMaxDays   *int
+	CPMV1GrowingMinVisits *int
+	CPMV1GrowingMaxVisits *int
+	CPMV1LTVBreakLow      *int64
 }
 
 // LstepConnectionTestResult は疎通確認結果
@@ -88,6 +116,8 @@ type LstepSettingsService interface {
 	GetDormantThresholds(ctx context.Context, clinicID uint64) (model.DormantThresholds, error)
 	// GetCPMV2Thresholds はクリニックの CPM V2 来院回数閾値を返す。DB 値が 0 以下なら default で補完する。
 	GetCPMV2Thresholds(ctx context.Context, clinicID uint64) (model.CPMV2Thresholds, error)
+	// GetCPMV1Thresholds はクリニックの CPM V1 判定閾値を返す。DB 値が 0 以下なら default で補完する。
+	GetCPMV1Thresholds(ctx context.Context, clinicID uint64) (model.CPMV1Thresholds, error)
 }
 
 type lstepSettingsService struct {
@@ -173,6 +203,34 @@ func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64)
 		resp.CPMV2GoodThreshold = v2t.Good
 		resp.CPMV2FamilyThreshold = v2t.Family
 		resp.CPMV2NoahThreshold = v2t.Noah
+		v1t := model.CPMV1Thresholds{
+			DormantDays:      cs.CPMV1DormantDays,
+			NoahDays:         cs.CPMV1NoahDays,
+			NoahAnnualVisits: cs.CPMV1NoahAnnualVisits,
+			NoahLTV:          cs.CPMV1NoahLTV,
+			CoreDays:         cs.CPMV1CoreDays,
+			CoreAnnualVisits: cs.CPMV1CoreAnnualVisits,
+			CoreLTV:          cs.CPMV1CoreLTV,
+			SpotMinAmount:    cs.CPMV1SpotMinAmount,
+			SpotInactiveDays: cs.CPMV1SpotInactiveDays,
+			GrowingMaxDays:   cs.CPMV1GrowingMaxDays,
+			GrowingMinVisits: cs.CPMV1GrowingMinVisits,
+			GrowingMaxVisits: cs.CPMV1GrowingMaxVisits,
+			LTVBreakLow:      cs.CPMV1LTVBreakLow,
+		}.WithDefaults()
+		resp.CPMV1DormantDays = v1t.DormantDays
+		resp.CPMV1NoahDays = v1t.NoahDays
+		resp.CPMV1NoahAnnualVisits = v1t.NoahAnnualVisits
+		resp.CPMV1NoahLTV = v1t.NoahLTV
+		resp.CPMV1CoreDays = v1t.CoreDays
+		resp.CPMV1CoreAnnualVisits = v1t.CoreAnnualVisits
+		resp.CPMV1CoreLTV = v1t.CoreLTV
+		resp.CPMV1SpotMinAmount = v1t.SpotMinAmount
+		resp.CPMV1SpotInactiveDays = v1t.SpotInactiveDays
+		resp.CPMV1GrowingMaxDays = v1t.GrowingMaxDays
+		resp.CPMV1GrowingMinVisits = v1t.GrowingMinVisits
+		resp.CPMV1GrowingMaxVisits = v1t.GrowingMaxVisits
+		resp.CPMV1LTVBreakLow = v1t.LTVBreakLow
 	}
 
 	return resp, nil
@@ -336,6 +394,116 @@ func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint
 		if err := s.clinicSettingsRepo.UpdateCPMV2Thresholds(ctx, clinicID, v2t); err != nil {
 			slog.ErrorContext(ctx, "failed to update cpm v2 thresholds", "error", err, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to update cpm v2 thresholds")
+		}
+	}
+
+	if s.clinicSettingsRepo != nil &&
+		(input.CPMV1DormantDays != nil || input.CPMV1NoahDays != nil || input.CPMV1NoahAnnualVisits != nil ||
+			input.CPMV1NoahLTV != nil || input.CPMV1CoreDays != nil || input.CPMV1CoreAnnualVisits != nil ||
+			input.CPMV1CoreLTV != nil || input.CPMV1SpotMinAmount != nil || input.CPMV1SpotInactiveDays != nil ||
+			input.CPMV1GrowingMaxDays != nil || input.CPMV1GrowingMinVisits != nil || input.CPMV1GrowingMaxVisits != nil ||
+			input.CPMV1LTVBreakLow != nil) {
+		current, csErr := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
+		if csErr != nil {
+			slog.ErrorContext(ctx, "failed to read clinic settings for cpm v1 merge", "error", csErr, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(csErr, "failed to find clinic settings")
+		}
+		v1t := model.CPMV1Thresholds{
+			DormantDays:      current.CPMV1DormantDays,
+			NoahDays:         current.CPMV1NoahDays,
+			NoahAnnualVisits: current.CPMV1NoahAnnualVisits,
+			NoahLTV:          current.CPMV1NoahLTV,
+			CoreDays:         current.CPMV1CoreDays,
+			CoreAnnualVisits: current.CPMV1CoreAnnualVisits,
+			CoreLTV:          current.CPMV1CoreLTV,
+			SpotMinAmount:    current.CPMV1SpotMinAmount,
+			SpotInactiveDays: current.CPMV1SpotInactiveDays,
+			GrowingMaxDays:   current.CPMV1GrowingMaxDays,
+			GrowingMinVisits: current.CPMV1GrowingMinVisits,
+			GrowingMaxVisits: current.CPMV1GrowingMaxVisits,
+			LTVBreakLow:      current.CPMV1LTVBreakLow,
+		}.WithDefaults()
+		if input.CPMV1DormantDays != nil {
+			if *input.CPMV1DormantDays < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_dormant_days must be >= 1, got %d", *input.CPMV1DormantDays))
+			}
+			v1t.DormantDays = *input.CPMV1DormantDays
+		}
+		if input.CPMV1NoahDays != nil {
+			if *input.CPMV1NoahDays < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_noah_days must be >= 1, got %d", *input.CPMV1NoahDays))
+			}
+			v1t.NoahDays = *input.CPMV1NoahDays
+		}
+		if input.CPMV1NoahAnnualVisits != nil {
+			if *input.CPMV1NoahAnnualVisits < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_noah_annual_visits must be >= 1, got %d", *input.CPMV1NoahAnnualVisits))
+			}
+			v1t.NoahAnnualVisits = *input.CPMV1NoahAnnualVisits
+		}
+		if input.CPMV1NoahLTV != nil {
+			if *input.CPMV1NoahLTV < 0 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_noah_ltv must be >= 0, got %d", *input.CPMV1NoahLTV))
+			}
+			v1t.NoahLTV = *input.CPMV1NoahLTV
+		}
+		if input.CPMV1CoreDays != nil {
+			if *input.CPMV1CoreDays < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_core_days must be >= 1, got %d", *input.CPMV1CoreDays))
+			}
+			v1t.CoreDays = *input.CPMV1CoreDays
+		}
+		if input.CPMV1CoreAnnualVisits != nil {
+			if *input.CPMV1CoreAnnualVisits < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_core_annual_visits must be >= 1, got %d", *input.CPMV1CoreAnnualVisits))
+			}
+			v1t.CoreAnnualVisits = *input.CPMV1CoreAnnualVisits
+		}
+		if input.CPMV1CoreLTV != nil {
+			if *input.CPMV1CoreLTV < 0 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_core_ltv must be >= 0, got %d", *input.CPMV1CoreLTV))
+			}
+			v1t.CoreLTV = *input.CPMV1CoreLTV
+		}
+		if input.CPMV1SpotMinAmount != nil {
+			if *input.CPMV1SpotMinAmount < 0 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_spot_min_amount must be >= 0, got %d", *input.CPMV1SpotMinAmount))
+			}
+			v1t.SpotMinAmount = *input.CPMV1SpotMinAmount
+		}
+		if input.CPMV1SpotInactiveDays != nil {
+			if *input.CPMV1SpotInactiveDays < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_spot_inactive_days must be >= 1, got %d", *input.CPMV1SpotInactiveDays))
+			}
+			v1t.SpotInactiveDays = *input.CPMV1SpotInactiveDays
+		}
+		if input.CPMV1GrowingMaxDays != nil {
+			if *input.CPMV1GrowingMaxDays < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_growing_max_days must be >= 1, got %d", *input.CPMV1GrowingMaxDays))
+			}
+			v1t.GrowingMaxDays = *input.CPMV1GrowingMaxDays
+		}
+		if input.CPMV1GrowingMinVisits != nil {
+			if *input.CPMV1GrowingMinVisits < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_growing_min_visits must be >= 1, got %d", *input.CPMV1GrowingMinVisits))
+			}
+			v1t.GrowingMinVisits = *input.CPMV1GrowingMinVisits
+		}
+		if input.CPMV1GrowingMaxVisits != nil {
+			if *input.CPMV1GrowingMaxVisits < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_growing_max_visits must be >= 1, got %d", *input.CPMV1GrowingMaxVisits))
+			}
+			v1t.GrowingMaxVisits = *input.CPMV1GrowingMaxVisits
+		}
+		if input.CPMV1LTVBreakLow != nil {
+			if *input.CPMV1LTVBreakLow < 0 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("cpm_v1_ltv_break_low must be >= 0, got %d", *input.CPMV1LTVBreakLow))
+			}
+			v1t.LTVBreakLow = *input.CPMV1LTVBreakLow
+		}
+		if err := s.clinicSettingsRepo.UpdateCPMV1Thresholds(ctx, clinicID, v1t); err != nil {
+			slog.ErrorContext(ctx, "failed to update cpm v1 thresholds", "error", err, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(err, "failed to update cpm v1 thresholds")
 		}
 	}
 
@@ -523,6 +691,33 @@ func (s *lstepSettingsService) GetCPMV2Thresholds(ctx context.Context, clinicID 
 		Good:   settings.CPMV2GoodThreshold,
 		Family: settings.CPMV2FamilyThreshold,
 		Noah:   settings.CPMV2NoahThreshold,
+	}.WithDefaults(), nil
+}
+
+// GetCPMV1Thresholds はクリニックの CPM V1 判定閾値を返す。DB 値が 0 以下なら default で補完する。
+func (s *lstepSettingsService) GetCPMV1Thresholds(ctx context.Context, clinicID uint64) (model.CPMV1Thresholds, error) {
+	if s.clinicSettingsRepo == nil {
+		return model.CPMV1Thresholds{}.WithDefaults(), nil
+	}
+	settings, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get clinic settings for cpm v1 thresholds", "clinic_id", clinicID, "error", err)
+		return model.CPMV1Thresholds{}, apperrors.Wrap(err, "failed to find clinic settings for cpm v1 thresholds")
+	}
+	return model.CPMV1Thresholds{
+		DormantDays:      settings.CPMV1DormantDays,
+		NoahDays:         settings.CPMV1NoahDays,
+		NoahAnnualVisits: settings.CPMV1NoahAnnualVisits,
+		NoahLTV:          settings.CPMV1NoahLTV,
+		CoreDays:         settings.CPMV1CoreDays,
+		CoreAnnualVisits: settings.CPMV1CoreAnnualVisits,
+		CoreLTV:          settings.CPMV1CoreLTV,
+		SpotMinAmount:    settings.CPMV1SpotMinAmount,
+		SpotInactiveDays: settings.CPMV1SpotInactiveDays,
+		GrowingMaxDays:   settings.CPMV1GrowingMaxDays,
+		GrowingMinVisits: settings.CPMV1GrowingMinVisits,
+		GrowingMaxVisits: settings.CPMV1GrowingMaxVisits,
+		LTVBreakLow:      settings.CPMV1LTVBreakLow,
 	}.WithDefaults(), nil
 }
 
