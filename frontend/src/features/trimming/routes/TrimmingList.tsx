@@ -131,7 +131,7 @@ const TRIMMING_STATIC_FILTER_PROPERTIES: FilterProperty[] = [
     label: "ステータス",
     type: "select",
     icon: CircleDot,
-    // trimming_records.status DEFAULT 'reserved' — 空値は存在しない
+    // 予約ステータスはAPIレスポンスで必ず返るため空値は存在しない
     conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "予約", label: "予約" },

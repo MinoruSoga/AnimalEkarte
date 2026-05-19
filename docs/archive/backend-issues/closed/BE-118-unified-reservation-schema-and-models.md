@@ -1,6 +1,6 @@
 # BE-118: 統一予約基盤 — DBスキーマ変更 + Go モデル + make codegen
 
-**Status**: Open
+**Status**: Closed（2026-05-19 実装済み確認）
 **Priority**: High
 **Affects**: appointments, trimming_records, reservation_types
 **Date Created**: 2026-04-16

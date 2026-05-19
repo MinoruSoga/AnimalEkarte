@@ -1,6 +1,6 @@
 # BE-120: LIFF トリミング予約フロー拡張
 
-**Status**: Open
+**Status**: Closed（2026-05-19 実装済み確認）
 **Priority**: High
 **Affects**: /api/liff/:clinicId — トリミング区分選択後の追加ステップ
 **Date Created**: 2026-04-16

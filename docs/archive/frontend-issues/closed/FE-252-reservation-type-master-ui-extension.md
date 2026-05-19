@@ -1,6 +1,6 @@
 # FE-252: 予約区分マスタ編集画面に「予約不可時間」タブ & 「対応職種」セクション追加
 
-**Status**: Open
+**Status**: Closed（2026-05-19 実装済み確認）
 **Priority**: High
 **Affects**: features/master — 予約区分設定画面
 **Date Created**: 2026-04-16

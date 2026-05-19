@@ -9,7 +9,7 @@
 - **[architecture.md](./architecture.md)**: システム全体図、認証フロー、時間枠計算エンジン、API エンドポイント一覧。
 - **[reservation-spec.md](./reservation-spec.md)**: 詳細な機能要件、画面遷移フロー、UI 仕様、DB 統合スキーマ。
 - **[setup.md](./setup.md)**: LINE 公式アカウント、Messaging API、LIFF ID の取得および設定手順。
-- **[lstep-integration.md](./lstep-integration.md)**: Lステップ連携の実装仕様ドキュメント（2026-04-30 更新）。クリニックスコープ、タグ体系、14種配信トリガー、受付入力項目フェーズ1〜3を記載。未確定事項は SPEC-002 に集約。
+- **[lstep-integration.md](./lstep-integration.md)**: Lステップ連携の実装仕様ドキュメント（2026-04-30 更新）。クリニックスコープ、タグ体系、14種配信トリガー、受付入力項目フェーズ1〜3を記載。SPEC-002 全問確定済（2026-05-13）。
 - **[lstep_karte_spec.original.txt](./lstep_karte_spec.original.txt)**: クライアント原文の抽出テキスト。元要件書の読み込み用。
 - **[`01_曽我さん向け_カルテLステップ連携実装仕様書.md`](../../01_曽我さん向け_カルテLステップ連携実装仕様書.md)**: 2026-04-30 受領の最新仕様書。`lstep-integration.md` の正本ソース。
 

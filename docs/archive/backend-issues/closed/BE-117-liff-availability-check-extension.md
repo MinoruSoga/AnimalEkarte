@@ -1,6 +1,6 @@
 # BE-117: LIFF 予約可否チェックに不可時間 & 職種ガードを組み込む
 
-**Status**: Open
+**Status**: Closed（2026-05-19 実装済み確認）
 **Priority**: High
 **Affects**: LINE予約 日付・時間選択
 **Date Created**: 2026-04-16

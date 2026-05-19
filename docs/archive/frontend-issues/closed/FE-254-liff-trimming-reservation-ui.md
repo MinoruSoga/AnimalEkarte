@@ -1,6 +1,6 @@
 # FE-254: LIFF トリミング予約UI拡張 — コース・オプション選択ステップ追加
 
-**Status**: Open
+**Status**: Closed（2026-05-19 実装済み確認）
 **Priority**: Medium
 **Affects**: frontend/line-reserve/src/
 **Date Created**: 2026-04-16
