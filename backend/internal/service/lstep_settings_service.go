@@ -50,6 +50,9 @@ type LstepSettingsResponse struct {
 	CPMV1GrowingMinVisits int   `json:"cpm_v1_growing_min_visits"`
 	CPMV1GrowingMaxVisits int   `json:"cpm_v1_growing_max_visits"`
 	CPMV1LTVBreakLow      int64 `json:"cpm_v1_ltv_break_low"`
+	// P9 健診・予防タグ判定閾値
+	HealthPreventionLookbackDays int `json:"health_prevention_lookback_days"`
+	VaccineDeadlineDays          int `json:"vaccine_deadline_days"`
 }
 
 // UpdateLstepSettingsInput はPATCHリクエスト用（空文字=変更なし）
@@ -88,6 +91,9 @@ type UpdateLstepSettingsInput struct {
 	CPMV1GrowingMinVisits *int
 	CPMV1GrowingMaxVisits *int
 	CPMV1LTVBreakLow      *int64
+	// HealthPreventionLookbackDays / VaccineDeadlineDays が nil の場合は変更なし。有効値は 1 以上。
+	HealthPreventionLookbackDays *int
+	VaccineDeadlineDays          *int
 }
 
 // LstepConnectionTestResult は疎通確認結果
@@ -233,6 +239,12 @@ func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64)
 		resp.CPMV1GrowingMinVisits = v1t.GrowingMinVisits
 		resp.CPMV1GrowingMaxVisits = v1t.GrowingMaxVisits
 		resp.CPMV1LTVBreakLow = v1t.LTVBreakLow
+		hpt := model.HealthPreventionThresholds{
+			LookbackDays:    cs.HealthPreventionLookbackDays,
+			VaccineDeadline: cs.VaccineDeadlineDays,
+		}.WithDefaults()
+		resp.HealthPreventionLookbackDays = hpt.LookbackDays
+		resp.VaccineDeadlineDays = hpt.VaccineDeadline
 	}
 
 	return resp, nil
@@ -506,6 +518,35 @@ func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint
 		if err := s.clinicSettingsRepo.UpdateCPMV1Thresholds(ctx, clinicID, v1t); err != nil {
 			slog.ErrorContext(ctx, "failed to update cpm v1 thresholds", "error", err, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to update cpm v1 thresholds")
+		}
+	}
+
+	if s.clinicSettingsRepo != nil &&
+		(input.HealthPreventionLookbackDays != nil || input.VaccineDeadlineDays != nil) {
+		current, csErr := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
+		if csErr != nil {
+			slog.ErrorContext(ctx, "failed to read clinic settings for health prevention merge", "error", csErr, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(csErr, "failed to find clinic settings")
+		}
+		hpt := model.HealthPreventionThresholds{
+			LookbackDays:    current.HealthPreventionLookbackDays,
+			VaccineDeadline: current.VaccineDeadlineDays,
+		}.WithDefaults()
+		if input.HealthPreventionLookbackDays != nil {
+			if *input.HealthPreventionLookbackDays < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("health_prevention_lookback_days must be >= 1, got %d", *input.HealthPreventionLookbackDays))
+			}
+			hpt.LookbackDays = *input.HealthPreventionLookbackDays
+		}
+		if input.VaccineDeadlineDays != nil {
+			if *input.VaccineDeadlineDays < 1 {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("vaccine_deadline_days must be >= 1, got %d", *input.VaccineDeadlineDays))
+			}
+			hpt.VaccineDeadline = *input.VaccineDeadlineDays
+		}
+		if err := s.clinicSettingsRepo.UpdateHealthPreventionThresholds(ctx, clinicID, hpt); err != nil {
+			slog.ErrorContext(ctx, "failed to update health prevention thresholds", "error", err, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(err, "failed to update health prevention thresholds")
 		}
 	}
 

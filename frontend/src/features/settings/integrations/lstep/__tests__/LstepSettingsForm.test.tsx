@@ -43,6 +43,8 @@ const configuredSyncOn: LstepSettingsResponse = {
   cpm_v1_growing_min_visits: 2,
   cpm_v1_growing_max_visits: 3,
   cpm_v1_ltv_break_low: 20000,
+  health_prevention_lookback_days: 365,
+  vaccine_deadline_days: 60,
 };
 
 const configuredSyncOff: LstepSettingsResponse = {
@@ -84,6 +86,8 @@ const unconfigured: LstepSettingsResponse = {
   cpm_v1_growing_min_visits: 2,
   cpm_v1_growing_max_visits: 3,
   cpm_v1_ltv_break_low: 20000,
+  health_prevention_lookback_days: 180,
+  vaccine_deadline_days: 30,
 };
 
 function setupGetHandler(data: LstepSettingsResponse) {
@@ -527,5 +531,59 @@ describe('LstepSettingsForm — H: CPM V1 判定閾値', () => {
       expect(capturedBody).not.toBeNull();
     });
     expect(capturedBody?.cpm_v1_noah_ltv).toBe(100000);
+  });
+});
+
+describe('LstepSettingsForm — I: 健診・予防タグ判定閾値', () => {
+  it('各閾値 input の defaultValue がサーバー値で表示される', async () => {
+    await renderAndWait({
+      ...configuredSyncOn,
+      health_prevention_lookback_days: 365,
+      vaccine_deadline_days: 60,
+    });
+    expect((screen.getByLabelText('健診・来院履歴ルックバック日数') as HTMLInputElement).value).toBe('365');
+    expect((screen.getByLabelText('ワクチン期限日数') as HTMLInputElement).value).toBe('60');
+  });
+
+  it('保存すると PATCH body に health_prevention_lookback_days が数値で含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(configuredSyncOn);
+      })
+    );
+
+    await renderAndWait({ ...configuredSyncOn, health_prevention_lookback_days: 365, vaccine_deadline_days: 60 });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.health_prevention_lookback_days).toBe(365);
+    expect(capturedBody?.vaccine_deadline_days).toBe(60);
+  });
+
+  it('閾値を変更して保存すると PATCH body に変更後の値が含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(configuredSyncOn);
+      })
+    );
+
+    await renderAndWait({ ...configuredSyncOn, health_prevention_lookback_days: 365, vaccine_deadline_days: 60 });
+    const user = userEvent.setup();
+    const lookbackInput = screen.getByLabelText('健診・来院履歴ルックバック日数');
+    await user.clear(lookbackInput);
+    await user.type(lookbackInput, '180');
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.health_prevention_lookback_days).toBe(180);
   });
 });

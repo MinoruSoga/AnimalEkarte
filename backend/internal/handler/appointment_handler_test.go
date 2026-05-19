@@ -490,8 +490,8 @@ func TestDeleteReservation(t *testing.T) {
 			name:    "returns 404 when not found",
 			paramID: "999",
 			svc: &mockReservationService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
-					return nil, apperrors.WrapNotFound("reservation", "999")
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("reservation", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,

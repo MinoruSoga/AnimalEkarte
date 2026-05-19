@@ -43,6 +43,9 @@ export interface LstepSettingsResponse {
   cpm_v1_growing_min_visits: number;
   cpm_v1_growing_max_visits: number;
   cpm_v1_ltv_break_low: number;
+  // 健診・予防タグ判定閾値
+  health_prevention_lookback_days: number;
+  vaccine_deadline_days: number;
 }
 
 export interface LstepSettingsRequest {
@@ -75,6 +78,8 @@ export interface LstepSettingsRequest {
   cpm_v1_growing_min_visits?: number;
   cpm_v1_growing_max_visits?: number;
   cpm_v1_ltv_break_low?: number;
+  health_prevention_lookback_days?: number;
+  vaccine_deadline_days?: number;
 }
 
 // ─────────────────────────────────────────────────

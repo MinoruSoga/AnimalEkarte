@@ -217,6 +217,17 @@ export function LstepSettingsForm() {
         if (!isNaN(v) && v >= 1) req.dormant_prevention_365_days = v;
       }
 
+      const hpLookback = formData.get("health_prevention_lookback_days");
+      if (typeof hpLookback === "string" && hpLookback !== "") {
+        const v = parseInt(hpLookback, 10);
+        if (!isNaN(v) && v >= 1) req.health_prevention_lookback_days = v;
+      }
+      const vaccineDeadline = formData.get("vaccine_deadline_days");
+      if (typeof vaccineDeadline === "string" && vaccineDeadline !== "") {
+        const v = parseInt(vaccineDeadline, 10);
+        if (!isNaN(v) && v >= 1) req.vaccine_deadline_days = v;
+      }
+
       const cpmV2Coming = formData.get("cpm_v2_coming_threshold");
       if (typeof cpmV2Coming === "string" && cpmV2Coming !== "") {
         const v = parseInt(cpmV2Coming, 10);
@@ -591,6 +602,20 @@ export function LstepSettingsForm() {
           name="dormant_prevention_365_days"
           label="休眠予防閾値 (365日)"
           defaultValue={settings?.dormant_prevention_365_days ?? 365}
+        />
+
+        {/* 健診・予防タグ判定閾値 */}
+        <NumberInputField
+          id="health_prevention_lookback_days"
+          name="health_prevention_lookback_days"
+          label="健診・来院履歴ルックバック日数"
+          defaultValue={settings?.health_prevention_lookback_days ?? 365}
+        />
+        <NumberInputField
+          id="vaccine_deadline_days"
+          name="vaccine_deadline_days"
+          label="ワクチン期限日数"
+          defaultValue={settings?.vaccine_deadline_days ?? 60}
         />
 
         {/* 同期 ON/OFF トグル */}

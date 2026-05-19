@@ -41,6 +41,9 @@ type lstepSettingsResponse struct {
 	CPMV1GrowingMinVisits int   `json:"cpm_v1_growing_min_visits"`
 	CPMV1GrowingMaxVisits int   `json:"cpm_v1_growing_max_visits"`
 	CPMV1LTVBreakLow      int64 `json:"cpm_v1_ltv_break_low"`
+	// 健診・予防タグ判定閾値
+	HealthPreventionLookbackDays int `json:"health_prevention_lookback_days"`
+	VaccineDeadlineDays          int `json:"vaccine_deadline_days"`
 }
 
 // lstepConnectionTestResponse は疎通確認結果レスポンス
@@ -85,6 +88,8 @@ func toLstepSettingsResponse(s *service.LstepSettingsResponse) lstepSettingsResp
 		CPMV1GrowingMinVisits:        s.CPMV1GrowingMinVisits,
 		CPMV1GrowingMaxVisits:        s.CPMV1GrowingMaxVisits,
 		CPMV1LTVBreakLow:             s.CPMV1LTVBreakLow,
+		HealthPreventionLookbackDays: s.HealthPreventionLookbackDays,
+		VaccineDeadlineDays:          s.VaccineDeadlineDays,
 	}
 }
 

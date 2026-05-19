@@ -525,6 +525,67 @@ func TestPatchLstepSettingsPassesCPMV1Thresholds(t *testing.T) {
 	assert.Equal(t, float64(90000), resp["cpm_v1_noah_ltv"])
 }
 
+func TestGetLstepSettingsIncludesHealthPreventionFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &mockLstepSettingsService{
+		getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
+			return &service.LstepSettingsResponse{
+				HealthPreventionLookbackDays: 365,
+				VaccineDeadlineDays:          60,
+			}, nil
+		},
+	}
+
+	router := newGetLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodGet, "/lstep-settings", http.NoBody)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, float64(365), body["health_prevention_lookback_days"])
+	assert.Equal(t, float64(60), body["vaccine_deadline_days"])
+}
+
+func TestPatchLstepSettingsPassesHealthPreventionThresholds(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var gotLookback *int
+	var gotVaccine *int
+	svc := &mockLstepSettingsService{
+		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+			gotLookback = input.HealthPreventionLookbackDays
+			gotVaccine = input.VaccineDeadlineDays
+			return &service.LstepSettingsResponse{
+				HealthPreventionLookbackDays: 180,
+				VaccineDeadlineDays:          30,
+			}, nil
+		},
+	}
+
+	body, _ := json.Marshal(map[string]any{
+		"health_prevention_lookback_days": 180,
+		"vaccine_deadline_days":           30,
+	})
+	router := newPatchLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodPatch, "/lstep-settings", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	if assert.NotNil(t, gotLookback) {
+		assert.Equal(t, 180, *gotLookback)
+	}
+	if assert.NotNil(t, gotVaccine) {
+		assert.Equal(t, 30, *gotVaccine)
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.Equal(t, float64(180), resp["health_prevention_lookback_days"])
+	assert.Equal(t, float64(30), resp["vaccine_deadline_days"])
+}
+
 func TestGetLstepSettingsIncludesCPMV1Fields(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	svc := &mockLstepSettingsService{
