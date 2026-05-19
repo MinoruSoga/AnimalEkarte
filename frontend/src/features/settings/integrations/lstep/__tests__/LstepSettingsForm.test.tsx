@@ -30,6 +30,19 @@ const configuredSyncOn: LstepSettingsResponse = {
   cpm_v2_good_threshold: 4,
   cpm_v2_family_threshold: 8,
   cpm_v2_noah_threshold: 13,
+  cpm_v1_dormant_days: 240,
+  cpm_v1_noah_days: 365,
+  cpm_v1_noah_annual_visits: 3,
+  cpm_v1_noah_ltv: 80000,
+  cpm_v1_core_days: 180,
+  cpm_v1_core_annual_visits: 2,
+  cpm_v1_core_ltv: 50000,
+  cpm_v1_spot_min_amount: 30000,
+  cpm_v1_spot_inactive_days: 90,
+  cpm_v1_growing_max_days: 90,
+  cpm_v1_growing_min_visits: 2,
+  cpm_v1_growing_max_visits: 3,
+  cpm_v1_ltv_break_low: 20000,
 };
 
 const configuredSyncOff: LstepSettingsResponse = {
@@ -58,6 +71,19 @@ const unconfigured: LstepSettingsResponse = {
   cpm_v2_good_threshold: 4,
   cpm_v2_family_threshold: 8,
   cpm_v2_noah_threshold: 13,
+  cpm_v1_dormant_days: 240,
+  cpm_v1_noah_days: 365,
+  cpm_v1_noah_annual_visits: 3,
+  cpm_v1_noah_ltv: 80000,
+  cpm_v1_core_days: 180,
+  cpm_v1_core_annual_visits: 2,
+  cpm_v1_core_ltv: 50000,
+  cpm_v1_spot_min_amount: 30000,
+  cpm_v1_spot_inactive_days: 90,
+  cpm_v1_growing_max_days: 90,
+  cpm_v1_growing_min_visits: 2,
+  cpm_v1_growing_max_visits: 3,
+  cpm_v1_ltv_break_low: 20000,
 };
 
 function setupGetHandler(data: LstepSettingsResponse) {
@@ -438,5 +464,68 @@ describe('LstepSettingsForm — G: CPM V2 来院数閾値', () => {
       expect(capturedBody).not.toBeNull();
     });
     expect(capturedBody?.cpm_v2_noah_threshold).toBe(20);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// H: CPM V1 判定閾値 (8ca5181b)
+// ─────────────────────────────────────────────────────────────
+
+describe('LstepSettingsForm — H: CPM V1 判定閾値', () => {
+  it('各閾値 input の defaultValue がサーバー値で表示される', async () => {
+    await renderAndWait({
+      ...configuredSyncOn,
+      cpm_v1_dormant_days: 240,
+      cpm_v1_noah_ltv: 80000,
+      cpm_v1_core_days: 180,
+      cpm_v1_spot_min_amount: 30000,
+      cpm_v1_growing_max_days: 90,
+    });
+    expect((screen.getByLabelText('CPM V1 休眠判定 (日数)') as HTMLInputElement).value).toBe('240');
+    expect((screen.getByLabelText('CPM V1 NOAH LTV (円)') as HTMLInputElement).value).toBe('80000');
+    expect((screen.getByLabelText('CPM V1 コア 在籍日数') as HTMLInputElement).value).toBe('180');
+    expect((screen.getByLabelText('CPM V1 スポット 単回最大金額 (円)') as HTMLInputElement).value).toBe('30000');
+    expect((screen.getByLabelText('CPM V1 グローイング 在籍最大日数') as HTMLInputElement).value).toBe('90');
+  });
+
+  it('保存すると PATCH body に cpm_v1_dormant_days が数値で含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(configuredSyncOn);
+      })
+    );
+
+    await renderAndWait({ ...configuredSyncOn, cpm_v1_dormant_days: 240 });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.cpm_v1_dormant_days).toBe(240);
+  });
+
+  it('閾値を変更して保存すると PATCH body に変更後の値が含まれる', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(configuredSyncOn);
+      })
+    );
+
+    await renderAndWait({ ...configuredSyncOn, cpm_v1_noah_ltv: 80000 });
+    const user = userEvent.setup();
+    const noahLtvInput = screen.getByLabelText('CPM V1 NOAH LTV (円)');
+    await user.clear(noahLtvInput);
+    await user.type(noahLtvInput, '100000');
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody?.cpm_v1_noah_ltv).toBe(100000);
   });
 });

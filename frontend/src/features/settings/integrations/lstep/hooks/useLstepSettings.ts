@@ -29,6 +29,20 @@ export interface LstepSettingsResponse {
   cpm_v2_good_threshold: number;
   cpm_v2_family_threshold: number;
   cpm_v2_noah_threshold: number;
+  // CPM V1 判定閾値 (8ca5181b)
+  cpm_v1_dormant_days: number;
+  cpm_v1_noah_days: number;
+  cpm_v1_noah_annual_visits: number;
+  cpm_v1_noah_ltv: number;
+  cpm_v1_core_days: number;
+  cpm_v1_core_annual_visits: number;
+  cpm_v1_core_ltv: number;
+  cpm_v1_spot_min_amount: number;
+  cpm_v1_spot_inactive_days: number;
+  cpm_v1_growing_max_days: number;
+  cpm_v1_growing_min_visits: number;
+  cpm_v1_growing_max_visits: number;
+  cpm_v1_ltv_break_low: number;
 }
 
 export interface LstepSettingsRequest {
@@ -48,6 +62,19 @@ export interface LstepSettingsRequest {
   cpm_v2_good_threshold?: number;
   cpm_v2_family_threshold?: number;
   cpm_v2_noah_threshold?: number;
+  cpm_v1_dormant_days?: number;
+  cpm_v1_noah_days?: number;
+  cpm_v1_noah_annual_visits?: number;
+  cpm_v1_noah_ltv?: number;
+  cpm_v1_core_days?: number;
+  cpm_v1_core_annual_visits?: number;
+  cpm_v1_core_ltv?: number;
+  cpm_v1_spot_min_amount?: number;
+  cpm_v1_spot_inactive_days?: number;
+  cpm_v1_growing_max_days?: number;
+  cpm_v1_growing_min_visits?: number;
+  cpm_v1_growing_max_visits?: number;
+  cpm_v1_ltv_break_low?: number;
 }
 
 // ─────────────────────────────────────────────────

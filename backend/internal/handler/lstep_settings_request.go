@@ -18,4 +18,18 @@ type updateLstepSettingsRequest struct {
 	CPMV2GoodThreshold       *int    `json:"cpm_v2_good_threshold"`
 	CPMV2FamilyThreshold     *int    `json:"cpm_v2_family_threshold"`
 	CPMV2NoahThreshold       *int    `json:"cpm_v2_noah_threshold"`
+	// CPM V1 判定閾値。nil = 変更なし。
+	CPMV1DormantDays      *int   `json:"cpm_v1_dormant_days"`
+	CPMV1NoahDays         *int   `json:"cpm_v1_noah_days"`
+	CPMV1NoahAnnualVisits *int   `json:"cpm_v1_noah_annual_visits"`
+	CPMV1NoahLTV          *int64 `json:"cpm_v1_noah_ltv"`
+	CPMV1CoreDays         *int   `json:"cpm_v1_core_days"`
+	CPMV1CoreAnnualVisits *int   `json:"cpm_v1_core_annual_visits"`
+	CPMV1CoreLTV          *int64 `json:"cpm_v1_core_ltv"`
+	CPMV1SpotMinAmount    *int64 `json:"cpm_v1_spot_min_amount"`
+	CPMV1SpotInactiveDays *int   `json:"cpm_v1_spot_inactive_days"`
+	CPMV1GrowingMaxDays   *int   `json:"cpm_v1_growing_max_days"`
+	CPMV1GrowingMinVisits *int   `json:"cpm_v1_growing_min_visits"`
+	CPMV1GrowingMaxVisits *int   `json:"cpm_v1_growing_max_visits"`
+	CPMV1LTVBreakLow      *int64 `json:"cpm_v1_ltv_break_low"`
 }

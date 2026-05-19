@@ -58,6 +58,19 @@ func (h *Handler) UpdateLstepSettings(c *gin.Context) {
 		CPMV2GoodThreshold:       req.CPMV2GoodThreshold,
 		CPMV2FamilyThreshold:     req.CPMV2FamilyThreshold,
 		CPMV2NoahThreshold:       req.CPMV2NoahThreshold,
+		CPMV1DormantDays:         req.CPMV1DormantDays,
+		CPMV1NoahDays:            req.CPMV1NoahDays,
+		CPMV1NoahAnnualVisits:    req.CPMV1NoahAnnualVisits,
+		CPMV1NoahLTV:             req.CPMV1NoahLTV,
+		CPMV1CoreDays:            req.CPMV1CoreDays,
+		CPMV1CoreAnnualVisits:    req.CPMV1CoreAnnualVisits,
+		CPMV1CoreLTV:             req.CPMV1CoreLTV,
+		CPMV1SpotMinAmount:       req.CPMV1SpotMinAmount,
+		CPMV1SpotInactiveDays:    req.CPMV1SpotInactiveDays,
+		CPMV1GrowingMaxDays:      req.CPMV1GrowingMaxDays,
+		CPMV1GrowingMinVisits:    req.CPMV1GrowingMinVisits,
+		CPMV1GrowingMaxVisits:    req.CPMV1GrowingMaxVisits,
+		CPMV1LTVBreakLow:         req.CPMV1LTVBreakLow,
 	}, actorID)
 	if err != nil {
 		RespondError(c, err)

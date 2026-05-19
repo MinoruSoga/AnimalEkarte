@@ -237,6 +237,71 @@ export function LstepSettingsForm() {
         const v = parseInt(cpmV2Noah, 10);
         if (!isNaN(v) && v >= 1) req.cpm_v2_noah_threshold = v;
       }
+      const cpmV1Dormant = formData.get("cpm_v1_dormant_days");
+      if (typeof cpmV1Dormant === "string" && cpmV1Dormant !== "") {
+        const v = parseInt(cpmV1Dormant, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_dormant_days = v;
+      }
+      const cpmV1NoahDays = formData.get("cpm_v1_noah_days");
+      if (typeof cpmV1NoahDays === "string" && cpmV1NoahDays !== "") {
+        const v = parseInt(cpmV1NoahDays, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_noah_days = v;
+      }
+      const cpmV1NoahVisits = formData.get("cpm_v1_noah_annual_visits");
+      if (typeof cpmV1NoahVisits === "string" && cpmV1NoahVisits !== "") {
+        const v = parseInt(cpmV1NoahVisits, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_noah_annual_visits = v;
+      }
+      const cpmV1NoahLtv = formData.get("cpm_v1_noah_ltv");
+      if (typeof cpmV1NoahLtv === "string" && cpmV1NoahLtv !== "") {
+        const v = parseInt(cpmV1NoahLtv, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_noah_ltv = v;
+      }
+      const cpmV1CoreDays = formData.get("cpm_v1_core_days");
+      if (typeof cpmV1CoreDays === "string" && cpmV1CoreDays !== "") {
+        const v = parseInt(cpmV1CoreDays, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_core_days = v;
+      }
+      const cpmV1CoreVisits = formData.get("cpm_v1_core_annual_visits");
+      if (typeof cpmV1CoreVisits === "string" && cpmV1CoreVisits !== "") {
+        const v = parseInt(cpmV1CoreVisits, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_core_annual_visits = v;
+      }
+      const cpmV1CoreLtv = formData.get("cpm_v1_core_ltv");
+      if (typeof cpmV1CoreLtv === "string" && cpmV1CoreLtv !== "") {
+        const v = parseInt(cpmV1CoreLtv, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_core_ltv = v;
+      }
+      const cpmV1SpotAmount = formData.get("cpm_v1_spot_min_amount");
+      if (typeof cpmV1SpotAmount === "string" && cpmV1SpotAmount !== "") {
+        const v = parseInt(cpmV1SpotAmount, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_spot_min_amount = v;
+      }
+      const cpmV1SpotDays = formData.get("cpm_v1_spot_inactive_days");
+      if (typeof cpmV1SpotDays === "string" && cpmV1SpotDays !== "") {
+        const v = parseInt(cpmV1SpotDays, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_spot_inactive_days = v;
+      }
+      const cpmV1GrowingDays = formData.get("cpm_v1_growing_max_days");
+      if (typeof cpmV1GrowingDays === "string" && cpmV1GrowingDays !== "") {
+        const v = parseInt(cpmV1GrowingDays, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_growing_max_days = v;
+      }
+      const cpmV1GrowingMin = formData.get("cpm_v1_growing_min_visits");
+      if (typeof cpmV1GrowingMin === "string" && cpmV1GrowingMin !== "") {
+        const v = parseInt(cpmV1GrowingMin, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_growing_min_visits = v;
+      }
+      const cpmV1GrowingMax = formData.get("cpm_v1_growing_max_visits");
+      if (typeof cpmV1GrowingMax === "string" && cpmV1GrowingMax !== "") {
+        const v = parseInt(cpmV1GrowingMax, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_growing_max_visits = v;
+      }
+      const cpmV1LtvBreak = formData.get("cpm_v1_ltv_break_low");
+      if (typeof cpmV1LtvBreak === "string" && cpmV1LtvBreak !== "") {
+        const v = parseInt(cpmV1LtvBreak, 10);
+        if (!isNaN(v) && v >= 1) req.cpm_v1_ltv_break_low = v;
+      }
 
       // 同期ON/OFFは常に送信（boolean は空欄という概念がないため）
       req.is_sync_enabled = isSyncEnabled;
@@ -421,6 +486,86 @@ export function LstepSettingsForm() {
           name="cpm_v2_noah_threshold"
           label="CPM V2 来院数閾値 (NOAH)"
           defaultValue={settings?.cpm_v2_noah_threshold ?? 13}
+        />
+
+        {/* CPM V1 判定閾値 */}
+        <NumberInputField
+          id="cpm_v1_dormant_days"
+          name="cpm_v1_dormant_days"
+          label="CPM V1 休眠判定 (日数)"
+          defaultValue={settings?.cpm_v1_dormant_days ?? 240}
+        />
+        <NumberInputField
+          id="cpm_v1_noah_days"
+          name="cpm_v1_noah_days"
+          label="CPM V1 NOAH 在籍日数"
+          defaultValue={settings?.cpm_v1_noah_days ?? 365}
+        />
+        <NumberInputField
+          id="cpm_v1_noah_annual_visits"
+          name="cpm_v1_noah_annual_visits"
+          label="CPM V1 NOAH 年間来院回数"
+          defaultValue={settings?.cpm_v1_noah_annual_visits ?? 3}
+        />
+        <NumberInputField
+          id="cpm_v1_noah_ltv"
+          name="cpm_v1_noah_ltv"
+          label="CPM V1 NOAH LTV (円)"
+          defaultValue={settings?.cpm_v1_noah_ltv ?? 80000}
+        />
+        <NumberInputField
+          id="cpm_v1_core_days"
+          name="cpm_v1_core_days"
+          label="CPM V1 コア 在籍日数"
+          defaultValue={settings?.cpm_v1_core_days ?? 180}
+        />
+        <NumberInputField
+          id="cpm_v1_core_annual_visits"
+          name="cpm_v1_core_annual_visits"
+          label="CPM V1 コア 年間来院回数"
+          defaultValue={settings?.cpm_v1_core_annual_visits ?? 2}
+        />
+        <NumberInputField
+          id="cpm_v1_core_ltv"
+          name="cpm_v1_core_ltv"
+          label="CPM V1 コア LTV (円)"
+          defaultValue={settings?.cpm_v1_core_ltv ?? 50000}
+        />
+        <NumberInputField
+          id="cpm_v1_spot_min_amount"
+          name="cpm_v1_spot_min_amount"
+          label="CPM V1 スポット 単回最大金額 (円)"
+          defaultValue={settings?.cpm_v1_spot_min_amount ?? 30000}
+        />
+        <NumberInputField
+          id="cpm_v1_spot_inactive_days"
+          name="cpm_v1_spot_inactive_days"
+          label="CPM V1 スポット 来院停止日数"
+          defaultValue={settings?.cpm_v1_spot_inactive_days ?? 90}
+        />
+        <NumberInputField
+          id="cpm_v1_growing_max_days"
+          name="cpm_v1_growing_max_days"
+          label="CPM V1 グローイング 在籍最大日数"
+          defaultValue={settings?.cpm_v1_growing_max_days ?? 90}
+        />
+        <NumberInputField
+          id="cpm_v1_growing_min_visits"
+          name="cpm_v1_growing_min_visits"
+          label="CPM V1 グローイング 来院回数 (下限)"
+          defaultValue={settings?.cpm_v1_growing_min_visits ?? 2}
+        />
+        <NumberInputField
+          id="cpm_v1_growing_max_visits"
+          name="cpm_v1_growing_max_visits"
+          label="CPM V1 グローイング 来院回数 (上限)"
+          defaultValue={settings?.cpm_v1_growing_max_visits ?? 3}
+        />
+        <NumberInputField
+          id="cpm_v1_ltv_break_low"
+          name="cpm_v1_ltv_break_low"
+          label="CPM V1 LTV 下限境界 (円)"
+          defaultValue={settings?.cpm_v1_ltv_break_low ?? 20000}
         />
 
         <NumberInputField

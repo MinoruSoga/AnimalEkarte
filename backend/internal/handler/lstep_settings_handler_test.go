@@ -65,6 +65,12 @@ func (m *mockLstepSettingsService) GetDormantThresholds(_ context.Context, _ uin
 func (m *mockLstepSettingsService) GetCPMV2Thresholds(_ context.Context, _ uint64) (model.CPMV2Thresholds, error) {
 	return model.CPMV2Thresholds{}.WithDefaults(), nil
 }
+func (m *mockLstepSettingsService) GetCPMV1Thresholds(_ context.Context, _ uint64) (model.CPMV1Thresholds, error) {
+	return model.CPMV1Thresholds{}.WithDefaults(), nil
+}
+func (m *mockLstepSettingsService) GetHealthPreventionThresholds(_ context.Context, _ uint64) (model.HealthPreventionThresholds, error) {
+	return model.HealthPreventionThresholds{}.WithDefaults(), nil
+}
 
 // ---- helpers ----
 
@@ -479,4 +485,87 @@ func TestPostLstepTestConnection(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+func TestPatchLstepSettingsPassesCPMV1Thresholds(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var gotDormant *int
+	var gotNoahLTV *int64
+	svc := &mockLstepSettingsService{
+		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+			gotDormant = input.CPMV1DormantDays
+			gotNoahLTV = input.CPMV1NoahLTV
+			return &service.LstepSettingsResponse{
+				CPMV1DormantDays: 300,
+				CPMV1NoahLTV:     90000,
+			}, nil
+		},
+	}
+
+	body, _ := json.Marshal(map[string]any{
+		"cpm_v1_dormant_days": 300,
+		"cpm_v1_noah_ltv":     90000,
+	})
+	router := newPatchLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodPatch, "/lstep-settings", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	if assert.NotNil(t, gotDormant) {
+		assert.Equal(t, 300, *gotDormant)
+	}
+	if assert.NotNil(t, gotNoahLTV) {
+		assert.Equal(t, int64(90000), *gotNoahLTV)
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.Equal(t, float64(300), resp["cpm_v1_dormant_days"])
+	assert.Equal(t, float64(90000), resp["cpm_v1_noah_ltv"])
+}
+
+func TestGetLstepSettingsIncludesCPMV1Fields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &mockLstepSettingsService{
+		getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
+			return &service.LstepSettingsResponse{
+				CPMV1DormantDays:      240,
+				CPMV1NoahDays:         365,
+				CPMV1NoahAnnualVisits: 3,
+				CPMV1NoahLTV:          80000,
+				CPMV1CoreDays:         180,
+				CPMV1CoreAnnualVisits: 2,
+				CPMV1CoreLTV:          50000,
+				CPMV1SpotMinAmount:    30000,
+				CPMV1SpotInactiveDays: 90,
+				CPMV1GrowingMaxDays:   90,
+				CPMV1GrowingMinVisits: 2,
+				CPMV1GrowingMaxVisits: 3,
+				CPMV1LTVBreakLow:      20000,
+			}, nil
+		},
+	}
+
+	router := newGetLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodGet, "/lstep-settings", http.NoBody)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, float64(240), body["cpm_v1_dormant_days"])
+	assert.Equal(t, float64(365), body["cpm_v1_noah_days"])
+	assert.Equal(t, float64(3), body["cpm_v1_noah_annual_visits"])
+	assert.Equal(t, float64(80000), body["cpm_v1_noah_ltv"])
+	assert.Equal(t, float64(180), body["cpm_v1_core_days"])
+	assert.Equal(t, float64(2), body["cpm_v1_core_annual_visits"])
+	assert.Equal(t, float64(50000), body["cpm_v1_core_ltv"])
+	assert.Equal(t, float64(30000), body["cpm_v1_spot_min_amount"])
+	assert.Equal(t, float64(90), body["cpm_v1_spot_inactive_days"])
+	assert.Equal(t, float64(90), body["cpm_v1_growing_max_days"])
+	assert.Equal(t, float64(2), body["cpm_v1_growing_min_visits"])
+	assert.Equal(t, float64(3), body["cpm_v1_growing_max_visits"])
+	assert.Equal(t, float64(20000), body["cpm_v1_ltv_break_low"])
 }
