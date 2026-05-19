@@ -507,7 +507,6 @@ export interface ClinicSettings {
   closing_weekday_end: string;
   closing_sunday_end: string;
   closed_weekdays: any /* pq.Int64Array */;
-  lstep_fire_hour_jst: number /* int */;
   cpm_version: string;
   /**
    * Q21 SPEC-004 dormant prevention 閾値 (clinic 単位調整可能)

@@ -1,7 +1,7 @@
 -- =============================================================================
--- Animal Ekarte - 統合スキーマ定義 v21.0 (consolidated)
+-- Animal Ekarte - 統合スキーマ定義 v22.0 (consolidated)
 -- PostgreSQL 18
--- テーブル数: 89 (旧 001–021 を統合)
+-- テーブル数: 92 (旧 001–021 + mig-005〜mig-013 を統合)
 -- 統合内容:
 --   002: マスタシードデータ
 --   003: デモシードデータ
@@ -35,13 +35,16 @@
 --   ext-017: lstep_csv_imports テーブル
 --   ext-018: lstep_friend_attribute_snapshots テーブル
 --   ext-019: permission_group_rules (lstep-csv-import/analytics) シード → 003 へ (group_id FK は 003 生成)
---   ext-020: clinic_settings.lstep_fire_hour_jst カラム
 --   ext-021: medical_record_addenda テーブル
 --   mig-005: clinic_settings.cpm_version カラム
 --   mig-006: clinic_settings.dormant_prevention_* カラム
 --   mig-007: owners.line_id_confirmed_by カラム + インデックス
 --   mig-008: lstep_trigger_priorities テーブル
 --   mig-009: lstep_delivery_trigger_log.suppressed_by_priority / suppression_reason カラム + インデックス
+--   mig-010: lstep_auto_managed_prefixes / lstep_condition_tag_mappings / lstep_send_purpose_tag_prefixes テーブル (旧 006) + seed → 002 へ
+--   mig-011: clinic_settings.cpm_v2_*_threshold カラム (旧 007)
+--   mig-012: clinic_settings.cpm_v1_* カラム (旧 008)
+--   mig-013: clinic_settings.health_prevention_lookback_days / vaccine_deadline_days (旧 009)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -556,6 +559,51 @@ CREATE INDEX idx_lstep_friend_attribute_snapshots_clinic_taken
     ON lstep_friend_attribute_snapshots (clinic_id, snapshot_taken_at DESC);
 
 COMMENT ON TABLE lstep_friend_attribute_snapshots IS 'Lステップ友だちの属性スナップショット（CSVインポート経由、ext-018 統合）';
+
+-- ------------------------------------
+-- 7j. lstep_auto_managed_prefixes（自動管理タグプレフィックス: mig-010 統合）
+-- B / C1 / C2 / C3 カテゴリのプレフィックスをコード固定から DB 管理へ移行
+-- ------------------------------------
+CREATE TABLE lstep_auto_managed_prefixes (
+    id          BIGSERIAL    PRIMARY KEY,
+    prefix      VARCHAR(100) NOT NULL UNIQUE,
+    category    VARCHAR(20)  NOT NULL,
+    description TEXT,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_lstep_auto_managed_prefixes_category ON lstep_auto_managed_prefixes (category);
+
+COMMENT ON TABLE lstep_auto_managed_prefixes IS 'Lステップ自動管理タグプレフィックス (B / C1 / C2 / C3、mig-010 統合)';
+
+-- ------------------------------------
+-- 7k. lstep_condition_tag_mappings（慢性疾患コード→タグ名マッピング: mig-010 統合）
+-- ------------------------------------
+CREATE TABLE lstep_condition_tag_mappings (
+    id             BIGSERIAL    PRIMARY KEY,
+    condition_code VARCHAR(50)  NOT NULL UNIQUE,
+    tag_name       VARCHAR(100) NOT NULL,
+    description    TEXT,
+    created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE lstep_condition_tag_mappings IS '慢性疾患コード→Lステップタグ名マッピング (mig-010 統合)';
+
+-- ------------------------------------
+-- 7l. lstep_send_purpose_tag_prefixes（LINE送信目的→タグプレフィックスマッピング: mig-010 統合）
+-- ------------------------------------
+CREATE TABLE lstep_send_purpose_tag_prefixes (
+    id          BIGSERIAL    PRIMARY KEY,
+    purpose     VARCHAR(100) NOT NULL UNIQUE,
+    tag_prefix  VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE lstep_send_purpose_tag_prefixes IS 'LINE送信目的→Lステップタグプレフィックスマッピング (mig-010 統合)';
 
 -- ------------------------------------
 -- 8. inventory_items（在庫管理）
@@ -1830,8 +1878,28 @@ CREATE TABLE clinic_settings (
     dormant_prevention_210_days integer  NOT NULL DEFAULT 210,
     dormant_prevention_240_days integer  NOT NULL DEFAULT 240,
     dormant_prevention_365_days integer  NOT NULL DEFAULT 365,
-    lstep_fire_hour_jst    INT          NOT NULL DEFAULT 10
-                           CHECK (lstep_fire_hour_jst BETWEEN 0 AND 23),  -- ext-020: Lステップ配信バッチ実行時刻（JST, 0–23）
+    -- mig-011: CPM V2 来院回数閾値 (clinic 単位調整可能)
+    cpm_v2_coming_threshold  INT NOT NULL DEFAULT 2  CHECK (cpm_v2_coming_threshold  >= 1),
+    cpm_v2_good_threshold    INT NOT NULL DEFAULT 4  CHECK (cpm_v2_good_threshold    >= 1),
+    cpm_v2_family_threshold  INT NOT NULL DEFAULT 8  CHECK (cpm_v2_family_threshold  >= 1),
+    cpm_v2_noah_threshold    INT NOT NULL DEFAULT 13 CHECK (cpm_v2_noah_threshold    >= 1),
+    -- mig-012: CPM V1 判定閾値 (clinic 単位調整可能)
+    cpm_v1_dormant_days       INT     NOT NULL DEFAULT 240    CHECK (cpm_v1_dormant_days       >= 1),
+    cpm_v1_noah_days          INT     NOT NULL DEFAULT 365    CHECK (cpm_v1_noah_days          >= 1),
+    cpm_v1_noah_annual_visits INT     NOT NULL DEFAULT 3      CHECK (cpm_v1_noah_annual_visits >= 1),
+    cpm_v1_noah_ltv           BIGINT  NOT NULL DEFAULT 80000  CHECK (cpm_v1_noah_ltv           >= 0),
+    cpm_v1_core_days          INT     NOT NULL DEFAULT 180    CHECK (cpm_v1_core_days          >= 1),
+    cpm_v1_core_annual_visits INT     NOT NULL DEFAULT 2      CHECK (cpm_v1_core_annual_visits >= 1),
+    cpm_v1_core_ltv           BIGINT  NOT NULL DEFAULT 50000  CHECK (cpm_v1_core_ltv           >= 0),
+    cpm_v1_spot_min_amount    BIGINT  NOT NULL DEFAULT 30000  CHECK (cpm_v1_spot_min_amount    >= 0),
+    cpm_v1_spot_inactive_days INT     NOT NULL DEFAULT 90     CHECK (cpm_v1_spot_inactive_days >= 1),
+    cpm_v1_growing_max_days   INT     NOT NULL DEFAULT 90     CHECK (cpm_v1_growing_max_days   >= 1),
+    cpm_v1_growing_min_visits INT     NOT NULL DEFAULT 2      CHECK (cpm_v1_growing_min_visits >= 1),
+    cpm_v1_growing_max_visits INT     NOT NULL DEFAULT 3      CHECK (cpm_v1_growing_max_visits >= 1),
+    cpm_v1_ltv_break_low      BIGINT  NOT NULL DEFAULT 20000  CHECK (cpm_v1_ltv_break_low      >= 0),
+    -- mig-013: 健診・予防タグ判定閾値 (clinic 単位調整可能)
+    health_prevention_lookback_days INT NOT NULL DEFAULT 365,
+    vaccine_deadline_days           INT NOT NULL DEFAULT 60,
     created_at             timestamptz  NOT NULL DEFAULT now(),
     updated_at             timestamptz  NOT NULL DEFAULT now()
 );
@@ -1842,7 +1910,25 @@ COMMENT ON COLUMN clinic_settings.dormant_prevention_180_days IS 'dormant_preven
 COMMENT ON COLUMN clinic_settings.dormant_prevention_210_days IS 'dormant_prevention_2nd 配信トリガー閾値日数 (Q21、デフォルト 210)';
 COMMENT ON COLUMN clinic_settings.dormant_prevention_240_days IS 'dormant_prevention_3rd 配信トリガー閾値日数 (Q21、デフォルト 240)';
 COMMENT ON COLUMN clinic_settings.dormant_prevention_365_days IS 'dormant_prevention_4th 配信トリガー閾値日数 (Q21、デフォルト 365)';
-COMMENT ON COLUMN clinic_settings.lstep_fire_hour_jst IS 'Lステップ自動配信バッチを実行する時刻（JST、0–23）。デフォルト 10 時。';
+COMMENT ON COLUMN clinic_settings.cpm_v2_coming_threshold  IS 'CPM V2 これから ステージ開始来院回数 (デフォルト 2)';
+COMMENT ON COLUMN clinic_settings.cpm_v2_good_threshold    IS 'CPM V2 いいかんじ ステージ開始来院回数 (デフォルト 4)';
+COMMENT ON COLUMN clinic_settings.cpm_v2_family_threshold  IS 'CPM V2 ファミリー ステージ開始来院回数 (デフォルト 8)';
+COMMENT ON COLUMN clinic_settings.cpm_v2_noah_threshold    IS 'CPM V2 ノア ステージ開始来院回数 (デフォルト 13)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_dormant_days       IS 'CPM V1 cpm_dormant: 最終来院からの経過日数 >= この値で dormant 判定 (デフォルト 240)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_noah_days          IS 'CPM V1 cpm_noah: 初来院からの経過日数 >= この値 (デフォルト 365)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_noah_annual_visits IS 'CPM V1 cpm_noah: 年間来院回数 >= この値 (デフォルト 3)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_noah_ltv           IS 'CPM V1 cpm_noah: 累計金額 >= この値 (デフォルト 80000)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_core_days          IS 'CPM V1 cpm_core: 初来院からの経過日数 >= この値 (デフォルト 180)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_core_annual_visits IS 'CPM V1 cpm_core: 年間来院回数 >= この値 (デフォルト 2)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_core_ltv           IS 'CPM V1 cpm_core: 累計金額 >= この値; growing 上限にも兼用 (デフォルト 50000)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_spot_min_amount    IS 'CPM V1 cpm_spot: 単回最大金額 >= この値 (デフォルト 30000)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_spot_inactive_days IS 'CPM V1 cpm_spot: 最終来院からの経過日数 > この値 (デフォルト 90)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_growing_max_days   IS 'CPM V1 cpm_growing: 初来院からの経過日数 <= この値 (デフォルト 90)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_growing_min_visits IS 'CPM V1 cpm_growing: 総来院回数 >= この値 (デフォルト 2)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_growing_max_visits IS 'CPM V1 cpm_growing: 総来院回数 <= この値 (デフォルト 3)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_ltv_break_low      IS 'CPM V1 growing 下限 / encounter 上限境界 (デフォルト 20000)';
+COMMENT ON COLUMN clinic_settings.health_prevention_lookback_days IS '健診・予防履歴の参照期間日数 (mig-013、デフォルト 365)';
+COMMENT ON COLUMN clinic_settings.vaccine_deadline_days           IS 'ワクチン期限間近とみなす残日数 (mig-013、デフォルト 60)';
 
 -- ------------------------------------
 -- 62b. closing_special_periods（特別期間: 年末年始・お盆等）

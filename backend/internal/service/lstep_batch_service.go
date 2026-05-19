@@ -10,7 +10,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-const defaultFireHourJST = 10
+// deliveryTriggerHourJST は仕様 §6.4 で固定された Lステップ自動配信バッチの実行時刻 (10:00 JST)。
+// 設定可能化は意図的に廃止 (configurable fire hour 削除)。
+const deliveryTriggerHourJST = 10
 
 // LstepBatchService はバッチ処理でノーショウ検知・休眠検知を行うサービス（BE-005, BE-014）。
 type LstepBatchService interface {
@@ -332,7 +334,7 @@ func (s *lstepBatchService) RunDeliveryTriggerBatchAllClinics(ctx context.Contex
 
 	for i := range clinics {
 		clinic := &clinics[i]
-		if nowHour != defaultFireHourJST {
+		if nowHour != deliveryTriggerHourJST {
 			continue
 		}
 		if s.settingsSvc != nil {
