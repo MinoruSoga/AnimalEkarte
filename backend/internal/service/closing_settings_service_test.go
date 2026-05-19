@@ -61,6 +61,10 @@ func (m *mockClinicSettingsRepository) UpdateCPMV1Thresholds(ctx context.Context
 	return nil
 }
 
+func (m *mockClinicSettingsRepository) UpdateHealthPreventionThresholds(_ context.Context, _ uint64, _ model.HealthPreventionThresholds) error {
+	return nil
+}
+
 type mockClosingSpecialPeriodRepository struct {
 	findAllFn    func(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
 	findByIDFn   func(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error)
