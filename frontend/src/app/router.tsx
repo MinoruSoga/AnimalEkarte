@@ -6,7 +6,7 @@ import { Layout } from "@/components/shared/Layout/Layout";
 import { RootErrorBoundary, RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
 import { RequirePermission } from "@/components/shared/RequirePermission";
 import { AuthProvider } from "@/features/auth";
-import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceHospitalization, ResourceTrimming, ResourceExaminations, ResourceAccounting, ResourceCashRegisterClose, ResourceAccountingReports, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceEstimates, ResourceShifts, ResourceHospitalSettings, ResourceMasterStaff, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceMasterAnimalSpecies, ResourceLstepAnalytics } from "@/types/generated/models";
+import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceHospitalization, ResourceTrimming, ResourceExaminations, ResourceAccounting, ResourceCashRegisterClose, ResourceAccountingReports, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceEstimates, ResourceShifts, ResourceHospitalSettings, ResourceMasterStaff, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceMasterAnimalSpecies, ResourceLstepAnalytics, ResourceClosingSettings, ResourcePaymentMethod } from "@/types/generated/models";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
 const Login = lazy(() =>
@@ -947,20 +947,31 @@ export const appRoutes: RouteObject[] = [
             }],
           },
           // FEAT-368: 締め時間設定
+          // STG-BLOCKER-002: RequirePermission 追加。Sidebar は ResourceClosingSettings で
+          // フィルタしているが、URL 直叩きで権限なしユーザーが到達できる脆弱性を塞ぐ。
           {
             path: "closing-time",
-            lazy: async () => {
-              const { ClosingSettingsPage } = await import("@/features/closing-settings");
-              return { Component: ClosingSettingsPage };
-            },
+            element: <RequirePermission resource={ResourceClosingSettings}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { ClosingSettingsPage } = await import("@/features/closing-settings");
+                return { Component: ClosingSettingsPage };
+              },
+            }],
           },
           // FEAT-368: 支払方法マスタ
+          // STG-BLOCKER-002: RequirePermission 追加（理由は closing-time と同じ）
           {
             path: "payment-methods",
-            lazy: async () => {
-              const { PaymentMethodSettings } = await import("@/features/master");
-              return { Component: PaymentMethodSettings };
-            },
+            element: <RequirePermission resource={ResourcePaymentMethod}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { PaymentMethodSettings } = await import("@/features/master");
+                return { Component: PaymentMethodSettings };
+              },
+            }],
           },
           // FE-001: Lステップ連携設定
           {
