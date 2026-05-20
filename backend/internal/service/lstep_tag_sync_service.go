@@ -108,6 +108,8 @@ type CPMData struct {
 
 // CalculateCPMStage は純粋関数として CPM ステージを計算する（BE-004）。
 // 仕様: docs/line/lstep-integration.md Section 7.2
+//
+//nolint:gocritic // hugeParam: 純粋関数 API として immutable な値型で受け取る設計
 func CalculateCPMStage(d CPMData) CPMStage {
 	t := d.Thresholds.WithDefaults()
 	// cpm_dormant: 最終来院から DormantDays 日超または来院なし（最優先）

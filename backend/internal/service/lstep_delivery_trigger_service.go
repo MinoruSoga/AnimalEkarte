@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	exclTagDeliveryStop    = "EXCL_配信停止" // FE source: frontend/src/constants/lstep-tag-names.ts LSTEP_EXCL_DELIVERY_STOP
-	exclTagDeliveryCaution = "EXCL_配信注意" // FE source: frontend/src/constants/lstep-tag-names.ts LSTEP_EXCL_DELIVERY_CAUTION
+	exclTagDeliveryStop    = "EXCL_配信停止"        // FE source: frontend/src/constants/lstep-tag-names.ts LSTEP_EXCL_DELIVERY_STOP
+	exclTagDeliveryCaution = "EXCL_配信注意"        // FE source: frontend/src/constants/lstep-tag-names.ts LSTEP_EXCL_DELIVERY_CAUTION
 	tagFilariaAlert        = PrevFilariaTag     // FEAT-379 新命名 (旧: HEALTH_フィラリア対策中)
 	tagFleaTickAlert       = PrevFleaTickTag    // FEAT-379 新命名 (旧: HEALTH_ノミダニ予防中)
 	tagFoodRefill          = LtvFoodPurchaseTag // FEAT-379 新命名 (旧: PROD_フード購入)
@@ -196,9 +196,9 @@ func (s *lstepDeliveryTriggerService) applySuppression(
 	}
 	// SuppressedByPriority=true は既に抑制済みなので除外
 	active := make([]model.LstepDeliveryTriggerLog, 0, len(existing))
-	for _, l := range existing {
-		if !l.SuppressedByPriority {
-			active = append(active, l)
+	for i := range existing {
+		if !existing[i].SuppressedByPriority {
+			active = append(active, existing[i])
 		}
 	}
 	if len(active) == 0 {
@@ -212,8 +212,9 @@ func (s *lstepDeliveryTriggerService) applySuppression(
 
 	// 既存の中で最高優先度（最小値）を持つログを探す
 	bestPri := int(^uint(0) >> 1) // MaxInt
-	var bestLog model.LstepDeliveryTriggerLog
-	for _, l := range active {
+	var bestLog *model.LstepDeliveryTriggerLog
+	for i := range active {
+		l := &active[i]
 		p, pErr := s.prioritySvc.GetPriorityFor(ctx, clinicID, l.TriggerType)
 		if pErr != nil {
 			return false, apperrors.Wrap(pErr, "failed to get priority for existing trigger")
@@ -230,7 +231,8 @@ func (s *lstepDeliveryTriggerService) applySuppression(
 	}
 	if currentPri < bestPri {
 		// 現在のトリガーは既存より高優先度 → 全既存を降格
-		for _, l := range active {
+		for i := range active {
+			l := &active[i]
 			reason := fmt.Sprintf("superseded by %s (priority %d < %d)", triggerType, currentPri, bestPri)
 			if suppErr := s.triggerLogRepo.UpdateSuppressed(ctx, l.ID, reason); suppErr != nil {
 				slog.ErrorContext(ctx, "delivery trigger: failed to suppress existing log", "log_id", l.ID, "error", suppErr)

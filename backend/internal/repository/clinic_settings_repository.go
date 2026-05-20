@@ -155,6 +155,7 @@ func (r *clinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context, cl
 	return nil
 }
 
+//nolint:gocritic // hugeParam: thresholds は immutable DTO として interface に揃える設計
 func (r *clinicSettingsRepository) UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error {
 	s := &model.ClinicSettings{
 		ClinicID:              clinicID,

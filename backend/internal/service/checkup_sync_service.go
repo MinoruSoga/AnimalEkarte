@@ -162,6 +162,8 @@ func (s *checkupSyncService) buildClient(ctx context.Context, clinicID uint64) (
 // CPM 判定は LTV/CPM サービス側 (lstep_tag_sync_service.CalculateCPMStage) と同一の純粋関数を再利用し、
 // 判定基準のドリフトを防ぐ。
 // caller must pass non-nil row; panics on nil.
+//
+//nolint:gocritic // hugeParam: thresholds は CalculateCPMStage 側で値型を要求するため統一
 func computeCPMStageFromRow(row *repository.CheckupSyncPreviewRow, thresholds model.CPMV1Thresholds) CPMStage {
 	daysSince := -1
 	if row.LastVisitDate != nil {

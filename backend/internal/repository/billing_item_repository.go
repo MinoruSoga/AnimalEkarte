@@ -168,4 +168,3 @@ func (r *billingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Context,
 	}
 	return count > 0, nil
 }
-

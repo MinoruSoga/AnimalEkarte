@@ -54,6 +54,8 @@ func (m *mockClinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context
 	}
 	return nil
 }
+
+//nolint:gocritic // hugeParam: ClinicSettingsRepository interface に signatures を合わせるため必須
 func (m *mockClinicSettingsRepository) UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error {
 	if m.updateCPMV1ThresholdsFn != nil {
 		return m.updateCPMV1ThresholdsFn(ctx, clinicID, thresholds)

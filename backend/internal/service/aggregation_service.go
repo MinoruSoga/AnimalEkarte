@@ -18,6 +18,8 @@ import (
 // 一覧側の DaysSinceLastVisit は SQL 側で EXTRACT(DAY FROM NOW() - MAX(mr.date)) として
 // 計算されているため、来院なし（NULL）は -1 にマップする。
 // caller must pass non-nil row; panics on nil.
+//
+//nolint:gocritic // hugeParam: thresholds は CalculateCPMStage 側で値型を要求するため統一
 func computeCPMStageFromLTVRow(row *repository.OwnerLTVRow, thresholds model.CPMV1Thresholds) string {
 	daysSince := -1
 	if row.DaysSinceLastVisit != nil {
@@ -219,10 +221,7 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 	if offset >= total {
 		items = nil
 	} else {
-		end := offset + perPage
-		if end > total {
-			end = total
-		}
+		end := min(offset+perPage, total)
 		items = items[offset:end]
 	}
 

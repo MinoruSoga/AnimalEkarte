@@ -861,34 +861,34 @@ func TestHasSeniorPet(t *testing.T) {
 
 func TestHasVaccineDeadlineSoon(t *testing.T) {
 	now := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-	days := 60
+	days := model.DefaultVaccineDeadlineDays
 
 	// nil / empty slice → false
-	assert.False(t, hasVaccineDeadlineSoon(nil, now, days))
-	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{}, now, days))
+	assert.False(t, hasVaccineDeadlineSoon(nil, now))
+	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{}, now))
 
 	// NextDate nil → skipped
-	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: nil}}, now, days))
+	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: nil}}, now))
 
 	// NextDate が now ちょうど → true (境界値)
 	exact := now
-	assert.True(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &exact}}, now, days))
+	assert.True(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &exact}}, now))
 
-	// NextDate が deadline ちょうど (now + 60 days) → true
+	// NextDate が deadline ちょうど (now + DefaultVaccineDeadlineDays) → true
 	deadline := now.AddDate(0, 0, days)
-	assert.True(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &deadline}}, now, days))
+	assert.True(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &deadline}}, now))
 
 	// NextDate が deadline より 1 日先 → false
 	beyond := now.AddDate(0, 0, days+1)
-	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &beyond}}, now, days))
+	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &beyond}}, now))
 
 	// NextDate が now より前 (過去) → false
 	past := now.AddDate(0, 0, -1)
-	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &past}}, now, days))
+	assert.False(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &past}}, now))
 
 	// 複数レコードのうち 1 件が範囲内 → true
 	inner := now.AddDate(0, 0, 30)
-	assert.True(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &beyond}, {NextDate: &inner}}, now, days))
+	assert.True(t, hasVaccineDeadlineSoon([]model.Vaccination{{NextDate: &beyond}, {NextDate: &inner}}, now))
 }
 
 // ---- tagCodeRepo == nil noop テスト ----

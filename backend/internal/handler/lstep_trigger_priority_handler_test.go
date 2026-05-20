@@ -114,7 +114,7 @@ func TestGetLstepTriggerPriorities(t *testing.T) {
 			withClinicID := tt.wantStatus != http.StatusUnauthorized
 			router := newGetTriggerPrioritiesRouter(tt.svc, withClinicID)
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest(http.MethodGet, "/lstep/trigger-priorities", nil)
+			req, _ := http.NewRequest(http.MethodGet, "/lstep/trigger-priorities", http.NoBody)
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantStatus == http.StatusOK {

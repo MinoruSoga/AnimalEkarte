@@ -37,6 +37,9 @@ type CPMV1Thresholds struct {
 }
 
 // WithDefaults は 0 以下のフィールドをデフォルトで埋めた新インスタンスを返す。
+// 値レシーバは immutable な builder パターン (CPMV1Thresholds{}.WithDefaults()) を維持するため意図的。
+//
+//nolint:gocritic // hugeParam: value-literal API contract — see cpm_v1_thresholds_test.go and lstep_settings_handler_test.go
 func (t CPMV1Thresholds) WithDefaults() CPMV1Thresholds {
 	out := t
 	if out.DormantDays <= 0 {

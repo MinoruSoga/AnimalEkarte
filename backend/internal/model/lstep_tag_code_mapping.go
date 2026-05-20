@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	CodeTypeCheckupType            = "checkup_type"
-	CodeTypePrescription           = "prescription"
-	CodeTypeMerchandiseItem        = "merchandise_item"
+	CodeTypeCheckupType     = "checkup_type"
+	CodeTypePrescription    = "prescription"
+	CodeTypeMerchandiseItem = "merchandise_item"
 
 	SpeciesScopeDog = "dog"
 )

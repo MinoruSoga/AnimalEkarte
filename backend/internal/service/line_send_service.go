@@ -186,7 +186,6 @@ func (s *lineSendService) GetSendLogs(ctx context.Context, clinicID, ownerID uin
 	return logs, nil
 }
 
-
 func lineSendTruncate(s string, maxLen int) string {
 	runes := []rune(s)
 	if len(runes) <= maxLen {
