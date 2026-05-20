@@ -515,6 +515,34 @@ export interface ClinicSettings {
   dormant_prevention_210_days: number /* int */;
   dormant_prevention_240_days: number /* int */;
   dormant_prevention_365_days: number /* int */;
+  /**
+   * P1 CPM V2 来院回数閾値 (clinic 単位調整可能、migration 007)
+   */
+  cpm_v2_coming_threshold: number /* int */;
+  cpm_v2_good_threshold: number /* int */;
+  cpm_v2_family_threshold: number /* int */;
+  cpm_v2_noah_threshold: number /* int */;
+  /**
+   * P2 CPM V1 判定閾値 (clinic 単位調整可能、migration 008)
+   */
+  cpm_v1_dormant_days: number /* int */;
+  cpm_v1_noah_days: number /* int */;
+  cpm_v1_noah_annual_visits: number /* int */;
+  cpm_v1_noah_ltv: number /* int64 */;
+  cpm_v1_core_days: number /* int */;
+  cpm_v1_core_annual_visits: number /* int */;
+  cpm_v1_core_ltv: number /* int64 */;
+  cpm_v1_spot_min_amount: number /* int64 */;
+  cpm_v1_spot_inactive_days: number /* int */;
+  cpm_v1_growing_max_days: number /* int */;
+  cpm_v1_growing_min_visits: number /* int */;
+  cpm_v1_growing_max_visits: number /* int */;
+  cpm_v1_ltv_break_low: number /* int64 */;
+  /**
+   * P9 健診・予防タグ判定閾値 (clinic 単位調整可能、migration 009)
+   */
+  health_prevention_lookback_days: number /* int */;
+  vaccine_deadline_days: number /* int */;
   created_at: string;
   updated_at: string;
 }
@@ -606,6 +634,127 @@ export interface Consultation {
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
+}
+
+//////////
+// source: cpm_v1_thresholds.go
+
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1DormantDays = 240;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1NoahDays = 365;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1NoahAnnualVisits = 3;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1NoahLTV: number /* int64 */ = 80_000;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1CoreDays = 180;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1CoreAnnualVisits = 2;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1CoreLTV: number /* int64 */ = 50_000;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1SpotMinAmount: number /* int64 */ = 30_000;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1SpotInactiveDays = 90;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1GrowingMaxDays = 90;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1GrowingMinVisits = 2;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1GrowingMaxVisits = 3;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1LTVBreakLow: number /* int64 */ = 20_000;
+/**
+ * CPMV1Thresholds は CPM V1 ステージ判定の全閾値を集約した DTO。
+ * ゼロ値は WithDefaults() で互換デフォルトに補完される。
+ */
+export interface CPMV1Thresholds {
+  DormantDays: number /* int */; // cpm_dormant: 最終来院からの経過日数 >= DormantDays (default 240)
+  NoahDays: number /* int */; // cpm_noah: 在籍日数 >= NoahDays (default 365)
+  NoahAnnualVisits: number /* int */; // cpm_noah: 年間来院回数 >= NoahAnnualVisits (default 3)
+  NoahLTV: number /* int64 */; // cpm_noah: 累計金額 >= NoahLTV (default 80_000)
+  CoreDays: number /* int */; // cpm_core: 在籍日数 >= CoreDays (default 180)
+  CoreAnnualVisits: number /* int */; // cpm_core: 年間来院回数 >= CoreAnnualVisits (default 2)
+  CoreLTV: number /* int64 */; // cpm_core: 累計金額 >= CoreLTV (default 50_000); growing 上限にも兼用
+  SpotMinAmount: number /* int64 */; // cpm_spot: 単回最大金額 >= SpotMinAmount (default 30_000)
+  SpotInactiveDays: number /* int */; // cpm_spot: 最終来院からの経過日数 > SpotInactiveDays (default 90)
+  GrowingMaxDays: number /* int */; // cpm_growing: 初来院からの経過日数 <= GrowingMaxDays (default 90)
+  GrowingMinVisits: number /* int */; // cpm_growing: 総来院回数 >= GrowingMinVisits (default 2)
+  GrowingMaxVisits: number /* int */; // cpm_growing: 総来院回数 <= GrowingMaxVisits (default 3)
+  LTVBreakLow: number /* int64 */; // growing 下限 / encounter 上限境界 (default 20_000)
+}
+
+//////////
+// source: cpm_v2_thresholds.go
+
+/**
+ * P1 CPM V2 来院回数閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV2ComingThreshold = 2;
+/**
+ * P1 CPM V2 来院回数閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV2GoodThreshold = 4;
+/**
+ * P1 CPM V2 来院回数閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV2FamilyThreshold = 8;
+/**
+ * P1 CPM V2 来院回数閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV2NoahThreshold = 13;
+/**
+ * CPMV2Thresholds は CPM V2 来院回数 4 段階閾値を集約した DTO。
+ */
+export interface CPMV2Thresholds {
+  Coming: number /* int */; // これから ステージ開始来院回数 (default 2)
+  Good: number /* int */; // いいかんじ ステージ開始来院回数 (default 4)
+  Family: number /* int */; // ファミリー ステージ開始来院回数 (default 8)
+  Noah: number /* int */; // ノア ステージ開始来院回数 (default 13)
 }
 
 //////////
@@ -832,6 +981,28 @@ export interface ExamTypeField {
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
+}
+
+//////////
+// source: health_prevention_thresholds.go
+
+/**
+ * 健診・予防タグ判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultHealthPreventionLookbackDays = 365; // 健診・予防履歴の参照期間（日数）
+/**
+ * 健診・予防タグ判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultVaccineDeadlineDays = 60; // ワクチン期限間近とみなす残日数
+/**
+ * HealthPreventionThresholds は健診・予防タグ判定の全閾値を集約した DTO。
+ * ゼロ値は WithDefaults() で互換デフォルトに補完される。
+ */
+export interface HealthPreventionThresholds {
+  LookbackDays: number /* int */; // 健診・予防履歴の参照期間（日数, default 365）
+  VaccineDeadline: number /* int */; // ワクチン期限間近とみなす残日数（default 60）
 }
 
 //////////
