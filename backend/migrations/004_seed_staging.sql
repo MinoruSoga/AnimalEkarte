@@ -14,31 +14,33 @@
 -- 現在の004は「最小限のデータセットで動作確認可能」な状態を目指す。
 
 -- -----------------------------------------------------------------------------
--- STG 2026-05-21 反映分: clinic_id=4 'Hako bu neco 猫専門病院' を STG 環境で
--- 追加したため、fresh DB reset 時に再現できるよう seed に反映。
+-- STG 2026-05-21 反映分: STG dump (prodData/stg_5-21/ekarte) の完全再現を目的に、
+-- 003_seed_demo.sql の clinic_id=1〜3 既存 seed と重複しない差分のみ追加。
 --
--- 対象範囲:
+-- ⚠️ セキュリティ警告: 本 seed はユーザー許可のもと、STG 環境の Lステップ
+-- 連携シークレット (LINE channel_access_token / channel_secret / liff_id) を
+-- 平文で含む。本 seed を流す DB は STG 専用であること、また STG の
+-- LINE 公式アカウント設定が変更された場合は seed もローテートすること。
+--
+-- 追加対象:
 --   1. clinics.id=4 (Hako bu neco 猫専門病院)
---   2. permission_groups.id=7,8 (clinic_id=4 用、CreateClinic が自動生成する
+--   2. permission_groups.id=7,8 (clinic_id=4 用、CreateClinic が auto-gen する
 --      '執行'/'一般' と同一構成)
---   3. staffs.id=36 (青山 純子) — account 連携は STG 環境で手動運用
---   4. staff_clinic_assignments id=39,40 (staff_36 を clinic_2/4 にアサイン)
---   5. staff_permission_groups (staff_36 → group_id=2)
+--   3. accounts.id=17 (clinic_id=4 用ログインアカウント)
+--   4. staffs.id=36 (青山 純子 → accounts.id=17 リンク)
+--   5. staff_clinic_assignments id=38 (soft-deleted, clinic_1 旧割当),
+--      id=39 (clinic_2 現割当), id=40 (clinic_4 現割当)
+--   6. staff_permission_groups (staff_36 → group_id=2)
+--   7. clinic_integrations id=1〜4 (clinic_1 用 Lステップ連携設定)
 --
--- 除外項目 (理由付き):
---   * accounts.id=17 — 実 Gmail アドレス + 実 password_hash。認証情報のため
---     seed 対象外。STG 環境では手動で追加運用する。
---   * staff_clinic_assignments id=38 — 同レコードは soft-deleted のため
---     アクティブクエリに影響しない。sequence のみ setval で整合。
---   * clinic_integrations (id=1〜4) — clinic_id=1 用 LINE channel_access_token
---     と channel_secret に実値が含まれていたため seed 対象外。STG 環境では
---     設定 API 経由で個別投入する運用 (該当 token のローテート推奨)。
---   * permission_group_rules for groups 7,8 — STG dump にも未投入のため
---     既存挙動と整合させて空のままとする (CreateClinic は rules を自動生成
---     しない既存仕様に追従)。
+-- 対象外 (003 既存 seed と重複):
+--   * companies / animal_species / 既存 clinics 1-3 / 既存 staffs 1-35 /
+--     既存 owners / pets / medical_records / appointments / マスタ全般
 -- -----------------------------------------------------------------------------
 
+-- -----------------------------------------------------------------------------
 -- 1. clinics (id=4)
+-- -----------------------------------------------------------------------------
 INSERT INTO clinics (
     id, company_id, name, postal_code, address,
     is_active, standard_tax_rate, reduced_tax_rate
@@ -57,9 +59,11 @@ ON CONFLICT (id) DO UPDATE
 
 SELECT setval(pg_get_serial_sequence('clinics', 'id'), (SELECT MAX(id) FROM clinics));
 
+-- -----------------------------------------------------------------------------
 -- 2. permission_groups for clinic_id=4 (id=7,8)
 --    STG 実値: color='#6B7280' (CreateClinic デフォルト)。
 --    003 の groups 1-6 は color='#6366F1'/'#10B981' で seed 済み。
+-- -----------------------------------------------------------------------------
 INSERT INTO permission_groups (
     id, clinic_id, name, description, color, is_active, sort_order
 ) VALUES
@@ -79,14 +83,33 @@ SELECT setval(
     (SELECT MAX(id) FROM permission_groups)
 );
 
--- 3. staffs (id=36) — account_id は意図的に NULL (STG 認証アカウントは seed 除外)
---    occupation_id=2 (clinic_1 看護師) は STG 実値どおり。clinic 跨ぎの構造は
---    STG での移動履歴の結果なのでそのまま反映する。
+-- -----------------------------------------------------------------------------
+-- 3. accounts (id=17) — clinic_id=4 用ログインアカウント
+--    ⚠️ 実 email + 実 password_hash を含む (STG 環境専用)
+-- -----------------------------------------------------------------------------
+INSERT INTO accounts (id, email, password_hash, is_active, is_system_admin) VALUES
+    (17, 'chunzishan72@gmail.com',
+     '$2a$12$83ztnVW/5NSm1kDq3ZiqXOuu41J2MLSrQ40b.v2/e6PpxheZ.4kIK',
+     true, false)
+ON CONFLICT (id) DO UPDATE
+    SET email           = EXCLUDED.email,
+        password_hash   = EXCLUDED.password_hash,
+        is_active       = EXCLUDED.is_active,
+        is_system_admin = EXCLUDED.is_system_admin,
+        updated_at      = now();
+
+SELECT setval(pg_get_serial_sequence('accounts', 'id'), (SELECT MAX(id) FROM accounts));
+
+-- -----------------------------------------------------------------------------
+-- 4. staffs (id=36) — accounts.id=17 と紐付け
+--    occupation_id=2 は clinic_1 の '看護師'。STG 実値どおり (clinic 跨ぎの
+--    occupation 参照は STG の異動履歴の結果)。
+-- -----------------------------------------------------------------------------
 INSERT INTO staffs (
     id, account_id, name, is_active, license_number, occupation_id,
     sort_order, staff_type, reservation_visible
 ) VALUES
-    (36, NULL, '青山 純子', true, '', 2, 0, 'nurse', true)
+    (36, 17, '青山 純子', true, '', 2, 0, 'nurse', true)
 ON CONFLICT (id) DO UPDATE
     SET account_id          = EXCLUDED.account_id,
         name                = EXCLUDED.name,
@@ -100,16 +123,22 @@ ON CONFLICT (id) DO UPDATE
 
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
 
--- 4. staff_clinic_assignments — staff_36 を clinic_2 と clinic_4 にアサイン。
---    STG dump の id=38 (clinic_1 への割当) は soft-deleted のため省略する。
---    id を明示することで sequence/PK の整合を保つ。
-INSERT INTO staff_clinic_assignments (id, staff_id, clinic_id, is_main) VALUES
-    (39, 36, 2, true),
-    (40, 36, 4, false)
+-- -----------------------------------------------------------------------------
+-- 5. staff_clinic_assignments — staff_36 の clinic 割当 3 件
+--    id=38: clinic_1 旧割当 (soft-deleted at 2026-05-17 07:22:17)
+--    id=39: clinic_2 現割当 (is_main=true)
+--    id=40: clinic_4 現割当 (is_main=false)
+--    deleted_at の固定時刻は STG dump 実値どおり。
+-- -----------------------------------------------------------------------------
+INSERT INTO staff_clinic_assignments (id, staff_id, clinic_id, is_main, deleted_at) VALUES
+    (38, 36, 1, true,  '2026-05-17 07:22:17.205168+00'),
+    (39, 36, 2, true,  NULL),
+    (40, 36, 4, false, NULL)
 ON CONFLICT (id) DO UPDATE
-    SET staff_id  = EXCLUDED.staff_id,
-        clinic_id = EXCLUDED.clinic_id,
-        is_main   = EXCLUDED.is_main,
+    SET staff_id   = EXCLUDED.staff_id,
+        clinic_id  = EXCLUDED.clinic_id,
+        is_main    = EXCLUDED.is_main,
+        deleted_at = EXCLUDED.deleted_at,
         updated_at = now();
 
 SELECT setval(
@@ -117,9 +146,32 @@ SELECT setval(
     (SELECT MAX(id) FROM staff_clinic_assignments)
 );
 
--- 5. staff_permission_groups — staff_36 → group_id=2 (clinic_1 '一般')。
---    STG dump にあるレコードをそのまま反映 (clinic_1 への割当が soft-delete
---    される前の権限付与が残留している状態)。
+-- -----------------------------------------------------------------------------
+-- 6. staff_permission_groups — staff_36 → group_id=2 (clinic_1 '一般')
+--    clinic_1 への旧割当が soft-delete された後も権限付与だけ残留している
+--    STG 状態をそのまま反映。
+-- -----------------------------------------------------------------------------
 INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
     (36, 2)
 ON CONFLICT (staff_id, group_id) DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- 7. clinic_integrations — clinic_id=1 用 Lステップ (LINE) 連携設定
+--    ⚠️ 実 LINE channel_access_token / channel_secret / liff_id を含む
+--    (STG 環境専用)。本番環境では絶対に投入しない。
+--    UNIQUE 制約: (clinic_id, service, key_name)
+-- -----------------------------------------------------------------------------
+INSERT INTO clinic_integrations (id, clinic_id, service, key_name, key_value) VALUES
+    (1, 1, 'lstep', 'line_channel_access_token',
+     'pwMi3yP6jhRa0xbmnR0IPEcE5l+OIp21a7ia3hmoiuFSCvqkR5Tmmfm6fLoSTB1Bt7uQjAe9NN7fZ+LBDtNKLGnrqBrjDmhTnws9PVxQKLyinomNzUAb61KADX7NJmFBfEsLQQ9VmlU+tMJcWh+zswdB04t89/1O/w1cDnyilFU='),
+    (2, 1, 'lstep', 'line_channel_secret', '5344ef84eb7072b5894f7e087db28827'),
+    (3, 1, 'lstep', 'liff_id',             '2009755581-w5NOA3EW'),
+    (4, 1, 'lstep', 'line_account_name',   'テスト-八王子')
+ON CONFLICT (clinic_id, service, key_name) DO UPDATE
+    SET key_value  = EXCLUDED.key_value,
+        updated_at = now();
+
+SELECT setval(
+    pg_get_serial_sequence('clinic_integrations', 'id'),
+    (SELECT MAX(id) FROM clinic_integrations)
+);
