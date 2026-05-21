@@ -18,6 +18,7 @@ export const transformBackendMedicineToFrontend = (data: BackendMedicine) => ({
   sortOrder: data.sort_order ?? 0,
   taxType: (data.tax_type ?? "excluded") as TaxType,
   taxRate: data.tax_rate ?? 0.1,
+  isNonInsurance: data.is_non_insurance ?? false,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
 });

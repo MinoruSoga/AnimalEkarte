@@ -102,6 +102,7 @@ interface MedicineFormData {
   isActive: boolean;
   taxType: TaxType;
   taxRate: number;
+  isNonInsurance: boolean;
 }
 
 const INITIAL_FORM: MedicineFormData = {
@@ -114,6 +115,7 @@ const INITIAL_FORM: MedicineFormData = {
   isActive: true,
   taxType: "excluded",
   taxRate: 0.1,
+  isNonInsurance: false,
 };
 
 // 編集対象 medicine から初期 formData を構築（マウント時 1 回）
@@ -134,6 +136,7 @@ function medicineToFormData(m: Medicine | null, defaultParentId?: string): Medic
     isActive: m.isActive,
     taxType: m.taxType ?? "excluded",
     taxRate: m.taxRate ?? 0.1,
+    isNonInsurance: m.isNonInsurance ?? false,
   };
 }
 
@@ -369,6 +372,17 @@ const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
           className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
           <NotionStatusPill isActive={formData.isActive} />
+        </button>
+      </PropertyRow>
+
+      <PropertyRow label="保険対象外">
+        <button
+          type="button"
+          onClick={() => setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))}
+          aria-label="保険対象外を切り替え"
+          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.accent : C.text50}`}
+        >
+          {formData.isNonInsurance ? "対象外" : "対象"}
         </button>
       </PropertyRow>
 
@@ -735,6 +749,7 @@ export function MedicineSettings() {
         is_active: data.isActive,
         tax_type: data.taxType,
         tax_rate: data.taxRate,
+        is_non_insurance: data.isNonInsurance,
         ...(data.parentId ? { parent_id: Number(data.parentId) } : {}),
       };
     },
@@ -750,6 +765,7 @@ export function MedicineSettings() {
         is_active: data.isActive,
         tax_type: data.taxType,
         tax_rate: data.taxRate,
+        is_non_insurance: data.isNonInsurance,
       };
       // parent_id の処理
       if (data.parentId) {

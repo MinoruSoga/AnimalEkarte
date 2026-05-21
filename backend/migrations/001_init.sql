@@ -630,17 +630,18 @@ CREATE TABLE inventory_items (
 -- 9. exam_types（検査種別マスタ）
 -- ------------------------------------
 CREATE TABLE exam_types (
-    id          BIGSERIAL   PRIMARY KEY,
-    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    name        text        NOT NULL,
-    price       bigint,
-    is_active   boolean     NOT NULL DEFAULT true,
-    description text        NOT NULL DEFAULT '',
-    parent_id   bigint               REFERENCES exam_types(id) ON DELETE SET NULL,
-    sort_order  integer              DEFAULT 0,
-    created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now(),
-    deleted_at  timestamptz
+    id               BIGSERIAL   PRIMARY KEY,
+    clinic_id        bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name             text        NOT NULL,
+    price            bigint,
+    is_active        boolean     NOT NULL DEFAULT true,
+    description      text        NOT NULL DEFAULT '',
+    parent_id        bigint               REFERENCES exam_types(id) ON DELETE SET NULL,
+    sort_order       integer              DEFAULT 0,
+    is_non_insurance boolean     NOT NULL DEFAULT false,
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    updated_at       timestamptz NOT NULL DEFAULT now(),
+    deleted_at       timestamptz
 );
 
 -- ------------------------------------
@@ -696,6 +697,7 @@ CREATE TABLE medicines (
     tax_type         tax_type      NOT NULL DEFAULT 'excluded',
     tax_rate         numeric       NOT NULL DEFAULT 0.10,
     sort_order       integer                DEFAULT 0,
+    is_non_insurance boolean       NOT NULL DEFAULT false,
     created_at       timestamptz   NOT NULL DEFAULT now(),
     updated_at       timestamptz   NOT NULL DEFAULT now(),
     deleted_at       timestamptz

@@ -18,17 +18,18 @@ type examTypeItemResponse struct {
 }
 
 type examTypeResponse struct {
-	ID          uint64                 `json:"id"`
-	ClinicID    uint64                 `json:"clinic_id"`
-	Name        string                 `json:"name"`
-	Price       *int64                 `json:"price,omitempty"`
-	IsActive    bool                   `json:"is_active"`
-	Description string                 `json:"description"`
-	ParentID    *uint64                `json:"parent_id,omitempty"`
-	SortOrder   int                    `json:"sort_order"`
-	Items       []examTypeItemResponse `json:"items,omitempty"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	ID             uint64                 `json:"id"`
+	ClinicID       uint64                 `json:"clinic_id"`
+	Name           string                 `json:"name"`
+	Price          *int64                 `json:"price,omitempty"`
+	IsActive       bool                   `json:"is_active"`
+	Description    string                 `json:"description"`
+	ParentID       *uint64                `json:"parent_id,omitempty"`
+	SortOrder      int                    `json:"sort_order"`
+	IsNonInsurance bool                   `json:"is_non_insurance"`
+	Items          []examTypeItemResponse `json:"items,omitempty"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
 }
 
 func toExamTypeItemResponse(item *model.ExamTypeField) examTypeItemResponse {
@@ -50,16 +51,17 @@ func toExaminationTypeResponse(et *model.ExaminationType) examTypeResponse {
 		items = append(items, toExamTypeItemResponse(&et.Items[i]))
 	}
 	return examTypeResponse{
-		ID:          et.ID,
-		ClinicID:    et.ClinicID,
-		Name:        et.Name,
-		Price:       et.Price,
-		IsActive:    et.IsActive,
-		Description: et.Description,
-		ParentID:    et.ParentID,
-		SortOrder:   et.SortOrder,
-		Items:       items,
-		CreatedAt:   et.CreatedAt,
-		UpdatedAt:   et.UpdatedAt,
+		ID:             et.ID,
+		ClinicID:       et.ClinicID,
+		Name:           et.Name,
+		Price:          et.Price,
+		IsActive:       et.IsActive,
+		Description:    et.Description,
+		ParentID:       et.ParentID,
+		SortOrder:      et.SortOrder,
+		IsNonInsurance: et.IsNonInsurance,
+		Items:          items,
+		CreatedAt:      et.CreatedAt,
+		UpdatedAt:      et.UpdatedAt,
 	}
 }

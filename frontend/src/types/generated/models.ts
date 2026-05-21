@@ -961,6 +961,7 @@ export interface ExaminationType {
   description: string;
   parent_id?: number /* uint64 */;
   sort_order: number /* int */;
+  is_non_insurance: boolean;
   created_at: string;
   updated_at: string;
   /**
@@ -1716,6 +1717,7 @@ export interface Medicine {
   tax_type: TaxType;
   tax_rate: number /* float64 */;
   sort_order: number /* int */;
+  is_non_insurance: boolean;
   created_at: string;
   updated_at: string;
   /**

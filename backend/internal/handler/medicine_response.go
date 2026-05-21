@@ -21,6 +21,7 @@ type medicineResponse struct {
 	TaxType         string    `json:"tax_type"`
 	TaxRate         float64   `json:"tax_rate"`
 	SortOrder       int       `json:"sort_order"`
+	IsNonInsurance  bool      `json:"is_non_insurance"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -51,6 +52,7 @@ func toMedicineResponse(m *model.Medicine) medicineResponse {
 		TaxType:         string(m.TaxType),
 		TaxRate:         m.TaxRate,
 		SortOrder:       m.SortOrder,
+		IsNonInsurance:  m.IsNonInsurance,
 		CreatedAt:       m.CreatedAt,
 		UpdatedAt:       m.UpdatedAt,
 	}

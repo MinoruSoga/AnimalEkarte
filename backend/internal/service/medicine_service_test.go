@@ -204,6 +204,16 @@ func TestMedicineService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "creates medicine with is_non_insurance=true",
+			input: &CreateMedicineInput{
+				Name:           "保険対象外薬剤",
+				IsActive:       true,
+				IsNonInsurance: true,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
 			name: "returns error when name is empty",
 			input: &CreateMedicineInput{
 				Name: "",
@@ -343,6 +353,27 @@ func TestMedicineService_Update_NilInput(t *testing.T) {
 	result, err := svc.Update(context.Background(), 1, 1, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
+}
+
+func TestMedicineService_Update_IsNonInsurance(t *testing.T) {
+	nonIns := true
+	var capturedFields map[string]any
+	existing := &model.Medicine{ID: 1, ClinicID: 1, IsNonInsurance: false}
+	repo := &mockMedicineRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
+			return existing, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Medicine, error) {
+			capturedFields = fields
+			return &model.Medicine{ID: 1, ClinicID: 1, IsNonInsurance: true}, nil
+		},
+	}
+	svc := newTestMedicineService(repo)
+	input := &UpdateMedicineInput{IsNonInsurance: &nonIns}
+	result, err := svc.Update(context.Background(), 1, 1, input)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, true, capturedFields[colMedicineIsNonInsurance])
 }
 
 func TestMedicineService_Delete(t *testing.T) {

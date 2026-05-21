@@ -11,12 +11,13 @@ import (
 )
 
 const (
-	colExamTypeName        = "name"
-	colExamTypePrice       = "price"
-	colExamTypeIsActive    = "is_active"
-	colExamTypeDescription = "description"
-	colExamTypeParentID    = "parent_id"
-	colExamTypeSortOrder   = "sort_order"
+	colExamTypeName           = "name"
+	colExamTypePrice          = "price"
+	colExamTypeIsActive       = "is_active"
+	colExamTypeDescription    = "description"
+	colExamTypeParentID       = "parent_id"
+	colExamTypeSortOrder      = "sort_order"
+	colExamTypeIsNonInsurance = "is_non_insurance"
 )
 
 func buildExamTypeUpdate(input *UpdateExamTypeInput) map[string]any {
@@ -41,6 +42,9 @@ func buildExamTypeUpdate(input *UpdateExamTypeInput) map[string]any {
 	if input.SortOrder != nil {
 		fields[colExamTypeSortOrder] = *input.SortOrder
 	}
+	if input.IsNonInsurance != nil {
+		fields[colExamTypeIsNonInsurance] = *input.IsNonInsurance
+	}
 	return fields
 }
 
@@ -48,23 +52,25 @@ func buildExamTypeUpdate(input *UpdateExamTypeInput) map[string]any {
 
 // CreateExamTypeInput は検査種別作成の入力DTO
 type CreateExamTypeInput struct {
-	Name        string
-	Price       *int64
-	IsActive    bool
-	Description string
-	ParentID    *uint64
-	SortOrder   int
+	Name           string
+	Price          *int64
+	IsActive       bool
+	Description    string
+	ParentID       *uint64
+	SortOrder      int
+	IsNonInsurance bool
 }
 
 // UpdateExamTypeInput は検査種別更新のサービス入力 DTO
 type UpdateExamTypeInput struct {
-	Name          *string
-	Price         *int64
-	IsActive      *bool
-	Description   *string
-	ParentID      *uint64
-	ClearParentID bool
-	SortOrder     *int
+	Name           *string
+	Price          *int64
+	IsActive       *bool
+	Description    *string
+	ParentID       *uint64
+	ClearParentID  bool
+	SortOrder      *int
+	IsNonInsurance *bool
 }
 
 type ExaminationTypeService interface {
@@ -103,13 +109,14 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	exType := &model.ExaminationType{
-		ClinicID:    clinicID,
-		Name:        input.Name,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		ParentID:    input.ParentID,
-		SortOrder:   input.SortOrder,
+		ClinicID:       clinicID,
+		Name:           input.Name,
+		Price:          input.Price,
+		IsActive:       input.IsActive,
+		Description:    input.Description,
+		ParentID:       input.ParentID,
+		SortOrder:      input.SortOrder,
+		IsNonInsurance: input.IsNonInsurance,
 	}
 	if err := s.repo.Create(ctx, exType); err != nil {
 		slog.ErrorContext(ctx, "failed to create exam type", "error", err, "clinic_id", clinicID)
