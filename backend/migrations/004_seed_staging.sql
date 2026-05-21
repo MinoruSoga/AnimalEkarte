@@ -46,7 +46,7 @@ INSERT INTO clinics (
     is_active, standard_tax_rate, reduced_tax_rate
 ) VALUES
     (4, 1, 'Hako bu neco 猫専門病院', '400-0861', '山梨県甲府市城東1-13-17',
-     true, 0.10, 0.08)
+     true, 0.1, 0.08)
 ON CONFLICT (id) DO UPDATE
     SET company_id         = EXCLUDED.company_id,
         name               = EXCLUDED.name,
