@@ -20,6 +20,8 @@ import { useCreateCheckup } from "../../api/checkups";
 import { useUpdateCheckup } from "../../api/checkups";
 import { useDeleteCheckup } from "../../api/checkups";
 import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
+import { useGetStaffs } from "@/hooks/use-staffs";
+import type { StaffItem } from "@/hooks/use-staffs";
 import type { Checkup, CreateCheckupInput, UpdateCheckupInput } from "../../api/checkups";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
 
@@ -44,6 +46,7 @@ interface AddFormState {
   checkup_type_id: string;
   date: string;
   next_date: string;
+  doctor_id: string;
   result: string;
 }
 
@@ -51,6 +54,7 @@ const EMPTY_ADD_FORM: AddFormState = {
   checkup_type_id: "",
   date: "",
   next_date: "",
+  doctor_id: "",
   result: "",
 };
 
@@ -71,13 +75,15 @@ interface EditRowProps {
   onCancel: () => void;
   isPending: boolean;
   checkupTypes: CheckupTypeItem[];
+  staffs: StaffItem[];
 }
 
-const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, checkupTypes }: EditRowProps) {
+const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, checkupTypes, staffs }: EditRowProps) {
   const [form, setForm] = useState<UpdateCheckupInput>({
     checkup_type_id: Number(checkup.checkup_type_id),
     date: checkup.date,
     next_date: checkup.next_date ?? "",
+    doctor_id: checkup.doctor_id ? Number(checkup.doctor_id) : null,
     result: checkup.result,
   });
 
@@ -127,7 +133,20 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
         />
       </td>
       <td className="px-3 py-2">
-        <span className={`text-sm ${C.text60}`}>-</span>
+        <select
+          value={form.doctor_id ?? ""}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+            handleChange("doctor_id", e.target.value ? Number(e.target.value) : null)
+          }
+          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
+        >
+          <option value="">-</option>
+          {staffs.map((s: StaffItem) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
       </td>
       <td className="px-3 py-2">
         <input
@@ -202,6 +221,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
+  const { data: staffs = [] } = useGetStaffs();
   const createMutation = useCreateCheckup(medicalRecordId);
   const { mutate: createCheckupFn } = createMutation;
   const updateMutation = useUpdateCheckup(medicalRecordId);
@@ -249,6 +269,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
       checkup_type_id: Number(addForm.checkup_type_id),
       date: addForm.date,
       next_date: addForm.next_date || null,
+      doctor_id: addForm.doctor_id ? Number(addForm.doctor_id) : null,
       result: addForm.result,
     };
     createCheckupFn(input, {
@@ -336,6 +357,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
                     onCancel={handleEditCancel}
                     isPending={updateMutation.isPending}
                     checkupTypes={checkupTypes}
+                    staffs={staffs}
                   />
                 ) : (
                   <tr
@@ -415,6 +437,18 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
               placeholder="次回日"
               className="h-8 w-32"
             />
+            <select
+              value={addForm.doctor_id}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("doctor_id", e.target.value)}
+              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+            >
+              <option value="">担当医</option>
+              {staffs.map((s: StaffItem) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
             <input
               autoFocus
               type="text"
