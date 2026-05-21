@@ -124,9 +124,6 @@ export interface Payment {
   billing_amount: number /* int64 */;
   received_amount: number /* int64 */;
   change_amount: number /* int64 */;
-  /**
-   * Deprecated: use PaymentMethodID. Will be removed in a future release.
-   */
   method: PaymentMethod;
   payment_method_id?: number /* uint64 */;
   paid_by?: number /* uint64 */;

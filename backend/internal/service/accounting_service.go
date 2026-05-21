@@ -104,7 +104,7 @@ func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
 		p.ChangeAmount = *input.ChangeAmount
 	}
 	if input.PaymentMethod != nil {
-		p.Method = *input.PaymentMethod //nolint:staticcheck // Method is deprecated but PaymentMethodID migration is in progress
+		p.Method = *input.PaymentMethod
 	}
 	return p
 }

@@ -22,6 +22,12 @@ type StaffRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error)
+}
+
+type StaffDependencyCount struct {
+	Label string
+	Count int64
 }
 
 type staffRepository struct{ db *gorm.DB }
@@ -144,4 +150,43 @@ func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []ui
 		return apperrors.Wrap(err, "failed to reorder staffs")
 	}
 	return nil
+}
+
+func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error) {
+	checks := []struct {
+		table   string
+		column  string
+		label   string
+		softDel bool
+	}{
+		{table: "medical_records", column: "doctor_id", label: "カルテ", softDel: true},
+		{table: "medical_records", column: "entered_by", label: "カルテ入力履歴", softDel: true},
+		{table: "medical_record_addendums", column: "author_user_id", label: "カルテ追記", softDel: true},
+		{table: "payments", column: "paid_by", label: "支払い", softDel: true},
+		{table: "hospitalizations", column: "doctor_id", label: "入院記録", softDel: true},
+		{table: "exams", column: "doctor_id", label: "検査", softDel: true},
+		{table: "exams", column: "entered_by", label: "検査入力履歴", softDel: true},
+		{table: "vital_records", column: "doctor_id", label: "バイタル記録", softDel: true},
+		{table: "cash_register_closes", column: "closed_by", label: "レジ締め", softDel: false},
+	}
+
+	dependencies := make([]StaffDependencyCount, 0, len(checks))
+	for _, check := range checks {
+		query := fmt.Sprintf("clinic_id = ? AND %s = ?", check.column)
+		if check.softDel {
+			query += " AND deleted_at IS NULL"
+		}
+
+		var count int64
+		if err := dbOrTx(ctx, r.db).
+			Table(check.table).
+			Where(query, clinicID, staffID).
+			Count(&count).Error; err != nil {
+			return nil, apperrors.FromGORM(err, check.table, fmt.Sprintf("staff_id=%d", staffID))
+		}
+		if count > 0 {
+			dependencies = append(dependencies, StaffDependencyCount{Label: check.label, Count: count})
+		}
+	}
+	return dependencies, nil
 }

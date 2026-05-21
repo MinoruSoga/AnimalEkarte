@@ -167,6 +167,10 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if actor := optionalStaffID(c); actor != nil && *actor == id {
+		RespondError(c, apperrors.WrapInvalidInput("自分自身を削除することはできません"))
+		return
+	}
 	if err := h.svc.Staff.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
@@ -519,14 +523,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PATCH("/occupations/:id", perm(model.ResourceMasterStaff, "edit"), h.UpdateOccupation)
 	masters.DELETE("/occupations/:id", perm(model.ResourceMasterStaff, "delete"), h.DeleteOccupation)
 
-	// Permission Groups — CRUD個別ガード
-	masters.GET("/permission-groups", perm(model.ResourceMasterPermission, "view"), h.ListPermissionGroups)
-	masters.GET("/permission-groups/:id", perm(model.ResourceMasterPermission, "view"), h.GetPermissionGroup)
-	masters.POST("/permission-groups", perm(model.ResourceMasterPermission, "create"), h.CreatePermissionGroup)
-	masters.PATCH("/permission-groups/reorder", perm(model.ResourceMasterPermission, "edit"), h.ReorderPermissionGroups)
-	masters.PATCH("/permission-groups/:id", perm(model.ResourceMasterPermission, "edit"), h.UpdatePermissionGroup)
-	masters.DELETE("/permission-groups/:id", perm(model.ResourceMasterPermission, "delete"), h.DeletePermissionGroup)
-	masters.PUT("/permission-groups/:id/rules", perm(model.ResourceMasterPermission, "edit"), h.SetPermissionGroupRules)
+	h.RegisterPermissionGroupRoutes(masters)
 
 	// Chief Complaint Categories
 	masters.GET("/chief-complaint-types", perm(model.ResourceMasterMedical, "view"), h.ListChiefComplaints)

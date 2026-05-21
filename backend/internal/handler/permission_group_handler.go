@@ -28,6 +28,16 @@ func marshalAuditJSON(v any) []byte {
 
 // ---- PermissionGroup ----
 
+func (h *Handler) RegisterPermissionGroupRoutes(masters *gin.RouterGroup) {
+	masters.GET("/permission-groups", h.RequirePermission(string(model.ResourceMasterPermission), "view"), h.ListPermissionGroups)
+	masters.GET("/permission-groups/:id", h.RequirePermission(string(model.ResourceMasterPermission), "view"), h.GetPermissionGroup)
+	masters.POST("/permission-groups", h.RequirePermission(string(model.ResourceMasterPermission), "create"), h.CreatePermissionGroup)
+	masters.PATCH("/permission-groups/reorder", h.RequirePermission(string(model.ResourceMasterPermission), "edit"), h.ReorderPermissionGroups)
+	masters.PATCH("/permission-groups/:id", h.RequirePermission(string(model.ResourceMasterPermission), "edit"), h.UpdatePermissionGroup)
+	masters.DELETE("/permission-groups/:id", h.RequirePermission(string(model.ResourceMasterPermission), "delete"), h.DeletePermissionGroup)
+	masters.PUT("/permission-groups/:id/rules", h.RequirePermission(string(model.ResourceMasterPermission), "edit"), h.SetPermissionGroupRules)
+}
+
 // GetPermissionGroup godoc
 func (h *Handler) GetPermissionGroup(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)

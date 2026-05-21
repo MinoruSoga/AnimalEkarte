@@ -15,13 +15,14 @@ import (
 
 // mockStaffRepository は StaffRepository のテスト用モック実装
 type mockStaffRepository struct {
-	findAllFn         func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
-	findByIDFn        func(ctx context.Context, id uint64) (*model.Staff, error)
-	findByAccountIDFn func(ctx context.Context, accountID uint64) (*model.Staff, error)
-	createFn          func(ctx context.Context, staff *model.Staff) error
-	updateFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn          func(ctx context.Context, clinicID, id uint64) error
-	reorderErr        error
+	findAllFn           func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
+	findByIDFn          func(ctx context.Context, id uint64) (*model.Staff, error)
+	findByAccountIDFn   func(ctx context.Context, accountID uint64) (*model.Staff, error)
+	createFn            func(ctx context.Context, staff *model.Staff) error
+	updateFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn            func(ctx context.Context, clinicID, id uint64) error
+	reorderErr          error
+	countBlockingRefsFn func(ctx context.Context, clinicID, staffID uint64) ([]repository.StaffDependencyCount, error)
 }
 
 func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error) {
@@ -53,6 +54,13 @@ func (m *mockStaffRepository) Delete(ctx context.Context, clinicID, id uint64) e
 
 func (m *mockStaffRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
 	return m.reorderErr
+}
+
+func (m *mockStaffRepository) CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]repository.StaffDependencyCount, error) {
+	if m.countBlockingRefsFn == nil {
+		return nil, nil
+	}
+	return m.countBlockingRefsFn(ctx, clinicID, staffID)
 }
 
 // mockReservationForStaff は Staff テストで使用する ReservationQueryRepository のスタブ
@@ -602,6 +610,8 @@ func TestStaffService_Delete(t *testing.T) {
 		shiftExists         bool
 		checkReservationErr error
 		checkShiftErr       error
+		blockingRefs        []repository.StaffDependencyCount
+		blockingErr         error
 		repoErr             error
 		wantErr             bool
 		wantNF              bool
@@ -684,6 +694,21 @@ func TestStaffService_Delete(t *testing.T) {
 			repoErr:             nil,
 			wantErr:             true,
 		},
+		{
+			name:         "returns conflict error when staff has blocking dependencies",
+			clinicID:     1,
+			id:           10,
+			blockingRefs: []repository.StaffDependencyCount{{Label: "カルテ追記", Count: 1}},
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name:        "returns error when dependency check fails",
+			clinicID:    1,
+			id:          10,
+			blockingErr: errors.New("db error"),
+			wantErr:     true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -697,6 +722,9 @@ func TestStaffService_Delete(t *testing.T) {
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
+				},
+				countBlockingRefsFn: func(_ context.Context, _, _ uint64) ([]repository.StaffDependencyCount, error) {
+					return tt.blockingRefs, tt.blockingErr
 				},
 			}
 			reservationRepo := &mockReservationForStaff{

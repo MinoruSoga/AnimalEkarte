@@ -243,7 +243,7 @@ func toPaymentResponse(p *model.Payment) paymentResponse {
 		BillingAmount:   p.BillingAmount,
 		ReceivedAmount:  p.ReceivedAmount,
 		ChangeAmount:    p.ChangeAmount,
-		Method:          string(p.Method), //nolint:staticcheck // Method is deprecated but PaymentMethodID migration is in progress
+		Method:          string(p.Method),
 		PaidBy:          p.PaidBy,
 		PaidByName:      staffName,
 		CreatedAt:       p.CreatedAt,

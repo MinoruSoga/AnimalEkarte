@@ -275,6 +275,16 @@ func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
 		return apperrors.WrapConflict("スタッフが紐付いているため削除できません。先にスタッフを削除してください")
 	}
 
+	dependencies, err := s.repo.CountBlockingReferencesByClinicID(ctx, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check clinic dependencies", "error", err, "id", id)
+		return apperrors.Wrap(err, "failed to check clinic dependencies")
+	}
+	if len(dependencies) > 0 {
+		dep := dependencies[0]
+		return apperrors.WrapConflict(dep.Label + "が紐付いているため削除できません。関連データを先に整理してください")
+	}
+
 	if err := s.repo.Delete(ctx, id); err != nil {
 		slog.ErrorContext(ctx, "failed to delete clinic", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to delete clinic")

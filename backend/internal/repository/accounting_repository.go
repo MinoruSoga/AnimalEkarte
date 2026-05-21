@@ -212,7 +212,7 @@ func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.P
 		"billing_amount":   payment.BillingAmount,
 		"received_amount":  payment.ReceivedAmount,
 		"change_amount":    payment.ChangeAmount,
-		"method":           payment.Method, //nolint:staticcheck // Method is deprecated but PaymentMethodID migration is in progress
+		"method":           payment.Method,
 		"paid_by":          payment.PaidBy,
 	}
 

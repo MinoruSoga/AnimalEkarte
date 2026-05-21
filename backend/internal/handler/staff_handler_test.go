@@ -333,6 +333,16 @@ func newDeleteStaffRouter(staffSvc service.StaffService) *gin.Engine {
 	return r
 }
 
+func newDeleteStaffRouterWithActor(staffSvc service.StaffService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithStaffSvc(staffSvc)
+	r.DELETE("/staffs/:id", func(c *gin.Context) {
+		setClinicID(c)
+		setStaffID(c)
+	}, h.DeleteStaff)
+	return r
+}
+
 func TestDeleteStaff_NotFound_Returns404(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -400,6 +410,14 @@ func TestDeleteStaff_NotFound_Returns404(t *testing.T) {
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
 		h.DeleteStaff(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("returns 400 when deleting current staff", func(t *testing.T) {
+		router := newDeleteStaffRouterWithActor(&mockStaffService{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/staffs/1", http.NoBody)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }
 

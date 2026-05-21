@@ -20,6 +20,12 @@ type ClinicRepository interface {
 	Delete(ctx context.Context, id uint64) error
 	CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error)
 	CountStaffByClinicID(ctx context.Context, clinicID uint64) (int64, error)
+	CountBlockingReferencesByClinicID(ctx context.Context, clinicID uint64) ([]ClinicDependencyCount, error)
+}
+
+type ClinicDependencyCount struct {
+	Label string
+	Count int64
 }
 
 type clinicRepository struct {
@@ -127,4 +133,43 @@ func (r *clinicRepository) CountStaffByClinicID(ctx context.Context, clinicID ui
 		return 0, apperrors.FromGORM(err, "staff", fmt.Sprintf("clinic_id=%d", clinicID))
 	}
 	return count, nil
+}
+
+func (r *clinicRepository) CountBlockingReferencesByClinicID(ctx context.Context, clinicID uint64) ([]ClinicDependencyCount, error) {
+	checks := []struct {
+		table   string
+		label   string
+		softDel bool
+	}{
+		{table: "appointments", label: "予約", softDel: true},
+		{table: "medical_records", label: "カルテ", softDel: true},
+		{table: "hospitalizations", label: "入院記録", softDel: true},
+		{table: "exams", label: "検査", softDel: true},
+		{table: "vaccinations", label: "ワクチン接種記録", softDel: true},
+		{table: "checkups", label: "健診記録", softDel: true},
+		{table: "billings", label: "会計", softDel: true},
+		{table: "clinic_settings", label: "医院設定", softDel: false},
+		{table: "lstep_settings", label: "Lステップ設定", softDel: true},
+		{table: "permission_groups", label: "権限グループ", softDel: true},
+	}
+
+	dependencies := make([]ClinicDependencyCount, 0, len(checks))
+	for _, check := range checks {
+		query := "clinic_id = ?"
+		if check.softDel {
+			query += " AND deleted_at IS NULL"
+		}
+
+		var count int64
+		if err := r.db.WithContext(ctx).
+			Table(check.table).
+			Where(query, clinicID).
+			Count(&count).Error; err != nil {
+			return nil, apperrors.FromGORM(err, check.table, fmt.Sprintf("clinic_id=%d", clinicID))
+		}
+		if count > 0 {
+			dependencies = append(dependencies, ClinicDependencyCount{Label: check.label, Count: count})
+		}
+	}
+	return dependencies, nil
 }
