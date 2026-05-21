@@ -36,3 +36,11 @@ export interface ReservationFormData {
   source?: "manual" | "line";
 }
 
+export interface NewOwnerFormData {
+  ownerName: string;
+  phone: string;
+  petName: string;
+  chiefComplaint: string;
+  animalSpeciesId: number;
+}
+

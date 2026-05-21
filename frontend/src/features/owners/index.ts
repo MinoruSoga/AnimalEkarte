@@ -1,3 +1,5 @@
+export { createOwner } from "./api/create-owner";
+export { useAnimalSpecies } from "./hooks/use-animal-species";
 export { OwnersList } from "./routes/OwnersList";
 export { OwnerForm } from "./routes/OwnerForm";
 export { ownersLoader, ownerLoader } from "./loaders";

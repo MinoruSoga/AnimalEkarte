@@ -4,6 +4,8 @@ import { addHours } from "date-fns";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
+import { createOwner } from "@/features/owners";
+import { createPet } from "@/features/pets";
 
 import { getReservationStatusLabel } from "@/utils/status-helpers";
 import type {
@@ -12,6 +14,7 @@ import type {
   ReservationStatus,
   Pet,
   NavigationState,
+  NewOwnerFormData,
 } from "../types";
 
 import { useGetReservations } from "../api/get-reservations";
@@ -151,8 +154,10 @@ export function useReservationManagement() {
   }, []);
 
   const handleSave = useCallback(
-    async (data: ReservationFormData, selectedPets: Pet[]) => {
-      if (!data.start || !data.end || selectedPets.length === 0) return;
+    async (data: ReservationFormData, selectedPets: Pet[], newOwnerData?: NewOwnerFormData) => {
+      if (!data.start || !data.end) return;
+      // 新規飼主モード以外は既存ペット選択が必須
+      if (!newOwnerData && selectedPets.length === 0) return;
 
       const currentEditing = editingAppointmentRef.current;
       const targetDoctor = data.doctor || currentEditing?.doctor || "";
@@ -191,8 +196,36 @@ export function useReservationManagement() {
             },
           });
         });
+      } else if (newOwnerData) {
+        // Create mode — new owner flow: owner → pet → reservation (sequential)
+        try {
+          const owner = await createOwner({
+            owner_name: newOwnerData.ownerName,
+            phone: newOwnerData.phone,
+          });
+          const pet = await createPet({
+            owner_id: Number(owner.id),
+            animal_species_id: newOwnerData.animalSpeciesId,
+            name: newOwnerData.petName,
+          });
+          const createPayload = transformToCreateRequest(
+            { ...data, notes: data.notes ?? newOwnerData.chiefComplaint },
+            String(pet.id),
+            String(owner.id)
+          );
+          await createMutation.mutateAsync(createPayload);
+          toast.success("予約を作成しました", {
+            description: `${newOwnerData.ownerName}様 / ${newOwnerData.petName} / 担当医: ${targetDoctor}`,
+          });
+          handleCloseForm();
+          if (locationFrom) {
+            navigate(locationFrom);
+          }
+        } catch (error) {
+          handleApiError(error, "作成");
+        }
       } else {
-        // Create mode
+        // Create mode — existing owner flow
         try {
           await Promise.all(
             selectedPets.map((pet) => {

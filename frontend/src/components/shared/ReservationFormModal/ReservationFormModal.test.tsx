@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
@@ -25,6 +25,7 @@ const silentApiHandlers = [
   http.get("/api/v1/masters/reservation-types", () => HttpResponse.json([])),
   http.get("/api/v1/masters/staffs", () => HttpResponse.json([])),
   http.get("/api/v1/shifts/on-duty-staffs", () => HttpResponse.json([])),
+  http.get("/api/v1/masters/animal-species", () => HttpResponse.json([])),
 ];
 
 const noop = () => {};
@@ -121,5 +122,59 @@ describe("ReservationFormModal — 初期値セット (Issue #52)", () => {
     const triggers = screen.getAllByRole("combobox");
     const timeLabels = triggers.map((t) => t.textContent ?? "");
     expect(timeLabels.some((label) => label.includes("10:00"))).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Issue #51: 新規飼主インラインフォーム (既存飼主/新規飼主切替)
+// ─────────────────────────────────────────────────────────────
+
+describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
+  it("デフォルト（既存飼主）モードで患者検索UIが表示される", () => {
+    server.use(...silentApiHandlers);
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={null}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    // 既存飼主モードでは患者検索ラベルが表示される
+    expect(screen.getByText("患者検索")).toBeInTheDocument();
+    // 新規飼主フォームは表示されない
+    expect(screen.queryByTestId("new-owner-name")).not.toBeInTheDocument();
+  });
+
+  it("「新規飼主」ボタンをクリックすると4項目の入力フォームが表示される", () => {
+    server.use(...silentApiHandlers);
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={null}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    const newOwnerBtn = screen.getByTestId("mode-new");
+    fireEvent.click(newOwnerBtn);
+
+    // 新規飼主フォームの4項目が表示される
+    expect(screen.getByTestId("new-owner-name")).toBeInTheDocument();
+    expect(screen.getByTestId("new-owner-phone")).toBeInTheDocument();
+    expect(screen.getByTestId("new-owner-pet-name")).toBeInTheDocument();
+    expect(screen.getByTestId("new-owner-chief-complaint")).toBeInTheDocument();
+    // 患者検索は非表示になる
+    expect(screen.queryByText("患者検索")).not.toBeInTheDocument();
   });
 });

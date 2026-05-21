@@ -4,7 +4,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo } from
 import { format as dateFnsFormat } from "date-fns";
 
 // External
-import { Calendar, CalendarCheck, PawPrint, X, Search } from "lucide-react";
+import { Calendar, CalendarCheck, PawPrint, X, Search, UserPlus, Users } from "lucide-react";
 // Internal
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -18,19 +18,30 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
 import { useGetOwnerLineTags } from "@/features/owners";
 import { ReservationRouteSelect, useGetReservation } from "@/features/reservations";
-import type { ReservationRoute } from "@/features/reservations";
+import type { ReservationRoute, NewOwnerFormData } from "@/features/reservations";
 
 // Relative
 import { PatientSelectionTable } from "./PatientSelectionTable";
 import { ReservationFormFields } from "./ReservationFormFields";
+import { NewOwnerInlineForm } from "./NewOwnerInlineForm";
 
 // Types
 import type { Pet, Reservation } from "@/types";
 
+type OwnerMode = "existing" | "new";
+
+const EMPTY_NEW_OWNER: NewOwnerFormData = {
+  ownerName: "",
+  phone: "",
+  petName: "",
+  chiefComplaint: "",
+  animalSpeciesId: 0,
+};
+
 interface ReservationFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Partial<Reservation>, selectedPets: Pet[]) => void;
+  onSave: (data: Partial<Reservation>, selectedPets: Pet[], newOwnerData?: NewOwnerFormData) => void;
   initialData: Partial<Reservation> | null;
   canCreate?: boolean;
   canEdit?: boolean;
@@ -86,6 +97,9 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   const [mobilePanel, setMobilePanel] = useState<"search" | "form">("search");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [calendarMonth, setCalendarMonth] = useState<string>(() => dateFnsFormat(new Date(), "yyyy-MM"));
+  const [ownerMode, setOwnerMode] = useState<OwnerMode>("existing");
+  const [newOwnerData, setNewOwnerData] = useState<NewOwnerFormData>(EMPTY_NEW_OWNER);
+  const [newOwnerErrors, setNewOwnerErrors] = useState<Record<string, string>>({});
 
   // BUG-343: 定休日を取得して Calendar で disabled にする
   const { data: clinicHolidays = [] } = useGetClinicHolidays(calendarMonth);
@@ -126,6 +140,9 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   useLayoutEffect(() => {
     if (!isOpen) return;
     setValidationErrors({});
+    setNewOwnerErrors({});
+    setOwnerMode("existing");
+    setNewOwnerData(EMPTY_NEW_OWNER);
     setMobilePanel("search");
     setCalendarMonth(dateFnsFormat(new Date(), "yyyy-MM")); // BUG-343: 月またぎ表示リセット
     if (initialData) {
@@ -170,6 +187,46 @@ export const ReservationFormModal = memo(function ReservationFormModal({
 
   const handleSave = useCallback(() => {
     const errors: Record<string, string> = {};
+    const noErrors: Record<string, string> = {};
+
+    if (ownerMode === "new") {
+      // 新規飼主モードのバリデーション
+      const noe: Record<string, string> = {};
+      if (!newOwnerData.ownerName.trim()) noe.ownerName = "飼主名を入力してください";
+      if (!newOwnerData.phone.trim()) {
+        noe.phone = "電話番号を入力してください";
+      } else if (!/^[\d-]+$/.test(newOwnerData.phone.trim())) {
+        noe.phone = "電話番号は数字と「-」で入力してください";
+      }
+      if (!newOwnerData.petName.trim()) noe.petName = "ペット名を入力してください";
+      if (!newOwnerData.animalSpeciesId) noe.animalSpeciesId = "動物種を選択してください";
+      if (!newOwnerData.chiefComplaint.trim()) noe.chiefComplaint = "主訴を入力してください";
+
+      if (!formData.start) errors.date = "日付を選択してください";
+      if (!formData.type) errors.type = "予約区分を選択してください";
+      if (formData.start && formData.end && formData.end <= formData.start) {
+        errors.time = "終了時刻は開始時刻より後に設定してください";
+      }
+      if (!isEditMode && formData.start) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const reservationDate = new Date(formData.start);
+        reservationDate.setHours(0, 0, 0, 0);
+        if (reservationDate < today) errors.date = "本日以降の日付を選択してください";
+      }
+
+      if (Object.keys(noe).length > 0 || Object.keys(errors).length > 0) {
+        setNewOwnerErrors(noe);
+        setValidationErrors(errors);
+        return;
+      }
+      setNewOwnerErrors(noErrors);
+      setValidationErrors(noErrors);
+      onSave(formData, [], newOwnerData);
+      return;
+    }
+
+    // 既存飼主モードのバリデーション
     if (selectedPets.length === 0) {
       errors.patient = "患者を選択してください";
     }
@@ -199,9 +256,9 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       return;
     }
 
-    setValidationErrors({});
+    setValidationErrors(noErrors);
     onSave(formData, selectedPets);
-  }, [formData, selectedPets, onSave, isEditMode]);
+  }, [formData, selectedPets, onSave, isEditMode, ownerMode, newOwnerData]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -255,16 +312,48 @@ export const ReservationFormModal = memo(function ReservationFormModal({
               mobilePanel !== "search" && "hidden lg:flex"
             )}
           >
-            <div className="mb-3 flex items-center gap-2 shrink-0">
-              <Search className={`${ICON.action} ${C.text60}`} />
-              <Label className={`text-sm font-bold ${C.text}`}>患者検索</Label>
-            </div>
-            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-              <PatientSelectionTable
-                onSelect={togglePetSelection}
-                selectedPets={selectedPets}
+            {/* Mode toggle — create mode only */}
+            {!isEditMode ? (
+              <div className="flex rounded-lg border overflow-hidden mb-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setOwnerMode("existing")}
+                  data-testid="mode-existing"
+                  className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "existing" ? `${C.bgAccent} ${C.textWhite}` : `bg-white ${C.text60}`}`}
+                >
+                  <Users size={12} className="inline mr-1" />既存飼主
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOwnerMode("new")}
+                  data-testid="mode-new"
+                  className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "new" ? `${C.bgAccent} ${C.textWhite}` : `bg-white ${C.text60}`}`}
+                >
+                  <UserPlus size={12} className="inline mr-1" />新規飼主
+                </button>
+              </div>
+            ) : null}
+
+            {ownerMode === "existing" ? (
+              <>
+                <div className="mb-3 flex items-center gap-2 shrink-0">
+                  <Search className={`${ICON.action} ${C.text60}`} />
+                  <Label className={`text-sm font-bold ${C.text}`}>患者検索</Label>
+                </div>
+                <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                  <PatientSelectionTable
+                    onSelect={togglePetSelection}
+                    selectedPets={selectedPets}
+                  />
+                </div>
+              </>
+            ) : (
+              <NewOwnerInlineForm
+                value={newOwnerData}
+                onChange={setNewOwnerData}
+                errors={newOwnerErrors}
               />
-            </div>
+            )}
           </div>
 
           {/* Right Panel: Reservation Form */}
@@ -361,10 +450,17 @@ export const ReservationFormModal = memo(function ReservationFormModal({
 
         <DialogFooter className="p-4 border-t bg-white shrink-0 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <PawPrint className={`${ICON.action} ${C.text60}`} />
-            <span className={`text-sm ${C.text60}`}>
-              {selectedPets.length}頭 選択中
-            </span>
+            {ownerMode === "new" ? (
+              <>
+                <UserPlus className={`${ICON.action} ${C.text60}`} />
+                <span className={`text-sm ${C.text60}`}>新規飼主モード</span>
+              </>
+            ) : (
+              <>
+                <PawPrint className={`${ICON.action} ${C.text60}`} />
+                <span className={`text-sm ${C.text60}`}>{selectedPets.length}頭 選択中</span>
+              </>
+            )}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} className="h-10 text-sm">
