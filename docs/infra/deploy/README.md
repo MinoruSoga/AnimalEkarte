@@ -23,6 +23,7 @@ Animal Ekarte のデプロイ手順・CI/CD・運用ガイド。
 |-----------|------|
 | [CI-CD-PIPELINE.md](./CI-CD-PIPELINE.md) | 自動デプロイパイプライン、手動デプロイ、ロールバック、トラブルシューティング |
 | [DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md) | デプロイ前チェックリスト、デプロイ手順、DB作り直し |
+| [LOCAL_DB_RESET.md](./LOCAL_DB_RESET.md) | migration 統合後のローカルDB volume 再構築手順 |
 | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) | STG デプロイ後の CRUD smoke test 手順（医院 / 権限グループ / スタッフ） |
 | [runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md](./runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) | main → staging 反映前の readiness check runbook（env 監査 / PR / CI / deploy / health / smoke / rollback） |
 | [architecture.md](../architecture.md) | AWSリソース一覧、インフラ構成、セキュリティ、コスト |

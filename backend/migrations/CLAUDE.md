@@ -24,3 +24,7 @@ docker compose exec db psql ...  # 直接 SQL 実行
 ```
 
 マイグレーション適用はユーザーが手動で実施する。
+
+## migration 統合後のローカル復旧
+
+`001_init.sql` の checksum mismatch が出たローカル環境は、`docs/infra/deploy/LOCAL_DB_RESET.md` の手順で DB volume を再構築する。
