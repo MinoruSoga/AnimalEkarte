@@ -29,6 +29,8 @@ export function TriggerPrioritySection() {
   const [draft, setDraft] = useState<TriggerPriorityItem[]>([]);
   const [baseline, setBaseline] = useState<TriggerPriorityItem[]>([]);
 
+  // サーバーデータと baseline/draft を同期する。useEffect 内 setState は同期目的のため許容。
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (data) {
       const sorted = sortItems(data.items);
@@ -36,6 +38,7 @@ export function TriggerPrioritySection() {
       setDraft(sorted);
     }
   }, [data]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const isDirty = useMemo(() => {
     const baseMap = new Map(baseline.map((i) => [i.trigger_type, i.priority]));

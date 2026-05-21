@@ -3,7 +3,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AggregationFilterPanel } from '../AggregationFilterPanel';
 import type { AggregationParams } from '../api/get-aggregations';
-import type { AggregationTab } from '../AggregationDashboardPage';
 
 describe('AggregationFilterPanel', () => {
   const mockOnParamsChange = vi.fn();

@@ -141,7 +141,9 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
   const { data: examTypeFields } = useGetExamTypeFields(currentTestTypeId);
 
   // 編集モード: 既存 items を一度だけ formItems に流し込む
+  // 同期目的のため useEffect 内 setState は許容。
   const itemsInitializedRef = useRef(false);
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isEdit) return;
     if (itemsInitializedRef.current) return;
@@ -200,6 +202,7 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
     setFormItems(buildRowsFromTemplate(examTypeFields));
     newModeInitializedRef.current = true;
   }, [isEdit, currentTestTypeId, examTypeFields]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const setInspectionValue = useCallback((key: string, value: string) => {
     setFormItems((prev) =>

@@ -331,12 +331,12 @@ export const paths = {
       getHref: () => "/settings/treatment-items?tab=procedure",
     },
     diagnosisType: {
-      path: "/settings/diagnosis-type",
-      getHref: () => "/settings/diagnosis-type",
+      path: "/settings/diagnosis",
+      getHref: () => "/settings/diagnosis?tab=diagnosis_type",
     },
     diagnosisName: {
-      path: "/settings/diagnosis-name",
-      getHref: () => "/settings/diagnosis-name",
+      path: "/settings/diagnosis",
+      getHref: () => "/settings/diagnosis?tab=diagnosis_name",
     },
     interview: {
       chiefComplaint: {

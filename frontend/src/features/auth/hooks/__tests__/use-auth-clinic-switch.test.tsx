@@ -11,7 +11,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act, waitFor } from "@testing-library/react";
 import { Suspense } from "react";
-import type { AuthUser } from "@/types/auth";
 
 const STORAGE_KEY = "auth_current_clinic:v1";
 const CLINIC_A = "clinic-a";
