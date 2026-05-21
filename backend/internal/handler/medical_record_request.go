@@ -9,7 +9,7 @@ type createMedicalRecordRequest struct {
 	RecordNo      string     `json:"record_no"`                   // optional; 自動生成される
 	Date          *time.Time `json:"date"`                        // optional
 	VisitDate     *string    `json:"visit_date"`                  // FE送信フィールド（"YYYY-MM-DD"形式）
-	VisitType     string     `json:"visit_type"`                  // FE送信フィールド（無視してよい）
+	VisitType     string     `json:"visit_type"`                  // "first" | "revisit" | "" (省略時は revisit にデフォルト)
 	OwnerID       *string    `json:"owner_id" binding:"required"` // FE送信（string）→ uint64に変換
 	PetID         *string    `json:"pet_id" binding:"required"`   // FE送信（string）→ uint64に変換
 	DoctorID      *string    `json:"doctor_id"`                   // FE送信（string）→ uint64に変換

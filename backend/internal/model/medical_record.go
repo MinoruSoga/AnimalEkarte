@@ -26,6 +26,7 @@ type MedicalRecord struct {
 	Version                  int                 `gorm:"default:1"                                       json:"version"`
 	NextVisitRecommendedDate *time.Time          `gorm:"column:next_visit_recommended_date;type:date"    json:"next_visit_recommended_date,omitempty"`
 	RecommendationReason     *string             `gorm:"column:recommendation_reason"                    json:"recommendation_reason,omitempty"`
+	VisitType                *VisitType          `gorm:"type:visit_type;column:visit_type"               json:"visit_type,omitempty"`
 	EnteredBy                *uint64             `gorm:""                                                json:"entered_by,omitempty"`
 	CreatedAt                time.Time           `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt                time.Time           `gorm:"autoUpdateTime"                                 json:"updated_at"`

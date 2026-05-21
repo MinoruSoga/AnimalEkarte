@@ -877,6 +877,58 @@ func TestPatchMedicalRecordRecommendationReason(t *testing.T) {
 	})
 }
 
+// ---- buildMedicalRecord unit tests ----
+
+// TestBuildMedicalRecord_VisitType は Path B（visit_type 未送信）で 'revisit' がデフォルト設定され、
+// "first" 送信時は 'first' になることを検証する。
+func TestBuildMedicalRecord_VisitType(t *testing.T) {
+	ownerID := "10"
+	petID := "20"
+	visitDate := "2026-03-24"
+
+	tests := []struct {
+		name           string
+		inputVisitType string
+		wantVisitType  model.VisitType
+	}{
+		{
+			name:           "Path B: visit_type 未送信 → revisit デフォルト",
+			inputVisitType: "",
+			wantVisitType:  model.VisitTypeRevisit,
+		},
+		{
+			name:           "visit_type=first 送信 → first",
+			inputVisitType: "first",
+			wantVisitType:  model.VisitTypeFirst,
+		},
+		{
+			name:           "visit_type=revisit 送信 → revisit",
+			inputVisitType: "revisit",
+			wantVisitType:  model.VisitTypeRevisit,
+		},
+		{
+			name:           "visit_type=unknown 送信 → revisit フォールバック",
+			inputVisitType: "unknown",
+			wantVisitType:  model.VisitTypeRevisit,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := &createMedicalRecordRequest{
+				OwnerID:   &ownerID,
+				PetID:     &petID,
+				VisitDate: &visitDate,
+				VisitType: tt.inputVisitType,
+			}
+			record, err := buildMedicalRecord(1, req)
+			require.NoError(t, err)
+			require.NotNil(t, record.VisitType, "VisitType は nil であってはならない")
+			assert.Equal(t, tt.wantVisitType, *record.VisitType)
+		})
+	}
+}
+
 // ---- view permission gate tests ----
 
 // TestListMedicalRecords_ViewPermissionDenied は view 権限を持たない非 system_admin が 403 を受けることを確認する。

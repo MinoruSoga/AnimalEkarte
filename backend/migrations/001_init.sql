@@ -1278,6 +1278,7 @@ CREATE TABLE medical_records (
     -- 010: 次回来院推奨日
     next_visit_recommended_date    date                  NULL,
     recommendation_reason          varchar(100),                  -- ext-015: 次回来院推奨理由
+    visit_type                     visit_type            NULL,    -- 初診/再診（Path B 自動生成カルテで設定）
     created_at                     timestamptz           NOT NULL DEFAULT now(),
     updated_at                     timestamptz           NOT NULL DEFAULT now(),
     deleted_at                     timestamptz

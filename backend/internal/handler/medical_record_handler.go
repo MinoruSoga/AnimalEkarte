@@ -166,7 +166,13 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 		nextVisitDate = &parsed
 	}
 
-	// 5. モデル組み立て（RecordNo は service 層で自動生成）
+	// 5. visit_type の解決: FE 送信値があればそれを使い、なければ 'revisit' をデフォルトとする
+	visitType := model.VisitTypeRevisit
+	if input.VisitType == string(model.VisitTypeFirst) {
+		visitType = model.VisitTypeFirst
+	}
+
+	// 6. モデル組み立て（RecordNo は service 層で自動生成）
 	record := &model.MedicalRecord{
 		ClinicID:                 clinicID,
 		RecordNo:                 input.RecordNo,
@@ -176,6 +182,7 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 		DoctorID:                 doctorID,
 		AppointmentID:            appointmentID,
 		NextVisitRecommendedDate: nextVisitDate,
+		VisitType:                &visitType,
 	}
 	if input.Status != "" {
 		status, err := validateEnum(input.Status,
