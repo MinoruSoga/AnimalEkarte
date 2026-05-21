@@ -1,5 +1,6 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, Suspense, lazy } from "react";
+import { useSearchParams } from "react-router";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
@@ -16,6 +17,7 @@ import { getCalendarViewLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
 import type { CalendarView, Reservation } from "../types";
 import { CALENDAR_VIEW_VALUES } from "../types";
+import { DaysRangeToggle } from "../components/DaysRangeToggle";
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
     default: m.ReservationFormModal,
@@ -68,6 +70,20 @@ export function ReservationManagement() {
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const days: 5 | 7 = searchParams.get("days") === "7" ? 7 : 5;
+  const handleDaysChange = useCallback((next: 5 | 7) => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next === 7) {
+        params.set("days", "7");
+      } else {
+        params.delete("days");
+      }
+      return params;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const { activeEntries, colorMap: dynamicColorMap } = useReservationTypeColorMap();
 
@@ -249,6 +265,10 @@ export function ReservationManagement() {
                 {CALENDAR_VIEW_SELECT_ITEMS}
               </SelectContent>
             </Select>
+
+            {view === "week" ? (
+              <DaysRangeToggle days={days} onChange={handleDaysChange} />
+            ) : null}
           </div>
         </div>
 
@@ -296,6 +316,7 @@ export function ReservationManagement() {
                 onTimeSlotClick={canCreate ? handleTimeSlotClick : undefined}
                 onAppointmentUpdate={handleReservationUpdate}
                 dynamicColorMap={dynamicColorMap}
+                days={days}
               />
             )}
           </Suspense>

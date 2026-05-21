@@ -53,6 +53,8 @@ interface WeekViewProps {
   onAppointmentUpdate?: (reservation: Reservation, newStart: Date, newEnd: Date) => void;
   /** Dynamic color map from reservationType master (name → ReservationTypeColor) */
   dynamicColorMap?: Map<string, ReservationTypeColor>;
+  /** 表示モード: 5=週全体スクロール表示（デフォルト）, 7=全曜日を一画面表示 */
+  days?: 5 | 7;
 }
 
 // Helper: Calculate event layout (overlapping)
@@ -361,6 +363,7 @@ const DayColumn = memo(function DayColumn({
   onTimeSlotClick,
   onAppointmentUpdate,
   dynamicColorMap,
+  minWidth,
 }: {
   date: Date;
   appointments: Reservation[];
@@ -368,6 +371,7 @@ const DayColumn = memo(function DayColumn({
   onTimeSlotClick?: (date: Date) => void;
   onAppointmentUpdate?: (reservation: Reservation, newStart: Date, newEnd: Date) => void;
   dynamicColorMap?: Map<string, ReservationTypeColor>;
+  minWidth?: string;
 }) {
   const layoutStyles = useMemo(
     () => calculateEventLayout(appointments),
@@ -435,7 +439,7 @@ const DayColumn = memo(function DayColumn({
       className={`flex-1 flex-shrink-0 border-r ${C.borderMedium} relative ${
         isToday ? C.bgAccentLight8 : ""
       }`}
-      style={{ minWidth: "20%" }}
+      style={{ minWidth: minWidth ?? "20%" }}
       onClick={handleColumnClick}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -502,7 +506,12 @@ export const WeekView = memo(function WeekView({
   onTimeSlotClick,
   onAppointmentUpdate,
   dynamicColorMap,
+  days = 5,
 }: WeekViewProps) {
+  // days=5: 全7曜日を20%幅でレンダリング（5列が表示域に収まり残りはスクロール）— 以前のデフォルト動作
+  // days=7: 全7曜日を等幅でレンダリング（全曜日が一画面に収まる）
+  const columnWidth = days === 7 ? `${(100 / 7).toFixed(4)}%` : "20%";
+
   const startDate = useMemo(
     () => startOfWeek(currentDate, { locale: ja }),
     [currentDate]
@@ -525,23 +534,25 @@ export const WeekView = memo(function WeekView({
 
   const headerDays = useMemo(
     () =>
-      WEEK_DAYS.map((i) => {
-        const day = addDays(startDate, i);
+      WEEK_DAYS.map((offset) => {
+        const day = addDays(startDate, offset);
         const isToday = isSameDay(day, new Date());
         const count = appointmentsByDay.get(format(day, "yyyy-MM-dd"))?.length ?? 0;
+        const dow = day.getDay(); // 0=Sun, 6=Sat
         return (
           <div
-            key={i}
+            key={offset}
+            data-testid="week-header-day"
             className={`flex-1 flex-shrink-0 text-center py-2 border-r border-b ${C.borderMedium} ${C.bgWhite} ${
               isToday ? C.bgAccentLight30 : ""
             }`}
-            style={{ minWidth: "20%" }}
+            style={{ minWidth: columnWidth }}
           >
             <div
               className={`text-sm mb-1 ${
-                i === 0
+                dow === 0
                   ? C.textNotionRed
-                  : i === 6
+                  : dow === 6
                   ? C.accent
                   : C.text60
               }`}
@@ -567,7 +578,7 @@ export const WeekView = memo(function WeekView({
           </div>
         );
       }),
-    [startDate, appointmentsByDay]
+    [startDate, appointmentsByDay, columnWidth]
   );
 
   return (
@@ -585,20 +596,21 @@ export const WeekView = memo(function WeekView({
 
           {/* Day Columns */}
           <div className="flex relative flex-1">
-            {WEEK_DAYS.map((i) => {
-              const day = addDays(startDate, i);
+            {WEEK_DAYS.map((offset) => {
+              const day = addDays(startDate, offset);
               const dayKey = format(day, "yyyy-MM-dd");
               const dayAppointments = appointmentsByDay.get(dayKey) ?? [];
 
               return (
                 <DayColumn
-                  key={i}
+                  key={offset}
                   date={day}
                   appointments={dayAppointments}
                   onAppointmentClick={onAppointmentClick}
                   onTimeSlotClick={onTimeSlotClick}
                   onAppointmentUpdate={onAppointmentUpdate}
                   dynamicColorMap={dynamicColorMap}
+                  minWidth={columnWidth}
                 />
               );
             })}
