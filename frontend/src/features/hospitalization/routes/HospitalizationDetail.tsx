@@ -23,6 +23,7 @@ export function HospitalizationDetail() {
         hospitalization,
         isLoading,
         isError,
+        isNotFound,
         dischargeHospitalization
     } = useHospitalizationDetail(id);
 
@@ -46,8 +47,9 @@ export function HospitalizationDetail() {
     }, [dischargeHospitalization, navigate, hospitalizationPetId]);
 
     if (isLoading) return <LoadingFallback />;
+    if (isNotFound || !id) return <ErrorFallback message="入院情報が見つかりません" />;
     if (isError) return <ErrorFallback />;
-    if (!hospitalization) return <LoadingFallback />;
+    if (!hospitalization) return <ErrorFallback message="入院情報が見つかりません" />;
 
     return (
         <PageLayout
