@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON, LAYOUT, PALETTE } from "@/lib/design-tokens";
-import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo } from "react";
 import { format as dateFnsFormat } from "date-fns";
 
 // External
@@ -122,7 +122,8 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     }
   }, [loadedPet, pendingPetId, setSelectedPets]);
 
-  useEffect(() => {
+  // useLayoutEffect: ペイント前に同期実行し、クリックした日時がフォームに即反映されるようにする (Issue #52)
+  useLayoutEffect(() => {
     if (!isOpen) return;
     setValidationErrors({});
     setMobilePanel("search");
