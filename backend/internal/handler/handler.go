@@ -91,6 +91,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterMasterRoutes(protected)
 	h.RegisterClinicRoutes(protected)
 	h.registerEstimateRoutesWithAuth(protected)
+	h.registerManualArticleRoutes(protected)
 	h.RegisterShiftRoutes(protected)
 	h.RegisterShiftTemplateRoutes(protected)
 	h.RegisterClinicHolidayRoutes(protected)

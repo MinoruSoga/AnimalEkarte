@@ -1,0 +1,76 @@
+/* manual-print.css — 取扱説明書の印刷最適化
+ *
+ * - サイドバー・ハンバーガー・アプリヘッダー類は非表示
+ * - 本文は A4 想定で余白調整
+ * - リンクの後ろに URL を表示
+ */
+
+@media print {
+  /* アプリ側のサイドバー・ヘッダーを隠す: design-tokens の sidebarContainer を狙う */
+  .no-print,
+  nav[aria-label="メインナビゲーション"],
+  aside[aria-label="マニュアル目次"] {
+    display: none !important;
+  }
+
+  /* メインコンテンツを全幅で */
+  .manual-root {
+    background: #ffffff !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .manual-article {
+    max-width: 100% !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    padding-top: 0 !important;
+    color: #000 !important;
+  }
+
+  /* 見出しはページ切り替えで分断されないように */
+  .manual-article h1,
+  .manual-article h2,
+  .manual-article h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* テーブルもなるべく分断しない */
+  .manual-article table {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* 画像はページ内に収まるように */
+  .manual-article img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* リンクの後ろに URL を表示（内部リンク・data: URL は除外） */
+  .manual-article a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: #555;
+  }
+
+  /* リンクの装飾を控えめに */
+  .manual-article a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  /* スクロールコンテナの最大高さ解除 */
+  .manual-article {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* 用紙余白 */
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+  }
+}

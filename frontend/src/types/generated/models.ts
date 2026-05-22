@@ -227,6 +227,14 @@ export const AuditActionOwnerLineUserIDUpdate = "owner.line_user_id.update";
  * 監査アクション定数
  */
 export const AuditActionOwnerLineUserIDUnlink = "owner.line_user_id.unlink";
+/**
+ * 取扱説明書（マニュアル）編集 監査アクション
+ */
+export const AuditActionManualArticleUpsert = "manual_article.upsert";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionManualArticleDelete = "manual_article.delete";
 
 //////////
 // source: billing_confirmation.go
@@ -1591,6 +1599,50 @@ export interface LstepTriggerPriority {
 export const DefaultPriorityFallback = 99;
 
 //////////
+// source: manual_article.go
+
+/**
+ * ManualCategory は取扱説明書のカテゴリ
+ */
+export type ManualCategory = string;
+export const ManualCategoryScreens: ManualCategory = "screens";
+export const ManualCategoryWorkflows: ManualCategory = "workflows";
+/**
+ * ManualArticle は取扱説明書のオーバーライド版（DB に保存された編集後マニュアル）
+ * 設計方針:
+ *   - フロントエンドが MD ファイルをデフォルト（バンドル）として保持
+ *   - DB にはオーバーライド版を保存
+ *   - 読み込み時: DB に該当 slug があればそれを優先、なければ MD ファイル
+ *   - 編集時: 該当 slug を DB に upsert
+ *   - マニュアルは医院共通の情報のため clinic_id は持たない
+ */
+export interface ManualArticle {
+  id: number /* uint64 */;
+  category: ManualCategory;
+  slug: string;
+  title: string;
+  order_value: number /* float64 */;
+  section: string;
+  body_markdown: string;
+  updated_by_staff_id?: number /* uint64 */;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * ManualArticleVersion はマニュアル編集履歴（編集ごとのスナップショット）
+ */
+export interface ManualArticleVersion {
+  id: number /* uint64 */;
+  article_id: number /* uint64 */;
+  title: string;
+  order_value: number /* float64 */;
+  section: string;
+  body_markdown: string;
+  edited_by_staff_id?: number /* uint64 */;
+  edited_at: string;
+}
+
+//////////
 // source: medical_record.go
 
 export type MedicalRecordStatus = string;
@@ -1896,6 +1948,10 @@ export const ResourcePaymentMethod: Resource = "master-payment-method";
  */
 export const ResourceLstepCsvImport: Resource = "lstep-csv-import";
 export const ResourceLstepAnalytics: Resource = "lstep-analytics";
+/**
+ * 取扱説明書（マニュアル）編集権限
+ */
+export const ResourceManualEdit: Resource = "manual-edit";
 
 //////////
 // source: permission_group.go

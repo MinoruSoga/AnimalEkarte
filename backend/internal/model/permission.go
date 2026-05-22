@@ -44,6 +44,9 @@ const (
 	// FEAT-385: Lステップ CSV インポート・分析
 	ResourceLstepCsvImport Resource = "lstep-csv-import"
 	ResourceLstepAnalytics Resource = "lstep-analytics"
+
+	// 取扱説明書（マニュアル）編集権限
+	ResourceManualEdit Resource = "manual-edit"
 )
 
 // AllResources は全リソース一覧（is_system_admin=true 全権限バイパス用）
@@ -78,6 +81,7 @@ var AllResources = []Resource{
 	ResourcePaymentMethod,
 	ResourceLstepCsvImport,
 	ResourceLstepAnalytics,
+	ResourceManualEdit,
 }
 
 // IsValidResource は指定されたリソース名が有効かどうかを判定する（BUG-146）

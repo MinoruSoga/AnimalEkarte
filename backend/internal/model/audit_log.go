@@ -43,4 +43,8 @@ const (
 	AuditActionLineNotificationSend  = "line.notification.send"
 	AuditActionOwnerLineUserIDUpdate = "owner.line_user_id.update"
 	AuditActionOwnerLineUserIDUnlink = "owner.line_user_id.unlink"
+
+	// 取扱説明書（マニュアル）編集 監査アクション
+	AuditActionManualArticleUpsert = "manual_article.upsert"
+	AuditActionManualArticleDelete = "manual_article.delete"
 )

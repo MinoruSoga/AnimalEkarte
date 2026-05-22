@@ -64,6 +64,7 @@ type Repositories struct {
 	ClinicalPlan              ClinicalPlanRepository
 	Checkup                   CheckupRepository
 	Estimate                  EstimateRepository
+	ManualArticle             ManualArticleRepository
 	MerchandiseItem           MerchandiseItemRepository
 	BillingItem               BillingItemRepository
 	Refund                    RefundRepository
@@ -169,6 +170,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		ClinicalPlan:                   NewClinicalPlanRepository(db),
 		Checkup:                        NewCheckupRepository(db),
 		Estimate:                       NewEstimateRepository(db),
+		ManualArticle:                  NewManualArticleRepository(db),
 		MerchandiseItem:                NewMerchandiseItemRepository(db),
 		BillingItem:                    NewBillingItemRepository(db),
 		Refund:                         NewRefundRepository(db),

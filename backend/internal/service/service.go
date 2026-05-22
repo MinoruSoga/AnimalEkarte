@@ -63,6 +63,7 @@ type Services struct {
 	ClinicalPlan                   ClinicalPlanService
 	Checkup                        CheckupService
 	Estimate                       EstimateService
+	ManualArticle                  ManualArticleService
 	MerchandiseItem                MerchandiseItemService
 	BillingItem                    BillingItemService
 	Refund                         RefundService
@@ -217,6 +218,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan),
 		Checkup:                        NewCheckupService(repos.Checkup, repos.MedicalRecord, nil),
 		Estimate:                       NewEstimateService(repos.Estimate),
+		ManualArticle:                  NewManualArticleService(repos.ManualArticle),
 		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:                    NewBillingItemService(repos.BillingItem, repos.Accounting, repos.Treatment),
 		Refund:                         NewRefundService(repos.Refund, repos.Accounting),

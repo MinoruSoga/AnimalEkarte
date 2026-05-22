@@ -1,7 +1,7 @@
 -- =============================================================================
--- Animal Ekarte - 統合スキーマ定義 v22.0 (consolidated)
+-- Animal Ekarte - 統合スキーマ定義 v22.1 (consolidated)
 -- PostgreSQL 18
--- テーブル数: 92 (旧 001–021 + mig-005〜mig-013 を統合)
+-- テーブル数: 94 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル を統合)
 -- 統合内容:
 --   002: マスタシードデータ
 --   003: デモシードデータ
@@ -2598,3 +2598,54 @@ CREATE TRIGGER trg_create_default_payment_methods
     AFTER INSERT ON clinics
     FOR EACH ROW
     EXECUTE FUNCTION create_default_payment_methods();
+
+-- =============================================
+-- 取扱説明書（マニュアル）の DB 管理
+-- =============================================
+-- 設計方針:
+--   - フロントエンドが MD ファイルをデフォルト（バンドル）として保持
+--   - DB にはオーバーライド版を保存
+--   - 読み込み時: DB に該当 slug があればそれを優先、なければ MD ファイル
+--   - 編集時: 該当 slug を DB に upsert
+--   - マニュアルは医院共通の情報のため clinic_id は持たない
+-- =============================================
+
+CREATE TABLE manual_articles (
+    id                  bigserial      PRIMARY KEY,
+    category            text           NOT NULL CHECK (category IN ('screens', 'workflows')),
+    slug                text           NOT NULL,
+    title               text           NOT NULL,
+    order_value         numeric(10, 2) NOT NULL DEFAULT 9999,
+    section             text           NOT NULL,
+    body_markdown       text           NOT NULL,
+    updated_by_staff_id bigint         REFERENCES staffs(id) ON DELETE SET NULL,
+    created_at          timestamptz    NOT NULL DEFAULT now(),
+    updated_at          timestamptz    NOT NULL DEFAULT now(),
+
+    UNIQUE (category, slug)
+);
+
+CREATE INDEX idx_manual_articles_category_slug ON manual_articles(category, slug);
+CREATE INDEX idx_manual_articles_updated_at    ON manual_articles(updated_at DESC);
+
+COMMENT ON TABLE manual_articles IS '取扱説明書のオーバーライド版（DBに保存された編集後マニュアル）';
+COMMENT ON COLUMN manual_articles.category IS 'カテゴリ: screens | workflows';
+COMMENT ON COLUMN manual_articles.slug IS 'ファイル名（拡張子除く）。例: 13-cash-register';
+COMMENT ON COLUMN manual_articles.order_value IS 'セクション内表示順（昇順）';
+COMMENT ON COLUMN manual_articles.section IS 'サイドバーのグループ名';
+COMMENT ON COLUMN manual_articles.body_markdown IS 'マニュアル本文（frontmatter 除く）';
+
+CREATE TABLE manual_article_versions (
+    id                 bigserial      PRIMARY KEY,
+    article_id         bigint         NOT NULL REFERENCES manual_articles(id) ON DELETE CASCADE,
+    title              text           NOT NULL,
+    order_value        numeric(10, 2) NOT NULL,
+    section            text           NOT NULL,
+    body_markdown      text           NOT NULL,
+    edited_by_staff_id bigint         REFERENCES staffs(id) ON DELETE SET NULL,
+    edited_at          timestamptz    NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_manual_article_versions_article ON manual_article_versions(article_id, edited_at DESC);
+
+COMMENT ON TABLE manual_article_versions IS 'マニュアル編集履歴（編集ごとに過去版を保持）';
