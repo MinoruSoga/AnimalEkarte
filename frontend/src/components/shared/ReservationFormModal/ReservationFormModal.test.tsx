@@ -1,5 +1,6 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
@@ -176,5 +177,108 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     expect(screen.getByTestId("new-owner-chief-complaint")).toBeInTheDocument();
     // 患者検索は非表示になる
     expect(screen.queryByText("患者検索")).not.toBeInTheDocument();
+  });
+
+  it("電話番号が 0 始まりでない場合 BE 整合フォーマットエラーが表示される", async () => {
+    server.use(...silentApiHandlers);
+    const user = userEvent.setup();
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={null}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    await user.click(screen.getByTestId("mode-new"));
+    await user.type(screen.getByTestId("new-owner-name"), "山田太郎");
+    // 0 始まりでない番号 — BE regex に通らない形式
+    await user.type(screen.getByTestId("new-owner-phone"), "1234-5678");
+
+    fireEvent.click(screen.getByRole("button", { name: "予約を確定" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）")
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("全フィールド入力後に onSave が newOwnerData を含む引数で呼ばれる", async () => {
+    server.use(
+      http.get("/api/v1/clinic-holidays", () => HttpResponse.json([])),
+      http.get("/api/v1/pets", () => HttpResponse.json({ data: [] })),
+      http.get("/api/v1/masters/staffs", () => HttpResponse.json([])),
+      http.get("/api/v1/shifts/on-duty-staffs", () => HttpResponse.json([])),
+      // 動物種: 犬 1件
+      http.get("/api/v1/masters/animal-species", () =>
+        HttpResponse.json([{ id: 1, name: "犬", is_active: true }])
+      ),
+      // 予約区分: 一般診療 1件（group なし → "その他" グループ）
+      http.get("/api/v1/masters/reservation-types", () =>
+        HttpResponse.json([
+          { id: 5, name: "一般診療", color: "#000000", is_active: true, group_id: null, group: null },
+        ])
+      )
+    );
+
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={onSave}
+        initialData={null}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    // 新規飼主モードに切り替え
+    await user.click(screen.getByTestId("mode-new"));
+
+    // テキストフィールドを入力
+    await user.type(screen.getByTestId("new-owner-name"), "山田太郎");
+    await user.type(screen.getByTestId("new-owner-phone"), "090-1234-5678");
+    await user.type(screen.getByTestId("new-owner-pet-name"), "ポチ");
+    await user.type(screen.getByTestId("new-owner-chief-complaint"), "食欲不振");
+
+    // 動物種 Select: "犬" を選択
+    await user.click(screen.getByTestId("new-owner-species"));
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "犬" })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("option", { name: "犬" }));
+
+    // 予約区分 Select: "一般診療" を選択
+    await user.click(screen.getByTestId("res-type-trigger"));
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "一般診療" })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("option", { name: "一般診療" }));
+
+    // 保存を実行
+    fireEvent.click(screen.getByRole("button", { name: "予約を確定" }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledOnce();
+    });
+
+    const [, , newOwnerArg] = onSave.mock.calls[0];
+    expect(newOwnerArg).toMatchObject({
+      ownerName: "山田太郎",
+      phone: "090-1234-5678",
+      petName: "ポチ",
+      chiefComplaint: "食欲不振",
+      animalSpeciesId: 1,
+    });
   });
 });

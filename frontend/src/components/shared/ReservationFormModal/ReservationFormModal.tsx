@@ -195,8 +195,8 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       if (!newOwnerData.ownerName.trim()) noe.ownerName = "飼主名を入力してください";
       if (!newOwnerData.phone.trim()) {
         noe.phone = "電話番号を入力してください";
-      } else if (!/^[\d-]+$/.test(newOwnerData.phone.trim())) {
-        noe.phone = "電話番号は数字と「-」で入力してください";
+      } else if (!/^0\d{1,4}-?\d{1,4}-?\d{4}$/.test(newOwnerData.phone.trim())) {
+        noe.phone = "電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）";
       }
       if (!newOwnerData.petName.trim()) noe.petName = "ペット名を入力してください";
       if (!newOwnerData.animalSpeciesId) noe.animalSpeciesId = "動物種を選択してください";
