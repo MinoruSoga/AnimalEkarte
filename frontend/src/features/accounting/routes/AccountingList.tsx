@@ -33,6 +33,7 @@ import { formatCurrency } from "@/utils/format/number";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Relative
+import { DailyAccountingTab } from "../components/DailyAccountingTab";
 import { useGetAccountings } from "../api/get-accountings";
 import type { AccountingFilters } from "../api/get-accountings";
 import { usePermission } from "@/hooks/use-permission";
@@ -109,6 +110,7 @@ const ACCOUNTING_SORT_PROPERTIES: SortProperty[] = [
 
 const TABS = [
   { value: "list", label: "会計一覧" },
+  { value: "daily", label: "当日会計" },
   { value: "unpaid", label: "未納者一覧" },
 ] as const;
 
@@ -127,7 +129,8 @@ export function AccountingList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit } = usePermission("accounting");
 
-  const activeTab = searchParams.get("tab") === "unpaid" ? "unpaid" : "list";
+  const tabParam = searchParams.get("tab");
+  const activeTab = tabParam === "unpaid" ? "unpaid" : tabParam === "daily" ? "daily" : "list";
   const tabItems = TABS;
   const handleTabChange = useCallback((tab: string) => {
     setSearchParams((prev) => {
@@ -135,11 +138,18 @@ export function AccountingList() {
       if (tab === "unpaid") {
         next.set("tab", "unpaid");
         next.delete("page");
+        next.delete("daily_date");
+      } else if (tab === "daily") {
+        next.set("tab", "daily");
+        next.delete("page");
+        next.delete("group_by");
+        next.delete("reference_date");
       } else {
         next.delete("tab");
         next.delete("page");
         next.delete("group_by");
         next.delete("reference_date");
+        next.delete("daily_date");
       }
       return next;
     }, { replace: true });
@@ -395,6 +405,9 @@ export function AccountingList() {
           value={activeTab}
           onValueChange={handleTabChange}
         >
+          <UnifiedTabsContent value="daily" className="mt-4">
+            <DailyAccountingTab />
+          </UnifiedTabsContent>
           <UnifiedTabsContent value="unpaid" className="mt-4">
             <UnpaidTab />
           </UnifiedTabsContent>
