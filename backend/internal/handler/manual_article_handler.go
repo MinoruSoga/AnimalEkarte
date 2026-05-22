@@ -37,7 +37,7 @@ func (h *Handler) GetManualArticle(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toManualArticleResponse(*article))
+	c.JSON(http.StatusOK, toManualArticleResponse(article))
 }
 
 // UpsertManualArticle はマニュアルの作成・更新を行う
@@ -63,7 +63,7 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 		editorStaffID = &id
 	}
 
-	saved, err := h.svc.ManualArticle.Upsert(c.Request.Context(), service.UpsertManualArticleInput{
+	saved, err := h.svc.ManualArticle.Upsert(c.Request.Context(), &service.UpsertManualArticleInput{
 		Category:     category,
 		Slug:         slug,
 		Title:        req.Title,
@@ -90,7 +90,7 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, toManualArticleResponse(*saved))
+	c.JSON(http.StatusOK, toManualArticleResponse(saved))
 }
 
 // DeleteManualArticle はマニュアルオーバーライドを削除する（MD ファイル版に戻す）

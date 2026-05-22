@@ -104,7 +104,7 @@ func (r *manualArticleRepository) Upsert(ctx context.Context, article *model.Man
 
 		return nil
 	}); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to upsert manual article")
 	}
 
 	// 最新レコードを返す

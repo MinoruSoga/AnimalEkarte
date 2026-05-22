@@ -27,7 +27,7 @@ type UpsertManualArticleInput struct {
 type ManualArticleService interface {
 	FindAll(ctx context.Context) ([]model.ManualArticle, error)
 	FindByCategoryAndSlug(ctx context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error)
-	Upsert(ctx context.Context, input UpsertManualArticleInput, editorStaffID *uint64) (*model.ManualArticle, error)
+	Upsert(ctx context.Context, input *UpsertManualArticleInput, editorStaffID *uint64) (*model.ManualArticle, error)
 	Delete(ctx context.Context, category model.ManualCategory, slug string) error
 	FindVersionsByArticleID(ctx context.Context, articleID uint64) ([]model.ManualArticleVersion, error)
 }
@@ -61,7 +61,7 @@ func (s *manualArticleService) FindByCategoryAndSlug(ctx context.Context, catego
 	return article, nil
 }
 
-func (s *manualArticleService) Upsert(ctx context.Context, input UpsertManualArticleInput, editorStaffID *uint64) (*model.ManualArticle, error) {
+func (s *manualArticleService) Upsert(ctx context.Context, input *UpsertManualArticleInput, editorStaffID *uint64) (*model.ManualArticle, error) {
 	if !model.IsValidManualCategory(string(input.Category)) {
 		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid manual category: %s", input.Category))
 	}

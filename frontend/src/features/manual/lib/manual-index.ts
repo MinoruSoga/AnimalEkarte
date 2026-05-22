@@ -76,7 +76,7 @@ function build(category: ManualCategory, modules: Record<string, string>): Manua
       section,
       content: body,
       // 検索用: markdown 記号を粗く除去
-      searchText: `${title} ${section} ${body.replace(/[#*`>\[\]()\-_!]/g, " ")}`,
+      searchText: `${title} ${section} ${body.replace(/[#*`>[\]()\-_!]/g, " ")}`,
     });
   }
   list.sort((a, b) => a.order - b.order);
@@ -135,7 +135,7 @@ export function applyOverrides(
       order: o.order_value,
       section: o.section,
       content: o.body_markdown,
-      searchText: `${o.title} ${o.section} ${o.body_markdown.replace(/[#*`>\[\]()\-_!]/g, " ")}`,
+      searchText: `${o.title} ${o.section} ${o.body_markdown.replace(/[#*`>[\]()\-_!]/g, " ")}`,
     };
     byKey.set(key, article);
   }

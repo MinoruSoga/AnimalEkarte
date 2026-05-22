@@ -44,21 +44,21 @@ type ManualArticleVersionResponse struct {
 
 func toManualArticleListResponse(articles []model.ManualArticle) ManualArticleListResponse {
 	data := make([]ManualArticleResponse, 0, len(articles))
-	for _, a := range articles {
-		data = append(data, toManualArticleResponse(a))
+	for i := range articles {
+		data = append(data, toManualArticleResponse(&articles[i]))
 	}
 	return ManualArticleListResponse{Data: data}
 }
 
 func toManualArticleVersionListResponse(versions []model.ManualArticleVersion) ManualArticleVersionListResponse {
 	data := make([]ManualArticleVersionResponse, 0, len(versions))
-	for _, v := range versions {
-		data = append(data, toManualArticleVersionResponse(v))
+	for i := range versions {
+		data = append(data, toManualArticleVersionResponse(&versions[i]))
 	}
 	return ManualArticleVersionListResponse{Data: data}
 }
 
-func toManualArticleResponse(a model.ManualArticle) ManualArticleResponse {
+func toManualArticleResponse(a *model.ManualArticle) ManualArticleResponse {
 	return ManualArticleResponse{
 		ID:               a.ID,
 		Category:         string(a.Category),
@@ -73,7 +73,7 @@ func toManualArticleResponse(a model.ManualArticle) ManualArticleResponse {
 	}
 }
 
-func toManualArticleVersionResponse(v model.ManualArticleVersion) ManualArticleVersionResponse {
+func toManualArticleVersionResponse(v *model.ManualArticleVersion) ManualArticleVersionResponse {
 	return ManualArticleVersionResponse{
 		ID:              v.ID,
 		ArticleID:       v.ArticleID,
