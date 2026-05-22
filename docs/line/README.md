@@ -1,33 +1,45 @@
-# LINE予約システム 統合ドキュメント
+# LINE・Lステップ連携 統合ドキュメント (LINE Integration Hub)
 
-本ディレクトリには、Animal Ekarte の LINE 連携機能（LIFF アプリ、Messaging API 通知、管理画面統合）に関するすべての技術仕様が集約されています。
+> **Animal Ekarte**: 飼い主向け予約体験と CRM 戦略の統合
+> **最新更新**: 2026-05-21
 
 ---
 
 ## 1. ドキュメント構成
 
-- **[architecture.md](./architecture.md)**: システム全体図、認証フロー、時間枠計算エンジン、API エンドポイント一覧。
-- **[reservation-spec.md](./reservation-spec.md)**: 詳細な機能要件、画面遷移フロー、UI 仕様、DB 統合スキーマ。
-- **[setup.md](./setup.md)**: LINE 公式アカウント、Messaging API、LIFF ID の取得および設定手順。
-- **[lstep-integration.md](./lstep-integration.md)**: Lステップ連携の実装仕様ドキュメント（2026-04-30 更新）。クリニックスコープ、タグ体系、14種配信トリガー、受付入力項目フェーズ1〜3を記載。SPEC-002 全問確定済（2026-05-13）。
-- **[lstep_karte_spec.original.txt](./lstep_karte_spec.original.txt)**: クライアント原文の抽出テキスト。元要件書の読み込み用。
-- **[`01_曽我さん向け_カルテLステップ連携実装仕様書.md`](../../01_曽我さん向け_カルテLステップ連携実装仕様書.md)**: 2026-04-30 受領の最新仕様書。`lstep-integration.md` の正本ソース。
+本ディレクトリには、LINE プラットフォーム（LIFF, Messaging API）および Lステップを活用した、Animal Ekarte の外部連携機能に関する全ての仕様が集約されています。
+
+### 技術・アーキテクチャ
+- **[architecture.md](./architecture.md)**: 予約システム(v1)と Lステップ(v2)の全体像、認証フロー、非同期同期ロジック。
+- **[reservation-spec.md](./reservation-spec.md)**: 飼い主向け予約アプリ（LIFF）の機能要件、画面遷移、空き枠計算エンジン。
+
+### 導入・設定
+- **[setup.md](./setup.md)**: LINE Developers Console、Messaging API、および Lステップ管理画面の初期設定手順。
+- **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、14 種の自動配信トリガー詳細。
+
+### 原本・ソース
+- **[`01_曽我さん向け_カルテLステップ連携実装仕様書.md`](../../01_曽我さん向け_カルテLステップ連携実装仕様書.md)**: クライアント受領の正本仕様書。
 
 ---
 
 ## 2. システム概要
 
-電子カルテ本体（Go/Gin WebAPI）を共通バックエンドとし、飼い主向けの **LIFF App** と、病院スタッフ向けの **管理画面** が連携して動作します。
+本機能は、電子カルテ本体（Go API）を共通の脳とし、飼い主が直接操作する **LIFF App** と、病院側が運用する **Lステップ管理基盤** を高度に連携させます。
 
-### 主要な特徴
-- **カルテ統合**: LINE 経由の予約は自動的に `appointments` テーブルに登録され、受付画面で即座に確認可能。
-- **リアルタイム時間枠計算**: スタッフの勤務シフト（`/shifts`）と休憩時間、既存予約を考慮した空き枠計算。
-- **通知自動化**: 予約完了・キャンセル時に LINE Push 通知とメール通知を自動送信。
+### 主要な価値
+- **オペレーションの自動化**: LINE 予約がカルテ受付（カンバン）へ即座に反映され、スタッフの手入力コストを削減。
+- **臨床データに基づく CRM**: 診察結果や最終来院日に基づき、Lステップが「忘れられない病院」として自動で飼い主をフォロー。
+- **高精度な空き枠管理**: 院内シフト (`/shifts`) と完全連動し、オーバーブッキングを物理的に防止。
 
 ---
 
 ## 3. クイックリンク
 
-- **管理者設定**: `/line-reservation/settings`
-- **ページ編集**: `/line-reservation/page-editor`
-- **マスタ設定**: `/settings/reservation-type`, `/settings/staff`
+| 項目 | 管理画面 URL |
+|:---|:---|
+| **連携設定** | `/settings/integrations/lstep` |
+| **文言編集** | `/line-reservation/page-editor` |
+| **分析レポート** | `/lstep/analytics` |
+| **対象者抽出** | `/lstep/checkup-sync` |
+
+---

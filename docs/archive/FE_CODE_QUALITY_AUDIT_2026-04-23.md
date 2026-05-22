@@ -1,7 +1,6 @@
-# FE Master Code Quality Verification & Implementation Report
-**Date**: 2026-04-23  
-**Scope**: Full scan of 51 frontend files (27 API, 19 Routes, 5 Components)  
-**Patterns**: FA1-FA7 (API), FR1-FR5 + FG1-FG3 (Routes/Components)
+# [Archive] フロントエンド・コード品質監査レポート (2026-04-23)
+
+> **注意**: 本ドキュメントは 2026-04-23 時点でのフロントエンド実装の品質監査記録です。最新のコーディング規約は `GEMINI.md` または `.claude/CLAUDE.md` を参照してください。
 
 ---
 

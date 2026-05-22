@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: Animal Ekarte API
   description: |
-    動物病院向け電子カルテシステム API (Implementation Synced v3.0.0)
+    動物病院向け電子カルテシステム API (Implementation Synced v3.1.0)
 
     ## 認証方式
 
@@ -21,7 +21,7 @@ info:
     ## クリニック切替
 
     `X-Clinic-ID` ヘッダで所属クリニックを切り替え可能（所属チェック付き、system_admin は無制限）。
-  version: 3.0.0
+  version: 3.1.0
   contact:
     name: Animal Ekarte Team
     url: https://github.com/animal-ekarte/backend
@@ -575,6 +575,57 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
+  /api/v1/clinics/{clinic_id}/lstep/delivery-monitor/summary:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: 配信ステータス集計取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepDeliverySummary' }
+
+  /api/v1/clinics/{clinic_id}/lstep/delivery-monitor/logs:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: 配信実行ログ一覧取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/LstepDeliveryLog' }
+
   /api/v1/medical-records:
     parameters:
       - $ref: '#/components/parameters/XClinicIDHeader'
@@ -699,6 +750,70 @@ paths:
                   total_amount: { type: integer }
                   cash_total: { type: integer }
                   credit_total: { type: integer }
+
+  /api/v1/cash-register/preview:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Accounting]
+      summary: レジ締めプレビュー取得
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashRegisterPreview' }
+
+  /api/v1/cash-register/closes:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Accounting]
+      summary: レジ締め履歴一覧取得
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CashRegisterClose' }
+    post:
+      tags: [Accounting]
+      summary: レジ締め確定
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CashRegisterCloseRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashRegisterClose' }
+
+  /api/v1/reports/monthly:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Accounting]
+      summary: 月次売上レポート取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: month
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MonthlyReport' }
 
   /api/line/webhook:
     post:
@@ -1482,6 +1597,66 @@ components:
           type: array
           items: { type: string }
           description: 失敗した飼い主ID
+
+    LstepDeliverySummary:
+      type: object
+      properties:
+        scheduled_count: { type: integer }
+        fired_count: { type: integer }
+        excluded_count: { type: integer }
+        failed_count: { type: integer }
+        suppressed_count: { type: integer }
+
+    LstepDeliveryLog:
+      type: object
+      properties:
+        id: { type: string }
+        trigger_type: { type: string }
+        owner_name: { type: string }
+        scheduled_at: { type: string, format: date-time }
+        status: { type: string, enum: [scheduled, fired, excluded, failed, suppressed] }
+        fired_at: { type: string, format: date-time, nullable: true }
+        exclusion_reason: { type: string, nullable: true }
+
+    CashRegisterPreview:
+      type: object
+      properties:
+        subtotal: { type: integer }
+        tax_total: { type: integer }
+        total_amount: { type: integer }
+        count: { type: integer }
+        by_method:
+          type: object
+          additionalProperties: { type: integer }
+
+    CashRegisterClose:
+      type: object
+      properties:
+        id: { type: string }
+        closed_at: { type: string, format: date-time }
+        staff_name: { type: string }
+        total_amount: { type: integer }
+        difference: { type: integer }
+
+    CashRegisterCloseRequest:
+      type: object
+      required: [period_type, actual_cash]
+      properties:
+        period_type: { type: string, enum: [am, pm, full_day] }
+        actual_cash: { type: integer }
+        notes: { type: string }
+
+    MonthlyReport:
+      type: object
+      properties:
+        total_sales: { type: integer }
+        daily_details:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              amount: { type: integer }
 
     Error:
       type: object

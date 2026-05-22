@@ -1,34 +1,61 @@
-# 個別マスタ設定 仕様書 一覧
+# マスタ設定 仕様書 インデックス (Master Settings Index)
 
-本ディレクトリには、システム全体で共有されるマスタデータの管理画面（個別カテゴリ）の仕様が定義されています。
-
-全体の一覧とパターン分類は **[master-pages.md](./master-pages.md)** を参照してください。
+本ディレクトリには、Animal Ekarte の核となる各マスタデータの詳細定義、および管理画面での操作仕様が格納されています。
 
 ---
 
-## 主要マスタ仕様
+## 🏗️ 基礎・共通マスタ
 
-| カテゴリ | ファイル | 概要 |
+| マスタ名 | 仕様書 | 概要 |
 |:---|:---|:---|
-| スタッフ | [master-staff.md](./master-staff.md) | 獣医師・スタッフおよびログインアカウント管理 |
-| 権限グループ | [master-permission-group.md](./master-permission-group.md) | ロールベースのアクセス制御（RBAC）設定 |
-| 診療項目 | [master-treatment.md](./master-treatment.md) | 診察・検査・処置・予防・健診の共通ツリー管理 |
-| 薬剤 | [master-medicine.md](./master-medicine.md) | カテゴリ別薬剤単価と剤形管理 |
-| 診断 | [master-diagnosis.md](./master-diagnosis.md) | 診断カテゴリと具体的な病名の紐付け |
-| トリミング | [master-trimming.md](./master-trimming.md) | コースとオプションの組合せ・単価管理 |
-| 物販 | [master-merchandise.md](./master-merchandise.md) | フードやグッズ等の名称・単価・税率管理 |
-| ケージ | [master-cage.md](./master-cage.md) | 入院用ケージのエリア・サイズ・料金管理 |
-| 問診・テンプレート | [master-interview.md](./master-interview.md) | 主訴カテゴリと問診票テンプレート定型文 |
-| 保険 | [master-insurance.md](./master-insurance.md) | ペット保険会社の補償率・連絡先管理 |
-| シフトテンプレート | [master-shift-template.md](./master-shift-template.md) | シフト入力パターンの管理 |
-| 基礎マスタ | [master-basics.md](./master-basics.md) | 動物種、職能、予約区分、入院プラン等の共通設定 |
-| 支払方法 | [payment-methods.md](./payment-methods.md) | 現金・カード等の支払区分管理 |
-| 締め時間 | [closing-time-settings.md](./closing-time-settings.md) | AM/PM境界・休診日・特別期間の設定（管理者のみ） |
+| **医院情報** | [../19-clinic-settings.md](../19-clinic-settings.md) | 院名、住所、インボイス登録番号、基本税率。 |
+| **動物種別** | [master-animal-species.md](./master-animal-species.md) | 犬、猫、エキゾチック等の大分類。 |
+| **職種** | [master-occupation.md](./master-occupation.md) | スタッフの役割（獣医、看護師等）の定義。 |
+| **スタッフ** | [master-staff.md](./master-staff.md) | 氏名、職種、所属院、LINE 予約用プロフィール。 |
+| **権限グループ** | [master-permission-group.md](./master-permission-group.md) | ロールごとの詳細なアクセス権限（CRUD）マトリックス。 |
 
 ---
 
-## 共通パターン
+## 🩺 医療・臨床マスタ
 
-個別マスタの多くは以下の共通コンポーネントパターンを使用しています。
-- **一覧**: `[C] MasterCRUDPage` (DataTable + 検索フィルタ)
-- **編集**: `[C] MasterSidePanel` (Notionスタイルのスライドインパネル)
+| マスタ名 | 仕様書 | 概要 |
+|:---|:---|:---|
+| **診療項目** | [master-treatment.md](./master-treatment.md) | 診察、処置、手術等の名称と標準価格。 |
+| **主訴種別** | [master-chief-complaint.md](./master-chief-complaint.md) | 診察理由の大分類（消化器、皮膚等）。 |
+| **薬剤** | [master-medicine.md](./master-medicine.md) | 薬品名、剤形、単価、在庫連携設定。 |
+| **診断・病名** | [master-diagnosis.md](./master-diagnosis.md) | 疾患カテゴリと正式病名の体系的定義。 |
+| **検査項目** | [master-examinations.md](./master-examinations.md) | 数値検査の単位および動物種別正常値範囲。 |
+| **問診/定型文**| [master-interview.md](./master-interview.md) | カルテ入力を効率化する各種テンプレート。 |
+| **ケージ** | [master-cage.md](./master-cage.md) | 入院室の番号、サイズ、収容タイプ。 |
+| **入院プラン** | [master-hospitalization-plan.md](./master-hospitalization-plan.md) | 入院・宿泊の単価と初期ケアタスク定義。 |
+
+---
+
+## ✂️ 専門サービスマスタ
+
+| マスタ名 | 仕様書 | 概要 |
+|:---|:---|:---|
+| **トリミング** | [master-trimming.md](./master-trimming.md) | コース・オプションの定義と、犬種別の料金表。 |
+| **予約区分** | [master-reservation-type.md](./master-reservation-type.md) | 診察、手術等の予約枠と LINE 公開設定。 |
+| **シフトパターン**| [master-shift-template.md](./master-shift-template.md) | よく使う勤務時間と休憩時間のテンプレート。 |
+
+---
+
+## 💰 会計・外部連携マスタ
+
+| マスタ名 | 仕様書 | 概要 |
+|:---|:---|:---|
+| **締め時間** | [closing-time-settings.md](./closing-time-settings.md) | AM/PM 境界、日界、休診日の管理。 |
+| **支払方法** | [payment-methods.md](./payment-methods.md) | 現金、カード、QR 等の決済手段。 |
+| **保険** | [master-insurance.md](./master-insurance.md) | 窓口精算に対応するペット保険の負担率設定。 |
+| **販売商品** | [master-merchandise.md](./master-merchandise.md) | 療法食、ケア用品等の販売品。 |
+| **LINE ページ** | [master-pages.md](./master-pages.md) | 飼い主向け予約画面の案内文言カスタマイズ。 |
+
+---
+
+## 技術的な共通事項
+
+- **Notion スタイル編集**: 全てのマスタは `SidePeekPanel` と `PropInput` を使用した、リストを離れない直感的な編集体験を提供します。
+- **認可ガード**: 個別のマスタに対し、`ResourceMasterMedical` や `ResourceMasterStaff` 等の独立した権限チェックがバックエンドで実行されます。
+
+---

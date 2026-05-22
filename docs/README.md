@@ -1,74 +1,57 @@
-# Animal Ekarte プロジェクト・ドキュメント
+# Animal Ekarte プロジェクト・ドキュメント (Documentation Index)
 
-本ディレクトリには、Animal Ekarte の設計、仕様、および開発プロセスに関するドキュメントが格納されています。
+本ディレクトリには、Animal Ekarte の設計、仕様、および運用に関する全ての公式ドキュメントが集約されています。
 
-## ⚠️ 開発ガイドライン (最優先)
+---
 
-プロジェクトの最新のコーディング規約、アーキテクチャ、および開発コマンドについては、以下のファイルを**必ず**参照してください。
+## ⚠️ 開発ガイドライン (Single Source of Truth)
 
-- **[.claude/CLAUDE.md](../.claude/CLAUDE.md)**: **【Single Source of Truth】** 全エージェントおよび開発者向けの統合ルール。
+プロジェクトの最新規約、アーキテクチャ、および開発手順については、以下のファイルを**必ず**最優先で参照してください。
+
+- **[.claude/CLAUDE.md](../.claude/CLAUDE.md)**: 全エージェントおよび開発者向けの統合ルール。
 - **[GEMINI.md](../GEMINI.md)**: Gemini CLI 向けの最適化されたコンテキスト。
-- **[.gemini/styleguide.md](../.gemini/styleguide.md)**: スタイルガイド・実装パターンの詳細。
+- **[AI_DEVELOPMENT_WORKFLOW.md](AI_DEVELOPMENT_WORKFLOW.md)**: 仕様駆動・AI エージェント協働開発の標準手順。
 
 ---
 
-## 🏗 システム設計
+## 🏗 システム設計と基盤
 
-| ドキュメント | 内容 |
-|:---|:---|
-| [architecture.md](architecture.md) | バックエンドアーキテクチャ（レイヤード構造・エラーハンドリング） |
-| [ERD.md](ERD.md) | データベース設計（テーブル定義・リレーション） |
-| [AUTH.md](AUTH.md) | 認証・認可の仕組み（RBAC・JWT・マルチクリニック） |
-| [data-flow.md](data-flow.md) | リクエスト〜レスポンスのデータフロー |
-| [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | UIデザイン規約・デザイントークン |
+| カテゴリ | ドキュメント | 概要 |
+|:---|:---|:---|
+| **技術設計** | [architecture.md](architecture.md) | 軽量レイヤードアーキテクチャの定義。 |
+| **データ** | [ERD.md](ERD.md) | データベース設計（全 **92 テーブル**・リレーション）。 |
+| **セキュリティ**| [AUTH.md](AUTH.md) | RBAC 権限モデル（全 **31 リソース**）、マルチテナント隔離。 |
+| **UI/UX** | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Notion ライクなデザイン規約とデザイントークン。 |
+| **API** | [API_SPEC.md](API_SPEC.md) | バックエンド Go API の詳細リファレンス (v2.3)。 |
+| **データフロー** | [data-flow.md](data-flow.md) | リクエストの追跡（Request ID）と非同期同期の仕組み。 |
 
 ---
 
-## 📱 画面・機能仕様
+## 📱 業務・画面仕様
 
 - **[SPECIFICATION.md](SPECIFICATION.md)**: システム全体の機能要件と主要ビジネスフロー。
-- **[CUSTOMER_AGGREGATION_SPEC.md](CUSTOMER_AGGREGATION_SPEC.md)**: 顧客集計ダッシュボードの仕様。年間売上ランキング・来院回数・最終来院日分類を含む。
+- **[screens/README.md](screens/README.md)**: **【全 39 画面インデックス】** 各機能の詳細操作ガイド。
 - **[CASH_REGISTER_SPEC.md](CASH_REGISTER_SPEC.md)**: レジ締め・日次/月次売上集計の業務仕様。
-- **[screens/](screens/)**: 各画面の詳細仕様（項目定義・コンポーネント構成）。
-- **[screens/99-medical-record-flow.md](screens/99-medical-record-flow.md)**: カルテ登録・編集の複雑なライフサイクル仕様。
+- **[CUSTOMER_AGGREGATION_SPEC.md](CUSTOMER_AGGREGATION_SPEC.md)**: 累計売上・来院頻度に基づく顧客分析ダッシュボード。
 
 ---
 
-## 💬 LINE予約システム
+## 💬 LINE / Lステップ連携 (CRM)
 
-- **[line/reservation-spec.md](line/reservation-spec.md)**: LINE予約システムの機能要件と UI 仕様。
-- **[line/architecture.md](line/architecture.md)**: LINE連携のアーキテクチャ全体像。
-- **[line/setup.md](line/setup.md)**: LINE公式アカウントおよび Messaging API のセットアップ手順。
-
----
-
-## 🧪 テスト・検証
-
-- **[testing/HANDLER_TEST_DOCUMENTATION_STATUS.md](testing/HANDLER_TEST_DOCUMENTATION_STATUS.md)**: API ハンドラーのテストカバレッジ・ステータス。
-- **[testing/SECTION_14_MANUAL_TEST_GUIDE.md](testing/SECTION_14_MANUAL_TEST_GUIDE.md)**: 手動ブラウザテストの実行ガイド。
-- **[FUNCTIONAL_TEST_REPORT.md](FUNCTIONAL_TEST_REPORT.md)**: 機能テスト・検証レポートの集約版。
-- **[archive/](archive/)**: 過去の機能テストレポート、トリアージ記録、および古い設計資料。
+- **[line/lstep-integration.md](line/lstep-integration.md)**: **Lステップ戦略書**。CPM 判定、全 15 種の配信トリガー。
+- **[line/setup.md](line/setup.md)**: LINE Developers Console および管理画面での初期セットアップ。
+- **[LINE_LSTEP_COST_ANALYSIS.md](LINE_LSTEP_COST_ANALYSIS.md)**: 外部配信コストと ROI の経済性分析。
+- **[line/reservation-spec.md](line/reservation-spec.md)**: 飼い主向け LINE 予約システムの機能と計算エンジン。
 
 ---
 
-## 📦 運用・インフラ
+## 📦 運用とテスト
 
-- **[OPERATIONS.md](OPERATIONS.md)**: 開発環境のセットアップ・運用コマンド（Make）。
-- **[infra/architecture.md](infra/architecture.md)**: AWS ステージング環境のインフラ構成図と構築手順。
-
----
-
-## 🗄️ タスク管理
-
-- **[tasks/closed/](tasks/closed/)**: 完了済みバグ修正・機能開発タスク。
-- **[tasks/open/](tasks/open/)**: 未着手タスク。
-- **[tasks/closed/aggregation/](tasks/closed/aggregation/)**: 顧客集計の開発タスク（BE/FE分割、2026-04-29 完了）。
-- **[tasks/closed/lstep/](tasks/closed/lstep/)**: Lステップ連携の開発タスク（BE/FE分割、ISSUE-001〜010 完了）。
-
-## 🤖 AI 開発ワークフロー
-
-- **[AI_DEVELOPMENT_WORKFLOW.md](AI_DEVELOPMENT_WORKFLOW.md)**: 仕様と issue から要件を読み取り、AI エージェントと協働して実装・PR・セルフレビューまで進める標準手順。
+- **[infra/deploy/README.md](infra/deploy/README.md)**: AWS ステージング環境の運用・デプロイガイド。
+- **[testing/SECTION_14_MANUAL_TEST_GUIDE.md](testing/SECTION_14_MANUAL_TEST_GUIDE.md)**: ブラウザによる詳細な手動検証シナリオ。
+- **[FUNCTIONAL_TEST_REPORT.md](FUNCTIONAL_TEST_REPORT.md)**: **【全機能検証記録】** 2,000 項目以上の詳細チェックリスト。
+- **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)**: 本番リリース前の統合チェックリスト。
 
 ---
 
-**最終更新**: 2026-04-26
+**最新更新**: 2026-05-21 | **ステータス**: All Sync with Implementation (92 Tables / 31 Resources)

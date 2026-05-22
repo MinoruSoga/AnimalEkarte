@@ -1,52 +1,55 @@
-# ローカルDB再構築手順
+# ローカル開発環境：DB再構築手順 (Local DB Reset)
 
-## 対象
+> **Animal Ekarte**: マイグレーション統合に伴う不整合の解消手順
+> **最新更新**: 2026-05-21
 
-migration 統合後にローカル backend が以下のような checksum mismatch で起動できない場合に使う。
+---
 
-```text
-checksum mismatch for 001_init.sql:
-  applied=<old checksum>, current=<new checksum>
-```
+## 1. 発生する問題
+スキーマの整理やマイグレーションファイルの統合（Squash）を行った際、ローカル環境の `schema_migrations` テーブルに記録されたチェックサムが、最新の SQL ファイルと一致しなくなり、バックエンドの起動に失敗することがあります。
 
-STG は `workflow_dispatch` の `db_reset=true` で空 DB から `001`〜`004` を適用するため、この手順は主にローカル開発環境向け。
+---
 
-## 原因
+## 2. 解決手順（クリーンリセット）
+既存のデータベースボリュームを一旦削除し、空の状態でマイグレーションを再実行させます。
 
-`001_init.sql`〜`004_seed_staging.sql` は STG DB reset 前提で統合されている。既存ローカル volume には過去の `schema_migrations.checksum` が残るため、同じファイル名の内容が変わると migration runner が停止する。
-
-## 手順
-
-`.env.local` の中身は表示しない。Docker Compose には明示的に env file だけ渡す。
-
+### 2.1 コンテナの停止
 ```bash
-docker compose --env-file .env.local down
-docker volume ls | grep ekarte
-docker volume rm animalekarte_ekarte-postgres-data
-docker compose --env-file .env.local up -d db
-docker compose --env-file .env.local up -d backend
-docker compose --env-file .env.local logs backend --tail=120
-curl -sf http://localhost:8080/health
+# 全てのサービスを停止
+docker compose down
 ```
 
-volume 名が環境で異なる場合は `docker volume ls | grep postgres` で確認してから削除する。
+### 2.2 ボリュームの削除
+```bash
+# データベースの永続化ボリュームを特定して削除
+docker volume rm animalekarte_ekarte-postgres-data
+```
+※ `animalekarte_` の部分はディレクトリ名により異なる場合があります。`docker volume ls` で確認してください。
 
-## 期待結果
+### 2.3 再起動と自動構築
+```bash
+# 再びコンテナを起動
+make up
+```
+起動時に `001_init.sql` から `004_seed_staging.sql` までの全てのスクリプトが順次適用されます。
 
-backend log に以下の流れが出る。
+---
+
+## 3. 正常終了の確認
+バックエンドのログに以下の表示が出れば、再構築は完了です。
 
 ```text
 Migration completed file=001_init.sql
-Migration completed file=002_seed_master.sql
-Migration completed file=003_seed_demo.sql
-Migration completed file=004_seed_staging.sql
+...
 Migration summary applied=4 skipped=0 total=4
 ```
 
-`/health` が 200 を返せば復旧完了。
+`/health` エンドポイントが HTTP 200 を返せば、臨床データの入力準備が整いました。
 
-## 注意
+---
 
-- `schema_migrations` の checksum を手で UPDATE するのは、DB を捨てられない環境だけに限定する。
-- ローカル開発環境では volume 再作成を優先する。
-- STG deploy では `.env.staging` を書き換えず、`gh workflow run backend-deploy.yml --ref staging -f db_reset=true` を使う。
+## 4. 注意事項
+- **データ消失**: この操作により、ローカル環境に入力したテスト用データは全て削除されます。
+- **共有環境**: ステージング等の共有環境では、決してこの手順（ボリューム削除）を実行せず、`gh workflow run` による正規のデプロイ手順に従ってください。
+
+---

@@ -1,194 +1,48 @@
-# マスタ設定ページ一覧
+# LINE予約ページ設定 仕様書 (Reservation UI Customization)
 
-最終更新: 2026-04-13 (最新実装同期済)
-
-## 凡例
-
-| 項目 | 説明 |
-|------|------|
-| **フラットパターン** | 単一リスト。親子関係なし。行は `DataTableRow` の並列配置 |
-| **階層パターン** | 親行（root）と子行（child）の2段構成。親の展開/折りたたみあり |
-| **D&D** | `@dnd-kit` + `useSortableList` による行ドラッグ並び替え |
+## 概要
+- **画面の目的**: 飼い主が操作する LINE 予約アプリ（LIFF）内の各画面に表示される文言、ポリシー、およびデザイン補助情報の管理。
+- **URLパターン**: `/line-reservation/page-editor`
+- **アクセス権限**: 医院管理者権限が必要（`ResourceHospitalSettings`）
 
 ---
 
-## 設定インデックス (`/settings`)
+## 画面構成
 
-`MasterSettingsIndex.tsx`
+### 1. ページセクション選択
+LIFF アプリ内の主要な 4 つのフェーズを個別に編集可能です。
+- **トップ (Portal)**: 病院の挨拶、本日の診療に関する重要告知。
+- **メニュー選択 (Course)**: 診療、ワクチン、トリミング等の補足説明。
+- **確認 (Confirmation)**: キャンセル規定、当日の持ち物の案内。
+- **完了 (Finish)**: 予約確定後のアクション（「外でお待ちください」等）の指示。
 
-テーブルなし。Notionスタイルのセクショングループ化されたリスト形式。権限（`usePermission`）によりカードの表示/非表示を動的に制御。
-
----
-
-## 1. 医院マスタ (`/settings/clinic`)
-
-**コンポーネント:** `ClinicMasterSettings.tsx`
-**API:** `/api/v1/clinics`
-
-テーブルなし。Notionプロパティ形式のフォーム入力。
-
----
-
-## 2. 権限グループマスタ (`/settings/permission-groups`)
-
-**コンポーネント:** `PermissionGroupSettings.tsx`
-**API:** `/api/v1/permission-groups`
-
-権限グループの名称、色、および各リソースへのCRUD権限ルールを管理する。マルチテナント（`clinic_id`）分離。
+### 2. コンテンツ編集エリア
+- **見出し (`header_text`)**: 各画面の最上部に強調表示されるテキスト。
+- **案内文 (`body_text`)**: 飼い主へ詳しく伝えるための詳細文。
+- **注釈 (`footer_text`)**: 免責事項や緊急連絡先。
 
 ---
 
-## 3. スタッフマスタ (`/settings/staff`)
+## 主要な機能
 
-**コンポーネント:** `StaffSettings.tsx`
-**API:** `/api/v1/masters/staffs`
+### 1. ダイナミック・コンテンツ
+ここで保存された内容は即座に LINE プラットフォーム上の LIFF アプリに反映されます。季節ごとのキャンペーン案内や、緊急時の休診告知などを病院スタッフ自身で柔軟に行えます。
 
-スタッフの基本情報、職種（`occupations`）、所属クリニック、権限グループ、およびアカウント（Email/Pass）を管理する。
-LINE予約用の表示設定（名称、画像、説明、表示フラグ）および対応不可予約区分の設定を含む。
-
----
-
-## 4. LINE予約設定 (`/line-reservation/settings` / `/line-reservation/page-editor`)
-
-**コンポーネント:** `LineReservationSettings.tsx`, `LineReservationPageEditor.tsx`
-**API:** `/api/v1/clinics/:id/line-reservation-settings`
-
-LINE公式アカウント連携および予約ページの表示内容・営業ルールを管理する。
+### 2. ポリシー管理
+キャンセルポリシーや個人情報の取り扱いに関する文言を一元管理し、法的・運営上のリスクをコントロールします。
 
 ---
 
-## 5. 診療項目マスタ (`/settings/treatment-items`)
+## 技術仕様
 
-**コンポーネント:** `TreatmentPlanMaster.tsx`
-**タブ切替:** `?tab=consultation|examination|procedure|vaccine|checkup`
-**API:** `/api/v1/masters/consultations` 他
+### 使用コンポーネント
+- **`PageSectionTabs`**: セクション間の高速切り替え。
+- **`PropTextarea`**: 複数行の案内文入力。
 
-全タブ共通の `TreatmentTabContent` コンポーネントで描画。
-
-| タブ | ラベル | パターン | テーブルコンポーネント | D&D |
-|------|--------|---------|---------------------|-----|
-| `consultation` | 診察 | 階層パターン | `DataTable` + `SortableDataTableRow` / `ChildTreatmentRow` | あり（root のみ） |
-| `examination` | 検査 | 階層パターン | `DataTable` + `SortableDataTableRow` / `ChildTreatmentRow` | あり（root のみ） |
-| `procedure` | 処置 | 階層パターン | `DataTable` + `SortableDataTableRow` / `ChildTreatmentRow` | あり（root のみ） |
-| `vaccine` | 予防接種 | 階層パターン | `DataTable` + `SortableDataTableRow` / `ChildTreatmentRow` | あり（root のみ） |
-| `checkup` | 定期健診 | 階層パターン | `DataTable` + `SortableDataTableRow` / `ChildTreatmentRow` | あり（root のみ） |
+### API連携
+| メソッド | エンドポイント | 用途 |
+|:---|:---|:---|
+| GET | `/api/v1/line-reservation-settings/pages` | 現行のページ設定一括取得。 |
+| PATCH | `/api/v1/line-reservation-settings/pages/:id` | 特定セクションの文言更新。 |
 
 ---
-
-## 6. 診断マスタ (`/settings/diagnosis`)
-
-**コンポーネント:** `DiagnosisSettings.tsx`
-**タブ切替:** `?tab=diagnosis_category|diagnosis_name`
-**API:** `/api/v1/masters/diagnosis-categories` / `/api/v1/masters/diagnosis-names`
-
-### タブ1: 診断病名カテゴリ (`diagnosis_category`)
-### タブ2: 診断病名 (`diagnosis_name`)
-
----
-
-## 7. トリミングマスタ (`/settings/trimming`)
-
-**コンポーネント:** `TrimmingSettings.tsx`
-**タブ切替:** `course` | `option`
-**API:** `/api/v1/masters/trimming-courses` / `/api/v1/masters/trimming-options`
-
----
-
-## 8. 薬剤マスタ (`/settings/medicine`)
-
-**コンポーネント:** `MedicineSettings.tsx`
-**API:** `/api/v1/masters/medicines`
-
-タブなし。カテゴリ > 薬剤の2段階UI。独自 `Table` 実装。
-
----
-
-## 9. 予約区分マスタ (`/settings/reservation-type`)
-
-**コンポーネント:** `ReservationTypeSettings.tsx`
-**API:** `/api/v1/masters/reservation-types`
-
-| 項目 | 内容 |
-|------|------|
-| パターン | フラットパターン |
-| D&D | あり |
-
-**カラム:** D&Dハンドル | 名称(カラードット付) | 備考 | ステータス | 操作
-
----
-
-## 10. 入院マスタ (`/settings/hospitalization`)
-
-**コンポーネント:** `HospitalizationSettings.tsx`
-**API:** `/api/v1/masters/hospitalization-plans`
-
----
-
-## 11. ケージマスタ (`/settings/cage`)
-
-**コンポーネント:** `CageSettings.tsx`
-**API:** `/api/v1/masters/cages`
-
----
-
-## 12. 動物種マスタ (`/settings/animal-species`)
-
-**コンポーネント:** `AnimalSpeciesSettings.tsx`
-**API:** `/api/v1/masters/animal-species`
-
----
-
-## 13. 職種マスタ (`/settings/occupations`)
-
-**コンポーネント:** `OccupationSettings.tsx`
-**API:** `/api/v1/masters/occupations`
-
----
-
-## 14. 主訴カテゴリマスタ (`/settings/interview/chief-complaint`)
-
-**コンポーネント:** `ChiefComplaintSettings.tsx`
-**API:** `/api/v1/masters/chief-complaint-categories`
-
----
-
-## 15. 問診テンプレート (`/settings/interview/templates`)
-
-**コンポーネント:** `InterviewTemplateSettings.tsx`
-**API:** `/api/v1/masters/inquiry-templates`
-
----
-
-## 16. 保険マスタ (`/settings/insurance`)
-
-**コンポーネント:** `InsuranceSettings.tsx`
-**API:** `/api/v1/masters/insurances`
-
----
-
-## 17. 商品マスタ (`/settings/merchandise-items`)
-
-**コンポーネント:** `MerchandiseItemSettings.tsx`
-**API:** `/api/v1/masters/merchandise-items`
-
----
-
-## 18. シフトテンプレートマスタ (`/settings/shift-template`)
-
-**コンポーネント:** `ShiftTemplateSettings.tsx`
-**API:** `/api/v1/shift-templates`
-
----
-
-## 共有コンポーネント早見表
-
-| コンポーネント | パス |
-|--------------|------|
-| `DataTable` | `@/components/shared/DataTable` |
-| `MasterSidePanel` | `@/components/shared/SidePeek` |
-| `NotionStatusPill` | `@/components/shared/StatusPill` |
-| `PropertyRow` | `@/components/shared/SidePeek` |
-| `PropInput` | `@/components/shared/SidePeek` |
-| `MoneyInput` | `@/components/shared/SidePeek` |
-| `StatusToggleButton` | `@/components/shared/StatusPill` |
-| `RowActionButton` | `@/components/shared/RowActionButton` |

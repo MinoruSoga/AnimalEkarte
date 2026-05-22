@@ -1,47 +1,55 @@
-# 検査入力/結果登録 仕様書
+# 検査入力/結果登録 仕様書 (Examination Form)
 
 ## 概要
-検査の新規登録および結果入力は `/examinations/new` および `/examinations/:id` として実装されています。
+- **画面 of Purpose**: 検査オーダーの作成、および臨床検査値（数値・判定）の精緻な記録。
+- **URLパターン**: 
+  - 新規作成: `/examinations/new?petId=xxx`
+  - 編集: `/examinations/:id`
+- **アクセス権限**: 認証済ユーザー全員（操作権限は `usePermission` で制御）
 
-- **コンポーネント**: `ExaminationForm`
-- **アクセス権限**: 認証済ユーザー全員
+---
 
-## 画面構成（2カラム）
-- **ヘッダー**: `PatientInfoCard` (ペット基本情報)、保存・キャンセル・削除ボタン
-- **左カラム (FormFieldsSection + ExamItemsTable)** [3/5幅]:
-  - 検査種別選択 (`Select`) ＊必須
-  - 担当医選択 (`Select`) ＊必須
-  - 検査日 (`NotionDatePicker`) ＊必須
-  - ステータス (`Select`): 依頼中 / 検査中 / 結果入力済み / 完了 / 確定
-  - 備考・所見テキストエリア
-  - **検査項目テーブル** (`ExamItemsTable`): 検査種別選択後、`exam_type_fields` テンプレから項目行を生成。列: 項目名 / 結果値（編集可） / 単位 / 基準値 / 判定（backend 導出）。`isAbnormal === true` の行は `status === "high"` なら `bgDanger8`（赤系）、`"low"` なら `bgAccentLight8`（青系）の背景色で強調表示（`data-testid="exam-item-row"` / `data-abnormal` 属性付与）。
-- **右カラム (ExaminationHistory)** [2/5幅]:
-  - 過去の検査履歴一覧（同一ペットの過去記録、`ExaminationCard` で表示）
-  - `HistoryFilterPanel`（キーワード検索、期間フィルタ、昇降順ソート）
+## 1. 画面構成
 
-## 主要機能
-- **React 19 アクション**: `useActionState` を使用した検査記録の保存。バリデーションエラー時には、検査種別（`testTypeId`）や担当医（`doctorId`）などの入力欄へ自動でスクロール・フォーカスするアクセシビリティ対応。
-- **確定済みロック**: `status === "確定"` の場合、フォーム全体が `disabled` 状態となり、保存・削除アクションが制限される。
-- **履歴管理**: 右カラムに同一ペットの過去の検査履歴を一覧表示。`HistoryFilterPanel` による絞り込みが可能。
-- **未保存変更警告**: `NavigationBlocker`（`unstable_useBlocker`）により、保存前に離脱しようとするとアラートを表示。
-- **臨床安全ガード**: `PatientInfoCard` において、死亡済みペットの場合はステータスが強調表示される。
+### 1.1 検査基本情報
+- **検査種別**: 血液、尿、エコー等のマスタ（`exam_types`）から選択。
+- **担当スタッフ**: 実施者または判定者。
 
-## 実装状況・制約
-| 機能 | 状態 | 備考 |
-|------|------|------|
-| 検査種別 / 担当医 / ステータス / 備考 | ✅ 実装済 | |
-| 確定済みロック | ✅ 実装済 | status === "確定" で全フィールド disabled（検査項目テーブルも含む）。確定時は PUT items を送信しない |
-| 過去履歴（右カラム）| ✅ 実装済 | クライアントサイドフィルタ（petId一致） |
-| 検査項目テーブル | ✅ 実装済 | `ExamItemsTable`: `exam_type_fields` テンプレから行を生成。結果値入力後に PUT /examinations/:id/items で一括保存 |
-| 異常値判定・行ハイライト | ✅ 実装済 | backend の `computeExamResultStatus` が `ref_min`/`ref_max` と比較して `status`（normal/high/low）と `is_abnormal` を導出。FE は返却値を表示し、`is_abnormal === true` の行に背景色ハイライトを適用（high=`bgDanger8`、low=`bgAccentLight8`） |
-| 画像管理 | ❌ 未実装 | 設計未定 |
+### 1.2 動的検査項目テーブル (`ExamItemsTable`)
+選択した検査種別に基づき、測定項目が動的に生成されます。
 
-## API連携
+| 項目 | 説明 |
+|:---|:---|
+| **項目名 / 単位** | 例：ALT (U/L), CRE (mg/dL)。マスタより自動展開。 |
+| **測定値** | 実測値を数値入力。 |
+| **判定 (H/L)** | **自動判定**: マスタで定義された基準値（Min〜Max）に基づき、高値なら **赤**、低値なら **青** で即座にハイライトされます。 |
+| **基準値参照** | その動物種（犬/猫）における正常範囲を横に表示し、臨床判断を助けます。 |
+
+---
+
+## 2. 主要な臨床・安全機能
+
+### 2.1 真正性の担保（確定ロック）
+- **ステータス**: `確定 (finalized)` 状態に移行した検査記録は、一切の編集がロックされます。
+- **背景**: 臨床データとしての証跡保護のため、一度確定した数値を不用意に変更することを防ぎます。
+
+### 2.2 リアルタイム・ハイライト
+数値入力の瞬間、バリデーションと並行して基準値比較が走り、UI の色が変化します。これにより、多忙な診察室でも重要値の見落としを物理的に防止します。
+
+---
+
+## 3. 技術仕様
+
+### 3.1 構成コンポーネント
+- **`ExaminationForm`**: 統合フォーム。
+- **`DynamicExamFields`**: マスタの構造（`exam_type_fields`）を再帰的に解決して描画する動的エンジン。
+
+### API連携
 | メソッド | エンドポイント | 用途 |
-|---------|--------------|------|
-| GET | `/api/v1/examinations/:id` | 検査詳細取得 |
-| POST | `/api/v1/examinations` | 検査作成 |
-| PATCH | `/api/v1/examinations/:id` | 検査更新 |
-| DELETE | `/api/v1/examinations/:id` | 検査削除 |
-| GET | `/api/v1/examinations/:id/items` | 検査項目一覧取得（`status`/`is_abnormal` を含む） |
-| PUT | `/api/v1/examinations/:id/items` | 検査項目一括置換（既存全削除→一括登録。確定済み時は FE から送信しない） |
+|:---|:---|:---|
+| GET | `/api/v1/examinations/:id` | 検査基本情報および項目リストの取得。 |
+| POST | `/api/v1/examinations` | 新規保存。 |
+| PATCH | `/api/v1/examinations/:id` | 数値・判定・ステータスの更新。 |
+| GET | `/api/v1/masters/exam-types` | 利用可能な検査種別リストの取得。 |
+
+---

@@ -1,305 +1,67 @@
-# CI/CD パイプライン
+# CI/CD パイプライン構成書 (CI/CD Pipeline)
 
-**ステータス:** ✅ 完全稼働中
-
----
-
-## 概要
-
-| コンポーネント | 方式 | トリガー |
-|--------------|------|---------|
-| Backend API | GitHub Actions → AWS OIDC → ECR → ECS | `backend/**` → staging push |
-| Frontend | Vercel GitHub Integration | `frontend/**` → staging push |
+> **Animal Ekarte**: GitHub Actions と AWS/Vercel による高速かつ安全な自動デプロイ
+> **最新更新**: 2026-05-21 | **ステータス**: 完全自動化運用中
 
 ---
 
-## Backend デプロイ
+## 1. 全体フロー概要
 
-### パイプライン
+本システムは、ブランチへのプッシュをトリガーとして、バックエンドとフロントエンドがそれぞれの最適化された経路で自動デプロイされます。
 
-```
-git push to staging (backend/** 変更)
-  → GitHub Actions backend-deploy.yml
-  → AWS OIDC 認証
-  → Docker build (backend/Dockerfile.production)
-  → ECR push (animalekarte-api:latest + sha-<commit>)
-  → ECS Task Definition 更新
-  → ECS Service 更新 (Blue/Green)
-  → サービス安定性確認
-```
-
-**所要時間:** 1〜5分
-
-### ワークフロー設定
-
-**ファイル:** `.github/workflows/backend-deploy.yml`
-
-```yaml
-on:
-  push:
-    branches: [staging]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend-deploy.yml'
-  workflow_dispatch:  # 手動実行可
-
-env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY: animalekarte-api
-  ECS_CLUSTER: animalekarte-stg-cluster
-  ECS_SERVICE: animalekarte-stg-service
-  ECS_TASK_DEFINITION_FAMILY: animalekarte-stg-api
-```
-
-### AWS OIDC 認証設定
-
-**IAM Role:** `animalekarte-stg-github-ecs-deploy-role`
-
-```json
-{
-  "Effect": "Allow",
-  "Principal": {
-    "Federated": "arn:aws:iam::698109622668:oidc-provider/token.actions.githubusercontent.com"
-  },
-  "Action": "sts:AssumeRoleWithWebIdentity",
-  "Condition": {
-    "StringEquals": {
-      "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-    },
-    "StringLike": {
-      "token.actions.githubusercontent.com:sub": "repo:MinoruSoga/AnimalEkarte:ref:refs/heads/staging"
-    }
-  }
-}
-```
-
-**重要:** リポジトリオーナーは `MinoruSoga`（大文字小文字一致必須）
-
-### GitHub Secrets
-
-| Secret | 値 |
-|--------|-----|
-| `AWS_REGION` | us-east-1 |
-| `AWS_ACCOUNT_ID` | 698109622668 |
-| `ECR_REPOSITORY` | animalekarte-api |
-| `ECS_CLUSTER` | animalekarte-stg-cluster |
-| `ECS_SERVICE` | animalekarte-stg-service |
-| `ECS_TASK_DEFINITION` | animalekarte-stg-api |
-
-### ECR イメージタグ
-
-```
-698109622668.dkr.ecr.us-east-1.amazonaws.com/animalekarte-api:latest
-698109622668.dkr.ecr.us-east-1.amazonaws.com/animalekarte-api:sha-<commit-hash>
-```
+| コンポーネント | 実行環境 | デプロイ方式 | トリガー |
+|:---|:---|:---|:---|
+| **Backend API** | AWS ECS (Fargate) | GitHub Actions + ECR | `staging` ブランチへの push |
+| **Frontend** | Vercel | Vercel GitHub Hook | `staging` ブランチへの push |
 
 ---
 
-## Frontend デプロイ
+## 2. バックエンド・パイプライン (AWS ECS)
 
-### パイプライン
+### 2.1 実行ステップ
+1.  **Checkout**: ソースコードの取得。
+2.  **Auth (OIDC)**: AWS OIDC を使用し、秘密鍵を使わずに一時的なロール（`animalekarte-stg-github-ecs-deploy-role`）で認証。
+3.  **Build & Push**: `Dockerfile.production` を用いてイメージをビルドし、Amazon ECR へプッシュ。
+4.  **Migrate**: 新しいイメージを使用して、DB マイグレーションタスクを先行実行。
+5.  **Service Update**: ECS サービスを更新し、Blue/Green 形式で段階的にタスクを入れ替え。
 
-```
-git push to staging (frontend/** 変更)
-  → Vercel GitHub Hook
-  → Vercel ビルド (pnpm install → pnpm build)
-  → Production 自動デプロイ
-```
-
-**所要時間:** 2〜5分
-
-### Vercel 設定
-
-**プロジェクト:** animalekarte-frontend
-**vercel.json:**
-
-```json
-{
-  "buildCommand": "pnpm build",
-  "installCommand": "pnpm install",
-  "framework": "vite",
-  "outputDirectory": "dist"
-}
-```
-
-**環境変数（Production）:**
-
-```
-VITE_API_URL=https://api.stg.noah-karte.com/api
-```
+### 2.2 監視とリカバリ
+- サービスが 10 分以内に `STABLE` 状態にならない場合、GitHub Actions は失敗としてマークされます。
+- 重大な不具合発見時は、AWS CLI を使用して前バージョンの Task Definition に即座に切り戻します。
 
 ---
 
-## 手動デプロイ
+## 3. フロントエンド・パイプライン (Vercel)
 
-### Backend（GitHub Actions）
+### 3.1 実行ステップ
+1.  **Detection**: `frontend/` ディレクトリ内の変更を検知。
+2.  **Build**: `pnpm build` を実行。TypeScript の型チェックと Vite による最適化（Minify/Tree-shaking）を実施。
+3.  **Edge Deploy**: Vercel のグローバルエッジネットワークへ即座に配信。
 
+---
+
+## 4. 運用コマンド
+
+### 4.1 手動デプロイの強制実行
+自動検知が機能しない場合や、特定の環境変数を反映させたい場合に使用します。
 ```bash
+# 特定のワークフローを手動起動
 gh workflow run backend-deploy.yml --ref staging
-gh run list --workflow=backend-deploy.yml --limit 1
 ```
 
-### Backend（手動 ECR Push）
-
-自動デプロイが使えない場合の手順。
-
-> **Apple Silicon (arm64) の場合:** ECS Fargate は `linux/amd64` で動作するため、`--platform linux/amd64` の指定が必須。
-
+### 4.2 バックエンド・ロールバック
 ```bash
-export AWS_PROFILE=AnimalEkarte
-export AWS_REGION=us-east-1
-export AWS_ACCOUNT_ID=698109622668
-export ECR_URL=698109622668.dkr.ecr.us-east-1.amazonaws.com/animalekarte-api
-
-# ECR 認証
-aws ecr get-login-password --region $AWS_REGION | \
-  docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-
-# ビルド・プッシュ・デプロイ（一括）
-# Apple Silicon の場合は --platform linux/amd64 を必ず付ける
-cd backend && \
-  docker buildx build --platform linux/amd64 -f Dockerfile.production -t $ECR_URL:latest --push . && \
-  aws ecs update-service \
-    --cluster animalekarte-stg-cluster \
-    --service animalekarte-stg-service \
-    --force-new-deployment \
-    --region $AWS_REGION
-```
-
-### Frontend（Vercel CLI）
-
-```bash
-cd frontend
-vercel --prod
-```
-
----
-
-## ロールバック
-
-### Backend
-
-```bash
-export AWS_PROFILE=AnimalEkarte
-
-# 利用可能な Task Definition バージョン確認
-aws ecs list-task-definitions \
-  --family-prefix animalekarte-stg-api \
-  --region us-east-1
-
-# 前バージョンにロールバック（例: v4）
-aws ecs update-service \
-  --cluster animalekarte-stg-cluster \
+# 前のタスク定義リビジョンへ強制指定して更新
+aws ecs update-service --cluster animalekarte-stg-cluster \
   --service animalekarte-stg-service \
-  --task-definition animalekarte-stg-api:4 \
-  --region us-east-1
-```
-
-### Frontend
-
-Vercel ダッシュボード → Deployments → 前バージョン → "Promote to Production"
-
----
-
-## デプロイ確認
-
-```bash
-export AWS_PROFILE=AnimalEkarte
-
-# Backend ヘルスチェック
-curl http://animalekarte-stg-alb-1915768826.us-east-1.elb.amazonaws.com/health | jq .
-
-# ECS サービス状態
-aws ecs describe-services \
-  --cluster animalekarte-stg-cluster \
-  --services animalekarte-stg-service \
-  --region us-east-1 \
-  --query 'services[0].{status,runningCount,desiredCount,taskDefinition}'
-
-# ログ確認
-aws logs tail /ecs/animalekarte-stg --follow --region us-east-1
+  --task-definition animalekarte-stg-api:<PREVIOUS_REVISION>
 ```
 
 ---
 
-## トラブルシューティング
+## 5. セキュリティと認証
 
-### AWS OIDC 認証エラー
-
-**症状:** `HTTP 422 AssumeRoleUnauthorizedOperation`
-
-**対処:** IAM コンソール → `animalekarte-stg-github-ecs-deploy-role` → 信頼関係を確認。リポジトリ名が `MinoruSoga/AnimalEkarte` になっているか確認。
-
-### Docker ビルド失敗
-
-```bash
-cd backend
-docker build -f Dockerfile.production -t test .
-```
-
-### ECS タスク起動失敗 / ヘルスチェック失敗
-
-```bash
-export AWS_PROFILE=AnimalEkarte
-
-# タスク停止理由
-TASK_ARN=$(aws ecs list-tasks \
-  --cluster animalekarte-stg-cluster \
-  --service-name animalekarte-stg-service \
-  --region us-east-1 \
-  --query 'taskArns[0]' --output text)
-
-aws ecs describe-tasks \
-  --cluster animalekarte-stg-cluster \
-  --tasks $TASK_ARN \
-  --region us-east-1 \
-  | jq '.tasks[0] | {lastStatus, healthStatus, stoppedReason}'
-
-# CloudWatch Logs
-aws logs tail /ecs/animalekarte-stg --since 10m --region us-east-1
-
-# ALB Target Health
-TG_ARN=$(aws elbv2 describe-target-groups \
-  --names animalekarte-stg-tg \
-  --region us-east-1 \
-  | jq -r '.TargetGroups[0].TargetGroupArn')
-
-aws elbv2 describe-target-health \
-  --target-group-arn $TG_ARN \
-  --region us-east-1 \
-  | jq '.TargetHealthDescriptions'
-```
-
-| エラー | 原因 | 対処 |
-|--------|------|------|
-| `CannotPullContainerError` | ECRにイメージなし | 手動 ECR Push を実行 |
-| `Target.FailedHealthChecks` | /health が応答しない | CloudWatch Logs 確認 |
-| `ResourceInitializationError` | 環境変数/リソース不足 | Task Definition 確認 |
-| `503 Service Unavailable` | ALB → ECS 疎通不可 | Security Group 確認 |
-
-### Frontend ビルド失敗
-
-```bash
-docker compose exec frontend pnpm build
-docker compose exec frontend pnpm lint
-```
-
-### CORS エラー
-
-`CORS_ALLOWED_ORIGIN` 環境変数（カンマ区切り）に Vercel ドメインと CloudFront ドメインが含まれているか確認。
-
-```
-CORS_ALLOWED_ORIGIN=https://stg.noah-karte.com,https://api.stg.noah-karte.com
-```
-
-> ⚠️ env var 名は `ALLOWED_ORIGINS` **ではなく** `CORS_ALLOWED_ORIGIN` であることに注意（`backend/internal/middleware/cors.go` 参照）。
+- **秘密情報の分離**: `JWT_SECRET` やデータベース接続情報は GitHub には置かず、AWS SSM Parameter Store に厳重に保管されています。
+- **OIDC 連携**: リポジトリオーナー `MinoruSoga` の特定リポジトリからのアクセスのみを許可する信頼関係ポリシーを適用済みです。
 
 ---
-
-## 参考資料
-
-| リソース | 説明 |
-|---------|------|
-| [インフラ構成](../docs_infra_architecture.md) | AWSリソース、Terraform state |
-| [デプロイ前チェックリスト](./DEPLOYMENT-CHECKLIST.md) | デプロイ手順、DB作り直し |
-| [AWS OIDC](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect) | GitHub Actions OIDC 認証 |
