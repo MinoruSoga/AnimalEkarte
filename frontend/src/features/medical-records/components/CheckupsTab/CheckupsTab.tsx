@@ -188,6 +188,7 @@ type LstepStatus = "synced" | "not-linked" | "opt-out";
 interface CheckupsTabProps {
   medicalRecordId: string;
   lstepStatus?: LstepStatus;
+  isFinalized?: boolean;
 }
 
 function LstepStatusBadge({ status }: { status: LstepStatus }) {
@@ -217,7 +218,7 @@ function LstepStatusBadge({ status }: { status: LstepStatus }) {
 
 // ── Component ──────────────────────────────────────────────────────────
 
-export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepStatus }: CheckupsTabProps) {
+export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepStatus, isFinalized = false }: CheckupsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
@@ -384,7 +385,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
                     <td className={`px-3 text-sm ${C.text}`}>{checkup.result}</td>
                     <td className="px-2">
                       <div className="flex items-center justify-end gap-1">
-                        {canEdit ? (
+                        {canEdit && !isFinalized ? (
                           <button
                             onClick={() => setEditingId(checkup.id)}
                             className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverText} ${C.hoverBgLight}`}
@@ -393,7 +394,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
                             <Pencil className={`${ICON.xs}`} />
                           </button>
                         ) : null}
-                        {canDelete ? (
+                        {canDelete && !isFinalized ? (
                           <DeleteIconButton
                             onClick={() => handleDelete(checkup.id)}
                             disabled={deleteMutation.isPending}
@@ -408,8 +409,15 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
           </tbody>
         </table>
 
+        {/* 確定済みカルテ: 閲覧専用メッセージ */}
+        {isFinalized ? (
+          <div className={`px-4 py-3 text-sm ${C.text60} border-t ${C.borderLight}`}>
+            確定済みカルテのため健診情報は編集できません
+          </div>
+        ) : null}
+
         {/* インライン追加フォーム */}
-        {isAdding ? (
+        {!isFinalized && isAdding ? (
           <div className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
             <div className="flex flex-col">
               <NotionDatePicker
@@ -479,7 +487,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
             </Button>
           </div>
         ) : (
-          canCreate ? (
+          canCreate && !isFinalized ? (
             <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
               <Plus className={`${ICON.xs}`} />
               <span>記録を追加</span>

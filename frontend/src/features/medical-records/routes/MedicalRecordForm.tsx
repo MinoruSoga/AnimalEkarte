@@ -469,7 +469,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
                   カルテを保存してから使用できます
                 </div>
               ) : (
-                <CheckupsTab medicalRecordId={recordId} lstepStatus={lstepStatus} />
+                <CheckupsTab medicalRecordId={recordId} lstepStatus={lstepStatus} isFinalized={currentRecord?.status === "確定済"} />
               )}
             </div>
           </UnifiedTabsContent>

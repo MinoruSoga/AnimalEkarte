@@ -11,7 +11,7 @@ vi.mock("@/hooks/use-permission", () => ({
 
 vi.mock("../../api/checkups", () => ({
   useGetCheckups: vi.fn(() => ({ data: [], isLoading: false })),
-  useCreateCheckup: vi.fn(),
+  useCreateCheckup: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useUpdateCheckup: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useDeleteCheckup: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
@@ -52,6 +52,23 @@ function openAddFormWithType() {
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────
+
+describe("CheckupsTab — finalized lock", () => {
+  it("isFinalized=true のとき「記録を追加」ボタンが表示されない", () => {
+    render(<CheckupsTab medicalRecordId="mr-1" isFinalized={true} />);
+    expect(screen.queryByText("記録を追加")).toBeNull();
+  });
+
+  it("isFinalized=true のとき閲覧専用メッセージが表示される", () => {
+    render(<CheckupsTab medicalRecordId="mr-1" isFinalized={true} />);
+    expect(screen.getByText("確定済みカルテのため健診情報は編集できません")).toBeInTheDocument();
+  });
+
+  it("isFinalized=false のとき「記録を追加」ボタンが表示される", () => {
+    render(<CheckupsTab medicalRecordId="mr-1" isFinalized={false} />);
+    expect(screen.getByText("記録を追加")).toBeInTheDocument();
+  });
+});
 
 describe("CheckupsTab — doctor field", () => {
   let mutateMock: ReturnType<typeof vi.fn>;

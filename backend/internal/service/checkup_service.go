@@ -83,13 +83,14 @@ type CheckupService interface {
 
 type checkupService struct {
 	repo                 repository.CheckupRepository
+	medicalRecordRepo    repository.MedicalRecordRepository
 	lstepDeliveryTrigger LstepDeliveryTriggerService
 	nowFn                func() time.Time // test hook; nil uses time.Now
 }
 
 // NewCheckupService は CheckupService の実装を返す
-func NewCheckupService(repo repository.CheckupRepository, lstepDeliveryTrigger LstepDeliveryTriggerService) CheckupService {
-	return &checkupService{repo: repo, lstepDeliveryTrigger: lstepDeliveryTrigger}
+func NewCheckupService(repo repository.CheckupRepository, medicalRecordRepo repository.MedicalRecordRepository, lstepDeliveryTrigger LstepDeliveryTriggerService) CheckupService {
+	return &checkupService{repo: repo, medicalRecordRepo: medicalRecordRepo, lstepDeliveryTrigger: lstepDeliveryTrigger}
 }
 
 func (s *checkupService) now() time.Time {
@@ -136,6 +137,14 @@ func (s *checkupService) GetByID(ctx context.Context, clinicID, medicalRecordID,
 }
 
 func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error) {
+	parent, err := s.medicalRecordRepo.FindByID(ctx, input.ClinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict("確定済みカルテのため健診記録は追加できません")
+	}
 	checkup := &model.Checkup{
 		ClinicID:        input.ClinicID,
 		MedicalRecordID: medicalRecordID,
@@ -187,6 +196,14 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 	}
 	if existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
+	}
+	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict("確定済みカルテのため健診記録は編集できません")
 	}
 	fields := buildCheckupUpdate(input)
 	if len(fields) == 0 {
@@ -244,6 +261,14 @@ func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, 
 	}
 	if existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
+	}
+	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return apperrors.WrapConflict("確定済みカルテのため健診記録は削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, checkupID); err != nil {
 		return apperrors.Wrap(err, "failed to delete checkup")
