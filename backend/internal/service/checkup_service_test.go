@@ -470,6 +470,25 @@ func TestGetAlerts_JSTLateNight_TodayIsCorrectJSTDate(t *testing.T) {
 	assert.Equal(t, uint64(1), result.Overdue[0].ID)
 }
 
+func TestBuildCheckupUpdate_DoctorIDClear(t *testing.T) {
+	trueVal := true
+
+	t.Run("DoctorIDClear=true sets doctor_id to nil in fields", func(t *testing.T) {
+		fields := buildCheckupUpdate(&UpdateCheckupInput{DoctorIDClear: &trueVal})
+		doctorID, ok := fields["doctor_id"]
+		assert.True(t, ok, "doctor_id key must be present when DoctorIDClear=true")
+		assert.Nil(t, doctorID, "doctor_id value must be nil when DoctorIDClear=true")
+	})
+
+	t.Run("DoctorIDClear=true takes precedence over DoctorID value", func(t *testing.T) {
+		id := uint64(10)
+		fields := buildCheckupUpdate(&UpdateCheckupInput{DoctorIDClear: &trueVal, DoctorID: &id})
+		doctorID, ok := fields["doctor_id"]
+		assert.True(t, ok)
+		assert.Nil(t, doctorID, "DoctorIDClear must win over DoctorID")
+	})
+}
+
 func TestCheckupService_Create_FinalizedRejection(t *testing.T) {
 	now := time.Now()
 	repo := &mockCheckupRepository{}

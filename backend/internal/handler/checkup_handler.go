@@ -135,6 +135,7 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 		Date:          updateDate,
 		NextDate:      updateNextDate,
 		DoctorID:      req.DoctorID,
+		DoctorIDClear: req.DoctorIDClear,
 		Result:        req.Result,
 	})
 	if err != nil {

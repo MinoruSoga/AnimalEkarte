@@ -31,7 +31,21 @@ vi.mock("@/hooks/use-staffs", () => ({
   })),
 }));
 
-import { useCreateCheckup } from "../../api/checkups";
+import { useCreateCheckup, useUpdateCheckup, useGetCheckups } from "../../api/checkups";
+
+const CHECKUP_WITH_DOCTOR = {
+  id: "c1",
+  medical_record_id: "mr-1",
+  checkup_type_id: "1",
+  date: "2026-05-01",
+  next_date: null,
+  doctor_id: "10",
+  result: "Normal",
+  created_at: "2026-05-01T00:00:00Z",
+  updated_at: "2026-05-01T00:00:00Z",
+  checkup_type: { id: "1", name: "定期健診" },
+  doctor: { id: "10", name: "田中 医師" },
+};
 
 // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -121,6 +135,53 @@ describe("CheckupsTab — doctor field", () => {
     await waitFor(() => {
       expect(mutateMock).toHaveBeenCalledWith(
         expect.objectContaining({ doctor_id: null }),
+        expect.anything()
+      );
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Issue #59: 担当医クリア (doctor_id_clear flag)
+// ─────────────────────────────────────────────────────────────
+
+describe("CheckupsTab — doctor clear (Issue #59)", () => {
+  let updateMutateMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    updateMutateMock = vi.fn();
+    vi.mocked(useUpdateCheckup).mockReturnValue({
+      mutate: updateMutateMock,
+      isPending: false,
+    } as ReturnType<typeof useUpdateCheckup>);
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: [CHECKUP_WITH_DOCTOR],
+      isLoading: false,
+    } as ReturnType<typeof useGetCheckups>);
+  });
+
+  it("担当医を '-' に変更して保存すると doctor_id_clear=true が payload に含まれる", async () => {
+    render(<CheckupsTab medicalRecordId="mr-1" />);
+
+    // 編集ボタンをクリック
+    fireEvent.click(screen.getByTitle("編集"));
+
+    // 担当医セレクト："-" option を持つ combobox
+    const doctorSelect = screen.getAllByRole("combobox").find(
+      (s) => (s as HTMLSelectElement).querySelector("option[value='']")?.textContent === "-"
+    ) as HTMLSelectElement;
+    expect(doctorSelect).toBeDefined();
+    fireEvent.change(doctorSelect, { target: { value: "" } });
+
+    // 保存ボタン (Check アイコン) をクリック
+    fireEvent.click(screen.getByTitle("保存"));
+
+    await waitFor(() => {
+      expect(updateMutateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          checkupId: "c1",
+          input: expect.objectContaining({ doctor_id_clear: true }),
+        }),
         expect.anything()
       );
     });

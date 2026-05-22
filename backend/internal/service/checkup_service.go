@@ -29,6 +29,7 @@ type UpdateCheckupInput struct {
 	Date          *time.Time
 	NextDate      *time.Time
 	DoctorID      *uint64
+	DoctorIDClear *bool // true のとき doctor_id を NULL にクリアする
 	Result        *string
 }
 
@@ -62,7 +63,9 @@ func buildCheckupUpdate(input *UpdateCheckupInput) map[string]any {
 	if input.NextDate != nil {
 		fields["next_date"] = *input.NextDate
 	}
-	if input.DoctorID != nil {
+	if input.DoctorIDClear != nil && *input.DoctorIDClear {
+		fields["doctor_id"] = nil
+	} else if input.DoctorID != nil {
 		fields["doctor_id"] = *input.DoctorID
 	}
 	if input.Result != nil {

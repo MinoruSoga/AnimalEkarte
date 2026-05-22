@@ -95,7 +95,11 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
   );
 
   const handleSave = useCallback(() => {
-    onSave(checkup.id, form);
+    const payload: UpdateCheckupInput = { ...form };
+    if (form.doctor_id === null) {
+      payload.doctor_id_clear = true;
+    }
+    onSave(checkup.id, payload);
   }, [checkup.id, form, onSave]);
 
   return (
