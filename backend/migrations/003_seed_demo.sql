@@ -1223,12 +1223,13 @@ SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) F
 -- -----------------------------------------------------------------------------
 
 -- 本日分カルテ（医師 doctor_id 1 or 2、clinic_id=1 のみ）
+-- ID 61-65: 004_seed_staging の 37-60 レンジ・K-1 城東 21-28・L-1 敷島 29-36 と衝突しない安全レンジ
 INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, doctor_id, status) VALUES
-    (21, 1, 'R-2026-021', '2026-05-22', 2,  3,  1, 'finalized'),
-    (22, 1, 'R-2026-022', '2026-05-22', 4,  6,  2, 'finalized'),
-    (23, 1, 'R-2026-023', '2026-05-22', 8,  10, 1, 'finalized'),
-    (24, 1, 'R-2026-024', '2026-05-22', 9,  11, 2, 'finalized'),
-    (25, 1, 'R-2026-025', '2026-05-22', 11, 13, 1, 'finalized')
+    (61, 1, 'R-2026-021', '2026-05-22', 2,  3,  1, 'finalized'),
+    (62, 1, 'R-2026-022', '2026-05-22', 4,  6,  2, 'finalized'),
+    (63, 1, 'R-2026-023', '2026-05-22', 8,  10, 1, 'finalized'),
+    (64, 1, 'R-2026-024', '2026-05-22', 9,  11, 2, 'finalized'),
+    (65, 1, 'R-2026-025', '2026-05-22', 11, 13, 1, 'finalized')
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
@@ -1236,19 +1237,19 @@ SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) F
 -- 本日会計（AM 4件 / PM 3件）
 INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo) VALUES
     -- AM 09:30: 田中花子 / ミケ（初診 + 猫3種ワクチン）
-    (4,  1, 21, NULL, 2,  3,  4500,  450,  4950,  false, 'completed', '2026-05-22', '2026-05-22 09:30:00+09', ''),
+    (4,  1, 61, NULL, 2,  3,  4500,  450,  4950,  false, 'completed', '2026-05-22', '2026-05-22 09:30:00+09', ''),
     -- AM 10:30: 田中美咲 / チョコ（再診 + 皮膚炎処置 + 外用薬）
-    (5,  1, 22, NULL, 4,  6,  3500,  350,  3850,  false, 'completed', '2026-05-22', '2026-05-22 10:30:00+09', ''),
+    (5,  1, 62, NULL, 4,  6,  3500,  350,  3850,  false, 'completed', '2026-05-22', '2026-05-22 10:30:00+09', ''),
     -- AM 11:30: 佐藤花子 / レオ（トリミング + フード購入、10%/8% 混在）
     (6,  1, NULL, NULL, 5, 7,  6200,  596,  6796,  false, 'completed', '2026-05-22', '2026-05-22 11:30:00+09', 'トリミング来院'),
     -- AM 13:00: 中村勇気 / ロッキー（再診 + 血液検査、アニコム 70%）
-    (7,  1, 23, NULL, 8,  10, 6800,  680,  7480,  true,  'completed', '2026-05-22', '2026-05-22 13:00:00+09', 'アニコム保険適用'),
+    (7,  1, 63, NULL, 8,  10, 6800,  680,  7480,  true,  'completed', '2026-05-22', '2026-05-22 13:00:00+09', 'アニコム保険適用'),
     -- PM 14:30: 加藤恵 / ルナ（避妊手術、アニコム 70%）
-    (8,  1, 24, NULL, 9,  11, 25000, 2500, 27500, true,  'completed', '2026-05-22', '2026-05-22 14:30:00+09', 'アニコム保険適用（避妊手術）'),
+    (8,  1, 64, NULL, 9,  11, 25000, 2500, 27500, true,  'completed', '2026-05-22', '2026-05-22 14:30:00+09', 'アニコム保険適用（避妊手術）'),
     -- PM 15:30: 山田太郎 / ケン（ペットホテル 2泊）
     (9,  1, NULL, NULL, 10, 12, 5000,  500,  5500,  false, 'completed', '2026-05-22', '2026-05-22 15:30:00+09', 'ペットホテル利用'),
     -- PM 16:30: 高橋由美 / ソラ（再診 + 点眼薬）
-    (10, 1, 25, NULL, 11, 13, 1400,  140,  1540,  false, 'completed', '2026-05-22', '2026-05-22 16:30:00+09', '')
+    (10, 1, 65, NULL, 11, 13, 1400,  140,  1540,  false, 'completed', '2026-05-22', '2026-05-22 16:30:00+09', '')
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
@@ -2464,13 +2465,13 @@ ON CONFLICT (id) DO NOTHING;
 
 
 INSERT INTO exam_results (id, exam_id, exam_type_field_id, inspection_value, status) VALUES
-    -- Exam 4 (CBC for MR23, 城東)
-    (46, 2, 18, '8.5',  'normal'),
-    (47, 2, 19, '6.8',  'normal'),
-    (48, 2, 20, '46',   'normal'),
-    -- Exam 5 (Xray for MR25, 城東)
-    (49, 3, 24, '腸管ガス像あり', 'high'),
-    (50, 3, 25, '異常なし',       'normal')
+    -- Exam 4 (CBC for MR23, 城東): exam_id=4 (K-5 で挿入した城東 exam)
+    (46, 4, 18, '8.5',  'normal'),
+    (47, 4, 19, '6.8',  'normal'),
+    (48, 4, 20, '46',   'normal'),
+    -- Exam 5 (Xray for MR25, 城東): exam_id=5 (K-5 で挿入した城東 exam)
+    (49, 5, 24, '腸管ガス像あり', 'high'),
+    (50, 5, 25, '異常なし',       'normal')
 ON CONFLICT (id) DO NOTHING;
 
 
