@@ -1609,6 +1609,7 @@ export interface MedicalRecord {
   version: number /* int */;
   next_visit_recommended_date?: string;
   recommendation_reason?: string;
+  visit_type?: VisitType;
   entered_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
