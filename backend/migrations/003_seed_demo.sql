@@ -1623,6 +1623,69 @@ ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('prescriptions', 'id'), (SELECT MAX(id) FROM prescriptions));
 
+
+-- -----------------------------------------------------------------------------
+-- 13d. その他の運用デモデータ（監査ログ・ファイル・見積・入院詳細）
+-- -----------------------------------------------------------------------------
+
+-- 監査ログ（直近のアクティビティ: 10件）
+INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource, resource_id, ip_address, user_agent, created_at) VALUES
+    (1, 1, 'staff', 'login',     'account',  1, '192.168.1.10', 'Mozilla/5.0...', now() - interval '2 hours'),
+    (1, 1, 'staff', 'create',    'medical_record', 61, '192.168.1.10', 'Mozilla/5.0...', now() - interval '1 hour'),
+    (1, 2, 'staff', 'update',    'appointment', 4, '192.168.1.11', 'Mozilla/5.0...', now() - interval '45 minutes'),
+    (1, 1, 'staff', 'delete',    'shared_file', 99, '192.168.1.10', 'Mozilla/5.0...', now() - interval '30 minutes'),
+    (1, 3, 'staff', 'close_reg', 'cash_register', 1, '192.168.1.12', 'Mozilla/5.0...', now() - interval '20 minutes'),
+    (1, 1, 'staff', 'create',    'billing', 15, '192.168.1.10', 'Mozilla/5.0...', now() - interval '15 minutes'),
+    (1, 2, 'staff', 'update',    'owner', 10, '192.168.1.11', 'Mozilla/5.0...', now() - interval '10 minutes'),
+    (1, 1, 'staff', 'export',    'medical_records', NULL, '192.168.1.10', 'Mozilla/5.0...', now() - interval '5 minutes'),
+    (1, 1, 'staff', 'view',      'audit_logs', NULL, '192.168.1.10', 'Mozilla/5.0...', now() - interval '2 minutes'),
+    (1, 2, 'staff', 'update',    'pet', 3, '192.168.1.11', 'Mozilla/5.0...', now() - interval '1 minute');
+
+-- 共有ファイル（ペットの写真や検査PDF）
+INSERT INTO shared_files (id, clinic_id, owner_id, uploaded_by, file_type, file_name, file_key, file_size, purpose) VALUES
+    (1, 1, 1, 1, 'image/jpeg', 'iris_portrait.jpg',      'clinic1/iris.jpg',   102400, 'pet_photo'),
+    (2, 1, 2, 1, 'image/png',  'mike_xray.png',          'clinic1/mike_x.png', 204800, 'exam_result'),
+    (3, 1, 8, 1, 'application/pdf', 'rocky_blood_report.pdf', 'clinic1/rocky_b.pdf', 512000, 'exam_result'),
+    (4, 1, 9, 1, 'application/pdf', 'luna_surgery_consent.pdf', 'clinic1/luna_c.pdf', 128000, 'consent_form'),
+    (5, 1, 4, 1, 'image/png',  'choco_vaccine_cert.png', 'clinic1/choco_v.png', 153600, 'certificate')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('shared_files', 'id'), (SELECT MAX(id) FROM shared_files));
+
+-- 入院の日次記録
+INSERT INTO daily_records (id, hospitalization_id, clinic_id, date) VALUES
+    (1, 1, 1, '2026-05-20'),
+    (2, 1, 1, '2026-05-21'),
+    (3, 1, 1, '2026-05-22'),
+    (4, 8, 1, '2026-05-21'),
+    (5, 8, 1, '2026-05-22'),
+    (6, 10, 1, '2026-05-22')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('daily_records', 'id'), (SELECT MAX(id) FROM daily_records));
+
+-- 入院時のバイタルを daily_records に紐付け
+UPDATE vital_records SET daily_record_id = 3 WHERE id = 12; -- Iris 本日分
+UPDATE vital_records SET daily_record_id = 5 WHERE id = 15; -- ミケ 本日分 (入院設定に合わせて調整が必要な場合があるが、デモ用)
+
+-- 見積（手術などの高額案件デモ用）
+INSERT INTO estimates (id, clinic_id, estimate_no, medical_record_id, title, owner_id, status, subtotal, tax_total, total_amount, valid_until, comment) VALUES
+    (1, 1, 'EST-2026-001', 64, '避妊手術お見積り', 9, 'approved', 25000, 2500, 27500, '2026-06-22', '本日実施分。'),
+    (2, 1, 'EST-2026-002', 71, '歯科処置お見積り', 17, 'draft', 15000, 1500, 16500, '2026-06-22', '概算です。'),
+    (3, 1, 'EST-2026-003', NULL, '骨折手術概算', 19, 'draft', 120000, 12000, 132000, '2026-06-01', '大型犬のため麻酔量増。')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('estimates', 'id'), (SELECT MAX(id) FROM estimates));
+
+INSERT INTO estimate_items (estimate_id, name, category, unit_price, quantity, is_insurance_applicable, procedure_id, sort_order) VALUES
+    (1, '避妊手術（猫）', 'surgery', 25000, 1, true, 1, 1),
+    (2, '歯科スケーリング', 'surgery', 15000, 1, false, NULL, 1),
+    (3, '骨折手術・プレート固定', 'surgery', 100000, 1, true, NULL, 1),
+    (3, '全身麻酔（大型）', 'procedure', 20000, 1, true, NULL, 2)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('estimate_items', 'id'), (SELECT MAX(id) FROM estimate_items));
+
 -- 返金デモ（billing_id=8 避妊手術の術前重複請求分、PM 区分内）
 INSERT INTO billing_refunds (id, clinic_id, billing_id, amount, reason, refunded_by, refunded_at) VALUES
     (4, 1, 8, 2750, '術前検査費用の重複請求による部分返金', 1, '2026-05-22 17:00:00+09')
