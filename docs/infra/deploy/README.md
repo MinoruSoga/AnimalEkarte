@@ -22,6 +22,8 @@
 - **[事前確認リスト (../../DEPLOYMENT_CHECKLIST.md)](../../DEPLOYMENT_CHECKLIST.md)**: デプロイ前の動作確認、DBリセット、疎通確認。
 - **[リリースマニュアル (STG_PRE_DEPLOY_READINESS_CHECK.md)](./runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md)**: 本番反映前の最終検証ランブック。
 - **[スモークテスト手順 (CRUD-SMOKE-TEST.md)](./CRUD-SMOKE-TEST.md)**: デプロイ直後の主要機能（医院/スタッフ/権限）の導線確認。
+- **[混在会計スモークテスト (MIXED-PAYMENT-SMOKE-TEST.md)](./MIXED-PAYMENT-SMOKE-TEST.md)**: 混在会計 (payment_splits) の詳細動作確認。
+- **[PR #49 Post-Merge Smoke Checklist (PR49_POST_MERGE_SMOKE_TEST.md)](./PR49_POST_MERGE_SMOKE_TEST.md)**: PR #49 merge 後の総合スモークチェックリスト（予約・会計・返金・CRUD・入院・健診・seed）。
 
 ---
 
