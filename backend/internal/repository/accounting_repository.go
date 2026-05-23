@@ -394,11 +394,16 @@ type GetCloseAggregateInput struct {
 	PeriodEnd   time.Time // JST timestamptz
 }
 
-// BillingAggregateRow は支払方法×カテゴリ別の集計結果1行
-type BillingAggregateRow struct {
-	Category        string  `json:"category"`
-	PaymentMethodID *uint64 `json:"payment_method_id,omitempty"`
-	NetAmount       int64   `json:"net_amount"` // 返金控除後
+// PaymentAggregateRow は支払方法別の集計結果1行
+type PaymentAggregateRow struct {
+	PaymentMethodID *uint64
+	Amount          int64
+}
+
+// CategoryAggregateRow はカテゴリ別の集計結果1行
+type CategoryAggregateRow struct {
+	Category string
+	Amount   int64
 }
 
 // CloseBillingDetail は個別会計一覧の1レコード
@@ -424,30 +429,38 @@ type TaxBreakdownRow struct {
 
 // CloseAggregateResult は締めプレビュー集計の結果
 type CloseAggregateResult struct {
-	AggregateRows  []BillingAggregateRow `json:"aggregate_rows"`
-	BillingDetails []CloseBillingDetail  `json:"billing_details"`
-	TaxBreakdown   []TaxBreakdownRow     `json:"-"` // サービス層で変換する
+	PaymentRows    []PaymentAggregateRow
+	CategoryRows   []CategoryAggregateRow
+	TotalRefund    int64
+	BillingDetails []CloseBillingDetail
+	TaxBreakdown   []TaxBreakdownRow `json:"-"`
 }
 
-// MonthlyReportRow は月次レポートの1行（日×支払方法別）
-type MonthlyReportRow struct {
-	Date            string  `json:"date"` // YYYY-MM-DD
-	Period          string  `json:"period"`
-	Category        string  `json:"category"`
-	PaymentMethodID *uint64 `json:"payment_method_id,omitempty"`
-	NetAmount       int64   `json:"net_amount"`
-	BillingCount    int64   `json:"billing_count"`
-	// AMClosed/PMClosed は月次レポートの締め状態
-	AMClosed bool `json:"am_closed"`
-	PMClosed bool `json:"pm_closed"`
+// MonthlyPaymentRow は月次レポートの日×支払方法別集計行
+type MonthlyPaymentRow struct {
+	Date            string
+	PaymentMethodID *uint64
+	Amount          int64
+}
+
+// MonthlyCategoryRow は月次レポートの日×カテゴリ別集計行
+type MonthlyCategoryRow struct {
+	Date     string
+	Category string
+	Amount   int64
 }
 
 // MonthlyReportResult は月次売上レポートの結果
 type MonthlyReportResult struct {
-	Rows         []MonthlyReportRow `json:"rows"`
-	GrandTotal   int64              `json:"grand_total"`
-	BillingCount int64              `json:"billing_count"`
-	TaxBreakdown []TaxBreakdownRow  `json:"-"` // サービス層で変換する
+	PaymentRows       []MonthlyPaymentRow
+	CategoryRows      []MonthlyCategoryRow
+	DailyBillingCount map[string]int64
+	ClosedAM          map[string]bool
+	ClosedPM          map[string]bool
+	GrandTotal        int64
+	TotalRefund       int64
+	BillingCount      int64
+	TaxBreakdown      []TaxBreakdownRow `json:"-"`
 }
 
 // GetCloseAggregate は指定期間内の会計を集計する。FEAT-368
@@ -457,52 +470,65 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 	// 集計行: カテゴリ×支払方法別の純売上
 	// payment_splits を正として使い、Cartesian 積バグを回避する。
 	// カテゴリは billing_items から1会計1行に集約し、payment_splits と billing_id で結合する。
-	type aggRow struct {
-		Category        string
+	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
+	cArgs := []any{input.ClinicID, model.BillingStatusCompleted, input.PeriodStart, input.PeriodEnd}
+	completedCTE := `WITH completed_billings AS (
+		SELECT id FROM billings
+		WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
+		  AND completed_at AT TIME ZONE 'Asia/Tokyo' >= ?
+		  AND completed_at AT TIME ZONE 'Asia/Tokyo' < ?
+	)`
+
+	// Query 1: 支払方法別合計 (payment_splits のみ)
+	type pmRow struct {
 		PaymentMethodID *uint64
-		BillingAmount   int64
-		RefundAmount    int64
+		Amount          int64
 	}
-	var aggRows []aggRow
-
-	// billing_items のカテゴリを billing 単位で集約するサブクエリ
-	// 同一 billing に複数 category がある場合は各 category-payment_split の組み合わせで展開する
-	if err := r.db.WithContext(ctx).Raw(`
-		WITH completed_billings AS (
-			SELECT id, clinic_id
-			FROM billings
-			WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
-			  AND completed_at AT TIME ZONE 'Asia/Tokyo' >= ?
-			  AND completed_at AT TIME ZONE 'Asia/Tokyo' < ?
-		),
-		refund_totals AS (
-			SELECT billing_id, COALESCE(SUM(amount), 0) AS refund_amount
-			FROM billing_refunds
-			WHERE billing_id IN (SELECT id FROM completed_billings)
-			GROUP BY billing_id
-		)
-		SELECT
-			bi.category::text AS category,
-			ps.payment_method_id,
-			COALESCE(SUM(ps.amount), 0) AS billing_amount,
-			COALESCE(SUM(COALESCE(rt.refund_amount, 0)), 0) AS refund_amount
-		FROM completed_billings cb
-		JOIN payment_splits ps ON ps.billing_id = cb.id
-		JOIN billing_items bi ON bi.billing_id = cb.id AND bi.deleted_at IS NULL
-		LEFT JOIN refund_totals rt ON rt.billing_id = cb.id
-		GROUP BY bi.category, ps.payment_method_id
-	`, input.ClinicID, model.BillingStatusCompleted, input.PeriodStart, input.PeriodEnd).
-		Scan(&aggRows).Error; err != nil {
-		return nil, apperrors.Wrap(err, "failed to aggregate billings for close")
+	var pmRows []pmRow
+	if err := r.db.WithContext(ctx).Raw(
+		completedCTE+`
+		SELECT ps.payment_method_id, COALESCE(SUM(ps.amount), 0) AS amount
+		FROM payment_splits ps
+		WHERE ps.billing_id IN (SELECT id FROM completed_billings)
+		GROUP BY ps.payment_method_id
+		`, cArgs...).Scan(&pmRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to aggregate payment splits for close")
+	}
+	paymentRows := make([]PaymentAggregateRow, 0, len(pmRows))
+	for _, r := range pmRows {
+		paymentRows = append(paymentRows, PaymentAggregateRow(r))
 	}
 
-	rows := make([]BillingAggregateRow, 0, len(aggRows))
-	for _, a := range aggRows {
-		rows = append(rows, BillingAggregateRow{
-			Category:        a.Category,
-			PaymentMethodID: a.PaymentMethodID,
-			NetAmount:       a.BillingAmount - a.RefundAmount,
-		})
+	// Query 2: カテゴリ別合計 (billing_items のみ)
+	type catRow struct {
+		Category string
+		Amount   int64
+	}
+	var catRows []catRow
+	if err := r.db.WithContext(ctx).Raw(
+		completedCTE+`
+		SELECT bi.category::text AS category,
+		       COALESCE(SUM(ROUND(bi.unit_price * bi.quantity::numeric)), 0) AS amount
+		FROM billing_items bi
+		WHERE bi.billing_id IN (SELECT id FROM completed_billings) AND bi.deleted_at IS NULL
+		GROUP BY bi.category
+		`, cArgs...).Scan(&catRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to aggregate categories for close")
+	}
+	categoryRows := make([]CategoryAggregateRow, 0, len(catRows))
+	for _, r := range catRows {
+		categoryRows = append(categoryRows, CategoryAggregateRow(r))
+	}
+
+	// Query 3: 返金合計
+	var totalRefund int64
+	if err := r.db.WithContext(ctx).Raw(
+		completedCTE+`
+		SELECT COALESCE(SUM(br.amount), 0)
+		FROM billing_refunds br
+		WHERE br.billing_id IN (SELECT id FROM completed_billings)
+		`, cArgs...).Scan(&totalRefund).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to aggregate refunds for close")
 	}
 
 	// 個別会計一覧（payment_splits ベース: 混在支払いは複数行）
@@ -533,10 +559,10 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 			GROUP BY billing_id
 		),
 		billing_categories AS (
-			SELECT billing_id, category::text AS category
+			SELECT billing_id, MIN(category::text) AS category
 			FROM billing_items
 			WHERE billing_id IN (SELECT id FROM completed_billings) AND deleted_at IS NULL
-			GROUP BY billing_id, category
+			GROUP BY billing_id
 		)
 		SELECT
 			cb.id AS billing_id,
@@ -606,7 +632,9 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 	}
 
 	return &CloseAggregateResult{
-		AggregateRows:  rows,
+		PaymentRows:    paymentRows,
+		CategoryRows:   categoryRows,
+		TotalRefund:    totalRefund,
 		BillingDetails: details,
 		TaxBreakdown:   taxBreakdown,
 	}, nil
@@ -619,46 +647,83 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst)
 	end := start.AddDate(0, 1, 0)
 
-	// 日×カテゴリ×支払方法別集計（件数を含む）— payment_splits ベース
-	type row struct {
+	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
+	mArgs := []any{clinicID, model.BillingStatusCompleted, start, end}
+	mCompletedCTE := `WITH completed_billings AS (
+		SELECT id, completed_at FROM billings
+		WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
+		  AND completed_at AT TIME ZONE 'Asia/Tokyo' >= ?
+		  AND completed_at AT TIME ZONE 'Asia/Tokyo' < ?
+	)`
+
+	// Query 1: 日×支払方法別合計 (payment_splits のみ)
+	type mPmRow struct {
 		Date            string
-		Category        string
 		PaymentMethodID *uint64
-		BillingAmount   int64
-		RefundAmount    int64
-		BillingCount    int64
+		Amount          int64
 	}
-	var rows []row
-	if err := r.db.WithContext(ctx).Raw(`
-		WITH completed_billings AS (
-			SELECT id, completed_at
-			FROM billings
-			WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
-			  AND completed_at AT TIME ZONE 'Asia/Tokyo' >= ?
-			  AND completed_at AT TIME ZONE 'Asia/Tokyo' < ?
-		),
-		refund_totals AS (
-			SELECT billing_id, COALESCE(SUM(amount), 0) AS refund_amount
-			FROM billing_refunds
-			WHERE billing_id IN (SELECT id FROM completed_billings)
-			GROUP BY billing_id
-		)
+	var mPmRows []mPmRow
+	if err := r.db.WithContext(ctx).Raw(
+		mCompletedCTE+`
+		SELECT
+			TO_CHAR(cb.completed_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS date,
+			ps.payment_method_id,
+			COALESCE(SUM(ps.amount), 0) AS amount
+		FROM completed_billings cb
+		JOIN payment_splits ps ON ps.billing_id = cb.id
+		GROUP BY date, ps.payment_method_id
+		ORDER BY date ASC
+		`, mArgs...).Scan(&mPmRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to get monthly payment report")
+	}
+
+	// Query 2: 日×カテゴリ別合計 (billing_items のみ)
+	type mCatRow struct {
+		Date     string
+		Category string
+		Amount   int64
+	}
+	var mCatRows []mCatRow
+	if err := r.db.WithContext(ctx).Raw(
+		mCompletedCTE+`
 		SELECT
 			TO_CHAR(cb.completed_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS date,
 			bi.category::text AS category,
-			ps.payment_method_id,
-			COALESCE(SUM(ps.amount), 0) AS billing_amount,
-			COALESCE(SUM(COALESCE(rt.refund_amount, 0)), 0) AS refund_amount,
-			COUNT(DISTINCT cb.id) AS billing_count
+			COALESCE(SUM(ROUND(bi.unit_price * bi.quantity::numeric)), 0) AS amount
 		FROM completed_billings cb
-		JOIN payment_splits ps ON ps.billing_id = cb.id
 		JOIN billing_items bi ON bi.billing_id = cb.id AND bi.deleted_at IS NULL
-		LEFT JOIN refund_totals rt ON rt.billing_id = cb.id
-		GROUP BY date, bi.category, ps.payment_method_id
+		GROUP BY date, bi.category
 		ORDER BY date ASC
-	`, clinicID, model.BillingStatusCompleted, start, end).
-		Scan(&rows).Error; err != nil {
-		return nil, apperrors.Wrap(err, "failed to get monthly report")
+		`, mArgs...).Scan(&mCatRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to get monthly category report")
+	}
+
+	// Query 3: 返金合計
+	var mTotalRefund int64
+	if err := r.db.WithContext(ctx).Raw(
+		mCompletedCTE+`
+		SELECT COALESCE(SUM(br.amount), 0)
+		FROM billing_refunds br
+		WHERE br.billing_id IN (SELECT id FROM completed_billings)
+		`, mArgs...).Scan(&mTotalRefund).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to aggregate monthly refunds")
+	}
+
+	// Query 4: 日別会計件数
+	type mCountRow struct {
+		Date  string
+		Count int64
+	}
+	var mCountRows []mCountRow
+	if err := r.db.WithContext(ctx).Raw(
+		mCompletedCTE+`
+		SELECT
+			TO_CHAR(cb.completed_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS date,
+			COUNT(cb.id) AS count
+		FROM completed_billings cb
+		GROUP BY date
+		`, mArgs...).Scan(&mCountRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to count daily billings for monthly report")
 	}
 
 	// 締めレコード取得（日付→AM/PM 締め状態マップ）
@@ -685,22 +750,22 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 		}
 	}
 
-	reportRows := make([]MonthlyReportRow, 0, len(rows))
+	// 集計結果を構造体に変換
+	payRows := make([]MonthlyPaymentRow, 0, len(mPmRows))
 	var grandTotal int64
-	var totalBillingCount int64
-	for _, row := range rows {
-		net := row.BillingAmount - row.RefundAmount
-		grandTotal += net
-		totalBillingCount += row.BillingCount
-		reportRows = append(reportRows, MonthlyReportRow{
-			Date:            row.Date,
-			Category:        row.Category,
-			PaymentMethodID: row.PaymentMethodID,
-			NetAmount:       net,
-			BillingCount:    row.BillingCount,
-			AMClosed:        closedAM[row.Date],
-			PMClosed:        closedPM[row.Date],
-		})
+	for _, r := range mPmRows {
+		payRows = append(payRows, MonthlyPaymentRow(r))
+		grandTotal += r.Amount
+	}
+
+	catRows := make([]MonthlyCategoryRow, 0, len(mCatRows))
+	for _, r := range mCatRows {
+		catRows = append(catRows, MonthlyCategoryRow(r))
+	}
+
+	dailyBillingCount := make(map[string]int64, len(mCountRows))
+	for _, r := range mCountRows {
+		dailyBillingCount[r.Date] = r.Count
 	}
 
 	// 税率別集計
@@ -745,10 +810,15 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 	}
 
 	return &MonthlyReportResult{
-		Rows:         reportRows,
-		GrandTotal:   grandTotal,
-		BillingCount: billingCount,
-		TaxBreakdown: taxBreakdown,
+		PaymentRows:       payRows,
+		CategoryRows:      catRows,
+		DailyBillingCount: dailyBillingCount,
+		ClosedAM:          closedAM,
+		ClosedPM:          closedPM,
+		GrandTotal:        grandTotal - mTotalRefund,
+		TotalRefund:       mTotalRefund,
+		BillingCount:      billingCount,
+		TaxBreakdown:      taxBreakdown,
 	}, nil
 }
 

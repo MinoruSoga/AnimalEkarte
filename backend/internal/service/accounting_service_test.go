@@ -64,13 +64,14 @@ func (m *mockAccountingRepository) GetDailySummary(_ context.Context, _ uint64, 
 // FEAT-368: 集計・締め機能 mock スタブ
 func (m *mockAccountingRepository) GetCloseAggregate(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
 	return &repository.CloseAggregateResult{
-		AggregateRows:  []repository.BillingAggregateRow{},
+		PaymentRows:    []repository.PaymentAggregateRow{},
+		CategoryRows:   []repository.CategoryAggregateRow{},
 		BillingDetails: []repository.CloseBillingDetail{},
 	}, nil
 }
 
 func (m *mockAccountingRepository) GetMonthlyReport(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
-	return &repository.MonthlyReportResult{Rows: []repository.MonthlyReportRow{}}, nil
+	return &repository.MonthlyReportResult{}, nil
 }
 
 func (m *mockAccountingRepository) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
