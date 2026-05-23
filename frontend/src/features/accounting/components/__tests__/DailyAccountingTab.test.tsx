@@ -206,4 +206,32 @@ describe("DailyAccountingTab", () => {
     // input の value が変化していることを確認
     expect((input as HTMLInputElement).value).toBe("2026-03-15");
   });
+
+  it("混在支払い: 複数の支払方法ラベルが「/」区切りで表示される", async () => {
+    server.use(
+      http.get("*/v1/accountings", () =>
+        HttpResponse.json({
+          data: [
+            makeAccounting({
+              payment_splits: [
+                { id: 1, clinic_id: 1, billing_id: 1, method: "cash", amount: 2000, received_amount: 3000, change_amount: 1000, created_at: `${TODAY}T10:00:00Z` },
+                { id: 2, clinic_id: 1, billing_id: 1, method: "credit_card", amount: 3500, received_amount: 0, change_amount: 0, created_at: `${TODAY}T10:00:00Z` },
+              ],
+            }),
+          ],
+          total: 1,
+          page: 1,
+          limit: 50,
+        }),
+      ),
+    );
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    const table = screen.getByTestId("daily-accounting-table");
+    // paymentSplits.length > 1 のとき method ラベルを " / " 区切りで結合して表示する
+    // DailyAccountingTab の PAYMENT_METHOD_LABELS: credit_card → "カード"
+    expect(within(table).getByText(/現金.*カード|カード.*現金/)).toBeInTheDocument();
+  });
 });

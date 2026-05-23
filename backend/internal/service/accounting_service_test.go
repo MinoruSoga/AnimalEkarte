@@ -15,10 +15,11 @@ import (
 
 // mockAccountingRepository は AccountingRepository のテスト用モック実装
 type mockAccountingRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
-	createFn       func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
-	updateFieldsFn func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	findAllFn           func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	createFn            func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
+	updateFieldsFn      func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	savePaymentSplitsFn func(ctx context.Context, splits []model.PaymentSplit) error
 }
 
 func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
@@ -44,7 +45,10 @@ func (m *mockAccountingRepository) SavePayment(_ context.Context, _ *model.Payme
 	return nil
 }
 
-func (m *mockAccountingRepository) SavePaymentSplits(_ context.Context, _ []model.PaymentSplit) error {
+func (m *mockAccountingRepository) SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error {
+	if m.savePaymentSplitsFn != nil {
+		return m.savePaymentSplitsFn(ctx, splits)
+	}
 	return nil
 }
 
@@ -527,4 +531,246 @@ func TestAccountingService_Cancel(t *testing.T) {
 			}
 		})
 	}
+}
+
+func ptrInt64(v int64) *int64 { return &v }
+
+// TestValidatePaymentSplits は validatePaymentSplits の全バリデーションブランチを検証する。
+func TestValidatePaymentSplits(t *testing.T) {
+	tests := []struct {
+		name          string
+		splits        []PaymentSplitInput
+		billingAmount *int64
+		wantErr       bool
+		wantInvalid   bool
+	}{
+		{
+			name:          "splits が空: バリデーションをスキップ",
+			splits:        nil,
+			billingAmount: ptrInt64(5000),
+			wantErr:       false,
+		},
+		{
+			name: "現金1種のみ: 有効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 5000, ReceivedAmount: 5000, ChangeAmount: 0},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       false,
+		},
+		{
+			name: "3種混在 (cash + credit_card + electronic_money): 有効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 3000, ChangeAmount: 1000},
+				{Method: model.PaymentMethodCreditCard, Amount: 1500},
+				{Method: model.PaymentMethodElectronicMoney, Amount: 1500},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       false,
+		},
+		{
+			name: "支払い手段の重複: 無効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 2000, ChangeAmount: 0},
+				{Method: model.PaymentMethodCash, Amount: 3000, ReceivedAmount: 3000, ChangeAmount: 0},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			name: "金額ゼロ: 無効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCreditCard, Amount: 0},
+			},
+			billingAmount: ptrInt64(0),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			name: "合計不一致: 無効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 3000, ReceivedAmount: 3000, ChangeAmount: 0},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			name: "現金: 預り金不足",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 5000, ReceivedAmount: 4000, ChangeAmount: 0},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			name: "現金: お釣り計算不正",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 5000, ReceivedAmount: 6000, ChangeAmount: 500},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			name: "billingAmount が nil: 合計チェックをスキップ",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCreditCard, Amount: 9999},
+			},
+			billingAmount: nil,
+			wantErr:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePaymentSplits(tt.splits, tt.billingAmount)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantInvalid {
+					assert.True(t, apperrors.IsInvalidInput(err))
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestRepresentativeMethod は splits から代表支払い手段を選択するロジックを検証する。
+func TestRepresentativeMethod(t *testing.T) {
+	tests := []struct {
+		name   string
+		splits []PaymentSplitInput
+		want   model.PaymentMethod
+	}{
+		{
+			name:   "cash を含む場合: cash を返す",
+			splits: []PaymentSplitInput{{Method: model.PaymentMethodCash}, {Method: model.PaymentMethodCreditCard}},
+			want:   model.PaymentMethodCash,
+		},
+		{
+			name:   "cash なし credit_card あり: credit_card を返す",
+			splits: []PaymentSplitInput{{Method: model.PaymentMethodCreditCard}, {Method: model.PaymentMethodElectronicMoney}},
+			want:   model.PaymentMethodCreditCard,
+		},
+		{
+			name:   "electronic_money のみ: electronic_money を返す",
+			splits: []PaymentSplitInput{{Method: model.PaymentMethodElectronicMoney}},
+			want:   model.PaymentMethodElectronicMoney,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, representativeMethod(tt.splits))
+		})
+	}
+}
+
+// TestBuildPaymentSplits は splits 変換および単一支払い backward compat を検証する。
+func TestBuildPaymentSplits(t *testing.T) {
+	t.Run("PaymentSplits が設定済み: そのまま変換", func(t *testing.T) {
+		input := &UpdateAccountingInput{
+			ID:       10,
+			ClinicID: 1,
+			PaymentSplits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 3000, ChangeAmount: 1000},
+				{Method: model.PaymentMethodCreditCard, Amount: 3000},
+			},
+		}
+		result := buildPaymentSplits(input)
+		assert.Len(t, result, 2)
+		assert.Equal(t, uint64(1), result[0].ClinicID)
+		assert.Equal(t, uint64(10), result[0].BillingID)
+		assert.Equal(t, model.PaymentMethodCash, result[0].Method)
+		assert.Equal(t, int64(2000), result[0].Amount)
+		assert.Equal(t, int64(3000), result[0].ReceivedAmount)
+		assert.Equal(t, int64(1000), result[0].ChangeAmount)
+		assert.Equal(t, model.PaymentMethodCreditCard, result[1].Method)
+	})
+
+	t.Run("PaymentSplits 空 + BillingAmount あり: 単一 split を生成 (backward compat)", func(t *testing.T) {
+		input := &UpdateAccountingInput{
+			ID:             10,
+			ClinicID:       1,
+			PaymentMethod:  func() *model.PaymentMethod { m := model.PaymentMethodCreditCard; return &m }(),
+			BillingAmount:  ptrInt64(5000),
+			ReceivedAmount: ptrInt64(5000),
+		}
+		result := buildPaymentSplits(input)
+		assert.Len(t, result, 1)
+		assert.Equal(t, model.PaymentMethodCreditCard, result[0].Method)
+		assert.Equal(t, int64(5000), result[0].Amount)
+	})
+
+	t.Run("PaymentSplits 空 + BillingAmount nil: nil を返す", func(t *testing.T) {
+		input := &UpdateAccountingInput{ID: 10, ClinicID: 1}
+		result := buildPaymentSplits(input)
+		assert.Nil(t, result)
+	})
+}
+
+// TestAccountingService_Update_MixedPayment は3種混在支払いの全フローを検証する。
+// SavePaymentSplits に渡った splits の内容と、リロード後 billing の PaymentSplits を確認する。
+func TestAccountingService_Update_MixedPayment(t *testing.T) {
+	billingAmount := int64(5000)
+	reloadedBilling := &model.Billing{
+		ID:       1,
+		ClinicID: 1,
+		PaymentSplits: []model.PaymentSplit{
+			{ClinicID: 1, BillingID: 1, Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 3000, ChangeAmount: 1000},
+			{ClinicID: 1, BillingID: 1, Method: model.PaymentMethodCreditCard, Amount: 1500},
+			{ClinicID: 1, BillingID: 1, Method: model.PaymentMethodElectronicMoney, Amount: 1500},
+		},
+	}
+
+	var capturedSplits []model.PaymentSplit
+	callCount := 0
+	repo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			callCount++
+			if callCount == 2 {
+				return reloadedBilling, nil
+			}
+			return &model.Billing{ID: 1, ClinicID: 1}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+			return &model.Billing{ID: 1, ClinicID: 1}, nil
+		},
+		savePaymentSplitsFn: func(_ context.Context, splits []model.PaymentSplit) error {
+			capturedSplits = splits
+			return nil
+		},
+	}
+	svc := NewAccountingService(repo)
+
+	input := &UpdateAccountingInput{
+		ID:            1,
+		ClinicID:      1,
+		BillingAmount: &billingAmount,
+		PaymentSplits: []PaymentSplitInput{
+			{Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 3000, ChangeAmount: 1000},
+			{Method: model.PaymentMethodCreditCard, Amount: 1500},
+			{Method: model.PaymentMethodElectronicMoney, Amount: 1500},
+		},
+	}
+
+	result, err := svc.Update(context.Background(), input)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// SavePaymentSplits に3件渡されたことを確認
+	assert.Len(t, capturedSplits, 3)
+	assert.Equal(t, model.PaymentMethodCash, capturedSplits[0].Method)
+	assert.Equal(t, int64(2000), capturedSplits[0].Amount)
+	assert.Equal(t, int64(1000), capturedSplits[0].ChangeAmount)
+	assert.Equal(t, model.PaymentMethodCreditCard, capturedSplits[1].Method)
+	assert.Equal(t, model.PaymentMethodElectronicMoney, capturedSplits[2].Method)
+
+	// リロード後の billing に PaymentSplits が含まれることを確認
+	assert.Len(t, result.PaymentSplits, 3)
 }
