@@ -1822,6 +1822,24 @@ CREATE TABLE payments (
 );
 
 -- ------------------------------------
+-- 58b. payment_splits（混在支払い明細）
+-- ------------------------------------
+CREATE TABLE payment_splits (
+    id                bigserial    PRIMARY KEY,
+    clinic_id         bigint       NOT NULL,
+    billing_id        bigint       NOT NULL REFERENCES billings(id) ON DELETE RESTRICT,
+    method            payment_method NOT NULL,
+    payment_method_id bigint       REFERENCES payment_methods(id),
+    amount            bigint       NOT NULL DEFAULT 0,
+    received_amount   bigint       NOT NULL DEFAULT 0,
+    change_amount     bigint       NOT NULL DEFAULT 0,
+    paid_by           bigint       REFERENCES staffs(id),
+    created_at        timestamptz  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_payment_splits_clinic_billing ON payment_splits(clinic_id, billing_id);
+
+-- ------------------------------------
 -- 59. billing_refunds（返金レコード）
 -- ------------------------------------
 CREATE TABLE billing_refunds (

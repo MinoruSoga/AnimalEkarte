@@ -56,19 +56,28 @@ type CloseBillingDetail struct {
 	NetAmount         int64   `json:"net_amount"`
 }
 
-// buildCategoryBreakdown は集計行から CategoryBreakdownSchema を構築する
-func buildCategoryBreakdown(rows []repository.BillingAggregateRow, taxRows []repository.TaxBreakdownRow) model.CategoryBreakdownSchema {
-	cats := make(map[string]map[string]int64)
-	for _, r := range rows {
-		if cats[r.Category] == nil {
-			cats[r.Category] = make(map[string]int64)
-		}
-		key := "cash"
-		if r.PaymentMethodID != nil {
-			key = fmt.Sprintf("method_%d", *r.PaymentMethodID)
-		}
-		cats[r.Category][key] += r.NetAmount
+// buildCategoryBreakdown はカテゴリ行と支払方法行から CategoryBreakdownSchema を構築する。
+// 混在支払いの場合、カテゴリ金額を支払方法比率で按分する。
+func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []repository.CategoryAggregateRow, taxRows []repository.TaxBreakdownRow) model.CategoryBreakdownSchema {
+	var totalPayment int64
+	for _, pm := range payRows {
+		totalPayment += pm.Amount
 	}
+
+	cats := make(map[string]map[string]int64)
+	for _, cat := range catRows {
+		cats[cat.Category] = make(map[string]int64)
+		for _, pm := range payRows {
+			key := "cash"
+			if pm.PaymentMethodID != nil {
+				key = fmt.Sprintf("method_%d", *pm.PaymentMethodID)
+			}
+			if totalPayment > 0 {
+				cats[cat.Category][key] += cat.Amount * pm.Amount / totalPayment
+			}
+		}
+	}
+
 	tax := buildTaxBreakdown(taxRows)
 	return model.CategoryBreakdownSchema{
 		Categories: cats,
@@ -90,7 +99,9 @@ type CashRegisterService interface {
 // periodAggregate は集計処理の共通結果型
 type periodAggregate struct {
 	Schedule        *DaySchedule
-	AggregateRows   []repository.BillingAggregateRow
+	PaymentRows     []repository.PaymentAggregateRow
+	CategoryRows    []repository.CategoryAggregateRow
+	TotalRefund     int64
 	BillingDetails  []repository.CloseBillingDetail
 	TaxBreakdown    []repository.TaxBreakdownRow
 	TheoreticalCash int64
@@ -156,10 +167,12 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 
 	return &periodAggregate{
 		Schedule:        schedule,
-		AggregateRows:   aggregate.AggregateRows,
+		PaymentRows:     aggregate.PaymentRows,
+		CategoryRows:    aggregate.CategoryRows,
+		TotalRefund:     aggregate.TotalRefund,
 		BillingDetails:  aggregate.BillingDetails,
 		TaxBreakdown:    aggregate.TaxBreakdown,
-		TheoreticalCash: calcTheoreticalCash(aggregate.AggregateRows),
+		TheoreticalCash: calcTheoreticalCash(aggregate.PaymentRows, aggregate.TotalRefund),
 		PeriodStart:     periodStart,
 		PeriodEnd:       periodEnd,
 	}, nil
@@ -202,14 +215,20 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	}
 	payMethodNames := buildPayMethodNameMap(payMethods)
 
-	// カテゴリ別×支払方法名別集計マップを構築
+	// カテゴリ別×支払方法名別集計マップを構築（混在支払いは比率按分）
+	var totalPayment int64
+	for _, pm := range agg.PaymentRows {
+		totalPayment += pm.Amount
+	}
 	categories := make(map[string]map[string]int64)
-	for _, row := range agg.AggregateRows {
-		if categories[row.Category] == nil {
-			categories[row.Category] = make(map[string]int64)
+	for _, cat := range agg.CategoryRows {
+		categories[cat.Category] = make(map[string]int64)
+		for _, pm := range agg.PaymentRows {
+			pmName := paymentMethodNameForClose(pm.PaymentMethodID, payMethodNames)
+			if totalPayment > 0 {
+				categories[cat.Category][pmName] += cat.Amount * pm.Amount / totalPayment
+			}
 		}
-		pmName := paymentMethodNameForClose(row.PaymentMethodID, payMethodNames)
-		categories[row.Category][pmName] += row.NetAmount
 	}
 
 	// 個別会計一覧を変換
@@ -275,7 +294,7 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 	cashDifference := input.ActualCash - agg.TheoreticalCash
 
 	// category_breakdown JSONB を構築（消費税内訳を含む）
-	breakdownSchema := buildCategoryBreakdown(agg.AggregateRows, agg.TaxBreakdown)
+	breakdownSchema := buildCategoryBreakdown(agg.PaymentRows, agg.CategoryRows, agg.TaxBreakdown)
 	breakdownJSON, err := json.Marshal(breakdownSchema)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal category breakdown", "error", err)
@@ -360,14 +379,14 @@ func parseHHMM(s string) (h, m int, err error) {
 	return hh, mm, nil
 }
 
-// calcTheoreticalCash は集計行から現金扱い（payment_method_id が nil）の純額を合計する
-// payment_method_id が nil のものを現金として扱う（旧来の method="cash" 相当）
-func calcTheoreticalCash(rows []repository.BillingAggregateRow) int64 {
-	var total int64
-	for _, r := range rows {
+// calcTheoreticalCash は支払方法別集計行から現金（payment_method_id が nil）の合計を返す。
+// 返金合計を差し引いて理論現金残高を算出する。
+func calcTheoreticalCash(payRows []repository.PaymentAggregateRow, totalRefund int64) int64 {
+	var cashTotal int64
+	for _, r := range payRows {
 		if r.PaymentMethodID == nil {
-			total += r.NetAmount
+			cashTotal += r.Amount
 		}
 	}
-	return total
+	return cashTotal - totalRefund
 }

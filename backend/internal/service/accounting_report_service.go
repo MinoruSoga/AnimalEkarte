@@ -93,35 +93,58 @@ func buildMonthlyReportResponse(
 	byPaymentMethod := make(map[string]int64)
 	byCategory := make(map[string]int64)
 	var totalAmount int64
-	var totalRefund int64
+	totalRefund := raw.TotalRefund
 
-	for _, row := range raw.Rows {
+	// 支払方法別集計 + 日別 net 合算
+	for _, row := range raw.PaymentRows {
 		d, ok := dailyMap[row.Date]
 		if !ok {
 			d = &dailyAgg{
-				amClosed: row.AMClosed,
-				pmClosed: row.PMClosed,
+				amClosed: raw.ClosedAM[row.Date],
+				pmClosed: raw.ClosedPM[row.Date],
 			}
 			dailyMap[row.Date] = d
 		}
-		// AMClosed/PMClosed は同一日付で複数行あるため OR 条件
-		d.amClosed = d.amClosed || row.AMClosed
-		d.pmClosed = d.pmClosed || row.PMClosed
-
-		// AM/PM 振り分けはフロントエンド仕様上「締め期間」ではなく
-		// 現状 raw.Rows には period フィールドがなくなったため、
-		// 一旦全件を PM に集計し、AMClosed/PMClosed で表示を制御する
-		d.pmNet += row.NetAmount
-		d.pmCount += row.BillingCount
-		// 返金は NetAmount が既に控除済みのため refund を別途保持しない
-		// （raw.Rows では refund 額を取得していないため 0 のまま）
-
-		// サマリー集計
-		totalAmount += row.NetAmount
-		byCategory[row.Category] += row.NetAmount
-
+		d.pmNet += row.Amount
+		totalAmount += row.Amount
 		pmName := resolvePaymentMethodName(row.PaymentMethodID, payMethodNames)
-		byPaymentMethod[pmName] += row.NetAmount
+		byPaymentMethod[pmName] += row.Amount
+	}
+
+	// 日別件数を DailyBillingCount から注入
+	for date, count := range raw.DailyBillingCount {
+		d, ok := dailyMap[date]
+		if !ok {
+			d = &dailyAgg{
+				amClosed: raw.ClosedAM[date],
+				pmClosed: raw.ClosedPM[date],
+			}
+			dailyMap[date] = d
+		}
+		d.pmCount = count
+	}
+
+	// カテゴリ別集計
+	for _, row := range raw.CategoryRows {
+		byCategory[row.Category] += row.Amount
+	}
+
+	// 締め状態を dailyMap に反映（PaymentRows が空の日付用）
+	for date, closed := range raw.ClosedAM {
+		if _, ok := dailyMap[date]; !ok {
+			dailyMap[date] = &dailyAgg{}
+		}
+		if closed {
+			dailyMap[date].amClosed = true
+		}
+	}
+	for date, closed := range raw.ClosedPM {
+		if _, ok := dailyMap[date]; !ok {
+			dailyMap[date] = &dailyAgg{}
+		}
+		if closed {
+			dailyMap[date].pmClosed = true
+		}
 	}
 
 	// 税率別集計を TaxBreakdownSummary に変換

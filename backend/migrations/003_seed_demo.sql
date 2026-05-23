@@ -698,7 +698,11 @@ INSERT INTO procedures (id, clinic_id, name, price, is_active, description, dura
     (7, 1, '骨折整復',         80000, true, '骨折の外科的整復・固定',          120,  'general', 7),
     (8, 1, '腫瘍摘出',         20000, true, '皮膚腫瘍の外科的摘出',             60,  'local',   8),
     (9, 1, '胃洗浄',           10000, true, '異物誤飲時の胃洗浄処置',           30,  'general', 9),
-    (10, 1, '点滴処置',          3000, true, '静脈内点滴（1時間）',              60,  'none',   10)
+    (10, 1, '点滴処置',          3000, true, '静脈内点滴（1時間）',              60,  'none',   10),
+    -- 追加
+    (11, 1, '肛門腺絞り',         500, true, '肛門嚢の分泌液除去',              5,   'none',   11),
+    (12, 1, '皮下補液',          3500, true, '脱水時の皮下点滴',                15,  'none',   12),
+    (13, 1, '眼圧検査',          2000, true, '緑内障のスクリーニング',          10,  'none',   13)
 ON CONFLICT DO NOTHING;
 
 
@@ -789,7 +793,10 @@ INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagno
     (20, 1, '咬傷',               true, '他動物による咬傷・咬傷感染',         8, 2),
     -- 皮膚・被毛（追加）
     (41, 1, '外耳炎',             true, '外耳道の炎症・細菌/真菌/寄生虫感染', 3, 4),
-    (42, 1, '膝蓋骨脱臼',         true, '膝蓋骨の内方/外方脱臼',             8, 3)
+    (42, 1, '膝蓋骨脱臼',         true, '膝蓋骨の内方/外方脱臼',             8, 3),
+    -- 追加
+    (43, 1, '僧帽弁閉鎖不全症',   true, '心臓の弁膜症',                       2, 3),
+    (44, 1, '糖尿病',             true, 'インスリン不足による高血糖',         1, 4)
 ON CONFLICT DO NOTHING;
 
 
@@ -800,7 +807,8 @@ INSERT INTO checkup_types (id, clinic_id, name, price, is_active, description, i
     (1, 1, '一般健診',       5000,  true, '身体検査・体重測定・問診',                     '1年',   '全年齢', 1),
     (2, 1, '老齢検診',       15000, true, '身体検査＋血液検査＋レントゲン＋超音波',         '6ヶ月', '7歳以上', 2),
     (3, 1, 'フィラリア検査', 2500,  true, 'フィラリア抗原検査（予防シーズン前）',           '1年',   '成犬',   3),
-    (4, 1, '歯科検診',       3000,  true, '歯周病チェック・歯石付着度の確認',             '1年',   '成犬',   4)
+    (4, 1, '歯科検診',       3000,  true, '歯周病チェック・歯石付着度の確認',             '1年',   '成犬',   4),
+    (5, 1, 'ジュニア健診',    8000,  true, '成長期の全身チェック',                       '1年',   '1歳未満', 5)
 ON CONFLICT DO NOTHING;
 
 
@@ -871,14 +879,15 @@ ON CONFLICT DO NOTHING;
 -- 25. merchandise_items（物販・フード・その他: 7件）
 -- -----------------------------------------------------------------------------
 INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_rate, sort_order) VALUES
-    -- BUG-374 TC-367-04/05 検証用: 軽減税率 8% 品目（ペットフード）を含める
     (1, 1, 'ロイヤルカナン 消化器サポート 1kg', 'food', 2800, 0.08, 1),
     (2, 1, 'ヒルズ k/d 2kg', 'food', 3500, 0.08, 2),
     (3, 1, 'ペット用歯ブラシセット', 'goods', 1200, 0.10, 3),
     (4, 1, 'エリザベスカラー（S）', 'goods', 800, 0.10, 4),
     (5, 1, 'ノミ・ダニ予防首輪', 'goods', 1500, 0.10, 5),
     (6, 1, '文書料', 'other', 3000, 0.10, 6),
-    (7, 1, '時間外診療費', 'other', 5000, 0.10, 7)
+    (7, 1, '時間外診療費', 'other', 5000, 0.10, 7),
+    (10, 1, 'おやつ（低アレルゲン）', 'food', 800, 0.08, 8),
+    (11, 1, 'シャンプー（薬用）', 'goods', 2500, 0.10, 9)
 ON CONFLICT DO NOTHING;
 
 
@@ -1319,7 +1328,14 @@ INSERT INTO inventory_items (id, clinic_id, name, category, quantity, unit, min_
     (11, 1, 'エリザベスカラー（S）',          'other',      15,   '個',        5, '倉庫 A',     'ペットメディカルサプライ', 'sufficient'),
     (12, 1, 'ガーゼ 滅菌 7.5cm',            'consumable',  45,   '枚',       50, '処置室 棚E',  '白十字',                  'low'),
     (13, 1, 'フィラリア予防薬（S）',          'medicine',   60,   '錠',       30, '薬品棚 B-1', 'メリアル・ジャパン',       'sufficient'),
-    (14, 1, 'ノミダニ駆除薬 スポット',        'medicine',   40,   'ピペット',  20, '薬品棚 B-2', 'エランコジャパン',         'sufficient')
+    (14, 1, 'ノミダニ駆除薬 スポット',        'medicine',   40,   'ピペット',  20, '薬品棚 B-2', 'エランコジャパン',         'sufficient'),
+    -- 追加: ID 20-25
+    (20, 1, '吸収性縫合糸 3-0',             'consumable', 10,   'パック',   20, '手術室',      'ジョンソン・エンド・ジョンソン', 'low'),
+    (21, 1, '乳酸リンゲル液 500mL',         'medicine',   48,   '袋',       24, '処置室',      '大塚製薬',                'sufficient'),
+    (22, 1, '処方食 a/d 缶',               'food',       5,    '缶',       12, '入院室',      'ヒルズ',                 'low'),
+    (23, 1, 'マイクロチップ',               'other',      30,   '本',       10, '受付奥',      'データマーズ',            'sufficient'),
+    (24, 1, 'カテーテル 3.5Fr',             'consumable', 0,    '本',       5,  '処置室',      'ニプロ',                 'out_of_stock'),
+    (25, 1, '消毒用アルコール 5L',          'consumable', 2,    '本',       1,  '倉庫 B',      '兼一薬品',                'sufficient')
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -1511,226 +1527,6 @@ ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
 
-
--- -----------------------------------------------------------------------------
--- 13c. 本日分の追加医療データ（診察・検査・バイタル・処方）
--- -----------------------------------------------------------------------------
-
--- バイタル（追加分）
-INSERT INTO vital_records (id, recorded_at, pet_id, medical_record_id, staff_id, temperature, heart_rate, respiration_rate, weight, weight_unit, notes) VALUES
-    -- Pet ID 1 (Iris) 本日
-    (30, '2026-05-22 09:00:00+09', 1, 61, 1, 38.5, 78, 19, 26.4, 'Kg', '良好。'),
-    -- Pet ID 3 (ミケ) 本日
-    (31, '2026-05-22 09:30:00+09', 3, 61, 2, 38.9, 120, 26, 4.3, 'Kg', '良好。'),
-    -- Pet ID 6 (チョコ) 本日
-    (32, '2026-05-22 10:30:00+09', 6, 62, 1, 38.4, 88, 20, 3.9, 'Kg', '良好。'),
-    -- Pet ID 11 (ルナ) 本日
-    (33, '2026-05-22 14:30:00+09', 11, 64, 2, 38.9, 130, 30, 4.6, 'Kg', '術前。'),
-    -- Pet ID 13 (ソラ) 本日
-    (34, '2026-05-22 16:30:00+09', 13, 65, 1, 38.7, 115, 25, 3.1, 'Kg', '良好。'),
-    -- Pet ID 10 (ロッキー) 本日
-    (35, '2026-05-22 13:00:00+09', 10, 63, 1, 38.4, 73, 18, 18.4, 'Kg', '良好。')
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FROM vital_records));
-
--- 検査記録
-INSERT INTO exams (id, clinic_id, medical_record_id, exam_type_id, doctor_id, date, result_summary, status) VALUES
-    (1, 1, 2,  1, 1, '2026-02-24', 'CBC全項目正常範囲内。', 'completed'),
-    (2, 1, 14, 2, 2, '2025-08-25', 'ALT軽度上昇（145 U/L）。他正常。', 'completed'),
-    (3, 1, 13, 1, 1, '2026-04-22', 'WBC上昇（19.2）。脱水を反映。', 'result_entered'),
-    (10, 1, 63, 1, 1, '2026-05-22', 'WBC正常。炎症所見なし。', 'completed'),
-    (11, 1, 63, 2, 1, '2026-05-22', '肝数値安定。腎数値にやや上昇あり。', 'completed'),
-    (12, 1, 69, 2, 1, '2026-05-22', 'スクリーニング検査。全項目正常。', 'completed'),
-    (13, 1, 64, 1, 2, '2026-05-22', '術前検査。異常なし。', 'completed'),
-    (14, 1, 71, 2, 1, '2026-05-22', 'スケーリング前検査。', 'completed'),
-    (15, 1, 1,  1, 1, '2025-10-10', '過去データ1。', 'completed'),
-    (16, 1, 1,  1, 1, '2025-12-20', '過去データ2。', 'completed')
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
-
--- 検査結果詳細
-INSERT INTO exam_results (id, exam_id, exam_type_field_id, inspection_value, status) VALUES
-    (34, 1, 1, '9.8',  'normal'),
-    (35, 1, 2, '7.2',  'normal'),
-    (36, 1, 3, '45',   'normal'),
-    (37, 1, 4, '320',  'normal'),
-    (38, 2, 5, '145',  'high'),
-    (39, 2, 6, '18',   'normal'),
-    (40, 2, 7, '1.2',  'normal'),
-    (41, 2, 8, '98',   'normal'),
-    (42, 3, 1, '19.2', 'high'),
-    (43, 3, 2, '8.1',  'normal'),
-    (44, 3, 3, '52',   'normal'),
-    (45, 3, 4, '280',  'normal'),
-    -- 追加分
-    (100, 10, 1, '12.5', 'normal'),
-    (101, 10, 2, '7.5',  'normal'),
-    (102, 10, 3, '42',   'normal'),
-    (103, 10, 4, '350',  'normal'),
-    (104, 11, 5, '65',   'normal'),
-    (105, 11, 6, '32',   'high'),
-    (106, 11, 7, '2.1',  'high'),
-    (107, 11, 8, '110',  'normal'),
-    (108, 12, 5, '45',   'normal'),
-    (109, 12, 6, '22',   'normal'),
-    (110, 12, 7, '1.1',  'normal'),
-    (111, 12, 8, '95',   'normal'),
-    (112, 13, 1, '10.2', 'normal'),
-    (113, 13, 2, '7.8',  'normal'),
-    (114, 13, 3, '40',   'normal'),
-    (115, 13, 4, '410',  'normal'),
-    (116, 14, 5, '55',   'normal'),
-    (117, 14, 6, '18',   'normal'),
-    (118, 14, 7, '0.9',  'normal'),
-    (119, 14, 8, '105',  'normal'),
-    (120, 15, 1, '8.5',  'normal'),
-    (121, 15, 2, '6.5',  'normal'),
-    (122, 15, 3, '38',   'normal'),
-    (123, 15, 4, '300',  'normal'),
-    (124, 16, 1, '11.0', 'normal'),
-    (125, 16, 2, '7.2',  'normal'),
-    (126, 16, 3, '44',   'normal'),
-    (127, 16, 4, '330',  'normal')
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('exam_results', 'id'), (SELECT MAX(id) FROM exam_results));
-
--- 健診記録
-INSERT INTO checkups (id, clinic_id, medical_record_id, pet_id, checkup_type_id, date, next_date, doctor_id, result) VALUES
-    (1, 1, 63, 10, 1, '2026-05-22', '2027-05-22', 1, '一般身体検査：良好。血液検査：一部高値。'),
-    (2, 1, 69, 17, 2, '2026-05-22', '2026-11-22', 1, 'シニア健診。心雑音なし。'),
-    (3, 1, 81, 53, 1, '2026-05-22', '2027-05-22', 1, '良好。'),
-    (4, 1, 82, 54, 3, '2026-05-22', '2027-05-22', 2, '画像診断：特記事項なし。'),
-    (5, 1, 1,  1,  1, '2025-10-10', '2026-10-10', 1, '去年の健診。'),
-    (6, 1, 2,  1,  1, '2026-02-24', '2027-02-24', 1, '半年健診。')
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('checkups', 'id'), (SELECT MAX(id) FROM checkups));
-
--- 処方箋
-INSERT INTO prescriptions (id, clinic_id, owner_id, pet_id, medical_record_id, prescribed_at, duration_days) VALUES
-    (1, 1, 8,  10, 63, '2026-05-22', 14),
-    (2, 1, 4,  6,  62, '2026-05-22', 7),
-    (3, 1, 11, 13, 65, '2026-05-22', 5),
-    (4, 1, 14, 16, 68, '2026-05-22', 21),
-    (5, 1, 19, 21, 73, '2026-05-22', 10),
-    (6, 1, 40, 50, 78, '2026-05-22', 7),
-    (7, 1, 44, 54, 82, '2026-05-22', 14),
-    (8, 1, 50, 60, 88, '2026-05-22', 7)
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('prescriptions', 'id'), (SELECT MAX(id) FROM prescriptions));
-
-
--- -----------------------------------------------------------------------------
--- 13d. その他の運用デモデータ（監査ログ・ファイル・見積・入院詳細）
--- -----------------------------------------------------------------------------
-
--- 監査ログ（直近のアクティビティ: 10件）
-INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource, resource_id, ip_address, user_agent, created_at) VALUES
-    (1, 1, 'staff', 'login',     'account',  1, '192.168.1.10', 'Mozilla/5.0...', now() - interval '2 hours'),
-    (1, 1, 'staff', 'create',    'medical_record', 61, '192.168.1.10', 'Mozilla/5.0...', now() - interval '1 hour'),
-    (1, 2, 'staff', 'update',    'appointment', 4, '192.168.1.11', 'Mozilla/5.0...', now() - interval '45 minutes'),
-    (1, 1, 'staff', 'delete',    'shared_file', 99, '192.168.1.10', 'Mozilla/5.0...', now() - interval '30 minutes'),
-    (1, 3, 'staff', 'close_reg', 'cash_register', 1, '192.168.1.12', 'Mozilla/5.0...', now() - interval '20 minutes'),
-    (1, 1, 'staff', 'create',    'billing', 15, '192.168.1.10', 'Mozilla/5.0...', now() - interval '15 minutes'),
-    (1, 2, 'staff', 'update',    'owner', 10, '192.168.1.11', 'Mozilla/5.0...', now() - interval '10 minutes'),
-    (1, 1, 'staff', 'export',    'medical_records', NULL, '192.168.1.10', 'Mozilla/5.0...', now() - interval '5 minutes'),
-    (1, 1, 'staff', 'view',      'audit_logs', NULL, '192.168.1.10', 'Mozilla/5.0...', now() - interval '2 minutes'),
-    (1, 2, 'staff', 'update',    'pet', 3, '192.168.1.11', 'Mozilla/5.0...', now() - interval '1 minute');
-
--- 共有ファイル（ペットの写真や検査PDF）
-INSERT INTO shared_files (id, clinic_id, owner_id, uploaded_by, file_type, file_name, file_key, file_size, purpose) VALUES
-    (1, 1, 1, 1, 'image/jpeg', 'iris_portrait.jpg',      'clinic1/iris.jpg',   102400, 'pet_photo'),
-    (2, 1, 2, 1, 'image/png',  'mike_xray.png',          'clinic1/mike_x.png', 204800, 'exam_result'),
-    (3, 1, 8, 1, 'application/pdf', 'rocky_blood_report.pdf', 'clinic1/rocky_b.pdf', 512000, 'exam_result'),
-    (4, 1, 9, 1, 'application/pdf', 'luna_surgery_consent.pdf', 'clinic1/luna_c.pdf', 128000, 'consent_form'),
-    (5, 1, 4, 1, 'image/png',  'choco_vaccine_cert.png', 'clinic1/choco_v.png', 153600, 'certificate')
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('shared_files', 'id'), (SELECT MAX(id) FROM shared_files));
-
--- 入院の日次記録
-INSERT INTO daily_records (id, hospitalization_id, clinic_id, date) VALUES
-    (1, 1, 1, '2026-05-20'),
-    (2, 1, 1, '2026-05-21'),
-    (3, 1, 1, '2026-05-22'),
-    (4, 8, 1, '2026-05-21'),
-    (5, 8, 1, '2026-05-22'),
-    (6, 10, 1, '2026-05-22')
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('daily_records', 'id'), (SELECT MAX(id) FROM daily_records));
-
--- 入院時のバイタルを daily_records に紐付け
-UPDATE vital_records SET daily_record_id = 3 WHERE id = 12; -- Iris 本日分
-UPDATE vital_records SET daily_record_id = 5 WHERE id = 15; -- ミケ 本日分 (入院設定に合わせて調整が必要な場合があるが、デモ用)
-
--- 見積（手術などの高額案件デモ用）
-INSERT INTO estimates (id, clinic_id, estimate_no, medical_record_id, title, owner_id, status, subtotal, tax_total, total_amount, valid_until, comment) VALUES
-    (1, 1, 'EST-2026-001', 64, '避妊手術お見積り', 9, 'approved', 25000, 2500, 27500, '2026-06-22', '本日実施分。'),
-    (2, 1, 'EST-2026-002', 71, '歯科処置お見積り', 17, 'draft', 15000, 1500, 16500, '2026-06-22', '概算です。'),
-    (3, 1, 'EST-2026-003', NULL, '骨折手術概算', 19, 'draft', 120000, 12000, 132000, '2026-06-01', '大型犬のため麻酔量増。')
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('estimates', 'id'), (SELECT MAX(id) FROM estimates));
-
-INSERT INTO estimate_items (estimate_id, name, category, unit_price, quantity, is_insurance_applicable, procedure_id, sort_order) VALUES
-    (1, '避妊手術（猫）', 'surgery', 25000, 1, true, 1, 1),
-    (2, '歯科スケーリング', 'surgery', 15000, 1, false, NULL, 1),
-    (3, '骨折手術・プレート固定', 'surgery', 100000, 1, true, NULL, 1),
-    (3, '全身麻酔（大型）', 'procedure', 20000, 1, true, NULL, 2)
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('estimate_items', 'id'), (SELECT MAX(id) FROM estimate_items));
-
-
--- -----------------------------------------------------------------------------
--- 13e. 慢性疾患・レジ締め・マニュアル・予約詳細（拡充）
--- -----------------------------------------------------------------------------
-
--- ペットの慢性疾患
-INSERT INTO pet_chronic_conditions (clinic_id, pet_id, condition_code, condition_name, diagnosed_at, notes) VALUES
-    (1, 1,  'ATOPY',    'アトピー性皮膚炎', '2023-04-15', '通年性の痒み。ステロイド・シャンプーで維持。'),
-    (1, 11, 'CKD',      '慢性腎臓病',     '2025-11-10', 'ステージ2。療法食と皮下補液継続。'),
-    (1, 13, 'OTITIS',   '外耳炎（再発性）', '2026-01-20', '左耳が特に悪化しやすい。'),
-    (1, 5,  'DIABETES', '糖尿病',         '2025-06-01', 'インスリン投与中。'),
-    (1, 4,  'LUXATION', '膝蓋骨脱臼',     '2024-08-20', 'グレード2。体重管理注意。')
-ON CONFLICT DO NOTHING;
-
--- 過去のレジ締め履歴（昨日分）
-INSERT INTO cash_register_closes (clinic_id, close_date, period, theoretical_cash, actual_cash, cash_difference, category_breakdown, memo, closed_by) VALUES
-    (1, '2026-05-21', 'am', 45000, 45000, 0, '{"examination": 12000, "vaccine": 15000, "medicine": 18000}', '過不足なし。', 1),
-    (1, '2026-05-21', 'pm', 32000, 31950, -50, '{"examination": 8000, "surgery": 20000, "food": 4000}', '50円不足（釣銭ミス疑い）。', 2)
-ON CONFLICT (clinic_id, close_date, period) DO NOTHING;
-
--- マニュアル記事
-INSERT INTO manual_articles (category, slug, title, order_value, section, body_markdown, updated_by_staff_id) VALUES
-    ('workflows', 'reception-flow', '受付フロー', 1, '基本操作', '1. 来院された飼い主様の診察券を受け取ります。\n2. 予約の有無を確認し、電子カルテを開きます。\n3. 受付ステータスを「受付済」に変更します。', 1),
-    ('screens', 'medical-record-usage', 'カルテ入力のコツ', 2, '診察', '## テンプレート活用\n右上の「テンプレート」ボタンから、よく使う処置セットを呼び出せます。', 1),
-    ('workflows', 'inventory-management', '在庫管理ルール', 3, '管理', '薬品の在庫が残り5個になったら、発注ステータスを更新してください。', 2)
-ON CONFLICT (category, slug) DO NOTHING;
-
--- 予約トリミングオプションの紐付け（本日分の一部）
-INSERT INTO appointment_trimming_options (appointment_id, option_id, sort_order) VALUES
-    (227, 1, 1), (227, 2, 2), -- サマーカット + 爪切り + 耳掃除
-    (228, 1, 1),              -- シャンプーコース + 爪切り
-    (248, 1, 1), (248, 2, 2), (248, 4, 3) -- トリミング + 爪・耳・肛門腺
-ON CONFLICT (appointment_id, option_id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('pet_chronic_conditions', 'id'), (SELECT MAX(id) FROM pet_chronic_conditions));
-SELECT setval(pg_get_serial_sequence('cash_register_closes', 'id'), (SELECT MAX(id) FROM cash_register_closes));
-SELECT setval(pg_get_serial_sequence('manual_articles', 'id'), (SELECT MAX(id) FROM manual_articles));
-SELECT setval(pg_get_serial_sequence('appointment_trimming_options', 'id'), (SELECT MAX(id) FROM appointment_trimming_options));
-
--- 返金デモ（billing_id=8 避妊手術の術前重複請求分、PM 区分内）
-INSERT INTO billing_refunds (id, clinic_id, billing_id, amount, reason, refunded_by, refunded_at) VALUES
-    (4, 1, 8, 2750, '術前検査費用の重複請求による部分返金', 1, '2026-05-22 17:00:00+09')
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) FROM billing_refunds));
 
 -- =============================================================================
 -- 城東センター病院 (clinic_id=2) マスタデータ
@@ -2781,7 +2577,11 @@ INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_ra
     (18, 2, '時間外診療費',                     'other', 5200, 0.10, 7),
     (19, 3, 'ヒルズ i/d（犬用・消化器ケア）',    'food',  3200, 0.10, 5),
     (20, 3, 'ペット用歯ブラシセット',            'goods', 1200, 0.10, 6),
-    (21, 3, '時間外診療費',                     'other', 5100, 0.10, 7)
+    (21, 3, '時間外診療費',                     'other', 5100, 0.10, 7),
+    (30, 2, '療法食 腎臓サポート 1kg',           'food',  3100, 0.08, 8),
+    (31, 2, '玩具（ラバートイ）',               'goods', 600,  0.10, 9),
+    (40, 3, '療法食 満腹感サポート 3kg',         'food',  4800, 0.08, 8),
+    (41, 3, '薬用シャンプー',                   'goods', 2800, 0.10, 9)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
@@ -2803,7 +2603,11 @@ INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, d
     (25, 2, 'C-2025-004', '2026-02-10', 27, 34, 16, 'finalized'),
     (26, 2, 'C-2025-005', '2025-11-15', 28, 35, 17, 'finalized'),
     (27, 2, 'C-2026-002', '2026-03-27', 29, 37, 16, 'finalized'),
-    (28, 2, 'C-2026-003', '2026-05-02', 30, 38, 18, 'draft')
+    (28, 2, 'C-2026-003', '2026-05-02', 30, 38, 18, 'draft'),
+    -- 追加: Clinic 2 本日分
+    (301, 2, 'C-2026-004', '2026-05-22', 23, 29, 16, 'finalized'),
+    (302, 2, 'C-2026-005', '2026-05-22', 24, 31, 17, 'finalized'),
+    (303, 2, 'C-2026-006', '2026-05-22', 25, 32, 16, 'draft')
 ON CONFLICT (id) DO UPDATE SET updated_at = now();
 
 
@@ -2896,7 +2700,10 @@ INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, d
     (33, 3, 'S-2025-003', '2025-11-30', 35, 44, 26, 'finalized'),
     (34, 3, 'S-2026-003', '2026-05-11', 36, 45, 26, 'draft'),
     (35, 3, 'S-2025-004', '2026-02-04', 37, 46, 27, 'finalized'),
-    (36, 3, 'S-2026-004', '2026-04-22', 38, 47, 26, 'finalized')
+    (36, 3, 'S-2026-004', '2026-04-22', 38, 47, 26, 'finalized'),
+    -- 追加: Clinic 3 本日分
+    (401, 3, 'S-2026-005', '2026-05-22', 31, 39, 26, 'finalized'),
+    (402, 3, 'S-2026-006', '2026-05-22', 32, 40, 27, 'finalized')
 ON CONFLICT (id) DO UPDATE SET updated_at = now();
 
 SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
@@ -2985,13 +2792,369 @@ ON CONFLICT (id) DO UPDATE SET updated_at = now();
 
 SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
 
--- =============================================================================
--- Lステップ連携設定（clinic_integrations）
--- =============================================================================
--- 八王子病院 (clinic_id=1) テスト用LINE連携設定
--- 注記: Lステップ API は「プロプラン」以上が必須のため無料プランでは未実装
---      LINE Messaging API のみで初期実装。プロプラン導入時に lstep_api_key を追加
+
+-- -----------------------------------------------------------------------------
+-- 13c. 本日分の追加医療データ（診察・検査・バイタル・処方）
+-- -----------------------------------------------------------------------------
+
+-- バイタル（追加分）
+INSERT INTO vital_records (id, pet_id, medical_record_id, recorded_at, staff_id, temperature, heart_rate, respiration_rate, weight, weight_unit) VALUES
+    -- Pet ID 1 (Iris) 本日
+    (30, 1, 61, '2026-05-22 09:00:00+09', 1, 38.5, 78, 19, 26.4, 'Kg'),
+    -- Pet ID 3 (ミケ) 本日
+    (31, 3, 61, '2026-05-22 09:30:00+09', 2, 38.9, 120, 26, 4.3, 'Kg'),
+    -- Pet ID 6 (チョコ) 本日
+    (32, 6, 62, '2026-05-22 10:30:00+09', 1, 38.4, 88, 20, 3.9, 'Kg'),
+    -- Pet ID 11 (ルナ) 本日
+    (33, 11, 64, '2026-05-22 14:30:00+09', 2, 38.9, 130, 30, 4.6, 'Kg'),
+    -- Pet ID 13 (ソラ) 本日
+    (34, 13, 65, '2026-05-22 16:30:00+09', 1, 38.7, 115, 25, 3.1, 'Kg'),
+    -- Pet ID 10 (ロッキー) 本日
+    (35, 10, 63, '2026-05-22 13:00:00+09', 1, 38.4, 73, 18, 18.4, 'Kg'),
+    -- Clinic 2/3 追加
+    (40, 29, 21, '2026-01-20 10:00:00+09', 16, 38.4, 80, 20, 28.0, 'Kg'),
+    (41, 29, 21, '2026-05-22 10:00:00+09', 16, 38.6, 82, 22, 28.5, 'Kg'),
+    (42, 39, 29, '2025-12-15 09:00:00+09', 26, 38.3, 110, 24, 24.0, 'Kg'),
+    (43, 39, 29, '2026-05-22 09:00:00+09', 26, 38.5, 115, 25, 24.2, 'Kg')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FROM vital_records));
+
+-- 検査記録
+INSERT INTO exams (id, clinic_id, medical_record_id, exam_type_id, doctor_id, date, result_summary, status) VALUES
+    (1, 1, 2,  1, 1, '2026-02-24', 'CBC全項目正常範囲内。', 'completed'),
+    (2, 1, 14, 2, 2, '2025-08-25', 'ALT軽度上昇（145 U/L）。他正常。', 'completed'),
+    (3, 1, 13, 1, 1, '2026-04-22', 'WBC上昇（19.2）。脱水を反映。', 'result_entered'),
+    (10, 1, 63, 1, 1, '2026-05-22', 'WBC正常。炎症所見なし。', 'completed'),
+    (11, 1, 63, 2, 1, '2026-05-22', '肝数値安定。腎数値にやや上昇あり。', 'completed'),
+    (12, 1, 69, 2, 1, '2026-05-22', 'スクリーニング検査。全項目正常。', 'completed'),
+    (13, 1, 64, 1, 2, '2026-05-22', '術前検査。異常なし。', 'completed'),
+    (14, 1, 71, 2, 1, '2026-05-22', 'スケーリング前検査。', 'completed'),
+    (15, 1, 1,  1, 1, '2025-10-10', '過去データ1。', 'completed'),
+    (16, 1, 1,  1, 1, '2025-12-20', '過去データ2。', 'completed')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
+
+-- 検査結果詳細
+INSERT INTO exam_results (id, exam_id, exam_type_field_id, inspection_value, status) VALUES
+    (34, 1, 1, '9.8',  'normal'),
+    (35, 1, 2, '7.2',  'normal'),
+    (36, 1, 3, '45',   'normal'),
+    (37, 1, 4, '320',  'normal'),
+    (38, 2, 5, '145',  'high'),
+    (39, 2, 6, '18',   'normal'),
+    (40, 2, 7, '1.2',  'normal'),
+    (41, 2, 8, '98',   'normal'),
+    (42, 3, 1, '19.2', 'high'),
+    (43, 3, 2, '8.1',  'normal'),
+    (44, 3, 3, '52',   'normal'),
+    (45, 3, 4, '280',  'normal'),
+    -- 追加分
+    (100, 10, 1, '12.5', 'normal'),
+    (101, 10, 2, '7.5',  'normal'),
+    (102, 10, 3, '42',   'normal'),
+    (103, 10, 4, '350',  'normal'),
+    (104, 11, 5, '65',   'normal'),
+    (105, 11, 6, '32',   'high'),
+    (106, 11, 7, '2.1',  'high'),
+    (107, 11, 8, '110',  'normal'),
+    (108, 12, 5, '45',   'normal'),
+    (109, 12, 6, '22',   'normal'),
+    (110, 12, 7, '1.1',  'normal'),
+    (111, 12, 8, '95',   'normal'),
+    (112, 13, 1, '10.2', 'normal'),
+    (113, 13, 2, '7.8',  'normal'),
+    (114, 13, 3, '40',   'normal'),
+    (115, 13, 4, '410',  'normal'),
+    (116, 14, 5, '55',   'normal'),
+    (117, 14, 6, '18',   'normal'),
+    (118, 14, 7, '0.9',  'normal'),
+    (119, 14, 8, '105',  'normal'),
+    (120, 15, 1, '8.5',  'normal'),
+    (121, 15, 2, '6.5',  'normal'),
+    (122, 15, 3, '38',   'normal'),
+    (123, 15, 4, '300',  'normal'),
+    (124, 16, 1, '11.0', 'normal'),
+    (125, 16, 2, '7.2',  'normal'),
+    (126, 16, 3, '44',   'normal'),
+    (127, 16, 4, '330',  'normal')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('exam_results', 'id'), (SELECT MAX(id) FROM exam_results));
+
+-- 健診記録
+INSERT INTO checkups (id, clinic_id, medical_record_id, pet_id, checkup_type_id, date, next_date, doctor_id, result) VALUES
+    (1, 1, 63, 10, 1, '2026-05-22', '2027-05-22', 1, '一般身体検査：良好。血液検査：一部高値。'),
+    (2, 1, 69, 17, 2, '2026-05-22', '2026-11-22', 1, 'シニア健診。心雑音なし。'),
+    (3, 1, 81, 53, 1, '2026-05-22', '2027-05-22', 1, '良好。'),
+    (4, 1, 82, 54, 3, '2026-05-22', '2027-05-22', 2, '画像診断：特記事項なし。'),
+    (5, 1, 1,  1,  1, '2025-10-10', '2026-10-10', 1, '去年の健診。'),
+    (6, 1, 2,  1,  1, '2026-02-24', '2027-02-24', 1, '半年健診。')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('checkups', 'id'), (SELECT MAX(id) FROM checkups));
+
+-- 処方箋
+INSERT INTO prescriptions (id, clinic_id, owner_id, pet_id, medical_record_id, prescribed_at, duration_days) VALUES
+    (1, 1, 8,  10, 63, '2026-05-22', 14),
+    (2, 1, 4,  6,  62, '2026-05-22', 7),
+    (3, 1, 11, 13, 65, '2026-05-22', 5),
+    (4, 1, 14, 16, 68, '2026-05-22', 21),
+    (5, 1, 19, 21, 73, '2026-05-22', 10),
+    (6, 1, 40, 50, 78, '2026-05-22', 7),
+    (7, 1, 44, 54, 82, '2026-05-22', 14),
+    (8, 1, 50, 60, 88, '2026-05-22', 7)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('prescriptions', 'id'), (SELECT MAX(id) FROM prescriptions));
+
+
+-- -----------------------------------------------------------------------------
+-- 13d. その他の運用デモデータ（監査ログ・ファイル・見積・入院詳細）
+-- -----------------------------------------------------------------------------
+
+-- 監査ログ（直近のアクティビティ: 20件）
+INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource, resource_id, ip_address, user_agent, created_at) VALUES
+    (1, 1, 'staff', 'login',     'account',  1, '192.168.1.10', 'Mozilla/5.0...', now() - interval '2 hours'),
+    (1, 1, 'staff', 'create',    'medical_record', 61, '192.168.1.10', 'Mozilla/5.0...', now() - interval '1 hour'),
+    (1, 2, 'staff', 'update',    'appointment', 4, '192.168.1.11', 'Mozilla/5.0...', now() - interval '45 minutes'),
+    (1, 1, 'staff', 'delete',    'shared_file', 99, '192.168.1.10', 'Mozilla/5.0...', now() - interval '30 minutes'),
+    (1, 3, 'staff', 'close_reg', 'cash_register', 1, '192.168.1.12', 'Mozilla/5.0...', now() - interval '20 minutes'),
+    (1, 1, 'staff', 'create',    'billing', 15, '192.168.1.10', 'Mozilla/5.0...', now() - interval '15 minutes'),
+    (1, 2, 'staff', 'update',    'owner', 10, '192.168.1.11', 'Mozilla/5.0...', now() - interval '10 minutes'),
+    (1, 1, 'staff', 'export',    'medical_records', NULL, '192.168.1.10', 'Mozilla/5.0...', now() - interval '5 minutes'),
+    (1, 1, 'staff', 'view',      'audit_logs', NULL, '192.168.1.10', 'Mozilla/5.0...', now() - interval '2 minutes'),
+    (1, 2, 'staff', 'update',    'pet', 3, '192.168.1.11', 'Mozilla/5.0...', now() - interval '1 minute'),
+    -- Clinic 2/3
+    (2, 16, 'staff', 'login',    'account', 16, '172.16.0.1', 'Mozilla/5.0...', now() - interval '3 hours'),
+    (2, 16, 'staff', 'update',   'appointment', 11, '172.16.0.1', 'Mozilla/5.0...', now() - interval '2 hours'),
+    (2, 17, 'staff', 'create',   'medical_record', 302, '172.16.0.2', 'Mozilla/5.0...', now() - interval '1 hour'),
+    (3, 26, 'staff', 'login',    'account', 26, '10.0.0.5', 'Mozilla/5.0...', now() - interval '4 hours'),
+    (3, 26, 'staff', 'create',   'medical_record', 401, '10.0.0.5', 'Mozilla/5.0...', now() - interval '2 hours'),
+    (1, 1, 'staff', 'update',    'system_settings', NULL, '192.168.1.10', 'Mozilla/5.0...', now() - interval '5 hours'),
+    (1, 4, 'staff', 'login',     'account', 4, '192.168.1.15', 'Mozilla/5.0...', now() - interval '6 hours'),
+    (2, 18, 'staff', 'delete',   'appointment', 999, '172.16.0.3', 'Mozilla/5.0...', now() - interval '7 hours'),
+    (3, 27, 'staff', 'update',   'billing', 401, '10.0.0.6', 'Mozilla/5.0...', now() - interval '8 hours'),
+    (1, 2, 'staff', 'logout',    'account', 2, '192.168.1.11', 'Mozilla/5.0...', now() - interval '9 hours');
+
+-- 共有ファイル（ペットの写真や検査PDF）
+INSERT INTO shared_files (id, clinic_id, owner_id, uploaded_by, file_type, file_name, file_key, file_size, purpose) VALUES
+    (1, 1, 1, 1, 'image/jpeg', 'iris_portrait.jpg',      'clinic1/iris.jpg',   102400, 'pet_photo'),
+    (2, 1, 2, 1, 'image/png',  'mike_xray.png',          'clinic1/mike_x.png', 204800, 'exam_result'),
+    (3, 1, 8, 1, 'application/pdf', 'rocky_blood_report.pdf', 'clinic1/rocky_b.pdf', 512000, 'exam_result'),
+    (4, 1, 9, 1, 'application/pdf', 'luna_surgery_consent.pdf', 'clinic1/luna_c.pdf', 128000, 'consent_form'),
+    (5, 1, 4, 1, 'image/png',  'choco_vaccine_cert.png', 'clinic1/choco_v.png', 153600, 'certificate')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('shared_files', 'id'), (SELECT MAX(id) FROM shared_files));
+
+-- 入院の日次記録
+INSERT INTO daily_records (id, hospitalization_id, clinic_id, date) VALUES
+    (1, 1, 1, '2026-05-20'),
+    (2, 1, 1, '2026-05-21'),
+    (3, 1, 1, '2026-05-22'),
+    (4, 8, 1, '2026-05-21'),
+    (5, 8, 1, '2026-05-22'),
+    (6, 10, 1, '2026-05-22')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('daily_records', 'id'), (SELECT MAX(id) FROM daily_records));
+
+-- 入院時のバイタルを daily_records に紐付け
+UPDATE vital_records SET daily_record_id = 3 WHERE id = 30; -- Iris 本日分
+UPDATE vital_records SET daily_record_id = 5 WHERE id = 31; -- ミケ 本日分
+
+-- 見積（手術などの高額案件デモ用）
+INSERT INTO estimates (id, clinic_id, estimate_no, medical_record_id, title, owner_id, status, subtotal, tax_total, total_amount, valid_until, comment) VALUES
+    (1, 1, 'EST-2026-001', 64, '避妊手術お見積り', 9, 'approved', 25000, 2500, 27500, '2026-06-22', '本日実施分。'),
+    (2, 1, 'EST-2026-002', 71, '歯科処置お見積り', 17, 'draft', 15000, 1500, 16500, '2026-06-22', '概算です。'),
+    (3, 1, 'EST-2026-003', NULL, '骨折手術概算', 19, 'draft', 120000, 12000, 132000, '2026-06-01', '大型犬のため麻酔量増。')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('estimates', 'id'), (SELECT MAX(id) FROM estimates));
+
+INSERT INTO estimate_items (estimate_id, name, category, unit_price, quantity, is_insurance_applicable, procedure_id, sort_order) VALUES
+    (1, '避妊手術（猫）', 'surgery', 25000, 1, true, 1, 1),
+    (2, '歯科スケーリング', 'surgery', 15000, 1, false, NULL, 1),
+    (3, '骨折手術・プレート固定', 'surgery', 100000, 1, true, NULL, 1),
+    (3, '全身麻酔（大型）', 'procedure', 20000, 1, true, NULL, 2)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('estimate_items', 'id'), (SELECT MAX(id) FROM estimate_items));
+
+
+-- -----------------------------------------------------------------------------
+-- 13e. 慢性疾患・レジ締め・マニュアル・予約詳細（拡充）
+-- -----------------------------------------------------------------------------
+
+-- ペットの慢性疾患
+INSERT INTO pet_chronic_conditions (clinic_id, pet_id, condition_code, condition_name, diagnosed_at, notes) VALUES
+    (1, 1,  'ATOPY',    'アトピー性皮膚炎', '2023-04-15', '通年性の痒み。ステロイド・シャンプーで維持。'),
+    (1, 11, 'CKD',      '慢性腎臓病',     '2025-11-10', 'ステージ2。療法食と皮下補液継続。'),
+    (1, 13, 'OTITIS',   '外耳炎（再発性）', '2026-01-20', '左耳が特に悪化しやすい。'),
+    (1, 5,  'DIABETES', '糖尿病',         '2025-06-01', 'インスリン投与中。'),
+    (1, 4,  'LUXATION', '膝蓋骨脱臼',     '2024-08-20', 'グレード2。体重管理注意。'),
+    -- 追加: Clinic 2/3
+    (2, 29, 'HEART',    '僧帽弁閉鎖不全症', '2025-01-10', '投薬継続中。'),
+    (2, 35, 'ASTHMA',   '猫喘息',         '2025-12-05', '季節性に注意。'),
+    (3, 39, 'ALLERGY',  '食物アレルギー',   '2024-11-20', '鶏肉除去食。'),
+    (3, 47, 'EPILEPSY', 'てんかん',         '2025-03-15', '抗てんかん薬継続。')
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('pet_chronic_conditions', 'id'), (SELECT MAX(id) FROM pet_chronic_conditions));
+
+-- 過去のレジ締め履歴（昨日分）
+INSERT INTO cash_register_closes (clinic_id, close_date, period, theoretical_cash, actual_cash, cash_difference, category_breakdown, memo, closed_by) VALUES
+    (1, '2026-05-21', 'am', 45000, 45000, 0, '{"examination": 12000, "vaccine": 15000, "medicine": 18000}', '過不足なし。', 1),
+    (1, '2026-05-21', 'pm', 32000, 31950, -50, '{"examination": 8000, "surgery": 20000, "food": 4000}', '50円不足（釣銭ミス疑い）。', 2)
+ON CONFLICT (clinic_id, close_date, period) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('cash_register_closes', 'id'), (SELECT MAX(id) FROM cash_register_closes));
+
+-- マニュアル記事
+INSERT INTO manual_articles (category, slug, title, order_value, section, body_markdown, updated_by_staff_id) VALUES
+    ('workflows', 'reception-flow', '受付フロー', 1, '基本操作', '1. 来院された飼い主様の診察券を受け取ります。\n2. 予約の有無を確認し、電子カルテを開きます。\n3. 受付ステータスを「受付済」に変更します。', 1),
+    ('screens', 'medical-record-usage', 'カルテ入力のコツ', 2, '診察', '## テンプレート活用\n右上の「テンプレート」ボタンから、よく使う処置セットを呼び出せます。', 1),
+    ('workflows', 'inventory-management', '在庫管理ルール', 3, '管理', '薬品の在庫が残り5個になったら、発注ステータスを更新してください。', 2)
+ON CONFLICT (category, slug) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('manual_articles', 'id'), (SELECT MAX(id) FROM manual_articles));
+
+-- 予約トリミングオプションの紐付け（本日分の一部）
+INSERT INTO appointment_trimming_options (appointment_id, option_id, sort_order) VALUES
+    (227, 1, 1), (227, 2, 2), -- サマーカット + 爪切り + 耳掃除
+    (228, 1, 1),              -- シャンプーコース + 爪切り
+    (248, 1, 1), (248, 2, 2), (248, 4, 3) -- トリミング + 爪・耳・肛門腺
+ON CONFLICT (appointment_id, option_id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('appointment_trimming_options', 'id'), (SELECT MAX(id) FROM appointment_trimming_options));
+
+
+-- -----------------------------------------------------------------------------
+-- 37. treatment_plans（治療計画項目: 10件）
+-- -----------------------------------------------------------------------------
+INSERT INTO treatment_plans (medical_record_id, hospitalization_id, treatment_content, memo, is_insurance, unit_price, quantity, sort_order) VALUES
+    (63, NULL, '腎臓ケア処方食の継続', '3ヶ月継続後に再評価', true,  3000, 1, 1),
+    (63, NULL, '血液検査（腎パネル）', '次回再来時', true,  6000, 1, 2),
+    (64, NULL, '避妊手術後の経過観察', '本日実施', true,  0,    1, 1),
+    (64, NULL, '抜糸（1週間後）', '予約済み', true,  1500, 1, 2),
+    (71, NULL, '歯科スケーリング', '完了', false, 15000, 1, 1),
+    (71, NULL, '抗生剤投与（7日間）', '術後感染予防', true,  4200, 1, 2),
+    (1,  NULL, '次年度混合ワクチン', '2026年12月頃', true,  5000, 1, 1),
+    (82, NULL, '心エコー検査', '3ヶ月後', true,  6000, 1, 1),
+    (88, NULL, '肝補助剤（ウルソ）', '長期投与', true,  3500, 1, 1),
+    (90, NULL, '抜糸処置', '1週間後', true,  1500, 1, 1)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('treatment_plans', 'id'), (SELECT MAX(id) FROM treatment_plans));
+
+
+-- -----------------------------------------------------------------------------
+-- 38. medical_record_images（カルテ内画像: 5件）
+-- -----------------------------------------------------------------------------
+INSERT INTO medical_record_images (medical_record_id, image_url, thumbnail_url, file_name, file_size, mime_type, image_type, description, sort_order) VALUES
+    (61, 'files/clinic1/iris.jpg',   'files/clinic1/iris_t.jpg',   'iris_portrait.jpg',  102400, 'image/jpeg', 'photo', '初診時の写真', 1),
+    (63, 'files/clinic1/mike_x.png', 'files/clinic1/mike_x_t.png', 'mike_xray.png',      204800, 'image/png',  'xray',  '腹部レントゲン正面', 1),
+    (65, 'files/clinic1/rocky_b.pdf','files/clinic1/rocky_b_t.jpg','rocky_blood_report.pdf', 512000, 'application/pdf', 'other', '血液検査結果PDF', 1),
+    (64, 'files/clinic1/luna_c.pdf', 'files/clinic1/luna_c_t.jpg', 'luna_surgery_consent.pdf', 128000, 'application/pdf', 'other', '手術同意書（スキャン）', 1),
+    (62, 'files/clinic1/choco_v.png','files/clinic1/choco_v_t.jpg','choco_vaccine_cert.png', 153600, 'image/png',  'photo', 'ワクチン証明書', 1)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('medical_record_images', 'id'), (SELECT MAX(id) FROM medical_record_images));
+
+
+-- -----------------------------------------------------------------------------
+-- 39. staff_notes（入院中の経過メモ: 5件）
+-- -----------------------------------------------------------------------------
+INSERT INTO staff_notes (daily_record_id, time, content, staff_id) VALUES
+    (3, '10:00', '自力で少量の飲水を確認。', 1),
+    (3, '14:30', '排尿あり。性状正常。', 2),
+    (5, '09:00', '元気あり。鳴いてアピールしている。', 1),
+    (5, '12:00', '昼食完食。', 1),
+    (6, '18:00', '呼吸状態安定。酸素室継続。', 2)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('staff_notes', 'id'), (SELECT MAX(id) FROM staff_notes));
+
+
+-- -----------------------------------------------------------------------------
+-- 13f. さらなる深掘りデモデータ（カルテ詳細・診断・テンプレート・履歴）
+-- -----------------------------------------------------------------------------
+
+-- 追加の問診票 (inquiries) 拡充 (ID 100-)
+INSERT INTO inquiries (id, medical_record_id, chief_complaint_type_id, chief_complaint, notes, staff_id) VALUES
+    (100, 61, NULL, '定期健診とワクチン', '1年前の混合ワクチンから1年経過。', 1),
+    (101, 62, 3,    '耳の赤みと痒み',     '昨日からしきりに耳を振っている。', 2),
+    (102, 63, 2,    '食欲不振と嘔吐',     '今朝から3回、黄色い液を吐いた。', 1),
+    (103, 64, NULL, '避妊手術',           '術前検査済み。絶食で来院。', 1),
+    (104, 65, 3,    '目やに',             '左目が開けにくそう。', 2),
+    (105, 74, NULL, '夜間救急：痙攣',      '15分前に全身性の痙攣発作。', 1),
+    (106, 75, 6,    '散歩中に足を引きずる', '右後ろ足を浮かせる。', 1),
+    (107, 78, 1,    '元気がない',         '1週間前から徐々に活動性低下。', 2)
+ON CONFLICT (id) DO NOTHING;
+
+-- 追加の診察プラン (clinical_plans) 拡充 (ID 100-)
+INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_type_id, diagnosis_name_id, diagnosis_details, treatment_policy) VALUES
+    (100, 61, '体重26.4kg。体温38.5℃。心肺音正常。', NULL, NULL, '健康状態良好。', '5種混合ワクチン接種実施。'),
+    (101, 62, '左耳介に発赤、耳道内に黒色耳垢多量。', 3, 41, 'マラセチア性外耳炎。', '耳道洗浄、点耳薬処方。'),
+    (102, 63, '軽度脱水、腹部圧痛あり。', 1, 1, '急性胃腸炎。', '皮下補液、吐き気止め注射。'),
+    (103, 64, '術前再チェック、異常なし。', NULL, NULL, '避妊手術適応。', '全身麻酔下にて避妊手術実施。'),
+    (104, 65, '結膜充血、角膜に傷なし。', 3, 41, '結膜炎。', '抗菌点眼薬処方。'),
+    (105, 74, '意識朦朧、呼吸浅い。', 4, 33, 'てんかん重積の疑い。', '抗痙攣薬投与。'),
+    (106, 75, '右膝蓋骨脱臼(G2)を確認。', 8, 42, '膝蓋骨脱臼。', '運動制限、体重管理。消炎剤。'),
+    (107, 78, '口腔内歯石重度、歯肉炎。', 3, 41, '歯周病。', '抜歯を含む歯科処置を推奨。')
+ON CONFLICT (id) DO NOTHING;
+
+-- 追加の処置明細 (treatments) 拡充 (ID 100-)
+INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, procedure_id, medicine_id, is_selected, status, content, unit_price, quantity, sort_order) VALUES
+    (100, 61, 'consultation', 1, NULL, NULL, true, 'completed', '初診料', 1500, 1, 1),
+    (101, 61, 'medicine', NULL, NULL, 5, true, 'completed', '5種混合ワクチン', 3000, 1, 2),
+    (102, 62, 'consultation', 2, NULL, NULL, true, 'completed', '再診料', 800, 1, 1),
+    (103, 62, 'procedure', NULL, 4, NULL, true, 'completed', '耳道洗浄', 2500, 1, 2),
+    (104, 63, 'consultation', 2, NULL, NULL, true, 'completed', '再診料', 800, 1, 1),
+    (105, 63, 'procedure', NULL, 12, NULL, true, 'completed', '皮下補液', 3500, 1, 2),
+    (106, 74, 'consultation', 1, NULL, NULL, true, 'completed', '夜間緊急診察料', 10000, 1, 1),
+    (107, 74, 'procedure', NULL, 5, NULL, true, 'completed', '静脈確保・採血', 3000, 1, 2)
+ON CONFLICT (id) DO NOTHING;
+
+-- 問診テンプレートの追加
+INSERT INTO inquiry_templates (clinic_id, category, title, content, is_active, sort_order) VALUES
+    (1, 'general', '猫の食欲不振', '【食欲】いつから？（ ） どれくらい食べてる？（ ）\n【嘔吐】回数（ ） 内容物（ ）\n【排便】状態（ ） 回数（ ）', true, 10),
+    (1, 'general', '皮膚の痒み', '【部位】どこを痒がる？（ ）\n【時期】いつから？（ ）\n【同居動物】痒がっている子は いる？（ ）', true, 11)
+ON CONFLICT DO NOTHING;
+
+-- Clinic 2/3 追加の深掘りデータ
+INSERT INTO inquiries (id, medical_record_id, chief_complaint, staff_id) VALUES
+    (301, 301, '再診。心雑音のチェック。', 16),
+    (302, 302, '初診。昨日から元気がない。', 17),
+    (401, 401, '混合ワクチン。', 26),
+    (402, 402, 'フィラリア予防。', 27)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_details, treatment_policy) VALUES
+    (301, 301, '心雑音 Lev. 3/6。肺音正常。', '僧帽弁閉鎖不全症の維持。', '投薬継続。減塩食。'),
+    (302, 302, '微熱あり。腹部軟らかい。', '感冒の疑い。', '抗生剤・消炎剤。'),
+    (401, 401, '良好。', '年次予防。', 'ワクチン接種。'),
+    (402, 402, '良好。', '予防シーズン。', 'フィラリア薬。')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, is_selected, status, content, unit_price, quantity, sort_order) VALUES
+    (301, 301, 'consultation', 10, true, 'completed', '再診料', 800, 1, 1),
+    (302, 302, 'consultation', 9,  true, 'completed', '初診料', 1900, 1, 1),
+    (401, 401, 'consultation', 10, true, 'completed', '再診料', 800, 1, 1),
+    (402, 402, 'consultation', 10, true, 'completed', '再診料', 800, 1, 1)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('inquiries', 'id'), (SELECT MAX(id) FROM inquiries));
+SELECT setval(pg_get_serial_sequence('clinical_plans', 'id'), (SELECT MAX(id) FROM clinical_plans));
+SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
+SELECT setval(pg_get_serial_sequence('inquiry_templates', 'id'), (SELECT MAX(id) FROM inquiry_templates));
+
+
+-- -----------------------------------------------------------------------------
 -- 認証情報は docs/line/setup.md の「テスト-八王子（@642hdxoh）」から取得
+-- -----------------------------------------------------------------------------
 INSERT INTO clinic_integrations (clinic_id, service, key_name, key_value, created_at, updated_at) VALUES
     -- LINE Messaging API 認証（アクセストークン・シークレット=要暗号化）
     (1, 'lstep', 'line_channel_access_token',  'pwMi3yP6jhRa0xbmnR0IPEcE5l+OIp21a7ia3hmoiuFSCvqkR5Tmmfm6fLoSTB1Bt7uQjAe9NN7fZ+LBDtNKLGnrqBrjDmhTnws9PVxQKLyinomNzUAb61KADX7NJmFBfEsLQQ9VmlU+tMJcWh+zswdB04t89/1O/w1cDnyilFU=', now(), now()),
@@ -3003,6 +3166,7 @@ INSERT INTO clinic_integrations (clinic_id, service, key_name, key_value, create
 ON CONFLICT (clinic_id, service, key_name) DO UPDATE SET
     key_value = EXCLUDED.key_value,
     updated_at = now();
+
 
 -- =============================================================================
 -- Lステップ CSV インポート・分析 権限ルール（ext-019 統合）
@@ -3066,3 +3230,67 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (6, 'closing-settings',      true, false, false, false),
     (6, 'master-payment-method', true, false, false, false)
 ON CONFLICT DO NOTHING;
+
+
+-- -----------------------------------------------------------------------------
+-- 13g. 最終拡充データ（複数クリニックのアクティビティ・統計用）
+-- -----------------------------------------------------------------------------
+
+-- Clinic 2/3 追加会計
+INSERT INTO billings (id, clinic_id, medical_record_id, owner_id, pet_id, subtotal, tax_total, total_amount, status, scheduled_date, completed_at) VALUES
+    (301, 2, 301, 23, 29, 800,   80,   880,   'completed', '2026-05-22', '2026-05-22 10:30:00+09'),
+    (302, 2, 302, 24, 31, 1900,  190,  2090,  'completed', '2026-05-22', '2026-05-22 11:00:00+09'),
+    (401, 3, 401, 31, 39, 800,   80,   880,   'completed', '2026-05-22', '2026-05-22 09:15:00+09'),
+    (402, 3, 402, 32, 40, 800,   80,   880,   'completed', '2026-05-22', '2026-05-22 10:00:00+09')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO billing_items (billing_id, category, name, unit_price, quantity, tax_rate, source) VALUES
+    (301, 'examination', '再診料', 800, 1, 0.10, 'medical_record'),
+    (302, 'examination', '初診料', 1900, 1, 0.10, 'medical_record'),
+    (401, 'examination', '再診料', 800, 1, 0.10, 'medical_record'),
+    (402, 'examination', '再診料', 800, 1, 0.10, 'medical_record')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO payments (billing_id, subtotal, tax_total, total_amount, billing_amount, received_amount, change_amount, method, paid_by) VALUES
+    (301, 800, 80, 880, 880, 1000, 120, 'cash', 16),
+    (302, 1900, 190, 2090, 2090, 2090, 0, 'credit_card', 16),
+    (401, 800, 80, 880, 880, 880, 0, 'cash', 26),
+    (402, 800, 80, 880, 880, 1000, 120, 'cash', 26)
+ON CONFLICT DO NOTHING;
+
+-- Clinic 2/3 追加ワクチン・検査
+INSERT INTO vaccinations (clinic_id, pet_id, vaccine_id, doctor_id, date, next_date) VALUES
+    (2, 29, 11, 16, '2026-05-22', '2027-05-22'),
+    (3, 39, 16, 26, '2026-05-22', '2027-05-22');
+
+INSERT INTO exams (clinic_id, medical_record_id, exam_type_id, doctor_id, date, result_summary, status) VALUES
+    (2, 301, 6, 16, '2026-05-22', '心エコー：逆流増悪なし。', 'completed'),
+    (3, 401, 9, 26, '2026-05-22', '尿検査：比重 1.025。', 'completed')
+ON CONFLICT DO NOTHING;
+
+-- 最後に全てのシーケンスを同期
+SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
+SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
+SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
+SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
+SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM billings));
+SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
+SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
+SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
+SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
+SELECT setval(pg_get_serial_sequence('hospitalizations', 'id'), (SELECT MAX(id) FROM hospitalizations));
+SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FROM vital_records));
+SELECT setval(pg_get_serial_sequence('audit_logs', 'id'), (SELECT MAX(id) FROM audit_logs));
+SELECT setval(pg_get_serial_sequence('estimates', 'id'), (SELECT MAX(id) FROM estimates));
+SELECT setval(pg_get_serial_sequence('shared_files', 'id'), (SELECT MAX(id) FROM shared_files));
+SELECT setval(pg_get_serial_sequence('pet_chronic_conditions', 'id'), (SELECT MAX(id) FROM pet_chronic_conditions));
+SELECT setval(pg_get_serial_sequence('treatment_plans', 'id'), (SELECT MAX(id) FROM treatment_plans));
+SELECT setval(pg_get_serial_sequence('staff_notes', 'id'), (SELECT MAX(id) FROM staff_notes));
+SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
+SELECT setval(pg_get_serial_sequence('procedures', 'id'), (SELECT MAX(id) FROM procedures));
+SELECT setval(pg_get_serial_sequence('diagnosis_names', 'id'), (SELECT MAX(id) FROM diagnosis_names));
+SELECT setval(pg_get_serial_sequence('checkup_types', 'id'), (SELECT MAX(id) FROM checkup_types));
+SELECT setval(pg_get_serial_sequence('inquiry_templates', 'id'), (SELECT MAX(id) FROM inquiry_templates));
+SELECT setval(pg_get_serial_sequence('cash_register_closes', 'id'), (SELECT MAX(id) FROM cash_register_closes));
+
+-- END OF DEMO SEED --
