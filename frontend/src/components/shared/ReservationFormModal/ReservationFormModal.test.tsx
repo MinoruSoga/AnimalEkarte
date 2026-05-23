@@ -209,6 +209,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     });
   });
 
+  // Radix Select x2 + MSW + waitFor x3 → Docker jsdom で累計 5 秒超えが稀に発生するため 15s に設定
   it("全フィールド入力後に onSave が newOwnerData を含む引数で呼ばれる", async () => {
     server.use(
       http.get("/api/v1/clinic-holidays", () => HttpResponse.json([])),
@@ -242,7 +243,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
       { wrapper: createWrapper() }
     );
 
-    // 新規飼主モードに切り替え
+    // 新規飼主モードに切り替え（act() ラップ必要なため user.click を維持）
     await user.click(screen.getByTestId("mode-new"));
 
     // テキストフィールドを入力（fireEvent.change で1イベント完結、タイムアウト防止）
@@ -251,19 +252,20 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     fireEvent.change(screen.getByTestId("new-owner-pet-name"), { target: { value: "ポチ" } });
     fireEvent.change(screen.getByTestId("new-owner-chief-complaint"), { target: { value: "食欲不振" } });
 
-    // 動物種 Select: "犬" を選択
+    // 動物種 Select: Radix は pointerdown でドロップダウンを開くため user.click を維持
+    // 選択肢は waitFor で DOM 確認済みのため fireEvent.click で十分
     await user.click(screen.getByTestId("new-owner-species"));
     await waitFor(() => {
       expect(screen.getByRole("option", { name: "犬" })).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("option", { name: "犬" }));
+    fireEvent.click(screen.getByRole("option", { name: "犬" }));
 
-    // 予約区分 Select: "一般診療" を選択
+    // 予約区分 Select: 同上
     await user.click(screen.getByTestId("res-type-trigger"));
     await waitFor(() => {
       expect(screen.getByRole("option", { name: "一般診療" })).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("option", { name: "一般診療" }));
+    fireEvent.click(screen.getByRole("option", { name: "一般診療" }));
 
     // 保存を実行
     fireEvent.click(screen.getByRole("button", { name: "予約を確定" }));
@@ -280,5 +282,5 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
       chiefComplaint: "食欲不振",
       animalSpeciesId: 1,
     });
-  });
+  }, 15000);
 });
