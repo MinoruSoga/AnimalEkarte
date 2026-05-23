@@ -181,7 +181,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
 
   it("電話番号が 0 始まりでない場合 BE 整合フォーマットエラーが表示される", async () => {
     server.use(...silentApiHandlers);
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     render(
       <ReservationFormModal
@@ -196,9 +196,9 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     );
 
     await user.click(screen.getByTestId("mode-new"));
-    await user.type(screen.getByTestId("new-owner-name"), "山田太郎");
+    fireEvent.change(screen.getByTestId("new-owner-name"), { target: { value: "山田太郎" } });
     // 0 始まりでない番号 — BE regex に通らない形式
-    await user.type(screen.getByTestId("new-owner-phone"), "1234-5678");
+    fireEvent.change(screen.getByTestId("new-owner-phone"), { target: { value: "1234-5678" } });
 
     fireEvent.click(screen.getByRole("button", { name: "予約を確定" }));
 
@@ -228,7 +228,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     );
 
     const onSave = vi.fn();
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     render(
       <ReservationFormModal
@@ -245,11 +245,11 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     // 新規飼主モードに切り替え
     await user.click(screen.getByTestId("mode-new"));
 
-    // テキストフィールドを入力
-    await user.type(screen.getByTestId("new-owner-name"), "山田太郎");
-    await user.type(screen.getByTestId("new-owner-phone"), "090-1234-5678");
-    await user.type(screen.getByTestId("new-owner-pet-name"), "ポチ");
-    await user.type(screen.getByTestId("new-owner-chief-complaint"), "食欲不振");
+    // テキストフィールドを入力（fireEvent.change で1イベント完結、タイムアウト防止）
+    fireEvent.change(screen.getByTestId("new-owner-name"), { target: { value: "山田太郎" } });
+    fireEvent.change(screen.getByTestId("new-owner-phone"), { target: { value: "090-1234-5678" } });
+    fireEvent.change(screen.getByTestId("new-owner-pet-name"), { target: { value: "ポチ" } });
+    fireEvent.change(screen.getByTestId("new-owner-chief-complaint"), { target: { value: "食欲不振" } });
 
     // 動物種 Select: "犬" を選択
     await user.click(screen.getByTestId("new-owner-species"));
