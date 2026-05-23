@@ -3258,17 +3258,59 @@ INSERT INTO payments (billing_id, subtotal, tax_total, total_amount, billing_amo
     (402, 800, 80, 880, 880, 1000, 120, 'cash', 26)
 ON CONFLICT DO NOTHING;
 
--- Clinic 2/3 追加ワクチン・検査
-INSERT INTO vaccinations (clinic_id, pet_id, vaccine_id, doctor_id, date, next_date) VALUES
-    (2, 29, 11, 16, '2026-05-22', '2027-05-22'),
-    (3, 39, 16, 26, '2026-05-22', '2027-05-22');
-
-INSERT INTO exams (clinic_id, medical_record_id, exam_type_id, doctor_id, date, result_summary, status) VALUES
-    (2, 301, 6, 16, '2026-05-22', '心エコー：逆流増悪なし。', 'completed'),
-    (3, 401, 9, 26, '2026-05-22', '尿検査：比重 1.025。', 'completed')
+-- 会計医師確認 (billing_confirmations)
+INSERT INTO billing_confirmations (medical_record_id, status, confirmed_by, confirmed_at, memo) VALUES
+    (61, 'confirmed', 1, now() - interval '2 hours', '確認済み。'),
+    (62, 'confirmed', 2, now() - interval '1 hour',  '処置内容問題なし。'),
+    (63, 'pending',   NULL, NULL,                     '検査結果待ち。'),
+    (64, 'confirmed', 1, now() - interval '30 minutes', '手術記録と合致。'),
+    (66, 'pending',   NULL, NULL,                     ''),
+    (68, 'confirmed', 2, now() - interval '10 minutes', '保険適用確認済み。'),
+    (70, 'pending',   NULL, NULL,                     '後ほど確認。'),
+    (71, 'confirmed', 1, now() - interval '5 minutes',  'スケーリング費用適正。'),
+    (72, 'pending',   NULL, NULL,                     ''),
+    (74, 'pending',   NULL, NULL,                     '救急加算の確認。')
 ON CONFLICT DO NOTHING;
 
--- 最後に全てのシーケンスを同期
+-- カルテ修正記録 (medical_record_addenda)
+INSERT INTO medical_record_addenda (medical_record_id, clinic_id, author_user_id, before_text, after_text, reason) VALUES
+    (61, 1, 1, '体重 26.0kg', '体重 26.4kg', '入力ミス。前回の値を誤って記載。'),
+    (63, 1, 1, '嘔吐2回', '嘔吐3回', '飼い主様からの追加情報により修正。'),
+    (3,  1, 2, '治療継続', '週1回の通院に変更', '経過良好のため来院頻度を調整。')
+ON CONFLICT DO NOTHING;
+
+-- 追加のカルテ画像 (medical_record_images) - 多彩な症例をシミュレート
+INSERT INTO medical_record_images (medical_record_id, image_url, thumbnail_url, file_name, file_size, mime_type, image_type, description, sort_order) VALUES
+    (7,  'files/clinic1/bone_xray.jpg',  'files/clinic1/bone_xray_t.jpg', 'fracture.jpg', 300000, 'image/jpeg', 'xray', '大腿骨骨折（術前）', 1),
+    (10, 'files/clinic1/heart_echo.jpg', 'files/clinic1/heart_echo_t.jpg', 'echo.jpg',     250000, 'image/jpeg', 'echo', '心臓逆流所見', 1),
+    (15, 'files/clinic1/skin_photo.jpg', 'files/clinic1/skin_photo_t.jpg', 'atopy.jpg',    150000, 'image/jpeg', 'photo', '腹部発赤の状態', 1),
+    (17, 'files/clinic1/dental_x.jpg',   'files/clinic1/dental_x_t.jpg',   'dental.jpg',   200000, 'image/jpeg', 'xray', '臼歯部の歯石付着', 1),
+    (75, 'files/clinic1/patella_x.jpg',  'files/clinic1/patella_x_t.jpg',  'patella.jpg',  350000, 'image/jpeg', 'xray', '膝蓋骨脱臼（右）', 1)
+ON CONFLICT DO NOTHING;
+
+-- 追加の入院日次記録 (全入院個体をカバー)
+INSERT INTO daily_records (hospitalization_id, clinic_id, date) VALUES
+    (9,  1, '2026-05-21'), (9,  1, '2026-05-22'),
+    (11, 1, '2026-05-21'), (11, 1, '2026-05-22'),
+    (13, 1, '2026-05-21'), (13, 1, '2026-05-22'),
+    (14, 1, '2026-05-22')
+ON CONFLICT DO NOTHING;
+
+-- 在庫変動ログ
+INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource, resource_id, old_value, new_value) VALUES
+    (1, 1, 'staff', 'update', 'inventory_item', 6, '{"quantity": 30}', '{"quantity": 25}'), -- 混合ワクチン使用
+    (1, 2, 'staff', 'update', 'inventory_item', 22, '{"quantity": 10}', '{"quantity": 5}'), -- a/d缶使用
+    (1, 1, 'staff', 'update', 'inventory_item', 7, '{"quantity": 10}', '{"quantity": 0}'),  -- 留置針 欠品
+    (1, 3, 'staff', 'update', 'inventory_item', 21, '{"quantity": 50}', '{"quantity": 48}'), -- リンゲル液
+    (1, 1, 'staff', 'update', 'inventory_item', 13, '{"quantity": 70}', '{"quantity": 60}'); -- フィラリア薬
+
+-- 追加の見積 ( rejected / sent )
+INSERT INTO estimates (clinic_id, estimate_no, medical_record_id, title, owner_id, status, subtotal, tax_total, total_amount, valid_until, comment) VALUES
+    (1, 'EST-2026-004', NULL, 'MRI検査概算（外部委託）', 5,  'sent',     40000,  4000,  44000,  '2026-06-15', '大学病院での検査費用です。'),
+    (1, 'EST-2026-005', NULL, '腫瘍摘出手術',           12, 'rejected', 50000,  5000,  55000,  '2026-05-10', '高齢のため見送り。')
+ON CONFLICT DO NOTHING;
+
+-- 全てのシーケンスを同期
 SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
 SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
@@ -3278,7 +3320,9 @@ SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FRO
 SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
 SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
 SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
+SELECT setval(pg_get_serial_sequence('exam_results', 'id'), (SELECT MAX(id) FROM exam_results));
 SELECT setval(pg_get_serial_sequence('hospitalizations', 'id'), (SELECT MAX(id) FROM hospitalizations));
+SELECT setval(pg_get_serial_sequence('daily_records', 'id'), (SELECT MAX(id) FROM daily_records));
 SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FROM vital_records));
 SELECT setval(pg_get_serial_sequence('audit_logs', 'id'), (SELECT MAX(id) FROM audit_logs));
 SELECT setval(pg_get_serial_sequence('estimates', 'id'), (SELECT MAX(id) FROM estimates));
@@ -3292,5 +3336,68 @@ SELECT setval(pg_get_serial_sequence('diagnosis_names', 'id'), (SELECT MAX(id) F
 SELECT setval(pg_get_serial_sequence('checkup_types', 'id'), (SELECT MAX(id) FROM checkup_types));
 SELECT setval(pg_get_serial_sequence('inquiry_templates', 'id'), (SELECT MAX(id) FROM inquiry_templates));
 SELECT setval(pg_get_serial_sequence('cash_register_closes', 'id'), (SELECT MAX(id) FROM cash_register_closes));
+SELECT setval(pg_get_serial_sequence('medical_record_images', 'id'), (SELECT MAX(id) FROM medical_record_images));
+SELECT setval(pg_get_serial_sequence('medical_record_addenda', 'id'), (SELECT MAX(id) FROM medical_record_addenda));
+SELECT setval(pg_get_serial_sequence('billing_confirmations', 'id'), (SELECT MAX(id) FROM billing_confirmations));
+SELECT setval(pg_get_serial_sequence('estimate_items', 'id'), (SELECT MAX(id) FROM estimate_items));
+
+-- -----------------------------------------------------------------------------
+-- 13h. 特殊な運用・連携デモデータ（看護記録・LINE・分割支払・設定）
+-- -----------------------------------------------------------------------------
+
+-- 看護記録 (care_logs: 10件)
+INSERT INTO care_logs (daily_record_id, time, type, status, value, staff_id, notes) VALUES
+    (3, '08:30', 'food',      'completed', '完食',     1, '朝食：消化器サポート缶'),
+    (3, '12:00', 'other',     'completed', '15分',     1, '院内歩行。軽快。'),
+    (3, '16:00', 'excretion', 'completed', '普通量',   2, '便：良好。'),
+    (5, '09:00', 'food',      'completed', '半分残す', 1, 'ドライは食べない。'),
+    (5, '13:00', 'excretion', 'completed', '多量',     1, '尿：色は薄い。'),
+    (6, '10:00', 'food',      'completed', '完食',     2, '食欲旺盛。'),
+    (6, '15:00', 'other',     'completed', '10分',     2, '少しふらつきあり（運動）。'),
+    (4, '08:00', 'food',      'completed', '完食',     1, '元気あり。'),
+    (4, '17:00', 'excretion', 'completed', '普通',     2, '尿'),
+    (10, '11:00', 'food',     'completed', '採食なし', 1, '強制給餌検討。')
+ON CONFLICT (id) DO NOTHING;
+
+-- LINE連携顧客 (line_customers: 5件)
+INSERT INTO line_customers (clinic_id, line_user_id, display_name, real_name, owner_id) VALUES
+    (1, 'U1234567890abcdef1234567890abcdef', 'HAYASHI', '林 文明', 1),
+    (1, 'U9876543210fedcba9876543210fedcba', 'HANA',    '田中 花子', 2),
+    (1, 'Uabcdef1234567890abcdef1234567890', 'SUZUKI',  '鈴木 一郎', 3),
+    (1, 'Ufedcba9876543210fedcba9876543210', 'MISAKI',  '田中 美咲', 4),
+    (1, 'U55555555555555555555555555555555', 'SATO',    '佐藤 花子', 5)
+ON CONFLICT DO NOTHING;
+
+-- L-Step タグキャッシュ
+INSERT INTO lstep_tag_cache (clinic_id, owner_id, tag_name, category) VALUES
+    (1, 1, '優良顧客',     'manual'),
+    (1, 1, '大型犬',       'auto'),
+    (1, 2, 'ワクチン案内中', 'auto'),
+    (1, 4, '優良顧客',     'manual')
+ON CONFLICT DO NOTHING;
+
+-- 会計分割支払 (ID 20: 11,000円を現金 5,000 + カード 6,000)
+-- 既存の payments 19 (ID 20) を削除し、分割レコードを優先するデモ
+DELETE FROM payments WHERE id = 19;
+INSERT INTO payment_splits (clinic_id, billing_id, method, payment_method_id, amount, received_amount, change_amount, paid_by) VALUES
+    (1, 20, 'cash',        NULL, 5000, 5000, 0, 1),
+    (1, 20, 'credit_card', (SELECT id FROM payment_methods WHERE clinic_id=1 AND name='クレジットカード' LIMIT 1), 6000, 6000, 0, 1)
+ON CONFLICT DO NOTHING;
+
+-- クリニック設定
+INSERT INTO clinic_settings (clinic_id, closing_am_pm_boundary, closing_weekday_end, closing_sunday_end, closed_weekdays) VALUES
+    (1, '14:00', '18:30', '17:30', ARRAY[0]::smallint[])
+ON CONFLICT (clinic_id) DO NOTHING;
+
+-- シーケンス同期
+SELECT setval(pg_get_serial_sequence('care_logs', 'id'), (SELECT MAX(id) FROM care_logs));
+SELECT setval(pg_get_serial_sequence('line_customers', 'id'), (SELECT MAX(id) FROM line_customers));
+SELECT setval(pg_get_serial_sequence('payment_splits', 'id'), (SELECT MAX(id) FROM payment_splits));
+SELECT setval(pg_get_serial_sequence('lstep_tag_cache', 'id'), (SELECT MAX(id) FROM lstep_tag_cache));
 
 -- END OF DEMO SEED --
+
+
+
+
+-- -----------------------------------------------------------------------------

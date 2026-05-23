@@ -1,13 +1,13 @@
 # データベース設計書 (Entity Relationship Diagram)
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.17 | **最新更新**: 2026-05-21 | **状態**: Production Ready (92 Tables Verified)
+> **バージョン**: v31.18 | **最新更新**: 2026-05-21 | **状態**: Production Ready (95 Tables Verified)
 
 ---
 
-## 1. データモデルの全体像 (全 92 テーブル)
+## 1. データモデルの全体像 (全 95 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 92 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 95 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
@@ -21,7 +21,7 @@
 | **会計・経営 (11)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates` |
 | **トリミング (2)** | `trimming_courses`, `trimming_options` |
 | **在庫 (1)** | `inventory_items` |
-| **LINE/CRM (17)** | `line_customers`, `line_link_tokens`, `line_send_logs`, `line_reservation_settings`, `lstep_settings`, `lstep_trigger_priorities`, `lstep_delivery_trigger_log`, `lstep_csv_imports`, `lstep_tag_cache`, `lstep_tag_code_mappings`, `lstep_auto_managed_prefixes`, `lstep_condition_tag_mappings`, `lstep_send_purpose_tag_prefixes`, `lstep_friend_attribute_snapshots`, `lstep_sync_error_counters`, `manual_articles`, `manual_article_versions` |
+| **LINE/CRM (20)** | `line_customers`, `line_link_tokens`, `line_send_logs`, `line_reservation_settings`, `lstep_settings`, `lstep_trigger_priorities`, `lstep_delivery_trigger_log`, `lstep_csv_imports`, `lstep_tag_cache`, `lstep_tag_code_mappings`, `lstep_auto_managed_prefixes`, `lstep_condition_tag_mappings`, `lstep_send_purpose_tag_prefixes`, `lstep_friend_attribute_snapshots`, `lstep_sync_error_counters`, `clinic_integrations`, `manual_articles`, `manual_article_versions`, `shared_files` |
 
 ---
 
@@ -67,7 +67,7 @@ erDiagram
 ### 3.1 物理設計の標準
 - **主キー**: 全テーブルで `bigint` (auto_increment) または `uuid` を採用。
 - **日時管理**: タイムゾーンの不整合を排除するため、全て `timestamptz` (UTC) で統一。
-- **整合性制約**: アプリケーション層だけでなく、DB レベルの `FOREIGN KEY` 制約によりデータの孤立を防止。
+- **整合性制約**: アプリケーション層だけでなく、DB レベルで `FOREIGN KEY` 制約によりデータの孤立を防止。
 
 ### 3.2 高度なマルチテナント隔離
 - **`clinic_id` の強制**: ビジネスロジックが関わる全テーブルに `clinic_id` カラムを配置。

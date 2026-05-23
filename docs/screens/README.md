@@ -1,6 +1,6 @@
 # 画面詳細仕様書 インデックス (Screen Specifications Index)
 
-本ディレクトリには、Animal Ekarte を構成する全 37 画面の具体的な機能、レイアウト、および API 連携の詳細が定義されています。
+本ディレクトリには、Animal Ekarte を構成する全 38 ページの具体的な機能、レイアウト、および API 連携の詳細が定義されています。
 
 ---
 
@@ -10,7 +10,7 @@
 |:---|:---|:---|:---|
 | 00 | **ペット選択** | [00-pet-selection.md](./00-pet-selection.md) | 新規データ作成時の共通検索・特定フロー。 |
 | 01 | **当日の受付** | [01-reception.md](./01-reception.md) | カンバン形式による院内稼働状況の管理。 |
-| 02 | **予約管理** | [02-reservations.md](./02-reservations.md) | 月/週カレンダーによる予約枠とシフトの可視化。 |
+| 02 | **予約管理** | [02-reservations.md](./02-reservations.md) | 月/週カレンダーによる予約枠とシフトの可視化. |
 | 05 | **カルテ一覧** | [05-medical-records-list.md](./05-medical-records-list.md) | 全診療記録の時系列検索。 |
 | 06 | **カルテ詳細・入力** | [06-medical-records-form.md](./06-medical-records-form.md) | SOAPS 形式の診療録作成（9 タブ構成）。 |
 | 12 | **検査一覧** | [12-examinations-list.md](./12-examinations-list.md) | 検査オーダー状況と結果の進捗管理。 |
@@ -19,7 +19,7 @@
 | 15 | **予防接種登録** | [15-vaccinations-form.md](./15-vaccinations-form.md) | ワクチン履歴記録と次回予定自動計算。 |
 | 16 | **トリミング一覧** | [16-trimming-list.md](./16-trimming-list.md) | 施術予約と完了ステータスの管理。 |
 | 17 | **トリミング登録** | [17-trimming-form.md](./17-trimming-form.md) | 施術内容と仕上がり画像の記録。 |
-| 25 | **定期健診一覧** | [25-checkups-list.md](./25-checkups-list.md) | 健診履歴の参照と期限管理。 |
+| 25 | **定期健診一覧** | [25-checkups-list.md](./25-checkups-list.md) | 健診履歴の参照と当日カルテ自動生成。 |
 
 ---
 
@@ -51,7 +51,7 @@
 
 ---
 
-## 📦 設定・外部連携・補助 (Infrastructure & CRM)
+## 📦 設定・外部連携・監視 (Infrastructure & CRM)
 
 | No | 画面名 | 仕様書 | 概要 |
 |:---|:---|:---|:---|
@@ -75,4 +75,4 @@
 
 ---
 
-**最新更新**: 2026-05-21 | **ステータス**: All Sync with Implementation (92 Tables / 31 Resources)
+**最新更新**: 2026-05-21 | **ステータス**: All Sync with Implementation (95 Tables / 31 Resources)

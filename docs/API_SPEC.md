@@ -23,17 +23,20 @@
 ## 2. 主要リソース別エンドポイント (Verified)
 
 ### 2.1 診療記録 (Medical Records)
-- `GET /medical-records` — カルテ一覧（検索・ページング）
+カルテ本体と、それに紐付く多種多様な臨床データの管理。
+
+- `GET /medical-records` — カルテ一覧（検索・ページング対応）
 - `POST /medical-records` — カルテ新規作成（ID発番）
 - `GET/PATCH /medical-records/:id` — 詳細取得・基本情報更新
 
 #### ── サブリソース ──
-- `GET/PUT /medical-records/:id/treatments` — 処置・処方明細の一括更新。
+- `GET/PUT /medical-records/:id/treatments` — 処置・処方明細。一括更新（PUT）対応。
 - `GET/POST/DELETE /medical-records/:id/exams` — 検査記録と数値結果。
-- `GET/POST/DELETE /medical-records/:id/vitals` — バイタル測定値。
-- `GET/POST/DELETE /medical-records/:id/images` — 患部写真・資料（S3 連携）。
+- `GET/POST/DELETE /medical-records/:id/vitals` — バイタル測定値（グラフ用）。
+- `GET/POST/DELETE /medical-records/:id/images` — 患部写真・資料 PDF。
 - `GET/POST/PATCH/DELETE /medical-records/:id/checkups` — 定期健診記録。
 - `GET/PATCH /medical-records/:id/clinical-plan` — 身体検査所見・診断名。
+- `POST /medical-records/:id/billing-confirmation/confirm` — 会計を医師確認済みにする。
 
 ### 2.2 入院管理 (Hospitalization)
 - `GET /hospitalizations` — 入院中・予約患者一覧。
@@ -49,15 +52,16 @@
 - `GET /clinics/:clinic_id/owners/aggregations` — 累計売上・来院頻度ランキング。
 
 ### 2.4 LINE/Lステップ連携 (CRM)
-- `GET/PATCH /lstep-settings` — 連携状態・判定閾値設定。
+- `GET/PATCH /lstep-settings` — 連携状態・判定閾値の管理。
 - `GET /lstep/tags/summary` — タグ分布統計。
 - `GET /clinics/:clinic_id/lstep/delivery-monitor/logs` — 自動配信実行ログ。
 - `POST /clinics/:clinic_id/lstep/checkup-sync` — 健診タグ一括付与。
-- `PATCH /lstep/trigger-priorities` — 配信トリガー優先順位の設定。
 
 ---
 
 ## 3. エラーレスポンス
+
+システム共通の `RespondError` 形式を採用しています。
 
 ```json
 {

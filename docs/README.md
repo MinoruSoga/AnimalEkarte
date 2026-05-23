@@ -19,9 +19,9 @@
 | カテゴリ | ドキュメント | 概要 |
 |:---|:---|:---|
 | **技術設計** | [architecture.md](architecture.md) | 軽量レイヤードアーキテクチャの定義。 |
-| **データ** | [ERD.md](ERD.md) | データベース設計（全 **92 テーブル**・リレーション）。 |
+| **データ** | [ERD.md](ERD.md) | データベース設計（全 **95 テーブル**・リレーション）。 |
 | **セキュリティ**| [AUTH.md](AUTH.md) | RBAC 権限モデル（全 **31 リソース**）、マルチテナント隔離。 |
-| **UI/UX** | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Notion ライクなデザイン規約とデザイントークン。 |
+| **UI/UX** | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Notion ライクなデザイン規約とデザイントークン. |
 | **API** | [API_SPEC.md](API_SPEC.md) | バックエンド Go API の詳細リファレンス (v2.3)。 |
 | **データフロー** | [data-flow.md](data-flow.md) | リクエストの追跡（Request ID）と非同期同期の仕組み。 |
 
@@ -30,7 +30,7 @@
 ## 📱 業務・画面仕様
 
 - **[SPECIFICATION.md](SPECIFICATION.md)**: システム全体の機能要件と主要ビジネスフロー。
-- **[screens/README.md](screens/README.md)**: **【全 37 画面インデックス】** 各機能の詳細操作ガイド。
+- **[screens/README.md](screens/README.md)**: **【全 38 画面インデックス】** 各機能の詳細操作ガイド。
 - **[CASH_REGISTER_SPEC.md](CASH_REGISTER_SPEC.md)**: レジ締め・日次/月次売上集計の業務仕様。
 - **[CUSTOMER_AGGREGATION_SPEC.md](CUSTOMER_AGGREGATION_SPEC.md)**: 累計売上・来院頻度に基づく顧客分析ダッシュボード。
 
@@ -38,7 +38,7 @@
 
 ## 💬 LINE / Lステップ連携 (CRM)
 
-- **[line/lstep-integration.md](line/lstep-integration.md)**: **Lステップ戦略書**。CPM 判定、全 **15 種**の配信トリガー。
+- **[line/lstep-integration.md](line/lstep-integration.md)**: **Lステップ戦略書**。CPM 判定、全 15 種の配信トリガー。
 - **[line/setup.md](line/setup.md)**: LINE Developers Console および管理画面での初期セットアップ。
 - **[LINE_LSTEP_COST_ANALYSIS.md](LINE_LSTEP_COST_ANALYSIS.md)**: 外部配信コストと ROI の経済性分析。
 - **[line/reservation-spec.md](line/reservation-spec.md)**: 飼い主向け LINE 予約システムの機能と計算エンジン。
@@ -54,4 +54,4 @@
 
 ---
 
-**最新更新**: 2026-05-21 | **ステータス**: All Sync with Implementation (92 Tables / 31 Resources)
+**最新更新**: 2026-05-21 | **ステータス**: All Sync with Implementation (95 Tables / 31 Resources)

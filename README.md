@@ -4,7 +4,7 @@
 
 ---
 
-## 🎯 プロジェクト Town 規約 (MUST READ)
+## 🎯 プロジェクト規約 (MUST READ)
 
 本プロジェクトは、React 19 への完全移行およびバックエンドエラー処理の標準化を完了しています。開発および運用の際は、以下のドキュメントを最優先で参照してください。
 
@@ -51,13 +51,13 @@ make codegen
 
 ---
 
-## 📖 ドキュメント体系 (92 Tables / 31 Resources)
+## 📖 ドキュメント体系 (95 Tables / 31 Resources)
 
 | カテゴリ | 主要ドキュメント |
 |:---|:---|
 | **業務仕様** | [SPECIFICATION.md](docs/SPECIFICATION.md) / [screens/](docs/screens/) |
 | **機能詳細** | [Lステップ連携](docs/line/lstep-integration.md) / [会計・集計](docs/CASH_REGISTER_SPEC.md) / [顧客分析](docs/CUSTOMER_AGGREGATION_SPEC.md) |
-| **技術設計** | [Architecture](docs/architecture.md) / [ER図 (v31.17)](docs/ERD.md) / [認証・認可](docs/AUTH.md) |
+| **技術設計** | [Architecture](docs/architecture.md) / [ER図 (v31.18)](docs/ERD.md) / [認証・認可](docs/AUTH.md) |
 | **API** | [API_SPEC.md (v2.3)](docs/API_SPEC.md) / [openapi.yaml](docs/openapi.yaml) |
 | **運用・テスト** | [Deployment Hub](docs/infra/deploy/README.md) / [Manual Test Guide](docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md) |
 
