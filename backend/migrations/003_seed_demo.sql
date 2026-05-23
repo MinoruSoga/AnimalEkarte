@@ -1247,7 +1247,16 @@ INSERT INTO hospitalizations (id, clinic_id, owner_id, pet_id, hospitalization_t
     (4, 1, 4,  6,  'hotel',           '2026-05-25', '2026-05-28', 'reserved',   NULL, 1, '旅行中のホテル預かり。', 'フードはロイヤルカナンのみ', ''),
     (5, 1, 1,  1,  'hospitalization', '2026-05-30', '2026-06-04', 'reserved',   NULL, 1, '膝蓋骨脱臼手術予定。術前検査済み。', '怖がりなので静かな環境を希望', ''),
     (6, 1, 9,  11, 'hospitalization', '2026-05-15', '2026-05-22', 'admitted',   1,    2, '慢性腎臓病の集中治療。点滴管理中。', 'ペルシャ猫のため温度管理に注意', '5/15入院。毎日皮下補液実施。5/22現在状態安定。'),
-    (7, 1, 3,  4,  'hospitalization', '2026-03-15', '2026-03-18', 'discharged', NULL, 1, '急性胃腸炎による脱水治療。', 'チキンアレルギーあり', '3/15入院。点滴開始。3/18状態改善し退院。')
+    (7, 1, 3,  4,  'hospitalization', '2026-03-15', '2026-03-18', 'discharged', NULL, 1, '急性胃腸炎による脱水治療。', 'チキンアレルギーあり', '3/15入院。点滴開始。3/18状態改善し退院。'),
+    -- 追加: ID 8-15
+    (8, 1, 40, 50, 'hospitalization', '2026-05-21', '2026-05-25', 'admitted',   2,    1, '異物摂取による開腹手術後。', '安静にさせてほしい', '5/21手術。5/22現在自力採食なし。'),
+    (9, 1, 42, 52, 'hotel',           '2026-05-21', '2026-05-23', 'admitted',   NULL, 2, '引越しに伴う一時預かり。', '', '5/21入庫。元気食欲あり。'),
+    (10, 1, 44, 54, 'hospitalization', '2026-05-22', '2026-05-24', 'admitted',   3,    2, '喘息発作の集中管理。酸素室。', 'パニックになりやすい', '5/22朝、呼吸困難で入院。'),
+    (11, 1, 46, 56, 'hospitalization', '2026-05-10', '2026-05-22', 'admitted',   6,    1, '糖尿病のインスリン用量調整。', '性格は穏やか', '5/22退院予定。血糖値安定。'),
+    (12, 1, 48, 58, 'hotel',           '2026-05-22', '2026-05-24', 'reserved',   NULL, 1, '法事のため預かり。', '', ''),
+    (13, 1, 50, 60, 'hospitalization', '2026-05-18', '2026-05-23', 'admitted',   7,    2, '肝不全の集中治療。', '薬が苦手', '5/22点滴継続中。黄疸軽減。'),
+    (14, 1, 52, 62, 'hospitalization', '2026-05-22', '2026-05-25', 'admitted',   8,    1, '咬傷の感染症治療。', '他犬が苦手', '5/22排膿処置実施。'),
+    (15, 1, 54, 64, 'hotel',           '2026-05-26', '2026-05-28', 'reserved',   NULL, 1, '出張のため預かり。', '', '')
 ON CONFLICT (id) DO UPDATE SET
     updated_at            = now();
 
@@ -1261,9 +1270,20 @@ INSERT INTO care_plan_items (id, hospitalization_id, type, name, description, ti
     (2, 1, 'medicine',    'アモキシシリン',       '1回1錠、朝夕食後',       ARRAY['morning','night']::plan_timing[],       'active', '抗生剤。', 1,    NULL, NULL, 500, '投薬', 2),
     (3, 1, 'instruction', 'バイタルチェック',     '1日3回測定',             ARRAY['morning','noon','night']::plan_timing[], 'active', '異常値報告。', NULL, NULL, NULL, 0, '観察', 3),
     (4, 2, 'treatment',   '耳道洗浄',             '1日1回、朝に実施',       ARRAY['morning']::plan_timing[],               'completed', '左耳。', NULL, 4,    NULL, 2500, '処置', 1),
-    (5, 2, 'item',        '入院管理料',           '小型犬1日分',            ARRAY['morning']::plan_timing[],               'completed', '', NULL, NULL, 1,    3000, '入院', 2)
+    (5, 2, 'item',        '入院管理料',           '小型犬1日分',            ARRAY['morning']::plan_timing[],               'completed', '', NULL, NULL, 1,    3000, '入院', 2),
+    -- 追加: ID 6-15 (制約違反を修正: typeに応じたIDを付与)
+    (6, 8, 'instruction', '酸素濃度管理',         '25%維持',               ARRAY['morning','noon','night']::plan_timing[], 'active', '', NULL, NULL, NULL, 0, '観察', 1),
+    (7, 8, 'instruction', '術後創傷チェック',     '1日2回',               ARRAY['morning','night']::plan_timing[],       'active', '', NULL, NULL, NULL, 0, '処置', 2),
+    (8, 10, 'instruction', '酸素室管理',           '40%高濃度酸素',         ARRAY['morning','noon','night']::plan_timing[], 'active', '', NULL, NULL, NULL, 0, '観察', 1),
+    (9, 10, 'treatment',   'ネブライザー',         '1日3回',               ARRAY['morning','noon','night']::plan_timing[], 'active', '', NULL, 5,    NULL, 1500, '処置', 2),
+    (10, 11, 'instruction', '血糖値測定',           '食前30分',             ARRAY['morning','night']::plan_timing[],       'active', '', NULL, NULL, NULL, 1000, '検査', 1),
+    (11, 11, 'medicine',    'インスリン投与',       '指定単位を皮下注射',    ARRAY['morning','night']::plan_timing[],       'active', '', 1,    NULL, NULL, 500, '投薬', 2),
+    (12, 13, 'instruction', '尿量確認',             '都度記録',             ARRAY['morning','noon','night']::plan_timing[], 'active', '', NULL, NULL, NULL, 0, '観察', 1),
+    (13, 13, 'medicine',    '強肝剤点滴',           '24時間持続点滴',       ARRAY['morning']::plan_timing[],               'active', '', 1,    NULL, NULL, 2000, '投薬', 2),
+    (14, 14, 'treatment',   '創部洗浄',             '1日1回',               ARRAY['morning']::plan_timing[],               'active', '', NULL, 4,    NULL, 1000, '処置', 1),
+    (15, 14, 'medicine',    '抗生剤点滴',           '1日2回',               ARRAY['morning','night']::plan_timing[],       'active', '', 1,    NULL, NULL, 1000, '投薬', 2)
 ON CONFLICT (id) DO UPDATE SET
-    updated_at = now();
+    updated_at            = now();
 
 SELECT setval(pg_get_serial_sequence('care_plan_items', 'id'), (SELECT MAX(id) FROM care_plan_items));
 
@@ -1351,7 +1371,25 @@ INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, d
     (70, 1, 'R-2026-030', '2026-05-22', 16, 18, 2, 'finalized'),
     (71, 1, 'R-2026-031', '2026-05-22', 17, 19, 1, 'finalized'),
     (72, 1, 'R-2026-032', '2026-05-22', 18, 20, 2, 'finalized'),
-    (73, 1, 'R-2026-033', '2026-05-22', 19, 21, 1, 'finalized')
+    (73, 1, 'R-2026-033', '2026-05-22', 19, 21, 1, 'finalized'),
+    -- 追加: ID 74-90 (本日分カルテ拡充)
+    (74, 1, 'R-2026-034', '2026-05-22', 20, 22, 2, 'finalized'),
+    (75, 1, 'R-2026-035', '2026-05-22', 21, 25, 1, 'finalized'),
+    (76, 1, 'R-2026-036', '2026-05-22', 22, 27, 2, 'draft'),
+    (77, 1, 'R-2026-037', '2026-05-22', 39, 49, 1, 'draft'),
+    (78, 1, 'R-2026-038', '2026-05-22', 40, 50, 2, 'finalized'),
+    (79, 1, 'R-2026-039', '2026-05-22', 41, 51, 1, 'finalized'),
+    (80, 1, 'R-2026-040', '2026-05-22', 42, 52, 2, 'draft'),
+    (81, 1, 'R-2026-041', '2026-05-22', 43, 53, 1, 'finalized'),
+    (82, 1, 'R-2026-042', '2026-05-22', 44, 54, 2, 'finalized'),
+    (83, 1, 'R-2026-043', '2026-05-22', 45, 55, 1, 'draft'),
+    (84, 1, 'R-2026-044', '2026-05-22', 46, 56, 2, 'finalized'),
+    (85, 1, 'R-2026-045', '2026-05-22', 47, 57, 1, 'finalized'),
+    (86, 1, 'R-2026-046', '2026-05-22', 48, 58, 2, 'draft'),
+    (87, 1, 'R-2026-047', '2026-05-22', 49, 59, 1, 'finalized'),
+    (88, 1, 'R-2026-048', '2026-05-22', 50, 60, 2, 'finalized'),
+    (89, 1, 'R-2026-049', '2026-05-22', 51, 61, 1, 'draft'),
+    (90, 1, 'R-2026-050', '2026-05-22', 52, 62, 2, 'finalized')
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));

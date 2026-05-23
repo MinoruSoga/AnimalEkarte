@@ -238,7 +238,11 @@ export function DailyAccountingTab() {
                       {formatCurrency(total)}
                     </TableCell>
                     <TableCell className={`text-center text-sm py-2 whitespace-nowrap ${C.text60}`}>
-                      {a.payment ? (PAYMENT_METHOD_LABELS[a.payment.method] ?? a.payment.method) : "-"}
+                      {a.paymentSplits && a.paymentSplits.length > 1
+                        ? a.paymentSplits.map((s) => PAYMENT_METHOD_LABELS[s.method] ?? s.method).join(" / ")
+                        : a.payment
+                          ? (PAYMENT_METHOD_LABELS[a.payment.method] ?? a.payment.method)
+                          : "-"}
                     </TableCell>
                   </TableRow>
                 ))}

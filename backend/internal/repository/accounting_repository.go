@@ -255,7 +255,7 @@ func (r *accountingRepository) SavePaymentSplits(ctx context.Context, splits []m
 		return nil
 	}
 	billingID := splits[0].BillingID
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("billing_id = ?", billingID).Delete(&model.PaymentSplit{}).Error; err != nil {
 			return apperrors.FromGORM(err, "payment_split", fmt.Sprintf("billing_id=%d", billingID))
 		}
@@ -263,7 +263,10 @@ func (r *accountingRepository) SavePaymentSplits(ctx context.Context, splits []m
 			return apperrors.FromGORM(err, "payment_split", fmt.Sprintf("billing_id=%d", billingID))
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to save payment splits")
+	}
+	return nil
 }
 
 // FindUnpaidByBilling は未納 (status=waiting かつ scheduled_date < baseDate) の billings を

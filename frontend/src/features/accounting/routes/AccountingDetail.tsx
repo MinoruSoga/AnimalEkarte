@@ -467,15 +467,25 @@ const InsuranceCard = memo(function InsuranceCard({
 
 // ── 決済カード ──────────────────────────────────────────
 
+interface PaymentSplitDraft {
+  method: PaymentMethod;
+  amount: string;
+  receivedAmount: string; // 現金のみ意味あり
+}
+
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: "現金",
+  credit_card: "カード",
+  electronic_money: "電子マネー",
+};
+
+const PAYMENT_METHODS: PaymentMethod[] = ["cash", "credit_card", "electronic_money"];
+
 interface PaymentCardProps {
   billingAmount: number;
-  changeAmount: number;
-  paymentMethod: string;
-  onPaymentMethodChange: (v: string) => void;
-  receivedAmount: string;
-  onReceivedAmountChange: (v: string) => void;
+  paymentSplits: PaymentSplitDraft[];
+  onSplitsChange: (splits: PaymentSplitDraft[]) => void;
   isCompleted: boolean;
-  id?: string;
   canEdit: boolean;
   canCreate: boolean;
   isEditMode: boolean;
@@ -483,18 +493,48 @@ interface PaymentCardProps {
 
 const PaymentCard = memo(function PaymentCard({
   billingAmount,
-  changeAmount,
-  paymentMethod,
-  onPaymentMethodChange,
-  receivedAmount,
-  onReceivedAmountChange,
+  paymentSplits,
+  onSplitsChange,
   isCompleted,
-  id,
   canEdit,
   canCreate,
   isEditMode,
 }: PaymentCardProps) {
   const canSubmit = isEditMode ? canEdit : canCreate;
+
+  const splitTotal = paymentSplits.reduce((sum, s) => sum + (parseInt(s.amount || "0", 10)), 0);
+  const remaining = billingAmount - splitTotal;
+
+  const isDisabled = remaining !== 0 || paymentSplits.some((s) => {
+    if (!s.amount || parseInt(s.amount, 10) <= 0) return true;
+    if (s.method === "cash") {
+      const received = parseInt(s.receivedAmount || "0", 10);
+      return received < parseInt(s.amount, 10);
+    }
+    return false;
+  });
+
+  const handleMethodChange = useCallback((idx: number, method: PaymentMethod) => {
+    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, method } : s));
+  }, [paymentSplits, onSplitsChange]);
+
+  const handleAmountChange = useCallback((idx: number, value: string) => {
+    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, amount: value } : s));
+  }, [paymentSplits, onSplitsChange]);
+
+  const handleReceivedChange = useCallback((idx: number, value: string) => {
+    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, receivedAmount: value } : s));
+  }, [paymentSplits, onSplitsChange]);
+
+  const handleRemoveSplit = useCallback((idx: number) => {
+    onSplitsChange(paymentSplits.filter((_, i) => i !== idx));
+  }, [paymentSplits, onSplitsChange]);
+
+  const handleAddSplit = useCallback(() => {
+    const rem = billingAmount - paymentSplits.reduce((sum, s) => sum + (parseInt(s.amount || "0", 10)), 0);
+    onSplitsChange([...paymentSplits, { method: "cash", amount: rem > 0 ? rem.toString() : "", receivedAmount: "" }]);
+  }, [paymentSplits, onSplitsChange, billingAmount]);
+
   return (
     <Card className="flex-1">
       <CardHeader className="py-3 px-4 border-b">
@@ -512,109 +552,131 @@ const PaymentCard = memo(function PaymentCard({
 
         {canEdit ? (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>支払方法</Label>
-              <div className="grid grid-cols-3 gap-2">
-                <Button
-                  type="button"
-                  variant={paymentMethod === "cash" ? "default" : "outline"}
-                  onClick={() => onPaymentMethodChange("cash")}
-                  className="h-12"
-                >
-                  現金
-                </Button>
-                <Button
-                  type="button"
-                  variant={paymentMethod === "credit_card" ? "default" : "outline"}
-                  onClick={() => onPaymentMethodChange("credit_card")}
-                  className="h-12"
-                >
-                  カード
-                </Button>
-                <Button
-                  type="button"
-                  variant={paymentMethod === "electronic_money" ? "default" : "outline"}
-                  onClick={() => onPaymentMethodChange("electronic_money")}
-                  className="h-12"
-                >
-                  電子マネー
-                </Button>
-              </div>
-            </div>
+            {paymentSplits.map((split, idx) => {
+              const parsedAmount = parseInt(split.amount || "0", 10);
+              const parsedReceived = parseInt(split.receivedAmount || "0", 10);
+              const splitChange = split.method === "cash" ? parsedReceived - parsedAmount : 0;
 
-            <div className="space-y-2">
-              <Label>お預かり金額</Label>
-              <NumberInput
-                id={id}
-                className="h-14 text-xl font-bold"
-                value={receivedAmount}
-                onChange={onReceivedAmountChange}
-                suffix="円"
-                align="right"
-              />
-              <div className="flex gap-2 justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onReceivedAmountChange(billingAmount.toString())}
-                >
-                  丁度
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    onReceivedAmountChange(
-                      (Math.ceil(billingAmount / 1000) * 1000).toString(),
-                    )
-                  }
-                >
-                  千円単位
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    onReceivedAmountChange(
-                      (Math.ceil(billingAmount / 10000) * 10000).toString(),
-                    )
-                  }
-                >
-                  一万単位
-                </Button>
-              </div>
-            </div>
+              return (
+                <div key={idx} className="border rounded-lg p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium">支払方法</Label>
+                    {paymentSplits.length > 1 ? (
+                      <DeleteIconButton
+                        onClick={() => handleRemoveSplit(idx)}
+                        aria-label="この支払いを削除"
+                      />
+                    ) : null}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {PAYMENT_METHODS.map((m) => (
+                      <Button
+                        key={m}
+                        type="button"
+                        variant={split.method === m ? "default" : "outline"}
+                        onClick={() => handleMethodChange(idx, m)}
+                        className="h-10 text-sm"
+                      >
+                        {PAYMENT_METHOD_LABELS[m]}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">金額</Label>
+                    <NumberInput
+                      className="h-12 text-lg font-bold"
+                      value={split.amount}
+                      onChange={(v) => handleAmountChange(idx, v)}
+                      suffix="円"
+                      align="right"
+                    />
+                  </div>
+                  {split.method === "cash" ? (
+                    <>
+                      <div className="space-y-1">
+                        <Label className="text-xs">お預かり金額</Label>
+                        <NumberInput
+                          id={idx === 0 ? "receivedAmount" : undefined}
+                          className="h-12 text-lg font-bold"
+                          value={split.receivedAmount}
+                          onChange={(v) => handleReceivedChange(idx, v)}
+                          suffix="円"
+                          align="right"
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReceivedChange(idx, parsedAmount.toString())}
+                          >
+                            丁度
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / 1000) * 1000).toString())}
+                          >
+                            千円単位
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / 10000) * 10000).toString())}
+                          >
+                            一万単位
+                          </Button>
+                        </div>
+                      </div>
+                      <div className={`${C.bgPrimary5} p-3 rounded-lg flex justify-between items-center`}>
+                        <span className={`text-sm font-bold ${C.text60}`}>お釣り</span>
+                        <span className={`text-xl font-bold ${splitChange < 0 ? C.danger : C.text}`}>
+                          ¥{splitChange.toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              );
+            })}
+
+            {remaining !== 0 ? (
+              <p className={`text-xs text-right ${remaining < 0 ? C.danger : C.text50}`}>
+                {remaining > 0
+                  ? `残り ¥${remaining.toLocaleString()} 未入力`
+                  : `¥${Math.abs(remaining).toLocaleString()} 超過`}
+              </p>
+            ) : null}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAddSplit}
+              className="w-full"
+            >
+              <Plus className={`mr-1 ${ICON.action}`} />
+              支払方法を追加
+            </Button>
           </div>
         ) : (
-          <div className="space-y-2">
-            <Label>支払方法</Label>
-            <p className="text-sm font-medium">
-              {paymentMethod === "cash" ? "現金" : paymentMethod === "credit_card" ? "カード" : paymentMethod === "electronic_money" ? "電子マネー" : "-"}
-            </p>
+          <div className="space-y-3">
+            {paymentSplits.map((split, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm">
+                <span className={C.text50}>{PAYMENT_METHOD_LABELS[split.method] ?? split.method}</span>
+                <span className="font-medium">¥{parseInt(split.amount || "0", 10).toLocaleString()}</span>
+              </div>
+            ))}
           </div>
         )}
-
-        <div className={`${C.bgPrimary5} p-4 rounded-lg flex justify-between items-center`}>
-          <span className={`font-bold ${C.text60}`}>お釣り</span>
-          <span
-            className={`text-2xl font-bold ${changeAmount < 0 ? C.danger : C.text}`}
-          >
-            ¥{changeAmount.toLocaleString()}
-          </span>
-        </div>
 
         {canSubmit ? (
           <SubmitButton
             className="w-full h-14 text-lg font-bold mt-4"
             size="lg"
-            // BUG-371: 完了済でも edit 権限があれば修正保存可能。isCompleted は非 disable
-            disabled={
-              changeAmount < 0 ||
-              !receivedAmount
-            }
+            disabled={isDisabled}
             loadingText="処理中..."
           >
             <Save className={`mr-2 ${ICON.action}`} />
@@ -865,14 +927,33 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   // 保険・決済の状態（API データ取得後に同期）
   const [hasInsurance, setHasInsurance] = useState(() => (baseAccounting?.payment?.insuranceAmount ?? 0) < 0);
   const [insuranceRatio, setInsuranceRatio] = useState(() => baseAccounting?.payment?.insuranceRatio?.toString() ?? "0.5");
-  const [receivedAmount, setReceivedAmount] = useState(() => baseAccounting?.payment?.receivedAmount?.toString() ?? "");
-  const [paymentMethod, setPaymentMethod] = useState(() => baseAccounting?.payment?.method ?? "cash");
+
+  const initPaymentSplits = (): PaymentSplitDraft[] => {
+    const splits = baseAccounting?.paymentSplits;
+    if (splits && splits.length > 0) {
+      return splits.map((s) => ({
+        method: s.method,
+        amount: s.amount.toString(),
+        receivedAmount: s.receivedAmount > 0 ? s.receivedAmount.toString() : "",
+      }));
+    }
+    const payment = baseAccounting?.payment;
+    if (payment) {
+      return [{
+        method: payment.method,
+        amount: payment.billingAmount.toString(),
+        receivedAmount: payment.receivedAmount > 0 ? payment.receivedAmount.toString() : "",
+      }];
+    }
+    return [{ method: "cash", amount: "", receivedAmount: "" }];
+  };
+
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplitDraft[]>(initPaymentSplits);
 
   // 金額計算
   const calculation = useMemo(() => {
     if (!accounting) return null;
 
-    // 共通ユーティリティによる計算
     const billingResult = calculateBillingTotals(
       accounting.items,
       0, // ownerDiscountRate (accounting detail supports specific line discounts instead)
@@ -881,19 +962,14 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
       hasInsurance ? parseFloat(insuranceRatio) : 0
     );
 
-    const received = parseInt(receivedAmount || "0", 10);
-    const changeAmount = received > billingResult.billingAmount ? received - billingResult.billingAmount : 0;
-
     return {
       subtotal: billingResult.subtotal,
       taxTotal: billingResult.tax,
       totalAmount: billingResult.total,
       insuranceAmount: billingResult.insuranceAmount,
       billingAmount: billingResult.billingAmount,
-      received,
-      changeAmount,
     };
-  }, [accounting, hasInsurance, insuranceRatio, receivedAmount]);
+  }, [accounting, hasInsurance, insuranceRatio]);
 
   // 追加アイテム用State
   const [newItemOpen, setNewItemOpen] = useState(false);
@@ -930,6 +1006,30 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
       }
       editConfirmedRef.current = false;
 
+      // 決済 splits をリクエスト形式に変換
+      const builtSplits = paymentSplits
+        .filter((s) => s.amount && parseInt(s.amount, 10) > 0)
+        .map((s) => {
+          const amount = parseInt(s.amount, 10);
+          const received = s.method === "cash" ? parseInt(s.receivedAmount || "0", 10) : 0;
+          return {
+            method: s.method as PaymentMethod,
+            amount,
+            received_amount: received,
+            change_amount: s.method === "cash" ? Math.max(0, received - amount) : 0,
+          };
+        });
+
+      // 代表支払方法 (cash > credit_card > electronic_money)
+      const repMethod: PaymentMethod =
+        builtSplits.some((s) => s.method === "cash") ? "cash" :
+        builtSplits.some((s) => s.method === "credit_card") ? "credit_card" :
+        "electronic_money";
+
+      const cashSplit = builtSplits.find((s) => s.method === "cash");
+      const totalReceived = cashSplit ? cashSplit.received_amount : calculation.billingAmount;
+      const totalChange = cashSplit ? cashSplit.change_amount : 0;
+
       const paymentInfo: PaymentInfo = {
         subtotal: calculation.subtotal,
         taxTotal: calculation.taxTotal,
@@ -937,9 +1037,9 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
         insuranceAmount: calculation.insuranceAmount,
         discountAmount: 0,
         billingAmount: calculation.billingAmount,
-        receivedAmount: calculation.received,
-        changeAmount: calculation.changeAmount,
-        method: paymentMethod as PaymentMethod,
+        receivedAmount: totalReceived,
+        changeAmount: totalChange,
+        method: repMethod,
         insuranceRatio: hasInsurance ? parseFloat(insuranceRatio) : undefined,
       };
 
@@ -979,9 +1079,10 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             insurance_amount:
               calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
             billing_amount: calculation.billingAmount,
-            received_amount: calculation.received,
-            change_amount: calculation.changeAmount,
-            payment_method: paymentMethod as PaymentMethod,
+            received_amount: totalReceived,
+            change_amount: totalChange,
+            payment_method: repMethod,
+            payment_splits: builtSplits,
             completed_at: new Date().toISOString(),
           });
           queryClient.invalidateQueries({ queryKey: ["accountings"] });
@@ -998,9 +1099,10 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             insurance_amount:
               calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
             billing_amount: calculation.billingAmount,
-            received_amount: calculation.received,
-            change_amount: calculation.changeAmount,
-            payment_method: paymentMethod as PaymentMethod,
+            received_amount: totalReceived,
+            change_amount: totalChange,
+            payment_method: repMethod,
+            payment_splits: builtSplits,
             completed_at: new Date().toISOString(),
           });
           setCompletedPayment(paymentInfo);
@@ -1135,10 +1237,6 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     [id, queryClient],
   );
 
-  const handlePaymentMethodChange = useCallback((v: string) => {
-    setPaymentMethod(v as PaymentMethod);
-  }, []);
-
   const handlePrint = useCallback(() => {
     setPreviewOpen(true);
   }, []);
@@ -1235,13 +1333,9 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             />
 
             <PaymentCard
-              id="receivedAmount"
               billingAmount={calculation.billingAmount}
-              changeAmount={calculation.changeAmount}
-              paymentMethod={paymentMethod}
-              onPaymentMethodChange={handlePaymentMethodChange}
-              receivedAmount={receivedAmount}
-              onReceivedAmountChange={setReceivedAmount}
+              paymentSplits={paymentSplits}
+              onSplitsChange={setPaymentSplits}
               isCompleted={accounting.status === "completed"}
               canEdit={canEdit}
               canCreate={canCreate}

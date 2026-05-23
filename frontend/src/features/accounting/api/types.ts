@@ -42,6 +42,14 @@ export interface CreateAccountingRequest {
   memo?: string;
 }
 
+export interface PaymentSplitRequest {
+  method: PaymentMethod;
+  payment_method_id?: number;
+  amount: number;
+  received_amount?: number;
+  change_amount?: number;
+}
+
 export interface UpdateAccountingRequest {
   status?: BillingStatus;
   subtotal?: number | null;
@@ -55,6 +63,7 @@ export interface UpdateAccountingRequest {
   received_amount?: number | null;
   change_amount?: number | null;
   payment_method?: PaymentMethod;
+  payment_splits?: PaymentSplitRequest[];
   completed_at?: string | null;
   memo?: string;
 }
