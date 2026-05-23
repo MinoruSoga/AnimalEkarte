@@ -40,6 +40,7 @@ afterEach(() => {
 // ─────────────────────────────────────────────────────────────
 
 describe("ReservationFormModal — 初期値セット (Issue #52)", () => {
+  // Calendar(react-day-picker) + Radix Popover/Select の初回 render が Docker jsdom で 5s+ かかるため 15s に設定
   it("isOpen=true + initialData.start 設定済みのとき「日付を選択」プレースホルダーが消える", () => {
     server.use(...silentApiHandlers);
 
@@ -68,7 +69,7 @@ describe("ReservationFormModal — 初期値セット (Issue #52)", () => {
 
     // initialData.start が formData に反映されていれば「日付を選択」は表示されない
     expect(screen.queryByText("日付を選択")).not.toBeInTheDocument();
-  });
+  }, 15000);
 
   it("isOpen=true + initialData.start=14:30 のとき開始時刻セレクトに 14:30 が表示される", () => {
     server.use(...silentApiHandlers);
@@ -100,7 +101,7 @@ describe("ReservationFormModal — 初期値セット (Issue #52)", () => {
     const triggers = screen.getAllByRole("combobox");
     const timeLabels = triggers.map((t) => t.textContent ?? "");
     expect(timeLabels.some((label) => label.includes("14:30"))).toBe(true);
-  });
+  }, 15000);
 
   it("isOpen=true + initialData=null のとき今日 10:00 がデフォルトでセットされ「日付を選択」は表示されない", () => {
     server.use(...silentApiHandlers);
@@ -123,7 +124,7 @@ describe("ReservationFormModal — 初期値セット (Issue #52)", () => {
     const triggers = screen.getAllByRole("combobox");
     const timeLabels = triggers.map((t) => t.textContent ?? "");
     expect(timeLabels.some((label) => label.includes("10:00"))).toBe(true);
-  });
+  }, 15000);
 });
 
 // ─────────────────────────────────────────────────────────────
