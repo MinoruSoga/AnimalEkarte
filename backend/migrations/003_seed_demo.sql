@@ -1686,6 +1686,45 @@ ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('estimate_items', 'id'), (SELECT MAX(id) FROM estimate_items));
 
+
+-- -----------------------------------------------------------------------------
+-- 13e. 慢性疾患・レジ締め・マニュアル・予約詳細（拡充）
+-- -----------------------------------------------------------------------------
+
+-- ペットの慢性疾患
+INSERT INTO pet_chronic_conditions (clinic_id, pet_id, condition_code, condition_name, diagnosed_at, notes) VALUES
+    (1, 1,  'ATOPY',    'アトピー性皮膚炎', '2023-04-15', '通年性の痒み。ステロイド・シャンプーで維持。'),
+    (1, 11, 'CKD',      '慢性腎臓病',     '2025-11-10', 'ステージ2。療法食と皮下補液継続。'),
+    (1, 13, 'OTITIS',   '外耳炎（再発性）', '2026-01-20', '左耳が特に悪化しやすい。'),
+    (1, 5,  'DIABETES', '糖尿病',         '2025-06-01', 'インスリン投与中。'),
+    (1, 4,  'LUXATION', '膝蓋骨脱臼',     '2024-08-20', 'グレード2。体重管理注意。')
+ON CONFLICT DO NOTHING;
+
+-- 過去のレジ締め履歴（昨日分）
+INSERT INTO cash_register_closes (clinic_id, close_date, period, theoretical_cash, actual_cash, cash_difference, category_breakdown, memo, closed_by) VALUES
+    (1, '2026-05-21', 'am', 45000, 45000, 0, '{"examination": 12000, "vaccine": 15000, "medicine": 18000}', '過不足なし。', 1),
+    (1, '2026-05-21', 'pm', 32000, 31950, -50, '{"examination": 8000, "surgery": 20000, "food": 4000}', '50円不足（釣銭ミス疑い）。', 2)
+ON CONFLICT (clinic_id, close_date, period) DO NOTHING;
+
+-- マニュアル記事
+INSERT INTO manual_articles (category, slug, title, order_value, section, body_markdown, updated_by_staff_id) VALUES
+    ('workflows', 'reception-flow', '受付フロー', 1, '基本操作', '1. 来院された飼い主様の診察券を受け取ります。\n2. 予約の有無を確認し、電子カルテを開きます。\n3. 受付ステータスを「受付済」に変更します。', 1),
+    ('screens', 'medical-record-usage', 'カルテ入力のコツ', 2, '診察', '## テンプレート活用\n右上の「テンプレート」ボタンから、よく使う処置セットを呼び出せます。', 1),
+    ('workflows', 'inventory-management', '在庫管理ルール', 3, '管理', '薬品の在庫が残り5個になったら、発注ステータスを更新してください。', 2)
+ON CONFLICT (category, slug) DO NOTHING;
+
+-- 予約トリミングオプションの紐付け（本日分の一部）
+INSERT INTO appointment_trimming_options (appointment_id, option_id, sort_order) VALUES
+    (227, 1, 1), (227, 2, 2), -- サマーカット + 爪切り + 耳掃除
+    (228, 1, 1),              -- シャンプーコース + 爪切り
+    (248, 1, 1), (248, 2, 2), (248, 4, 3) -- トリミング + 爪・耳・肛門腺
+ON CONFLICT (appointment_id, option_id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('pet_chronic_conditions', 'id'), (SELECT MAX(id) FROM pet_chronic_conditions));
+SELECT setval(pg_get_serial_sequence('cash_register_closes', 'id'), (SELECT MAX(id) FROM cash_register_closes));
+SELECT setval(pg_get_serial_sequence('manual_articles', 'id'), (SELECT MAX(id) FROM manual_articles));
+SELECT setval(pg_get_serial_sequence('appointment_trimming_options', 'id'), (SELECT MAX(id) FROM appointment_trimming_options));
+
 -- 返金デモ（billing_id=8 避妊手術の術前重複請求分、PM 区分内）
 INSERT INTO billing_refunds (id, clinic_id, billing_id, amount, reason, refunded_by, refunded_at) VALUES
     (4, 1, 8, 2750, '術前検査費用の重複請求による部分返金', 1, '2026-05-22 17:00:00+09')

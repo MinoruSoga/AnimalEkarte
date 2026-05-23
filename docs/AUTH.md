@@ -40,8 +40,7 @@
 | **会計・経営** | `accounting`, `cash-register-close`, `accounting-reports`, `discount`, `closing-settings`, `master-payment-method` | 会計、レジ締め、売上レポート、値引操作、締め時間設定、支払方法。 |
 | **物流・管理** | `inventory`, `estimates`, `shifts`, `hospital-settings` | 在庫、見積書、シフト、医院基本設定。 |
 | **マスタ設定** | `master-animal-species`, `master-medical`, `master-reservation-type`, `master-hospitalization`, `master-trimming`, `master-permission`, `master-staff`, `master-insurance`, `master-merchandise` | 各種定義データの管理。 |
-| **外部連携** | `lstep-analytics`, `lstep-csv-import` | CRM 分析、CSV インポート履歴。 |
-| **その他** | `manual-edit` | 取扱説明書の編集権限。 |
+| **CRM/マニュアル** | `lstep-analytics`, `lstep-csv-import`, `manual-edit` | CRM 分析、CSV インポート、マニュアル編集権限。 |
 
 ---
 
