@@ -214,6 +214,38 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:  "正常: 3種混在支払い → ByPaymentMethod が支払方法別に正しく集計される",
+			year:  2026,
+			month: 5,
+			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
+				return &repository.MonthlyReportResult{
+					PaymentRows: []repository.MonthlyPaymentRow{
+						{Date: "2026-05-01", PaymentMethodID: nil, Amount: 5000},
+						{Date: "2026-05-01", PaymentMethodID: ptrUint64(1), Amount: 3000},
+						{Date: "2026-05-02", PaymentMethodID: ptrUint64(2), Amount: 2000},
+					},
+					GrandTotal:   10000,
+					BillingCount: 3,
+				}, nil
+			},
+			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return []model.PaymentMethodMaster{
+					{ID: 1, Name: "クレジット"},
+					{ID: 2, Name: "電子マネー"},
+				}, nil
+			},
+			findByYearMonthFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
+				return []model.ClinicHoliday{}, nil
+			},
+			checkResult: func(t *testing.T, got *MonthlyReportResponse) {
+				assert.Equal(t, int64(5000), got.Summary.ByPaymentMethod["現金"])
+				assert.Equal(t, int64(3000), got.Summary.ByPaymentMethod["クレジット"])
+				assert.Equal(t, int64(2000), got.Summary.ByPaymentMethod["電子マネー"])
+				assert.Equal(t, int64(10000), got.Summary.NetAmount)
+				assert.Equal(t, int64(3), got.Summary.TotalBillings)
+			},
+		},
+		{
 			name:  "正常: 軽減税率（8%）データ → Reduced に集計される",
 			year:  2026,
 			month: 4,

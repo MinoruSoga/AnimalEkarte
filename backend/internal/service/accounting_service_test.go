@@ -20,6 +20,7 @@ type mockAccountingRepository struct {
 	createFn            func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	updateFieldsFn      func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	savePaymentSplitsFn func(ctx context.Context, splits []model.PaymentSplit) error
+	getDailySummaryFn   func(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error)
 }
 
 func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
@@ -61,7 +62,10 @@ func (m *mockAccountingRepository) FindUnpaidByOwner(_ context.Context, _ uint64
 	return nil, 0, repository.UnpaidSummary{}, nil
 }
 
-func (m *mockAccountingRepository) GetDailySummary(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
+func (m *mockAccountingRepository) GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error) {
+	if m.getDailySummaryFn != nil {
+		return m.getDailySummaryFn(ctx, clinicID, date)
+	}
 	return &repository.DailySummaryResult{PaymentTotals: []repository.PaymentMethodTotal{}, CategoryTotals: []repository.CategoryTotal{}}, nil
 }
 
@@ -773,4 +777,104 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 
 	// リロード後の billing に PaymentSplits が含まれることを確認
 	assert.Len(t, result.PaymentSplits, 3)
+}
+
+// TestAccountingService_GetDailySummary は日次集計取得ロジックを検証する。
+func TestAccountingService_GetDailySummary(t *testing.T) {
+	tests := []struct {
+		name              string
+		dateStr           string
+		getDailySummaryFn func(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error)
+		wantErr           bool
+		wantErrIs         error
+		checkResult       func(t *testing.T, got *repository.DailySummaryResult)
+	}{
+		{
+			name:      "エラー: 不正な日付文字列 → ErrInvalidInput",
+			dateStr:   "not-a-date",
+			wantErr:   true,
+			wantErrIs: apperrors.ErrInvalidInput,
+		},
+		{
+			name:    "エラー: repo がエラーを返す → ラップされたエラー",
+			dateStr: "2026-05-01",
+			getDailySummaryFn: func(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
+				return nil, errors.New("db error")
+			},
+			wantErr: true,
+		},
+		{
+			name:    "正常: 空文字列 → today をデフォルト使用、エラーなし",
+			dateStr: "",
+			getDailySummaryFn: func(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
+				return &repository.DailySummaryResult{
+					PaymentTotals:  []repository.PaymentMethodTotal{},
+					CategoryTotals: []repository.CategoryTotal{},
+					BillingCount:   0,
+					GrandTotal:     0,
+				}, nil
+			},
+			checkResult: func(t *testing.T, got *repository.DailySummaryResult) {
+				assert.NotNil(t, got)
+				assert.Equal(t, int64(0), got.GrandTotal)
+			},
+		},
+		{
+			name:    "正常: 3種混在支払い → PaymentTotals が支払方法別に正しく返される",
+			dateStr: "2026-05-01",
+			getDailySummaryFn: func(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
+				return &repository.DailySummaryResult{
+					PaymentTotals: []repository.PaymentMethodTotal{
+						{Method: "現金", Total: 5000},
+						{Method: "クレジットカード", Total: 3000},
+						{Method: "電子マネー", Total: 2000},
+					},
+					CategoryTotals: []repository.CategoryTotal{
+						{Category: "診察", Total: 10000},
+					},
+					BillingCount: 3,
+					GrandTotal:   10000,
+				}, nil
+			},
+			checkResult: func(t *testing.T, got *repository.DailySummaryResult) {
+				assert.Len(t, got.PaymentTotals, 3)
+				assert.Equal(t, "現金", got.PaymentTotals[0].Method)
+				assert.Equal(t, int64(5000), got.PaymentTotals[0].Total)
+				assert.Equal(t, "クレジットカード", got.PaymentTotals[1].Method)
+				assert.Equal(t, int64(3000), got.PaymentTotals[1].Total)
+				assert.Equal(t, "電子マネー", got.PaymentTotals[2].Method)
+				assert.Equal(t, int64(2000), got.PaymentTotals[2].Total)
+				assert.Len(t, got.CategoryTotals, 1)
+				assert.Equal(t, "診察", got.CategoryTotals[0].Category)
+				assert.Equal(t, int64(10000), got.CategoryTotals[0].Total)
+				assert.Equal(t, int64(3), got.BillingCount)
+				assert.Equal(t, int64(10000), got.GrandTotal)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockAccountingRepository{
+				getDailySummaryFn: tt.getDailySummaryFn,
+			}
+			svc := NewAccountingService(repo)
+
+			got, err := svc.GetDailySummary(context.Background(), 1, tt.dateStr)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantErrIs != nil {
+					assert.True(t, errors.Is(err, tt.wantErrIs), "want errors.Is(%v), got %v", tt.wantErrIs, err)
+				}
+				assert.Nil(t, got)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, got)
+			if tt.checkResult != nil {
+				tt.checkResult(t, got)
+			}
+		})
+	}
 }
