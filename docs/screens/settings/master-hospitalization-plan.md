@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面 of Purpose**: 入院治療やペットホテルの基本料金体系、および初期ケアセットの管理。
-- **URLパターン**: `/settings/masters/hospitalization-plans`
+- **URLパターン**: `/settings/hospitalization`
 - **アクセス権限**: 設備マスタ管理権限が必要（`ResourceMasterHospitalization`）
 
 ---

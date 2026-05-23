@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: 日次および月次の売上集計に使用する境界時刻、休診日、および特別な集計期間の管理。
-- **URLパターン**: `/settings/masters/closing-time`
+- **URLパターン**: `/settings/closing-time`
 - **アクセス権限**: 医院管理者権限が必要（`ResourceHospitalSettings`）
 
 ---

@@ -94,6 +94,7 @@ export interface Billing {
   items?: BillingItem[];
   payments?: Payment[];
   refunds?: BillingRefund[];
+  payment_splits?: PaymentSplit[];
 }
 export interface BillingItem {
   id: number /* uint64 */;
@@ -129,6 +130,26 @@ export interface Payment {
   paid_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
+  /**
+   * Relations
+   */
+  paid_by_staff?: Staff;
+}
+/**
+ * PaymentSplit は1会計に対する支払い手段ごとの内訳を表す。
+ * 混在会計では複数行存在する。delete-then-recreate パターンで管理する（soft-delete なし）。
+ */
+export interface PaymentSplit {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  billing_id: number /* uint64 */;
+  method: PaymentMethod;
+  payment_method_id?: number /* uint64 */;
+  amount: number /* int64 */;
+  received_amount: number /* int64 */;
+  change_amount: number /* int64 */;
+  paid_by?: number /* uint64 */;
+  created_at: string;
   /**
    * Relations
    */

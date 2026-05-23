@@ -213,6 +213,15 @@ export const paths = {
     getHref: () => "/shifts",
   },
 
+  manual: {
+    path: "/manual",
+    getHref: () => "/manual",
+    article: {
+      path: "/manual/:category/:slug",
+      getHref: (category: string, slug: string) => `/manual/${category}/${slug}`,
+    },
+  },
+
   lineReservation: {
     path: "/line-reservation",
     getHref: () => "/line-reservation",

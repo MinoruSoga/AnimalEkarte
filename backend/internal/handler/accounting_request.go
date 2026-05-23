@@ -18,6 +18,15 @@ type createAccountingRequest struct {
 	Memo              string     `json:"memo"`
 }
 
+// paymentSplitRequest は混在会計の支払い内訳1行リクエスト。
+type paymentSplitRequest struct {
+	Method          string  `json:"method"           binding:"required,oneof=cash credit_card electronic_money"`
+	PaymentMethodID *uint64 `json:"payment_method_id"`
+	Amount          int64   `json:"amount"           binding:"required,min=1"`
+	ReceivedAmount  int64   `json:"received_amount"`
+	ChangeAmount    int64   `json:"change_amount"`
+}
+
 // updateAccountingRequest は会計更新リクエスト。
 // nil フィールドは更新しない（GORM ゼロ値スキップ問題を回避するためポインタ型を使用）。
 // Payment フィールドが含まれている場合、会計完了時に Payment を同時 upsert する。
@@ -43,6 +52,8 @@ type updateAccountingRequest struct {
 	BillingAmount   *int64   `json:"billing_amount"`
 	ReceivedAmount  *int64   `json:"received_amount"`
 	ChangeAmount    *int64   `json:"change_amount"`
+	// PaymentSplits: 混在支払い内訳（nil = 従来単一支払い互換）
+	PaymentSplits []paymentSplitRequest `json:"payment_splits"`
 }
 
 // createBillingItemRequest は明細作成リクエスト。

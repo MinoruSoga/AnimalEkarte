@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: ペット保険（アニコム、アイペット等）の定義、および窓口精算時の「負担割合」設定の管理。
-- **URLパターン**: `/settings/masters/insurances`
+- **URLパターン**: `/settings/insurance`
 - **アクセス権限**: 会計マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---

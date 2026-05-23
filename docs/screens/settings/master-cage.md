@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: 院内のケージ、入院室、ペットホテルの宿泊スペースの定義。
-- **URLパターン**: `/settings/masters/cages`
+- **URLパターン**: `/settings/cage`
 - **アクセス権限**: 設備マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---

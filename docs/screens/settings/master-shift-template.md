@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面 of Purpose**: スタッフの標準的な勤務時間（例：フルタイム、早番、遅番等）をテンプレートとして定義し、シフト管理の入力を大幅に効率化する。
-- **URLパターン**: `/settings/masters/shift-templates`
+- **URLパターン**: `/settings/shift-templates`
 - **アクセス権限**: 職種・シフト管理権限が必要（`ResourceShifts`）
 
 ---

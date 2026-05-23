@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: カルテの主訴、所見、指導内容の入力を効率化するための定型文テンプレートの管理。
-- **URLパターン**: `/settings/masters/templates`
+- **URLパターン**: `/settings/inquiry-templates`
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---

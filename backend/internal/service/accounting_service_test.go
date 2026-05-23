@@ -44,6 +44,10 @@ func (m *mockAccountingRepository) SavePayment(_ context.Context, _ *model.Payme
 	return nil
 }
 
+func (m *mockAccountingRepository) SavePaymentSplits(_ context.Context, _ []model.PaymentSplit) error {
+	return nil
+}
+
 // BUG-370: 月末未納者一覧 repository メソッドの mock
 func (m *mockAccountingRepository) FindUnpaidByBilling(_ context.Context, _ uint64, _ string, _, _ int) ([]model.Billing, int64, error) {
 	return nil, 0, nil

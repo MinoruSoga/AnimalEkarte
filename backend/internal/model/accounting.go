@@ -86,6 +86,7 @@ type Billing struct {
 	Items         []BillingItem   `gorm:"foreignKey:BillingID"        json:"items,omitempty"`
 	Payments      []Payment       `gorm:"foreignKey:BillingID"        json:"payments,omitempty"`
 	Refunds       []BillingRefund `gorm:"foreignKey:BillingID"        json:"refunds,omitempty"`
+	PaymentSplits []PaymentSplit  `gorm:"foreignKey:BillingID"        json:"payment_splits,omitempty"`
 }
 
 func (Billing) TableName() string { return "billings" }
@@ -152,3 +153,23 @@ type Payment struct {
 }
 
 func (Payment) TableName() string { return "payments" }
+
+// PaymentSplit は1会計に対する支払い手段ごとの内訳を表す。
+// 混在会計では複数行存在する。delete-then-recreate パターンで管理する（soft-delete なし）。
+type PaymentSplit struct {
+	ID              uint64        `gorm:"primaryKey;autoIncrement"        json:"id"`
+	ClinicID        uint64        `gorm:"not null"                        json:"clinic_id"`
+	BillingID       uint64        `gorm:"not null"                        json:"billing_id"`
+	Method          PaymentMethod `gorm:"type:payment_method;not null"    json:"method"`
+	PaymentMethodID *uint64       `                                       json:"payment_method_id,omitempty"`
+	Amount          int64         `gorm:"not null;default:0"              json:"amount"`
+	ReceivedAmount  int64         `gorm:"not null;default:0"              json:"received_amount"`
+	ChangeAmount    int64         `gorm:"not null;default:0"              json:"change_amount"`
+	PaidBy          *uint64       `                                       json:"paid_by,omitempty"`
+	CreatedAt       time.Time     `gorm:"autoCreateTime"                 json:"created_at"`
+
+	// Relations
+	PaidByStaff *Staff `gorm:"foreignKey:PaidBy" json:"paid_by_staff,omitempty" tygo:"-"`
+}
+
+func (PaymentSplit) TableName() string { return "payment_splits" }

@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面 of Purpose**: 診察、処置、手術、検査等の臨床行為の定義、および標準価格・税率の設定。
-- **URLパターン**: `/settings/masters/treatments`
+- **URLパターン**: `/settings/treatment-items`
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---

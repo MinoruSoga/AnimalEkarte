@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面 of Purpose**: 診察、ワクチン、手術、トリミング等の予約枠（スロット）の定義と、LINE 予約への公開設定。
-- **URLパターン**: `/settings/masters/reservation-types`
+- **URLパターン**: `/settings/reservation-type`
 - **アクセス権限**: 予約管理権限が必要（`ResourceMasterReservationType`）
 
 ---

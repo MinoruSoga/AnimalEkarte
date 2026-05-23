@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: 会計精算時に選択可能な決済手段（現金、クレジットカード、電子マネー等）の定義。
-- **URLパターン**: `/settings/masters/payment-methods`
+- **URLパターン**: `/settings/payment-methods`
 - **アクセス権限**: 医院管理者権限が必要（`ResourceHospitalSettings`）
 
 ---

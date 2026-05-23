@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面 of Purpose**: システムで取り扱う動物種（犬、猫、うさぎ等）の定義。
-- **URLパターン**: `/settings/masters/animal-species`
+- **URLパターン**: `/settings/animal-species`
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterAnimalSpecies`）
 
 ---

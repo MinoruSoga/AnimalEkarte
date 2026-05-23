@@ -1098,6 +1098,29 @@ export const appRoutes: RouteObject[] = [
         ],
       },
 
+      // ── Manual（取扱説明書 / ヘルプ） ─────────────────────────────
+      // 認証済み全ユーザー閲覧可。permission gating 無し。
+      {
+        path: "/manual",
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { ManualPage } = await import("@/features/manual");
+              return { Component: ManualPage };
+            },
+          },
+          {
+            path: ":category/:slug",
+            lazy: async () => {
+              const { ManualPage } = await import("@/features/manual");
+              return { Component: ManualPage };
+            },
+          },
+        ],
+      },
+
       // ── Not Found ────────────────────────────────────────────────
       {
         path: "*",

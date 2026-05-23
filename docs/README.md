@@ -30,7 +30,7 @@
 ## 📱 業務・画面仕様
 
 - **[SPECIFICATION.md](SPECIFICATION.md)**: システム全体の機能要件と主要ビジネスフロー。
-- **[screens/README.md](screens/README.md)**: **【全 39 画面インデックス】** 各機能の詳細操作ガイド。
+- **[screens/README.md](screens/README.md)**: **【全 37 画面インデックス】** 各機能の詳細操作ガイド。
 - **[CASH_REGISTER_SPEC.md](CASH_REGISTER_SPEC.md)**: レジ締め・日次/月次売上集計の業務仕様。
 - **[CUSTOMER_AGGREGATION_SPEC.md](CUSTOMER_AGGREGATION_SPEC.md)**: 累計売上・来院頻度に基づく顧客分析ダッシュボード。
 
@@ -38,7 +38,7 @@
 
 ## 💬 LINE / Lステップ連携 (CRM)
 
-- **[line/lstep-integration.md](line/lstep-integration.md)**: **Lステップ戦略書**。CPM 判定、全 15 種の配信トリガー。
+- **[line/lstep-integration.md](line/lstep-integration.md)**: **Lステップ戦略書**。CPM 判定、全 **15 種**の配信トリガー。
 - **[line/setup.md](line/setup.md)**: LINE Developers Console および管理画面での初期セットアップ。
 - **[LINE_LSTEP_COST_ANALYSIS.md](LINE_LSTEP_COST_ANALYSIS.md)**: 外部配信コストと ROI の経済性分析。
 - **[line/reservation-spec.md](line/reservation-spec.md)**: 飼い主向け LINE 予約システムの機能と計算エンジン。

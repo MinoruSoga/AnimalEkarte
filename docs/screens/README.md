@@ -1,6 +1,6 @@
 # 画面詳細仕様書 インデックス (Screen Specifications Index)
 
-本ディレクトリには、Animal Ekarte を構成する全 39 画面の機能要件、レイアウト、および API 連携の詳細が定義されています。
+本ディレクトリには、Animal Ekarte を構成する全 37 画面の具体的な機能、レイアウト、および API 連携の詳細が定義されています。
 
 ---
 
@@ -51,7 +51,7 @@
 
 ---
 
-## 📦 設定・外部連携・監視 (Infrastructure & CRM)
+## 📦 設定・外部連携・補助 (Infrastructure & CRM)
 
 | No | 画面名 | 仕様書 | 概要 |
 |:---|:---|:---|:---|
@@ -63,7 +63,7 @@
 | 34 | **Lステップ配信監視** | [34-lstep-delivery-monitor.md](./34-lstep-delivery-monitor.md) | 自動配信トリガーの実行ログと失敗検知。 |
 | 35 | **取扱説明書** | [35-internal-manual.md](./35-internal-manual.md) | システム内マニュアルの閲覧と編集。 |
 | 21 | **ログイン** | [21-login.md](./21-login.md) | 認証プロセスとパスワード再設定。 |
-| 19 | **医院マスタ設定** | [19-clinic-settings.md](./19-clinic-settings.md) | 拠点基本情報と税務設定。 |
+| 19 | **医院マスタ設定** | [19-clinic-settings.md](./19-clinic-settings.md) | インボイス番号等の拠点情報管理。 |
 
 ---
 

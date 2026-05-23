@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面 of Purpose**: カルテ作成時に飼い主が訴える「主訴」を分類し、統計や入力補助に使用するための大分類（消化器、皮膚、眼科等）の管理。
-- **URLパターン**: `/settings/masters/chief-complaints`
+- **URLパターン**: `/settings/interview/chief-complaint`
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---

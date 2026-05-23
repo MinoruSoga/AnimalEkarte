@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: スタッフの役割（院長、獣医師、看護師、事務等）に応じたシステム操作権限の体系的定義。
-- **URLパターン**: `/settings/masters/permissions`
+- **URLパターン**: `/settings/permission-groups`
 - **アクセス権限**: 最高管理者権限のみ（`ResourceMasterPermission`）
 
 ---

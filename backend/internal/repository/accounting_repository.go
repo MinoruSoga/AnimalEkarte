@@ -18,6 +18,8 @@ type AccountingRepository interface {
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	SavePayment(ctx context.Context, payment *model.Payment) error
+	// SavePaymentSplits は billing の payment_splits を delete-then-recreate で保存する。
+	SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error
 	// BUG-370: 月末未納者一覧
 	FindUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
 	FindUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
@@ -104,7 +106,7 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
+	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").Preload("PaymentSplits").
 		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
@@ -150,6 +152,7 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 		Preload("Refunds.RefundedByStaff").
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
+		Preload("PaymentSplits").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&billing).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
@@ -190,7 +193,7 @@ func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID u
 	}
 	var billing model.Billing
 	if err := r.db.WithContext(ctx).
-		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").
+		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("PaymentSplits").
 		Scopes(clinicScope(clinicID)).
 		First(&billing, "id = ?", billingID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
@@ -242,6 +245,25 @@ func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.P
 	}
 	payment.ID = existing.ID
 	return nil
+}
+
+// SavePaymentSplits は billing の payment_splits を delete-then-recreate で保存する。
+// splits が空の場合は既存レコードを削除のみ行う。
+// P4 clinicScope は直接 clinic_id カラムで保証する（payment_splits 自体に clinic_id を持つ）。
+func (r *accountingRepository) SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error {
+	if len(splits) == 0 {
+		return nil
+	}
+	billingID := splits[0].BillingID
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("billing_id = ?", billingID).Delete(&model.PaymentSplit{}).Error; err != nil {
+			return apperrors.FromGORM(err, "payment_split", fmt.Sprintf("billing_id=%d", billingID))
+		}
+		if err := tx.Create(&splits).Error; err != nil {
+			return apperrors.FromGORM(err, "payment_split", fmt.Sprintf("billing_id=%d", billingID))
+		}
+		return nil
+	})
 }
 
 // FindUnpaidByBilling は未納 (status=waiting かつ scheduled_date < baseDate) の billings を
@@ -303,41 +325,42 @@ func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID u
 }
 
 // GetDailySummary は指定日（JST）の会計完了分を集計する。BUG-368
+// payment_splits テーブルを正として集計する（混在会計対応）。
 func (r *accountingRepository) GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error) {
 	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
 	jstDate := date.In(jst).Format("2006-01-02")
 
-	// 合計件数・売上合計
+	// 合計件数・売上合計（payment_splits ベース）
 	var base struct {
 		BillingCount int64
 		GrandTotal   int64
 	}
 	if err := r.db.WithContext(ctx).
 		Table("billings").
-		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
+		Joins("JOIN payment_splits ON payment_splits.billing_id = billings.id").
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
 		Where("DATE(billings.completed_at AT TIME ZONE 'Asia/Tokyo') = ?", jstDate).
-		Select("COUNT(DISTINCT billings.id) AS billing_count, COALESCE(SUM(payments.billing_amount), 0) AS grand_total").
+		Select("COUNT(DISTINCT billings.id) AS billing_count, COALESCE(SUM(payment_splits.amount), 0) AS grand_total").
 		Scan(&base).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", "")
 	}
 
-	// 支払方法別合計
+	// 支払方法別合計（payment_splits.method ベース）
 	paymentTotals := make([]PaymentMethodTotal, 0)
 	if err := r.db.WithContext(ctx).
 		Table("billings").
-		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
+		Joins("JOIN payment_splits ON payment_splits.billing_id = billings.id").
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
 		Where("DATE(billings.completed_at AT TIME ZONE 'Asia/Tokyo') = ?", jstDate).
-		Select("payments.method AS method, COALESCE(SUM(payments.billing_amount), 0) AS total").
-		Group("payments.method").
+		Select("payment_splits.method::text AS method, COALESCE(SUM(payment_splits.amount), 0) AS total").
+		Group("payment_splits.method").
 		Scan(&paymentTotals).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", "")
 	}
 
-	// 診療区分別合計
+	// 診療区分別合計（billing_items ベース — 変更なし）
 	categoryTotals := make([]CategoryTotal, 0)
 	if err := r.db.WithContext(ctx).
 		Table("billings").
@@ -425,9 +448,12 @@ type MonthlyReportResult struct {
 }
 
 // GetCloseAggregate は指定期間内の会計を集計する。FEAT-368
-// billings → payments LEFT JOIN billing_refunds を結合して計算する。
+// payment_splits を正として集計（SUM(DISTINCT) hack を除去）。
+// カテゴリ別集計: billing_items を CTE で per-billing 合算し、payment_splits と JOIN して按分なしで集計。
 func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error) {
 	// 集計行: カテゴリ×支払方法別の純売上
+	// payment_splits を正として使い、Cartesian 積バグを回避する。
+	// カテゴリは billing_items から1会計1行に集約し、payment_splits と billing_id で結合する。
 	type aggRow struct {
 		Category        string
 		PaymentMethodID *uint64
@@ -435,23 +461,34 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		RefundAmount    int64
 	}
 	var aggRows []aggRow
-	if err := r.db.WithContext(ctx).
-		Table("billings").
-		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
-		Joins("JOIN billing_items ON billing_items.billing_id = billings.id AND billing_items.deleted_at IS NULL").
-		Joins("LEFT JOIN billing_refunds ON billing_refunds.billing_id = billings.id").
-		Unscoped().
-		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", input.ClinicID).
-		Where("billings.status = ?", model.BillingStatusCompleted).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", input.PeriodStart).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", input.PeriodEnd).
-		Select(
-			"billing_items.category::text AS category," +
-				" payments.payment_method_id AS payment_method_id," +
-				" COALESCE(SUM(DISTINCT payments.billing_amount), 0) AS billing_amount," +
-				" COALESCE(SUM(billing_refunds.amount), 0) AS refund_amount",
-		).
-		Group("billing_items.category, payments.payment_method_id").
+
+	// billing_items のカテゴリを billing 単位で集約するサブクエリ
+	// 同一 billing に複数 category がある場合は各 category-payment_split の組み合わせで展開する
+	if err := r.db.WithContext(ctx).Raw(`
+		WITH completed_billings AS (
+			SELECT id, clinic_id
+			FROM billings
+			WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
+			  AND completed_at AT TIME ZONE 'Asia/Tokyo' >= ?
+			  AND completed_at AT TIME ZONE 'Asia/Tokyo' < ?
+		),
+		refund_totals AS (
+			SELECT billing_id, COALESCE(SUM(amount), 0) AS refund_amount
+			FROM billing_refunds
+			WHERE billing_id IN (SELECT id FROM completed_billings)
+			GROUP BY billing_id
+		)
+		SELECT
+			bi.category::text AS category,
+			ps.payment_method_id,
+			COALESCE(SUM(ps.amount), 0) AS billing_amount,
+			COALESCE(SUM(COALESCE(rt.refund_amount, 0)), 0) AS refund_amount
+		FROM completed_billings cb
+		JOIN payment_splits ps ON ps.billing_id = cb.id
+		JOIN billing_items bi ON bi.billing_id = cb.id AND bi.deleted_at IS NULL
+		LEFT JOIN refund_totals rt ON rt.billing_id = cb.id
+		GROUP BY bi.category, ps.payment_method_id
+	`, input.ClinicID, model.BillingStatusCompleted, input.PeriodStart, input.PeriodEnd).
 		Scan(&aggRows).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to aggregate billings for close")
 	}
@@ -465,7 +502,7 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		})
 	}
 
-	// 個別会計一覧
+	// 個別会計一覧（payment_splits ベース: 混在支払いは複数行）
 	type detailRow struct {
 		BillingID         uint64
 		PaidAt            time.Time
@@ -478,31 +515,44 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		RefundAmount      int64
 	}
 	var detailRows []detailRow
-	if err := r.db.WithContext(ctx).
-		Table("billings").
-		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
-		Joins("JOIN billing_items ON billing_items.billing_id = billings.id AND billing_items.deleted_at IS NULL").
-		Joins("LEFT JOIN owners ON owners.id = billings.owner_id AND owners.deleted_at IS NULL").
-		Joins("LEFT JOIN pets ON pets.id = billings.pet_id AND pets.deleted_at IS NULL").
-		Joins("LEFT JOIN billing_refunds ON billing_refunds.billing_id = billings.id").
-		Unscoped().
-		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", input.ClinicID).
-		Where("billings.status = ?", model.BillingStatusCompleted).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", input.PeriodStart).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", input.PeriodEnd).
-		Select(
-			"billings.id AS billing_id," +
-				" billings.completed_at AS paid_at," +
-				" owners.name AS owner_name," +
-				" pets.name AS pet_name," +
-				" billings.hospitalization_id," +
-				" billing_items.category::text AS category," +
-				" payments.payment_method_id AS payment_method_id," +
-				" payments.billing_amount AS billing_amount," +
-				" COALESCE(SUM(billing_refunds.amount), 0) AS refund_amount",
-		).
-		Group("billings.id, billings.completed_at, owners.name, pets.name, billings.hospitalization_id, billing_items.category, payments.payment_method_id, payments.billing_amount").
-		Order("billings.completed_at ASC").
+	if err := r.db.WithContext(ctx).Raw(`
+		WITH completed_billings AS (
+			SELECT id, completed_at, owner_id, pet_id, hospitalization_id
+			FROM billings
+			WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
+			  AND completed_at AT TIME ZONE 'Asia/Tokyo' >= ?
+			  AND completed_at AT TIME ZONE 'Asia/Tokyo' < ?
+		),
+		refund_totals AS (
+			SELECT billing_id, COALESCE(SUM(amount), 0) AS refund_amount
+			FROM billing_refunds
+			WHERE billing_id IN (SELECT id FROM completed_billings)
+			GROUP BY billing_id
+		),
+		billing_categories AS (
+			SELECT billing_id, category::text AS category
+			FROM billing_items
+			WHERE billing_id IN (SELECT id FROM completed_billings) AND deleted_at IS NULL
+			GROUP BY billing_id, category
+		)
+		SELECT
+			cb.id AS billing_id,
+			cb.completed_at AS paid_at,
+			COALESCE(o.name, '') AS owner_name,
+			COALESCE(p.name, '') AS pet_name,
+			cb.hospitalization_id,
+			bc.category,
+			ps.payment_method_id,
+			ps.amount AS billing_amount,
+			COALESCE(rt.refund_amount, 0) AS refund_amount
+		FROM completed_billings cb
+		JOIN payment_splits ps ON ps.billing_id = cb.id
+		JOIN billing_categories bc ON bc.billing_id = cb.id
+		LEFT JOIN owners o ON o.id = cb.owner_id AND o.deleted_at IS NULL
+		LEFT JOIN pets p ON p.id = cb.pet_id AND p.deleted_at IS NULL
+		LEFT JOIN refund_totals rt ON rt.billing_id = cb.id
+		ORDER BY cb.completed_at ASC
+	`, input.ClinicID, model.BillingStatusCompleted, input.PeriodStart, input.PeriodEnd).
 		Scan(&detailRows).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to get billing details for close")
 	}
@@ -523,7 +573,7 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		})
 	}
 
-	// 税率別集計
+	// 税率別集計（billing_items ベース — Cartesian 積なし: payments JOIN 除去済み）
 	type taxRow struct {
 		TaxRate       int64
 		TaxableAmount int64
@@ -533,7 +583,6 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 	if err := r.db.WithContext(ctx).
 		Table("billing_items").
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.deleted_at IS NULL").
-		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
 		Where("billings.clinic_id = ? AND billing_items.deleted_at IS NULL", input.ClinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
 		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", input.PeriodStart).
@@ -561,12 +610,13 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 }
 
 // GetMonthlyReport は指定年月の月次売上レポートを集計する。FEAT-368
+// payment_splits を正として集計（SUM(DISTINCT) hack を除去）。
 func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error) {
 	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
 	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst)
 	end := start.AddDate(0, 1, 0)
 
-	// 日×期間×カテゴリ×支払方法別集計（件数を含む）
+	// 日×カテゴリ×支払方法別集計（件数を含む）— payment_splits ベース
 	type row struct {
 		Date            string
 		Category        string
@@ -576,26 +626,34 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 		BillingCount    int64
 	}
 	var rows []row
-	if err := r.db.WithContext(ctx).
-		Table("billings").
-		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
-		Joins("JOIN billing_items ON billing_items.billing_id = billings.id AND billing_items.deleted_at IS NULL").
-		Joins("LEFT JOIN billing_refunds ON billing_refunds.billing_id = billings.id").
-		Unscoped().
-		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
-		Where("billings.status = ?", model.BillingStatusCompleted).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
-		Select(
-			"TO_CHAR(billings.completed_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS date," +
-				" billing_items.category::text AS category," +
-				" payments.payment_method_id AS payment_method_id," +
-				" COALESCE(SUM(DISTINCT payments.billing_amount), 0) AS billing_amount," +
-				" COALESCE(SUM(billing_refunds.amount), 0) AS refund_amount," +
-				" COUNT(DISTINCT billings.id) AS billing_count",
-		).
-		Group("date, billing_items.category, payments.payment_method_id").
-		Order("date ASC").
+	if err := r.db.WithContext(ctx).Raw(`
+		WITH completed_billings AS (
+			SELECT id, completed_at
+			FROM billings
+			WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
+			  AND completed_at AT TIME ZONE 'Asia/Tokyo' >= ?
+			  AND completed_at AT TIME ZONE 'Asia/Tokyo' < ?
+		),
+		refund_totals AS (
+			SELECT billing_id, COALESCE(SUM(amount), 0) AS refund_amount
+			FROM billing_refunds
+			WHERE billing_id IN (SELECT id FROM completed_billings)
+			GROUP BY billing_id
+		)
+		SELECT
+			TO_CHAR(cb.completed_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS date,
+			bi.category::text AS category,
+			ps.payment_method_id,
+			COALESCE(SUM(ps.amount), 0) AS billing_amount,
+			COALESCE(SUM(COALESCE(rt.refund_amount, 0)), 0) AS refund_amount,
+			COUNT(DISTINCT cb.id) AS billing_count
+		FROM completed_billings cb
+		JOIN payment_splits ps ON ps.billing_id = cb.id
+		JOIN billing_items bi ON bi.billing_id = cb.id AND bi.deleted_at IS NULL
+		LEFT JOIN refund_totals rt ON rt.billing_id = cb.id
+		GROUP BY date, bi.category, ps.payment_method_id
+		ORDER BY date ASC
+	`, clinicID, model.BillingStatusCompleted, start, end).
 		Scan(&rows).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to get monthly report")
 	}

@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面 of Purpose**: クリニック内で勤務するスタッフの職種（獣医師、看護師、トリマー、受付等）の定義。
-- **URLパターン**: `/settings/masters/occupations`
+- **URLパターン**: `/settings/occupations`
 - **アクセス権限**: スタッフ管理者権限が必要（`ResourceMasterStaff`）
 
 ---

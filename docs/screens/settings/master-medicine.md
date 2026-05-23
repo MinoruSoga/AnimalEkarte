@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面 of Purpose**: 院内で使用・処方される医薬品の定義、単価設定、および在庫システムとの紐付け。
-- **URLパターン**: `/settings/masters/medicines`
+- **URLパターン**: `/settings/medicine`
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---

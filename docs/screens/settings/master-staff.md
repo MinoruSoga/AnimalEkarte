@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面 of Purpose**: システムを利用する全スタッフの基本情報、職種、および LINE 予約用の公開プロフィールの統合管理。
-- **URLパターン**: `/settings/masters/staffs`
+- **URLパターン**: `/settings/staff`
 - **アクセス権限**: スタッフ管理者権限が必要（`ResourceMasterStaff`）
 
 ---

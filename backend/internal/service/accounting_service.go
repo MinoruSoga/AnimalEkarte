@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -25,6 +26,15 @@ type CreateAccountingInput struct {
 	ScheduledDate     time.Time
 	CompletedAt       *time.Time
 	Memo              string
+}
+
+// PaymentSplitInput は支払い内訳1行の入力DTO（混在会計用）。
+type PaymentSplitInput struct {
+	Method          model.PaymentMethod
+	PaymentMethodID *uint64
+	Amount          int64
+	ReceivedAmount  int64
+	ChangeAmount    int64
 }
 
 // UpdateAccountingInput は会計更新のサービス入力DTO。
@@ -54,11 +64,14 @@ type UpdateAccountingInput struct {
 	BillingAmount   *int64
 	ReceivedAmount  *int64
 	ChangeAmount    *int64
+	// PaymentSplits: 混在支払い内訳（nil = 単一支払い、従来互換）
+	PaymentSplits []PaymentSplitInput
 }
 
 // hasPaymentFields は UpdateAccountingInput に Payment 関連フィールドが含まれているか判定する。
 func hasPaymentFields(input *UpdateAccountingInput) bool {
-	return input.PaymentMethod != nil ||
+	return len(input.PaymentSplits) > 0 ||
+		input.PaymentMethod != nil ||
 		input.InsuranceRatio != nil ||
 		input.InsuranceAmount != nil ||
 		input.BillingAmount != nil ||
@@ -67,7 +80,55 @@ func hasPaymentFields(input *UpdateAccountingInput) bool {
 		input.DiscountAmount != nil
 }
 
+// representativeMethod は splits から代表支払い手段を返す（legacy payments.method 用）。
+// 優先順位: cash > credit_card > electronic_money
+func representativeMethod(splits []PaymentSplitInput) model.PaymentMethod {
+	for _, s := range splits {
+		if s.Method == model.PaymentMethodCash {
+			return model.PaymentMethodCash
+		}
+	}
+	for _, s := range splits {
+		if s.Method == model.PaymentMethodCreditCard {
+			return model.PaymentMethodCreditCard
+		}
+	}
+	return model.PaymentMethodElectronicMoney
+}
+
+// validatePaymentSplits は splits の整合性を検証する。
+func validatePaymentSplits(splits []PaymentSplitInput, billingAmount *int64) error {
+	if len(splits) == 0 {
+		return nil
+	}
+	seen := make(map[model.PaymentMethod]bool, len(splits))
+	var total int64
+	for _, s := range splits {
+		if seen[s.Method] {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("支払い手段 %s が重複しています", s.Method))
+		}
+		seen[s.Method] = true
+		if s.Amount <= 0 {
+			return apperrors.WrapInvalidInput("各支払い金額は1円以上でなければなりません")
+		}
+		total += s.Amount
+		if s.Method == model.PaymentMethodCash {
+			if s.ReceivedAmount < s.Amount {
+				return apperrors.WrapInvalidInput("現金の預り金が不足しています")
+			}
+			if s.ChangeAmount != s.ReceivedAmount-s.Amount {
+				return apperrors.WrapInvalidInput("お釣り計算が不正です")
+			}
+		}
+	}
+	if billingAmount != nil && total != *billingAmount {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("支払い内訳の合計（%d）が請求金額（%d）と一致しません", total, *billingAmount))
+	}
+	return nil
+}
+
 // buildPaymentFromInput は UpdateAccountingInput から Payment モデルを構築する。
+// splits がある場合は代表支払い手段・受領額・お釣りを splits から導出する。
 func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
 	p := &model.Payment{
 		BillingID: input.ID,
@@ -97,16 +158,76 @@ func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
 	if input.BillingAmount != nil {
 		p.BillingAmount = *input.BillingAmount
 	}
-	if input.ReceivedAmount != nil {
-		p.ReceivedAmount = *input.ReceivedAmount
-	}
-	if input.ChangeAmount != nil {
-		p.ChangeAmount = *input.ChangeAmount
-	}
-	if input.PaymentMethod != nil {
-		p.Method = *input.PaymentMethod
+
+	if len(input.PaymentSplits) > 0 {
+		// splits から代表手段・受領額・お釣りを導出
+		p.Method = representativeMethod(input.PaymentSplits)
+		for _, s := range input.PaymentSplits {
+			if s.Method == model.PaymentMethodCash {
+				p.ReceivedAmount = s.ReceivedAmount
+				p.ChangeAmount = s.ChangeAmount
+				break
+			}
+		}
+	} else {
+		if input.ReceivedAmount != nil {
+			p.ReceivedAmount = *input.ReceivedAmount
+		}
+		if input.ChangeAmount != nil {
+			p.ChangeAmount = *input.ChangeAmount
+		}
+		if input.PaymentMethod != nil {
+			p.Method = *input.PaymentMethod
+		}
 	}
 	return p
+}
+
+// buildPaymentSplits は UpdateAccountingInput から PaymentSplit モデルのスライスを構築する。
+// PaymentSplits が空の場合は単一支払いフィールドから1行を生成する（backward compat）。
+func buildPaymentSplits(input *UpdateAccountingInput) []model.PaymentSplit {
+	if len(input.PaymentSplits) > 0 {
+		splits := make([]model.PaymentSplit, 0, len(input.PaymentSplits))
+		for _, s := range input.PaymentSplits {
+			splits = append(splits, model.PaymentSplit{
+				ClinicID:        input.ClinicID,
+				BillingID:       input.ID,
+				Method:          s.Method,
+				PaymentMethodID: s.PaymentMethodID,
+				Amount:          s.Amount,
+				ReceivedAmount:  s.ReceivedAmount,
+				ChangeAmount:    s.ChangeAmount,
+				PaidBy:          input.StaffID,
+			})
+		}
+		return splits
+	}
+	// 単一支払い backward compat — BillingAmount が設定されている場合のみ生成
+	if input.BillingAmount == nil || *input.BillingAmount <= 0 {
+		return nil
+	}
+	method := model.PaymentMethodCash
+	if input.PaymentMethod != nil {
+		method = *input.PaymentMethod
+	}
+	var received, change int64
+	if input.ReceivedAmount != nil {
+		received = *input.ReceivedAmount
+	}
+	if input.ChangeAmount != nil {
+		change = *input.ChangeAmount
+	}
+	return []model.PaymentSplit{
+		{
+			ClinicID:       input.ClinicID,
+			BillingID:      input.ID,
+			Method:         method,
+			Amount:         *input.BillingAmount,
+			ReceivedAmount: received,
+			ChangeAmount:   change,
+			PaidBy:         input.StaffID,
+		},
+	}
 }
 
 // buildAccountingUpdate は UpdateAccountingInput から nil でないフィールドのみ抽出する。
@@ -236,6 +357,10 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	if input.TotalAmount != nil && *input.TotalAmount < 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
+	// 混在会計バリデーション
+	if err := validatePaymentSplits(input.PaymentSplits, input.BillingAmount); err != nil {
+		return nil, err
+	}
 	fields := buildAccountingUpdate(input)
 	if len(fields) == 0 && !hasPaymentFields(input) {
 		return nil, apperrors.WrapInvalidInput("no fields to update")
@@ -255,6 +380,12 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		if err := s.repo.SavePayment(ctx, payment); err != nil {
 			slog.ErrorContext(ctx, "failed to upsert payment", "error", err)
 			return nil, apperrors.Wrap(err, "failed to upsert payment")
+		}
+		// payment_splits の更新（混在会計・backward compat 両対応）
+		splits := buildPaymentSplits(input)
+		if err := s.repo.SavePaymentSplits(ctx, splits); err != nil {
+			slog.ErrorContext(ctx, "failed to save payment splits", "error", err)
+			return nil, apperrors.Wrap(err, "failed to save payment splits")
 		}
 		slog.InfoContext(ctx, "payment upserted",
 			slog.Uint64("clinic_id", input.ClinicID),

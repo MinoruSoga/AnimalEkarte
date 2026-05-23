@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面 of Purpose**: 療法食、サプリメント、ヘアケア用品等の販売商品の定義および価格管理。
-- **URLパターン**: `/settings/masters/merchandise`
+- **URLパターン**: `/settings/merchandise-items`
 - **アクセス権限**: 会計マスタ管理権限が必要（`ResourceMasterMerchandise`）
 
 ---
