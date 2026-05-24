@@ -125,7 +125,15 @@ export interface Payment {
   billing_amount: number /* int64 */;
   received_amount: number /* int64 */;
   change_amount: number /* int64 */;
+  /**
+   * Method は代表支払い手段（PO判断B 2026-05-25: 正式フィールドとして長期維持）。
+   * 混在会計では payment_splits の各内訳から representativeMethod() で導出する。
+   * PaymentMethodID と dual maintain する（同期ルール: 書込み時は常に両フィールドをセット）。
+   */
   method: PaymentMethod;
+  /**
+   * PaymentMethodID は当面 nullable で Method と併存する。ID と method の整合は運用ルールで担保する。
+   */
   payment_method_id?: number /* uint64 */;
   paid_by?: number /* uint64 */;
   created_at: string;
@@ -138,6 +146,7 @@ export interface Payment {
 /**
  * PaymentSplit は1会計に対する支払い手段ごとの内訳を表す。
  * 混在会計では複数行存在する。delete-then-recreate パターンで管理する（soft-delete なし）。
+ * Method は各内訳の一次情報（source of truth）。PaymentMethodID と dual maintain する。
  */
 export interface PaymentSplit {
   id: number /* uint64 */;
