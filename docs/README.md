@@ -21,7 +21,7 @@
 | **技術設計** | [architecture.md](architecture.md) | 軽量レイヤードアーキテクチャの定義。 |
 | **データ** | [ERD.md](ERD.md) | データベース設計（全 **95 テーブル**・リレーション）。 |
 | **セキュリティ**| [AUTH.md](AUTH.md) | RBAC 権限モデル（全 **31 リソース**）、マルチテナント隔離。 |
-| **UI/UX** | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Notion ライクなデザイン規約とデザイントークン. |
+| **UI/UX** | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Notion ライクなデザイン規約とデザイントークン。 |
 | **API** | [API_SPEC.md](API_SPEC.md) | バックエンド Go API の詳細リファレンス (v2.3)。 |
 | **データフロー** | [data-flow.md](data-flow.md) | リクエストの追跡（Request ID）と非同期同期の仕組み。 |
 
@@ -30,7 +30,7 @@
 ## 📱 業務・画面仕様
 
 - **[SPECIFICATION.md](SPECIFICATION.md)**: システム全体の機能要件と主要ビジネスフロー。
-- **[screens/README.md](screens/README.md)**: **【全 38 画面インデックス】** 各機能の詳細操作ガイド。
+- **[screens/README.md](screens/README.md)**: **【全 39 画面インデックス】** 各機能の詳細操作ガイド。
 - **[CASH_REGISTER_SPEC.md](CASH_REGISTER_SPEC.md)**: レジ締め・日次/月次売上集計の業務仕様。
 - **[CUSTOMER_AGGREGATION_SPEC.md](CUSTOMER_AGGREGATION_SPEC.md)**: 累計売上・来院頻度に基づく顧客分析ダッシュボード。
 

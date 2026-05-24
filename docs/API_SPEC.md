@@ -10,6 +10,7 @@
 ### 1.1 エンドポイント
 - **Base URL**: `https://api.noah-karte.com/api/v1`
 - **データ形式**: JSON (Request/Response)
+- **文字コード**: UTF-8
 - **日付形式**: ISO 8601 (UTC) `YYYY-MM-DDTHH:mm:ssZ`
 - **金額単位**: 最小単位（円）
 
