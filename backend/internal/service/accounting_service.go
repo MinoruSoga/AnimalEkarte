@@ -80,8 +80,8 @@ func hasPaymentFields(input *UpdateAccountingInput) bool {
 		input.DiscountAmount != nil
 }
 
-// representativeMethod は splits から代表支払い手段を返す（legacy payments.method 用）。
-// 優先順位: cash > credit_card > electronic_money
+// representativeMethod は splits から payments.method（代表手段）を導出する仕様ロジック（PO判断B 2026-05-25: 確定）。
+// 優先順位は仕様として固定: cash > credit_card > electronic_money
 func representativeMethod(splits []PaymentSplitInput) model.PaymentMethod {
 	for _, s := range splits {
 		if s.Method == model.PaymentMethodCash {
@@ -160,7 +160,7 @@ func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
 	}
 
 	if len(input.PaymentSplits) > 0 {
-		// splits から代表手段・受領額・お釣りを導出
+		// 混在会計: splits の一次情報から代表手段・受領額・お釣りを導出（仕様）
 		p.Method = representativeMethod(input.PaymentSplits)
 		for _, s := range input.PaymentSplits {
 			if s.Method == model.PaymentMethodCash {

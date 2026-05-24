@@ -129,19 +129,23 @@ func (item *BillingItem) CalculateTaxAmount() int64 {
 }
 
 type Payment struct {
-	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	BillingID       uint64         `gorm:"not null;uniqueIndex"                           json:"billing_id"`
-	Subtotal        int64          `gorm:"not null;default:0"                             json:"subtotal"`
-	TaxTotal        int64          `gorm:"not null;default:0"                             json:"tax_total"`
-	TotalAmount     int64          `gorm:"not null;default:0"                             json:"total_amount"`
-	InsuranceName   string         `gorm:"default:''"                                     json:"insurance_name"`
-	InsuranceRatio  float64        `gorm:"type:numeric(3,2);default:0"                    json:"insurance_ratio"`
-	InsuranceAmount int64          `gorm:"default:0"                                      json:"insurance_amount"`
-	DiscountAmount  int64          `gorm:"default:0"                                      json:"discount_amount"`
-	BillingAmount   int64          `gorm:"not null;default:0"                             json:"billing_amount"`
-	ReceivedAmount  int64          `gorm:"default:0"                                      json:"received_amount"`
-	ChangeAmount    int64          `gorm:"default:0"                                      json:"change_amount"`
-	Method          PaymentMethod  `gorm:"type:payment_method;default:'cash'"             json:"method"`
+	ID              uint64  `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	BillingID       uint64  `gorm:"not null;uniqueIndex"                           json:"billing_id"`
+	Subtotal        int64   `gorm:"not null;default:0"                             json:"subtotal"`
+	TaxTotal        int64   `gorm:"not null;default:0"                             json:"tax_total"`
+	TotalAmount     int64   `gorm:"not null;default:0"                             json:"total_amount"`
+	InsuranceName   string  `gorm:"default:''"                                     json:"insurance_name"`
+	InsuranceRatio  float64 `gorm:"type:numeric(3,2);default:0"                    json:"insurance_ratio"`
+	InsuranceAmount int64   `gorm:"default:0"                                      json:"insurance_amount"`
+	DiscountAmount  int64   `gorm:"default:0"                                      json:"discount_amount"`
+	BillingAmount   int64   `gorm:"not null;default:0"                             json:"billing_amount"`
+	ReceivedAmount  int64   `gorm:"default:0"                                      json:"received_amount"`
+	ChangeAmount    int64   `gorm:"default:0"                                      json:"change_amount"`
+	// Method は代表支払い手段（PO判断B 2026-05-25: 正式フィールドとして長期維持）。
+	// 混在会計では payment_splits の各内訳から representativeMethod() で導出する。
+	// PaymentMethodID と dual maintain する（同期ルール: 書込み時は常に両フィールドをセット）。
+	Method PaymentMethod `gorm:"type:payment_method;default:'cash'"             json:"method"`
+	// PaymentMethodID は当面 nullable で Method と併存する。ID と method の整合は運用ルールで担保する。
 	PaymentMethodID *uint64        `                                                      json:"payment_method_id,omitempty"`
 	PaidBy          *uint64        `gorm:""                                               json:"paid_by"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
@@ -156,6 +160,7 @@ func (Payment) TableName() string { return "payments" }
 
 // PaymentSplit は1会計に対する支払い手段ごとの内訳を表す。
 // 混在会計では複数行存在する。delete-then-recreate パターンで管理する（soft-delete なし）。
+// Method は各内訳の一次情報（source of truth）。PaymentMethodID と dual maintain する。
 type PaymentSplit struct {
 	ID              uint64        `gorm:"primaryKey;autoIncrement"        json:"id"`
 	ClinicID        uint64        `gorm:"not null"                        json:"clinic_id"`
