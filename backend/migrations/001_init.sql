@@ -1597,7 +1597,7 @@ CREATE TABLE daily_records (
 -- ------------------------------------
 CREATE TABLE vital_records (
     id                BIGSERIAL   PRIMARY KEY,
-    pet_id            bigint      NOT NULL REFERENCES pets(id) ON DELETE CASCADE,
+    pet_id            bigint      NOT NULL REFERENCES pets(id) ON DELETE RESTRICT,
     medical_record_id bigint               REFERENCES medical_records(id) ON DELETE CASCADE,  -- 外来時
     daily_record_id   bigint               REFERENCES daily_records(id) ON DELETE CASCADE,    -- 入院時
     recorded_at       timestamptz NOT NULL DEFAULT now(),

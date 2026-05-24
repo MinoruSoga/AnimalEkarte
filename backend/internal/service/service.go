@@ -195,7 +195,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		DiagnosisType:                  NewDiagnosisTypeService(repos.DiagnosisType),
 		DiagnosisName:                  NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisType),
 		CheckupType:                    NewCheckupTypeService(repos.CheckupType),
-		Clinic:                         NewClinicService(repos.Clinic, repos.PermissionGroup),
+		Clinic:                         NewClinicService(repos.Clinic, repos.PermissionGroup, tx),
 		Examination:                    NewExaminationService(repos.Examination),
 		Vaccination:                    NewVaccinationService(repos.Vaccination),
 		Occupation:                     NewOccupationService(repos.Occupation),

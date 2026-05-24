@@ -217,7 +217,7 @@ func TestClinicService_ListClinics(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepositoryForClinic{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo)
+			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
 
 			clinics, err := svc.ListClinics(context.Background())
 
@@ -278,7 +278,7 @@ func TestClinicService_GetClinicByID(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepositoryForClinic{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo)
+			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
 
 			clinic, err := svc.GetClinicByID(context.Background(), tt.id)
 
@@ -347,7 +347,7 @@ func TestClinicService_CreateClinic(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepositoryForClinic{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo)
+			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
 
 			result, err := svc.CreateClinic(context.Background(), tt.input)
 
@@ -429,7 +429,7 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepositoryForClinic{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo)
+			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
 
 			result, err := svc.UpdateClinic(context.Background(), tt.id, tt.input)
 
@@ -567,7 +567,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepositoryForClinic{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo)
+			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
 
 			err := svc.DeleteClinic(context.Background(), tt.id)
 
