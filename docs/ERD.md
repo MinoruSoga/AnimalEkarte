@@ -37,7 +37,7 @@ erDiagram
     medical_records ||--o| billings : "medical_record_id"
     billings ||--o{ billing_items : "billing_id"
     billings ||--o{ payments : "billing_id"
-    payments ||--o{ payment_splits : "payment_id"
+    billings ||--o{ payment_splits : "billing_id"
 
     %% 入院
     clinics ||--o{ cages : "clinic_id"
