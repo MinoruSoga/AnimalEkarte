@@ -18,14 +18,15 @@
 
 ## 2. ハイブリッド保存ロジック (Hybrid Sync)
 
-カルテは 9 つのタブに分かれた膨大なデータを扱うため、以下の 2 段階で保存を実行します（`internal/service/medical_record_service.go`）。
+カルテは 9 つのタブに分かれた膨大なデータを扱うため、以下の 2 段階で保存を実行します。
 
 1.  **メイン保存**:
-    - 主訴、カテゴリ、担当医、ステータス、来院種別、推奨再診日などの「カルテ本体」の属性を保存。
+    - 主訴、カテゴリ、担当医、ステータス、来院種別、推奨再診日などの「カルテ本体」の属性を保存 (`PATCH /v1/medical-records/:id`)。
 2.  **タブ別サブデータ同期**:
     - メイン保存の成功をトリガーに、**現在アクティブなタブ**の内容を個別に API 通信して同期。
-    - **例 (Tab 3: 治療)**: 処置・処方項目のリストを `PUT /treatments` で一括更新。
-    - **例 (Tab 8: 見積)**: 見積明細を `PATCH /estimates/:id` で更新。
+    - **処置・処方 (Tab 3)**: `PUT /v1/medical-records/:id/treatments` で一括更新。
+    - **バイタル (Tab 2)**: `POST /v1/medical-records/:id/vitals` で記録。
+    - **検査 (Tab 6)**: `POST /v1/medical-records/:id/exams` で登録。
 
 ---
 

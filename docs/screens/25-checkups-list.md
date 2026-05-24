@@ -22,7 +22,7 @@
 ### Path B: 独立登録（クイック）
 定期健診一覧画面の「新規登録」ボタンから実行。
 - **フロー**: ペット選択 → 健診フォーム。
-- **自動処理**: 健診を登録すると、内部的に**当日のカルテが自動生成**（visit_type="health_check"）され、そこに健診記録が紐付けられます。
+- **自動処理**: 健診を登録すると、フロントエンドの `useCheckupForm` が内部的に**当日のカルテを自動生成**した後に、健診記録を紐付けます。
 
 ---
 
@@ -60,11 +60,13 @@
 - **`CheckupsList`**: メイン一覧ページ。
 - **`CheckupForm`**: 登録・編集用統合フォーム。
 - **`CheckupAlertBadge`**: 残り日数に応じた動的警告表示部品。
+- **`useCheckupForm`**: 保存時に `POST /v1/medical-records` と `POST /v1/medical-records/:id/checkups` を連続実行するオーケストレーター。
 
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
 | GET | `/api/v1/checkups` | 条件に応じた健診履歴の一括取得。 |
+| POST | `/api/v1/medical-records` | Path B におけるベースカルテの自動生成。 |
 | POST | `/api/v1/medical-records/{id}/checkups` | カルテに紐付く新規健診レコードの保存。 |
 | GET | `/api/v1/checkups/alerts` | 期限切れ・間近の件数サマリ取得。 |
 

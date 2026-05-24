@@ -10,7 +10,7 @@
 |:---|:---|:---|:---|
 | 00 | **ペット選択** | [00-pet-selection.md](./00-pet-selection.md) | 新規データ作成時の共通検索・特定フロー。 |
 | 01 | **当日の受付** | [01-reception.md](./01-reception.md) | カンバン形式による院内稼働状況の管理。 |
-| 02 | **予約管理** | [02-reservations.md](./02-reservations.md) | 月/週カレンダーによる予約枠とシフトの可視化. |
+| 02 | **予約管理** | [02-reservations.md](./02-reservations.md) | 月/週カレンダーによる予約枠とシフトの可視化。 |
 | 05 | **カルテ一覧** | [05-medical-records-list.md](./05-medical-records-list.md) | 全診療記録の時系列検索。 |
 | 06 | **カルテ詳細・入力** | [06-medical-records-form.md](./06-medical-records-form.md) | SOAPS 形式の診療録作成（9 タブ構成）。 |
 | 12 | **検査一覧** | [12-examinations-list.md](./12-examinations-list.md) | 検査オーダー状況と結果の進捗管理。 |
@@ -27,7 +27,7 @@
 
 | No | 画面名 | 仕様書 | 概要 |
 |:---|:---|:---|:---|
-| 07 | **入院管理一覧** | [07-hospitalization-list.md](./07-hospitalization-list.md) | ボードビューによるケージ稼働状況の監視。 |
+| 07 | **入院管理一覧** | [07-hospitalization-list.md](./07-hospitalization-list.md) | ボードビューによるケージ稼働状況の監視. |
 | 08 | **入院詳細・記録** | [08-hospitalization-detail.md](./08-hospitalization-detail.md) | デイリーケア計画と時系列バイタル記録。 |
 | 09 | **入院登録・編集** | [09-hospitalization-form.md](./09-hospitalization-form.md) | ケアプランと値引き設定の定義。 |
 
@@ -57,13 +57,13 @@
 |:---|:---|:---|:---|
 | 18 | **在庫管理一覧** | [18-inventory-list.md](./18-inventory-list.md) | 品目別の在庫監視と発注点管理。 |
 | 27 | **在庫登録・編集** | [27-inventory-form.md](./27-inventory-form.md) | 薬品・備品の基本情報管理。 |
-| 24 | **シフト管理** | [24-shift-calendar.md](./24-shift-calendar.md) | スタッフ勤務と LINE 予約の連動。 |
-| 28 | **LINE 予約設定** | [28-line-reservation.md](./28-line-reservation.md) | 予約システム稼働ルールと文言編集。 |
+| 24 | **シフト管理** | [24-shift-calendar.md](./24-shift-calendar.md) | スタッフ勤務と LINE 予約の連動. |
+| 28 | **LINE 予約設定** | [28-line-reservation.md](./28-line-reservation.md) | 予約システム稼働ルールと文言編集. |
 | 31 | **Lステップ連携** | [31-lstep-integration.md](./31-lstep-integration.md) | CPM 判定、自動配信、タグ管理。 |
 | 34 | **Lステップ配信監視** | [34-lstep-delivery-monitor.md](./34-lstep-delivery-monitor.md) | 自動配信トリガーの実行ログと失敗検知。 |
 | 35 | **取扱説明書** | [35-internal-manual.md](./35-internal-manual.md) | システム内マニュアルの閲覧と編集。 |
 | 21 | **ログイン** | [21-login.md](./21-login.md) | 認証プロセスとパスワード再設定。 |
-| 19 | **医院マスタ設定** | [19-clinic-settings.md](./19-clinic-settings.md) | インボイス番号等の拠点情報管理。 |
+| 19 | **医院マスタ設定** | [19-clinic-settings.md](./19-clinic-settings.md) | 拠点基本情報と税務設定。 |
 
 ---
 

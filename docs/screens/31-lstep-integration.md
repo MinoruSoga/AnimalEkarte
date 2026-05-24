@@ -4,7 +4,7 @@
 - **画面の目的**: Lステップ（LINE公式アカウント拡張ツール）との高度な連携設定、自動配信タグの管理、およびマーケティング施策の効果分析。
 - **URLパターン**: 
   - 連携設定: `/settings/integrations/lstep`
-  - タグ管理: `/settings/lstep/tags`
+  - タグ管理: `/lstep/tags`
   - 健診対象者抽出: `/lstep/checkup-sync`
 - **アクセス権限**: 外部連携管理権限が必要（`ResourceHospitalSettings`）
 
