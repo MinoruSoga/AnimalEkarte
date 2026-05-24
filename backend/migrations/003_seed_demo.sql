@@ -3737,4 +3737,103 @@ SELECT setval(pg_get_serial_sequence('payment_splits', 'id'), (SELECT MAX(id) FR
 SELECT setval(pg_get_serial_sequence('lstep_tag_cache', 'id'), (SELECT MAX(id) FROM lstep_tag_cache));
 SELECT setval(pg_get_serial_sequence('line_customers', 'id'), (SELECT MAX(id) FROM line_customers));
 
+-- -----------------------------------------------------------------------------
+-- 13n. 高度な運用管理・役割・ドキュメント管理データ
+-- -----------------------------------------------------------------------------
+
+-- 予約区分と職種の紐付け (どのスタッフがどの予約を受けられるか)
+INSERT INTO reservation_type_occupations (clinic_id, reservation_type_id, occupation_id) VALUES
+    (1, 1, 1), -- 一般診察 -> 獣医師
+    (1, 2, 1), -- ワクチン -> 獣医師
+    (1, 7, 1), -- 検査・健診 -> 獣医師
+    (1, 9, 3), -- トリミング -> トリマー
+    (1, 1, 2)  -- 一般診察 -> 看護師（補助として）
+ON CONFLICT DO NOTHING;
+
+-- L-Step 配信トリガー優先順位
+INSERT INTO lstep_trigger_priorities (clinic_id, trigger_type, priority) VALUES
+    (1, 'AFTER_SURGERY_FOLLOW', 1), -- 最優先
+    (1, 'HOSPITALIZATION_LOG',  2),
+    (1, 'RESERVATION_REMINDER', 3),
+    (1, 'VACCINE_ANNOUNCEMENT', 4)
+ON CONFLICT DO NOTHING;
+
+-- マニュアルの変更履歴（バージョン管理デモ用）
+INSERT INTO manual_article_versions (article_id, title, order_value, section, body_markdown, edited_by_staff_id)
+SELECT id, title, order_value, section, body_markdown, 1 FROM manual_articles WHERE slug = 'cpr-protocol';
+INSERT INTO manual_article_versions (article_id, title, order_value, section, body_markdown, edited_by_staff_id)
+SELECT id, title, order_value, section, body_markdown || '\n\n【追記】大型犬の場合は両手で実施。', 1 FROM manual_articles WHERE slug = 'cpr-protocol';
+
+-- 同意書・書類テンプレート (`shared_files` を活用)
+INSERT INTO shared_files (clinic_id, uploaded_by, file_type, file_name, file_key, file_size, purpose) VALUES
+    (1, 1, 'pdf', '手術同意書_テンプレート.pdf', 'templates/consent_surgery.pdf', 150000, 'template'),
+    (1, 1, 'pdf', '麻酔リスク説明書.pdf',       'templates/anesthesia_risk.pdf', 200000, 'manual')
+ON CONFLICT DO NOTHING;
+
+-- 療法食・プレミアムフードの拡充
+INSERT INTO merchandise_items (clinic_id, name, category, unit_price, tax_type, tax_rate) VALUES
+    (1, 'ヒルズ z/d 2kg', 'food', 5800, 'excluded', 0.08),
+    (1, 'ロイヤルカナン ユリナリーS/O 4kg', 'food', 7200, 'excluded', 0.08)
+ON CONFLICT DO NOTHING;
+
+-- 承認済み見積書（手術用）
+INSERT INTO estimates (clinic_id, estimate_no, medical_record_id, owner_id, title, subtotal, tax_total, total_amount, status, valid_until) VALUES
+    (1, 'EST-2026-008', 61, 3, '避妊手術・術前検査パック', 45000, 4500, 49500, 'approved', '2026-06-15')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO estimate_items (estimate_id, name, category, unit_price, quantity, tax_type, tax_rate) VALUES
+    ((SELECT id FROM estimates WHERE estimate_no = 'EST-2026-008' LIMIT 1), '避妊手術一式', 'surgery', 35000, 1, 'excluded', 0.10),
+    ((SELECT id FROM estimates WHERE estimate_no = 'EST-2026-008' LIMIT 1), '術前血液検査', 'test',      10000, 1, 'excluded', 0.10)
+ON CONFLICT DO NOTHING;
+
+-- 全シーケンスの最終同期（全てのテーブルを網羅）
+SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
+SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
+SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
+SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
+SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM billings));
+SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
+SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
+SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
+SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
+SELECT setval(pg_get_serial_sequence('exam_results', 'id'), (SELECT MAX(id) FROM exam_results));
+SELECT setval(pg_get_serial_sequence('hospitalizations', 'id'), (SELECT MAX(id) FROM hospitalizations));
+SELECT setval(pg_get_serial_sequence('daily_records', 'id'), (SELECT MAX(id) FROM daily_records));
+SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FROM vital_records));
+SELECT setval(pg_get_serial_sequence('audit_logs', 'id'), (SELECT MAX(id) FROM audit_logs));
+SELECT setval(pg_get_serial_sequence('estimates', 'id'), (SELECT MAX(id) FROM estimates));
+SELECT setval(pg_get_serial_sequence('estimate_items', 'id'), (SELECT MAX(id) FROM estimate_items));
+SELECT setval(pg_get_serial_sequence('shared_files', 'id'), (SELECT MAX(id) FROM shared_files));
+SELECT setval(pg_get_serial_sequence('pet_chronic_conditions', 'id'), (SELECT MAX(id) FROM pet_chronic_conditions));
+SELECT setval(pg_get_serial_sequence('treatment_plans', 'id'), (SELECT MAX(id) FROM treatment_plans));
+SELECT setval(pg_get_serial_sequence('staff_notes', 'id'), (SELECT MAX(id) FROM staff_notes));
+SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
+SELECT setval(pg_get_serial_sequence('procedures', 'id'), (SELECT MAX(id) FROM procedures));
+SELECT setval(pg_get_serial_sequence('diagnosis_names', 'id'), (SELECT MAX(id) FROM diagnosis_names));
+SELECT setval(pg_get_serial_sequence('checkup_types', 'id'), (SELECT MAX(id) FROM checkup_types));
+SELECT setval(pg_get_serial_sequence('inquiry_templates', 'id'), (SELECT MAX(id) FROM inquiry_templates));
+SELECT setval(pg_get_serial_sequence('cash_register_closes', 'id'), (SELECT MAX(id) FROM cash_register_closes));
+SELECT setval(pg_get_serial_sequence('medical_record_images', 'id'), (SELECT MAX(id) FROM medical_record_images));
+SELECT setval(pg_get_serial_sequence('medical_record_addenda', 'id'), (SELECT MAX(id) FROM medical_record_addenda));
+SELECT setval(pg_get_serial_sequence('billing_confirmations', 'id'), (SELECT MAX(id) FROM billing_confirmations));
+SELECT setval(pg_get_serial_sequence('cages', 'id'), (SELECT MAX(id) FROM cages));
+SELECT setval(pg_get_serial_sequence('clinic_holidays', 'id'), (SELECT MAX(id) FROM clinic_holidays));
+SELECT setval(pg_get_serial_sequence('reservation_type_unavailable_times', 'id'), (SELECT MAX(id) FROM reservation_type_unavailable_times));
+SELECT setval(pg_get_serial_sequence('care_logs', 'id'), (SELECT MAX(id) FROM care_logs));
+SELECT setval(pg_get_serial_sequence('lstep_friend_attribute_snapshots', 'id'), (SELECT MAX(id) FROM lstep_friend_attribute_snapshots));
+SELECT setval(pg_get_serial_sequence('shift_templates', 'id'), (SELECT MAX(id) FROM shift_templates));
+SELECT setval(pg_get_serial_sequence('shift_entry_breaks', 'id'), (SELECT MAX(id) FROM shift_entry_breaks));
+SELECT setval(pg_get_serial_sequence('manual_articles', 'id'), (SELECT MAX(id) FROM manual_articles));
+SELECT setval(pg_get_serial_sequence('manual_article_versions', 'id'), (SELECT MAX(id) FROM manual_article_versions));
+SELECT setval(pg_get_serial_sequence('line_send_logs', 'id'), (SELECT MAX(id) FROM line_send_logs));
+SELECT setval(pg_get_serial_sequence('lstep_delivery_trigger_log', 'id'), (SELECT MAX(id) FROM lstep_delivery_trigger_log));
+SELECT setval(pg_get_serial_sequence('closing_special_periods', 'id'), (SELECT MAX(id) FROM closing_special_periods));
+SELECT setval(pg_get_serial_sequence('staff_reservation_exclusions', 'id'), (SELECT MAX(id) FROM staff_reservation_exclusions));
+SELECT setval(pg_get_serial_sequence('payment_splits', 'id'), (SELECT MAX(id) FROM payment_splits));
+SELECT setval(pg_get_serial_sequence('lstep_tag_cache', 'id'), (SELECT MAX(id) FROM lstep_tag_cache));
+SELECT setval(pg_get_serial_sequence('line_customers', 'id'), (SELECT MAX(id) FROM line_customers));
+SELECT setval(pg_get_serial_sequence('reservation_type_occupations', 'id'), (SELECT MAX(id) FROM reservation_type_occupations));
+SELECT setval(pg_get_serial_sequence('lstep_trigger_priorities', 'id'), (SELECT MAX(id) FROM lstep_trigger_priorities));
+
 -- END OF DEMO SEED --
+
