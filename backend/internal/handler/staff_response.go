@@ -33,6 +33,7 @@ type staffResponse struct {
 	ReservationDisplayName string          `json:"reservation_display_name"`
 	ReservationVisible     bool            `json:"reservation_visible"`
 	ReservationComment     string          `json:"reservation_comment"`
+	ReservationImageURL    string          `json:"reservation_image_url"`
 }
 
 func toOccupationInStaffResponse(occ *model.Occupation) *occupationInStaffResponse {
@@ -70,6 +71,7 @@ func toStaffResponse(s *model.Staff) staffResponse {
 		ReservationDisplayName: s.ReservationDisplayName,
 		ReservationVisible:     s.ReservationVisible,
 		ReservationComment:     s.ReservationComment,
+		ReservationImageURL:    s.ReservationImageURL,
 	}
 }
 

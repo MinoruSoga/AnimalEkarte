@@ -72,8 +72,10 @@ export function ManualPage() {
 
   // URL 遷移時はドロワーを閉じる + 編集モードも解除
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- URL changes must synchronously close transient manual UI state. */
     setDrawerOpen(false);
     setEditMode(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [params.category, params.slug]);
 
   // URL 未指定時は当該ビューモードの先頭記事へリダイレクト

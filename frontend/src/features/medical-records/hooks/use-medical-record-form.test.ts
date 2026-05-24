@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { useMedicalRecordForm } from "./use-medical-record-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
@@ -55,6 +55,10 @@ describe("useMedicalRecordForm", () => {
     vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false, isError: false });
     // デフォルト: owner データなし
     vi.mocked(useGetOwner).mockReturnValue(noData as never);
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
   });
 
   // ──────────────────────────
@@ -436,16 +440,17 @@ describe("useMedicalRecordForm", () => {
 
       await act(async () => {
         renderHook(() => useMedicalRecordForm()); // recordId なし → isNewRecord=true
-        await new Promise(resolve => setTimeout(resolve, 0));
       });
 
-      expect(mockMutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          pet_id: mockPet.id,
-          owner_id: mockPet.ownerId,
-          status: "draft",
-        })
-      );
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            pet_id: mockPet.id,
+            owner_id: mockPet.ownerId,
+            status: "draft",
+          })
+        );
+      });
     });
 
     it("isNewRecord && selectedPet あり → 作成後に detail ページへナビゲート", async () => {
@@ -464,14 +469,15 @@ describe("useMedicalRecordForm", () => {
 
       await act(async () => {
         renderHook(() => useMedicalRecordForm());
-        await new Promise(resolve => setTimeout(resolve, 10));
       });
 
       // navigate が呼ばれ、detail ページパスに new-record-1 が含まれる
-      expect(mockNavigate).toHaveBeenCalledWith(
-        expect.stringContaining("new-record-1"),
-        expect.objectContaining({ replace: true })
-      );
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          expect.stringContaining("new-record-1"),
+          expect.objectContaining({ replace: true })
+        );
+      });
     });
 
     it("isNewRecord だが selectedPet なし → createMutation 呼ばれない", async () => {
@@ -512,11 +518,12 @@ describe("useMedicalRecordForm", () => {
 
       await act(async () => {
         renderHook(() => useMedicalRecordForm());
-        await new Promise(resolve => setTimeout(resolve, 10));
       });
 
       // createMutation.mutateAsync が呼ばれ、エラー後も hook がクラッシュしない
-      expect(mockMutateAsync).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalled();
+      });
     });
   });
 
