@@ -551,8 +551,20 @@ INSERT INTO cages (id, clinic_id, name, price, is_active, description, cage_type
     (5, 1, '犬用ケージ（大）', 4000, true, '大型犬・術後管理用',      'dog',     'large',  5),
     (6, 1, '猫用ケージ（小）', 3000, true, '猫専用・ストレス軽減設計', 'cat',     'small',  6),
     (7, 1, '猫用ケージ（中）', 3000, true, '猫専用・ストレス軽減設計', 'cat',     'medium', 7),
-    (8, 1, '汎用ケージA',     2500, true, '小動物・鳥類等対応',      'general', 'small',  8)
-ON CONFLICT DO NOTHING;
+    (8, 1, '汎用ケージA',     2500, true, '小動物・鳥類等対応',      'general', 'small',  8),
+    -- 追加: ID 10-20
+    (10, 1, 'ICUケージC',    8000, true, '重症患者用', 'icu', 'medium', 10),
+    (11, 1, '犬用大型A',     4000, true, '超大型犬対応', 'dog', 'large', 11),
+    (12, 1, '犬用中型B',     3500, true, '一般入院', 'dog', 'medium', 12),
+    (13, 1, '犬用小型B',     3000, true, '一般入院', 'dog', 'small', 13),
+    (14, 1, '犬用小型C',     3000, true, '一般入院', 'dog', 'small', 14),
+    (15, 1, '猫用小型B',     3000, true, '猫専用', 'cat', 'small', 15),
+    (16, 1, '猫用小型C',     3000, true, '猫専用', 'cat', 'small', 16),
+    (17, 1, '猫用中型B',     3000, true, '猫専用', 'cat', 'medium', 17),
+    (18, 1, '汎用ケージB',    2500, true, 'エキゾチック用', 'general', 'small', 18),
+    (19, 1, '隔離室A',       5000, true, '感染症疑い用', 'dog', 'medium', 19),
+    (20, 1, '隔離室B',       5000, true, '感染症疑い用', 'cat', 'small', 20)
+ON CONFLICT (id) DO NOTHING;
 
 
 -- -----------------------------------------------------------------------------
@@ -3259,17 +3271,17 @@ INSERT INTO payments (billing_id, subtotal, tax_total, total_amount, billing_amo
 ON CONFLICT DO NOTHING;
 
 -- 会計医師確認 (billing_confirmations)
-INSERT INTO billing_confirmations (medical_record_id, status, confirmed_by, confirmed_at, memo) VALUES
-    (61, 'confirmed', 1, now() - interval '2 hours', '確認済み。'),
-    (62, 'confirmed', 2, now() - interval '1 hour',  '処置内容問題なし。'),
-    (63, 'pending',   NULL, NULL,                     '検査結果待ち。'),
-    (64, 'confirmed', 1, now() - interval '30 minutes', '手術記録と合致。'),
-    (66, 'pending',   NULL, NULL,                     ''),
-    (68, 'confirmed', 2, now() - interval '10 minutes', '保険適用確認済み。'),
-    (70, 'pending',   NULL, NULL,                     '後ほど確認。'),
-    (71, 'confirmed', 1, now() - interval '5 minutes',  'スケーリング費用適正。'),
-    (72, 'pending',   NULL, NULL,                     ''),
-    (74, 'pending',   NULL, NULL,                     '救急加算の確認。')
+INSERT INTO billing_confirmations (medical_record_id, status, confirmed_by, confirmed_at, returned_by, returned_at, return_reason, memo) VALUES
+    (61, 'confirmed', 1, now() - interval '2 hours', NULL, NULL, '', '確認済み。'),
+    (62, 'confirmed', 2, now() - interval '1 hour',  NULL, NULL, '', '処置内容問題なし。'),
+    (63, 'pending',   NULL, NULL,                     NULL, NULL, '', '検査結果待ち。'),
+    (64, 'confirmed', 1, now() - interval '30 minutes', NULL, NULL, '', '手術記録と合致。'),
+    (66, 'returned',  NULL, NULL,                     1, now() - interval '20 minutes', '処方薬の数量が不整合です。確認お願いします。', '差し戻し'),
+    (68, 'confirmed', 2, now() - interval '10 minutes', NULL, NULL, '', '保険適用確認済み。'),
+    (70, 'pending',   NULL, NULL,                     NULL, NULL, '', '後ほど確認。'),
+    (71, 'confirmed', 1, now() - interval '5 minutes',  NULL, NULL, '', 'スケーリング費用適正。'),
+    (72, 'returned',  NULL, NULL,                     2, now() - interval '5 minutes', '再診料の重複があります。', '要修正'),
+    (74, 'pending',   NULL, NULL,                     NULL, NULL, '', '救急加算の確認。')
 ON CONFLICT DO NOTHING;
 
 -- カルテ修正記録 (medical_record_addenda)
@@ -3395,9 +3407,334 @@ SELECT setval(pg_get_serial_sequence('line_customers', 'id'), (SELECT MAX(id) FR
 SELECT setval(pg_get_serial_sequence('payment_splits', 'id'), (SELECT MAX(id) FROM payment_splits));
 SELECT setval(pg_get_serial_sequence('lstep_tag_cache', 'id'), (SELECT MAX(id) FROM lstep_tag_cache));
 
--- END OF DEMO SEED --
-
-
+SELECT setval(pg_get_serial_sequence('estimate_items', 'id'), (SELECT MAX(id) FROM estimate_items));
 
 
 -- -----------------------------------------------------------------------------
+-- 13i. 最終精密データ（LINEログ・特殊期間・スタッフ除外）
+-- -----------------------------------------------------------------------------
+
+-- LINE送信ログ
+INSERT INTO line_send_logs (clinic_id, owner_id, sent_by_user_id, message_type, content_summary, status) VALUES
+    (1, 1, 1, 'text', '明日の予約リマインド：Iris(イリス)様 9:00〜', 'success'),
+    (1, 2, 1, 'text', '狂犬病ワクチンのご案内（ミケちゃん）', 'success'),
+    (1, 3, 2, 'image', '【画像】院内の改装工事のお知らせ', 'success'),
+    (1, 4, 1, 'text', '診察完了のお知らせ', 'success'),
+    (1, 5, 3, 'text', 'お薬の準備ができました。ご来院をお待ちしております。', 'success')
+ON CONFLICT DO NOTHING;
+
+-- L-Step 配信トリガーログ (自動化デモ用)
+INSERT INTO lstep_delivery_trigger_log (owner_id, clinic_id, trigger_type, scheduled_at, status, fired_at) VALUES
+    (1, 1, 'RESERVATION_REMINDER', now() + interval '1 day', 'scheduled', NULL),
+    (2, 1, 'VACCINE_ANNOUNCEMENT', now() - interval '2 days', 'fired',     now() - interval '2 days'),
+    (3, 1, 'BIRTHDAY_MESSAGE',    now() - interval '5 days', 'fired',     now() - interval '5 days'),
+    (4, 1, 'HOSPITALIZATION_LOG', now() - interval '1 hour', 'fired',     now() - interval '1 hour'),
+    (5, 1, 'AFTER_SURGERY_FOLLOW',now() + interval '3 days', 'scheduled', NULL)
+ON CONFLICT DO NOTHING;
+
+-- 特定休診・特別期間（大型連休など）
+INSERT INTO closing_special_periods (clinic_id, start_date, end_date, am_pm_boundary, pm_end, note) VALUES
+    (1, '2026-08-13', '2026-08-16', '12:00', '18:00', '夏季休暇（お盆休み）'),
+    (1, '2026-12-30', '2027-01-03', '12:00', '18:00', '年末年始休暇')
+ON CONFLICT DO NOTHING;
+
+-- スタッフ予約受付除外 (特定の科目を担当しない、または特定の時間のみ受付)
+INSERT INTO staff_reservation_exclusions (staff_id, reservation_type_id) VALUES
+    (1, 9),  -- 医師1はトリミングコース（ID 9）の担当から除外
+    (2, 12), -- 医師2は特定マスタの除外
+    (16, 28) -- 城東の医師16はワクチン（ID 28）の主担当から除外
+ON CONFLICT DO NOTHING;
+
+-- シーケンス同期（追加分）
+SELECT setval(pg_get_serial_sequence('line_send_logs', 'id'), (SELECT MAX(id) FROM line_send_logs));
+SELECT setval(pg_get_serial_sequence('lstep_delivery_trigger_log', 'id'), (SELECT MAX(id) FROM lstep_delivery_trigger_log));
+SELECT setval(pg_get_serial_sequence('closing_special_periods', 'id'), (SELECT MAX(id) FROM closing_special_periods));
+SELECT setval(pg_get_serial_sequence('staff_reservation_exclusions', 'id'), (SELECT MAX(id) FROM staff_reservation_exclusions));
+
+SELECT setval(pg_get_serial_sequence('staff_reservation_exclusions', 'id'), (SELECT MAX(id) FROM staff_reservation_exclusions));
+
+
+-- -----------------------------------------------------------------------------
+-- 13j. 最終・全ページ総点検拡充データ（休日・ケージ・不可時間・ログ）
+-- -----------------------------------------------------------------------------
+
+-- 追加の祝日・休診日（2026年6月〜7月）
+INSERT INTO clinic_holidays (clinic_id, date, reason) VALUES
+    (1, '2026-07-20', '海の日'),
+    (2, '2026-07-20', '海の日'),
+    (3, '2026-07-20', '海の日'),
+    (1, '2026-06-15', '院内清掃・メンテナンス'),
+    (2, '2026-06-16', '院内清掃・メンテナンス'),
+    (3, '2026-06-17', '院内清掃・メンテナンス')
+ON CONFLICT DO NOTHING;
+
+-- Clinic 2/3 のケージ拡充（入院マップ用）
+INSERT INTO cages (id, clinic_id, name, price, is_active, description, cage_type, cage_size, sort_order) VALUES
+    (101, 2, '城東 ICU-1', 8500, true, '高濃度酸素', 'icu',     'medium', 1),
+    (102, 2, '城東 犬小-1', 3200, true, '一般',       'dog',     'small',  2),
+    (103, 2, '城東 猫小-1', 3200, true, '一般',       'cat',     'small',  3),
+    (201, 3, '敷島 ICU-1', 7800, true, '高濃度酸素', 'icu',     'medium', 1),
+    (202, 3, '敷島 犬小-1', 2900, true, '一般',       'dog',     'small',  2),
+    (203, 3, '敷島 猫小-1', 2900, true, '一般',       'cat',     'small',  3)
+ON CONFLICT (id) DO NOTHING;
+
+-- 予約不可時間帯（お昼休みなど）
+INSERT INTO reservation_type_unavailable_times (clinic_id, reservation_type_id, unavailable_type, day_of_week, start_time, end_time) VALUES
+    (1, 1, 'weekly', 1, '13:00', '14:00'),
+    (1, 1, 'weekly', 2, '13:00', '14:00'),
+    (1, 1, 'weekly', 3, '13:00', '14:00'),
+    (1, 1, 'weekly', 4, '13:00', '14:00'),
+    (1, 1, 'weekly', 5, '13:00', '14:00')
+ON CONFLICT DO NOTHING;
+
+-- 過去の入院日次記録・看護記録（Clinic 2/3）
+INSERT INTO daily_records (hospitalization_id, clinic_id, date) VALUES
+    (6, 1, '2026-05-20'), (6, 1, '2026-05-21')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO care_logs (daily_record_id, time, type, status, value, staff_id, notes) VALUES
+    (1, '09:00', 'medicine',  'completed', 'アモキシ', 1, '朝の投薬完了。'),
+    (1, '18:00', 'medicine',  'completed', 'アモキシ', 1, '夕の投薬完了。'),
+    (2, '09:00', 'treatment', 'completed', '傷口洗浄', 1, '浸出液なし。'),
+    (3, '20:00', 'other',     'completed', '就寝',     2, '消灯。')
+ON CONFLICT (id) DO NOTHING;
+
+-- マニュアル関連の監査ログ
+INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource, resource_id) VALUES
+    (1, 1, 'staff', 'create', 'manual_article', 1),
+    (1, 1, 'staff', 'update', 'manual_article', 2),
+    (1, 2, 'staff', 'view',   'manual_article', 1);
+
+-- シーケンス最終同期（全テーブル）
+SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
+SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
+SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
+SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
+SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM billings));
+SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
+SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
+SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
+SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
+SELECT setval(pg_get_serial_sequence('hospitalizations', 'id'), (SELECT MAX(id) FROM hospitalizations));
+SELECT setval(pg_get_serial_sequence('daily_records', 'id'), (SELECT MAX(id) FROM daily_records));
+SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FROM vital_records));
+SELECT setval(pg_get_serial_sequence('audit_logs', 'id'), (SELECT MAX(id) FROM audit_logs));
+SELECT setval(pg_get_serial_sequence('estimates', 'id'), (SELECT MAX(id) FROM estimates));
+SELECT setval(pg_get_serial_sequence('shared_files', 'id'), (SELECT MAX(id) FROM shared_files));
+SELECT setval(pg_get_serial_sequence('pet_chronic_conditions', 'id'), (SELECT MAX(id) FROM pet_chronic_conditions));
+SELECT setval(pg_get_serial_sequence('treatment_plans', 'id'), (SELECT MAX(id) FROM treatment_plans));
+SELECT setval(pg_get_serial_sequence('staff_notes', 'id'), (SELECT MAX(id) FROM staff_notes));
+SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
+SELECT setval(pg_get_serial_sequence('procedures', 'id'), (SELECT MAX(id) FROM procedures));
+SELECT setval(pg_get_serial_sequence('diagnosis_names', 'id'), (SELECT MAX(id) FROM diagnosis_names));
+SELECT setval(pg_get_serial_sequence('checkup_types', 'id'), (SELECT MAX(id) FROM checkup_types));
+SELECT setval(pg_get_serial_sequence('inquiry_templates', 'id'), (SELECT MAX(id) FROM inquiry_templates));
+SELECT setval(pg_get_serial_sequence('cash_register_closes', 'id'), (SELECT MAX(id) FROM cash_register_closes));
+SELECT setval(pg_get_serial_sequence('medical_record_images', 'id'), (SELECT MAX(id) FROM medical_record_images));
+SELECT setval(pg_get_serial_sequence('medical_record_addenda', 'id'), (SELECT MAX(id) FROM medical_record_addenda));
+SELECT setval(pg_get_serial_sequence('billing_confirmations', 'id'), (SELECT MAX(id) FROM billing_confirmations));
+SELECT setval(pg_get_serial_sequence('estimate_items', 'id'), (SELECT MAX(id) FROM estimate_items));
+SELECT setval(pg_get_serial_sequence('cages', 'id'), (SELECT MAX(id) FROM cages));
+SELECT setval(pg_get_serial_sequence('clinic_holidays', 'id'), (SELECT MAX(id) FROM clinic_holidays));
+SELECT setval(pg_get_serial_sequence('reservation_type_unavailable_times', 'id'), (SELECT MAX(id) FROM reservation_type_unavailable_times));
+SELECT setval(pg_get_serial_sequence('care_logs', 'id'), (SELECT MAX(id) FROM care_logs));
+
+
+-- -----------------------------------------------------------------------------
+-- 13k. 究極の全機能密度・ピクセルパーフェクトデータ（シフト・属性・インポート）
+-- -----------------------------------------------------------------------------
+
+-- シフトテンプレート
+INSERT INTO shift_templates (clinic_id, name, shift_type, start_time, end_time, sort_order) VALUES
+    (1, '通常日勤（18:30まで）', 'full',    '09:00', '18:30', 1),
+    (1, '早番（17:00まで）',    'full',    '08:30', '17:00', 2),
+    (1, '午前のみ',            'morning', '09:00', '13:00', 3)
+ON CONFLICT DO NOTHING;
+
+-- シフトの休憩時間（本日分の主要スタッフに設定）
+INSERT INTO shift_entry_breaks (shift_entry_id, break_start, break_end)
+SELECT id, '13:00'::time, '14:00'::time FROM shift_entries WHERE date = '2026-05-22' AND staff_id IN (1, 2, 3)
+UNION ALL
+SELECT id, '12:00'::time, '13:00'::time FROM shift_entries WHERE date = '2026-05-22' AND staff_id IN (4, 5);
+
+-- L-Step CSV インポート履歴
+INSERT INTO lstep_csv_imports (clinic_id, csv_type, file_name, uploaded_by_user_id, row_count, success_count, status, imported_at) VALUES
+    (1, 'friend_attribute', 'owners_export_20260520.csv', 1, 100, 100, 'completed', now() - interval '3 days'),
+    (1, 'friend_attribute', 'new_members_20260521.csv',   1, 50,  48,  'completed', now() - interval '2 days'),
+    (1, 'friend_attribute', 'invalid_data_test.csv',     1, 10,  0,   'failed',    now() - interval '1 day')
+ON CONFLICT DO NOTHING;
+
+-- Clinic 2/3 設定の拡充
+INSERT INTO clinic_settings (clinic_id, closing_am_pm_boundary, closing_weekday_end, closing_sunday_end, closed_weekdays) VALUES
+    (2, '13:30', '19:00', '18:00', ARRAY[4]::smallint[]), -- 水曜定休
+    (3, '14:00', '18:00', '17:00', ARRAY[0, 6]::smallint[]) -- 土日定休
+ON CONFLICT (clinic_id) DO NOTHING;
+
+-- シーケンス最終同期（追加分）
+SELECT setval(pg_get_serial_sequence('shift_templates', 'id'), (SELECT MAX(id) FROM shift_templates));
+SELECT setval(pg_get_serial_sequence('shift_entry_breaks', 'id'), (SELECT MAX(id) FROM shift_entry_breaks));
+
+-- -----------------------------------------------------------------------------
+-- 13l. 全拠点・全ステータス完全網羅データ（拠点間格差の解消とステータス多様化）
+-- -----------------------------------------------------------------------------
+
+-- 主訴区分の追加 (Clinic 1)
+INSERT INTO chief_complaint_types (id, clinic_id, name, is_active, sort_order) VALUES
+    (10, 1, '誤飲・異物', true, 10),
+    (11, 1, '事故・外傷', true, 11),
+    (12, 1, '定期処方のみ', true, 12)
+ON CONFLICT (id) DO NOTHING;
+
+-- 専門的な問診テンプレート
+INSERT INTO inquiry_templates (clinic_id, category, title, content, is_active, sort_order) VALUES
+    (1, 'specialty', '循環器・心機能チェック', '【咳】いつ出るか（ ） 頻度（ ）\n【運動】散歩の距離（ ） 息切れ（ ）\n【失神】過去に倒れたことは？（ ）', true, 20),
+    (1, 'specialty', '去勢・避妊相談', '【発情】最後はいつ？（ ）\n【術前検査】希望する？（ ）\n【性格】非常に怖がるなど（ ）', true, 21)
+ON CONFLICT DO NOTHING;
+
+-- Clinic 2 のケージ・在庫拡充 (計15台/15品目程度)
+INSERT INTO cages (id, clinic_id, name, price, is_active, description, cage_type, cage_size, sort_order) VALUES
+    (104, 2, '城東 ICU-2', 8500, true, '高濃度酸素', 'icu',     'medium', 4),
+    (105, 2, '城東 犬中-1', 3500, true, '一般',       'dog',     'medium', 5),
+    (106, 2, '城東 犬大-1', 4000, true, '一般',       'dog',     'large',  6),
+    (107, 2, '城東 猫小-2', 3200, true, '一般',       'cat',     'small',  7),
+    (108, 2, '城東 汎用-1', 2500, true, 'エキゾチック', 'general', 'small',  8)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO inventory_items (id, clinic_id, name, category, quantity, unit, min_stock_level, location, supplier, status) VALUES
+    (101, 2, '留置針 24G', 'consumable', 100, '本', 20, '処置室', 'テルモ', 'sufficient'),
+    (102, 2, '乳酸リンゲル 250mL', 'medicine', 12, '袋', 24, '薬品棚', '大塚製薬', 'low'),
+    (103, 2, '消毒用綿棒', 'consumable', 500, '本', 100, '処置室', '白十字', 'sufficient')
+ON CONFLICT (id) DO NOTHING;
+
+-- Clinic 3 のケージ・在庫拡充 (計15台/15品目程度)
+INSERT INTO cages (id, clinic_id, name, price, is_active, description, cage_type, cage_size, sort_order) VALUES
+    (204, 3, '敷島 犬中-1', 3200, true, '一般',       'dog',     'medium', 4),
+    (205, 3, '敷島 猫小-2', 2900, true, '一般',       'cat',     'small',  5),
+    (206, 3, '敷島 隔離-1', 5000, true, '感染症',     'dog',     'medium', 6)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO inventory_items (id, clinic_id, name, category, quantity, unit, min_stock_level, location, supplier, status) VALUES
+    (201, 3, 'シリンジ 1mL', 'consumable', 50, '本', 100, '薬品棚', 'テルモ', 'low'),
+    (202, 3, 'アモキシシリン 100mg', 'medicine', 200, '錠', 50, '薬品棚', '日本全薬工業', 'sufficient')
+ON CONFLICT (id) DO NOTHING;
+
+-- 本日の Clinic 1 予約ステータスの多様化 (キャンセル・未来院・緊急)
+INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_type_id, doctor_id, is_designated, status, notes) VALUES
+    (501, 1, '2026-05-22 10:00:00+09', '2026-05-22 10:15:00+09', 20, 22, 'revisit', 1, 1, false, 'cancelled', '飼い主急病のためキャンセル'),
+    (502, 1, '2026-05-22 11:30:00+09', '2026-05-22 11:45:00+09', 21, 25, 'revisit', 1, 2, false, 'no_show',   '連絡なし不在'),
+    (503, 1, '2026-05-22 14:00:00+09', '2026-05-22 14:30:00+09', 22, 27, 'revisit', 1, 8, true,  'checked_in', '急患：呼吸困難')
+ON CONFLICT (id) DO UPDATE SET updated_at = now();
+
+-- スタッフ用メモ（要注意情報）
+INSERT INTO staff_notes (daily_record_id, time, content, staff_id) VALUES
+    (3, '09:00', '【注意】処置時に噛み付こうとする仕草あり。エリザベスカラーまたはマズル必須。', 1),
+    (6, '15:00', '多頭飼育環境のため、感染症対策に留意。', 2)
+ON CONFLICT (id) DO NOTHING;
+
+-- シーケンス最終同期（追加分）
+SELECT setval(pg_get_serial_sequence('chief_complaint_types', 'id'), (SELECT MAX(id) FROM chief_complaint_types));
+SELECT setval(pg_get_serial_sequence('inquiry_templates', 'id'), (SELECT MAX(id) FROM inquiry_templates));
+SELECT setval(pg_get_serial_sequence('cages', 'id'), (SELECT MAX(id) FROM cages));
+SELECT setval(pg_get_serial_sequence('inventory_items', 'id'), (SELECT MAX(id) FROM inventory_items));
+SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
+SELECT setval(pg_get_serial_sequence('staff_notes', 'id'), (SELECT MAX(id) FROM staff_notes));
+
+
+-- -----------------------------------------------------------------------------
+-- -----------------------------------------------------------------------------
+-- 13m. 最終・極限データ密度（エキゾチック・ダッシュボード統計・属性履歴）
+-- -----------------------------------------------------------------------------
+
+-- エキゾチックアニマルの追加
+INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, name_kana, animal_species_id, gender, status, birth_date, breed, weight) VALUES
+    (80, 1, 5, '5-2',   'ピーター', 'ぴーたー', 4, 'male',   'alive', '2024-05-10', 'ネザーランドドワーフ', 1.2),
+    (81, 1, 10, '10-2', 'ハム助',   'はむすけ', 5, 'female', 'alive', '2025-01-15', 'ジャンガリアン',     0.04)
+ON CONFLICT (id) DO NOTHING;
+
+-- ダッシュボード統計用：過去3週間のトランザクション（5/1〜5/21）
+-- ※ 既存の枠と衝突しないよう 06:00 & doctor_id=33 に設定
+INSERT INTO appointments (clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_type_id, doctor_id, status)
+SELECT 1, d + interval '6 hours', d + interval '6 hours 15 minutes', 1, 1, 'revisit', 1, 33, 'completed'
+FROM generate_series('2026-05-01'::timestamp, '2026-05-21'::timestamp, '1 day') d
+ON CONFLICT (clinic_id, doctor_id, start_time) WHERE deleted_at IS NULL AND status != 'cancelled' DO NOTHING;
+
+INSERT INTO billings (clinic_id, owner_id, pet_id, subtotal, tax_total, total_amount, status, scheduled_date, completed_at)
+SELECT 1, 1, 1, 5000, 500, 5500, 'completed', d::date, d + interval '11 hours'
+FROM generate_series('2026-05-01'::timestamp, '2026-05-21'::timestamp, '1 day') d;
+
+-- L-Step 属性スナップショット（マーケティング履歴）
+INSERT INTO lstep_friend_attribute_snapshots (clinic_id, line_user_id, tags, snapshot_taken_at) VALUES
+    (1, 'U1234567890abcdef1234567890abcdef', '["puppy", "last_visit_20251220"]', now() - interval '6 months'),
+    (1, 'U1234567890abcdef1234567890abcdef', '["adult", "last_visit_20260522"]', now()),
+    (1, 'U9876543210fedcba9876543210fedcba', '["senior", "care_needed"]',        now() - interval '1 day')
+ON CONFLICT DO NOTHING;
+
+-- 特殊な監査ログ（セキュリティ・設定変更）
+INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource, resource_id, metadata) VALUES
+    (1, 1, 'staff', 'failed_login', 'account', NULL, '{"reason": "invalid_password", "user": "admin"}'),
+    (1, 1, 'staff', 'change_password', 'account', 1, '{"method": "manual"}'),
+    (1, 1, 'staff', 'update_permission', 'permission_group', 1, '{"field": "can_delete_medical_record", "value": false}');
+
+-- エキゾチックの診察記録
+INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, doctor_id, status) VALUES
+    (501, 1, 'EX-001', '2026-05-22', 5, 80, 1, 'finalized'),
+    (502, 1, 'EX-002', '2026-05-22', 10, 81, 2, 'finalized')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_details, treatment_policy) VALUES
+    (501, 501, '不正咬合の疑い。切歯が伸びている。', '過長歯（うサギ）', 'ニッパーによる切歯カット。牧草中心の食事指導。'),
+    (502, 502, '頬袋に炎症。', '頬袋炎', '内容物の除去。抗生剤シロップ処方。')
+ON CONFLICT (id) DO NOTHING;
+
+-- マニュアル記事（緊急時対応）
+INSERT INTO manual_articles (category, slug, title, order_value, section, body_markdown, updated_by_staff_id) VALUES
+    ('workflows', 'cpr-protocol', '心肺蘇生プロトコル', 10, '救急', '1. 気道確保\n2. 人工呼吸\n3. 胸骨圧迫（小型犬・猫は片手で包むように）', 1)
+ON CONFLICT DO NOTHING;
+
+-- 全シーケンスの最終同期（全てのテーブルを網羅）
+SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
+SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
+SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
+SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
+SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM billings));
+SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
+SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
+SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
+SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
+SELECT setval(pg_get_serial_sequence('exam_results', 'id'), (SELECT MAX(id) FROM exam_results));
+SELECT setval(pg_get_serial_sequence('hospitalizations', 'id'), (SELECT MAX(id) FROM hospitalizations));
+SELECT setval(pg_get_serial_sequence('daily_records', 'id'), (SELECT MAX(id) FROM daily_records));
+SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FROM vital_records));
+SELECT setval(pg_get_serial_sequence('audit_logs', 'id'), (SELECT MAX(id) FROM audit_logs));
+SELECT setval(pg_get_serial_sequence('estimates', 'id'), (SELECT MAX(id) FROM estimates));
+SELECT setval(pg_get_serial_sequence('estimate_items', 'id'), (SELECT MAX(id) FROM estimate_items));
+SELECT setval(pg_get_serial_sequence('shared_files', 'id'), (SELECT MAX(id) FROM shared_files));
+SELECT setval(pg_get_serial_sequence('pet_chronic_conditions', 'id'), (SELECT MAX(id) FROM pet_chronic_conditions));
+SELECT setval(pg_get_serial_sequence('treatment_plans', 'id'), (SELECT MAX(id) FROM treatment_plans));
+SELECT setval(pg_get_serial_sequence('staff_notes', 'id'), (SELECT MAX(id) FROM staff_notes));
+SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
+SELECT setval(pg_get_serial_sequence('procedures', 'id'), (SELECT MAX(id) FROM procedures));
+SELECT setval(pg_get_serial_sequence('diagnosis_names', 'id'), (SELECT MAX(id) FROM diagnosis_names));
+SELECT setval(pg_get_serial_sequence('checkup_types', 'id'), (SELECT MAX(id) FROM checkup_types));
+SELECT setval(pg_get_serial_sequence('inquiry_templates', 'id'), (SELECT MAX(id) FROM inquiry_templates));
+SELECT setval(pg_get_serial_sequence('cash_register_closes', 'id'), (SELECT MAX(id) FROM cash_register_closes));
+SELECT setval(pg_get_serial_sequence('medical_record_images', 'id'), (SELECT MAX(id) FROM medical_record_images));
+SELECT setval(pg_get_serial_sequence('medical_record_addenda', 'id'), (SELECT MAX(id) FROM medical_record_addenda));
+SELECT setval(pg_get_serial_sequence('billing_confirmations', 'id'), (SELECT MAX(id) FROM billing_confirmations));
+SELECT setval(pg_get_serial_sequence('cages', 'id'), (SELECT MAX(id) FROM cages));
+SELECT setval(pg_get_serial_sequence('clinic_holidays', 'id'), (SELECT MAX(id) FROM clinic_holidays));
+SELECT setval(pg_get_serial_sequence('reservation_type_unavailable_times', 'id'), (SELECT MAX(id) FROM reservation_type_unavailable_times));
+SELECT setval(pg_get_serial_sequence('care_logs', 'id'), (SELECT MAX(id) FROM care_logs));
+SELECT setval(pg_get_serial_sequence('lstep_friend_attribute_snapshots', 'id'), (SELECT MAX(id) FROM lstep_friend_attribute_snapshots));
+SELECT setval(pg_get_serial_sequence('shift_templates', 'id'), (SELECT MAX(id) FROM shift_templates));
+SELECT setval(pg_get_serial_sequence('shift_entry_breaks', 'id'), (SELECT MAX(id) FROM shift_entry_breaks));
+SELECT setval(pg_get_serial_sequence('manual_articles', 'id'), (SELECT MAX(id) FROM manual_articles));
+SELECT setval(pg_get_serial_sequence('line_send_logs', 'id'), (SELECT MAX(id) FROM line_send_logs));
+SELECT setval(pg_get_serial_sequence('lstep_delivery_trigger_log', 'id'), (SELECT MAX(id) FROM lstep_delivery_trigger_log));
+SELECT setval(pg_get_serial_sequence('closing_special_periods', 'id'), (SELECT MAX(id) FROM closing_special_periods));
+SELECT setval(pg_get_serial_sequence('staff_reservation_exclusions', 'id'), (SELECT MAX(id) FROM staff_reservation_exclusions));
+SELECT setval(pg_get_serial_sequence('payment_splits', 'id'), (SELECT MAX(id) FROM payment_splits));
+SELECT setval(pg_get_serial_sequence('lstep_tag_cache', 'id'), (SELECT MAX(id) FROM lstep_tag_cache));
+SELECT setval(pg_get_serial_sequence('line_customers', 'id'), (SELECT MAX(id) FROM line_customers));
+
+-- END OF DEMO SEED --
