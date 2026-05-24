@@ -238,6 +238,39 @@ ON CONFLICT (id) DO UPDATE SET
 SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
 
 -- -----------------------------------------------------------------------------
+-- 10b. appointments (id=118-119) — STG dump 2026-05-25 差分
+-- 2026-05-21 に実際に作成されたクリニック1の予約
+-- -----------------------------------------------------------------------------
+INSERT INTO appointments (
+    id, clinic_id, start_time, end_time, owner_id, pet_id,
+    visit_type, reservation_type_id, doctor_id, is_designated,
+    status, notes, source, created_by, is_staff_delegated,
+    customer_fields, created_at, updated_at, deleted_at, line_customer_id
+) VALUES
+    (118, 1, '2026-05-21 08:30:00+00', '2026-05-21 09:30:00+00', 1, 1, 'revisit', 3, 1, false, 'no_show', '', 'manual', 4, false, '{}', '2026-05-21 08:29:00+00', '2026-05-21 08:30:00+00', NULL, NULL),
+    (119, 1, '2026-05-21 08:00:00+00', '2026-05-21 08:15:00+00', 1, 1, 'first', 3, 1, false, 'checked_in', '', 'manual', 4, false, '{}', '2026-05-21 07:59:00+00', '2026-05-21 08:00:00+00', NULL, NULL)
+ON CONFLICT (id) DO UPDATE SET
+    start_time          = EXCLUDED.start_time,
+    end_time            = EXCLUDED.end_time,
+    owner_id            = EXCLUDED.owner_id,
+    pet_id              = EXCLUDED.pet_id,
+    visit_type          = EXCLUDED.visit_type,
+    reservation_type_id = EXCLUDED.reservation_type_id,
+    doctor_id           = EXCLUDED.doctor_id,
+    is_designated       = EXCLUDED.is_designated,
+    status              = EXCLUDED.status,
+    notes               = EXCLUDED.notes,
+    source              = EXCLUDED.source,
+    created_by          = EXCLUDED.created_by,
+    is_staff_delegated  = EXCLUDED.is_staff_delegated,
+    customer_fields     = EXCLUDED.customer_fields,
+    deleted_at          = EXCLUDED.deleted_at,
+    line_customer_id    = EXCLUDED.line_customer_id,
+    updated_at          = now();
+
+SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
+
+-- -----------------------------------------------------------------------------
 -- 11. medical_records (id=37〜60) — STG リセット後に作成されたカルテ
 -- -----------------------------------------------------------------------------
 INSERT INTO medical_records (
