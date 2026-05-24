@@ -26,10 +26,11 @@ import type { SortOrder } from "@/types";
 import { useExaminationForm } from "../hooks/use-examination-form";
 import { useGetExaminations } from "../api/get-examinations";
 import { ExaminationCard } from "../components/ExaminationCard";
+import { ExamItemsTable } from "../components/ExamItemsTable";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
-import type { ExaminationRecord } from "@/types";
+import type { ExaminationRecord } from "../api/transforms";
 import { ResourceExaminations } from "@/types/generated/models";
 
 // rendering-hoist-jsx: ステータス選択肢は静的なのでモジュール定数に巻き上げ
@@ -247,6 +248,8 @@ export function ExaminationForm() {
     isEdit,
     isSaving,
     isDeleting,
+    formItems,
+    setInspectionValue,
   } = useExaminationForm(id, medicalRecordId ?? undefined);
 
   const canSubmit = isEdit ? canEdit : canCreate;
@@ -395,8 +398,8 @@ export function ExaminationForm() {
 
           {/* 2カラムレイアウト: 左 3/5（フォーム）・右 2/5（履歴） */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
-            {/* 左カラム: フォームフィールド */}
-            <div className="lg:col-span-3">
+            {/* 左カラム: フォームフィールド + 検査項目テーブル */}
+            <div className="lg:col-span-3 space-y-4">
               <FormFieldsSection
                 formData={formData}
                 examTypes={examTypes}
@@ -413,6 +416,15 @@ export function ExaminationForm() {
                 onBack={handleBack}
                 onDeleteClick={handleDeleteClick}
               />
+
+              <div className="space-y-2">
+                <h3 className={`text-sm font-medium ${C.text60} px-1`}>検査項目</h3>
+                <ExamItemsTable
+                  items={formItems}
+                  onChangeInspectionValue={setInspectionValue}
+                  disabled={isConfirmed}
+                />
+              </div>
             </div>
 
             {/* 右カラム: 過去の検査履歴 */}

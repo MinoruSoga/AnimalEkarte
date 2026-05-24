@@ -368,7 +368,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 		return nil, apperrors.Wrap(err, "failed to create staff")
 	}
 
-	slog.InfoContext(ctx, "staff with account created", slog.Uint64("clinic_id", input.ClinicID), slog.String("email", input.Email), slog.Uint64("staff_id", staff.ID))
+	slog.InfoContext(ctx, "staff with account created", slog.Uint64("clinic_id", input.ClinicID), slog.Uint64("staff_id", staff.ID))
 	return staff, nil
 }
 
@@ -488,6 +488,15 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
 	}
 	if shiftExists {
 		return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
+	}
+	dependencies, err := s.repo.CountBlockingReferencesByStaffID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check staff dependencies", "error", err, "id", id, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to check staff dependencies")
+	}
+	if len(dependencies) > 0 {
+		dep := dependencies[0]
+		return apperrors.WrapConflict(dep.Label + "を残しているため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to delete staff", "error", err, "id", id, "clinic_id", clinicID)

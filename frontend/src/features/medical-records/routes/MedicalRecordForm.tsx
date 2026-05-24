@@ -19,6 +19,8 @@ import { UnifiedTabsRoot, UnifiedTabsList, UnifiedTabsContent } from "@/componen
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
 import { NextVisitDateField } from "../components/NextVisitDateField";
+import { RecommendationReasonSelect } from "../components/RecommendationReasonSelect";
+import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda";
 import { MedicalRecordDiagnosisPlan } from "../components/MedicalRecordDiagnosisPlan";
 import { MedicalRecordTreatment } from "../components/MedicalRecordTreatment";
 import { MedicalRecordVaccination } from "../components/MedicalRecordVaccination";
@@ -37,6 +39,7 @@ const OwnerSearchModal = lazy(() =>
   import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal }))
 );
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
+import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments } from "../api/treatments";
@@ -81,6 +84,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     selectedPet,
     isPetLoading,
     shouldRedirectToSelectPet,
+    notFound,
     handleBack,
     formAction,
     formState,
@@ -118,6 +122,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     handleNextVisitDateChange,
     isNextVisitDateValid: _isNextVisitDateValid,
     handleNextVisitDateValidChange,
+    recommendationReason,
+    setRecommendationReason,
     } = useMedicalRecordForm(recordId);
 
     useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
@@ -192,6 +198,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   // 印刷用データ（React Query キャッシュ共有 — 子コンポーネントが既にフェッチ済み）
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "");
   const { data: treatments = [] } = useGetTreatments(recordId ?? "");
+  // addenda セクション用: キャッシュ共有のため追加ネットワーク要求なし
+  const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
 
   // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
@@ -311,6 +319,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setIsOwnerSearchOpen(true);
   }, []);
 
+  if (notFound) {
+    return (
+      <PageLayout title="カルテ" onBack={handleBack} icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}>
+        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>カルテが見つかりません</div>
+      </PageLayout>
+    );
+  }
+
   if (isPetLoading) {
     return <LoadingFallback />;
   }
@@ -401,7 +417,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
                 onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
                 diagnosis1NameIdError={formState.fieldErrors?.diagnosis1_name_id}
               />
-              <div className="px-4 pb-4 mt-4">
+              <div className="px-4 pb-4 mt-4 flex flex-col gap-6">
                 <NextVisitDateField
                   value={nextVisitDate}
                   onChange={handleNextVisitDateChange}
@@ -409,6 +425,21 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
                   hasLineIntegration={hasLineIntegration}
                   disabled={isNewRecord}
                 />
+                {recordId ? (
+                  <RecommendationReasonSelect
+                    mode="edit"
+                    medicalRecordId={recordId}
+                    value={recommendationReason}
+                    disabled={false}
+                  />
+                ) : (
+                  <RecommendationReasonSelect
+                    mode="create"
+                    value={recommendationReason}
+                    onChange={setRecommendationReason}
+                    disabled={false}
+                  />
+                )}
               </div>
             </div>
           </UnifiedTabsContent>
@@ -438,7 +469,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
                   カルテを保存してから使用できます
                 </div>
               ) : (
-                <CheckupsTab medicalRecordId={recordId} lstepStatus={lstepStatus} />
+                <CheckupsTab medicalRecordId={recordId} lstepStatus={lstepStatus} isFinalized={currentRecord?.status === "確定済"} />
               )}
             </div>
           </UnifiedTabsContent>
@@ -477,6 +508,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         ) : null}
       </div>
       </UnifiedTabsRoot>
+
+      {!isNewRecord ? (
+        <MedicalRecordAddenda
+          medicalRecordId={recordId ?? ""}
+          canEdit={canEdit}
+          recordStatus={currentRecord?.status ?? ""}
+        />
+      ) : null}
 
       {/* Floating Save / Delete Buttons */}
       {activeTab !== "会計(医師確認)" ? (
@@ -602,14 +641,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         </Suspense>
       ) : null}
 
-      {/* BUG-373: 飼主変更 確認ダイアログ */}
+      {/* BUG-373: 飼主変更 確認ダイアログ (discount_rate/membership_type 不一致時のみ表示) */}
       <ConfirmDialog
         open={!!pendingOwnerChange}
         onClose={cancelOwnerChange}
         onConfirm={confirmOwnerChange}
-        title="飼主を変更しますか？"
-        description={`飼主を「${pendingOwnerChange?.name}」に変更します。飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。`}
-        confirmLabel="変更する"
+        title="飼主変更の確認"
+        description="飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。変更を続行してよろしいですか?"
+        confirmLabel="続行"
         cancelLabel="キャンセル"
       />
     </PageLayout>

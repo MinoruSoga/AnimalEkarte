@@ -9,11 +9,30 @@ export type CheckupType =
   | "cancer"
   | "other";
 
+// ISSUE-009: CPM ステージ値域は backend service.CPMStage* と一致させる。
+export type CPMStage =
+  | "cpm_encounter"
+  | "cpm_growing"
+  | "cpm_core"
+  | "cpm_spot"
+  | "cpm_noah"
+  | "cpm_dormant";
+
 export interface CheckupSyncParams {
   checkup_type: CheckupType;
   species?: string;
   last_visit_before?: string;
   last_visit_after?: string;
+
+  // ISSUE-009: 追加フィルタ（すべてオプショナル）
+  min_age_years?: number;
+  max_age_years?: number;
+  has_chronic_condition?: boolean;
+  cpm_stage?: CPMStage;
+  min_total_amount?: number;
+  min_annual_visit_count?: number;
+  last_checkup_before?: string;
+  last_checkup_after?: string;
 }
 
 export interface CheckupSyncPreviewOwner {
@@ -26,6 +45,15 @@ export interface CheckupSyncPreviewOwner {
   has_living_pet: boolean;
   exclusion_reason: string | null;
   current_tags: string[];
+
+  // ISSUE-009: 追加表示フィールド（additive）
+  min_pet_age_years: number | null;
+  max_pet_age_years: number | null;
+  has_chronic_condition: boolean;
+  cpm_stage: CPMStage | "";
+  total_amount: number;
+  annual_visit_count: number;
+  last_checkup_date: string | null;
 }
 
 export interface CheckupSyncPreviewResponse {

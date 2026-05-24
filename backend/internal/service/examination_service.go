@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"log/slog"
+	"strconv"
+	"strings"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -32,6 +34,47 @@ type UpdateExaminationInput struct {
 	ResultSummary   *string
 	Machine         *string
 	Status          *model.ExaminationStatus
+}
+
+// UpsertExamItemInput は検査項目（exam_results）の一括登録入力 DTO。
+// status / is_abnormal はサーバ側で計算するため受け付けない（信頼境界はサーバ）。
+type UpsertExamItemInput struct {
+	ExamTypeFieldID *uint64
+	Name            string
+	InspectionValue string
+	NormalValue     string
+	Unit            string
+	ReferenceValue  string
+	RefMin          *float64
+	RefMax          *float64
+	SortOrder       int
+}
+
+// computeExamResultStatus は inspection_value を float としてパースし、
+// ref_min / ref_max と比較して status と is_abnormal を導出する。
+//
+// 仕様:
+//   - inspection_value が空・パース不能 → (normal, false)
+//   - ref_min が指定され v < ref_min → (low, true)
+//   - ref_max が指定され v > ref_max → (high, true)
+//   - 範囲内 → (normal, false)
+//   - ref_min == ref_max == nil → (normal, false)（比較できない）
+func computeExamResultStatus(inspectionValue string, refMin, refMax *float64) (model.ExaminationResultStatus, bool) {
+	trimmed := strings.TrimSpace(inspectionValue)
+	if trimmed == "" {
+		return model.ExaminationResultStatusNormal, false
+	}
+	v, err := strconv.ParseFloat(trimmed, 64)
+	if err != nil {
+		return model.ExaminationResultStatusNormal, false
+	}
+	if refMin != nil && v < *refMin {
+		return model.ExaminationResultStatusLow, true
+	}
+	if refMax != nil && v > *refMax {
+		return model.ExaminationResultStatusHigh, true
+	}
+	return model.ExaminationResultStatusNormal, false
 }
 
 func buildExaminationUpdate(input UpdateExaminationInput) map[string]any {
@@ -69,6 +112,8 @@ type ExaminationService interface {
 	Create(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	ListItems(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
+	ReplaceItems(ctx context.Context, clinicID, examID uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error)
 }
 
 type examinationService struct {
@@ -142,6 +187,68 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	slog.InfoContext(ctx, "examination updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("examination_id", id))
 	return exam, nil
+}
+
+// ListItems は検査項目一覧を返す。clinic_id 隔離は repository の JOIN 条件で保証する。
+// 親 exam の存在確認は FindByID で先行する（404 を返すため）。
+func (s *examinationService) ListItems(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, examID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find examination")
+	}
+	items, err := s.repo.FindAllItemsByExamID(ctx, clinicID, examID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list examination items", "error", err, "exam_id", examID, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to list examination items")
+	}
+	return items, nil
+}
+
+// ReplaceItems は検査項目を一括置換する（PUT セマンティクス）。
+//
+// 仕様:
+//  1. 親 exam の存在を FindByID で確認（P1）
+//  2. 親 exam が confirmed の場合は 400 で拒否（既存 Update と同方針）
+//  3. 各 input の inspection_value と ref_min / ref_max から status / is_abnormal を導出（FE 送信値は無視）
+//  4. repository の ReplaceItemsByExamID（トランザクション内で全削除→一括挿入）に委譲
+func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error) {
+	existing, err := s.repo.FindByID(ctx, clinicID, examID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find examination")
+	}
+	if existing.Status == model.ExaminationStatusConfirmed {
+		return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+	}
+
+	items := make([]model.ExamResult, 0, len(inputs))
+	for _, in := range inputs {
+		status, isAbnormal := computeExamResultStatus(in.InspectionValue, in.RefMin, in.RefMax)
+		items = append(items, model.ExamResult{
+			ExamID:          examID,
+			ExamTypeItemID:  in.ExamTypeFieldID,
+			Name:            in.Name,
+			InspectionValue: in.InspectionValue,
+			NormalValue:     in.NormalValue,
+			Unit:            in.Unit,
+			ReferenceValue:  in.ReferenceValue,
+			RefMin:          in.RefMin,
+			RefMax:          in.RefMax,
+			IsAbnormal:      isAbnormal,
+			Status:          status,
+			SortOrder:       in.SortOrder,
+		})
+	}
+
+	saved, err := s.repo.ReplaceItemsByExamID(ctx, clinicID, examID, items)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to replace examination items", "error", err, "exam_id", examID, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to replace examination items")
+	}
+	slog.InfoContext(ctx, "examination items replaced",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("examination_id", examID),
+		slog.Int("item_count", len(saved)),
+	)
+	return saved, nil
 }
 
 func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) error {

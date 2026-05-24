@@ -47,6 +47,23 @@ type UpdateMedicalRecordInput struct {
 	Status                   *model.MedicalRecordStatus
 	Version                  *int // 楽観的ロック用: nil の場合はチェックをスキップ
 	NextVisitRecommendedDate *time.Time
+	ActorID                  *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
+}
+
+// FEAT-381-2 Commit 2: recommendation_reason allowed values (whitelist)
+var allowedRecommendationReasons = map[string]struct{}{
+	"revisit":    {},
+	"checkup":    {},
+	"prevention": {},
+	"exam":       {},
+}
+
+const colRecommendationReason = "recommendation_reason"
+
+// UpdateRecommendationReasonInput は受診推奨理由更新の入力DTO（FEAT-381-2 Commit 2）。
+// Reason は revisit / checkup / prevention / exam のいずれか、または "" (未設定 → NULL)。
+type UpdateRecommendationReasonInput struct {
+	Reason string
 }
 
 func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
@@ -87,6 +104,9 @@ type MedicalRecordService interface {
 	CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput)
 	// AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。
 	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation)
+	// UpdateRecommendationReason は受診推奨理由を更新する（FEAT-381-2）。
+	// "" は NULL として保存。4値以外は apperrors.WrapInvalidInput を返す。
+	UpdateRecommendationReason(ctx context.Context, clinicID, id uint64, input UpdateRecommendationReasonInput) (*model.MedicalRecord, error)
 }
 
 // CreateSubRecordsInput はカルテ作成時の inquiry / clinical_plan サブレコード作成 DTO
@@ -103,12 +123,15 @@ type CreateSubRecordsInput struct {
 }
 
 type medicalRecordService struct {
-	repo             repository.MedicalRecordRepository
-	ownerRepo        repository.OwnerRepository
-	petRepo          repository.PetRepository
-	inquiryRepo      repository.InquiryRepository
-	clinicalPlanRepo repository.ClinicalPlanRepository
-	lineCustomerRepo repository.LineCustomerRepository
+	repo                 repository.MedicalRecordRepository
+	ownerRepo            repository.OwnerRepository
+	petRepo              repository.PetRepository
+	inquiryRepo          repository.InquiryRepository
+	clinicalPlanRepo     repository.ClinicalPlanRepository
+	lineCustomerRepo     repository.LineCustomerRepository
+	reservationRepo      repository.ReservationRepository
+	lstepDeliveryTrigger LstepDeliveryTriggerService
+	auditService         AuditService
 }
 
 func NewMedicalRecordService(
@@ -118,14 +141,20 @@ func NewMedicalRecordService(
 	inquiryRepo repository.InquiryRepository,
 	clinicalPlanRepo repository.ClinicalPlanRepository,
 	lineCustomerRepo repository.LineCustomerRepository,
+	reservationRepo repository.ReservationRepository,
+	lstepDeliveryTrigger LstepDeliveryTriggerService,
+	auditService AuditService,
 ) MedicalRecordService {
 	return &medicalRecordService{
-		repo:             repo,
-		ownerRepo:        ownerRepo,
-		petRepo:          petRepo,
-		inquiryRepo:      inquiryRepo,
-		clinicalPlanRepo: clinicalPlanRepo,
-		lineCustomerRepo: lineCustomerRepo,
+		repo:                 repo,
+		ownerRepo:            ownerRepo,
+		petRepo:              petRepo,
+		inquiryRepo:          inquiryRepo,
+		clinicalPlanRepo:     clinicalPlanRepo,
+		lineCustomerRepo:     lineCustomerRepo,
+		reservationRepo:      reservationRepo,
+		lstepDeliveryTrigger: lstepDeliveryTrigger,
+		auditService:         auditService,
 	}
 }
 
@@ -161,6 +190,30 @@ func (s *medicalRecordService) Create(ctx context.Context, record *model.Medical
 	if record.RecordNo == "" {
 		record.RecordNo = generateRecordNo(record.Date, record.ClinicID)
 	}
+
+	// FEAT-382-2 supplement: whitelist validation for recommendation_reason
+	if record.RecommendationReason != nil {
+		if _, ok := allowedRecommendationReasons[*record.RecommendationReason]; !ok {
+			return apperrors.WrapInvalidInput(
+				"recommendation_reason must be one of: revisit, checkup, prevention, exam",
+			)
+		}
+	}
+
+	// 初診判定: Reservation.VisitType 優先、AppointmentID なし or VisitType 空時は COUNT フォールバック（FEAT-383）
+	var isFirstVisit bool
+	if s.lstepDeliveryTrigger != nil && record.OwnerID != nil {
+		visitType := s.resolveVisitTypeFromAppointment(ctx, record)
+		switch {
+		case visitType == string(model.VisitTypeFirst):
+			isFirstVisit = true
+		case visitType != "":
+			isFirstVisit = false
+		default:
+			isFirstVisit = s.fallbackFirstVisitCheck(ctx, record.ClinicID, *record.OwnerID)
+		}
+	}
+
 	if err := s.repo.Create(ctx, record); err != nil {
 		slog.ErrorContext(ctx, "failed to create medical record", "error", err, "clinic_id", record.ClinicID)
 		return apperrors.Wrap(err, "failed to create medical record")
@@ -168,6 +221,22 @@ func (s *medicalRecordService) Create(ctx context.Context, record *model.Medical
 	slog.InfoContext(ctx, "medical record created",
 		slog.Uint64("record_id", record.ID),
 		slog.Uint64("clinic_id", record.ClinicID))
+
+	// 監査ログ: create（best-effort）
+	if s.auditService != nil {
+		newValue := extractMedicalRecordImportantFields(record)
+		if err := s.auditService.LogMedicalRecordChange(ctx, record.ClinicID, record.EnteredBy, "create", record.ID, nil, newValue); err != nil {
+			slog.ErrorContext(ctx, "audit log failed for medical record create", "error", err, "record_id", record.ID)
+		}
+	}
+
+	// 初診ウェルカムトリガー（イベント駆動・非致命的）
+	if isFirstVisit && record.OwnerID != nil {
+		if err := s.lstepDeliveryTrigger.TriggerFirstVisitWelcome(ctx, record.ClinicID, *record.OwnerID); err != nil {
+			slog.WarnContext(ctx, "first visit welcome trigger failed (non-fatal)", "owner_id", *record.OwnerID, "error", err)
+		}
+	}
+
 	return nil
 }
 
@@ -177,6 +246,14 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get medical record")
+	}
+
+	// 確定済みカルテは更新不可
+	if existing.Status == model.MedicalRecordStatusFinalized {
+		slog.WarnContext(ctx, "attempted to update finalized medical record",
+			slog.Uint64("record_id", id),
+			slog.Uint64("clinic_id", clinicID))
+		return nil, apperrors.WrapConflict("確定済みカルテは編集できません。訂正追記 (addendum) を使用してください")
 	}
 
 	// version が指定されている場合は一致確認
@@ -205,6 +282,10 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	// バージョンをインクリメント
 	fields["version"] = existing.Version + 1
 
+	// 監査 diff は更新前に取得（finalize 検出のため）
+	wasFinalized := existing.Status == model.MedicalRecordStatusFinalized
+	isBecomingFinalized := input.Status != nil && *input.Status == model.MedicalRecordStatusFinalized && !wasFinalized
+
 	record, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update medical record", "error", err)
@@ -213,11 +294,29 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	slog.InfoContext(ctx, "medical record updated",
 		slog.Uint64("record_id", id),
 		slog.Uint64("clinic_id", clinicID))
+
+	// 監査ログ: update / finalize（best-effort）
+	if s.auditService != nil {
+		oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
+		if oldDiff != nil {
+			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, input.ActorID, "update", id, oldDiff, newDiff); err != nil {
+				slog.ErrorContext(ctx, "audit log failed for medical record update", "error", err, "record_id", id)
+			}
+		}
+		if isBecomingFinalized {
+			newValue := extractMedicalRecordImportantFields(record)
+			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, input.ActorID, "finalize", id, nil, newValue); err != nil {
+				slog.ErrorContext(ctx, "audit log failed for medical record finalize", "error", err, "record_id", id)
+			}
+		}
+	}
+
 	return record, nil
 }
 
 func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		return apperrors.Wrap(err, "failed to find medical record")
 	}
 	estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(ctx, id)
@@ -228,6 +327,7 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 	if estimateCount > 0 {
 		return apperrors.WrapConflict("この項目は使用中のため削除できません")
 	}
+	oldValue := extractMedicalRecordImportantFields(existing)
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to delete medical record", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete medical record")
@@ -235,6 +335,13 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 	slog.InfoContext(ctx, "medical record deleted",
 		slog.Uint64("record_id", id),
 		slog.Uint64("clinic_id", clinicID))
+
+	// 監査ログ: delete（best-effort, actorID=nil）
+	if s.auditService != nil {
+		if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, nil, "delete", id, oldValue, nil); err != nil {
+			slog.ErrorContext(ctx, "audit log failed for medical record delete", "error", err, "record_id", id)
+		}
+	}
 	return nil
 }
 
@@ -367,4 +474,87 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 
 	// サブテーブル（inquiry, clinical_plan）を空レコードで作成（best-effort）
 	s.CreateSubRecords(ctx, clinicID, record.ID, CreateSubRecordsInput{})
+}
+
+// resolveVisitTypeFromAppointment は AppointmentID 経由で Reservation.VisitType を取得する。
+// AppointmentID なし、reservationRepo 未配線、Reservation 取得失敗の場合は空文字を返す。
+func (s *medicalRecordService) resolveVisitTypeFromAppointment(ctx context.Context, record *model.MedicalRecord) string {
+	if record.AppointmentID == nil || *record.AppointmentID == 0 {
+		return ""
+	}
+	if s.reservationRepo == nil {
+		return ""
+	}
+	res, err := s.reservationRepo.FindByID(ctx, record.ClinicID, *record.AppointmentID)
+	if err != nil {
+		slog.WarnContext(ctx, "reservation lookup failed for first-visit detection (non-fatal)",
+			"appointment_id", *record.AppointmentID, "error", err)
+		return ""
+	}
+	if res == nil {
+		return ""
+	}
+	return string(res.VisitType)
+}
+
+// fallbackFirstVisitCheck は CountByOwnerID で初診判定する（飛び込みカルテ等のフォールバック）。
+func (s *medicalRecordService) fallbackFirstVisitCheck(ctx context.Context, clinicID, ownerID uint64) bool {
+	count, err := s.repo.CountByOwnerID(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.WarnContext(ctx, "first visit fallback check failed (non-fatal)",
+			"owner_id", ownerID, "error", err)
+		return false
+	}
+	return count == 0
+}
+
+// UpdateRecommendationReason は受診推奨理由を更新する（FEAT-381-2 Commit 2）。
+// "" は NULL 保存。4値以外は InvalidInput。
+func (s *medicalRecordService) UpdateRecommendationReason(
+	ctx context.Context, clinicID, id uint64, input UpdateRecommendationReasonInput,
+) (*model.MedicalRecord, error) {
+	// 1. whitelist validation (空文字は NULL として許容)
+	if input.Reason != "" {
+		if _, ok := allowedRecommendationReasons[input.Reason]; !ok {
+			return nil, apperrors.WrapInvalidInput(
+				"recommendation_reason must be one of: revisit, checkup, prevention, exam",
+			)
+		}
+	}
+	// 2. P1: existence + clinic_id check（audit diff 用にレコードを保持）
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find medical record")
+	}
+	// 3. build update map
+	var reasonValue any
+	if input.Reason == "" {
+		reasonValue = nil // SQL NULL
+	} else {
+		reasonValue = input.Reason
+	}
+
+	record, err := s.repo.Update(ctx, clinicID, id, map[string]any{
+		colRecommendationReason: reasonValue,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update recommendation_reason", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to update recommendation_reason")
+	}
+	slog.InfoContext(ctx, "recommendation_reason updated",
+		slog.Uint64("record_id", id),
+		slog.Uint64("clinic_id", clinicID),
+		slog.String("reason", input.Reason))
+
+	// 監査ログ: update（best-effort）
+	if s.auditService != nil {
+		oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
+		if oldDiff != nil {
+			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, nil, "update", id, oldDiff, newDiff); err != nil {
+				slog.ErrorContext(ctx, "audit log failed for recommendation_reason update", "error", err, "record_id", id)
+			}
+		}
+	}
+
+	return record, nil
 }

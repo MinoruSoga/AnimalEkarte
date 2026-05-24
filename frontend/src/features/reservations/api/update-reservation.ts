@@ -3,8 +3,7 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { transformReservation } from "./transforms";
 import type { Reservation } from "./transforms";
-import type { Reservation as BackendReservation } from "@/types/generated/models";
-import type { UpdateReservationRequest } from "./types";
+import type { BackendReservation, UpdateReservationRequest } from "./types";
 
 export const updateReservation = async (
   id: string,

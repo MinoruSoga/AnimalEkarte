@@ -231,7 +231,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
             value={formData.type || ""}
             onValueChange={(v) => onChange({ ...formData, type: v })}
           >
-            <SelectTrigger className={cn(TRIGGER_CLASS, !formData.type && C.text40)}>
+            <SelectTrigger data-testid="res-type-trigger" className={cn(TRIGGER_CLASS, !formData.type && C.text40)}>
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent className="max-h-[280px]">

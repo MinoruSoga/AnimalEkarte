@@ -1,3 +1,4 @@
+import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useGetHospitalization } from "../api/get-hospitalization";
@@ -7,7 +8,8 @@ import { dischargeWithBilling } from "../api/discharge-with-billing";
 export const useHospitalizationDetail = (hospitalizationId?: string) => {
   const id = hospitalizationId ?? "";
 
-  const { data: hospitalization, isLoading, isError } = useGetHospitalization(id);
+  const { data: hospitalization, isLoading, isError, error } = useGetHospitalization(id);
+  const isNotFound = isAxiosError(error) && error.response?.status === 404;
   const { mutateAsync: updateHosp } = useUpdateHospitalization();
 
   const dischargeHospitalization = async (createAccounting = false): Promise<{ success: boolean; accountingId?: number }> => {
@@ -42,6 +44,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
     hospitalization: hospitalization ?? null,
     isLoading,
     isError,
+    isNotFound,
     dischargeHospitalization,
   };
 };

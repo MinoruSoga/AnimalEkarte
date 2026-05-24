@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log/slog"
 	"net/http"
 	"slices"
 	"strconv"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // JWTClaims はJWTのペイロード
@@ -21,8 +24,9 @@ type JWTClaims struct {
 
 // Auth はJWTトークンを検証する認証ミドルウェア。
 // httpOnly Cookie を優先して読み、なければ Authorization Bearer ヘッダにフォールバックする。
-// secret には config.Config.JWTSecret を渡す。
-func Auth(secret string) gin.HandlerFunc {
+// secret には config.Config.JWTSecret、isProduction には cfg.GinMode == "release" を渡す。
+// auditSvc はクリニック切替の監査ログ記録に使用する（ベストエフォート: nil 許容）。
+func Auth(secret string, isProduction bool, auditSvc service.AuditService) gin.HandlerFunc {
 	key := []byte(secret)
 	return func(c *gin.Context) {
 		var tokenStr string
@@ -86,6 +90,48 @@ func Auth(secret string) gin.HandlerFunc {
 					return
 				}
 				clinicID = headerClinicID
+			}
+
+			// FEAT-374 Phase 2: クリニック切替 audit log（差分検出 + cookie 更新）
+			prevClinicCookie, _ := c.Cookie("prev_clinic_id")
+			currentClinicID, parseErr := strconv.ParseUint(clinicID, 10, 64)
+			if parseErr == nil {
+				if prevClinicCookie != "" && prevClinicCookie != clinicID {
+					// 差分検出 → audit log（ベストエフォート）
+					if prevID, perr := strconv.ParseUint(prevClinicCookie, 10, 64); perr == nil {
+						if auditSvc != nil {
+							var actorID *uint64
+							if uid, err := strconv.ParseUint(claims.UserID, 10, 64); err == nil {
+								actorID = &uid
+							}
+							if err := auditSvc.LogClinicSwitch(c.Request.Context(),
+								actorID, prevID, currentClinicID,
+								c.ClientIP(), c.GetHeader("User-Agent")); err != nil {
+								slog.ErrorContext(c.Request.Context(),
+									"failed to write clinic switch audit (best-effort)",
+									"error", err)
+							}
+						}
+					}
+				}
+				// cookie 更新（初回も差分も同じく書込）
+				if prevClinicCookie != clinicID {
+					sameSite := http.SameSiteLaxMode
+					secure := false
+					if isProduction {
+						sameSite = http.SameSiteNoneMode
+						secure = true
+					}
+					http.SetCookie(c.Writer, &http.Cookie{
+						Name:     "prev_clinic_id",
+						Value:    clinicID,
+						Path:     "/",
+						MaxAge:   15 * 60, // 15分（access_token と同寿命）
+						HttpOnly: true,
+						Secure:   secure,
+						SameSite: sameSite,
+					})
+				}
 			}
 		}
 		c.Set("clinic_id", clinicID)

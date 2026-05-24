@@ -181,8 +181,8 @@ func (h *Handler) DeletePet(c *gin.Context) {
 // RegisterPetRoutes はペット関連のルートを登録する
 func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
 	pets := rg.Group("/pets")
-	pets.GET("", h.ListPets)
-	pets.GET("/:id", h.GetPet)
+	pets.GET("", h.RequirePermission(string(model.ResourceOwners), "view"), h.ListPets)
+	pets.GET("/:id", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetPet)
 	pets.POST("", h.RequirePermission(string(model.ResourceOwners), "create"), h.CreatePet)
 	pets.PATCH("/:id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdatePet)
 	pets.DELETE("/:id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeletePet)

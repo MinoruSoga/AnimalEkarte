@@ -8,23 +8,10 @@ import { CheckCircle } from "lucide-react";
 // Internal
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-interface ExamResult {
-  id: number;
-  name: string;
-  result: string;
-  unit: string;
-  reference_value: string;
-  status: string;
-}
+import type { ExamGroup } from "../api/get-record-examinations";
 
 interface ExaminationGroupProps {
-  group: {
-    id: number;
-    date: string;
-    machine: string;
-    items: ExamResult[];
-  };
+  group: ExamGroup;
 }
 
 export const ExaminationGroup = memo(function ExaminationGroup({
@@ -96,7 +83,7 @@ export const ExaminationGroup = memo(function ExaminationGroup({
               {item.unit}
             </div>
             <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
-              {item.reference_value}
+              {item.referenceValue}
             </div>
             <div className="p-2 flex justify-center items-center">
               {item.status === "high" ? (

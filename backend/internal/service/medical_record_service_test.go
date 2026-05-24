@@ -22,6 +22,9 @@ type mockMedicalRecordRepository struct {
 	deleteFn                          func(ctx context.Context, clinicID, id uint64) error
 	countByPetIDFn                    func(ctx context.Context, clinicID, petID uint64) (int64, error)
 	countEstimatesByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) (int64, error)
+	findOwnerVisitSummaryFn           func(ctx context.Context, clinicID, ownerID uint64) (*repository.OwnerVisitSummary, error)
+	countByOwnerIDFn                  func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	countByOwnerIDCallCount           int
 }
 
 func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -64,7 +67,10 @@ func (m *mockMedicalRecordRepository) CountEstimatesByMedicalRecordID(ctx contex
 	return 0, nil
 }
 
-func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
+func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*repository.OwnerVisitSummary, error) {
+	if m.findOwnerVisitSummaryFn != nil {
+		return m.findOwnerVisitSummaryFn(ctx, clinicID, ownerID)
+	}
 	return &repository.OwnerVisitSummary{}, nil
 }
 
@@ -74,6 +80,26 @@ func (m *mockMedicalRecordRepository) FindLatestByOwner(_ context.Context, _, _ 
 
 func (m *mockMedicalRecordRepository) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 	return nil, nil
+}
+
+func (m *mockMedicalRecordRepository) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepository) FindOwnersByLastVisitDays(_ context.Context, _ uint64, _ int, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepository) FindOwnersByNextVisitRecommended(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepository) CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	m.countByOwnerIDCallCount++
+	if m.countByOwnerIDFn != nil {
+		return m.countByOwnerIDFn(ctx, clinicID, ownerID)
+	}
+	return 0, nil
 }
 
 // mrMockOwnerRepo は MedicalRecord テスト用 OwnerRepository モック（FindByID のみ）
@@ -140,6 +166,9 @@ func (m *mrMockPetRepo) FindByID(ctx context.Context, clinicID, id uint64) (*mod
 	return m.findByIDFn(ctx, clinicID, id)
 }
 func (m *mrMockPetRepo) CountByOwner(_ context.Context, _, _ uint64) (int64, error) { return 0, nil }
+func (m *mrMockPetRepo) CountLivingByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
 func (m *mrMockPetRepo) CountUsageByAnimalSpeciesID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }
@@ -149,6 +178,9 @@ func (m *mrMockPetRepo) Update(_ context.Context, _, _ uint64, _ map[string]any)
 }
 func (m *mrMockPetRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
 func (m *mrMockPetRepo) FindLivingByOwner(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+	return nil, nil
+}
+func (m *mrMockPetRepo) FindOwnersByPetBirthday(_ context.Context, _ uint64, _, _ int) ([]uint64, error) {
 	return nil, nil
 }
 
@@ -258,7 +290,7 @@ func TestMedicalRecordService_List(t *testing.T) {
 					return tt.repoRecords, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 
 			records, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
 
@@ -322,7 +354,7 @@ func TestMedicalRecordService_GetByID(t *testing.T) {
 					return tt.repoRecord, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 
 			record, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -345,7 +377,7 @@ func TestMedicalRecordService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("medical_record", "999")
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	record, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -402,7 +434,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 
 			err := svc.Create(context.Background(), tt.record)
 
@@ -413,6 +445,63 @@ func TestMedicalRecordService_Create(t *testing.T) {
 			}
 		})
 	}
+
+	// FEAT-382-2 supplement: recommendation_reason whitelist validation on Create
+	t.Run("valid recommendation_reason is accepted on Create", func(t *testing.T) {
+		reason := "checkup"
+		var capturedRecord *model.MedicalRecord
+		repo := &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, r *model.MedicalRecord) error {
+				capturedRecord = r
+				return nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		err := svc.Create(context.Background(), &model.MedicalRecord{
+			ClinicID:             1,
+			Date:                 time.Now(),
+			RecommendationReason: &reason,
+		})
+		assert.NoError(t, err)
+		if assert.NotNil(t, capturedRecord) && assert.NotNil(t, capturedRecord.RecommendationReason) {
+			assert.Equal(t, "checkup", *capturedRecord.RecommendationReason)
+		}
+	})
+
+	t.Run("invalid recommendation_reason returns InvalidInput", func(t *testing.T) {
+		reason := "invalid_value"
+		createCalled := false
+		repo := &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				createCalled = true
+				return nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		err := svc.Create(context.Background(), &model.MedicalRecord{
+			ClinicID:             1,
+			Date:                 time.Now(),
+			RecommendationReason: &reason,
+		})
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Contains(t, err.Error(), "revisit, checkup, prevention, exam")
+		assert.False(t, createCalled, "repo.Create must not be called on invalid reason")
+	})
+
+	t.Run("nil recommendation_reason bypasses whitelist (existing behavior)", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				return nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		err := svc.Create(context.Background(), &model.MedicalRecord{
+			ClinicID: 1,
+			Date:     time.Now(),
+		})
+		assert.NoError(t, err)
+	})
 }
 
 func TestMedicalRecordService_Update(t *testing.T) {
@@ -420,12 +509,13 @@ func TestMedicalRecordService_Update(t *testing.T) {
 	statusFinalized := model.MedicalRecordStatusFinalized
 	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0}
 	tests := []struct {
-		name        string
-		input       UpdateMedicalRecordInput
-		findByIDErr error // FindByID のエラー（nil = 正常レコード返却）
-		updateErr   error // Update のエラー
-		wantErr     bool
-		wantNF      bool
+		name         string
+		input        UpdateMedicalRecordInput
+		findByIDErr  error // FindByID のエラー（nil = 正常レコード返却）
+		updateErr    error // Update のエラー
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
 			name: "updates record successfully",
@@ -466,16 +556,32 @@ func TestMedicalRecordService_Update(t *testing.T) {
 			wantErr:     true,
 			wantNF:      false,
 		},
+		{
+			name: "returns conflict when record is already finalized",
+			input: UpdateMedicalRecordInput{
+				Date: &now,
+			},
+			findByIDErr:  nil,
+			updateErr:    nil,
+			wantErr:      true,
+			wantNF:       false,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			isFinalized := tt.name == "returns conflict when record is already finalized"
+			existingRecord := validRecord
+			if isFinalized {
+				existingRecord = &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0, Status: model.MedicalRecordStatusFinalized}
+			}
 			repo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 					if tt.findByIDErr != nil {
 						return nil, tt.findByIDErr
 					}
-					return validRecord, nil
+					return existingRecord, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
 					if tt.updateErr != nil {
@@ -484,7 +590,7 @@ func TestMedicalRecordService_Update(t *testing.T) {
 					return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 
 			record, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -493,6 +599,9 @@ func TestMedicalRecordService_Update(t *testing.T) {
 				assert.Nil(t, record)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)
@@ -517,7 +626,7 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 				return nil, apperrors.WrapNotFound("owner", "100")
 			},
 		}
-		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil, nil, nil, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
@@ -541,7 +650,7 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 				return &model.Owner{ID: ownerID, ClinicID: 1}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil, nil, nil, nil, nil)
 
 		record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
@@ -568,7 +677,7 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 				return nil, apperrors.WrapNotFound("pet", "200")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil, nil, nil, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
@@ -592,7 +701,7 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 				return &model.Pet{ID: petID, ClinicID: 1}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil, nil, nil, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
@@ -674,7 +783,7 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -753,7 +862,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				return nil, 0, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 		appt := &model.Reservation{
 			ID:        1,
 			ClinicID:  1,
@@ -789,7 +898,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, &noopInquiryRepo{}, &noopClinicalPlanRepo{}, lineCustomerRepo)
+		svc := NewMedicalRecordService(repo, nil, nil, &noopInquiryRepo{}, &noopClinicalPlanRepo{}, lineCustomerRepo, nil, nil, nil)
 
 		appt := &model.Reservation{
 			ID:             1,
@@ -827,7 +936,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, lineCustomerRepo)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, lineCustomerRepo, nil, nil, nil)
 
 		appt := &model.Reservation{
 			ID:             1,
@@ -839,4 +948,612 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 		svc.AutoCreateFromReservation(context.Background(), 1, appt)
 		assert.False(t, created, "オーナー未紐付けのためカルテ作成はスキップされるべき")
 	})
+}
+
+// mockReservationRepoForMedicalRecord は MedicalRecord テスト用 ReservationRepository モック。
+// FindByID のみカスタマイズ可能。他の 16 メソッドは noop スタブ。
+type mockReservationRepoForMedicalRecord struct {
+	findByIDFn        func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	findByIDCallCount int
+}
+
+func (m *mockReservationRepoForMedicalRecord) FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
+	m.findByIDCallCount++
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
+}
+func (m *mockReservationRepoForMedicalRecord) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+	return nil, 0, nil
+}
+func (m *mockReservationRepoForMedicalRecord) Create(_ context.Context, _ *model.Reservation) error {
+	return nil
+}
+func (m *mockReservationRepoForMedicalRecord) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+	return nil, nil
+}
+func (m *mockReservationRepoForMedicalRecord) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockReservationRepoForMedicalRecord) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+	return nil, nil
+}
+func (m *mockReservationRepoForMedicalRecord) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+	return false, nil
+}
+func (m *mockReservationRepoForMedicalRecord) CountOnDutyDoctors(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+	return 0, nil
+}
+func (m *mockReservationRepoForMedicalRecord) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+	return 0, nil
+}
+func (m *mockReservationRepoForMedicalRecord) ExistsByReservationTypeID(_ context.Context, _, _ uint64) (bool, error) {
+	return false, nil
+}
+func (m *mockReservationRepoForMedicalRecord) ExistsByStaffID(_ context.Context, _, _ uint64) (bool, error) {
+	return false, nil
+}
+func (m *mockReservationRepoForMedicalRecord) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+func (m *mockReservationRepoForMedicalRecord) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
+	return 0, nil
+}
+func (m *mockReservationRepoForMedicalRecord) CountByDateAndSource(_ context.Context, _ uint64, _ time.Time, _ model.ReservationSource) (int64, error) {
+	return 0, nil
+}
+func (m *mockReservationRepoForMedicalRecord) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
+	return nil, 0, nil
+}
+func (m *mockReservationRepoForMedicalRecord) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
+	return nil, nil
+}
+func (m *mockReservationRepoForMedicalRecord) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
+	return false, nil
+}
+
+// mockLstepDeliveryTriggerForMR は TriggerFirstVisitWelcome の呼び出し検証用モック
+type mockLstepDeliveryTriggerForMR struct {
+	triggerFirstVisitWelcomeFn    func(ctx context.Context, clinicID, ownerID uint64) error
+	triggerFirstVisitWelcomeCount int
+}
+
+func (m *mockLstepDeliveryTriggerForMR) TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID uint64) error {
+	m.triggerFirstVisitWelcomeCount++
+	if m.triggerFirstVisitWelcomeFn != nil {
+		return m.triggerFirstVisitWelcomeFn(ctx, clinicID, ownerID)
+	}
+	return nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerCheckupFollowUp(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerFirstVisitFollowUp3D(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerFirstVisitFollowUp7D(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerNextVisitReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerVaccineDeadline60(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerVaccineDeadline30(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerBirthdayMessage(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerDormantPrevention180(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerDormantPrevention210(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerDormantPrevention240(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerDormantPrevention365(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerFilariaAlert(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerFleaTickAlert(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerFoodRefillReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForMR) TriggerSuppRefillReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+
+func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
+	ownerID := uint64(42)
+	clinicID := uint64(1)
+	appointmentID := uint64(99)
+
+	newRepo := func(countFn func(ctx context.Context, clinicID, ownerID uint64) (int64, error)) *mockMedicalRecordRepository {
+		return &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				return nil
+			},
+			countByOwnerIDFn: countFn,
+		}
+	}
+
+	newRecord := func(apptID *uint64) *model.MedicalRecord {
+		return &model.MedicalRecord{
+			ClinicID:      clinicID,
+			OwnerID:       &ownerID,
+			AppointmentID: apptID,
+			Date:          time.Now(),
+		}
+	}
+
+	t.Run("A_reservation_VisitType_first_triggers_welcome_no_count", func(t *testing.T) {
+		repo := newRepo(nil)
+		resRepo := &mockReservationRepoForMedicalRecord{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				return &model.Reservation{VisitType: model.VisitTypeFirst}, nil
+			},
+		}
+		trigger := &mockLstepDeliveryTriggerForMR{}
+
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		err := svc.Create(context.Background(), newRecord(&appointmentID))
+
+		assert.NoError(t, err)
+		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called once")
+		assert.Equal(t, 1, resRepo.findByIDCallCount, "FindByID must be called once")
+		assert.Equal(t, 0, repo.countByOwnerIDCallCount, "CountByOwnerID must NOT be called when VisitType=first")
+	})
+
+	t.Run("B_reservation_VisitType_first_triggers_welcome_ignoring_existing_records", func(t *testing.T) {
+		repo := newRepo(func(_ context.Context, _, _ uint64) (int64, error) {
+			return 5, nil // 既存カルテあり — COUNT が呼ばれた場合は false になるはず
+		})
+		resRepo := &mockReservationRepoForMedicalRecord{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				return &model.Reservation{VisitType: model.VisitTypeFirst}, nil
+			},
+		}
+		trigger := &mockLstepDeliveryTriggerForMR{}
+
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		err := svc.Create(context.Background(), newRecord(&appointmentID))
+
+		assert.NoError(t, err)
+		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called even when owner has prior records")
+		assert.Equal(t, 0, repo.countByOwnerIDCallCount, "CountByOwnerID must NOT be called when VisitType=first (performance guarantee)")
+	})
+
+	t.Run("C_reservation_VisitType_revisit_does_not_trigger", func(t *testing.T) {
+		repo := newRepo(nil)
+		resRepo := &mockReservationRepoForMedicalRecord{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				return &model.Reservation{VisitType: model.VisitTypeRevisit}, nil
+			},
+		}
+		trigger := &mockLstepDeliveryTriggerForMR{}
+
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		err := svc.Create(context.Background(), newRecord(&appointmentID))
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must NOT be called for revisit")
+		assert.Equal(t, 0, repo.countByOwnerIDCallCount, "CountByOwnerID must NOT be called when VisitType=revisit")
+	})
+
+	t.Run("D_appointment_with_empty_VisitType_falls_back_to_COUNT_zero_records", func(t *testing.T) {
+		repo := newRepo(func(_ context.Context, _, _ uint64) (int64, error) {
+			return 0, nil // カルテ未作成 → 初診
+		})
+		resRepo := &mockReservationRepoForMedicalRecord{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				return &model.Reservation{VisitType: ""}, nil // VisitType 空
+			},
+		}
+		trigger := &mockLstepDeliveryTriggerForMR{}
+
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		err := svc.Create(context.Background(), newRecord(&appointmentID))
+
+		assert.NoError(t, err)
+		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called when COUNT=0")
+		assert.Equal(t, 1, repo.countByOwnerIDCallCount, "CountByOwnerID must be called for empty VisitType fallback")
+	})
+
+	t.Run("E_appointment_with_empty_VisitType_falls_back_to_COUNT_existing_records", func(t *testing.T) {
+		repo := newRepo(func(_ context.Context, _, _ uint64) (int64, error) {
+			return 3, nil // 既存カルテあり → 再診
+		})
+		resRepo := &mockReservationRepoForMedicalRecord{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				return &model.Reservation{VisitType: ""}, nil
+			},
+		}
+		trigger := &mockLstepDeliveryTriggerForMR{}
+
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		err := svc.Create(context.Background(), newRecord(&appointmentID))
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must NOT be called when COUNT>0")
+		assert.Equal(t, 1, repo.countByOwnerIDCallCount, "CountByOwnerID must be called for empty VisitType fallback")
+	})
+
+	t.Run("F_no_AppointmentID_falls_back_to_COUNT_zero_records", func(t *testing.T) {
+		repo := newRepo(func(_ context.Context, _, _ uint64) (int64, error) {
+			return 0, nil
+		})
+		resRepo := &mockReservationRepoForMedicalRecord{}
+		trigger := &mockLstepDeliveryTriggerForMR{}
+
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		err := svc.Create(context.Background(), newRecord(nil)) // no AppointmentID
+
+		assert.NoError(t, err)
+		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called for walk-in with COUNT=0")
+		assert.Equal(t, 0, resRepo.findByIDCallCount, "FindByID must NOT be called when AppointmentID is nil")
+		assert.Equal(t, 1, repo.countByOwnerIDCallCount, "CountByOwnerID must be called for walk-in fallback")
+	})
+
+	t.Run("G_no_AppointmentID_falls_back_to_COUNT_existing_records", func(t *testing.T) {
+		repo := newRepo(func(_ context.Context, _, _ uint64) (int64, error) {
+			return 2, nil
+		})
+		resRepo := &mockReservationRepoForMedicalRecord{}
+		trigger := &mockLstepDeliveryTriggerForMR{}
+
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		err := svc.Create(context.Background(), newRecord(nil))
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must NOT be called for walk-in with COUNT>0")
+		assert.Equal(t, 0, resRepo.findByIDCallCount, "FindByID must NOT be called when AppointmentID is nil")
+		assert.Equal(t, 1, repo.countByOwnerIDCallCount, "CountByOwnerID must be called for walk-in fallback")
+	})
+
+	t.Run("H_reservation_lookup_error_falls_back_to_COUNT_zero_records", func(t *testing.T) {
+		repo := newRepo(func(_ context.Context, _, _ uint64) (int64, error) {
+			return 0, nil
+		})
+		resRepo := &mockReservationRepoForMedicalRecord{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		trigger := &mockLstepDeliveryTriggerForMR{}
+
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		err := svc.Create(context.Background(), newRecord(&appointmentID))
+
+		assert.NoError(t, err, "reservation lookup error must be non-fatal")
+		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called after fallback with COUNT=0")
+		assert.Equal(t, 1, resRepo.findByIDCallCount, "FindByID must be attempted")
+		assert.Equal(t, 1, repo.countByOwnerIDCallCount, "CountByOwnerID must be called as fallback after lookup error")
+	})
+
+	t.Run("I_reservation_nil_falls_back_to_COUNT_zero_records", func(t *testing.T) {
+		repo := newRepo(func(_ context.Context, _, _ uint64) (int64, error) {
+			return 0, nil
+		})
+		resRepo := &mockReservationRepoForMedicalRecord{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				return nil, nil // nil reservation（予約が見つからない）
+			},
+		}
+		trigger := &mockLstepDeliveryTriggerForMR{}
+
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		err := svc.Create(context.Background(), newRecord(&appointmentID))
+
+		assert.NoError(t, err)
+		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called after fallback with COUNT=0")
+		assert.Equal(t, 1, resRepo.findByIDCallCount, "FindByID must be attempted")
+		assert.Equal(t, 1, repo.countByOwnerIDCallCount, "CountByOwnerID must be called as fallback when reservation is nil")
+	})
+}
+
+func TestMedicalRecordService_UpdateRecommendationReason(t *testing.T) {
+	const (
+		clinicID uint64 = 1
+		recordID uint64 = 10
+	)
+
+	newSvc := func(repo *mockMedicalRecordRepository) MedicalRecordService {
+		return NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+	}
+
+	t.Run("valid_reason_revisit", func(t *testing.T) {
+		reason := "revisit"
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID, RecommendationReason: &reason}, nil
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "revisit"})
+		assert.NoError(t, err)
+		assert.Equal(t, "revisit", *rec.RecommendationReason)
+	})
+
+	t.Run("valid_reason_checkup", func(t *testing.T) {
+		reason := "checkup"
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID, RecommendationReason: &reason}, nil
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "checkup"})
+		assert.NoError(t, err)
+		assert.Equal(t, "checkup", *rec.RecommendationReason)
+	})
+
+	t.Run("valid_reason_prevention", func(t *testing.T) {
+		reason := "prevention"
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID, RecommendationReason: &reason}, nil
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "prevention"})
+		assert.NoError(t, err)
+		assert.Equal(t, "prevention", *rec.RecommendationReason)
+	})
+
+	t.Run("valid_reason_exam", func(t *testing.T) {
+		reason := "exam"
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID, RecommendationReason: &reason}, nil
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "exam"})
+		assert.NoError(t, err)
+		assert.Equal(t, "exam", *rec.RecommendationReason)
+	})
+
+	t.Run("empty_reason_clears_to_nil", func(t *testing.T) {
+		var capturedFields map[string]any
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.MedicalRecord, error) {
+				capturedFields = fields
+				return &model.MedicalRecord{ID: recordID, RecommendationReason: nil}, nil
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: ""})
+		assert.NoError(t, err)
+		assert.Nil(t, rec.RecommendationReason)
+		assert.Nil(t, capturedFields["recommendation_reason"], "empty reason must write nil to DB")
+	})
+
+	t.Run("invalid_reason_returns_error", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{}
+		_, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "invalid"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "recommendation_reason must be one of")
+	})
+
+	t.Run("uppercase_REVISIT_is_rejected", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{}
+		_, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "REVISIT"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "recommendation_reason must be one of")
+	})
+
+	t.Run("not_found_returns_error", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return nil, apperrors.WrapNotFound("medical_record", "10")
+			},
+		}
+		_, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "revisit"})
+		assert.Error(t, err)
+	})
+
+	t.Run("wrong_clinic_id_returns_not_found", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, cID, _ uint64) (*model.MedicalRecord, error) {
+				if cID != clinicID {
+					return nil, apperrors.WrapNotFound("medical_record", "10")
+				}
+				return &model.MedicalRecord{ID: recordID}, nil
+			},
+		}
+		_, err := newSvc(repo).UpdateRecommendationReason(context.Background(), 999, recordID, UpdateRecommendationReasonInput{Reason: "revisit"})
+		assert.Error(t, err)
+	})
+}
+
+// ---- mockMedicalRecordAuditService ----
+
+type mockMedicalRecordAuditService struct {
+	logMedicalRecordChangeFn func(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error
+	logVitalChangeFn         func(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error
+	logAddendumCreateFn      func(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error
+	calls                    []string
+}
+
+func (m *mockMedicalRecordAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
+func (m *mockMedicalRecordAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
+	return nil
+}
+func (m *mockMedicalRecordAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
+	return nil
+}
+func (m *mockMedicalRecordAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
+	return nil
+}
+func (m *mockMedicalRecordAuditService) LogMedicalRecordChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error {
+	m.calls = append(m.calls, action)
+	if m.logMedicalRecordChangeFn != nil {
+		return m.logMedicalRecordChangeFn(ctx, clinicID, actorID, action, recordID, oldValue, newValue)
+	}
+	return nil
+}
+func (m *mockMedicalRecordAuditService) LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error {
+	m.calls = append(m.calls, action)
+	if m.logVitalChangeFn != nil {
+		return m.logVitalChangeFn(ctx, clinicID, actorID, action, vitalID, medicalRecordID, oldValue, newValue)
+	}
+	return nil
+}
+func (m *mockMedicalRecordAuditService) LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error {
+	m.calls = append(m.calls, "create")
+	if m.logAddendumCreateFn != nil {
+		return m.logAddendumCreateFn(ctx, clinicID, actorID, addendumID, medicalRecordID, addendum)
+	}
+	return nil
+}
+func (m *mockMedicalRecordAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
+	return nil
+}
+
+// TestMedicalRecordService_Create_AuditLog はカルテ作成時に audit "create" が記録されることを確認する。
+func TestMedicalRecordService_Create_AuditLog(t *testing.T) {
+	auditSvc := &mockMedicalRecordAuditService{}
+	repo := &mockMedicalRecordRepository{
+		createFn: func(_ context.Context, r *model.MedicalRecord) error {
+			r.ID = 50
+			return nil
+		},
+	}
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, auditSvc)
+
+	enteredBy := uint64(7)
+	record := &model.MedicalRecord{
+		ClinicID:  1,
+		Date:      time.Now(),
+		Status:    model.MedicalRecordStatusDraft,
+		EnteredBy: &enteredBy,
+	}
+	err := svc.Create(context.Background(), record)
+	assert.NoError(t, err)
+	assert.Contains(t, auditSvc.calls, "create", "create 操作が audit に記録されること")
+}
+
+// TestMedicalRecordService_Update_AuditLog はカルテ更新時に audit "update" が記録されることを確認する。
+func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
+	auditSvc := &mockMedicalRecordAuditService{}
+	draftStatus := model.MedicalRecordStatusDraft
+	repo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID:       10,
+				ClinicID: 1,
+				Status:   model.MedicalRecordStatusDraft,
+				DoctorID: ptrUint64(5),
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID:       10,
+				ClinicID: 1,
+				Status:   model.MedicalRecordStatusDraft,
+				DoctorID: ptrUint64(99),
+			}, nil
+		},
+	}
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, auditSvc)
+
+	staffID := uint64(7)
+	_, err := svc.Update(context.Background(), 1, 10, UpdateMedicalRecordInput{
+		Status:   &draftStatus,
+		DoctorID: ptrUint64(99),
+		ActorID:  &staffID,
+	})
+	assert.NoError(t, err)
+	assert.Contains(t, auditSvc.calls, "update", "update 操作が audit に記録されること")
+}
+
+// TestMedicalRecordService_Update_FinalizeAuditLog はカルテ確定時に "finalize" 監査ログが追加記録されることを確認する。
+func TestMedicalRecordService_Update_FinalizeAuditLog(t *testing.T) {
+	auditSvc := &mockMedicalRecordAuditService{}
+	finalizedStatus := model.MedicalRecordStatusFinalized
+	repo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID:       10,
+				ClinicID: 1,
+				Status:   model.MedicalRecordStatusDraft,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID:       10,
+				ClinicID: 1,
+				Status:   model.MedicalRecordStatusFinalized,
+			}, nil
+		},
+	}
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, auditSvc)
+
+	staffID := uint64(7)
+	_, err := svc.Update(context.Background(), 1, 10, UpdateMedicalRecordInput{
+		Status:  &finalizedStatus,
+		ActorID: &staffID,
+	})
+	assert.NoError(t, err)
+	assert.Contains(t, auditSvc.calls, "finalize", "draft→finalized 遷移で finalize audit が記録されること")
+}
+
+// TestMedicalRecordService_Delete_AuditLog はカルテ削除時に audit "delete" が記録されることを確認する。
+func TestMedicalRecordService_Delete_AuditLog(t *testing.T) {
+	auditSvc := &mockMedicalRecordAuditService{}
+	repo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{ID: 10, ClinicID: 1, Status: model.MedicalRecordStatusDraft}, nil
+		},
+		countEstimatesByMedicalRecordIDFn: func(_ context.Context, _ uint64) (int64, error) {
+			return 0, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			return nil
+		},
+	}
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, auditSvc)
+
+	err := svc.Delete(context.Background(), 1, 10)
+	assert.NoError(t, err)
+	assert.Contains(t, auditSvc.calls, "delete", "delete 操作が audit に記録されること")
+}
+
+// TestMedicalRecordService_AuditFailure_NonFatal は監査ログ書き込み失敗がメイン処理を止めないことを確認する。
+func TestMedicalRecordService_AuditFailure_NonFatal(t *testing.T) {
+	auditSvc := &mockMedicalRecordAuditService{
+		logMedicalRecordChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
+			return errors.New("audit db down")
+		},
+	}
+	repo := &mockMedicalRecordRepository{
+		createFn: func(_ context.Context, r *model.MedicalRecord) error {
+			r.ID = 1
+			return nil
+		},
+	}
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, auditSvc)
+
+	record := &model.MedicalRecord{ClinicID: 1, Date: time.Now(), Status: model.MedicalRecordStatusDraft}
+	err := svc.Create(context.Background(), record)
+	assert.NoError(t, err, "監査ログ失敗はメイン処理のエラーを返さない（best-effort）")
 }

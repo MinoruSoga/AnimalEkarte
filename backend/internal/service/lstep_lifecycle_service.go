@@ -27,15 +27,17 @@ type LstepLifecycleService interface {
 }
 
 type lstepLifecycleService struct {
-	settingsSvc  LstepSettingsService
-	ownerRepo    repository.OwnerRepository
-	petRepo      repository.PetRepository
-	tagCacheRepo repository.LstepTagCacheRepository
-	syncSvc      LstepTagSyncService
-	auditSvc     AuditService
+	settingsSvc   LstepSettingsService
+	ownerRepo     repository.OwnerRepository
+	petRepo       repository.PetRepository
+	tagCacheRepo  repository.LstepTagCacheRepository
+	syncSvc       LstepTagSyncService
+	auditSvc      AuditService
+	tagConfigRepo repository.LstepTagConfigRepository
 }
 
 // NewLstepLifecycleService は LstepLifecycleService を初期化して返す。
+// tagConfigRepo が nil の場合はペット由来タグ削除でフォールバック値を使用する。
 func NewLstepLifecycleService(
 	settingsSvc LstepSettingsService,
 	ownerRepo repository.OwnerRepository,
@@ -43,20 +45,29 @@ func NewLstepLifecycleService(
 	tagCacheRepo repository.LstepTagCacheRepository,
 	syncSvc LstepTagSyncService,
 	auditSvc AuditService,
+	tagConfigRepo repository.LstepTagConfigRepository,
 ) LstepLifecycleService {
 	return &lstepLifecycleService{
-		settingsSvc:  settingsSvc,
-		ownerRepo:    ownerRepo,
-		petRepo:      petRepo,
-		tagCacheRepo: tagCacheRepo,
-		syncSvc:      syncSvc,
-		auditSvc:     auditSvc,
+		settingsSvc:   settingsSvc,
+		ownerRepo:     ownerRepo,
+		petRepo:       petRepo,
+		tagCacheRepo:  tagCacheRepo,
+		syncSvc:       syncSvc,
+		auditSvc:      auditSvc,
+		tagConfigRepo: tagConfigRepo,
 	}
 }
 
 // buildClient はクリニック設定から lstep.Client を構築する。
-// API キーが未設定の場合は nil, nil を返す。
+// 同期無効（is_sync_enabled=false）または API キー未設定の場合は nil, nil を返す。
 func (s *lstepLifecycleService) buildClient(ctx context.Context, clinicID uint64) (lstep.Client, error) {
+	enabled, err := s.settingsSvc.IsSyncEnabled(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to check lstep sync enabled")
+	}
+	if !enabled {
+		return nil, nil
+	}
 	apiKey, baseURL, _, err := s.settingsSvc.GetRawCredentials(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get lstep credentials")
@@ -272,8 +283,10 @@ func (s *lstepLifecycleService) removeAllTagsFromLstep(ctx context.Context, clin
 
 // removePetDerivedTagsFromLstep は死亡ペット由来のタグ（ワクチン・健診カテゴリ）を
 // Lステップおよびキャッシュから解除する（best-effort）。
+// DB に登録されたプレフィックス（C2 カテゴリ: vaccine_/checkup_ 等）を使用し、
+// DB 未設定時はフォールバック値 ["vaccine_", "checkup_done_"] を使用する。
 func (s *lstepLifecycleService) removePetDerivedTagsFromLstep(ctx context.Context, client lstep.Client, clinicID, ownerID uint64, lineUserID string) {
-	petDerivedPrefixes := []string{"vaccine_dog_", "vaccine_cat_", "vaccine_rabies_", "checkup_done_"}
+	petDerivedPrefixes := s.loadPetDerivedPrefixes(ctx)
 	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load tag cache for pet-derived tag removal", "error", err)
@@ -291,4 +304,33 @@ func (s *lstepLifecycleService) removePetDerivedTagsFromLstep(ctx context.Contex
 			}
 		}
 	}
+}
+
+// loadPetDerivedPrefixes は DB から C2 カテゴリのプレフィックスを読み込む。
+// DB 未設定またはエラー時は ["vaccine_", "checkup_done_"] にフォールバックする。
+func (s *lstepLifecycleService) loadPetDerivedPrefixes(ctx context.Context) []string {
+	if s.tagConfigRepo == nil {
+		return petDerivedPrefixFallback()
+	}
+	all, err := s.tagConfigRepo.FindAllAutoManagedPrefixes(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load auto managed prefixes for pet-derived tags, using fallback", "error", err)
+		return petDerivedPrefixFallback()
+	}
+	var prefixes []string
+	for _, p := range all {
+		if p.Category == "C2" {
+			prefixes = append(prefixes, p.Prefix)
+		}
+	}
+	if len(prefixes) == 0 {
+		return petDerivedPrefixFallback()
+	}
+	return prefixes
+}
+
+// petDerivedPrefixFallback は DB 未設定時に使用する静的フォールバック値を返す。
+// migration 006 の C2 シードが存在すれば通常はこちらは使われない。
+func petDerivedPrefixFallback() []string {
+	return []string{"vaccine_", tagPrefixCheckupDone}
 }

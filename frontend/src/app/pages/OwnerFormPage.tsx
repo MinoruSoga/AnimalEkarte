@@ -49,7 +49,7 @@ export function OwnerFormPage() {
   const lineSection = ownerId ? (
     <div className="space-y-4">
       <LinkedLineCustomers clinicId={clinicId} ownerId={Number(ownerId)} />
-      <LineIntegrationCard ownerId={ownerId} ownerName={ownerName} />
+      <LineIntegrationCard ownerId={ownerId} ownerName={ownerName} owner={owner} />
       <div className="flex justify-end">
         <Button
           type="button"

@@ -158,7 +158,7 @@ func (h *Handler) RegisterClosingSettingsRoutes(rg *gin.RouterGroup) {
 
 	// 休診日は既存 ClinicHoliday ハンドラに委譲
 	holidays := cs.Group("/holidays")
-	holidays.GET("", h.ListClinicHolidays)
+	holidays.GET("", h.RequirePermission(string(model.ResourceClosingSettings), "view"), h.ListClinicHolidays)
 	holidays.POST("", h.RequirePermission(string(model.ResourceClosingSettings), "create"), h.SetClinicHoliday)
 	holidays.DELETE("/:date", h.RequirePermission(string(model.ResourceClosingSettings), "delete"), h.DeleteClinicHoliday)
 }

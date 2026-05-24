@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -50,6 +52,24 @@ func (m *mockLstepSettingsService) TestConnection(ctx context.Context, clinicID 
 }
 func (m *mockLstepSettingsService) GetRawCredentials(_ context.Context, _ uint64) (apiKey, baseURL, lineToken string, err error) {
 	return "", "", "", nil
+}
+func (m *mockLstepSettingsService) IsSyncEnabled(_ context.Context, _ uint64) (bool, error) {
+	return false, nil
+}
+func (m *mockLstepSettingsService) GetCPMVersion(_ context.Context, _ uint64) (string, error) {
+	return "v1", nil
+}
+func (m *mockLstepSettingsService) GetDormantThresholds(_ context.Context, _ uint64) (model.DormantThresholds, error) {
+	return model.DormantThresholds{}.WithDefaults(), nil
+}
+func (m *mockLstepSettingsService) GetCPMV2Thresholds(_ context.Context, _ uint64) (model.CPMV2Thresholds, error) {
+	return model.CPMV2Thresholds{}.WithDefaults(), nil
+}
+func (m *mockLstepSettingsService) GetCPMV1Thresholds(_ context.Context, _ uint64) (model.CPMV1Thresholds, error) {
+	return model.CPMV1Thresholds{}.WithDefaults(), nil
+}
+func (m *mockLstepSettingsService) GetHealthPreventionThresholds(_ context.Context, _ uint64) (model.HealthPreventionThresholds, error) {
+	return model.HealthPreventionThresholds{}.WithDefaults(), nil
 }
 
 // ---- helpers ----
@@ -142,6 +162,30 @@ func TestGetLstepSettings(t *testing.T) {
 	}
 }
 
+func TestGetLstepSettingsIncludesSyncFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	syncEnabledAt := time.Date(2026, 5, 1, 9, 0, 0, 0, time.UTC)
+	svc := &mockLstepSettingsService{
+		getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
+			return &service.LstepSettingsResponse{
+				IsSyncEnabled: true,
+				SyncEnabledAt: &syncEnabledAt,
+			}, nil
+		},
+	}
+
+	router := newGetLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodGet, "/lstep-settings", http.NoBody)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, true, body["is_sync_enabled"])
+	assert.NotEmpty(t, body["sync_enabled_at"])
+}
+
 func TestPatchLstepSettings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	validBody, _ := json.Marshal(map[string]string{"lstep_api_key": "key123"})
@@ -192,6 +236,29 @@ func TestPatchLstepSettings(t *testing.T) {
 	}
 }
 
+func TestPatchLstepSettingsPassesSyncEnabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var got *bool
+	svc := &mockLstepSettingsService{
+		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+			got = input.IsSyncEnabled
+			return &service.LstepSettingsResponse{IsSyncEnabled: true}, nil
+		},
+	}
+
+	body, _ := json.Marshal(map[string]any{"is_sync_enabled": true})
+	router := newPatchLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodPatch, "/lstep-settings", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	if assert.NotNil(t, got) {
+		assert.True(t, *got)
+	}
+}
+
 func TestDeleteLstepSettings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tests := []struct {
@@ -228,6 +295,149 @@ func TestDeleteLstepSettings(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+func TestPatchLstepSettingsPassesCPMVersion(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var got *string
+	svc := &mockLstepSettingsService{
+		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+			got = input.CPMVersion
+			return &service.LstepSettingsResponse{
+				LstepAPIKeyMasked:            "",
+				LstepBaseURL:                 "",
+				LineChannelAccessTokenMasked: "",
+				LineChannelSecretMasked:      "",
+				LiffID:                       "",
+				LineAccountName:              "",
+				IsConfigured:                 false,
+				LastUpdatedAt:                nil,
+				IsSyncEnabled:                false,
+				SyncEnabledAt:                nil,
+				CPMVersion:                   "v2",
+				DormantPrevention180Days:     180,
+				DormantPrevention210Days:     210,
+				DormantPrevention240Days:     240,
+				DormantPrevention365Days:     365,
+			}, nil
+		},
+	}
+
+	body, _ := json.Marshal(map[string]any{"cpm_version": "v2"})
+	router := newPatchLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodPatch, "/lstep-settings", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	if assert.NotNil(t, got) {
+		assert.Equal(t, "v2", *got)
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.Equal(t, "v2", resp["cpm_version"])
+}
+
+func TestPatchLstepSettingsPassesDormantThresholds(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var got180, got210, got240, got365 *int
+	svc := &mockLstepSettingsService{
+		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+			got180 = input.DormantPrevention180Days
+			got210 = input.DormantPrevention210Days
+			got240 = input.DormantPrevention240Days
+			got365 = input.DormantPrevention365Days
+			return &service.LstepSettingsResponse{
+				LstepAPIKeyMasked:            "",
+				LstepBaseURL:                 "",
+				LineChannelAccessTokenMasked: "",
+				LineChannelSecretMasked:      "",
+				LiffID:                       "",
+				LineAccountName:              "",
+				IsConfigured:                 false,
+				LastUpdatedAt:                nil,
+				IsSyncEnabled:                false,
+				SyncEnabledAt:                nil,
+				CPMVersion:                   "v1",
+				DormantPrevention180Days:     180,
+				DormantPrevention210Days:     210,
+				DormantPrevention240Days:     240,
+				DormantPrevention365Days:     365,
+			}, nil
+		},
+	}
+
+	body, _ := json.Marshal(map[string]any{
+		"dormant_prevention_180_days": 180,
+		"dormant_prevention_210_days": 210,
+		"dormant_prevention_240_days": 240,
+		"dormant_prevention_365_days": 365,
+	})
+	router := newPatchLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodPatch, "/lstep-settings", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	if assert.NotNil(t, got180) {
+		assert.Equal(t, 180, *got180)
+	}
+	if assert.NotNil(t, got210) {
+		assert.Equal(t, 210, *got210)
+	}
+	if assert.NotNil(t, got240) {
+		assert.Equal(t, 240, *got240)
+	}
+	if assert.NotNil(t, got365) {
+		assert.Equal(t, 365, *got365)
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.Equal(t, float64(180), resp["dormant_prevention_180_days"])
+	assert.Equal(t, float64(210), resp["dormant_prevention_210_days"])
+	assert.Equal(t, float64(240), resp["dormant_prevention_240_days"])
+	assert.Equal(t, float64(365), resp["dormant_prevention_365_days"])
+}
+
+func TestGetLstepSettingsIncludesNewFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &mockLstepSettingsService{
+		getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
+			return &service.LstepSettingsResponse{
+				LstepAPIKeyMasked:            "",
+				LstepBaseURL:                 "",
+				LineChannelAccessTokenMasked: "",
+				LineChannelSecretMasked:      "",
+				LiffID:                       "",
+				LineAccountName:              "",
+				IsConfigured:                 false,
+				LastUpdatedAt:                nil,
+				IsSyncEnabled:                false,
+				SyncEnabledAt:                nil,
+				CPMVersion:                   "v2",
+				DormantPrevention180Days:     180,
+				DormantPrevention210Days:     210,
+				DormantPrevention240Days:     240,
+				DormantPrevention365Days:     365,
+			}, nil
+		},
+	}
+
+	router := newGetLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodGet, "/lstep-settings", http.NoBody)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, "v2", body["cpm_version"])
+	assert.Equal(t, float64(180), body["dormant_prevention_180_days"])
+	assert.Equal(t, float64(210), body["dormant_prevention_210_days"])
+	assert.Equal(t, float64(240), body["dormant_prevention_240_days"])
+	assert.Equal(t, float64(365), body["dormant_prevention_365_days"])
 }
 
 func TestPostLstepTestConnection(t *testing.T) {
@@ -275,4 +485,148 @@ func TestPostLstepTestConnection(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+func TestPatchLstepSettingsPassesCPMV1Thresholds(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var gotDormant *int
+	var gotNoahLTV *int64
+	svc := &mockLstepSettingsService{
+		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+			gotDormant = input.CPMV1DormantDays
+			gotNoahLTV = input.CPMV1NoahLTV
+			return &service.LstepSettingsResponse{
+				CPMV1DormantDays: 300,
+				CPMV1NoahLTV:     90000,
+			}, nil
+		},
+	}
+
+	body, _ := json.Marshal(map[string]any{
+		"cpm_v1_dormant_days": 300,
+		"cpm_v1_noah_ltv":     90000,
+	})
+	router := newPatchLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodPatch, "/lstep-settings", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	if assert.NotNil(t, gotDormant) {
+		assert.Equal(t, 300, *gotDormant)
+	}
+	if assert.NotNil(t, gotNoahLTV) {
+		assert.Equal(t, int64(90000), *gotNoahLTV)
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.Equal(t, float64(300), resp["cpm_v1_dormant_days"])
+	assert.Equal(t, float64(90000), resp["cpm_v1_noah_ltv"])
+}
+
+func TestGetLstepSettingsIncludesHealthPreventionFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &mockLstepSettingsService{
+		getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
+			return &service.LstepSettingsResponse{
+				HealthPreventionLookbackDays: 365,
+				VaccineDeadlineDays:          60,
+			}, nil
+		},
+	}
+
+	router := newGetLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodGet, "/lstep-settings", http.NoBody)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, float64(365), body["health_prevention_lookback_days"])
+	assert.Equal(t, float64(60), body["vaccine_deadline_days"])
+}
+
+func TestPatchLstepSettingsPassesHealthPreventionThresholds(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var gotLookback *int
+	var gotVaccine *int
+	svc := &mockLstepSettingsService{
+		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+			gotLookback = input.HealthPreventionLookbackDays
+			gotVaccine = input.VaccineDeadlineDays
+			return &service.LstepSettingsResponse{
+				HealthPreventionLookbackDays: 180,
+				VaccineDeadlineDays:          30,
+			}, nil
+		},
+	}
+
+	body, _ := json.Marshal(map[string]any{
+		"health_prevention_lookback_days": 180,
+		"vaccine_deadline_days":           30,
+	})
+	router := newPatchLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodPatch, "/lstep-settings", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	if assert.NotNil(t, gotLookback) {
+		assert.Equal(t, 180, *gotLookback)
+	}
+	if assert.NotNil(t, gotVaccine) {
+		assert.Equal(t, 30, *gotVaccine)
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.Equal(t, float64(180), resp["health_prevention_lookback_days"])
+	assert.Equal(t, float64(30), resp["vaccine_deadline_days"])
+}
+
+func TestGetLstepSettingsIncludesCPMV1Fields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &mockLstepSettingsService{
+		getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
+			return &service.LstepSettingsResponse{
+				CPMV1DormantDays:      240,
+				CPMV1NoahDays:         365,
+				CPMV1NoahAnnualVisits: 3,
+				CPMV1NoahLTV:          80000,
+				CPMV1CoreDays:         180,
+				CPMV1CoreAnnualVisits: 2,
+				CPMV1CoreLTV:          50000,
+				CPMV1SpotMinAmount:    30000,
+				CPMV1SpotInactiveDays: 90,
+				CPMV1GrowingMaxDays:   90,
+				CPMV1GrowingMinVisits: 2,
+				CPMV1GrowingMaxVisits: 3,
+				CPMV1LTVBreakLow:      20000,
+			}, nil
+		},
+	}
+
+	router := newGetLstepSettingsRouter(svc, true)
+	req := httptest.NewRequest(http.MethodGet, "/lstep-settings", http.NoBody)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, float64(240), body["cpm_v1_dormant_days"])
+	assert.Equal(t, float64(365), body["cpm_v1_noah_days"])
+	assert.Equal(t, float64(3), body["cpm_v1_noah_annual_visits"])
+	assert.Equal(t, float64(80000), body["cpm_v1_noah_ltv"])
+	assert.Equal(t, float64(180), body["cpm_v1_core_days"])
+	assert.Equal(t, float64(2), body["cpm_v1_core_annual_visits"])
+	assert.Equal(t, float64(50000), body["cpm_v1_core_ltv"])
+	assert.Equal(t, float64(30000), body["cpm_v1_spot_min_amount"])
+	assert.Equal(t, float64(90), body["cpm_v1_spot_inactive_days"])
+	assert.Equal(t, float64(90), body["cpm_v1_growing_max_days"])
+	assert.Equal(t, float64(2), body["cpm_v1_growing_min_visits"])
+	assert.Equal(t, float64(3), body["cpm_v1_growing_max_visits"])
+	assert.Equal(t, float64(20000), body["cpm_v1_ltv_break_low"])
 }

@@ -1,5 +1,5 @@
 import type { BackendAccounting, BackendAccountingItem } from "./types";
-import type { BillingRefund, Payment } from "@/types/generated/models";
+import type { BillingRefund, Payment, PaymentSplit } from "@/types/generated/models";
 import type { ItemCategory, AccountingStatus, PaymentMethod } from "../types";
 
 /** Payment にバックエンドが付与する結合フィールドを加えたローカル拡張型 */
@@ -66,8 +66,23 @@ export function transformToRefund(r: BillingRefund & { refunded_by_name?: string
 
 export type Refund = ReturnType<typeof transformToRefund>;
 
+type PaymentSplitWithStaff = PaymentSplit & { paid_by_name?: string };
+
+function transformPaymentSplit(s: PaymentSplitWithStaff) {
+  return {
+    id: String(s.id ?? 0),
+    method: (s.method || "cash") as PaymentMethod,
+    paymentMethodId: s.payment_method_id != null ? String(s.payment_method_id) : undefined,
+    amount: s.amount ?? 0,
+    receivedAmount: s.received_amount ?? 0,
+    changeAmount: s.change_amount ?? 0,
+    paidByName: s.paid_by_name || undefined,
+  };
+}
+
 // Backend → フロントエンド Accounting 型（一覧・詳細共通）
 export function transformToAccounting(data: BackendAccounting) {
+  const splits = data.payment_splits;
   return {
     id: String(data.id ?? 0),
     medicalRecordId: data.medical_record_id ? String(data.medical_record_id) : undefined,
@@ -81,6 +96,9 @@ export function transformToAccounting(data: BackendAccounting) {
     completedAt: data.completed_at ?? undefined,
     items: (data.items ?? []).map(transformAccountingItem),
     payment: buildPaymentInfo(data),
+    paymentSplits: splits && splits.length > 0
+      ? splits.map((s) => transformPaymentSplit(s as PaymentSplitWithStaff))
+      : undefined,
     totalRefundedAmount: data.total_refunded_amount ?? 0,
     memo: data.memo || undefined,
   };

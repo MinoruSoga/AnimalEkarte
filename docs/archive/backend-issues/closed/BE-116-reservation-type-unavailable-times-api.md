@@ -1,6 +1,6 @@
 # BE-116: 予約不可時間 & 職種紐付け 管理 API 実装
 
-**Status**: Open
+**Status**: Closed（2026-05-19 実装済み確認）
 **Priority**: High
 **Affects**: 予約区分マスタ管理 API
 **Date Created**: 2026-04-16

@@ -21,6 +21,7 @@ type mockLstepSettingsService struct {
 	updateSettingsFn    func(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput) (*LstepSettingsResponse, error)
 	deleteSettingsFn    func(ctx context.Context, clinicID uint64) error
 	testConnectionFn    func(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error)
+	isSyncEnabledFn     func(ctx context.Context, clinicID uint64) (bool, error)
 }
 
 func (m *mockLstepSettingsService) GetRawCredentials(ctx context.Context, clinicID uint64) (apiKey, baseURL, lineToken string, err error) {
@@ -53,20 +54,42 @@ func (m *mockLstepSettingsService) TestConnection(ctx context.Context, clinicID 
 	}
 	return &LstepConnectionTestResult{}, nil
 }
+func (m *mockLstepSettingsService) IsSyncEnabled(ctx context.Context, clinicID uint64) (bool, error) {
+	if m.isSyncEnabledFn != nil {
+		return m.isSyncEnabledFn(ctx, clinicID)
+	}
+	return true, nil
+}
+func (m *mockLstepSettingsService) GetCPMVersion(_ context.Context, _ uint64) (string, error) {
+	return "v1", nil
+}
+func (m *mockLstepSettingsService) GetDormantThresholds(_ context.Context, _ uint64) (model.DormantThresholds, error) {
+	return model.DormantThresholds{}.WithDefaults(), nil
+}
+func (m *mockLstepSettingsService) GetCPMV2Thresholds(_ context.Context, _ uint64) (model.CPMV2Thresholds, error) {
+	return model.CPMV2Thresholds{}.WithDefaults(), nil
+}
+func (m *mockLstepSettingsService) GetCPMV1Thresholds(_ context.Context, _ uint64) (model.CPMV1Thresholds, error) {
+	return model.CPMV1Thresholds{}.WithDefaults(), nil
+}
+
+func (m *mockLstepSettingsService) GetHealthPreventionThresholds(_ context.Context, _ uint64) (model.HealthPreventionThresholds, error) {
+	return model.HealthPreventionThresholds{}.WithDefaults(), nil
+}
 
 // ---- LstepTagCacheRepository モック ----
 
 type mockLstepTagCacheRepository struct {
-	upsertTagFn        func(ctx context.Context, clinicID, ownerID uint64, tagName, category string) error
+	upsertTagFn        func(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error
 	deleteTagFn        func(ctx context.Context, clinicID, ownerID uint64, tagName string) error
 	deleteAllByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) error
 	findByOwnerFn      func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
 	countByTagFn       func(ctx context.Context, clinicID uint64, tagName string) (int64, error)
 }
 
-func (m *mockLstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category string) error {
+func (m *mockLstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error {
 	if m.upsertTagFn != nil {
-		return m.upsertTagFn(ctx, clinicID, ownerID, tagName, category)
+		return m.upsertTagFn(ctx, clinicID, ownerID, tagName, category, reason)
 	}
 	return nil
 }
@@ -103,6 +126,9 @@ func (m *mockLstepTagCacheRepository) FindOwnersByTag(ctx context.Context, clini
 func (m *mockLstepTagCacheRepository) BulkReplaceOwnerTags(ctx context.Context, clinicID, ownerID uint64, tags []repository.TagEntry) error {
 	return nil
 }
+func (m *mockLstepTagCacheRepository) FindOwnerIDsByTag(_ context.Context, _ uint64, _ string) ([]uint64, error) {
+	return nil, nil
+}
 
 // ---- LstepTagSyncService モック ----
 
@@ -133,12 +159,6 @@ func (m *mockLstepTagSyncService) SyncPetBasicInfoTags(_ context.Context, _, _ u
 func (m *mockLstepTagSyncService) SyncNextVisitTag(_ context.Context, _, _ uint64) error {
 	return nil
 }
-func (m *mockLstepTagSyncService) SyncReservationTag(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
-}
-func (m *mockLstepTagSyncService) SyncCancellationTag(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
-}
 func (m *mockLstepTagSyncService) SyncCheckupTag(_ context.Context, _, _, _ uint64, _ time.Time, _ *time.Time) error {
 	return nil
 }
@@ -155,12 +175,68 @@ func (m *mockLstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID,
 	return nil
 }
 
-func (m *mockLstepTagSyncService) SyncNoShowTag(_ context.Context, _, _ uint64, _ time.Time) error {
+func (m *mockLstepTagSyncService) SyncDormantTags(_ context.Context, _, _ uint64, _ int) error {
 	return nil
 }
 
-func (m *mockLstepTagSyncService) SyncDormantTags(_ context.Context, _, _ uint64, _ int) error {
+func (m *mockLstepTagSyncService) ResyncOwnerVaccineTags(_ context.Context, _, _ uint64) error {
 	return nil
+}
+
+func (m *mockLstepTagSyncService) ResyncOwnerCheckupTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncCPMStageTagV2(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncLTVTopPercent(_ context.Context, _ uint64) (int, []error) {
+	return 0, nil
+}
+
+func (m *mockLstepTagSyncService) SyncVisitDormantTags(_ context.Context, _, _ uint64, _ int) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncPetSpeciesTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncSeniorTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncExclusionTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncHealthcheckTags(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncAnnual4CheckupTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncVaccineDeadlineTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncFilariaTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncFleaTickTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncFoodPurchaseTag(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncHealthPreventionTagsForClinic(_ context.Context, _ uint64) (int, []error) {
+	return 0, nil
 }
 
 // ---- AuditService モック ----
@@ -175,6 +251,22 @@ func (m *mockAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uin
 	return nil
 }
 
+func (m *mockAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
+	return nil
+}
+func (m *mockAuditService) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
+	return nil
+}
+func (m *mockAuditService) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
+	return nil
+}
+func (m *mockAuditService) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
+	return nil
+}
+func (m *mockAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
+	return nil
+}
+
 // ---- ヘルパー ----
 
 func newLstepLifecycleSvc(
@@ -184,7 +276,7 @@ func newLstepLifecycleSvc(
 	tagCacheRepo *mockLstepTagCacheRepository,
 	syncSvc *mockLstepTagSyncService,
 ) LstepLifecycleService {
-	return NewLstepLifecycleService(settingsSvc, ownerRepo, petRepo, tagCacheRepo, syncSvc, &mockAuditService{})
+	return NewLstepLifecycleService(settingsSvc, ownerRepo, petRepo, tagCacheRepo, syncSvc, &mockAuditService{}, nil)
 }
 
 func defaultLstepSettingsSvc() *mockLstepSettingsService {
@@ -576,12 +668,80 @@ func TestCalculateCPMStage(t *testing.T) {
 	}{
 		{"来院なし → dormant", CPMData{DaysSinceVisit: -1}, CPMStageDormant},
 		{"240日以上 → dormant", CPMData{DaysSinceVisit: 240}, CPMStageDormant},
-		{"noah条件満たす → noah", CPMData{DaysSinceVisit: 30, FirstVisitDaysSince: 365, AnnualVisitCount: 3, LTVAmount: 80_000}, CPMStageNoah},
-		{"core条件満たす → core", CPMData{DaysSinceVisit: 30, FirstVisitDaysSince: 180, AnnualVisitCount: 2, LTVAmount: 50_000}, CPMStageCore},
-		{"spot条件 高単価・90日超 → spot", CPMData{DaysSinceVisit: 100, MaxSingleVisitAmount: 30_000}, CPMStageSpot},
-		{"2〜3回来院・90日以内 → growing", CPMData{DaysSinceVisit: 10, TotalVisitCount: 2}, CPMStageGrowing},
-		{"初回来院 → encounter", CPMData{DaysSinceVisit: 5, TotalVisitCount: 1}, CPMStageEncounter},
-		{"累計4回・条件未達 → encounter", CPMData{DaysSinceVisit: 10, TotalVisitCount: 4}, CPMStageEncounter},
+		{"noah条件満たす → noah", CPMData{
+			TotalVisitCount:      3,
+			AnnualVisitCount:     3,
+			DaysSinceVisit:       30,
+			LTVAmount:            80_000,
+			FirstVisitDaysSince:  365,
+			MaxSingleVisitAmount: 0,
+		}, CPMStageNoah},
+		{"core条件満たす → core", CPMData{
+			TotalVisitCount:      2,
+			AnnualVisitCount:     2,
+			DaysSinceVisit:       30,
+			LTVAmount:            50_000,
+			FirstVisitDaysSince:  180,
+			MaxSingleVisitAmount: 0,
+		}, CPMStageCore},
+		{"spot条件 高単価・90日超 → spot", CPMData{
+			TotalVisitCount:      1,
+			AnnualVisitCount:     0,
+			DaysSinceVisit:       100,
+			LTVAmount:            0,
+			FirstVisitDaysSince:  200,
+			MaxSingleVisitAmount: 30_000,
+		}, CPMStageSpot},
+		{"2〜3回来院・90日以内 → growing", CPMData{
+			TotalVisitCount:      2,
+			AnnualVisitCount:     0,
+			DaysSinceVisit:       10,
+			LTVAmount:            25_000,
+			FirstVisitDaysSince:  45,
+			MaxSingleVisitAmount: 0,
+		}, CPMStageGrowing},
+		// encounter: 来院1回 AND LTV 20,000円未満（仕様書 §3 明示判定）
+		{"初回来院 LTV=0 → encounter", CPMData{
+			TotalVisitCount:      1,
+			AnnualVisitCount:     0,
+			DaysSinceVisit:       5,
+			LTVAmount:            0,
+			FirstVisitDaysSince:  5,
+			MaxSingleVisitAmount: 0,
+		}, CPMStageEncounter},
+		{"来院1回 LTV=19999 → encounter", CPMData{
+			TotalVisitCount:      1,
+			AnnualVisitCount:     1,
+			DaysSinceVisit:       10,
+			LTVAmount:            19_999,
+			FirstVisitDaysSince:  10,
+			MaxSingleVisitAmount: 19_999,
+		}, CPMStageEncounter},
+		// unclassified: 全6ステージのいずれにも該当しない異常データ
+		{"来院1回 LTV>=20k → unclassified", CPMData{
+			TotalVisitCount:      1,
+			AnnualVisitCount:     1,
+			DaysSinceVisit:       10,
+			LTVAmount:            20_000,
+			FirstVisitDaysSince:  10,
+			MaxSingleVisitAmount: 20_000,
+		}, CPMStageUnclassified},
+		{"累計4回・全条件未達 → unclassified", CPMData{
+			TotalVisitCount:      4,
+			AnnualVisitCount:     2,
+			DaysSinceVisit:       10,
+			LTVAmount:            15_000,
+			FirstVisitDaysSince:  120,
+			MaxSingleVisitAmount: 0,
+		}, CPMStageUnclassified},
+		{"来院0回・非dormant → unclassified", CPMData{
+			TotalVisitCount:      0,
+			AnnualVisitCount:     0,
+			DaysSinceVisit:       50,
+			LTVAmount:            100_000,
+			FirstVisitDaysSince:  50,
+			MaxSingleVisitAmount: 0,
+		}, CPMStageUnclassified},
 	}
 
 	for _, tt := range tests {
@@ -687,6 +847,55 @@ func TestIsRabiesVaccine(t *testing.T) {
 	assert.True(t, isRabiesVaccine("狂犬病予防ワクチン"))
 	assert.False(t, isRabiesVaccine("混合ワクチン"))
 	assert.False(t, isRabiesVaccine("フィラリア"))
+}
+
+// ---- テスト: loadPetDerivedPrefixes ----
+
+func TestLstepLifecycleService_LoadPetDerivedPrefixes(t *testing.T) {
+	t.Run("tagConfigRepo nil → fallback prefixes", func(t *testing.T) {
+		svc := &lstepLifecycleService{tagConfigRepo: nil}
+		prefixes := svc.loadPetDerivedPrefixes(context.Background())
+		assert.Equal(t, []string{"vaccine_", tagPrefixCheckupDone}, prefixes)
+	})
+
+	t.Run("DB returns C2 prefixes → use DB values", func(t *testing.T) {
+		repo := &mockLstepTagConfigRepository{
+			findAllAutoManagedPrefixesFn: func(_ context.Context) ([]*model.LstepAutoManagedPrefix, error) {
+				return []*model.LstepAutoManagedPrefix{
+					{Category: "C2", Prefix: "vaccine_"},
+					{Category: "C2", Prefix: "checkup_done_"},
+					{Category: "B", Prefix: "next_visit_"},
+				}, nil
+			},
+		}
+		svc := &lstepLifecycleService{tagConfigRepo: repo}
+		prefixes := svc.loadPetDerivedPrefixes(context.Background())
+		assert.ElementsMatch(t, []string{"vaccine_", "checkup_done_"}, prefixes)
+	})
+
+	t.Run("DB returns no C2 prefixes → fallback", func(t *testing.T) {
+		repo := &mockLstepTagConfigRepository{
+			findAllAutoManagedPrefixesFn: func(_ context.Context) ([]*model.LstepAutoManagedPrefix, error) {
+				return []*model.LstepAutoManagedPrefix{
+					{Category: "B", Prefix: "next_visit_"},
+				}, nil
+			},
+		}
+		svc := &lstepLifecycleService{tagConfigRepo: repo}
+		prefixes := svc.loadPetDerivedPrefixes(context.Background())
+		assert.Equal(t, []string{"vaccine_", tagPrefixCheckupDone}, prefixes)
+	})
+
+	t.Run("DB error → fallback", func(t *testing.T) {
+		repo := &mockLstepTagConfigRepository{
+			findAllAutoManagedPrefixesFn: func(_ context.Context) ([]*model.LstepAutoManagedPrefix, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := &lstepLifecycleService{tagConfigRepo: repo}
+		prefixes := svc.loadPetDerivedPrefixes(context.Background())
+		assert.Equal(t, []string{"vaccine_", tagPrefixCheckupDone}, prefixes)
+	})
 }
 
 // ---- ビルドコンパイル確認: LstepTagCacheRepository インターフェース実装 ----

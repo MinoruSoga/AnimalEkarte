@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type BodyWeightUnit string
 
@@ -24,6 +28,7 @@ type VitalRecord struct {
 	Notes           string         `gorm:"not null;default:''"               json:"notes"`
 	CreatedAt       time.Time      `gorm:"not null;default:now()"            json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"not null;default:now()"            json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `gorm:"index"                             json:"-"`
 
 	Pet           *Pet           `gorm:"foreignKey:PetID"           json:"pet,omitempty"`
 	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID" json:"-"`

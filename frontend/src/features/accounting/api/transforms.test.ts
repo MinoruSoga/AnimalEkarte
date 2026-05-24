@@ -136,4 +136,43 @@ describe("transformToAccounting", () => {
   it("total_refunded_amount が未設定のとき 0 を返す", () => {
     expect(transformToAccounting({ ...minimal, total_refunded_amount: undefined as unknown as number }).totalRefundedAmount).toBe(0);
   });
+
+  it("payment_splits が複数ある場合 paymentSplits にマップされる", () => {
+    const result = transformToAccounting({
+      ...minimal,
+      payment_splits: [
+        { id: 1, clinic_id: 1, billing_id: 1, method: "cash" as const, amount: 2000, received_amount: 3000, change_amount: 1000, created_at: "2026-03-25T00:00:00Z" },
+        { id: 2, clinic_id: 1, billing_id: 1, method: "credit_card" as const, amount: 1500, received_amount: 0, change_amount: 0, created_at: "2026-03-25T00:00:00Z" },
+        { id: 3, clinic_id: 1, billing_id: 1, method: "electronic_money" as const, amount: 1500, received_amount: 0, change_amount: 0, created_at: "2026-03-25T00:00:00Z" },
+      ],
+    });
+    expect(result.paymentSplits).toHaveLength(3);
+    expect(result.paymentSplits![0].id).toBe("1");
+    expect(result.paymentSplits![0].method).toBe("cash");
+    expect(result.paymentSplits![0].amount).toBe(2000);
+    expect(result.paymentSplits![0].receivedAmount).toBe(3000);
+    expect(result.paymentSplits![0].changeAmount).toBe(1000);
+    expect(result.paymentSplits![1].method).toBe("credit_card");
+    expect(result.paymentSplits![2].method).toBe("electronic_money");
+  });
+
+  it("payment_splits が空配列の場合 paymentSplits は undefined", () => {
+    const result = transformToAccounting({ ...minimal, payment_splits: [] });
+    expect(result.paymentSplits).toBeUndefined();
+  });
+
+  it("payment_splits が未設定の場合 paymentSplits は undefined", () => {
+    const result = transformToAccounting({ ...minimal });
+    expect(result.paymentSplits).toBeUndefined();
+  });
+
+  it("payment_splits の payment_method_id が string に変換される", () => {
+    const result = transformToAccounting({
+      ...minimal,
+      payment_splits: [
+        { id: 5, clinic_id: 1, billing_id: 1, method: "credit_card" as const, payment_method_id: 42, amount: 5000, received_amount: 0, change_amount: 0, created_at: "2026-03-25T00:00:00Z" },
+      ],
+    });
+    expect(result.paymentSplits![0].paymentMethodId).toBe("42");
+  });
 });

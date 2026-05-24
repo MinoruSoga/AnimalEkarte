@@ -111,22 +111,25 @@ r.db.Model(&model.Vaccine{}).Where("id = ?", id).Updates(fields)  // clinicScope
 
 ---
 
-## P5: RequirePermission on write routes (Routes)
+## P5: RequirePermission on ALL non-public routes (Routes)
 
-POST/PUT/PATCH/DELETE ルートには必ず `RequirePermission` を設定する。
+**全** GET/POST/PUT/PATCH/DELETE ルートに `RequirePermission` を設定する。
+GET は `"view"`, POST は `"create"`, PUT/PATCH は `"edit"`, DELETE は `"delete"`。
 
-**免除**: `/login`, `/logout`, `/auth/*`, `/me`, LIFF公開API
+**免除** (認証フロー・公開API): `/login`, `/logout`, `/auth/*`, `/me`, `/health`, LIFF公開API, webhook
 
 ```go
-// ✅ Correct (master routes)
-masters.POST("/vaccines", RequirePermission("edit"), h.Create)
-masters.DELETE("/vaccines/:id", RequirePermission("delete"), h.Delete)
+// ✅ Correct — GET も必ず "view" 権限を付与 (AUDIT-H2 2026-05-09)
+masters.GET("/vaccines", perm(model.ResourceMasterMedical, "view"), h.ListVaccines)
+owners.GET("", h.RequirePermission(string(model.ResourceOwners), "view"), h.ListOwners)
 
-// ✅ Correct (business routes with helper)
-owners.POST("", h.RequirePermission(string(model.ResourceOwners), "create"), h.CreateOwner)
+// ✅ Correct — 書き込み系
+masters.POST("/vaccines", perm(model.ResourceMasterMedical, "create"), h.CreateVaccine)
+masters.DELETE("/vaccines/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteVaccine)
 
 // ❌ Wrong
-masters.POST("/vaccines", h.Create)  // パーミッションなし
+masters.GET("/vaccines", h.ListVaccines)  // view 権限なし
+masters.POST("/vaccines", h.Create)       // create 権限なし
 ```
 
 ---

@@ -338,6 +338,24 @@ func extractStaffID(c *gin.Context) (uint64, bool) {
 	return extractContextUint64(c, "user_id", "missing user context", "invalid user context")
 }
 
+// optionalStaffID はJWT認証済みコンテキストから user_id を取得する。
+// 存在しない場合はエラーを書かずに nil を返す。監査ログ等のオプショナルな actor 取得に使用する。
+func optionalStaffID(c *gin.Context) *uint64 {
+	val, exists := c.Get("user_id")
+	if !exists {
+		return nil
+	}
+	s, ok := val.(string)
+	if !ok {
+		return nil
+	}
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return nil
+	}
+	return &id
+}
+
 // extractClinicID はJWT認証済みコンテキストから clinic_id を取得してパースする。
 // 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
 // 呼び出し元はfalse時に即return すること。

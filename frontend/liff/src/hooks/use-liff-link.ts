@@ -15,6 +15,8 @@ export function useLiffLink(clinicId: string, linkToken: string): UseLiffLinkRes
   const [status, setStatus] = useState<LinkStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // 認証完了 → API 連携 → ステータス更新。useEffect 内 setState は同期目的のため許容。
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isReady) return;
 
@@ -70,6 +72,7 @@ export function useLiffLink(clinicId: string, linkToken: string): UseLiffLinkRes
         }
       });
   }, [isReady, idToken, initError, clinicId, linkToken]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return { status, errorMessage };
 }

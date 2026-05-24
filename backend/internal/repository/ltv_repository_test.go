@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -555,6 +556,110 @@ func TestFindOwnerLTV_OnlyCompletedBillings(t *testing.T) {
 	assert.Equal(t, int64(5000), result[0].TotalAmount, "only completed billings should be included")
 }
 
+// TestFindOwnerLTV_MaxSingleVisitAmount
+// ISSUE-006: max_single_visit_amount は完了済み請求の単一最大額（CPMスポット判定用）。
+// タグ同期側 AccountingRepository.MaxSingleVisitAmountByOwner と同じ集計範囲（owner_id 直接 + status='completed' + deleted_at IS NULL）を返す。
+func TestFindOwnerLTV_MaxSingleVisitAmount(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	clinicID := uint64(1)
+
+	// Owner + 来院 + 複数請求（completed/pending を混在）
+	owner := &model.Owner{
+		ClinicID: clinicID,
+		Name:     "Owner Max Single Visit",
+	}
+	if err := db.WithContext(ctx).Create(owner).Error; err != nil {
+		t.Fatalf("failed to create owner: %v", err)
+	}
+
+	mr := &model.MedicalRecord{
+		ClinicID: clinicID,
+		OwnerID:  &owner.ID,
+		Date:     time.Now(),
+	}
+	if err := db.WithContext(ctx).Create(mr).Error; err != nil {
+		t.Fatalf("failed to create medical record: %v", err)
+	}
+
+	// completed: 10,000 / 35,000 / 8,000
+	for _, amount := range []int64{10_000, 35_000, 8_000} {
+		b := &model.Billing{
+			ClinicID:        clinicID,
+			MedicalRecordID: &mr.ID,
+			OwnerID:         &owner.ID,
+			TotalAmount:     amount,
+			Status:          model.BillingStatusCompleted,
+		}
+		if err := db.WithContext(ctx).Create(b).Error; err != nil {
+			t.Fatalf("failed to create completed billing: %v", err)
+		}
+	}
+
+	// pending: 50,000 — 含まれてはならない
+	pending := &model.Billing{
+		ClinicID:        clinicID,
+		MedicalRecordID: &mr.ID,
+		OwnerID:         &owner.ID,
+		TotalAmount:     50_000,
+		Status:          "pending",
+	}
+	if err := db.WithContext(ctx).Create(pending).Error; err != nil {
+		t.Fatalf("failed to create pending billing: %v", err)
+	}
+
+	result, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:    clinicID,
+		IncludeZero: true,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, int64(35_000), result[0].MaxSingleVisitAmount,
+		"max_single_visit_amount は completed 請求の最大額（35,000）であるべき")
+}
+
+// TestFindOwnerLTV_MaxSingleVisitAmountWithoutMedicalRecord
+// ISSUE-006: medical_record_id を持たない billing も MaxSingleVisitAmount に含まれること
+// （タグ同期側と集計範囲を一致させるため）。
+func TestFindOwnerLTV_MaxSingleVisitAmountWithoutMedicalRecord(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	clinicID := uint64(1)
+
+	owner := &model.Owner{
+		ClinicID: clinicID,
+		Name:     "Owner Direct Billing",
+	}
+	if err := db.WithContext(ctx).Create(owner).Error; err != nil {
+		t.Fatalf("failed to create owner: %v", err)
+	}
+
+	// medical_record_id NULL の completed billing — タグ同期側はカウントするため一覧側も合わせる
+	directBilling := &model.Billing{
+		ClinicID:    clinicID,
+		OwnerID:     &owner.ID,
+		TotalAmount: 40_000,
+		Status:      model.BillingStatusCompleted,
+	}
+	if err := db.WithContext(ctx).Create(directBilling).Error; err != nil {
+		t.Fatalf("failed to create direct billing: %v", err)
+	}
+
+	result, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		IncludeZero:    true,
+		IncludeNoVisit: true,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, int64(40_000), result[0].MaxSingleVisitAmount,
+		"medical_record_id NULL の請求も MaxSingleVisitAmount に含めるべき（タグ同期側との集計範囲一致）")
+}
+
 // TestFindOwnerLTV_ClinicIDIsolation
 // clinic_id による分離を検証
 func TestFindOwnerLTV_ClinicIDIsolation(t *testing.T) {
@@ -615,6 +720,208 @@ func TestFindOwnerLTV_ClinicIDIsolation(t *testing.T) {
 	assert.Len(t, result2, 1)
 	assert.Equal(t, "Owner Clinic 2", result2[0].OwnerName)
 	assert.Equal(t, int64(1), result2[0].TotalVisitCount)
+}
+
+// TestFindOwnerLTV_SameDayMultipleVisitsCountAsOne
+// ISSUE-005 / 仕様書 §3.3: 同一飼い主が同じ日に複数カルテを持つ場合は来院1回として数える。
+// total_visit_count / period_visit_count は COUNT(DISTINCT mr.date) で算出されるため、
+// 同日複数カルテは1回扱いになるべき。
+func TestFindOwnerLTV_SameDayMultipleVisitsCountAsOne(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	clinicID := uint64(1)
+
+	owner := &model.Owner{
+		ClinicID: clinicID,
+		Name:     "Owner Same Day Visits",
+	}
+	if err := db.WithContext(ctx).Create(owner).Error; err != nil {
+		t.Fatalf("failed to create owner: %v", err)
+	}
+
+	// 同じ日 (-10) に 3 件のカルテ
+	sameDay := time.Now().AddDate(0, 0, -10)
+	for i := range 3 {
+		mr := &model.MedicalRecord{
+			ClinicID: clinicID,
+			OwnerID:  &owner.ID,
+			Date:     sameDay,
+		}
+		if err := db.WithContext(ctx).Create(mr).Error; err != nil {
+			t.Fatalf("failed to create medical record %d: %v", i, err)
+		}
+	}
+	// 別の日 (-30) に 1 件
+	differentDay := time.Now().AddDate(0, 0, -30)
+	mr2 := &model.MedicalRecord{
+		ClinicID: clinicID,
+		OwnerID:  &owner.ID,
+		Date:     differentDay,
+	}
+	if err := db.WithContext(ctx).Create(mr2).Error; err != nil {
+		t.Fatalf("failed to create medical record: %v", err)
+	}
+
+	result, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:    clinicID,
+		IncludeZero: true,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	// 4 件のカルテだが日付ベースでは 2 日分
+	assert.Equal(t, int64(2), result[0].TotalVisitCount,
+		"同日複数カルテは1回として数える (DISTINCT mr.date)")
+
+	// period_preset 指定時も同様
+	result2, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:     clinicID,
+		PeriodPreset: "last_3_months",
+		IncludeZero:  true,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, result2, 1)
+	assert.NotNil(t, result2[0].PeriodVisitCount)
+	assert.Equal(t, int64(2), *result2[0].PeriodVisitCount,
+		"period_visit_count も同日複数カルテを1回として数える")
+}
+
+// TestFindOwnerLTV_FromToBoundaryInclusive
+// ISSUE-005 / 仕様書 §10.1: from / to の境界日が集計対象に含まれる。
+// SQL は `mr.date >= from AND mr.date <= to` で両端を含む。
+func TestFindOwnerLTV_FromToBoundaryInclusive(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	clinicID := uint64(1)
+
+	owner := &model.Owner{
+		ClinicID: clinicID,
+		Name:     "Owner Boundary Test",
+	}
+	if err := db.WithContext(ctx).Create(owner).Error; err != nil {
+		t.Fatalf("failed to create owner: %v", err)
+	}
+
+	// 境界日と前後 1 日に来院
+	dates := []time.Time{
+		time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC), // from-1
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),   // from
+		time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC),  // 範囲内
+		time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC), // to
+		time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC),   // to+1
+	}
+	for i, d := range dates {
+		mr := &model.MedicalRecord{
+			ClinicID: clinicID,
+			OwnerID:  &owner.ID,
+			Date:     d,
+		}
+		if err := db.WithContext(ctx).Create(mr).Error; err != nil {
+			t.Fatalf("failed to create medical record %d: %v", i, err)
+		}
+		billing := &model.Billing{
+			ClinicID:        clinicID,
+			MedicalRecordID: &mr.ID,
+			OwnerID:         &owner.ID,
+			TotalAmount:     1000,
+			Status:          model.BillingStatusCompleted,
+			ScheduledDate:   d,
+		}
+		if err := db.WithContext(ctx).Create(billing).Error; err != nil {
+			t.Fatalf("failed to create billing %d: %v", i, err)
+		}
+	}
+
+	from := "2026-01-01"
+	to := "2026-12-31"
+	result, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:    clinicID,
+		From:        &from,
+		To:          &to,
+		IncludeZero: true,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	require.NotNil(t, result[0].PeriodVisitCount)
+	// 範囲内 3 件 (from / 範囲内 / to)、範囲外 2 件 (from-1 / to+1) は除外
+	assert.Equal(t, int64(3), *result[0].PeriodVisitCount,
+		"from / to の境界日は集計に含まれる (両端 inclusive)")
+	require.NotNil(t, result[0].AnnualAmount)
+	assert.Equal(t, int64(3000), *result[0].AnnualAmount,
+		"annual_amount は from / to 境界を含む合計 (1000 * 3)")
+	// total_visit_count は全期間 = 5 日
+	assert.Equal(t, int64(5), result[0].TotalVisitCount,
+		"total_visit_count は全期間で from / to の影響を受けない")
+}
+
+// TestFindOwnerLTV_SearchByName
+// ISSUE-005 / 仕様書 §10.1: search パラメータが owner.name の部分一致で効く。
+// SQL は ILIKE '%search%' で大文字小文字を区別しない。
+func TestFindOwnerLTV_SearchByName(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	clinicID := uint64(1)
+
+	names := []string{"山田 太郎", "山田 花子", "佐藤 一郎", "Tanaka Smith"}
+	for _, name := range names {
+		o := &model.Owner{ClinicID: clinicID, Name: name}
+		if err := db.WithContext(ctx).Create(o).Error; err != nil {
+			t.Fatalf("failed to create owner: %v", err)
+		}
+	}
+
+	t.Run("partial match (japanese)", func(t *testing.T) {
+		result, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+			ClinicID:       clinicID,
+			Search:         "山田",
+			IncludeZero:    true,
+			IncludeNoVisit: true,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, result, 2, "山田 を含む 2 件のみ")
+		for _, r := range result {
+			assert.Contains(t, r.OwnerName, "山田")
+		}
+	})
+
+	t.Run("partial match (case-insensitive ascii)", func(t *testing.T) {
+		result, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+			ClinicID:       clinicID,
+			Search:         "tanaka",
+			IncludeZero:    true,
+			IncludeNoVisit: true,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, result, 1, "ILIKE で大文字小文字を区別しない")
+		assert.Equal(t, "Tanaka Smith", result[0].OwnerName)
+	})
+
+	t.Run("no match returns empty", func(t *testing.T) {
+		result, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+			ClinicID:       clinicID,
+			Search:         "存在しない名前",
+			IncludeZero:    true,
+			IncludeNoVisit: true,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, result, 0)
+	})
+
+	t.Run("empty search returns all", func(t *testing.T) {
+		result, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+			ClinicID:       clinicID,
+			Search:         "",
+			IncludeZero:    true,
+			IncludeNoVisit: true,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, result, 4, "search 未指定は全件")
+	})
 }
 
 // setupTestDB はテスト用の DB を初期化してマイグレーションを実行します

@@ -247,9 +247,9 @@ func (h *Handler) AddStaffNote(c *gin.Context) {
 // RegisterDailyRecordRoutes は日次記録関連のルートを登録する
 func (h *Handler) RegisterDailyRecordRoutes(rg *gin.RouterGroup) {
 	permCreate := h.RequirePermission(string(model.ResourceHospitalization), "create")
-	rg.GET("/:id/daily-records", h.ListDailyRecords)
+	rg.GET("/:id/daily-records", h.RequirePermission(string(model.ResourceHospitalization), "view"), h.ListDailyRecords)
 	rg.POST("/:id/daily-records", permCreate, h.CreateDailyRecord)
-	rg.GET("/:id/daily-records/:date", h.GetDailyRecord)
+	rg.GET("/:id/daily-records/:date", h.RequirePermission(string(model.ResourceHospitalization), "view"), h.GetDailyRecord)
 	rg.POST("/:id/daily-records/:date/vitals", permCreate, h.AddVitalRecord)
 	rg.POST("/:id/daily-records/:date/care-logs", permCreate, h.AddCareLog)
 	rg.POST("/:id/daily-records/:date/staff-notes", permCreate, h.AddStaffNote)

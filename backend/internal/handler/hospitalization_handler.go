@@ -121,17 +121,20 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 	}
 
 	svcInput := &service.CreateHospitalizationInput{
-		OwnerID:             input.OwnerID,
-		PetID:               input.PetID,
-		HospitalizationType: hospType,
-		StartDate:           input.StartDate,
-		EndDate:             input.EndDate,
-		Status:              status,
-		CageID:              input.CageID,
-		DoctorID:            input.DoctorID,
-		Memo:                input.Memo,
-		OwnerRequest:        input.OwnerRequest,
-		StaffNotes:          input.StaffNotes,
+		OwnerID:              input.OwnerID,
+		PetID:                input.PetID,
+		HospitalizationType:  hospType,
+		StartDate:            input.StartDate,
+		EndDate:              input.EndDate,
+		Status:               status,
+		CageID:               input.CageID,
+		DoctorID:             input.DoctorID,
+		Memo:                 input.Memo,
+		OwnerRequest:         input.OwnerRequest,
+		StaffNotes:           input.StaffNotes,
+		IsInsurance:          input.IsInsurance,
+		InsuranceCompanyName: input.InsuranceCompanyName,
+		InsuranceNumber:      input.InsuranceNumber,
 	}
 	ctx := c.Request.Context()
 	hospitalization, err := h.svc.Hospitalization.Create(ctx, clinicID, svcInput)
@@ -160,15 +163,18 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 	}
 
 	svcInput := service.UpdateHospitalizationInput{
-		OwnerID:      input.OwnerID,
-		PetID:        input.PetID,
-		StartDate:    input.StartDate,
-		EndDate:      input.EndDate,
-		CageID:       input.CageID,
-		DoctorID:     input.DoctorID,
-		Memo:         input.Memo,
-		OwnerRequest: input.OwnerRequest,
-		StaffNotes:   input.StaffNotes,
+		OwnerID:              input.OwnerID,
+		PetID:                input.PetID,
+		StartDate:            input.StartDate,
+		EndDate:              input.EndDate,
+		CageID:               input.CageID,
+		DoctorID:             input.DoctorID,
+		Memo:                 input.Memo,
+		OwnerRequest:         input.OwnerRequest,
+		StaffNotes:           input.StaffNotes,
+		IsInsurance:          input.IsInsurance,
+		InsuranceCompanyName: input.InsuranceCompanyName,
+		InsuranceNumber:      input.InsuranceNumber,
 	}
 	if input.HospitalizationType != nil {
 		hospType, err := validateEnum(*input.HospitalizationType,

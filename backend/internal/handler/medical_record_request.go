@@ -9,7 +9,7 @@ type createMedicalRecordRequest struct {
 	RecordNo      string     `json:"record_no"`                   // optional; 自動生成される
 	Date          *time.Time `json:"date"`                        // optional
 	VisitDate     *string    `json:"visit_date"`                  // FE送信フィールド（"YYYY-MM-DD"形式）
-	VisitType     string     `json:"visit_type"`                  // FE送信フィールド（無視してよい）
+	VisitType     string     `json:"visit_type"`                  // "first" | "revisit" | "" (省略時は revisit にデフォルト)
 	OwnerID       *string    `json:"owner_id" binding:"required"` // FE送信（string）→ uint64に変換
 	PetID         *string    `json:"pet_id" binding:"required"`   // FE送信（string）→ uint64に変換
 	DoctorID      *string    `json:"doctor_id"`                   // FE送信（string）→ uint64に変換
@@ -29,6 +29,16 @@ type createMedicalRecordRequest struct {
 	Diagnosis1NameID     *uint64 `json:"diagnosis_1_name_id"`
 	Diagnosis2CategoryID *uint64 `json:"diagnosis_2_category_id"`
 	Diagnosis2NameID     *uint64 `json:"diagnosis_2_name_id"`
+
+	// 受診推奨理由（FEAT-382-2 supplement: 新規作成時受付）
+	// 値域: revisit / checkup / prevention / exam / 空 ("")
+	RecommendationReason *string `json:"recommendation_reason"`
+}
+
+// patchMedicalRecordRecommendationReasonRequest は受診推奨理由更新リクエスト（FEAT-381-2）。
+// Reason は revisit / checkup / prevention / exam のいずれか、または "" (未設定)。
+type patchMedicalRecordRecommendationReasonRequest struct {
+	Reason string `json:"reason" binding:"max=100"`
 }
 
 // updateMedicalRecordRequest はカルテ更新のバインド struct

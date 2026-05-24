@@ -1,8 +1,27 @@
 openapi: 3.0.0
 info:
   title: Animal Ekarte API
-  description: 動物病院向け電子カルテシステム API
-  version: 2.0.0
+  description: |
+    動物病院向け電子カルテシステム API (Implementation Synced v3.1.0)
+
+    ## 認証方式
+
+    主メカニズムは **HttpOnly Cookie** ベース。フロントエンドは axios `withCredentials: true` で
+    Cookie を自動送信する。`Authorization: Bearer <jwt>` ヘッダはミドルウェアの後方互換
+    フォールバックとしてサポートされる。
+
+    | Cookie 名 | 内容 | 有効期限 | Path | 用途 |
+    |----------|------|---------|------|------|
+    | `access_token` | JWT (HS256) | 15分 | `/` | 全保護エンドポイントの認証 |
+    | `refresh_token` | JWT (HS256, sub=refresh) | 7日 | `/api/v1/auth/refresh` | アクセストークン再発行 |
+    | `auth_token` | (legacy) | — | `/` | 旧 Cookie 名。読み取りのみ後方互換 |
+
+    本番環境では `Secure=true` + `SameSite=None`、開発環境では `Secure=false` + `SameSite=Lax`。
+
+    ## クリニック切替
+
+    `X-Clinic-ID` ヘッダで所属クリニックを切り替え可能（所属チェック付き、system_admin は無制限）。
+  version: 3.1.0
   contact:
     name: Animal Ekarte Team
     url: https://github.com/animal-ekarte/backend
@@ -19,406 +38,661 @@ servers:
 paths:
   /health:
     get:
-      tags:
-        - Health
+      tags: [Health]
       summary: ヘルスチェック
-      operationId: getHealth
       responses:
         '200':
-          description: サーバー稼働中
+          description: OK
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  status:
-                    type: string
-                    example: ok
+                  status: { type: string, example: ok }
 
   /api/v1/login:
     post:
-      tags:
-        - Authentication
+      tags: [Authentication]
       summary: ログイン
-      operationId: login
+      description: |
+        メール/パスワードを bcrypt 検証し、認証成功時に
+        `access_token` (15分) と `refresh_token` (7日) を **HttpOnly Cookie** として
+        `Set-Cookie` で発行する。レスポンスボディには JWT 文字列は含まれない。
+
+        **レート制限**: 5回/分（BUG-130 ブルートフォース対策）。
+
+        **監査ログ**: `auth.login.success` / `auth.login.failure` を記録。
       requestBody:
         required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: ログイン成功。`Set-Cookie` で `access_token` / `refresh_token` を発行。
+          headers:
+            Set-Cookie:
+              description: |
+                2 件発行される（`access_token`, `refresh_token`）。
+                両方とも `HttpOnly`。本番では `Secure; SameSite=None`、開発では `SameSite=Lax`。
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400':
+          description: バリデーションエラー（email 形式 / password 8文字未満）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401':
+          description: 認証失敗（メールアドレスまたはパスワード不正、アカウント無効、スタッフ無効）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: レート制限超過（5回/分）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/v1/logout:
+    post:
+      tags: [Authentication]
+      summary: ログアウト
+      description: |
+        `access_token` / `refresh_token` / 旧 `auth_token` Cookie を `MaxAge=-1` で破棄する。
+        認証ミドルウェアの保護対象外で、未認証でも 200 を返す。
+        Cookie 由来の `user_id` / `clinic_id` が解決できる場合のみ `auth.logout` 監査ログを記録する。
+      responses:
+        '200':
+          description: OK。`Set-Cookie` で 3 件の Cookie を破棄する。
+          headers:
+            Set-Cookie:
+              description: access_token / refresh_token / auth_token を `MaxAge=-1` で削除。
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: アクセストークン更新（Token Rotation）
+      description: |
+        `refresh_token` Cookie を検証し、新しい `access_token` (15分) と
+        `refresh_token` (7日) を発行する。リクエストボディは不要。
+        旧 `refresh_token` は使い捨てで、新トークンに置換される（Token Rotation）。
+
+        新トークンはレスポンスボディに含まれず、`Set-Cookie` で返される。
+
+        スタッフが無効化されている場合、`refresh_token` の subject が `refresh` でない場合、
+        署名不正・期限切れの場合は 401 を返す。
+      security:
+        - refreshCookie: []
+      responses:
+        '200':
+          description: 更新成功。`Set-Cookie` で新しい `access_token` / `refresh_token` を発行。
+          headers:
+            Set-Cookie:
+              description: access_token (15分) と refresh_token (7日) を再発行。
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '401':
+          description: refresh_token Cookie 不在 / 検証失敗 / Subject 不正 / スタッフ無効
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Authentication]
+      summary: パスワードリセットメール送信
+      description: |
+        メールアドレスにリセットリンク（有効期限1時間）を送信する。
+        メール存在有無の漏洩防止のため、アカウント不存在時も 200 を返す。
+        既存の未使用トークンは削除されてから新しいトークンが発行される。
+
+        **レート制限**: 3回/分（同一クライアント IP）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ForgotPasswordRequest' }
+      responses:
+        '200':
+          description: 受付完了（アカウント存在の有無に関わらず同じレスポンス）。
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: バリデーションエラー（email 形式不正）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: レート制限超過（3回/分）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Authentication]
+      summary: パスワードリセット実行
+      description: |
+        `token` (rawToken) を SHA256 ハッシュ化して DB と照合し、有効期限内であれば
+        `password` を bcrypt ハッシュ化して `accounts.password_hash` を更新する。
+        使用済みトークンは削除される。
+
+        **パスワード複雑性 (BUG-139)**: 8 文字以上、英字 1 文字以上、数字 1 文字以上が必須。
+
+        **レート制限**: 3回/分。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+      responses:
+        '200':
+          description: パスワード更新完了。
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: |
+            トークン不正 / 期限切れ / パスワード複雑性違反。
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: レート制限超過（3回/分）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/v1/me:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Authentication]
+      summary: ログインユーザー情報・実効権限取得
+      description: |
+        認証済みユーザーの基本情報、メインクリニック詳細、所属クリニック一覧、
+        実効権限マップを返す。実効権限は `staff_permission_groups` →
+        `permission_group_rules` の UNION で計算される（system_admin は全リソースで全 CRUD true）。
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MeResponse' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+
+  /api/v1/users/me/password:
+    put:
+      tags: [Authentication]
+      summary: 自分のパスワード変更
+      description: |
+        認証済みユーザー自身のパスワードを変更する（BUG-148）。
+        `current_password` を bcrypt 検証し、`new_password` を `validatePassword` で
+        複雑性チェック（BUG-139: 8文字以上、英字+数字必須）してから更新する。
+
+        スタッフにアカウントが紐づいていない場合は 400。
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '200':
+          description: 変更完了
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: |
+            バリデーションエラー（複雑性違反、アカウント未紐付け、必須欠落）。
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401':
+          description: 未認証 または `current_password` 不一致
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/v1/owners:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Owners]
+      summary: 飼主一覧
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Owner' }
+    post:
+      tags: [Owners]
+      summary: 飼主作成
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OwnerInput' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Owner' }
+
+  /api/v1/owners/{id}:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Owners]
+      summary: 飼主詳細
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Owner' }
+    patch:
+      tags: [Owners]
+      summary: 飼主更新
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OwnerInput' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Owner' }
+    delete:
+      tags: [Owners]
+      summary: 飼主削除
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: OK }
+
+  /api/v1/owners/{id}/line-user-id:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    patch:
+      tags: [Owners, LINE]
+      summary: LINE User ID 連携
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
         content:
           application/json:
             schema:
               type: object
-              required:
-                - email
-                - password
               properties:
-                email:
-                  type: string
-                  format: email
-                  example: admin@example.com
-                password:
-                  type: string
-                  format: password
+                line_user_id: { type: string, nullable: true }
       responses:
-        '200':
-          description: ログイン成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-        '401':
-          description: メールアドレスまたはパスワードが違います
-        '429':
-          description: レート制限超過（5回/分）
+        '200': { description: OK }
 
-  /api/v1/logout:
-    post:
-      tags:
-        - Authentication
-      summary: ログアウト
-      operationId: logout
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: ログアウト成功
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: logged out
-
-  /api/v1/auth/refresh:
-    post:
-      tags:
-        - Authentication
-      summary: トークン更新
-      operationId: refreshToken
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: トークン更新成功
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  access_token:
-                    type: string
-
-  /api/v1/owners:
+  /api/v1/owners/{id}/lstep/tags:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
     get:
-      tags:
-        - Owners
-      summary: 飼主一覧取得
-      operationId: listOwners
-      security:
-        - bearerAuth: []
+      tags: [Owners, LSTEP]
+      summary: Lステップタグ一覧
+      security: [{ bearerAuth: [] }]
       parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 20
-        - name: search
-          in: query
-          schema:
-            type: string
-          description: 飼主名またはペット名で検索
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
       responses:
         '200':
-          description: 飼主一覧
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Owner'
-                  total:
-                    type: integer
-                  page:
-                    type: integer
-                  limit:
-                    type: integer
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-
+                type: array
+                items: { type: string }
     post:
-      tags:
-        - Owners
-      summary: 飼主作成
-      operationId: createOwner
-      security:
-        - bearerAuth: []
+      tags: [Owners, LSTEP]
+      summary: Lステップタグ追加
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/OwnerInput'
+              type: object
+              required: [tag_name]
+              properties:
+                tag_name:
+                  type: string
+                  description: |
+                    付与するLステップタグ名。タグ名はLステップから動的取得・参照する。バリデーション制約は docs/API_SPEC.md §6 を参照。
       responses:
-        '201':
-          description: 飼主作成成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Owner'
-        '400':
-          $ref: '#/components/responses/BadRequestError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
+        '200': { description: OK }
 
-  /api/v1/owners/{ownerId}:
+  /api/v1/clinics/{clinic_id}/lstep/checkup-sync/preview:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
     get:
-      tags:
-        - Owners
-      summary: 飼主詳細取得
-      operationId: getOwner
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: ownerId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: 飼主詳細
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Owner'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
+      tags: [LSTEP, Checkups]
+      summary: 健診対象者プレビュー（ISSUE-005 / ISSUE-008）
+      description: |
+        健診タグ一括付与の対象者候補を抽出する。
+        opt-out / 生存ペットなし / LINE未連携 の飼い主は `exclusion_reason` で除外理由を返し、
+        サマリー（`eligible_count` / `opt_out_count` / `no_living_pet_count`）で集計する。
 
-    patch:
-      tags:
-        - Owners
-      summary: 飼主更新
-      operationId: updateOwner
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: ownerId
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/OwnerInput'
-      responses:
-        '200':
-          description: 飼主更新成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Owner'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
+        **除外優先順位** (deriveExclusionReason): `opt-out` > `生存ペットなし` > `LINE未連携`。
+        いずれにも該当しない場合 `exclusion_reason` は `null`（送信可能）となる。
 
-    delete:
-      tags:
-        - Owners
-      summary: 飼主削除
-      operationId: deleteOwner
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: ownerId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '204':
-          description: 飼主削除成功
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '409':
-          description: 関連データが存在するため削除不可
-
-  /api/v1/appointments:
-    get:
-      tags:
-        - Reservations
-      summary: 予約一覧取得
-      operationId: listAppointments
-      security:
-        - bearerAuth: []
+        FEAT-375: `lstep_settings.is_sync_enabled=false` のクリニックでもプレビューは参照系として利用可能。
+        実際の Lステップ API 呼び出しを伴う同期処理はクライアントを生成せず、noop/skip する。
+      security: [{ bearerAuth: [] }]
       parameters:
         - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: checkup_type
           in: query
-          schema:
-            type: integer
-        - name: date
-          in: query
+          required: false
+          description: 健診種別（監査ログ用、抽出条件には影響しない）
           schema:
             type: string
-            format: date
-          description: 予約日付 (YYYY-MM-DD)
-        - name: limit
+            enum: [annual, dental, blood, skin, cancer, other]
+        - name: species
           in: query
+          required: false
+          description: 動物種フィルタ
+          schema: { type: string }
+        - name: last_visit_before
+          in: query
+          required: false
+          description: 最終来院日がこの日以前
+          schema: { type: string, format: date }
+        - name: last_visit_after
+          in: query
+          required: false
+          description: 最終来院日がこの日以降
+          schema: { type: string, format: date }
+        - name: min_age_years
+          in: query
+          required: false
+          description: |
+            (ISSUE-009) 生存ペットの最小年齢（years 以上）。
+            飼い主の生存ペット中に少なくとも1匹該当する場合にマッチする。
+          schema: { type: integer, minimum: 0 }
+        - name: max_age_years
+          in: query
+          required: false
+          description: |
+            (ISSUE-009) 生存ペットの最大年齢（years 以下）。
+            飼い主の生存ペット中に少なくとも1匹該当する場合にマッチする。
+          schema: { type: integer, minimum: 0 }
+        - name: has_chronic_condition
+          in: query
+          required: false
+          description: |
+            (ISSUE-009) アクティブな慢性疾患の有無。
+            `true`: 慢性疾患あり / `false`: 慢性疾患なし / 未指定: 絞らない。
+          schema: { type: boolean }
+        - name: cpm_stage
+          in: query
+          required: false
+          description: |
+            (ISSUE-009) CPM ステージ絞り込み。判定ロジックはタグ同期側 `CalculateCPMStage` と同一。
+
+            V1/V2 並立稼働中（Q2 確定済み 2026-05-08）。V1 enum 値を使用。
+            詳細: docs/line/lstep-integration.md §5
           schema:
-            type: integer
-            default: 100
+            type: string
+            enum: [cpm_encounter, cpm_growing, cpm_core, cpm_spot, cpm_noah, cpm_dormant]
+        - name: min_total_amount
+          in: query
+          required: false
+          description: (ISSUE-009) 累計診療費（円）以上（completed accountings 合計）。
+          schema: { type: integer, minimum: 0 }
+        - name: min_annual_visit_count
+          in: query
+          required: false
+          description: (ISSUE-009) 年間来院回数（過去365日 distinct visit）以上。
+          schema: { type: integer, minimum: 0 }
+        - name: last_checkup_before
+          in: query
+          required: false
+          description: (ISSUE-009) 最終健診実施日がこの日以前。
+          schema: { type: string, format: date }
+        - name: last_checkup_after
+          in: query
+          required: false
+          description: (ISSUE-009) 最終健診実施日がこの日以降。
+          schema: { type: string, format: date }
       responses:
         '200':
-          description: 予約一覧
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckupSyncPreviewResponse' }
+        '400':
+          description: バリデーションエラー（パラメータ形式不正・列挙値外）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/lstep/checkup-sync:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    post:
+      tags: [LSTEP, Checkups]
+      summary: 健診タグ一括付与
+      description: |
+        選択した飼い主に対して健診リマインダータグを一括付与する。
+
+        **スキップ判定** はプレビュー側 `exclusion_reason` と同じ優先度
+        (`opt-out` > `生存ペットなし` > `LINE未連携`) で行い、誤配信を防ぐ。
+        スキップされたケースは `skipped_count` に集計される。
+
+        FEAT-375: `lstep_settings.is_sync_enabled=false` のクリニックでは Lステップ API クライアントを生成しない。
+        API キー未設定時と同じく同期実行はエラー扱いとなる。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckupSyncRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckupSyncResult' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/lstep/delivery-monitor/summary:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: 配信ステータス集計取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepDeliverySummary' }
+
+  /api/v1/clinics/{clinic_id}/lstep/delivery-monitor/logs:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: 配信実行ログ一覧取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        '200':
+          description: OK
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Appointment'
-                  total:
-                    type: integer
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/LstepDeliveryLog' }
 
   /api/v1/medical-records:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
     get:
-      tags:
-        - Medical Records
-      summary: 医療記録一覧取得
-      operationId: listMedicalRecords
-      security:
-        - bearerAuth: []
+      tags: [Medical Records]
+      summary: 医療記録一覧
+      security: [{ bearerAuth: [] }]
       parameters:
         - name: page
           in: query
-          schema:
-            type: integer
-            default: 1
+          schema: { type: integer, default: 1 }
         - name: limit
           in: query
-          schema:
-            type: integer
-            default: 20
+          schema: { type: integer, default: 20 }
+        - name: owner_id
+          in: query
+          schema: { type: integer }
+        - name: pet_id
+          in: query
+          schema: { type: integer }
       responses:
         '200':
-          description: 医療記録一覧
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/MedicalRecord'
-                  total:
-                    type: integer
-                  page:
-                    type: integer
-                  limit:
-                    type: integer
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/MedicalRecord' }
 
-  /api/v1/medical-records/{recordId}:
+  /api/v1/medical-records/{id}:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
     get:
-      tags:
-        - Medical Records
-      summary: 医療記録詳細取得
-      operationId: getMedicalRecord
-      security:
-        - bearerAuth: []
+      tags: [Medical Records]
+      summary: 医療記録詳細
+      security: [{ bearerAuth: [] }]
       parameters:
-        - name: recordId
+        - name: id
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: integer }
       responses:
         '200':
-          description: 医療記録詳細
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/MedicalRecordDetail'
+              schema: { $ref: '#/components/schemas/MedicalRecord' }
 
-  /api/v1/settings/reservation-type:
+  /api/v1/appointments:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
     get:
-      tags:
-        - Masters
-      summary: 予約種別一覧取得
-      operationId: listReservationTypes
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: 予約種別一覧
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ReservationType'
-
-  /api/v1/settings/treatment-items:
-    get:
-      tags:
-        - Masters
-      summary: 処置項目一覧取得
-      operationId: listTreatmentItems
-      security:
-        - bearerAuth: []
+      tags: [Reservations]
+      summary: 予約一覧
+      security: [{ bearerAuth: [] }]
       parameters:
-        - name: category
+        - name: date
           in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: 処置項目一覧
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/TreatmentItem'
-
-  /api/v1/settings/staff:
-    get:
-      tags:
-        - Masters
-      summary: スタッフ一覧取得
-      operationId: listStaff
-      security:
-        - bearerAuth: []
-      parameters:
+          schema: { type: string, format: date }
         - name: clinic_id
           in: query
-          schema:
-            type: integer
+          schema: { type: integer }
       responses:
         '200':
-          description: スタッフ一覧
           content:
             application/json:
               schema:
@@ -426,346 +700,1043 @@ paths:
                 properties:
                   data:
                     type: array
-                    items:
-                      $ref: '#/components/schemas/Staff'
+                    items: { $ref: '#/components/schemas/Appointment' }
+
+  /api/v1/accountings:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Accounting]
+      summary: 会計一覧
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Accounting' }
+
+  /api/v1/accountings/daily-summary:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Accounting]
+      summary: レジ締め用日次集計取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_amount: { type: integer }
+                  cash_total: { type: integer }
+                  credit_total: { type: integer }
+
+  /api/v1/cash-register/preview:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Accounting]
+      summary: レジ締めプレビュー取得
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashRegisterPreview' }
+
+  /api/v1/cash-register/closes:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Accounting]
+      summary: レジ締め履歴一覧取得
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CashRegisterClose' }
+    post:
+      tags: [Accounting]
+      summary: レジ締め確定
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CashRegisterCloseRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashRegisterClose' }
+
+  /api/v1/reports/monthly:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Accounting]
+      summary: 月次売上レポート取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: month
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MonthlyReport' }
+
+  /api/line/webhook:
+    post:
+      tags: [LINE]
+      summary: LINE Webhook
+      responses:
+        '200': { description: OK }
+
+  /api/v1/examinations:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Examinations]
+      summary: 検査一覧取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, default: 20 } }
+        - { in: query, name: pet_id, schema: { type: integer } }
+        - { in: query, name: owner_id, schema: { type: integer } }
+        - { in: query, name: status, schema: { $ref: '#/components/schemas/ExaminationStatus' } }
+        - { in: query, name: start_date, schema: { type: string, format: date } }
+        - { in: query, name: end_date, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Examination' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [Examinations]
+      summary: 検査作成
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExaminationCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location: { schema: { type: string }, description: 作成されたリソースの URI }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Examination' }
+        '400': { description: Bad Request }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { description: Forbidden }
+
+  /api/v1/examinations/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: integer } }
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Examinations]
+      summary: 検査詳細取得（items を含む）
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Examination' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { description: Not Found }
+    patch:
+      tags: [Examinations]
+      summary: 検査更新（部分更新）
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExaminationUpdateRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Examination' }
+        '400': { description: 不正な入力（確定済みの場合も 400） }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+    delete:
+      tags: [Examinations]
+      summary: 検査削除（items が紐付く場合は 409）
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: No Content }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+        '409': { description: 検査結果が紐付いているため削除不可 }
+
+  /api/v1/examinations/{id}/items:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: integer } }
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Examinations]
+      summary: 検査項目一覧取得（sort_order ASC）
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExamItemsResponse' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { description: 検査が存在しない }
+    put:
+      tags: [Examinations]
+      summary: 検査項目を一括置換（既存全削除→一括登録）
+      description: |
+        PUT セマンティクス。送信された items で既存項目を完全に置き換える。
+        サーバ側で `inspection_value` を float としてパースし、`ref_min` / `ref_max` と比較して
+        `status` (normal/high/low) と `is_abnormal` を導出する（FE 送信値は無視）。
+        確定済み (`status=confirmed`) の検査は 400 で拒否する。
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReplaceExamItemsRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExamItemsResponse' }
+        '400': { description: 不正な入力 / 確定済みの検査 }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { description: Forbidden（edit 権限なし） }
+        '404': { description: 検査が存在しない }
 
 components:
   schemas:
+    PaginatedResponse:
+      type: object
+      properties:
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+    ExaminationStatus:
+      type: string
+      enum: [pending, in_progress, result_entered, completed, confirmed]
+
+    ExaminationResultStatus:
+      type: string
+      description: |
+        サーバ側で `inspection_value` (float) と `ref_min` / `ref_max` から導出される判定。
+        範囲内 → normal / ref_min 未満 → low / ref_max 超過 → high。
+        パース不能・空値・ref 未指定の場合は normal。
+      enum: [normal, high, low]
+
+    Examination:
+      type: object
+      properties:
+        id: { type: integer }
+        clinic_id: { type: integer }
+        medical_record_id: { type: integer, nullable: true }
+        pet_id: { type: integer, nullable: true }
+        exam_type_id: { type: integer }
+        doctor_id: { type: integer, nullable: true }
+        date: { type: string, format: date-time }
+        result_summary: { type: string }
+        machine: { type: string }
+        status: { $ref: '#/components/schemas/ExaminationStatus' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ExaminationCreateRequest:
+      type: object
+      required: [exam_type_id, date]
+      properties:
+        medical_record_id: { type: integer, nullable: true }
+        pet_id: { type: integer, nullable: true }
+        exam_type_id: { type: integer }
+        doctor_id: { type: integer, nullable: true }
+        date: { type: string, format: date-time }
+        result_summary: { type: string }
+        machine: { type: string }
+        status: { $ref: '#/components/schemas/ExaminationStatus' }
+
+    ExaminationUpdateRequest:
+      type: object
+      description: PATCH セマンティクス（指定しないフィールドは変更されない）。
+      properties:
+        medical_record_id: { type: integer, nullable: true }
+        pet_id: { type: integer, nullable: true }
+        exam_type_id: { type: integer }
+        doctor_id: { type: integer, nullable: true }
+        date: { type: string, format: date-time }
+        result_summary: { type: string }
+        machine: { type: string }
+        status: { $ref: '#/components/schemas/ExaminationStatus' }
+
+    ExamResult:
+      type: object
+      description: 検査項目（exam_results）。`status` / `is_abnormal` はサーバで導出された値。
+      properties:
+        id: { type: integer }
+        exam_id: { type: integer }
+        exam_type_field_id: { type: integer, nullable: true }
+        name: { type: string }
+        inspection_value: { type: string }
+        normal_value: { type: string }
+        unit: { type: string }
+        reference_value: { type: string }
+        ref_min: { type: number, nullable: true }
+        ref_max: { type: number, nullable: true }
+        is_abnormal: { type: boolean }
+        status: { $ref: '#/components/schemas/ExaminationResultStatus' }
+        sort_order: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    UpsertExamItemRequest:
+      type: object
+      required: [name]
+      description: |
+        検査項目 1 行分の入力。`status` / `is_abnormal` はサーバ側で `ref_min`/`ref_max` から
+        導出するため、リクエストでは受け付けない。
+      properties:
+        exam_type_field_id: { type: integer, nullable: true }
+        name: { type: string }
+        inspection_value: { type: string }
+        normal_value: { type: string }
+        unit: { type: string }
+        reference_value: { type: string }
+        ref_min: { type: number, nullable: true }
+        ref_max: { type: number, nullable: true }
+        sort_order: { type: integer }
+
+    ReplaceExamItemsRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/UpsertExamItemRequest' }
+
+    ExamItemsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ExamResult' }
+
     User:
       type: object
+      description: |
+        【非推奨】accounts テーブルの内部表現。認証エンドポイントのレスポンスでは使用しない。
+        `/api/v1/login` は `LoginResponse` を、`/api/v1/me` は `MeResponse` を返す。
+      properties:
+        id: { type: integer }
+        email: { type: string, format: email }
+        password_hash: { type: string }
+        is_active: { type: boolean }
+        is_system_admin: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
+
+    # ---- Authentication request/response schemas ----
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: 8 文字以上（バインダ側の min バリデーション）
+
+    LoginResponse:
+      type: object
+      description: |
+        ログイン成功レスポンス。JWT は `Set-Cookie` で配布されるため
+        ボディには含まれない。`user` は `MeResponse` と同形。
+      required: [is_system_admin, user]
+      properties:
+        is_system_admin:
+          type: boolean
+          description: |
+            `accounts.is_system_admin`。クリニック横断の最高権限フラグ。
+            `user.is_system_admin` と常に同値。
+        user: { $ref: '#/components/schemas/MeResponse' }
+
+    MeResponse:
+      type: object
+      description: |
+        `GET /api/v1/me` および `LoginResponse.user` のレスポンスシェイプ。
+        ID は数値の文字列表現（フロントエンド統一のため）。
+      required:
+        - id
+        - email
+        - display_name
+        - is_system_admin
+        - main_clinic_id
+        - permissions
       properties:
         id:
           type: string
-          format: uuid
-        email:
+          description: スタッフ ID（数値の文字列表現）
+        email: { type: string, format: email }
+        display_name:
           type: string
-          format: email
-        first_name:
+          description: スタッフ名（`staff.name`）
+        is_system_admin: { type: boolean }
+        occupation:
           type: string
-        last_name:
+          nullable: true
+          description: 職種マスタ名（`occupations.name`）。未設定時は省略または null。
+        main_clinic_id:
           type: string
-        role_name:
-          type: string
-        clinic_id:
-          type: integer
-        clinic_name:
-          type: string
-        permissions:
+          description: |
+            メインクリニック ID（数値の文字列）。`staff_clinic_assignments.is_main=true`
+            の最初の所属、なければ最初の所属を採用。
+        clinic:
+          allOf:
+            - $ref: '#/components/schemas/MeClinicInfo'
+          nullable: true
+          description: メインクリニックの詳細情報。所属がない場合は省略または null。
+        clinics:
           type: array
-          items:
-            type: string
+          items: { $ref: '#/components/schemas/MeClinicMembership' }
+          description: 所属クリニック一覧
+        permissions:
+          $ref: '#/components/schemas/EffectivePermissions'
+
+    MeClinicInfo:
+      type: object
+      description: ログインユーザーのメイン所属クリニックの詳細情報。
+      required:
+        - id
+        - name
+        - postal_code
+        - address
+        - phone_number
+        - fax_number
+        - registration_number
+        - director_name
+        - email
+        - website
+        - standard_tax_rate
+        - reduced_tax_rate
+      properties:
+        id: { type: string }
+        name: { type: string }
+        postal_code: { type: string }
+        address: { type: string }
+        phone_number: { type: string }
+        fax_number: { type: string }
+        registration_number: { type: string }
+        director_name: { type: string }
+        email: { type: string }
+        website: { type: string }
+        logo_url: { type: string, nullable: true }
+        standard_tax_rate:
+          type: number
+          format: float
+          description: "標準税率（例: 0.10）。BUG-367 インボイス帳票用。"
+        reduced_tax_rate:
+          type: number
+          format: float
+          description: "軽減税率（例: 0.08）。BUG-367 インボイス帳票用。"
+
+    MeClinicMembership:
+      type: object
+      required: [clinic_id, clinic_name, is_main]
+      properties:
+        clinic_id: { type: string }
+        clinic_name: { type: string }
+        is_main: { type: boolean }
+
+    ResourcePermission:
+      type: object
+      description: リソース単位の CRUD 権限。
+      required: [view, create, edit, delete]
+      properties:
+        view: { type: boolean }
+        create: { type: boolean }
+        edit: { type: boolean }
+        delete: { type: boolean }
+
+    EffectivePermissions:
+      type: object
+      description: |
+        リソース名 → CRUD 権限のマップ。`staff_permission_groups` →
+        `permission_group_rules` の UNION で計算される。`is_system_admin=true` の場合は
+        `AllResources` 全件で全 true。
+
+        代表的なリソースキー: `owners`, `medical-records`, `hospitalization`, `trimming`,
+        `examinations`, `accounting`, `vaccinations`, `inventory`, `estimates`,
+        `accounting-reports` 等。完全な一覧は `backend/internal/model/permission.go::AllResources`
+        を参照。
+      additionalProperties:
+        $ref: '#/components/schemas/ResourcePermission'
+
+    MessageResponse:
+      type: object
+      description: |
+        単純なメッセージレスポンス。logout / refresh / forgot-password /
+        reset-password / users/me/password で共通利用。
+      required: [message]
+      properties:
+        message: { type: string }
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          description: |
+            メール記載のリセットトークン（rawToken、hex 64 文字）。
+            DB 側では SHA256 ハッシュで保存・照合される。
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: |
+            新パスワード。bind バリデーションは `min=8` のみだが、サーバ側
+            `validatePassword` で **英字 1 文字以上 + 数字 1 文字以上** の複雑性も検証される（BUG-139）。
+
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          format: password
+          description: 現在のパスワード（bcrypt 検証用）
+        new_password:
+          type: string
+          format: password
+          minLength: 8
+          description: |
+            新パスワード。サーバ側 `validatePassword` で 8 文字以上 +
+            英字 1 文字以上 + 数字 1 文字以上を強制（BUG-139）。
 
     Owner:
       type: object
-      required:
-        - id
-        - owner_name
-        - owner_kana
-        - phone
       properties:
-        id:
-          type: integer
-        owner_name:
-          type: string
-        owner_kana:
-          type: string
-        phone:
-          type: string
-        email:
-          type: string
-          format: email
-        home_address:
-          type: string
-        birth_date:
-          type: string
-          format: date
-        is_danger:
-          type: boolean
-        notes:
-          type: string
-        discount_rate:
-          type: integer
-          minimum: 0
-          maximum: 100
-        membership_type:
-          type: string
-          enum: [non_member, member, other, retired]
+        id: { type: integer }
+        clinic_id: { type: integer }
+        name: { type: string }
+        name_kana: { type: string }
+        birth_date: { type: string, format: date, nullable: true }
+        company: { type: string }
+        postal_code: { type: string }
+        address1: { type: string }
+        address2: { type: string }
+        home_postal_code: { type: string }
+        home_address1: { type: string }
+        home_address2: { type: string }
+        phone: { type: string }
+        company_phone: { type: string }
+        email: { type: string, format: email }
+        remarks: { type: string }
+        is_dangerous: { type: boolean }
+        discount_rate: { type: number, format: float }
+        membership_type: { type: string, enum: [non_member, member, deceased, transferred] }
+        line_user_id: { type: string, nullable: true }
+        lstep_opt_out: { type: boolean }
+        lstep_opt_out_at: { type: string, format: date-time, nullable: true }
+        lstep_opt_out_reason: { type: string, nullable: true }
+        line_followed_at: { type: string, format: date-time, nullable: true }
+        line_blocked_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
         pets:
           type: array
-          items:
-            $ref: '#/components/schemas/Pet'
+          items: { $ref: '#/components/schemas/Pet' }
 
     OwnerInput:
       type: object
-      required:
-        - owner_name
-        - owner_kana
-        - phone
+      required: [name]
       properties:
-        owner_name:
-          type: string
-        owner_kana:
-          type: string
-        phone:
-          type: string
-        email:
-          type: string
-          format: email
-        home_address:
-          type: string
-        birth_date:
-          type: string
-          format: date
-        is_danger:
-          type: boolean
-        notes:
-          type: string
-        discount_rate:
-          type: integer
-        membership_type:
-          type: string
+        clinic_id: { type: integer }
+        name: { type: string }
+        name_kana: { type: string }
+        birth_date: { type: string, format: date, nullable: true }
+        company: { type: string }
+        postal_code: { type: string }
+        address1: { type: string }
+        address2: { type: string }
+        home_postal_code: { type: string }
+        home_address1: { type: string }
+        home_address2: { type: string }
+        phone: { type: string }
+        company_phone: { type: string }
+        email: { type: string, format: email }
+        remarks: { type: string }
+        is_dangerous: { type: boolean }
+        discount_rate: { type: number, format: float }
+        membership_type: { type: string, enum: [non_member, member, deceased, transferred] }
+        line_user_id: { type: string, nullable: true }
+        lstep_opt_out: { type: boolean }
 
     Pet:
       type: object
       properties:
-        id:
-          type: string
-        pet_no:
-          type: string
-        pet_name:
-          type: string
-        species:
-          type: string
-        breed:
-          type: string
-        birth_date:
-          type: string
-          format: date
-        weight:
-          type: number
-          format: float
-        microchip:
-          type: string
-        is_alive:
-          type: boolean
+        id: { type: integer }
+        clinic_id: { type: integer }
+        owner_id: { type: integer }
+        pet_number: { type: string }
+        name: { type: string }
+        name_kana: { type: string }
+        animal_species_id: { type: integer }
+        gender: { type: string, enum: [male, female, unknown] }
+        status: { type: string, enum: [alive, deceased] }
+        birth_date: { type: string, format: date, nullable: true }
+        breed: { type: string }
+        color: { type: string }
+        weight: { type: number, format: float, nullable: true }
+        neutered_date: { type: string, format: date, nullable: true }
+        acquisition_type: { type: string, enum: [purchased, transferred, rescued, other], nullable: true }
+        danger_level: { type: string, enum: [low, medium, high] }
+        food: { type: string }
+        environment: { type: string }
+        phone: { type: string }
+        last_visit: { type: string, format: date, nullable: true }
+        insurance_id: { type: integer, nullable: true }
+        remarks: { type: string }
+        deceased_at: { type: string, format: date-time, nullable: true }
+        deceased_reason: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
 
     Appointment:
       type: object
       properties:
-        id:
-          type: string
-        clinic_id:
-          type: integer
-        pet_id:
-          type: string
-        owner_id:
-          type: integer
-        owner_name:
-          type: string
-        pet_name:
-          type: string
-        reservation_type:
-          type: string
-        staff_id:
-          type: string
-        staff_name:
-          type: string
-        start_time:
-          type: string
-          format: date-time
-        end_time:
-          type: string
-          format: date-time
-        notes:
-          type: string
-        status:
-          type: string
-          enum: [confirmed, cancelled, completed]
+        id: { type: integer }
+        clinic_id: { type: integer }
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time }
+        owner_id: { type: integer }
+        pet_id: { type: integer }
+        visit_type: { type: string, enum: [first, revisit] }
+        reservation_type_id: { type: integer }
+        doctor_id: { type: integer, nullable: true }
+        is_designated: { type: boolean }
+        status: { type: string, enum: [confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed, no_show] }
+        notes: { type: string }
+        source: { type: string, enum: [manual, line] }
+        created_by: { type: integer, nullable: true }
+        is_staff_delegated: { type: boolean }
+        customer_fields: { type: object }
+        line_customer_id: { type: integer, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
 
     MedicalRecord:
       type: object
       properties:
-        id:
-          type: string
-        pet_id:
-          type: string
-        pet_name:
-          type: string
-        owner_name:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-        status:
-          type: string
-          enum: [draft, finalized]
-        chief_complaint:
-          type: string
-        diagnosis:
-          type: string
+        id: { type: integer }
+        clinic_id: { type: integer }
+        record_no: { type: string }
+        date: { type: string, format: date }
+        owner_id: { type: integer, nullable: true }
+        pet_id: { type: integer, nullable: true }
+        doctor_id: { type: integer, nullable: true }
+        appointment_id: { type: integer, nullable: true }
+        status: { type: string, enum: [draft, finalized] }
+        version: { type: integer }
+        entered_by: { type: integer, nullable: true }
+        next_visit_recommended_date: { type: string, format: date, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
 
-    MedicalRecordDetail:
-      allOf:
-        - $ref: '#/components/schemas/MedicalRecord'
-        - type: object
-          properties:
-            clinic_id:
-              type: integer
-            examination:
-              type: object
-              properties:
-                body_weight:
-                  type: number
-                temperature:
-                  type: number
-                pulse:
-                  type: integer
-                findings:
-                  type: string
-            treatments:
-              type: array
-              items:
-                $ref: '#/components/schemas/Treatment'
-            medicines:
-              type: array
-              items:
-                $ref: '#/components/schemas/Medicine'
-            total_amount:
-              type: integer
-
-    Treatment:
+    Accounting:
       type: object
+      description: 会計レコード（内部 DB テーブル名は `billings`）。
       properties:
-        id:
-          type: string
-        treatment_item_id:
-          type: integer
-        name:
-          type: string
-        quantity:
-          type: integer
-        unit_price:
-          type: integer
-        total_price:
-          type: integer
+        id: { type: integer }
+        clinic_id: { type: integer }
+        medical_record_id: { type: integer, nullable: true }
+        hospitalization_id: { type: integer, nullable: true }
+        owner_id: { type: integer, nullable: true }
+        pet_id: { type: integer, nullable: true }
+        subtotal: { type: integer }
+        tax_total: { type: integer }
+        total_amount: { type: integer }
+        has_insurance: { type: boolean }
+        status: { type: string, enum: [waiting, completed, cancelled, pending] }
+        scheduled_date: { type: string, format: date }
+        completed_at: { type: string, format: date-time, nullable: true }
+        memo: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
 
-    Medicine:
-      type: object
-      properties:
-        medicine_id:
-          type: integer
-        name:
-          type: string
-        dosage:
-          type: string
-        frequency:
-          type: string
-        days:
-          type: integer
+    CheckupSyncExclusionReason:
+      type: string
+      description: |
+        健診タグ一括付与における除外理由。優先度順に判定される。
+        いずれにも該当しない場合は `null`（送信可能）。
 
-    ReservationType:
+        - `Lステップ配信停止中`: opt-out 中の飼い主（最優先で除外）
+        - `生存ペットなし`: 生存中のペットが1件もない（死亡ペットのみの飼い主）
+        - `LINE未連携`: LINE User ID が未登録
+      enum:
+        - Lステップ配信停止中
+        - 生存ペットなし
+        - LINE未連携
+
+    CheckupSyncPreviewOwner:
       type: object
+      description: 健診対象者プレビューの1件（ISSUE-005）。
+      required:
+        - owner_id
+        - owner_name
+        - pet_names
+        - last_visit_date
+        - has_line
+        - is_opt_out
+        - has_living_pet
+        - exclusion_reason
+        - current_tags
       properties:
-        id:
-          type: integer
-        name:
+        owner_id:
           type: string
-        color:
+          description: 飼い主ID（数値の文字列表現）
+        owner_name: { type: string }
+        pet_names:
+          type: array
+          items: { type: string }
+          description: 関連ペット名一覧（CSV を分割）
+        last_visit_date:
           type: string
-          format: color
-        sort_order:
-          type: integer
-        is_active:
+          format: date
+          nullable: true
+          description: 最終来院日（YYYY-MM-DD）。来院履歴がない場合は null。
+        has_line:
           type: boolean
-
-    TreatmentItem:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        category:
-          type: string
-        unit_price:
-          type: integer
-        tax_rate:
-          type: integer
-        is_active:
+          description: LINE User ID が登録済みかどうか
+        is_opt_out:
           type: boolean
+          description: Lステップ配信停止フラグ
+        has_living_pet:
+          type: boolean
+          description: 生存中ペットが1件以上存在するか（ISSUE-005）
+        exclusion_reason:
+          allOf:
+            - $ref: '#/components/schemas/CheckupSyncExclusionReason'
+          nullable: true
+          description: |
+            除外理由。`null` のとき送信可能。
+            優先順位: `opt-out` > `生存ペットなし` > `LINE未連携`。
+        current_tags:
+          type: array
+          items: { type: string }
+          description: 現在付与中の Lステップタグ一覧（LINE未連携時は空配列）
+        min_pet_age_years:
+          type: integer
+          nullable: true
+          description: (ISSUE-009) 生存ペットの最小年齢（years）。誕生日未登録 / 生存ペットなしのとき null。
+        max_pet_age_years:
+          type: integer
+          nullable: true
+          description: (ISSUE-009) 生存ペットの最大年齢（years）。誕生日未登録 / 生存ペットなしのとき null。
+        has_chronic_condition:
+          type: boolean
+          description: (ISSUE-009) アクティブな慢性疾患の有無（生存ペット由来）。
+        cpm_stage:
+          type: string
+          description: |
+            (ISSUE-009) CPM ステージ（現行実装 V1 / `CalculateCPMStage`）。
 
-    Staff:
+            V1/V2 並立稼働中（Q2 確定済み 2026-05-08）。V1 enum 値を使用。
+            詳細: docs/line/lstep-integration.md §5
+          enum: [cpm_encounter, cpm_growing, cpm_core, cpm_spot, cpm_noah, cpm_dormant]
+        total_amount:
+          type: integer
+          description: (ISSUE-009) 累計診療費（円、completed accountings 合計）。
+        annual_visit_count:
+          type: integer
+          description: (ISSUE-009) 年間来院回数（過去365日 distinct visit）。
+        last_checkup_date:
+          type: string
+          format: date
+          nullable: true
+          description: (ISSUE-009) 最終健診実施日（YYYY-MM-DD）。実績なしは null。
+
+    CheckupSyncPreviewResponse:
+      type: object
+      description: 健診対象者プレビューレスポンス（ISSUE-005）。
+      required:
+        - owners
+        - total_count
+        - eligible_count
+        - line_linked_count
+        - opt_out_count
+        - no_living_pet_count
+      properties:
+        owners:
+          type: array
+          items: { $ref: '#/components/schemas/CheckupSyncPreviewOwner' }
+        total_count:
+          type: integer
+          description: 抽出条件にマッチした総件数
+        eligible_count:
+          type: integer
+          description: |
+            送信可能件数（`exclusion_reason == null` の件数）。
+            すなわち `has_line && !is_opt_out && has_living_pet` を満たす件数。
+        line_linked_count:
+          type: integer
+          description: LINE 連携済み件数（`has_line == true`）
+        opt_out_count:
+          type: integer
+          description: opt-out 中の件数（ISSUE-005）
+        no_living_pet_count:
+          type: integer
+          description: 生存ペットなしの件数（死亡ペットのみの飼い主、ISSUE-005）
+
+    CheckupSyncRequest:
+      type: object
+      required: [checkup_type, owner_ids, tag_name]
+      properties:
+        checkup_type:
+          type: string
+          enum: [annual, dental, blood, skin, cancer, other]
+          description: 健診種別（監査ログ用）
+        owner_ids:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: 対象飼い主ID（数値の文字列表現）
+        tag_name:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{1,100}$'
+          description: |
+            付与するLステップタグ名（現行バリデーション: 英数字・アンダースコア・ハイフンのみ、1〜100文字）。
+            自動管理タグ名は使用不可。
+
+            NOTE: タグ名はLステップから動的取得・参照する。この pattern は現行API実装に準拠。タグ名の形式はLステップ側の運用に従う。
+            詳細: docs/tasks/closed/SPEC-002-lstep-cpm-integration-clarifications-2026-04-30.md Q1
+
+    CheckupSyncResult:
+      type: object
+      description: 健診タグ一括付与の結果。
+      required: [success_count, skipped_count, failed_count, failed_owner_ids]
+      properties:
+        success_count:
+          type: integer
+          description: タグ付与成功件数
+        skipped_count:
+          type: integer
+          description: |
+            スキップ件数（opt-out / 生存ペットなし / LINE未連携 のいずれか）。
+            優先順位: `opt-out` > `生存ペットなし` > `LINE未連携`。
+        failed_count:
+          type: integer
+          description: タグ付与失敗件数（Lステップ API エラー等）
+        failed_owner_ids:
+          type: array
+          items: { type: string }
+          description: 失敗した飼い主ID
+
+    LstepDeliverySummary:
       type: object
       properties:
-        id:
-          type: string
-        first_name:
-          type: string
-        last_name:
-          type: string
-        email:
-          type: string
-          format: email
-        occupation:
-          type: string
-        clinic_assignments:
+        scheduled_count: { type: integer }
+        fired_count: { type: integer }
+        excluded_count: { type: integer }
+        failed_count: { type: integer }
+        suppressed_count: { type: integer }
+
+    LstepDeliveryLog:
+      type: object
+      properties:
+        id: { type: string }
+        trigger_type: { type: string }
+        owner_name: { type: string }
+        scheduled_at: { type: string, format: date-time }
+        status: { type: string, enum: [scheduled, fired, excluded, failed, suppressed] }
+        fired_at: { type: string, format: date-time, nullable: true }
+        exclusion_reason: { type: string, nullable: true }
+
+    CashRegisterPreview:
+      type: object
+      properties:
+        subtotal: { type: integer }
+        tax_total: { type: integer }
+        total_amount: { type: integer }
+        count: { type: integer }
+        by_method:
+          type: object
+          additionalProperties: { type: integer }
+
+    CashRegisterClose:
+      type: object
+      properties:
+        id: { type: string }
+        closed_at: { type: string, format: date-time }
+        staff_name: { type: string }
+        total_amount: { type: integer }
+        difference: { type: integer }
+
+    CashRegisterCloseRequest:
+      type: object
+      required: [period_type, actual_cash]
+      properties:
+        period_type: { type: string, enum: [am, pm, full_day] }
+        actual_cash: { type: integer }
+        notes: { type: string }
+
+    MonthlyReport:
+      type: object
+      properties:
+        total_sales: { type: integer }
+        daily_details:
           type: array
           items:
             type: object
             properties:
-              clinic_id:
-                type: integer
-              clinic_name:
-                type: string
-              is_primary:
-                type: boolean
-        is_active:
-          type: boolean
+              date: { type: string, format: date }
+              amount: { type: integer }
 
     Error:
       type: object
-      required:
-        - error
+      required: [error]
       properties:
-        error:
-          type: string
-        code:
-          type: string
-        request_id:
-          type: string
+        error: { type: string }
+        code: { type: string }
+        request_id: { type: string }
+
+  parameters:
+    XClinicIDHeader:
+      name: X-Clinic-ID
+      in: header
+      required: false
+      description: |
+        **所属クリニック切替ヘッダ** (BUG-128 / `middleware/auth.go::Auth`)。
+
+        認証ミドルウェアが Cookie / Bearer から復号した JWT の `clinic_id` を、
+        本ヘッダの値で **上書き** する。クリニック横断ユーザー（複数所属スタッフ
+        または `system_admin`）が同一セッション内で操作対象クリニックを切り替える際に使用する。
+
+        **権限ルール**:
+        - `system_admin`: 任意のクリニック ID を許可（所属チェックなし）
+        - 通常スタッフ: JWT クレームの `clinic_ids` リストに含まれるクリニック ID のみ許可
+          - リスト外 → `403 Forbidden` (`not assigned to this clinic`)
+          - 数値として解析できない → `400 Bad Request` (`invalid clinic id`)
+        - 未指定 / 空文字: JWT の `clinic_id`（ログイン時のメインクリニック）が使われる
+
+        **クライアント側挙動**: フロントエンドは `frontend/src/lib/axios.ts` の interceptor
+        で `localStorage["auth_current_clinic:v1"]` から自動付与する。直接 API を叩く場合は
+        必要に応じて手動指定する。
+
+        **適用範囲**: `Auth` ミドルウェア配下の保護エンドポイントでのみ評価される。
+        login / logout / auth refresh / forgot / reset / health / LINE webhook では無視される。
+      schema:
+        type: string
+        pattern: '^[0-9]+$'
+        example: "1"
 
   responses:
     UnauthorizedError:
       description: 認証が必要です
       content:
         application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
+          schema: { $ref: '#/components/schemas/Error' }
     ForbiddenError:
       description: 権限がありません
       content:
         application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    BadRequestError:
-      description: 不正なリクエスト
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
+          schema: { $ref: '#/components/schemas/Error' }
     NotFoundError:
       description: リソースが見つかりません
       content:
         application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
+          schema: { $ref: '#/components/schemas/Error' }
 
   securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: |
+        主要な認証メカニズム。`POST /api/v1/login` 成功時に `Set-Cookie` で発行される
+        HttpOnly な JWT。Path=/, MaxAge=15min。本番環境では `Secure; SameSite=None`、
+        開発環境では `SameSite=Lax`。
+
+        ブラウザは axios `withCredentials: true` で自動送信する。
+        後方互換: 旧 Cookie 名 `auth_token` も読み取られる（書き込みは行われず、ログアウト時のみ破棄）。
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+      description: |
+        `POST /api/v1/auth/refresh` 専用の HttpOnly な JWT (subject=refresh)。
+        Path=`/api/v1/auth/refresh`、MaxAge=7days。Token Rotation により毎回置換される。
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT トークン（HttpOnly Cookie または Authorization ヘッダ）
+      description: |
+        後方互換のフォールバック。`Authorization: Bearer <jwt>` ヘッダで `access_token`
+        と同じ JWT を送信する。Cookie が利用不可な環境（CLI クライアント等）向け。
+        新規クライアントは `cookieAuth` を使用すること。

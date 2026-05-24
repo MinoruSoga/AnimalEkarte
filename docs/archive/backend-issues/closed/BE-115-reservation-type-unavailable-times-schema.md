@@ -1,6 +1,6 @@
 # BE-115: 予約不可時間 & 職種紐付けテーブル追加 + Go モデル生成
 
-**Status**: Open
+**Status**: Closed（2026-05-19 実装済み確認）
 **Priority**: High
 **Affects**: LINE予約 予約区分マスタ
 **Date Created**: 2026-04-16

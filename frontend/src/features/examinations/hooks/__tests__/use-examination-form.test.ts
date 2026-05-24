@@ -48,6 +48,18 @@ vi.mock('../../api/delete-examination', () => ({
   useDeleteExamination: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
+vi.mock('../../api/get-examination-items', () => ({
+  useGetExaminationItems: vi.fn(() => ({ data: undefined })),
+}));
+
+vi.mock('../../api/update-examination-items', () => ({
+  useUpdateExaminationItems: vi.fn(() => ({ mutateAsync: vi.fn().mockResolvedValue([]), isPending: false })),
+}));
+
+vi.mock('../../api/get-exam-type-fields', () => ({
+  useGetExamTypeFields: vi.fn(() => ({ data: undefined })),
+}));
+
 // ─────────────────────────────────────────────────────────────
 
 describe('useExaminationForm — 新規作成モード', () => {
@@ -431,5 +443,214 @@ describe('useExaminationForm — setFormData（ローカルオーバーライド
     const { result } = renderHook(() => useExaminationForm());
     act(() => { result.current.setFormData({ doctorId: '99' }); });
     expect(result.current.formData.doctorId).toBe('99');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+
+describe('useExaminationForm — 検査項目テーブル（FE-EXAM-001）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
+    vi.mocked(useGetPet).mockReturnValue({ data: null, isLoading: false, isError: false } as ReturnType<typeof useGetPet>);
+    vi.mocked(usePetSelection).mockReturnValue({
+      selectedPets: [],
+      setSelectedPets: vi.fn(),
+    } as ReturnType<typeof usePetSelection>);
+  });
+
+  it('初期 formItems は空配列', () => {
+    const { result } = renderHook(() => useExaminationForm());
+    expect(result.current.formItems).toEqual([]);
+  });
+
+  it('編集モードで既存 items を formItems に反映する', async () => {
+    const { useGetExamination } = await import('../../api/get-examination');
+    const { useGetExaminationItems } = await import('../../api/get-examination-items');
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: { id: 'exam-001', testTypeId: '5', doctorId: '3', status: '検査中' as const, ownerName: '', petName: '', date: '' },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [
+        {
+          id: '101',
+          examTypeFieldId: 1,
+          name: 'WBC',
+          result: '',
+          inspectionValue: '5.0',
+          normalValue: '4.0-12.0',
+          unit: 'x10^3/μL',
+          referenceValue: '4.0-12.0',
+          refMin: 4,
+          refMax: 12,
+          isAbnormal: false,
+          status: 'normal' as const,
+          sortOrder: 1,
+        },
+      ],
+    } as ReturnType<typeof useGetExaminationItems>);
+
+    const { result } = renderHook(() => useExaminationForm('exam-001'));
+    expect(result.current.formItems).toHaveLength(1);
+    expect(result.current.formItems[0].name).toBe('WBC');
+    expect(result.current.formItems[0].inspectionValue).toBe('5.0');
+    expect(result.current.formItems[0].status).toBe('normal');
+  });
+
+  it('setInspectionValue で指定 row の inspectionValue を更新できる', async () => {
+    const { useGetExamination } = await import('../../api/get-examination');
+    const { useGetExaminationItems } = await import('../../api/get-examination-items');
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: { id: 'exam-001', testTypeId: '5', doctorId: '3', status: '検査中' as const, ownerName: '', petName: '', date: '' },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [
+        {
+          id: '101', examTypeFieldId: 1, name: 'WBC', result: '', inspectionValue: '',
+          normalValue: '', unit: '', referenceValue: '',
+          refMin: undefined, refMax: undefined, isAbnormal: false, status: 'normal' as const, sortOrder: 1,
+        },
+      ],
+    } as ReturnType<typeof useGetExaminationItems>);
+
+    const { result } = renderHook(() => useExaminationForm('exam-001'));
+    const key = result.current.formItems[0].key;
+    act(() => { result.current.setInspectionValue(key, '7.5'); });
+    expect(result.current.formItems[0].inspectionValue).toBe('7.5');
+  });
+
+  it('編集モード保存時に PATCH の後 PUT items が呼ばれる', async () => {
+    const { useGetExamination } = await import('../../api/get-examination');
+    const { useGetExaminationItems } = await import('../../api/get-examination-items');
+    const { useUpdateExamination } = await import('../../api/update-examination');
+    const { useUpdateExaminationItems } = await import('../../api/update-examination-items');
+
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: { id: 'exam-001', testTypeId: '5', doctorId: '3', status: '検査中' as const, ownerName: '', petName: '', date: '' },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [
+        {
+          id: '101', examTypeFieldId: 1, name: 'WBC', result: '', inspectionValue: '5.0',
+          normalValue: '4.0-12.0', unit: 'x10^3/μL', referenceValue: '4.0-12.0',
+          refMin: 4, refMax: 12, isAbnormal: false, status: 'normal' as const, sortOrder: 1,
+        },
+      ],
+    } as ReturnType<typeof useGetExaminationItems>);
+
+    const updateMutate = vi.fn().mockResolvedValue({});
+    const updateItemsMutate = vi.fn().mockResolvedValue([]);
+    vi.mocked(useUpdateExamination).mockReturnValue({ mutateAsync: updateMutate } as ReturnType<typeof useUpdateExamination>);
+    vi.mocked(useUpdateExaminationItems).mockReturnValue({ mutateAsync: updateItemsMutate, isPending: false } as ReturnType<typeof useUpdateExaminationItems>);
+
+    vi.mocked(usePetSelection).mockReturnValue({
+      selectedPets: [{ id: '42', name: 'ポチ', ownerName: '田中', ownerId: '5', species: '犬', breed: '', birthday: '', gender: '男', weight: null, imageUrl: null, status: '生存' as const, microchipNumber: null, insuranceNumber: null, insuranceExpiry: null, memo: null }],
+      setSelectedPets: vi.fn(),
+    } as ReturnType<typeof usePetSelection>);
+
+    const { result } = renderHook(() => useExaminationForm('exam-001'));
+
+    await act(async () => {
+      await result.current.formAction(new FormData());
+    });
+
+    expect(updateMutate).toHaveBeenCalled();
+    expect(updateItemsMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'exam-001',
+        req: expect.objectContaining({
+          items: expect.arrayContaining([
+            expect.objectContaining({ name: 'WBC', inspection_value: '5.0', ref_min: 4, ref_max: 12 }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it('確定済み (status=確定) では PUT items を呼ばない', async () => {
+    const { useGetExamination } = await import('../../api/get-examination');
+    const { useGetExaminationItems } = await import('../../api/get-examination-items');
+    const { useUpdateExamination } = await import('../../api/update-examination');
+    const { useUpdateExaminationItems } = await import('../../api/update-examination-items');
+
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: { id: 'exam-001', testTypeId: '5', doctorId: '3', status: '確定' as const, ownerName: '', petName: '', date: '' },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [
+        {
+          id: '101', examTypeFieldId: 1, name: 'WBC', result: '', inspectionValue: '5.0',
+          normalValue: '', unit: '', referenceValue: '',
+          refMin: undefined, refMax: undefined, isAbnormal: false, status: 'normal' as const, sortOrder: 1,
+        },
+      ],
+    } as ReturnType<typeof useGetExaminationItems>);
+
+    const updateMutate = vi.fn().mockResolvedValue({});
+    const updateItemsMutate = vi.fn();
+    vi.mocked(useUpdateExamination).mockReturnValue({ mutateAsync: updateMutate } as ReturnType<typeof useUpdateExamination>);
+    vi.mocked(useUpdateExaminationItems).mockReturnValue({ mutateAsync: updateItemsMutate, isPending: false } as ReturnType<typeof useUpdateExaminationItems>);
+
+    const { result } = renderHook(() => useExaminationForm('exam-001'));
+
+    await act(async () => {
+      await result.current.formAction(new FormData());
+    });
+
+    expect(updateMutate).toHaveBeenCalled();
+    expect(updateItemsMutate).not.toHaveBeenCalled();
+  });
+
+  it('新規作成: created.id があれば PUT items が呼ばれる', async () => {
+    const { useCreateExamination } = await import('../../api/create-examination');
+    const { useUpdateExaminationItems } = await import('../../api/update-examination-items');
+    const { useGetExamTypeFields } = await import('../../api/get-exam-type-fields');
+
+    // テンプレ展開で formItems が初期化される
+    vi.mocked(useGetExamTypeFields).mockReturnValue({
+      data: [
+        { id: 1, name: 'WBC', unit: 'x10^3/μL', normalValue: '4.0-12.0', refMin: 4, refMax: 12, sortOrder: 1 },
+      ],
+    } as ReturnType<typeof useGetExamTypeFields>);
+
+    const createMutate = vi.fn().mockResolvedValue({ id: 'new-99' });
+    const updateItemsMutate = vi.fn().mockResolvedValue([]);
+    vi.mocked(useCreateExamination).mockReturnValue({ mutateAsync: createMutate } as ReturnType<typeof useCreateExamination>);
+    vi.mocked(useUpdateExaminationItems).mockReturnValue({ mutateAsync: updateItemsMutate, isPending: false } as ReturnType<typeof useUpdateExaminationItems>);
+
+    vi.mocked(usePetSelection).mockReturnValue({
+      selectedPets: [{ id: '42', name: 'ポチ', ownerName: '田中', ownerId: '5', species: '犬', breed: '', birthday: '', gender: '男', weight: null, imageUrl: null, status: '生存' as const, microchipNumber: null, insuranceNumber: null, insuranceExpiry: null, memo: null }],
+      setSelectedPets: vi.fn(),
+    } as ReturnType<typeof usePetSelection>);
+
+    const { result } = renderHook(() => useExaminationForm());
+
+    act(() => {
+      result.current.setFormData({ testTypeId: '5', doctorId: '3' });
+    });
+
+    // テンプレが反映されるのを待つ（useEffect で自動展開）
+    await act(async () => { await Promise.resolve(); });
+
+    // 値を入力
+    if (result.current.formItems.length > 0) {
+      act(() => { result.current.setInspectionValue(result.current.formItems[0].key, '7.5'); });
+    }
+
+    await act(async () => {
+      await result.current.formAction(new FormData());
+    });
+
+    expect(createMutate).toHaveBeenCalled();
+    expect(updateItemsMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'new-99',
+        req: expect.objectContaining({
+          items: expect.arrayContaining([
+            expect.objectContaining({ name: 'WBC' }),
+          ]),
+        }),
+      }),
+    );
   });
 });

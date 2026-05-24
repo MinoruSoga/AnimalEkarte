@@ -1,134 +1,64 @@
-# E2E テスティング実装ガイド
+# E2E・システムテスト実行ガイド (End-to-End Testing)
 
-> **作成日**: 2026-04-23  
-> **ステータス**: ✅ TIER 3 — E2E テスト基盤構築完了  
-> **対象システム**: Animal Ekarte (動物病院向け電子カルテシステム)
-
----
-
-## 📌 概要
-
-本ドキュメントは、Animal Ekarte の E2E (End-to-End) テスト実装ガイドです。Playwright を使用した UI テストフロー、認証戦略、テストケース設計、CI/CD 統合をカバーしています。
-
-## 🎯 実装目標
-
-| 項目 | 目標 | 実装状況 |
-|------|------|--------|
-| テスト基盤構築 | Playwright + globalSetup 認証戦略 | ✅ 完了 |
-| テストスイート | 6つの主要業務フロー | ✅ 完了 |
-| ヘルパー関数 | 15+ ページ操作ユーティリティ | ✅ 完了 |
-| CI/CD 統合 | GitHub Actions workflow | ✅ 完了 |
-| ドキュメント | テスト実行ガイド | ✅ 完了 |
-
-## 🏗 実装内容
-
-### テストスイート (6個)
-
-1. **login.spec.ts** — ログイン UI テスト
-2. **appointment.spec.ts** — 診察フロー (3ケース)
-3. **medical-records.spec.ts** — 医療記録 (3ケース)
-4. **hospitalization.spec.ts** — 入院管理 (4ケース)
-5. **permission-control.spec.ts** — 権限制御 (5ケース)
-6. **staff-management.spec.ts** — スタッフ管理 (5ケース)
-
-**合計**: 18テストケース
-
-### ページヘルパー関数 (page-helpers.ts)
-
-15個のユーティリティ関数（要素操作、ナビゲーション、検証）
-
-```typescript
-// 要素操作
-clickElement / fillInput / selectTableRow
-
-// ナビゲーション
-expectNavigationToUrl / expectAuthenticatedState
-
-// UI パターン
-waitForSidepanel / waitForDialog / clickDialogButton
-
-// 検証
-expectToastMessage / expectFormError / waitForDataDisplay
-```
-
-### GitHub Actions Workflow
-
-`.github/workflows/e2e-tests.yml` - 自動テスト実行パイプライン
-
-- Docker Compose セットアップ
-- DB マイグレーション
-- E2E テスト実行
-- レポート生成・アップロード
-
-## 🚀 実行方法
-
-### 全テスト実行
-
-```bash
-docker compose up                 # 別ターミナル
-docker compose exec frontend pnpm test:e2e
-```
-
-### 特定テスト実行
-
-```bash
-docker compose exec frontend npx playwright test tests/appointment.spec.ts
-```
-
-### UI モード (対話的実行)
-
-```bash
-docker compose exec frontend pnpm test:e2e:ui
-```
-
-### デバッグモード
-
-```bash
-docker compose exec frontend pnpm test:e2e:debug
-```
-
-## 🔐 認証戦略
-
-### globalSetup
-
-テスト実行前に一度、テスト用アカウントでログイン。Cookie を保存し、全テストが認証済み状態から開始。
-
-### ログインテスト例外
-
-`login.spec.ts` は意図的に未認証状態で実行。`form.requestSubmit()` で React 19 formAction をトリガー。
-
-## 📊 テストカバレッジ
-
-| 機能 | テスト数 | ステータス |
-|------|---------|----------|
-| ログイン | 1 | ✅ |
-| 診察 | 3 | ✅ |
-| 医療記録 | 3 | ✅ |
-| 入院管理 | 4 | ✅ |
-| 権限制御 | 5 | ✅ |
-| スタッフ管理 | 5 | ✅ |
-
-## 🛠 トラブルシューティング
-
-### エラー: "Login failed"
-- テスト用アカウントが DB に存在することを確認
-- 003_seed_demo.sql でデフォルトアカウントが作成されているか確認
-
-### エラー: "access_token Cookie not found"
-- Vite proxy の Set-Cookie 転送設定を確認 (vite.config.ts)
-- バックエンド Cookie 設定を確認 (HttpOnly 設定)
-
-### テストがタイムアウト
-- タイムアウト時間を増やす
-- `waitUntil: 'networkidle'` を指定
-
-## 📚 参考資料
-
-- `frontend/tests/README.md` — テスト実行ガイド
-- `frontend/tests/page-helpers.ts` — ヘルパー関数リファレンス
-- `.github/workflows/e2e-tests.yml` — CI/CD workflow
+> **Animal Ekarte**: Playwright を活用した、主要業務フローの自動検証
+> **最新更新**: 2026-05-21
 
 ---
 
-**最終更新**: 2026-04-23  
-**担当**: Claude Code (TIER 3 E2E テスト基盤構築)
+## 1. テストの目的
+
+本ガイドは、フロントエンド、バックエンド、データベース、および外部サービス（Mock）が統合された状態で、ユーザーが実際に行う操作（予約から会計まで）が正しく機能することを保証するための手順を定義します。
+
+---
+
+## 2. 重点検証シナリオ (Core Scenarios)
+
+### シナリオ A: 外来ワンストップ・フロー
+1.  **ログイン**: 特定のクリニックスタッフとしてログイン。
+2.  **受付**: 予約なし患者の当日受付（新規飼主・ペット登録）。
+3.  **カルテ**: 身体検査結果（バイタル）および処置・薬品の入力と保存。
+4.  **精算**: 会計画面での金額一致確認と支払確定。
+5.  **確認**: 飼主の来院履歴および売上合計への反映を確認。
+
+### シナリオ B: 入院・退院管理フロー
+1.  **入院登録**: ペット選択からケージ割り当て。
+2.  **ケア実施**: デイリーカルテへのバイタル記録（異常値を含む）。
+3.  **退院**: 退院処理実行後の、入院費用の会計自動連携。
+
+### シナリオ C: LINE 予約・CRM 連携
+1.  **外部予約**: LINE LIFF モックからの診察予約。
+2.  **内部確認**: 院内カレンダーへの「source=line」での出現確認。
+3.  **タグ発火**: 診察完了後の Lステップへの「リマインドタグ」付与確認。
+
+---
+
+## 3. テスト実行手順
+
+### 3.1 準備
+```bash
+# 環境変数のセット
+export BASE_URL=http://localhost:3000
+export TEST_ADMIN_USER=admin@example.com
+```
+
+### 3.2 実行
+```bash
+# 全ての E2E シナリオを実行 (Headless)
+pnpm test:e2e
+
+# 特定の機能（例：会計）に絞って実行
+pnpm test:e2e tests/accounting.spec.ts
+
+# UI モードで動作を確認しながら実行
+pnpm test:e2e --ui
+```
+
+---
+
+## 4. 品質基準 (Pass Criteria)
+
+- **ハッピーパス**: 100% の成功率。
+- **異常系**: バリデーションエラーが仕様書通りのメッセージで表示されること。
+- **テナント隔離**: テスト実行後、他クリニックのデータが汚染されていないこと。
+
+---

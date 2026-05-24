@@ -51,27 +51,35 @@ type petInOwnerResponse struct {
 }
 
 type ownerResponse struct {
-	ID             uint64               `json:"id"`
-	OwnerName      string               `json:"owner_name"`
-	OwnerNameKana  string               `json:"owner_name_kana"`
-	BirthDate      *time.Time           `json:"birth_date,omitempty"`
-	Company        string               `json:"company"`
-	PostalCode     string               `json:"postal_code"`
-	Address1       string               `json:"address1"`
-	Address2       string               `json:"address2"`
-	HomePostalCode string               `json:"home_postal_code"`
-	HomeAddress1   string               `json:"home_address1"`
-	HomeAddress2   string               `json:"home_address2"`
-	Phone          string               `json:"phone"`
-	CompanyPhone   string               `json:"company_phone"`
-	Email          string               `json:"email"`
-	Remarks        string               `json:"remarks"`
-	IsDangerous    bool                 `json:"is_dangerous"`
-	DiscountRate   float64              `json:"discount_rate"`
-	MembershipType string               `json:"membership_type"`
-	Pets           []petInOwnerResponse `json:"pets"`
-	CreatedAt      time.Time            `json:"created_at"`
-	UpdatedAt      time.Time            `json:"updated_at"`
+	ID                     uint64               `json:"id"`
+	OwnerName              string               `json:"owner_name"`
+	OwnerNameKana          string               `json:"owner_name_kana"`
+	BirthDate              *time.Time           `json:"birth_date,omitempty"`
+	Company                string               `json:"company"`
+	PostalCode             string               `json:"postal_code"`
+	Address1               string               `json:"address1"`
+	Address2               string               `json:"address2"`
+	HomePostalCode         string               `json:"home_postal_code"`
+	HomeAddress1           string               `json:"home_address1"`
+	HomeAddress2           string               `json:"home_address2"`
+	Phone                  string               `json:"phone"`
+	CompanyPhone           string               `json:"company_phone"`
+	Email                  string               `json:"email"`
+	Remarks                string               `json:"remarks"`
+	IsDangerous            bool                 `json:"is_dangerous"`
+	DiscountRate           float64              `json:"discount_rate"`
+	MembershipType         string               `json:"membership_type"`
+	LineIDConfirmedAt      *time.Time           `json:"line_id_confirmed_at,omitempty"`
+	LineIDConfirmedBy      *uint64              `json:"line_id_confirmed_by,omitempty"`
+	DeliveryExcluded       bool                 `json:"delivery_excluded"`
+	DeliveryExcludedReason *string              `json:"delivery_excluded_reason,omitempty"`
+	DeliveryCaution        bool                 `json:"delivery_caution"`
+	DeliveryCautionReason  *string              `json:"delivery_caution_reason,omitempty"`
+	IsTransferred          bool                 `json:"is_transferred"`
+	TransferAt             *time.Time           `json:"transfer_at,omitempty"`
+	Pets                   []petInOwnerResponse `json:"pets"`
+	CreatedAt              time.Time            `json:"created_at"`
+	UpdatedAt              time.Time            `json:"updated_at"`
 }
 
 func toPetInOwnerResponse(p *model.Pet) petInOwnerResponse {
@@ -126,26 +134,34 @@ func toOwnerResponse(o *model.Owner) ownerResponse {
 		pets = append(pets, toPetInOwnerResponse(&o.Pets[i]))
 	}
 	return ownerResponse{
-		ID:             o.ID,
-		OwnerName:      o.Name,
-		OwnerNameKana:  o.NameKana,
-		BirthDate:      o.BirthDate,
-		Company:        o.Company,
-		PostalCode:     o.PostalCode,
-		Address1:       o.Address1,
-		Address2:       o.Address2,
-		HomePostalCode: o.HomePostalCode,
-		HomeAddress1:   o.HomeAddress1,
-		HomeAddress2:   o.HomeAddress2,
-		Phone:          o.Phone,
-		CompanyPhone:   o.CompanyPhone,
-		Email:          o.Email,
-		Remarks:        o.Remarks,
-		IsDangerous:    o.IsDangerous,
-		DiscountRate:   o.DiscountRate,
-		MembershipType: string(o.MembershipType),
-		Pets:           pets,
-		CreatedAt:      o.CreatedAt,
-		UpdatedAt:      o.UpdatedAt,
+		ID:                     o.ID,
+		OwnerName:              o.Name,
+		OwnerNameKana:          o.NameKana,
+		BirthDate:              o.BirthDate,
+		Company:                o.Company,
+		PostalCode:             o.PostalCode,
+		Address1:               o.Address1,
+		Address2:               o.Address2,
+		HomePostalCode:         o.HomePostalCode,
+		HomeAddress1:           o.HomeAddress1,
+		HomeAddress2:           o.HomeAddress2,
+		Phone:                  o.Phone,
+		CompanyPhone:           o.CompanyPhone,
+		Email:                  o.Email,
+		Remarks:                o.Remarks,
+		IsDangerous:            o.IsDangerous,
+		DiscountRate:           o.DiscountRate,
+		MembershipType:         string(o.MembershipType),
+		LineIDConfirmedAt:      o.LineIDConfirmedAt,
+		LineIDConfirmedBy:      o.LineIDConfirmedBy,
+		DeliveryExcluded:       o.DeliveryExcluded,
+		DeliveryExcludedReason: o.DeliveryExcludedReason,
+		DeliveryCaution:        o.DeliveryCaution,
+		DeliveryCautionReason:  o.DeliveryCautionReason,
+		IsTransferred:          o.IsTransferred,
+		TransferAt:             o.TransferAt,
+		Pets:                   pets,
+		CreatedAt:              o.CreatedAt,
+		UpdatedAt:              o.UpdatedAt,
 	}
 }

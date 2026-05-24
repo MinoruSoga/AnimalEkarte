@@ -21,6 +21,7 @@ type Repositories struct {
 	Pet                       PetRepository
 	Reservation               ReservationRepository
 	MedicalRecord             MedicalRecordRepository
+	MedicalRecordAddendum     MedicalRecordAddendumRepository
 	Hospitalization           HospitalizationRepository
 	Accounting                AccountingRepository
 	AppointmentTrimmingDetail AppointmentTrimmingDetailRepository
@@ -63,6 +64,7 @@ type Repositories struct {
 	ClinicalPlan              ClinicalPlanRepository
 	Checkup                   CheckupRepository
 	Estimate                  EstimateRepository
+	ManualArticle             ManualArticleRepository
 	MerchandiseItem           MerchandiseItemRepository
 	BillingItem               BillingItemRepository
 	Refund                    RefundRepository
@@ -83,9 +85,10 @@ type Repositories struct {
 	PaymentMethodMaster  PaymentMethodMasterRepository
 	CashRegisterClose    CashRegisterCloseRepository
 	// LSTEP / LINE連携
-	LstepSettings LstepSettingsRepository
-	SharedFile    SharedFileRepository
-	LstepTagCache LstepTagCacheRepository
+	LstepSettings     LstepSettingsRepository
+	LstepSyncSettings LstepSyncSettingsRepository
+	SharedFile        SharedFileRepository
+	LstepTagCache     LstepTagCacheRepository
 	// LSTEP-BE-009: 処方薬記録
 	Prescription PrescriptionRepository
 	// LSTEP-BE-010: LTV集計
@@ -98,6 +101,19 @@ type Repositories struct {
 	LineLinkToken LineLinkTokenRepository
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
 	CheckupSync CheckupSyncRepository
+	// FEAT-375: Lステップ連携エラーカウンター
+	LstepSyncErrorCounter LstepSyncErrorCounterRepository
+	// FEAT-379: per-clinic コード→タグ マッピング
+	LstepTagCodeMapping LstepTagCodeMappingRepository
+	// FEAT-383: 自動配信トリガーログ
+	LstepDeliveryTriggerLog LstepDeliveryTriggerLogRepository
+	// Q23: トリガー優先順位設定
+	LstepTriggerPriority LstepTriggerPriorityRepository
+	// FEAT-385: Lステップ CSV インポート・分析
+	LstepCsvImport               LstepCsvImportRepository
+	LstepFriendAttributeSnapshot LstepFriendAttributeSnapshotRepository
+	// 動的タグ設定 (B/C1/C2/C3 カテゴリ)
+	LstepTagConfig LstepTagConfigRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -111,6 +127,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Pet:                            NewPetRepository(db),
 		Reservation:                    NewReservationRepository(db),
 		MedicalRecord:                  NewMedicalRecordRepository(db),
+		MedicalRecordAddendum:          NewMedicalRecordAddendumRepository(db),
 		Hospitalization:                NewHospitalizationRepository(db),
 		Accounting:                     NewAccountingRepository(db),
 		AppointmentTrimmingDetail:      NewAppointmentTrimmingDetailRepository(db),
@@ -153,6 +170,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		ClinicalPlan:                   NewClinicalPlanRepository(db),
 		Checkup:                        NewCheckupRepository(db),
 		Estimate:                       NewEstimateRepository(db),
+		ManualArticle:                  NewManualArticleRepository(db),
 		MerchandiseItem:                NewMerchandiseItemRepository(db),
 		BillingItem:                    NewBillingItemRepository(db),
 		Refund:                         NewRefundRepository(db),
@@ -172,15 +190,23 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		PaymentMethodMaster:  NewPaymentMethodMasterRepository(db),
 		CashRegisterClose:    NewCashRegisterCloseRepository(db),
 		// LSTEP / LINE連携
-		LstepSettings:    NewLstepSettingsRepository(db),
-		SharedFile:       NewSharedFileRepository(db),
-		LstepTagCache:    NewLstepTagCacheRepository(db),
-		Prescription:     NewPrescriptionRepository(db),
-		Ltv:              NewLtvRepository(db),
-		ChronicCondition: NewPetChronicConditionRepository(db),
-		LineSendLog:      NewLineSendLogRepository(db),
-		LineLinkToken:    NewLineLinkTokenRepository(db),
-		CheckupSync:      NewCheckupSyncRepository(db),
+		LstepSettings:                NewLstepSettingsRepository(db),
+		LstepSyncSettings:            NewLstepSyncSettingsRepository(db),
+		SharedFile:                   NewSharedFileRepository(db),
+		LstepTagCache:                NewLstepTagCacheRepository(db),
+		Prescription:                 NewPrescriptionRepository(db),
+		Ltv:                          NewLtvRepository(db),
+		ChronicCondition:             NewPetChronicConditionRepository(db),
+		LineSendLog:                  NewLineSendLogRepository(db),
+		LineLinkToken:                NewLineLinkTokenRepository(db),
+		CheckupSync:                  NewCheckupSyncRepository(db),
+		LstepSyncErrorCounter:        NewLstepSyncErrorCounterRepository(db),
+		LstepTagCodeMapping:          NewLstepTagCodeMappingRepository(db),
+		LstepDeliveryTriggerLog:      NewLstepDeliveryTriggerLogRepository(db),
+		LstepTriggerPriority:         NewLstepTriggerPriorityRepository(db),
+		LstepCsvImport:               NewLstepCsvImportRepository(db),
+		LstepFriendAttributeSnapshot: NewLstepFriendAttributeSnapshotRepository(db),
+		LstepTagConfig:               NewLstepTagConfigRepository(db),
 	}
 }
 

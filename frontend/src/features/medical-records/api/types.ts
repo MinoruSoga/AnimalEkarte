@@ -1,4 +1,5 @@
 import type { MedicalRecord as ApiMedicalRecord } from "@/types/generated/models";
+import type { RecommendationReason } from "../constants/recommendation-reason";
 
 // APIレスポンス (medicalRecordResponse) は Go モデルと異なり accounting_id と visit_count を直接返す
 export type BackendMedicalRecord = ApiMedicalRecord & {
@@ -22,6 +23,7 @@ export interface CreateMedicalRecordRequest {
   doctor_id?: string;       // FE は string → BE で uint64 変換
   appointment_id?: string;
   status?: string;
+  recommendation_reason?: RecommendationReason | ""; // optional; "" は NULL 扱い
 
   // ClinicalPlan 関連（原子的作成用）
   chief_complaint?: string;

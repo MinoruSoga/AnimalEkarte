@@ -89,7 +89,7 @@ func (h *Handler) DeleteClinicHoliday(c *gin.Context) {
 // RegisterClinicHolidayRoutes は休診日関連のルートを登録する
 func (h *Handler) RegisterClinicHolidayRoutes(rg *gin.RouterGroup) {
 	holidays := rg.Group("/clinic-holidays")
-	holidays.GET("", h.ListClinicHolidays)
+	holidays.GET("", h.RequirePermission(string(model.ResourceShifts), "view"), h.ListClinicHolidays)
 	holidays.POST("", h.RequirePermission(string(model.ResourceShifts), "create"), h.SetClinicHoliday)
 	holidays.DELETE("/:date", h.RequirePermission(string(model.ResourceShifts), "delete"), h.DeleteClinicHoliday)
 }

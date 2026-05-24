@@ -1,115 +1,80 @@
 # Animal Ekarte (アニマル・カルテ)
 
-動物病院向け電子カルテ管理システム。最新の React 19 と Go による高機能かつ保守性の高いアーキテクチャを採用しています。
+> **Animal Ekarte**: 最新の React 19 と Go による、高機能かつ保守性の高い動物病院向け電子カルテ管理システム。
 
-## 🎯 プロジェクトの現状と規約 (MUST READ)
+---
 
-本プロジェクトは、React 19 への完全移行およびバックエンドエラー処理の標準化を完了しています。開発にあたっては、以下のドキュメントを最優先で参照してください。
+## 🎯 プロジェクト規約 (MUST READ)
+
+本プロジェクトは、React 19 への完全移行およびバックエンドエラー処理の標準化を完了しています。開発および運用の際は、以下のドキュメントを最優先で参照してください。
 
 - **[.claude/CLAUDE.md](.claude/CLAUDE.md)**: **【Single Source of Truth】** 開発規約・アーキテクチャ・最新ルールの集約地点。
 - **[GEMINI.md](GEMINI.md)**: Gemini CLI 向けの最適化されたコンテキスト。
-- **[.gemini/styleguide.md](.gemini/styleguide.md)**: 詳細なスタイルガイド・実装パターン。
+- **[docs/README.md](docs/README.md)**: 各種詳細仕様書（カルテ、Lステップ、会計等）へのポータル。
 
 ---
 
 ## 🛠 技術スタック
 
 | レイヤー | 技術 |
-|---------|------|
-| Frontend | React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui |
-| Backend | Go 1.25 / Gin / GORM / Air (Hot Reload) |
-| Database | PostgreSQL 18 (Docker: postgres:18-alpine) |
-| Testing | MSW (Mock Service Worker), Vitest, testify |
-| Infrastructure | Docker Compose, Terraform (AWS) |
+|:---|:---|
+| **Frontend** | React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui |
+| **Backend** | Go 1.25 / Gin / GORM / Air (Hot Reload) |
+| **Database** | PostgreSQL 18 (Docker: postgres:18-alpine) |
+| **Infrastructure** | Docker Compose / AWS (ECS Fargate, RDS, S3) / Vercel |
+| **Testing** | MSW (Mock Service Worker), Vitest, testify |
 
 ---
 
-## 🔧 セットアップ & 運用
+## 🔧 クイックスタート
 
-### 前提条件
-- Docker / Docker Compose
-- Make
-
-### クイックスタート
+### 1. 準備
 ```bash
-# 1. 環境変数の準備
+# 環境変数のコピー
 cp .env.example .env
+```
 
-# 2. コンテナ起動（初期化含む）
+### 2. 起動
+```bash
+# 全コンテナの起動（初期化スクリプト自動実行）
 make up
 
-# 3. 型定義の同期
+# フロントエンド型定義の同期
 make codegen
 ```
 
-| サービス | URL | 備考 |
-|---------|-----|-----|
-| Frontend | http://localhost:3000 | |
-| Backend API | http://localhost:8080/api/v1 | |
-| PostgreSQL | localhost:5434 | |
-
----
-
-## 開発コマンド (Makefile)
-
-### 基本操作
-- `make up` / `make down`: コンテナの起動・停止
-- `make build`: コンテナのビルドと起動
-- `make logs`: 全ログの表示
-- `make db`: DB接続 (psql)
-- `make reset`: DBの完全初期化（データの全削除を伴う）
-
-### 品質管理 & 生成
-- `make lint`: Go リンター実行
-- `make lint-front`: **(New)** フロントエンド リンター実行
-- `make test`: Go テスト実行
-- `make test-front`: **(New)** フロントエンド テスト (Vitest) 実行
-- `make codegen`: Goモデルから TypeScript型を自動生成
-
-> **⚠️ 注意: コマンド実行ルール**
-> すべてのコマンドは Docker 経由で実行してください。ローカル環境への pnpm/go インストールは不要です。
-
----
-
-## 🏗 アーキテクチャの特徴
-
-### Frontend (React 19 Idiomatic)
-- **Action Pattern**: `useActionState` と `SubmitButton` による宣言的フォーム管理。
-- **Feature Indexing**: 各機能の `index.ts` (Public API) を通じた厳格なカプセル化。
-- **Dependency Inversion**: `app/pages/` で各機能を合成し、機能間直接インポートを排除。
-- **Design Tokens**: `design-tokens.ts` による Notion 風テーマの完全制御。
-
-### Backend (Clean Architecture)
-- **Unified Error Handling**: `apperrors` パッケージによる統一的なエラーラッピング。
-- **Single Source of Truth**: Go のモデル定義からフロントエンドの型を自動生成。
-
----
-
-## 📚 関連ドキュメント
-
-| カテゴリ | ドキュメント |
+| サービス | ローカル URL |
 |:---|:---|
-| **API** | [API_SPEC.md](docs/API_SPEC.md), [openapi.yaml](docs/openapi.yaml), [API_DOCUMENTATION_GUIDE.md](docs/API_DOCUMENTATION_GUIDE.md) |
-| **テスト** | [E2E_TESTING_GUIDE.md](docs/E2E_TESTING_GUIDE.md), [PERFORMANCE_PROFILING.md](docs/PERFORMANCE_PROFILING.md), [load-tests/README.md](load-tests/README.md) |
-| **設計** | [architecture.md](docs/architecture.md), [ERD.md](docs/ERD.md), [AUTH.md](docs/AUTH.md) |
-| **仕様** | [screens/](docs/screens/) (画面定義), [SPECIFICATION.md](docs/SPECIFICATION.md) |
-| **履歴** | [archive/](docs/archive/) (刷新前の設計図、過去のタスク履歴) |
+| **Frontend** | [http://localhost:3000](http://localhost:3000) |
+| **Backend API** | [http://localhost:8080/api/v1](http://localhost:8080/api/v1) |
+| **Database** | `localhost:5434` (User: admin / Pass: password) |
 
 ---
 
-## 🌐 API ドキュメント表示（対話的）
+## 📖 ドキュメント体系 (95 Tables / 31 Resources)
 
-### Swagger UI / Redoc
+| カテゴリ | 主要ドキュメント |
+|:---|:---|
+| **業務仕様** | [SPECIFICATION.md](docs/SPECIFICATION.md) / [screens/](docs/screens/) |
+| **機能詳細** | [Lステップ連携](docs/line/lstep-integration.md) / [会計・集計](docs/CASH_REGISTER_SPEC.md) / [顧客分析](docs/CUSTOMER_AGGREGATION_SPEC.md) |
+| **技術設計** | [Architecture](docs/architecture.md) / [ER図 (v31.18)](docs/ERD.md) / [認証・認可](docs/AUTH.md) |
+| **API** | [API_SPEC.md (v2.3)](docs/API_SPEC.md) / [openapi.yaml](docs/openapi.yaml) |
+| **運用・テスト** | [Deployment Hub](docs/infra/deploy/README.md) / [Manual Test Guide](docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md) |
+
+---
+
+## 🌐 インタラクティブ API ドキュメント
+
+Swagger UI および Redoc をローカルで起動して、対話的な API 検証が可能です。
+
 ```bash
-# Swagger UI (localhost:8081) + Redoc (localhost:8082) を起動
+# ドキュメントツールの起動
 docker compose -f docker-compose.swagger.yml up
 ```
-
-- **Swagger UI**: http://localhost:8081 — 対話的なリクエスト生成・テスト
-- **Redoc**: http://localhost:8082 — API リファレンス表示
+- **Swagger UI**: [http://localhost:8081](http://localhost:8081)
+- **Redoc**: [http://localhost:8082](http://localhost:8082)
 
 ---
 
 ## ライセンス
-
 Private / Proprietary

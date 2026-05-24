@@ -1,9 +1,13 @@
 package handler
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // TestAuthHandlerCompiles verifies that auth_handler.go compiles without errors
@@ -127,3 +131,119 @@ func TestAuthHandlerCompiles(t *testing.T) {
 //    2. Inject real services with test database connection
 //    3. Make HTTP requests to the handler via gin test engine
 //    4. Verify database state and audit logs after each test
+
+// --- FEAT-374 Phase 1: toMeResponse unit tests ---
+
+// TestToMeResponse_SystemAdmin_AllClinicsExposed は system_admin が assignments を持たない場合、
+// allClinics 全件が Clinics に含まれることを検証する。
+func TestToMeResponse_SystemAdmin_AllClinicsExposed(t *testing.T) {
+	account := &model.Account{ID: 1, Email: "admin@test.com", IsSystemAdmin: true}
+	staff := &model.Staff{ID: 10, Name: "Admin", ClinicAssignments: nil}
+	allClinics := []model.Clinic{
+		{ID: 1, Name: "クリニックA"},
+		{ID: 2, Name: "クリニックB"},
+		{ID: 3, Name: "クリニックC"},
+	}
+	mainClinicID := strconv.FormatUint(allClinics[0].ID, 10)
+
+	resp := toMeResponse(staff, account, mainClinicID, nil, allClinics, nil)
+
+	require.NotNil(t, resp)
+	assert.True(t, resp.IsSystemAdmin)
+	assert.Len(t, resp.Clinics, 3, "system_admin は allClinics 全件を受け取るべき")
+	assert.Equal(t, "1", resp.Clinics[0].ClinicID)
+	assert.Equal(t, "クリニックA", resp.Clinics[0].ClinicName)
+	assert.True(t, resp.Clinics[0].IsMain, "ClinicID=1 が IsMain=true であるべき")
+	assert.False(t, resp.Clinics[1].IsMain)
+	assert.False(t, resp.Clinics[2].IsMain)
+	assert.Equal(t, mainClinicID, resp.MainClinicID)
+}
+
+// TestToMeResponse_SystemAdmin_WithAssignments は system_admin が assignments を持つ場合も
+// allClinics 全件が Clinics に含まれることを検証する（assignments ではなく allClinics ベース）。
+func TestToMeResponse_SystemAdmin_WithAssignments(t *testing.T) {
+	account := &model.Account{ID: 1, Email: "admin@test.com", IsSystemAdmin: true}
+	staff := &model.Staff{
+		ID:   10,
+		Name: "Admin",
+		ClinicAssignments: []model.StaffClinicAssignment{
+			{ClinicID: 1, IsMain: true},
+		},
+	}
+	allClinics := []model.Clinic{
+		{ID: 1, Name: "クリニックA"},
+		{ID: 2, Name: "クリニックB"},
+	}
+	mainClinicID := "1"
+
+	resp := toMeResponse(staff, account, mainClinicID, nil, allClinics, nil)
+
+	require.NotNil(t, resp)
+	// assignments が 1 件でも allClinics ベースなので 2 件返るべき
+	assert.Len(t, resp.Clinics, 2, "system_admin は assignments 件数ではなく allClinics 全件を受け取るべき")
+	assert.True(t, resp.Clinics[0].IsMain, "ClinicID=1 が IsMain=true であるべき")
+	assert.False(t, resp.Clinics[1].IsMain)
+}
+
+// TestLogin_SystemAdminWithoutAssignments_JWTHasMainClinicID は FEAT-374 Phase 1 負債解消の担保テスト。
+// resolveSystemAdminMainClinicID が issueAuthCookies 呼び出し前に適用されることで、
+// system_admin かつ assignments 空のスタッフに対しても JWT ClinicID に allClinics[0].ID が入ることを検証する。
+// (HTTP/JWT レイヤーのテストインフラがないためヘルパー関数を直接検証)
+func TestLogin_SystemAdminWithoutAssignments_JWTHasMainClinicID(t *testing.T) {
+	allClinics := []model.Clinic{
+		{ID: 5, Name: "メインクリニック"},
+		{ID: 6, Name: "サブクリニック"},
+	}
+
+	// assignments 空 → resolveClinicInfo は mainClinicID="" を返す
+	mainClinicID := ""
+
+	// JWT 発行前にフォールバック適用
+	resolved := resolveSystemAdminMainClinicID(mainClinicID, true, allClinics)
+
+	assert.Equal(t, "5", resolved, "system_admin + assignments 空時は allClinics[0].ID がフォールバックされるべき")
+
+	// 通常スタッフ (isSystemAdmin=false) はフォールバックしない
+	resolvedNonAdmin := resolveSystemAdminMainClinicID("", false, allClinics)
+	assert.Equal(t, "", resolvedNonAdmin, "通常スタッフは mainClinicID 空のまま")
+
+	// mainClinicID が既にセットされている場合はそのまま返す (assignments あり system_admin)
+	resolvedWithID := resolveSystemAdminMainClinicID("3", true, allClinics)
+	assert.Equal(t, "3", resolvedWithID, "mainClinicID 非空時は上書きしない")
+}
+
+// TestToMeResponse_NormalStaff_AssignmentsOnly は通常スタッフが assignments のみを受け取ることを検証する。
+// allClinics に assignments 外のクリニックがあっても Clinics に含まれないことを確認（回帰防止）。
+func TestToMeResponse_NormalStaff_AssignmentsOnly(t *testing.T) {
+	account := &model.Account{ID: 2, Email: "staff@test.com", IsSystemAdmin: false}
+	staff := &model.Staff{
+		ID:   20,
+		Name: "Staff",
+		ClinicAssignments: []model.StaffClinicAssignment{
+			{ClinicID: 1, IsMain: true},
+			{ClinicID: 2, IsMain: false},
+		},
+	}
+	allClinics := []model.Clinic{
+		{ID: 1, Name: "クリニックA"},
+		{ID: 2, Name: "クリニックB"},
+		{ID: 3, Name: "クリニックC"}, // 通常スタッフには見えてはいけない
+	}
+	clinicNameMap := map[string]string{
+		"1": "クリニックA",
+		"2": "クリニックB",
+		"3": "クリニックC",
+	}
+	mainClinicID := "1"
+
+	resp := toMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, nil)
+
+	require.NotNil(t, resp)
+	assert.False(t, resp.IsSystemAdmin)
+	// assignments ベース: 2 件のみ（allClinics の 3 件ではない）
+	assert.Len(t, resp.Clinics, 2, "通常スタッフは assignments ベースの 2 件のみ受け取るべき")
+	assert.Equal(t, "1", resp.Clinics[0].ClinicID)
+	assert.True(t, resp.Clinics[0].IsMain)
+	assert.Equal(t, "2", resp.Clinics[1].ClinicID)
+	assert.False(t, resp.Clinics[1].IsMain)
+}

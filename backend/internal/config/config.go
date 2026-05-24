@@ -67,13 +67,16 @@ func Load() *Config {
 	}
 }
 
-// Validate は本番環境（GIN_MODE=release）での必須設定を検証する。
-// 未設定の場合はエラーを返す。
+// Validate は起動設定を検証する。
+// dev デフォルト値チェックは全モードで実行する（staging 認証バイパス防止）。
 func (c *Config) Validate() error {
+	if c.JWTSecret == "dev-secret-change-me" {
+		return fmt.Errorf("dev default JWT_SECRET is prohibited; set a secure value via the JWT_SECRET environment variable")
+	}
 	if c.GinMode != "release" {
 		return nil
 	}
-	if c.JWTSecret == "" || c.JWTSecret == "dev-secret-change-me" {
+	if c.JWTSecret == "" {
 		return fmt.Errorf("JWT_SECRET must be explicitly set in release mode")
 	}
 	if c.DBPass == "" || c.DBPass == "ekarte_password" {

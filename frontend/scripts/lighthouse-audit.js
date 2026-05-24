@@ -10,10 +10,10 @@
  * $ node frontend/scripts/lighthouse-audit.js --url http://localhost:3000
  */
 
-const lighthouse = require('lighthouse');
-const chromeLauncher = require('chrome-launcher');
-const fs = require('fs');
-const path = require('path');
+import lighthouse from 'lighthouse';
+import * as chromeLauncher from 'chrome-launcher';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const BASE_URL = process.argv.find(arg => arg.startsWith('--url'))?.split('=')[1] || 'http://localhost:3000';
 const OUTPUT_DIR = 'frontend/audit-results';
@@ -121,4 +121,7 @@ async function main() {
   }
 }
 
-main();
+main().catch((err) => {
+  console.error('Fatal error:', err);
+  process.exit(1);
+});

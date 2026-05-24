@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -33,6 +34,7 @@ type tagOwnerItemResponse struct {
 	LineUserIDMasked *string  `json:"line_user_id_masked,omitempty"`
 	LastVisitDate    *string  `json:"last_visit_date,omitempty"`
 	AllTags          []string `json:"all_tags"`
+	Reason           *string  `json:"reason,omitempty"`
 }
 
 // tagOwnerListResponse は GET /lstep/owners のJSONレスポンス。
@@ -67,6 +69,7 @@ func toTagOwnerListResponse(r service.TagOwnerListResponse) tagOwnerListResponse
 			OwnerName:     o.OwnerName,
 			LastVisitDate: o.LastVisitDate,
 			AllTags:       tags,
+			Reason:        o.Reason,
 		}
 	}
 	return tagOwnerListResponse{Owners: owners, Total: r.Total, Page: r.Page, PerPage: r.PerPage}
@@ -141,11 +144,11 @@ func (h *Handler) SearchLstepOwnersByTag(c *gin.Context) {
 // RegisterLstepTagSummaryRoutes は BE-020 のルートを登録する。
 func (h *Handler) RegisterLstepTagSummaryRoutes(rg *gin.RouterGroup) {
 	lstep := rg.Group("/lstep")
-	lstep.GET("/tag-summary", h.GetLstepTagSummary)
-	lstep.GET("/owners", h.SearchLstepOwnersByTag)
+	lstep.GET("/tag-summary", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepTagSummary)
+	lstep.GET("/owners", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.SearchLstepOwnersByTag)
 
 	// ISSUE-020: FE が /clinics/:clinic_id/lstep/... で呼ぶエイリアス
 	clinicLstep := rg.Group("/clinics/:clinic_id/lstep")
-	clinicLstep.GET("/tag-summary", h.GetLstepTagSummary)
-	clinicLstep.GET("/owners", h.SearchLstepOwnersByTag)
+	clinicLstep.GET("/tag-summary", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepTagSummary)
+	clinicLstep.GET("/owners", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.SearchLstepOwnersByTag)
 }

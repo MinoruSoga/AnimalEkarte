@@ -1,49 +1,45 @@
-# 診断マスタ設定 仕様書
+# 診断・傷病名マスタ 仕様書 (Diagnosis Management)
 
 ## 概要
-- **画面の目的**: カルテの「診察/治療プラン」タブで使用される診断カテゴリと病名を管理する。
-- **URLパターン**: `/settings/diagnosis`
-- **コンポーネント**: `[R] DiagnosisSettings`
+- **画面の目的**: 臨床現場で使用される標準的な診断名、および疾患カテゴリの体系的管理。
+- **URLパターン**: `/settings/masters/diagnoses`
+- **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 
-## 画面構成とタブ
-2つのタブでデータリレーションを管理します。
-1. **診断病名カテゴリ** (`diagnosis_category`): 消化器系、循環器系などの大分類。
-2. **診断病名** (`diagnosis_name`): 胃炎、心不全などの具体的な病名（カテゴリに属する）。
+---
 
-## 機能詳細
+## 画面構成
 
-### 1. タブ間リレーション
-- 診断病名は必ず1つのカテゴリに紐付きます。
-- **削除ガード**: カテゴリを削除すると、紐付く診断病名も影響を受けるため、`ConfirmDialog` で明示的な警告を行います。
+### 1. 体系的カテゴリ・リスト
+- **2階層構造**: 「カテゴリ（例：皮膚科）」と「診断名（例：アトピー性皮膚炎）」の親子関係で整理。
+- **検索**: 疾患名、キーワードによる高速検索。
 
-### 2. 並び順管理
-- 両タブとも `DndContext` を用いたドラッグ＆ドロップによる並び替え（フラットソート）に対応しています。
+### 2. 詳細編集サイドパネル (`SidePeekPanel`)
+- **名称**: 正式な診断名。
+- **カテゴリ選択**: 所属する疾患グループの割り当て。
+- **ソート順**: カルテ入力時に頻繁に使用する疾患を上位に表示するための重み付け設定。
 
-## 表示・フォーム項目
+---
 
-### フォーム項目（サイドパネル）
-| フィールド | 項目ID | 入力部品 | 必須 | 備考 |
-|-----------|--------|---------|------|------|
-| 名称 | `name` | `Input` | ✅ | タイトルエリア（大文字表示） |
-| ステータス | `isActive` | `NotionStatusPill` | - | クリックで有効/無効トグル |
-| カテゴリ | `diagnosisCategoryId`| `Select` | ✅ | 病名タブのみ表示。カテゴリマスタ連動 |
-| 備考 | `description`| `PropertyInput` | - | Notion スタイルのボーダーレス入力 |
+## 主要な機能
 
-## 特徴的なUI・機能
-- **Notionスタイル**: `PropertyRow` と `PropertyInput` を使用したクリーンな編集体験。
-- **ドラッグ&ドロップ**: 各タブの `DataTable` において `SortableDataTableRow` による並び替えが可能。
-- **離脱防止**: `MasterSidePanel` が開いている間は `NavigationBlocker` により不意の離脱をガード。
+### 1. カルテ入力の高速化
+ここで定義されたマスタは、カルテ詳細画面の「診断」タブにおいて、サジェスト機能（Combobox）の基礎データとして使用されます。
 
-## API連携
+### 2. 統計分析への活用
+疾患カテゴリごとに来院件数を集計することで、病院が得意とする診療分野や季節性の疾患トレンドの分析が可能になります。
+
+---
+
+## 技術仕様
+
+### 使用コンポーネント
+- **`DiagnosisMatrix`**: カテゴリと傷病名の階層表示部品。
+- **`PropInput`**: 各項目のインライン編集。
+
+### API連携
 | メソッド | エンドポイント | 用途 |
-|---------|--------------|------|
-| GET | `/api/v1/masters/diagnosis-categories` | カテゴリ一覧取得 |
-| POST | `/api/v1/masters/diagnosis-categories` | カテゴリ作成 |
-| PATCH | `/api/v1/masters/diagnosis-categories/:id` | カテゴリ更新 |
-| DELETE | `/api/v1/masters/diagnosis-categories/:id` | カテゴリ削除 |
-| PATCH | `/api/v1/masters/diagnosis-categories/reorder` | カテゴリ並び順一括保存 |
-| GET | `/api/v1/masters/diagnosis-names` | 病名一覧取得 |
-| POST | `/api/v1/masters/diagnosis-names` | 病名作成 |
-| PATCH | `/api/v1/masters/diagnosis-names/:id` | 病名更新 |
-| DELETE | `/api/v1/masters/diagnosis-names/:id` | 病名削除 |
-| PATCH | `/api/v1/masters/diagnosis-names/reorder` | 病名並び順一括保存 |
+|:---|:---|:---|
+| GET | `/api/v1/masters/diagnoses` | 体系化された診断名リストの取得。 |
+| PATCH | `/api/v1/masters/diagnoses/reorder` | 並び順の一括保存。 |
+
+---

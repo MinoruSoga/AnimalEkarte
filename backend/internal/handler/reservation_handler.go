@@ -165,10 +165,6 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	// BE-007: 予約登録タグ同期（best-effort）
-	if reservation.OwnerID != nil && reservation.Status != model.ReservationStatusCancelled {
-		_ = h.svc.LstepTagSync.SyncReservationTag(ctx, clinicID, *reservation.OwnerID, reservation.StartTime)
-	}
 	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", reservation.ID))
 	c.JSON(http.StatusCreated, toReservationResponse(reservation))
 }
@@ -243,15 +239,6 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		return
 	}
 
-	// BE-007: 予約ステータス変更タグ同期（best-effort）
-	if svcInput.Status != nil && reservation.OwnerID != nil {
-		switch *svcInput.Status {
-		case model.ReservationStatusCancelled:
-			_ = h.svc.LstepTagSync.SyncCancellationTag(ctx, clinicID, *reservation.OwnerID, reservation.StartTime)
-		case model.ReservationStatusConfirmed, model.ReservationStatusPending:
-			_ = h.svc.LstepTagSync.SyncReservationTag(ctx, clinicID, *reservation.OwnerID, reservation.StartTime)
-		}
-	}
 	// 受付済みに変更された場合はカルテを best-effort で自動作成する（BE-reception-auto-create-medical-record）
 	if svcInput.Status != nil && *svcInput.Status == model.ReservationStatusCheckedIn {
 		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
@@ -270,29 +257,47 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// BE-REOPEN-002: Delete 前に reservation を取得してキャンセルタグ同期に必要な owner_id を確保
-	reservation, err := h.svc.Reservation.GetByID(c.Request.Context(), clinicID, id)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
 	if err := h.svc.Reservation.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}
-	// BE-REOPEN-002: 予約削除時にキャンセルタグを同期（best-effort）
-	if reservation.OwnerID != nil {
-		_ = h.svc.LstepTagSync.SyncCancellationTag(c.Request.Context(), clinicID, *reservation.OwnerID, reservation.StartTime)
-	}
 	c.Status(http.StatusNoContent)
+}
+
+// PatchReservationReservationRoute godoc
+// PATCH /reservations/:id/reservation-route — 予約経路を更新する（FEAT-381-2）。
+func (h *Handler) PatchReservationReservationRoute(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchReservationReservationRouteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	reservation, err := h.svc.Reservation.UpdateReservationRoute(
+		c.Request.Context(), clinicID, id,
+		service.UpdateReservationRouteInput{Route: req.Route},
+	)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toReservationResponse(reservation))
 }
 
 // RegisterReservationRoutes は予約関連のルートを登録する
 func (h *Handler) RegisterReservationRoutes(rg *gin.RouterGroup) {
 	reservations := rg.Group("/reservations")
-	reservations.GET("", h.ListReservations)
-	reservations.GET("/:id", h.GetReservation)
+	reservations.GET("", h.RequirePermission(string(model.ResourceReservations), "view"), h.ListReservations)
+	reservations.GET("/:id", h.RequirePermission(string(model.ResourceReservations), "view"), h.GetReservation)
 	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "create"), h.CreateReservation)
 	reservations.PATCH("/:id", h.RequirePermission(string(model.ResourceReservations), "edit"), h.UpdateReservation)
+	reservations.PATCH("/:id/reservation-route", h.RequirePermission(string(model.ResourceReservations), "edit"), h.PatchReservationReservationRoute)
 	reservations.DELETE("/:id", h.RequirePermission(string(model.ResourceReservations), "delete"), h.DeleteReservation)
 }

@@ -12,6 +12,7 @@ import (
 
 // CreateVitalInput はバイタル作成の入力DTO（HTTP非依存）
 type CreateVitalInput struct {
+	ClinicID        uint64 // 監査ログ用
 	PetID           uint64
 	RecordedAt      time.Time
 	StaffID         *uint64
@@ -33,6 +34,7 @@ type UpdateVitalInput struct {
 	Weight          *float64
 	WeightUnit      *model.BodyWeightUnit
 	Notes           *string
+	ActorID         *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
 }
 
 // buildVitalUpdate はnilでないフィールドのみmap[string]anyに変換する
@@ -74,12 +76,14 @@ type VitalService interface {
 }
 
 type vitalService struct {
-	repo repository.VitalRepository
+	repo              repository.VitalRepository
+	medicalRecordRepo repository.MedicalRecordRepository
+	auditService      AuditService
 }
 
 // NewVitalService はVitalServiceを初期化して返す
-func NewVitalService(repo repository.VitalRepository) VitalService {
-	return &vitalService{repo: repo}
+func NewVitalService(repo repository.VitalRepository, medicalRecordRepo repository.MedicalRecordRepository, auditService AuditService) VitalService {
+	return &vitalService{repo: repo, medicalRecordRepo: medicalRecordRepo, auditService: auditService}
 }
 
 func (s *vitalService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
@@ -118,6 +122,19 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 	slog.InfoContext(ctx, "vital created",
 		slog.Uint64("vital_id", vital.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
+
+	// 監査ログ: create（best-effort）
+	if s.auditService != nil && input.ClinicID != 0 {
+		var actorID *uint64
+		if input.StaffID != nil {
+			actorID = input.StaffID
+		}
+		newValue := extractVitalImportantFields(vital)
+		if err := s.auditService.LogVitalChange(ctx, input.ClinicID, actorID, "create", vital.ID, medicalRecordID, nil, newValue); err != nil {
+			slog.ErrorContext(ctx, "audit log failed for vital create", "error", err, "vital_id", vital.ID)
+		}
+	}
+
 	return vital, nil
 }
 
@@ -130,6 +147,14 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 	}
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("vital", "not found in medical record")
+	}
+	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict("確定済みカルテのバイタルは編集できません")
 	}
 
 	fields := buildVitalUpdate(input)
@@ -149,6 +174,17 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 		slog.ErrorContext(ctx, "failed to get vital record after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get vital record after update")
 	}
+
+	// 監査ログ: update（best-effort）
+	if s.auditService != nil {
+		oldDiff, newDiff := diffVitalImportantFields(existing, result)
+		if oldDiff != nil {
+			if err := s.auditService.LogVitalChange(ctx, clinicID, input.ActorID, "update", vitalID, medicalRecordID, oldDiff, newDiff); err != nil {
+				slog.ErrorContext(ctx, "audit log failed for vital update", "error", err, "vital_id", vitalID)
+			}
+		}
+	}
+
 	return result, nil
 }
 
@@ -161,6 +197,15 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("vital", "not found in medical record")
 	}
+	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return apperrors.WrapConflict("確定済みカルテのバイタルは削除できません")
+	}
+	oldValue := extractVitalImportantFields(existing)
 	if err := s.repo.Delete(ctx, clinicID, vitalID); err != nil {
 		return apperrors.Wrap(err, "failed to delete vital record")
 	}
@@ -168,6 +213,13 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("vital_id", vitalID),
 		slog.Uint64("medical_record_id", medicalRecordID))
+
+	// 監査ログ: delete（best-effort, actorID=nil）
+	if s.auditService != nil {
+		if err := s.auditService.LogVitalChange(ctx, clinicID, nil, "delete", vitalID, medicalRecordID, oldValue, nil); err != nil {
+			slog.ErrorContext(ctx, "audit log failed for vital delete", "error", err, "vital_id", vitalID)
+		}
+	}
 	return nil
 }
 

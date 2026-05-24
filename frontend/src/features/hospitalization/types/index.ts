@@ -15,4 +15,7 @@ export interface HospitalizationFormData {
     ownerRequest: string;
     staffNotes: string;
     cageId: string;
+    isInsurance: boolean;
+    insuranceCompanyName: string;
+    insuranceNumber: string;
 }

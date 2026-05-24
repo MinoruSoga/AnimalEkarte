@@ -146,6 +146,20 @@ type billingItemResponse struct {
 	CreatedAt             time.Time `json:"created_at"`
 }
 
+type paymentSplitResponse struct {
+	ID              uint64    `json:"id"`
+	ClinicID        uint64    `json:"clinic_id"`
+	BillingID       uint64    `json:"billing_id"`
+	Method          string    `json:"method"`
+	PaymentMethodID *uint64   `json:"payment_method_id,omitempty"`
+	Amount          int64     `json:"amount"`
+	ReceivedAmount  int64     `json:"received_amount"`
+	ChangeAmount    int64     `json:"change_amount"`
+	PaidBy          *uint64   `json:"paid_by,omitempty"`
+	PaidByName      string    `json:"paid_by_name"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
 type paymentResponse struct {
 	ID              uint64    `json:"id"`
 	BillingID       uint64    `json:"billing_id"`
@@ -199,6 +213,7 @@ type accountingResponse struct {
 	Memo                string                  `json:"memo"`
 	Items               []billingItemResponse   `json:"items,omitempty"`
 	Payments            []paymentResponse       `json:"payments,omitempty"`
+	PaymentSplits       []paymentSplitResponse  `json:"payment_splits,omitempty"`
 	Refunds             []refundResponse        `json:"refunds,omitempty"`
 	CreatedAt           time.Time               `json:"created_at"`
 	UpdatedAt           time.Time               `json:"updated_at"`
@@ -243,11 +258,31 @@ func toPaymentResponse(p *model.Payment) paymentResponse {
 		BillingAmount:   p.BillingAmount,
 		ReceivedAmount:  p.ReceivedAmount,
 		ChangeAmount:    p.ChangeAmount,
-		Method:          string(p.Method), //nolint:staticcheck // Method is deprecated but PaymentMethodID migration is in progress
+		Method:          string(p.Method),
 		PaidBy:          p.PaidBy,
 		PaidByName:      staffName,
 		CreatedAt:       p.CreatedAt,
 		UpdatedAt:       p.UpdatedAt,
+	}
+}
+
+func toPaymentSplitResponse(s *model.PaymentSplit) paymentSplitResponse {
+	var staffName string
+	if s.PaidByStaff != nil {
+		staffName = s.PaidByStaff.Name
+	}
+	return paymentSplitResponse{
+		ID:              s.ID,
+		ClinicID:        s.ClinicID,
+		BillingID:       s.BillingID,
+		Method:          string(s.Method),
+		PaymentMethodID: s.PaymentMethodID,
+		Amount:          s.Amount,
+		ReceivedAmount:  s.ReceivedAmount,
+		ChangeAmount:    s.ChangeAmount,
+		PaidBy:          s.PaidBy,
+		PaidByName:      staffName,
+		CreatedAt:       s.CreatedAt,
 	}
 }
 
@@ -259,6 +294,10 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 	payments := make([]paymentResponse, 0, len(b.Payments))
 	for i := range b.Payments {
 		payments = append(payments, toPaymentResponse(&b.Payments[i]))
+	}
+	splits := make([]paymentSplitResponse, 0, len(b.PaymentSplits))
+	for i := range b.PaymentSplits {
+		splits = append(splits, toPaymentSplitResponse(&b.PaymentSplits[i]))
 	}
 	refunds := make([]refundResponse, 0, len(b.Refunds))
 	for i := range b.Refunds {
@@ -301,6 +340,7 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 		Memo:                b.Memo,
 		Items:               items,
 		Payments:            payments,
+		PaymentSplits:       splits,
 		Refunds:             refunds,
 		CreatedAt:           b.CreatedAt,
 		UpdatedAt:           b.UpdatedAt,

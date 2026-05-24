@@ -209,6 +209,16 @@ func TestExamTypeService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "creates exam type with is_non_insurance=true",
+			input: &CreateExamTypeInput{
+				Name:           "保険対象外検査",
+				IsActive:       true,
+				IsNonInsurance: true,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
 			name: "returns error when exam type already exists",
 			input: &CreateExamTypeInput{
 				Name:     "重複検査種別",
@@ -247,6 +257,7 @@ func TestExamTypeService_Create(t *testing.T) {
 				assert.NotNil(t, result)
 				assert.Equal(t, tt.input.Name, result.Name)
 				assert.Equal(t, uint64(1), result.ClinicID)
+				assert.Equal(t, tt.input.IsNonInsurance, result.IsNonInsurance)
 			}
 		})
 	}
@@ -328,6 +339,26 @@ func TestExamTypeService_Update(t *testing.T) {
 		result, err := svc.Update(context.Background(), 1, 1, nil)
 		assert.Error(t, err)
 		assert.Nil(t, result)
+	})
+
+	t.Run("is_non_insurance をトグル (false→true) できる", func(t *testing.T) {
+		nonIns := true
+		var capturedFields map[string]any
+		repo := &mockExamTypeRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ExaminationType, error) {
+				return &model.ExaminationType{ID: 1, IsNonInsurance: false}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.ExaminationType, error) {
+				capturedFields = fields
+				return &model.ExaminationType{ID: 1, IsNonInsurance: true}, nil
+			},
+		}
+		svc := NewExamTypeService(repo)
+		input := &UpdateExamTypeInput{IsNonInsurance: &nonIns}
+		result, err := svc.Update(context.Background(), 1, 1, input)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, true, capturedFields[colExamTypeIsNonInsurance])
 	})
 }
 

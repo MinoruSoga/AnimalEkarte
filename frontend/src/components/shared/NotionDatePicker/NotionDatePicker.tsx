@@ -344,6 +344,7 @@ function SinglePicker({
             onSelect={handleSelect}
             disabled={disabledDays}
             locale={ja}
+            fixedWeeks
             className="rounded-md pt-0"
             classNames={SINGLE_CALENDAR_CLASSES}
           />
@@ -493,6 +494,7 @@ function RangePicker({
             onSelect={handleSelect}
             numberOfMonths={2}
             locale={ja}
+            fixedWeeks
             className="rounded-md pt-0"
             classNames={RANGE_CALENDAR_CLASSES}
           />

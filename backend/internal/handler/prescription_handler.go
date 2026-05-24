@@ -152,7 +152,7 @@ func (h *Handler) DeletePrescription(c *gin.Context) {
 
 // RegisterPrescriptionRoutes は処方薬記録関連のルートを登録する
 func (h *Handler) RegisterPrescriptionRoutes(rg *gin.RouterGroup) {
-	rg.GET("/:id/prescriptions", h.ListPrescriptions)
+	rg.GET("/:id/prescriptions", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.ListPrescriptions)
 	rg.POST("/:id/prescriptions", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreatePrescription)
 	rg.PATCH("/:id/prescriptions/:prescriptionId", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdatePrescription)
 	rg.DELETE("/:id/prescriptions/:prescriptionId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeletePrescription)

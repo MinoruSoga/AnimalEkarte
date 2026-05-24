@@ -17,54 +17,133 @@ import (
 // 仕様: docs/line/lstep-integration.md Section 7.2
 type CPMStage string
 
+// タグプレフィックス定数 — lstep_auto_managed_prefixes (migration 006) の DB 登録値と一致させる。
+// これらの値は Lステップ側のタグ命名プロトコルとして固定されているため変更不可。
+// 検出ロジック（strings.HasPrefix）および生成ロジック（fmt.Sprintf/+）で使用する。
 const (
-	CPMStageEncounter CPMStage = "cpm_encounter" // 1回来院・LTV 20,000円未満
+	tagPrefixNextVisit   = "next_visit_"
+	tagPrefixRefillDue   = "refill_due_"
+	tagPrefixCheckupDone = "checkup_done_"
+	tagPrefixNextCheckup = "next_checkup_"
+	tagPrefixChronic     = "chronic_"
+)
+
+const (
+	// FEAT-375: 連続失敗 N 回で付与するエラー除外タグ
+	lstepErrorTag           = "EXCL_カルテ連携エラー"
+	lstepSyncErrorThreshold = 5
+
+	CPMStageEncounter CPMStage = "cpm_encounter" // 来院1回・LTV 20,000円未満（仕様書 §3 明示）
 	CPMStageGrowing   CPMStage = "cpm_growing"   // 2〜3回来院・90日以内・LTV 20,000〜50,000円
 	CPMStageCore      CPMStage = "cpm_core"      // 在籍180日以上・年間2回以上・LTV 50,000円以上
 	CPMStageSpot      CPMStage = "cpm_spot"      // 単回高額（30,000円以上）・90日超来院なし
 	CPMStageNoah      CPMStage = "cpm_noah"      // 在籍1年以上・年間3回以上・LTV 80,000円以上
 	CPMStageDormant   CPMStage = "cpm_dormant"   // 最終来院から240日超
+	// CPMStageUnclassified は全6ステージのいずれにも該当しない異常データ検出用。配信対象外のため allCPMStages には含めない。
+	CPMStageUnclassified CPMStage = "cpm_unclassified"
 )
 
 var allCPMStages = []CPMStage{
 	CPMStageEncounter, CPMStageGrowing, CPMStageCore, CPMStageSpot, CPMStageNoah, CPMStageDormant,
 }
 
+// CPMStageV2 は来院累計回数ベースの 5 段階 CPM ステージ（Q19 確定 2026-05-08）。
+type CPMStageV2 string
+
+const (
+	CPMStageV2Encounter CPMStageV2 = "CPM_01_出会い"   // 累計 0〜1 回
+	CPMStageV2Coming    CPMStageV2 = "CPM_02_これから"  // 累計 2〜3 回
+	CPMStageV2Good      CPMStageV2 = "CPM_03_いいかんじ" // 累計 4〜7 回
+	CPMStageV2Family    CPMStageV2 = "CPM_04_ファミリー" // 累計 8〜12 回
+	CPMStageV2Noah      CPMStageV2 = "CPM_05_ノア"    // 累計 13 回以上
+)
+
+var allCPMV2Stages = []CPMStageV2{
+	CPMStageV2Encounter, CPMStageV2Coming, CPMStageV2Good, CPMStageV2Family, CPMStageV2Noah,
+}
+
+// VISIT dormant タグ定数 — 重複付与可（複数閾値を同時保持）。
+const (
+	visitTag120 = "VISIT_120日超"
+	visitTag180 = "VISIT_180日超"
+	visitTag220 = "VISIT_220日超"
+	visitTag240 = "VISIT_240日超"
+	ltvTop20Tag = "LTV_上位20"
+)
+
+// CPMStageV2Input は CalculateCPMStageV2 に渡す集計データ（Q19 確定 2026-05-08）。
+type CPMStageV2Input struct {
+	TotalVisitCount int64                 // 累計来院回数
+	CPMV2Thresholds model.CPMV2Thresholds // クリニック単位閾値（0 以下はデフォルト補完）
+}
+
+// CalculateCPMStageV2 は累計来院回数ベースの V2 CPM ステージを計算する（Q19 確定 2026-05-08）。
+// 閾値は CPMV2Thresholds.WithDefaults() で補完される。
+func CalculateCPMStageV2(d CPMStageV2Input) CPMStageV2 {
+	t := d.CPMV2Thresholds.WithDefaults()
+	switch {
+	case d.TotalVisitCount >= int64(t.Noah):
+		return CPMStageV2Noah
+	case d.TotalVisitCount >= int64(t.Family):
+		return CPMStageV2Family
+	case d.TotalVisitCount >= int64(t.Good):
+		return CPMStageV2Good
+	case d.TotalVisitCount >= int64(t.Coming):
+		return CPMStageV2Coming
+	default: // 0 または 1 回
+		return CPMStageV2Encounter
+	}
+}
+
 // CPMData は CPM ステージ計算に必要な集計データ。
 type CPMData struct {
 	TotalVisitCount      int64
 	AnnualVisitCount     int64
-	DaysSinceVisit       int   // 最終来院からの経過日数（来院なし = -1）
-	LTVAmount            int64 // 支払済み累計金額（円）
-	FirstVisitDaysSince  int   // 初来院からの経過日数＝在籍期間（来院なし = -1）
-	MaxSingleVisitAmount int64 // 単回最大支払い額（cpm_spot 判定用）
+	DaysSinceVisit       int                   // 最終来院からの経過日数（来院なし = -1）
+	LTVAmount            int64                 // 支払済み累計金額（円）
+	FirstVisitDaysSince  int                   // 初来院からの経過日数＝在籍期間（来院なし = -1）
+	MaxSingleVisitAmount int64                 // 単回最大支払い額（cpm_spot 判定用）
+	Thresholds           model.CPMV1Thresholds // P2: 設定駆動閾値（ゼロ値は WithDefaults() で補完）
 }
 
 // CalculateCPMStage は純粋関数として CPM ステージを計算する（BE-004）。
 // 仕様: docs/line/lstep-integration.md Section 7.2
+//
+//nolint:gocritic // hugeParam: 純粋関数 API として immutable な値型で受け取る設計
 func CalculateCPMStage(d CPMData) CPMStage {
-	// cpm_dormant: 最終来院から240日超または来院なし（最優先）
-	if d.DaysSinceVisit < 0 || d.DaysSinceVisit >= 240 {
+	t := d.Thresholds.WithDefaults()
+	// cpm_dormant: 最終来院から DormantDays 日超または来院なし（最優先）
+	if d.DaysSinceVisit < 0 || d.DaysSinceVisit >= t.DormantDays {
 		return CPMStageDormant
 	}
-	// cpm_noah: 在籍1年以上、年間3回以上、LTV 80,000円以上
-	if d.FirstVisitDaysSince >= 365 && d.AnnualVisitCount >= 3 && d.LTVAmount >= 80_000 {
+	// cpm_noah: 在籍 NoahDays 日以上、年間 NoahAnnualVisits 回以上、LTV NoahLTV 円以上
+	// V1 cpm_noah は簡略 3 条件 (LTV/visit/在籍) で判定する。
+	// 仕様書 §3 の 5 条件記述は V2 詳細化対象であり、V1 では参照しない。
+	// PO-QA Q29 (2026-05-08 設計確定) — V1 簡略判定の役割分担を明記。
+	// 詳細条件追加は V2 (CalculateCPMStageV2) で対応すること。
+	if d.FirstVisitDaysSince >= t.NoahDays && d.AnnualVisitCount >= int64(t.NoahAnnualVisits) && d.LTVAmount >= t.NoahLTV {
 		return CPMStageNoah
 	}
-	// cpm_core: 在籍180日以上、年間2回以上、LTV 50,000円以上
-	if d.FirstVisitDaysSince >= 180 && d.AnnualVisitCount >= 2 && d.LTVAmount >= 50_000 {
+	// cpm_core: 在籍 CoreDays 日以上、年間 CoreAnnualVisits 回以上、LTV CoreLTV 円以上
+	if d.FirstVisitDaysSince >= t.CoreDays && d.AnnualVisitCount >= int64(t.CoreAnnualVisits) && d.LTVAmount >= t.CoreLTV {
 		return CPMStageCore
 	}
-	// cpm_spot: 単回高額（30,000円以上）かつ90日超来院なし
-	if d.MaxSingleVisitAmount >= 30_000 && d.DaysSinceVisit > 90 {
+	// cpm_spot: 単回高額（SpotMinAmount 円以上）かつ SpotInactiveDays 日超来院なし
+	if d.MaxSingleVisitAmount >= t.SpotMinAmount && d.DaysSinceVisit > t.SpotInactiveDays {
 		return CPMStageSpot
 	}
-	// cpm_growing: 2〜3回来院かつ90日以内に来院
-	if d.TotalVisitCount >= 2 && d.TotalVisitCount <= 3 && d.DaysSinceVisit <= 90 {
+	// cpm_growing: 初診から GrowingMaxDays 日以内 AND GrowingMinVisits〜GrowingMaxVisits 回来院 AND LTV LTVBreakLow〜CoreLTV 円未満
+	if d.FirstVisitDaysSince >= 0 && d.FirstVisitDaysSince <= t.GrowingMaxDays &&
+		d.TotalVisitCount >= int64(t.GrowingMinVisits) && d.TotalVisitCount <= int64(t.GrowingMaxVisits) &&
+		d.LTVAmount >= t.LTVBreakLow && d.LTVAmount < t.CoreLTV {
 		return CPMStageGrowing
 	}
-	// cpm_encounter: デフォルト（初来院・新規顧客）
-	return CPMStageEncounter
+	// cpm_encounter: 来院1回 AND LTV LTVBreakLow 円未満（仕様書 §3 明示判定）
+	if d.TotalVisitCount == 1 && d.LTVAmount < t.LTVBreakLow {
+		return CPMStageEncounter
+	}
+	// cpm_unclassified: 全6ステージのいずれにも該当しない異常データ（配信対象外）
+	return CPMStageUnclassified
 }
 
 // LstepTagSyncService は Lステップタグ同期の業務ロジックインターフェース（BE-003, BE-004, BE-005, BE-011）。
@@ -82,11 +161,6 @@ type LstepTagSyncService interface {
 	// SyncNextVisitTag は次回来院推奨日タグ（next_visit_YYYY-MM-DD）を同期する（BE-006）。
 	// 最新カルテの next_visit_recommended_date を参照し、古い next_visit_* タグを差し替える。
 	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncReservationTag は予約登録・変更時に reserved_YYYY-MM-DD タグを更新する（BE-007）。
-	// 旧 reserved_* / canceled_visit / no_show_* タグを解除してから新タグを付与する。
-	SyncReservationTag(ctx context.Context, clinicID, ownerID uint64, reservationDate time.Time) error
-	// SyncCancellationTag は予約キャンセル時に canceled_visit タグを付与し reserved_* を解除する（BE-007）。
-	SyncCancellationTag(ctx context.Context, clinicID, ownerID uint64, canceledDate time.Time) error
 	// SyncCheckupTag は健診記録の作成・更新時に checkup_done_{typeID}_{YYYY-MM}/next_checkup_* タグを同期する（BE-008）。
 	// 同一健診種別の古い checkup_done タグを解除してから新タグを付与する。next_checkup_* は最新1件のみ。
 	SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error
@@ -96,11 +170,54 @@ type LstepTagSyncService interface {
 	// SyncChronicConditionTags は慢性疾患フラグに基づき chronic_* タグを差分同期する（BE-012）。
 	// activeConditionCodes は飼い主の全生存ペットのアクティブ疾患コード一覧。
 	SyncChronicConditionTags(ctx context.Context, clinicID, ownerID uint64, activeConditionCodes []string) error
-	// SyncNoShowTag は予約ノーショウ時に no_show_YYYY-MM-DD タグを付与し reserved_* を解除する（BE-014）。
-	SyncNoShowTag(ctx context.Context, clinicID, ownerID uint64, reservationDate time.Time) error
 	// SyncDormantTags は最終来院からの経過日数に基づき dormant_* タグを差分同期する（BE-005）。
 	// daysSinceLastVisit < 0 は来院なしを表す。
 	SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error
+	// ResyncOwnerVaccineTags は飼い主の生存ワクチン記録から vaccine_* タグを再構築する（ISSUE-004）。
+	// 種別ごとに最新の接種日のみタグを保持する。レコードが0件の場合は全 vaccine_* タグを解除する。
+	ResyncOwnerVaccineTags(ctx context.Context, clinicID, ownerID uint64) error
+	// ResyncOwnerCheckupTags は飼い主の生存健診記録から checkup_done_* / next_checkup_* タグを再構築する（ISSUE-004）。
+	// 種別ごとに最新の検査日のみ保持。next_checkup は最新の next_date 1件のみ保持。
+	ResyncOwnerCheckupTags(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncCPMStageTagV2 は来院回数ベース V2 CPM ステージタグを同期する（FEAT-377）。
+	SyncCPMStageTagV2(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncLTVTopPercent は LTV 上位 20% の飼い主に LTV_上位20 タグを付与し、
+	// それ以外の飼い主から解除する（FEAT-377）。
+	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。
+	SyncLTVTopPercent(ctx context.Context, clinicID uint64) (int, []error)
+	// SyncVisitDormantTags は最終来院経過日数に基づき VISIT_* タグを差分同期する（FEAT-377）。
+	// VISIT タグは重複付与可（複数閾値を同時保持）。daysSinceLastVisit < 0 は来院なしを表す。
+	SyncVisitDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error
+	// SyncPetSpeciesTags は飼い主の生存ペット種別タグ（PET_犬あり / PET_猫あり）を同期する（FEAT-377）。
+	SyncPetSpeciesTags(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncSeniorTag は飼い主の生存ペットに 7 歳以上の犬猫がいる場合 PET_シニア対象 タグを付与する（FEAT-377）。
+	SyncSeniorTag(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncExclusionTags は配信停止条件（opt-out / 会員ステータス / 全ペット死亡）に基づき
+	// EXCL_配信停止 タグを同期する（FEAT-377）。
+	// 注: checkOptOut は呼ばない（このメソッド自体が opt-out 判定の実装）。
+	SyncExclusionTags(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncHealthcheckTags は健診履歴に基づき HLTH_健診あり / HLTH_健診未受診 タグを同期する（FEAT-379）。
+	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
+	SyncHealthcheckTags(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncAnnual4CheckupTag は年2回以上来院かつ健診履歴がある飼い主に HLTH_年4回候補 タグを付与する（FEAT-379）。
+	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
+	SyncAnnual4CheckupTag(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncVaccineDeadlineTag はワクチン次回予定日が VaccineDeadlineDays 以内に迫っている場合
+	// PREV_ワクチン期限 タグを付与し、それ以外は解除する（FEAT-379）。
+	SyncVaccineDeadlineTag(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncFilariaTag はフィラリア検査・予防薬処方履歴に基づき PREV_フィラリア未完了 タグを同期する（FEAT-379）。
+	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
+	SyncFilariaTag(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncFleaTickTag はノミ・マダニ駆除薬処方履歴に基づき PREV_ノミダニ対象 タグを同期する（FEAT-379）。
+	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
+	SyncFleaTickTag(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncFoodPurchaseTag はフード購入履歴に基づき LTV_フード購入あり タグを同期する（FEAT-379）。
+	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
+	SyncFoodPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncHealthPreventionTagsForClinic は指定クリニックの全飼い主に対して
+	// 健診・予防・物販タグを一括同期する（FEAT-379 バッチエントリポイント）。
+	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。
+	SyncHealthPreventionTagsForClinic(ctx context.Context, clinicID uint64) (int, []error)
 }
 
 type lstepTagSyncService struct {
@@ -112,9 +229,20 @@ type lstepTagSyncService struct {
 	tagCacheRepo     repository.LstepTagCacheRepository
 	petRepo          repository.PetRepository
 	prescriptionRepo repository.PrescriptionRepository
+	checkupRepo      repository.CheckupRepository
+	reservationRepo  repository.ReservationCRUDRepository
+	errorCounterRepo repository.LstepSyncErrorCounterRepository
+	// FEAT-379
+	tagCodeRepo     repository.LstepTagCodeMappingRepository
+	billingItemRepo repository.BillingItemRepository
+	// 動的タグ設定 (B/C1/C2/C3)
+	tagConfigRepo repository.LstepTagConfigRepository
+	// buildClientFn はテスト時にモック Client を注入するためのフック（FEAT-381-2）。
+	buildClientFn func(ctx context.Context, clinicID uint64) (lstep.Client, error)
 }
 
 // NewLstepTagSyncService は LstepTagSyncService を初期化して返す。
+// tagConfigRepo が nil の場合は動的プレフィックス/条件マッピングを使用しない。
 func NewLstepTagSyncService(
 	settingsSvc LstepSettingsService,
 	ownerRepo repository.OwnerRepository,
@@ -124,6 +252,12 @@ func NewLstepTagSyncService(
 	tagCacheRepo repository.LstepTagCacheRepository,
 	petRepo repository.PetRepository,
 	prescriptionRepo repository.PrescriptionRepository,
+	checkupRepo repository.CheckupRepository,
+	reservationRepo repository.ReservationCRUDRepository,
+	errorCounterRepo repository.LstepSyncErrorCounterRepository,
+	tagCodeRepo repository.LstepTagCodeMappingRepository,
+	billingItemRepo repository.BillingItemRepository,
+	tagConfigRepo repository.LstepTagConfigRepository,
 ) LstepTagSyncService {
 	return &lstepTagSyncService{
 		settingsSvc:      settingsSvc,
@@ -134,12 +268,28 @@ func NewLstepTagSyncService(
 		tagCacheRepo:     tagCacheRepo,
 		petRepo:          petRepo,
 		prescriptionRepo: prescriptionRepo,
+		checkupRepo:      checkupRepo,
+		reservationRepo:  reservationRepo,
+		errorCounterRepo: errorCounterRepo,
+		tagCodeRepo:      tagCodeRepo,
+		billingItemRepo:  billingItemRepo,
+		tagConfigRepo:    tagConfigRepo,
 	}
 }
 
 // buildClient はクリニック設定から lstep.Client を構築する。
-// API キーが未設定の場合は nil, nil を返す（設定前はスキップ）。
+// 同期無効（is_sync_enabled=false）または API キー未設定の場合は nil, nil を返す（スキップ）。
 func (s *lstepTagSyncService) buildClient(ctx context.Context, clinicID uint64) (lstep.Client, error) {
+	if s.buildClientFn != nil {
+		return s.buildClientFn(ctx, clinicID)
+	}
+	enabled, err := s.settingsSvc.IsSyncEnabled(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to check lstep sync enabled")
+	}
+	if !enabled {
+		return nil, nil
+	}
 	apiKey, baseURL, _, err := s.settingsSvc.GetRawCredentials(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get lstep credentials")
@@ -148,6 +298,21 @@ func (s *lstepTagSyncService) buildClient(ctx context.Context, clinicID uint64) 
 		return nil, nil
 	}
 	return lstep.NewClient(apiKey, baseURL), nil
+}
+
+func (s *lstepTagSyncService) shouldSkipSync(ctx context.Context, clinicID uint64) (bool, error) {
+	if s.settingsSvc == nil {
+		return true, nil
+	}
+	enabled, err := s.settingsSvc.IsSyncEnabled(ctx, clinicID)
+	if err != nil {
+		return false, apperrors.Wrap(err, "failed to check lstep sync enabled")
+	}
+	if !enabled {
+		slog.InfoContext(ctx, "lstep sync skipped: clinic sync disabled", "clinic_id", clinicID)
+		return true, nil
+	}
+	return false, nil
 }
 
 // checkOptOut は飼い主のオプトアウト状態を確認する。
@@ -167,6 +332,11 @@ func (s *lstepTagSyncService) checkOptOut(ctx context.Context, clinicID, ownerID
 // SyncVaccineTag はワクチン接種記録からタグを同期する（BE-003）。
 // 接種種別（dog/cat）とラビーズを date 付きタグとして付与する。
 func (s *lstepTagSyncService) SyncVaccineTag(ctx context.Context, clinicID, ownerID, vaccinationID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for vaccine tag sync", "error", err)
@@ -205,17 +375,21 @@ func (s *lstepTagSyncService) SyncVaccineTag(ctx context.Context, clinicID, owne
 	for _, t := range tags {
 		newTagSet[t] = struct{}{}
 	}
-	s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
+	apiFailed := s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
 		[]string{"vaccine_dog_", "vaccine_cat_", "vaccine_rabies_"}, newTagSet)
 
 	for _, tag := range tags {
 		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
 			slog.ErrorContext(ctx, "failed to add vaccine tag", "error", addErr, "tag", tag)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add vaccine tag %s", tag))
 		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto"); cacheErr != nil {
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert tag cache", "error", cacheErr, "tag", tag)
 		}
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}
 	return nil
 }
@@ -253,6 +427,11 @@ func isRabiesVaccine(name string) bool {
 
 // SyncOwnerAnimalClassificationTags は飼い主の動物分類タグを同期する（BE-005）。
 func (s *lstepTagSyncService) SyncOwnerAnimalClassificationTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for animal classification tags", "error", err)
@@ -306,33 +485,48 @@ func (s *lstepTagSyncService) SyncOwnerAnimalClassificationTags(ctx context.Cont
 	}
 
 	// 旧分類タグを全削除してから新タグを付与
+	apiFailed := false
 	for _, old := range []string{"has_dog", "has_cat", "has_both"} {
 		if old == newTag {
 			continue
 		}
 		if delErr := client.RemoveTag(ctx, lineUserID, old); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove old classification tag", "error", delErr, "tag", old)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
 		} else {
 			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, old)
 		}
 	}
 
 	if newTag == "" {
+		if !apiFailed {
+			s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+		}
 		return nil
 	}
 
 	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
 		slog.ErrorContext(ctx, "failed to add classification tag", "error", addErr, "tag", newTag)
+		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, fmt.Sprintf("failed to add classification tag %s", newTag))
 	}
-	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto"); cacheErr != nil {
+	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); cacheErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert classification tag cache", "error", cacheErr, "tag", newTag)
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}
 	return nil
 }
 
 // SyncPetBasicInfoTags は全生存ペットの基本情報タグを同期する（BE-005）。
 func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for pet basic info tags", "error", err)
@@ -359,6 +553,17 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 		return apperrors.Wrap(err, "failed to find tag cache")
 	}
 
+	// C1 プレフィックスを DB から一括ロード（ループ外で 1 回のみ）
+	var c1Prefixes []*model.LstepAutoManagedPrefix
+	if s.tagConfigRepo != nil {
+		loaded, loadErr := s.tagConfigRepo.FindAllAutoManagedPrefixes(ctx)
+		if loadErr != nil {
+			slog.ErrorContext(ctx, "failed to load auto managed prefixes for pet basic info sync", "error", loadErr)
+			return apperrors.Wrap(loadErr, "failed to load auto managed prefixes")
+		}
+		c1Prefixes = loaded
+	}
+
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
 		return err
@@ -371,7 +576,7 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 
 	oldSet := make(map[string]struct{})
 	for _, c := range cachedTags {
-		if isPetBasicInfoTag(c.TagName) {
+		if isPetBasicInfoTagWithPrefixes(c.TagName, c1Prefixes) {
 			oldSet[c.TagName] = struct{}{}
 		}
 	}
@@ -382,12 +587,15 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 	}
 
 	// 不要になったタグを削除
+	apiFailed := false
 	for old := range oldSet {
 		if _, keep := newSet[old]; keep {
 			continue
 		}
 		if delErr := client.RemoveTag(ctx, lineUserID, old); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove stale pet basic info tag", "error", delErr, "tag", old)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
 		} else {
 			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, old)
 		}
@@ -400,11 +608,15 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 		}
 		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
 			slog.ErrorContext(ctx, "failed to add pet basic info tag", "error", addErr, "tag", tag)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add pet basic info tag %s", tag))
 		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto"); cacheErr != nil {
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert pet basic info tag cache", "error", cacheErr, "tag", tag)
 		}
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}
 	return nil
 }
@@ -461,18 +673,27 @@ func buildPetBasicInfoTags(pets []model.Pet) []string {
 	return tags
 }
 
-// isPetBasicInfoTag は BE-005 ペット基本情報カテゴリのタグかを判定する。
-func isPetBasicInfoTag(tag string) bool {
-	return strings.HasPrefix(tag, "breed_") ||
-		strings.HasPrefix(tag, "sex_") ||
-		strings.HasPrefix(tag, "pet_birthday_") ||
-		strings.HasPrefix(tag, "birth_year_") ||
-		tag == "spay_neutered" ||
-		tag == "intact"
+// isPetBasicInfoTagWithPrefixes は BE-005 ペット基本情報カテゴリ (C1) のタグかを判定する（純粋関数）。
+// dbPrefixes は lstep_auto_managed_prefixes テーブルから取得した C1 カテゴリのレコード。
+func isPetBasicInfoTagWithPrefixes(tag string, dbPrefixes []*model.LstepAutoManagedPrefix) bool {
+	for _, p := range dbPrefixes {
+		if p.Category != "C1" {
+			continue
+		}
+		if tag == p.Prefix || strings.HasPrefix(tag, p.Prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // SyncVisitCompletionTags は診療完了時の来院・LTV タグを同期する（BE-004）。
 func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for visit tags sync", "error", err)
@@ -513,29 +734,32 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 	for _, t := range tags {
 		newTagSet[t] = struct{}{}
 	}
-	s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
+	apiFailed := s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
 		[]string{"ltv_amount_", "visit_count_annual_", "first_visit_", "last_visit_"}, newTagSet)
 
 	for _, tag := range tags {
 		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
 			slog.ErrorContext(ctx, "failed to add visit tag", "error", addErr, "tag", tag)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add visit tag %s", tag))
 		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto"); cacheErr != nil {
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert tag cache", "error", cacheErr, "tag", tag)
 		}
 	}
 
-	// 来院完了でキャッシュ経由の予約関連タグ（reserved_* / canceled_visit / no_show_*）とdormantタグを削除
+	// 来院完了でキャッシュ経由のdormantタグを削除
 	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load tag cache for visit completion cleanup", "error", err)
 		return apperrors.Wrap(err, "failed to load tag cache")
 	}
 	for _, c := range cached {
-		if isReservationRelatedTag(c.TagName) || isDormantTag(c.TagName) || c.TagName == "cpm_dormant" {
+		if isDormantTag(c.TagName) || isVisitDormantTag(c.TagName) || c.TagName == "cpm_dormant" {
 			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove reservation/dormant tag on visit completion", "error", delErr, "tag", c.TagName)
+				slog.ErrorContext(ctx, "failed to remove dormant tag on visit completion", "error", delErr, "tag", c.TagName)
+				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+				apiFailed = true
 			} else {
 				_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName)
 			}
@@ -545,11 +769,16 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 	for _, staleTag := range []string{"dormant", "noshow", "reserved"} {
 		if delErr := client.RemoveTag(ctx, lineUserID, staleTag); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove stale legacy tag", "error", delErr, "tag", staleTag)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
 		} else {
 			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, staleTag)
 		}
 	}
 
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
 	return nil
 }
 
@@ -599,14 +828,20 @@ func isDormantTag(tag string) bool {
 	return tag == "dormant_180d" || tag == "dormant_210d" || tag == "dormant_240d" || tag == "dormant_365d"
 }
 
+// isVisitDormantTag は VISIT_* 系タグかどうかを判定する（FEAT-377）。
+func isVisitDormantTag(tag string) bool {
+	return tag == visitTag120 || tag == visitTag180 || tag == visitTag220 || tag == visitTag240
+}
+
 // removeStaleTagsByPrefixes はキャッシュ内で指定プレフィックスに一致する古いタグを Lステップから解除する（ISSUE-006）。
 // 同一カテゴリ1タグ保持ルールのための前処理として呼ぶ。
-func (s *lstepTagSyncService) removeStaleTagsByPrefixes(ctx context.Context, client lstep.Client, clinicID, ownerID uint64, lineUserID string, prefixes []string, skipTags map[string]struct{}) {
+func (s *lstepTagSyncService) removeStaleTagsByPrefixes(ctx context.Context, client lstep.Client, clinicID, ownerID uint64, lineUserID string, prefixes []string, skipTags map[string]struct{}) bool {
 	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load tag cache for stale cleanup", "error", err)
-		return
+		return false
 	}
+	apiFailed := false
 	for _, c := range cached {
 		if _, skip := skipTags[c.TagName]; skip {
 			continue
@@ -615,6 +850,8 @@ func (s *lstepTagSyncService) removeStaleTagsByPrefixes(ctx context.Context, cli
 			if strings.HasPrefix(c.TagName, pfx) {
 				if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
 					slog.ErrorContext(ctx, "failed to remove stale tag", "error", delErr, "tag", c.TagName)
+					s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+					apiFailed = true
 				} else {
 					_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName)
 				}
@@ -622,12 +859,18 @@ func (s *lstepTagSyncService) removeStaleTagsByPrefixes(ctx context.Context, cli
 			}
 		}
 	}
+	return apiFailed
 }
 
 // SyncNextVisitTag は次回来院推奨日タグを同期する（BE-006）。
 // 最新カルテの next_visit_recommended_date を参照し、古い next_visit_* タグを差し替える。
 // date が nil の場合はすべての next_visit_* タグを削除する。
 func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for next visit tag sync", "error", err)
@@ -663,10 +906,14 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 		slog.ErrorContext(ctx, "failed to load tag cache for next visit tag sync", "error", err)
 		return apperrors.Wrap(err, "failed to load tag cache")
 	}
+	apiFailed := false
 	for _, c := range cached {
-		if strings.HasPrefix(c.TagName, "next_visit_") {
+		if strings.HasPrefix(c.TagName, tagPrefixNextVisit) {
 			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
 				slog.ErrorContext(ctx, "failed to remove next_visit tag", "error", delErr, "tag", c.TagName)
+				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+				apiFailed = true
+				continue
 			}
 			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
 				slog.ErrorContext(ctx, "failed to delete next_visit tag cache", "error", delErr, "tag", c.TagName)
@@ -676,21 +923,42 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 
 	// 新しい next_visit_YYYY-MM-DD タグを付与（日付が設定されている場合のみ）
 	if latest == nil || latest.NextVisitRecommendedDate == nil {
+		if !apiFailed {
+			s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+		}
 		return nil
 	}
-	newTag := "next_visit_" + latest.NextVisitRecommendedDate.Format("2006-01-02")
+	newTag := tagPrefixNextVisit + latest.NextVisitRecommendedDate.Format("2006-01-02")
 	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
 		slog.ErrorContext(ctx, "failed to add next_visit tag", "error", addErr, "tag", newTag)
+		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add next_visit tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert next_visit tag cache", "error", upsertErr)
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}
 	return nil
 }
 
 // SyncCPMStageTag は CPM ステージタグを同期する（BE-011）。
+// cpm_version が "v2" のクリニックは SyncCPMStageTagV2 に委譲する（Q19）。
 func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error {
+	version, vErr := s.settingsSvc.GetCPMVersion(ctx, clinicID)
+	if vErr != nil {
+		slog.ErrorContext(ctx, "failed to get cpm_version for CPM dispatch", "error", vErr)
+		return apperrors.Wrap(vErr, "failed to get cpm_version")
+	}
+	if version == "v2" {
+		return s.SyncCPMStageTagV2(ctx, clinicID, ownerID)
+	}
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for CPM tag sync", "error", err)
@@ -721,6 +989,12 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 		return apperrors.Wrap(err, "failed to get max single visit amount")
 	}
 
+	thresholds, err := s.settingsSvc.GetCPMV1Thresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get cpm v1 thresholds", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get cpm v1 thresholds")
+	}
+
 	daysSince := -1
 	if summary.LastVisitAt != nil {
 		daysSince = int(time.Since(*summary.LastVisitAt).Hours() / 24)
@@ -737,6 +1011,7 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 		LTVAmount:            ltv,
 		FirstVisitDaysSince:  firstVisitDaysSince,
 		MaxSingleVisitAmount: maxSingle,
+		Thresholds:           thresholds,
 	})
 
 	client, err := s.buildClient(ctx, clinicID)
@@ -750,12 +1025,15 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 	lineUserID := *owner.LineUserID
 
 	// 旧ステージタグをすべて削除してから新ステージを付与
+	apiFailed := false
 	for _, old := range allCPMStages {
 		if string(old) == string(stage) {
 			continue
 		}
 		if delErr := client.RemoveTag(ctx, lineUserID, string(old)); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove old CPM stage tag", "error", delErr, "tag", old)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
 		} else {
 			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, string(old))
 		}
@@ -763,130 +1041,28 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 
 	if addErr := client.AddTag(ctx, lineUserID, string(stage)); addErr != nil {
 		slog.ErrorContext(ctx, "failed to add CPM stage tag", "error", addErr, "stage", stage)
+		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add CPM stage tag")
 	}
-	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, string(stage), "auto"); cacheErr != nil {
+	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, string(stage), "auto", ""); cacheErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert CPM stage tag cache", "error", cacheErr)
 	}
 
-	return nil
-}
-
-// SyncReservationTag は予約登録・変更時に reserved_YYYY-MM-DD タグを更新する（BE-007）。
-// 旧 reserved_* / canceled_visit / no_show_* タグを解除してから新タグを付与する。
-func (s *lstepTagSyncService) SyncReservationTag(ctx context.Context, clinicID, ownerID uint64, reservationDate time.Time) error {
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for reservation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
-	}
-	if optOut {
-		return nil
-	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
-
-	client, err := s.buildClient(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to build lstep client for reservation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to build lstep client")
-	}
-	if client == nil {
-		return nil
-	}
-
-	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to load tag cache for reservation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to load tag cache")
-	}
-	for _, c := range cached {
-		if isReservationRelatedTag(c.TagName) {
-			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove stale reservation tag", "error", delErr, "tag", c.TagName)
-			}
-			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to delete stale reservation tag cache", "error", delErr, "tag", c.TagName)
-			}
-		}
-	}
-
-	newTag := "reserved_" + reservationDate.Format("2006-01-02")
-	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add reservation tag", "error", addErr, "tag", newTag)
-		return apperrors.Wrap(addErr, "failed to add reservation tag")
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto"); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert reservation tag cache", "error", upsertErr)
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}
 	return nil
-}
-
-// SyncCancellationTag は予約キャンセル時に canceled_visit タグを付与し reserved_* を解除する（BE-007）。
-func (s *lstepTagSyncService) SyncCancellationTag(ctx context.Context, clinicID, ownerID uint64, canceledDate time.Time) error {
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for cancellation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
-	}
-	if optOut {
-		return nil
-	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
-
-	client, err := s.buildClient(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to build lstep client for cancellation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to build lstep client")
-	}
-	if client == nil {
-		return nil
-	}
-
-	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to load tag cache for cancellation tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to load tag cache")
-	}
-	for _, c := range cached {
-		if strings.HasPrefix(c.TagName, "reserved_") {
-			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove reserved tag on cancellation", "error", delErr, "tag", c.TagName)
-			}
-			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to delete reserved tag cache on cancellation", "error", delErr, "tag", c.TagName)
-			}
-		}
-	}
-
-	const canceledVisitTag = "canceled_visit"
-	if addErr := client.AddTag(ctx, lineUserID, canceledVisitTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add canceled_visit tag", "error", addErr)
-		return apperrors.Wrap(addErr, "failed to add canceled_visit tag")
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, canceledVisitTag, "auto"); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert canceled_visit tag cache", "error", upsertErr)
-	}
-	_ = canceledDate // 将来的に canceled_visit_YYYY-MM-DD 形式に拡張する場合に使用
-	return nil
-}
-
-// isReservationRelatedTag は BE-007 予約関連タグ（reserved_* / canceled_visit / no_show_*）かを判定する。
-func isReservationRelatedTag(tag string) bool {
-	return strings.HasPrefix(tag, "reserved_") ||
-		tag == "canceled_visit" ||
-		strings.HasPrefix(tag, "no_show_")
 }
 
 // SyncPrescriptionTag は飼い主の全アクティブ処方を取得し、補充推奨日が最も遅い処方に基づいて
 // refill_due_* タグを更新する（BE-009）。duration_days < 7 の場合は prescribed_at + 1 日を使用する。
 // 最新の refill_due が現在日時を過ぎている場合は refill_due_* タグをすべて削除して終了する。
 func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for prescription tag sync", "error", err)
@@ -937,10 +1113,14 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 		slog.ErrorContext(ctx, "failed to load tag cache for prescription tag sync", "error", err)
 		return apperrors.Wrap(err, "failed to load tag cache")
 	}
+	apiFailed := false
 	for _, c := range cached {
-		if strings.HasPrefix(c.TagName, "refill_due_") {
+		if strings.HasPrefix(c.TagName, tagPrefixRefillDue) {
 			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
 				slog.ErrorContext(ctx, "failed to remove stale refill_due tag", "error", delErr, "tag", c.TagName)
+				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+				apiFailed = true
+				continue
 			}
 			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
 				slog.ErrorContext(ctx, "failed to delete refill_due tag cache", "error", delErr, "tag", c.TagName)
@@ -950,15 +1130,22 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 
 	// 補充推奨日が未来にある場合のみ新タグを付与
 	if latestRefillDue == nil || !latestRefillDue.After(time.Now()) {
+		if !apiFailed {
+			s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+		}
 		return nil
 	}
-	newTag := fmt.Sprintf("refill_due_%s", latestRefillDue.Format("2006-01-02"))
+	newTag := tagPrefixRefillDue + latestRefillDue.Format("2006-01-02")
 	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
 		slog.ErrorContext(ctx, "failed to add refill_due tag", "error", addErr, "tag", newTag)
+		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add refill_due tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert refill_due tag cache", "error", upsertErr)
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}
 	return nil
 }
@@ -966,6 +1153,11 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 // SyncCheckupTag は健診記録の作成・更新時に checkup_done_{typeID}_{YYYY-MM}/next_checkup_* タグを同期する（BE-008）。
 // 同一健診種別の古い checkup_done タグを解除してから新タグを付与する。next_checkup_* は最新1件のみ。
 func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for checkup tag sync", "error", err)
@@ -989,16 +1181,20 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 	}
 
 	// 同一健診種別の古い checkup_done タグ + next_checkup_* タグをキャッシュ経由で削除
-	stalePrefix := fmt.Sprintf("checkup_done_%d_", checkupTypeID)
+	stalePrefix := fmt.Sprintf("%s%d_", tagPrefixCheckupDone, checkupTypeID)
 	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load tag cache for checkup tag sync", "error", err)
 		return apperrors.Wrap(err, "failed to load tag cache")
 	}
+	apiFailed := false
 	for _, c := range cached {
-		if strings.HasPrefix(c.TagName, stalePrefix) || strings.HasPrefix(c.TagName, "next_checkup_") {
+		if strings.HasPrefix(c.TagName, stalePrefix) || strings.HasPrefix(c.TagName, tagPrefixNextCheckup) {
 			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
 				slog.ErrorContext(ctx, "failed to remove stale checkup tag", "error", delErr, "tag", c.TagName)
+				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+				apiFailed = true
+				continue
 			}
 			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
 				slog.ErrorContext(ctx, "failed to delete checkup tag cache", "error", delErr, "tag", c.TagName)
@@ -1007,43 +1203,51 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 	}
 
 	// checkup_done_{typeID}_{YYYY-MM} タグを付与
-	checkupTag := fmt.Sprintf("checkup_done_%d_%s", checkupTypeID, checkupDate.Format("2006-01"))
+	checkupTag := fmt.Sprintf("%s%d_%s", tagPrefixCheckupDone, checkupTypeID, checkupDate.Format("2006-01"))
 	if addErr := client.AddTag(ctx, lineUserID, checkupTag); addErr != nil {
 		slog.ErrorContext(ctx, "failed to add checkup tag", "error", addErr, "tag", checkupTag)
+		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add checkup tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, checkupTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, checkupTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert checkup tag cache", "error", upsertErr)
 	}
 
 	// next_checkup_YYYY-MM-DD タグを付与（設定時のみ）
 	if nextDate != nil {
-		nextTag := "next_checkup_" + nextDate.Format("2006-01-02")
+		nextTag := tagPrefixNextCheckup + nextDate.Format("2006-01-02")
 		if addErr := client.AddTag(ctx, lineUserID, nextTag); addErr != nil {
 			slog.ErrorContext(ctx, "failed to add next_checkup tag", "error", addErr, "tag", nextTag)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add next_checkup tag")
 		}
-		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, nextTag, "auto"); upsertErr != nil {
+		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, nextTag, "auto", ""); upsertErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert next_checkup tag cache", "error", upsertErr)
 		}
 	}
 
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
 	return nil
 }
 
-// conditionTagMap は疾患コードとLステップタグ名のマッピング（BE-012）。
-var conditionTagMap = map[string]string{
-	"ckd":      "chronic_ckd",
-	"heart":    "chronic_heart",
-	"skin":     "chronic_skin",
-	"diabetes": "chronic_diabetes",
-	"liver":    "chronic_liver",
-	"thyroid":  "chronic_thyroid",
-	"other":    "chronic_other",
+// conditionTagMapFromMappings は DB レコードを疾患コード→タグ名マップに変換する（純粋関数）。
+func conditionTagMapFromMappings(mappings []*model.LstepConditionTagMapping) map[string]string {
+	m := make(map[string]string, len(mappings))
+	for _, mapping := range mappings {
+		m[mapping.ConditionCode] = mapping.TagName
+	}
+	return m
 }
 
 // SyncChronicConditionTags は慢性疾患タグを差分同期する（BE-012）。
 func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clinicID, ownerID uint64, activeConditionCodes []string) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for chronic condition tag sync", "error", err)
@@ -1066,10 +1270,23 @@ func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clin
 		return nil
 	}
 
+	// 慢性疾患コードマッピングを DB から取得
+	var conditionMap map[string]string
+	if s.tagConfigRepo != nil {
+		mappings, loadErr := s.tagConfigRepo.FindAllConditionTagMappings(ctx)
+		if loadErr != nil {
+			slog.ErrorContext(ctx, "failed to load condition tag mappings", "error", loadErr)
+			return apperrors.Wrap(loadErr, "failed to load condition tag mappings")
+		}
+		conditionMap = conditionTagMapFromMappings(mappings)
+	} else {
+		conditionMap = map[string]string{}
+	}
+
 	// 目標タグセットを構築
 	activeTags := make(map[string]bool, len(activeConditionCodes))
 	for _, code := range activeConditionCodes {
-		if tag, ok := conditionTagMap[code]; ok {
+		if tag, ok := conditionMap[code]; ok {
 			activeTags[tag] = true
 		}
 	}
@@ -1082,8 +1299,9 @@ func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clin
 	}
 
 	existingSet := make(map[string]bool, len(cached))
+	apiFailed := false
 	for _, t := range cached {
-		if !strings.HasPrefix(t.TagName, "chronic_") {
+		if !strings.HasPrefix(t.TagName, tagPrefixChronic) {
 			continue
 		}
 		existingSet[t.TagName] = true
@@ -1094,6 +1312,9 @@ func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clin
 		}
 		if rmErr := client.RemoveTag(ctx, lineUserID, t.TagName); rmErr != nil {
 			slog.WarnContext(ctx, "failed to remove chronic tag via lstep api", "tag", t.TagName, "error", rmErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+			continue
 		}
 		if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName); delErr != nil {
 			slog.ErrorContext(ctx, "failed to delete chronic tag cache", "tag", t.TagName, "error", delErr)
@@ -1107,20 +1328,33 @@ func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clin
 		}
 		if addErr := client.AddTag(ctx, lineUserID, tagName); addErr != nil {
 			slog.WarnContext(ctx, "failed to add chronic tag via lstep api", "tag", tagName, "error", addErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+			continue
 		}
-		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tagName, "auto"); upsertErr != nil {
+		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tagName, "auto", ""); upsertErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert chronic tag cache", "tag", tagName, "error", upsertErr)
 		}
 	}
 
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
 	return nil
 }
 
-// SyncNoShowTag は予約ノーショウ時に no_show_YYYY-MM-DD タグを付与し reserved_* を解除する（BE-014）。
-func (s *lstepTagSyncService) SyncNoShowTag(ctx context.Context, clinicID, ownerID uint64, reservationDate time.Time) error {
+// ResyncOwnerVaccineTags は飼い主の生存ワクチン記録から vaccine_* タグを再構築する（ISSUE-004）。
+// 接種記録の更新・削除後に呼び出すこと。種別ごとに最新の接種日のみタグを保持する。
+// 記録が0件の場合は全 vaccine_* タグを解除する。
+func (s *lstepTagSyncService) ResyncOwnerVaccineTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for no-show tag sync", "error", err)
+		slog.ErrorContext(ctx, "failed to check opt-out for vaccine resync", "error", err)
 		return apperrors.Wrap(err, "failed to check opt-out")
 	}
 	if optOut {
@@ -1133,49 +1367,188 @@ func (s *lstepTagSyncService) SyncNoShowTag(ctx context.Context, clinicID, owner
 
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to build lstep client for no-show tag sync", "error", err)
+		slog.ErrorContext(ctx, "failed to build lstep client for vaccine resync", "error", err)
 		return apperrors.Wrap(err, "failed to build lstep client")
 	}
 	if client == nil {
 		return nil
 	}
 
-	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
+	vaccinations, err := s.vacRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load tag cache for no-show tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to load tag cache")
-	}
-	for _, c := range cached {
-		if strings.HasPrefix(c.TagName, "reserved_") {
-			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove reserved tag on no-show", "error", delErr, "tag", c.TagName)
-			}
-			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to delete reserved tag cache on no-show", "error", delErr, "tag", c.TagName)
-			}
-		}
+		slog.ErrorContext(ctx, "failed to find vaccinations for resync", "error", err)
+		return apperrors.Wrap(err, "failed to find vaccinations")
 	}
 
-	noShowTag := "no_show_" + reservationDate.Format("2006-01-02")
-	if addErr := client.AddTag(ctx, lineUserID, noShowTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add no_show tag", "error", addErr, "tag", noShowTag)
-		return apperrors.Wrap(addErr, "failed to add no_show tag")
+	newTagSet := buildLatestVaccineTagSet(vaccinations)
+
+	apiFailed := s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
+		[]string{"vaccine_dog_", "vaccine_cat_", "vaccine_rabies_"}, newTagSet)
+
+	for tag := range newTagSet {
+		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add vaccine tag on resync", "error", addErr, "tag", tag)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add vaccine tag %s", tag))
+		}
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
+			slog.ErrorContext(ctx, "failed to upsert vaccine tag cache on resync", "error", cacheErr, "tag", tag)
+		}
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, noShowTag, "auto"); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert no_show tag cache", "error", upsertErr)
-	}
-	// 汎用ノーショウタグ: シナリオ共通で使用
-	if addErr := client.AddTag(ctx, lineUserID, "no_show_visit"); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add no_show_visit tag", "error", addErr)
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, "no_show_visit", "auto"); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert no_show_visit tag cache", "error", upsertErr)
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}
 	return nil
 }
 
+// buildLatestVaccineTagSet は接種記録一覧から「種別ごとの最新接種日」のタグ集合を返す。
+// 同一種別に複数記録がある場合は最も新しい date のタグのみを採用する。
+func buildLatestVaccineTagSet(vaccinations []model.Vaccination) map[string]struct{} {
+	latestByPrefix := make(map[string]time.Time)
+	updateLatest := func(prefix string, date time.Time) {
+		if cur, ok := latestByPrefix[prefix]; !ok || date.After(cur) {
+			latestByPrefix[prefix] = date
+		}
+	}
+	for i := range vaccinations {
+		v := &vaccinations[i]
+		if v.Vaccine == nil {
+			continue
+		}
+		species := v.Vaccine.Species
+		if species != nil {
+			switch *species {
+			case model.VaccineSpeciesDog:
+				updateLatest("vaccine_dog_", v.Date)
+			case model.VaccineSpeciesCat:
+				updateLatest("vaccine_cat_", v.Date)
+			case model.VaccineSpeciesBoth:
+				updateLatest("vaccine_dog_", v.Date)
+				updateLatest("vaccine_cat_", v.Date)
+			}
+		}
+		if isRabiesVaccine(v.Vaccine.Name) {
+			updateLatest("vaccine_rabies_", v.Date)
+		}
+	}
+	tagSet := make(map[string]struct{}, len(latestByPrefix))
+	for prefix, date := range latestByPrefix {
+		tagSet[prefix+date.Format("2006-01-02")] = struct{}{}
+	}
+	return tagSet
+}
+
+// ResyncOwnerCheckupTags は飼い主の生存健診記録から checkup_done_* / next_checkup_* タグを再構築する（ISSUE-004）。
+// 健診の更新・削除後に呼び出すこと。同一健診種別では最新検査日のみ保持。next_checkup は最遠の next_date のみ保持。
+func (s *lstepTagSyncService) ResyncOwnerCheckupTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for checkup resync", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to build lstep client for checkup resync", "error", err)
+		return apperrors.Wrap(err, "failed to build lstep client")
+	}
+	if client == nil {
+		return nil
+	}
+
+	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find checkups for resync", "error", err)
+		return apperrors.Wrap(err, "failed to find checkups")
+	}
+
+	newTagSet := buildLatestCheckupTagSet(checkups)
+
+	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load tag cache for checkup resync", "error", err)
+		return apperrors.Wrap(err, "failed to load tag cache")
+	}
+	apiFailed := false
+	for _, c := range cached {
+		if !strings.HasPrefix(c.TagName, tagPrefixCheckupDone) && !strings.HasPrefix(c.TagName, tagPrefixNextCheckup) {
+			continue
+		}
+		if _, keep := newTagSet[c.TagName]; keep {
+			continue
+		}
+		if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove stale checkup tag", "error", delErr, "tag", c.TagName)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+			continue
+		}
+		if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
+			slog.ErrorContext(ctx, "failed to delete stale checkup tag cache", "error", delErr, "tag", c.TagName)
+		}
+	}
+
+	for tag := range newTagSet {
+		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add checkup tag on resync", "error", addErr, "tag", tag)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add checkup tag %s", tag))
+		}
+		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); upsertErr != nil {
+			slog.ErrorContext(ctx, "failed to upsert checkup tag cache on resync", "error", upsertErr, "tag", tag)
+		}
+	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
+	return nil
+}
+
+// buildLatestCheckupTagSet は健診記録から「種別ごとの最新検査日」「最遠の next_date」のタグ集合を返す。
+func buildLatestCheckupTagSet(checkups []model.Checkup) map[string]struct{} {
+	latestByType := make(map[uint64]time.Time)
+	var latestNext *time.Time
+	for i := range checkups {
+		c := &checkups[i]
+		if cur, ok := latestByType[c.CheckupTypeID]; !ok || c.Date.After(cur) {
+			latestByType[c.CheckupTypeID] = c.Date
+		}
+		if c.NextDate != nil {
+			if latestNext == nil || c.NextDate.After(*latestNext) {
+				t := *c.NextDate
+				latestNext = &t
+			}
+		}
+	}
+	tagSet := make(map[string]struct{}, len(latestByType)+1)
+	for typeID, date := range latestByType {
+		tagSet[fmt.Sprintf("%s%d_%s", tagPrefixCheckupDone, typeID, date.Format("2006-01"))] = struct{}{}
+	}
+	if latestNext != nil {
+		tagSet[tagPrefixNextCheckup+latestNext.Format("2006-01-02")] = struct{}{}
+	}
+	return tagSet
+}
+
 // SyncDormantTags は最終来院からの経過日数に基づき dormant_* タグを差分同期する（BE-005）。
 func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for dormant tag sync", "error", err)
@@ -1198,16 +1571,21 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 		return nil
 	}
 
-	// 付与すべき dormant タグを決定（閾値: 180/210/240/365）
+	// 付与すべき dormant タグを決定（閾値は clinic_settings から取得、Q21）
+	thresholds, tErr := s.settingsSvc.GetDormantThresholds(ctx, clinicID)
+	if tErr != nil {
+		slog.ErrorContext(ctx, "SyncDormantTags: failed to get dormant thresholds", "clinic_id", clinicID, "error", tErr)
+		return apperrors.Wrap(tErr, "failed to get dormant thresholds")
+	}
 	var targetTag string
 	switch {
-	case daysSinceLastVisit < 0 || daysSinceLastVisit >= 365:
+	case daysSinceLastVisit < 0 || daysSinceLastVisit >= thresholds.Stage365:
 		targetTag = "dormant_365d"
-	case daysSinceLastVisit >= 240:
+	case daysSinceLastVisit >= thresholds.Stage240:
 		targetTag = "dormant_240d"
-	case daysSinceLastVisit >= 210:
+	case daysSinceLastVisit >= thresholds.Stage210:
 		targetTag = "dormant_210d"
-	case daysSinceLastVisit >= 180:
+	case daysSinceLastVisit >= thresholds.Stage180:
 		targetTag = "dormant_180d"
 	}
 
@@ -1220,10 +1598,13 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 		return apperrors.Wrap(err, "failed to load tag cache")
 	}
 
+	apiFailed := false
 	for _, c := range cached {
 		if isDormantTag(c.TagName) && c.TagName != targetTag {
 			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
 				slog.ErrorContext(ctx, "failed to remove stale dormant tag", "error", delErr, "tag", c.TagName)
+				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+				apiFailed = true
 			} else {
 				_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName)
 			}
@@ -1232,6 +1613,8 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 		if c.TagName == "cpm_dormant" && !needsCpmDormant {
 			if delErr := client.RemoveTag(ctx, lineUserID, "cpm_dormant"); delErr != nil {
 				slog.ErrorContext(ctx, "failed to remove stale cpm_dormant tag", "error", delErr)
+				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+				apiFailed = true
 			} else {
 				_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, "cpm_dormant")
 			}
@@ -1239,14 +1622,18 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 	}
 
 	if targetTag == "" {
+		if !apiFailed {
+			s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+		}
 		return nil
 	}
 
 	if addErr := client.AddTag(ctx, lineUserID, targetTag); addErr != nil {
 		slog.ErrorContext(ctx, "failed to add dormant tag", "error", addErr, "tag", targetTag)
+		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(addErr, "failed to add dormant tag")
 	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, targetTag, "auto"); upsertErr != nil {
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, targetTag, "auto", ""); upsertErr != nil {
 		slog.ErrorContext(ctx, "failed to upsert dormant tag cache", "error", upsertErr)
 	}
 
@@ -1254,9 +1641,616 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 	if needsCpmDormant {
 		if addErr := client.AddTag(ctx, lineUserID, "cpm_dormant"); addErr != nil {
 			slog.ErrorContext(ctx, "failed to add cpm_dormant tag", "error", addErr)
-		} else if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, "cpm_dormant", "auto"); upsertErr != nil {
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, "failed to add cpm_dormant tag")
+		} else if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, "cpm_dormant", "auto", ""); upsertErr != nil {
 			slog.ErrorContext(ctx, "failed to upsert cpm_dormant tag cache", "error", upsertErr)
 		}
 	}
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
 	return nil
+}
+
+// notifyAPIFailure は Lステップ API 呼び出し失敗時にカウンターを更新し、
+// 閾値（lstepSyncErrorThreshold）に達した場合は EXCL_カルテ連携エラー タグを付与する。
+// エラーはログのみ — 呼び出し元に伝播させない（best-effort）。
+func (s *lstepTagSyncService) notifyAPIFailure(ctx context.Context, client lstep.Client, clinicID, ownerID uint64, lineUserID string) {
+	if s.errorCounterRepo == nil {
+		return
+	}
+	newCount, err := s.errorCounterRepo.IncrementFailure(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to increment lstep error counter", "error", err, "clinic_id", clinicID, "owner_id", ownerID)
+		return
+	}
+	if newCount < lstepSyncErrorThreshold {
+		return
+	}
+	if addErr := client.AddTag(ctx, lineUserID, lstepErrorTag); addErr != nil {
+		slog.ErrorContext(ctx, "failed to add EXCL error tag", "error", addErr, "owner_id", ownerID)
+		return
+	}
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, lstepErrorTag, "auto", ""); upsertErr != nil {
+		slog.ErrorContext(ctx, "failed to upsert EXCL error tag cache", "error", upsertErr)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEAT-377: CPM V2 / LTV 上位 20% / VISIT / PET / 除外タグ同期
+// ─────────────────────────────────────────────────────────────────────────────
+
+// SyncCPMStageTagV2 は来院回数ベース V2 CPM ステージタグを同期する（FEAT-377）。
+func (s *lstepTagSyncService) SyncCPMStageTagV2(ctx context.Context, clinicID, ownerID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for CPM V2 tag sync", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+
+	summary, err := s.medRecordRepo.FindOwnerVisitSummary(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find visit summary for CPM V2", "error", err)
+		return apperrors.Wrap(err, "failed to find visit summary")
+	}
+
+	v2Thresholds, err := s.settingsSvc.GetCPMV2Thresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get cpm v2 thresholds", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get cpm v2 thresholds")
+	}
+
+	stage := CalculateCPMStageV2(CPMStageV2Input{
+		TotalVisitCount: summary.TotalCount,
+		CPMV2Thresholds: v2Thresholds,
+	})
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if client == nil {
+		return nil
+	}
+
+	lineUserID := *owner.LineUserID
+	apiFailed := false
+	for _, old := range allCPMV2Stages {
+		if old == stage {
+			continue
+		}
+		if delErr := client.RemoveTag(ctx, lineUserID, string(old)); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove old CPM V2 stage tag", "error", delErr, "tag", old)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, string(old))
+		}
+	}
+
+	if addErr := client.AddTag(ctx, lineUserID, string(stage)); addErr != nil {
+		slog.ErrorContext(ctx, "failed to add CPM V2 stage tag", "error", addErr, "stage", stage)
+		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		return apperrors.Wrap(addErr, "failed to add CPM V2 stage tag")
+	}
+	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, string(stage), "auto", ""); cacheErr != nil {
+		slog.ErrorContext(ctx, "failed to upsert CPM V2 stage tag cache", "error", cacheErr)
+	}
+
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
+	return nil
+}
+
+// SyncLTVTopPercent は LTV 上位 20% の飼い主に LTV_上位20 タグを付与し、
+// それ以外から解除する（FEAT-377）。
+func (s *lstepTagSyncService) SyncLTVTopPercent(ctx context.Context, clinicID uint64) (int, []error) {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return 0, []error{err}
+	} else if skip {
+		return 0, nil
+	}
+
+	revenues, err := s.accountRepo.FindOwnersByAnnualRevenue(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to find revenues", "clinic_id", clinicID, "error", err)
+		return 0, []error{apperrors.Wrap(err, "failed to find owners by annual revenue")}
+	}
+
+	topN := 0
+	if len(revenues) > 0 {
+		topN = (len(revenues)*20 + 99) / 100
+	}
+	topOwnerIDs := make(map[uint64]struct{}, topN)
+	for i := 0; i < topN; i++ {
+		topOwnerIDs[revenues[i].OwnerID] = struct{}{}
+	}
+
+	owners, err := s.ownerRepo.FindAllWithLineUserID(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to find owners", "clinic_id", clinicID, "error", err)
+		return 0, []error{apperrors.Wrap(err, "failed to find owners with line user id")}
+	}
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return 0, []error{err}
+	}
+	if client == nil {
+		return 0, nil
+	}
+
+	var errs []error
+	count := 0
+	for i := range owners {
+		owner := &owners[i]
+		if owner.LineUserID == nil || *owner.LineUserID == "" {
+			continue
+		}
+		lineUserID := *owner.LineUserID
+		_, isTop := topOwnerIDs[owner.ID]
+		if isTop {
+			if addErr := client.AddTag(ctx, lineUserID, ltvTop20Tag); addErr != nil {
+				slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to add tag", "owner_id", owner.ID, "error", addErr)
+				s.notifyAPIFailure(ctx, client, clinicID, owner.ID, lineUserID)
+				errs = append(errs, apperrors.Wrap(addErr, fmt.Sprintf("failed to add LTV top20 tag for owner %d", owner.ID)))
+				continue
+			}
+			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, owner.ID, ltvTop20Tag, "auto", ""); cacheErr != nil {
+				slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to upsert tag cache", "owner_id", owner.ID, "error", cacheErr)
+			}
+		} else {
+			cached, cacheErr := s.tagCacheRepo.FindByOwner(ctx, clinicID, owner.ID)
+			if cacheErr != nil {
+				slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to load cache", "owner_id", owner.ID, "error", cacheErr)
+				errs = append(errs, apperrors.Wrap(cacheErr, fmt.Sprintf("failed to load tag cache for owner %d", owner.ID)))
+				continue
+			}
+			hasTag := false
+			for _, c := range cached {
+				if c.TagName == ltvTop20Tag {
+					hasTag = true
+					break
+				}
+			}
+			if !hasTag {
+				s.notifyAPISuccess(ctx, client, clinicID, owner.ID, lineUserID)
+				count++
+				continue
+			}
+			if delErr := client.RemoveTag(ctx, lineUserID, ltvTop20Tag); delErr != nil {
+				slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to remove tag", "owner_id", owner.ID, "error", delErr)
+				s.notifyAPIFailure(ctx, client, clinicID, owner.ID, lineUserID)
+				errs = append(errs, apperrors.Wrap(delErr, fmt.Sprintf("failed to remove LTV top20 tag for owner %d", owner.ID)))
+				continue
+			}
+			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, owner.ID, ltvTop20Tag); delCacheErr != nil {
+				slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to delete tag cache", "owner_id", owner.ID, "error", delCacheErr)
+			}
+		}
+		s.notifyAPISuccess(ctx, client, clinicID, owner.ID, lineUserID)
+		count++
+	}
+	return count, errs
+}
+
+// SyncVisitDormantTags は最終来院経過日数に基づき VISIT_* タグを差分同期する（FEAT-377）。
+// VISIT タグは重複付与可（複数閾値を同時保持する）。
+// visitDormantTagsForDays は経過日数に対して付与すべき VISIT_* タグのスライスを返す純粋関数。
+func visitDormantTagsForDays(days int) []string {
+	type th struct {
+		tag string
+		min int
+	}
+	thresholds := []th{
+		{tag: visitTag120, min: 120},
+		{tag: visitTag180, min: 180},
+		{tag: visitTag220, min: 220},
+		{tag: visitTag240, min: 240},
+	}
+	var tags []string
+	for _, t := range thresholds {
+		if days > t.min {
+			tags = append(tags, t.tag)
+		}
+	}
+	return tags
+}
+
+func (s *lstepTagSyncService) SyncVisitDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for VISIT dormant tag sync", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to build lstep client for VISIT dormant tag sync", "error", err)
+		return apperrors.Wrap(err, "failed to build lstep client")
+	}
+	if client == nil {
+		return nil
+	}
+
+	type visitThreshold struct {
+		tag  string
+		days int
+	}
+	thresholds := []visitThreshold{
+		{tag: visitTag120, days: 120},
+		{tag: visitTag180, days: 180},
+		{tag: visitTag220, days: 220},
+		{tag: visitTag240, days: 240},
+	}
+
+	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load tag cache for VISIT dormant sync", "error", err)
+		return apperrors.Wrap(err, "failed to load tag cache")
+	}
+	cachedSet := make(map[string]struct{}, len(cached))
+	for _, c := range cached {
+		cachedSet[c.TagName] = struct{}{}
+	}
+
+	apiFailed := false
+	for _, th := range thresholds {
+		shouldHave := daysSinceLastVisit > th.days
+		_, hasCached := cachedSet[th.tag]
+		if shouldHave {
+			if addErr := client.AddTag(ctx, lineUserID, th.tag); addErr != nil {
+				slog.ErrorContext(ctx, "failed to add VISIT dormant tag", "error", addErr, "tag", th.tag)
+				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+				apiFailed = true
+				continue
+			}
+			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, th.tag, "auto", ""); cacheErr != nil {
+				slog.ErrorContext(ctx, "failed to upsert VISIT dormant tag cache", "error", cacheErr, "tag", th.tag)
+			}
+		} else if hasCached {
+			if delErr := client.RemoveTag(ctx, lineUserID, th.tag); delErr != nil {
+				slog.ErrorContext(ctx, "failed to remove VISIT dormant tag", "error", delErr, "tag", th.tag)
+				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+				apiFailed = true
+				continue
+			}
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, th.tag)
+		}
+	}
+
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
+	return nil
+}
+
+// petSpeciesFlags は生存ペットのスライスから犬/猫の有無を返す純粋関数（FEAT-377）。
+func petSpeciesFlags(pets []model.Pet) (hasDog, hasCat bool) {
+	for i := range pets {
+		p := &pets[i]
+		if p.AnimalSpecies == nil {
+			continue
+		}
+		name := p.AnimalSpecies.Name
+		if strings.Contains(name, "犬") {
+			hasDog = true
+		}
+		if strings.Contains(name, "猫") {
+			hasCat = true
+		}
+	}
+	return hasDog, hasCat
+}
+
+// hasSeniorPet は生存ペットのスライスに now 時点で 7 歳以上の犬猫が存在するかを返す純粋関数（FEAT-377）。
+func hasSeniorPet(pets []model.Pet, now time.Time) bool {
+	const seniorAgeYears = 7
+	for i := range pets {
+		p := &pets[i]
+		if p.BirthDate == nil || p.AnimalSpecies == nil {
+			continue
+		}
+		name := p.AnimalSpecies.Name
+		if !strings.Contains(name, "犬") && !strings.Contains(name, "猫") {
+			continue
+		}
+		ageYears := now.Year() - p.BirthDate.Year()
+		if now.Before(p.BirthDate.AddDate(ageYears, 0, 0)) {
+			ageYears--
+		}
+		if ageYears >= seniorAgeYears {
+			return true
+		}
+	}
+	return false
+}
+
+// SyncPetSpeciesTags は飼い主の生存ペット種別タグ（PET_犬あり / PET_猫あり）を同期する（FEAT-377）。
+func (s *lstepTagSyncService) SyncPetSpeciesTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for PET species tags sync", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	pets, err := s.petRepo.FindLivingByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find living pets for PET species tags", "error", err)
+		return apperrors.Wrap(err, "failed to find living pets")
+	}
+
+	hasDog, hasCat := petSpeciesFlags(pets)
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if client == nil {
+		return nil
+	}
+
+	const (
+		tagDog = "PET_犬あり"
+		tagCat = "PET_猫あり"
+	)
+	apiFailed := false
+	for _, entry := range []struct {
+		tag  string
+		have bool
+	}{
+		{tagDog, hasDog},
+		{tagCat, hasCat},
+	} {
+		if entry.have {
+			if addErr := client.AddTag(ctx, lineUserID, entry.tag); addErr != nil {
+				slog.ErrorContext(ctx, "failed to add PET species tag", "error", addErr, "tag", entry.tag)
+				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+				apiFailed = true
+				continue
+			}
+			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, entry.tag, "auto", ""); cacheErr != nil {
+				slog.ErrorContext(ctx, "failed to upsert PET species tag cache", "error", cacheErr)
+			}
+		} else {
+			if delErr := client.RemoveTag(ctx, lineUserID, entry.tag); delErr != nil {
+				slog.ErrorContext(ctx, "failed to remove PET species tag", "error", delErr, "tag", entry.tag)
+				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+				apiFailed = true
+				continue
+			}
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, entry.tag)
+		}
+	}
+
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
+	return nil
+}
+
+// SyncSeniorTag は飼い主の生存ペットに 7 歳以上の犬猫がいる場合 PET_シニア対象 タグを付与する（FEAT-377）。
+func (s *lstepTagSyncService) SyncSeniorTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
+	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check opt-out for senior tag sync", "error", err)
+		return apperrors.Wrap(err, "failed to check opt-out")
+	}
+	if optOut {
+		return nil
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	pets, err := s.petRepo.FindLivingByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find living pets for senior tag", "error", err)
+		return apperrors.Wrap(err, "failed to find living pets")
+	}
+
+	isSenior := hasSeniorPet(pets, time.Now())
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if client == nil {
+		return nil
+	}
+
+	const seniorTag = "PET_シニア対象"
+	apiFailed := false
+	if isSenior {
+		if addErr := client.AddTag(ctx, lineUserID, seniorTag); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add senior tag", "error", addErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, "failed to add senior tag")
+		}
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, seniorTag, "auto", ""); cacheErr != nil {
+			slog.ErrorContext(ctx, "failed to upsert senior tag cache", "error", cacheErr)
+		}
+	} else {
+		if delErr := client.RemoveTag(ctx, lineUserID, seniorTag); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove senior tag", "error", delErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, seniorTag)
+		}
+	}
+
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
+	return nil
+}
+
+// SyncExclusionTags は配信停止条件に基づき EXCL_配信停止 タグを同期する（FEAT-377/FEAT-381）。
+// 配信停止条件: LstepOptOut=true / DeliveryExcluded=true / IsTransferred=true /
+//
+//	会員ステータスが deceased / transferred / 全ペット死亡。
+//
+// 注: checkOptOut は呼ばない（このメソッド自体が opt-out 判定の実装）。
+func (s *lstepTagSyncService) SyncExclusionTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
+
+	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find owner for exclusion tags", "error", err)
+		return apperrors.Wrap(err, "failed to find owner")
+	}
+	if owner.LineUserID == nil || *owner.LineUserID == "" {
+		return nil
+	}
+	lineUserID := *owner.LineUserID
+
+	// 全ペット死亡判定
+	totalPets, err := s.petRepo.CountByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count pets for exclusion tags", "error", err)
+		return apperrors.Wrap(err, "failed to count pets")
+	}
+	livingPets, err := s.petRepo.CountLivingByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count living pets for exclusion tags", "error", err)
+		return apperrors.Wrap(err, "failed to count living pets")
+	}
+	allPetsDead := totalPets > 0 && livingPets == 0
+
+	shouldExclude := owner.LstepOptOut ||
+		owner.DeliveryExcluded ||
+		owner.IsTransferred ||
+		owner.MembershipType == model.MembershipTypeDeceased ||
+		owner.MembershipType == model.MembershipTypeTransferred ||
+		allPetsDead
+
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if client == nil {
+		return nil
+	}
+
+	apiFailed := false
+	if shouldExclude {
+		if addErr := client.AddTag(ctx, lineUserID, exclTagDeliveryStop); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add EXCL exclusion tag", "error", addErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			return apperrors.Wrap(addErr, "failed to add EXCL exclusion tag")
+		}
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, exclTagDeliveryStop, "auto", ""); cacheErr != nil {
+			slog.ErrorContext(ctx, "failed to upsert EXCL exclusion tag cache", "error", cacheErr)
+		}
+	} else {
+		if delErr := client.RemoveTag(ctx, lineUserID, exclTagDeliveryStop); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove EXCL exclusion tag", "error", delErr)
+			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, exclTagDeliveryStop)
+		}
+	}
+
+	// FEAT-381-2: EXCL_配信注意 タグは delivery_caution フラグのみで独立して制御する。
+	if owner.DeliveryCaution {
+		if addErr := client.AddTag(ctx, lineUserID, exclTagDeliveryCaution); addErr != nil {
+			slog.ErrorContext(ctx, "failed to add EXCL caution tag", "error", addErr)
+			apiFailed = true
+		} else {
+			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, exclTagDeliveryCaution, "auto", ""); cacheErr != nil {
+				slog.ErrorContext(ctx, "failed to upsert EXCL caution tag cache", "error", cacheErr)
+			}
+		}
+	} else {
+		if delErr := client.RemoveTag(ctx, lineUserID, exclTagDeliveryCaution); delErr != nil {
+			slog.ErrorContext(ctx, "failed to remove EXCL caution tag", "error", delErr)
+			apiFailed = true
+		} else {
+			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, exclTagDeliveryCaution)
+		}
+	}
+
+	if !apiFailed {
+		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+	}
+	return nil
+}
+
+// notifyAPISuccess は Lステップ API 呼び出し成功時にエラーカウンターをリセットし、
+// EXCL_カルテ連携エラー タグを解除する（カウンターが 0 の場合は noop）。
+// エラーはログのみ — 呼び出し元に伝播させない（best-effort）。
+func (s *lstepTagSyncService) notifyAPISuccess(ctx context.Context, client lstep.Client, clinicID, ownerID uint64, lineUserID string) {
+	if s.errorCounterRepo == nil {
+		return
+	}
+	counter, err := s.errorCounterRepo.FindByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		if apperrors.IsNotFound(err) {
+			return
+		}
+		slog.ErrorContext(ctx, "failed to find lstep error counter", "error", err, "clinic_id", clinicID, "owner_id", ownerID)
+		return
+	}
+	if counter.FailureCount == 0 {
+		return
+	}
+	if removeErr := client.RemoveTag(ctx, lineUserID, lstepErrorTag); removeErr != nil {
+		slog.ErrorContext(ctx, "failed to remove EXCL error tag", "error", removeErr, "owner_id", ownerID)
+		return
+	}
+	if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, lstepErrorTag); delErr != nil {
+		slog.ErrorContext(ctx, "failed to delete EXCL error tag cache", "error", delErr)
+	}
+	if resetErr := s.errorCounterRepo.ResetFailure(ctx, clinicID, ownerID); resetErr != nil {
+		slog.ErrorContext(ctx, "failed to reset lstep error counter", "error", resetErr, "owner_id", ownerID)
+	}
 }

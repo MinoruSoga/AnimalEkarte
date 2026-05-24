@@ -1,6 +1,6 @@
 # BE-119: カルテ側トリミング管理API — appointments ベースに全面書き換え
 
-**Status**: Open
+**Status**: Closed（2026-05-19 実装済み確認）
 **Priority**: High
 **Affects**: /v1/clinics/{id}/trimmings — handler, service, repository
 **Date Created**: 2026-04-16

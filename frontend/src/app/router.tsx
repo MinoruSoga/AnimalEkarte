@@ -1,32 +1,21 @@
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, Outlet, Navigate } from "react-router";
+import { createBrowserRouter, Outlet, Navigate, type RouteObject } from "react-router";
 
 import { C } from "@/lib/design-tokens";
 import { Layout } from "@/components/shared/Layout/Layout";
 import { RootErrorBoundary, RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
 import { RequirePermission } from "@/components/shared/RequirePermission";
 import { AuthProvider } from "@/features/auth";
-import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceHospitalization, ResourceTrimming, ResourceExaminations, ResourceAccounting, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceEstimates, ResourceShifts, ResourceHospitalSettings, ResourceMasterStaff, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceMasterAnimalSpecies } from "@/types/generated/models";
+import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceHospitalization, ResourceTrimming, ResourceExaminations, ResourceAccounting, ResourceCashRegisterClose, ResourceAccountingReports, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceEstimates, ResourceShifts, ResourceHospitalSettings, ResourceMasterStaff, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceMasterAnimalSpecies, ResourceLstepAnalytics, ResourceClosingSettings, ResourcePaymentMethod } from "@/types/generated/models";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
 const Login = lazy(() =>
   import("@/features/auth").then((m) => ({ default: m.Login })),
 );
 
-export const router = createBrowserRouter([
-  {
-    // AuthProvider をアプリ全体に配置。
-    // これにより /login でも useAuth() が使用可能になり、
-    // LoginForm で login() を直接呼び出してから navigate() できる。
-    element: (
-      <Suspense fallback={null}>
-        <AuthProvider>
-          <Outlet />
-        </AuthProvider>
-      </Suspense>
-    ),
-    errorElement: <RootErrorBoundary />,
-    children: [
+// Exported for integration testing (AccountingRouteGuards etc.)
+// createMemoryRouter(appRoutes, { initialEntries: [path] }) + AuthContext.Provider で権限ガードを検証できる。
+export const appRoutes: RouteObject[] = [
       {
         path: "/login",
         element: (
@@ -430,30 +419,6 @@ export const router = createBrowserRouter([
               },
             }],
           },
-          // FEAT-368: レジ締め
-          {
-            path: "close",
-            lazy: async () => {
-              const { CashRegisterClosePage } = await import("@/features/cash-register");
-              return { Component: CashRegisterClosePage };
-            },
-          },
-          // FEAT-368: 締め履歴
-          {
-            path: "close/history",
-            lazy: async () => {
-              const { CashRegisterHistoryPage } = await import("@/features/cash-register");
-              return { Component: CashRegisterHistoryPage };
-            },
-          },
-          // FEAT-368: 月次集計レポート
-          {
-            path: "reports",
-            lazy: async () => {
-              const { AccountingReportsPage } = await import("@/features/accounting-reports");
-              return { Component: AccountingReportsPage };
-            },
-          },
           {
             // BUG-020: create 権限ガード
             path: "new",
@@ -481,6 +446,64 @@ export const router = createBrowserRouter([
                 "@/app/pages/AccountingDetailPage"
               );
               return { Component: AccountingDetailPage };
+            },
+          },
+        ],
+      },
+
+      // ── CashRegisterClose（レジ締め / 締め履歴） ────────────────
+      {
+        path: "/accounting/close",
+        element: (
+          <RequirePermission resource={ResourceCashRegisterClose}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { CashRegisterClosePage } = await import("@/features/cash-register");
+              return { Component: CashRegisterClosePage };
+            },
+          },
+        ],
+      },
+      {
+        path: "/accounting/close/history",
+        element: (
+          <RequirePermission resource={ResourceCashRegisterClose}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { CashRegisterHistoryPage } = await import("@/features/cash-register");
+              return { Component: CashRegisterHistoryPage };
+            },
+          },
+        ],
+      },
+
+      // ── AccountingReports（月次集計レポート） ────────────────────
+      {
+        path: "/accounting/reports",
+        element: (
+          <RequirePermission resource={ResourceAccountingReports}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { AccountingReportsPage } = await import("@/features/accounting-reports");
+              return { Component: AccountingReportsPage };
             },
           },
         ],
@@ -924,20 +947,31 @@ export const router = createBrowserRouter([
             }],
           },
           // FEAT-368: 締め時間設定
+          // STG-BLOCKER-002: RequirePermission 追加。Sidebar は ResourceClosingSettings で
+          // フィルタしているが、URL 直叩きで権限なしユーザーが到達できる脆弱性を塞ぐ。
           {
             path: "closing-time",
-            lazy: async () => {
-              const { ClosingSettingsPage } = await import("@/features/closing-settings");
-              return { Component: ClosingSettingsPage };
-            },
+            element: <RequirePermission resource={ResourceClosingSettings}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { ClosingSettingsPage } = await import("@/features/closing-settings");
+                return { Component: ClosingSettingsPage };
+              },
+            }],
           },
           // FEAT-368: 支払方法マスタ
+          // STG-BLOCKER-002: RequirePermission 追加（理由は closing-time と同じ）
           {
             path: "payment-methods",
-            lazy: async () => {
-              const { PaymentMethodSettings } = await import("@/features/master");
-              return { Component: PaymentMethodSettings };
-            },
+            element: <RequirePermission resource={ResourcePaymentMethod}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { PaymentMethodSettings } = await import("@/features/master");
+                return { Component: PaymentMethodSettings };
+              },
+            }],
           },
           // FE-001: Lステップ連携設定
           {
@@ -982,6 +1016,30 @@ export const router = createBrowserRouter([
               const { CheckupSyncPage } = await import("@/features/lstep");
               return { Component: CheckupSyncPage };
             },
+          },
+          {
+            path: "delivery-monitor",
+            lazy: async () => {
+              const { LstepDeliveryMonitorPage } = await import(
+                "@/features/lstep"
+              );
+              return { Component: LstepDeliveryMonitorPage };
+            },
+          },
+          {
+            path: "analytics",
+            element: (
+              <RequirePermission resource={ResourceLstepAnalytics}>
+                <Outlet />
+              </RequirePermission>
+            ),
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { LstepAnalyticsPage } = await import("@/features/lstep");
+                return { Component: LstepAnalyticsPage };
+              },
+            }],
           },
         ],
       },
@@ -1040,6 +1098,29 @@ export const router = createBrowserRouter([
         ],
       },
 
+      // ── Manual（取扱説明書 / ヘルプ） ─────────────────────────────
+      // 認証済み全ユーザー閲覧可。permission gating 無し。
+      {
+        path: "/manual",
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { ManualPage } = await import("@/features/manual");
+              return { Component: ManualPage };
+            },
+          },
+          {
+            path: ":category/:slug",
+            lazy: async () => {
+              const { ManualPage } = await import("@/features/manual");
+              return { Component: ManualPage };
+            },
+          },
+        ],
+      },
+
       // ── Not Found ────────────────────────────────────────────────
       {
         path: "*",
@@ -1051,6 +1132,21 @@ export const router = createBrowserRouter([
       },
         ],
       },
-    ],
+];
+
+export const router = createBrowserRouter([
+  {
+    // AuthProvider をアプリ全体に配置。
+    // これにより /login でも useAuth() が使用可能になり、
+    // LoginForm で login() を直接呼び出してから navigate() できる。
+    element: (
+      <Suspense fallback={null}>
+        <AuthProvider>
+          <Outlet />
+        </AuthProvider>
+      </Suspense>
+    ),
+    errorElement: <RootErrorBoundary />,
+    children: appRoutes,
   },
 ]);

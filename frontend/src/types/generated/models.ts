@@ -94,6 +94,7 @@ export interface Billing {
   items?: BillingItem[];
   payments?: Payment[];
   refunds?: BillingRefund[];
+  payment_splits?: PaymentSplit[];
 }
 export interface BillingItem {
   id: number /* uint64 */;
@@ -125,13 +126,39 @@ export interface Payment {
   received_amount: number /* int64 */;
   change_amount: number /* int64 */;
   /**
-   * Deprecated: use PaymentMethodID. Will be removed in a future release.
+   * Method は代表支払い手段（PO判断B 2026-05-25: 正式フィールドとして長期維持）。
+   * 混在会計では payment_splits の各内訳から representativeMethod() で導出する。
+   * PaymentMethodID と dual maintain する（同期ルール: 書込み時は常に両フィールドをセット）。
    */
   method: PaymentMethod;
+  /**
+   * PaymentMethodID は当面 nullable で Method と併存する。ID と method の整合は運用ルールで担保する。
+   */
   payment_method_id?: number /* uint64 */;
   paid_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
+  /**
+   * Relations
+   */
+  paid_by_staff?: Staff;
+}
+/**
+ * PaymentSplit は1会計に対する支払い手段ごとの内訳を表す。
+ * 混在会計では複数行存在する。delete-then-recreate パターンで管理する（soft-delete なし）。
+ * Method は各内訳の一次情報（source of truth）。PaymentMethodID と dual maintain する。
+ */
+export interface PaymentSplit {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  billing_id: number /* uint64 */;
+  method: PaymentMethod;
+  payment_method_id?: number /* uint64 */;
+  amount: number /* int64 */;
+  received_amount: number /* int64 */;
+  change_amount: number /* int64 */;
+  paid_by?: number /* uint64 */;
+  created_at: string;
   /**
    * Relations
    */
@@ -169,6 +196,11 @@ export interface AuditLog {
   resource_id?: number /* uint64 */;
   old_value: any /* json.RawMessage */;
   new_value: any /* json.RawMessage */;
+  /**
+   * Metadata は LSTEP 操作の件数・抽出条件を保存する多次元メタデータ（ISSUE-010）。
+   * resource_id 単一 ID では表現できない情報（例: 健診対象抽出のフィルタ条件 + 件数集計）を JSON で永続化する。
+   */
+  metadata: any /* json.RawMessage */;
   ip_address: string;
   user_agent: string;
   created_at: string;
@@ -225,6 +257,14 @@ export const AuditActionOwnerLineUserIDUpdate = "owner.line_user_id.update";
  * 監査アクション定数
  */
 export const AuditActionOwnerLineUserIDUnlink = "owner.line_user_id.unlink";
+/**
+ * 取扱説明書（マニュアル）編集 監査アクション
+ */
+export const AuditActionManualArticleUpsert = "manual_article.upsert";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionManualArticleDelete = "manual_article.delete";
 
 //////////
 // source: billing_confirmation.go
@@ -502,6 +542,42 @@ export interface ClinicSettings {
   closing_weekday_end: string;
   closing_sunday_end: string;
   closed_weekdays: any /* pq.Int64Array */;
+  cpm_version: string;
+  /**
+   * Q21 SPEC-004 dormant prevention 閾値 (clinic 単位調整可能)
+   */
+  dormant_prevention_180_days: number /* int */;
+  dormant_prevention_210_days: number /* int */;
+  dormant_prevention_240_days: number /* int */;
+  dormant_prevention_365_days: number /* int */;
+  /**
+   * P1 CPM V2 来院回数閾値 (clinic 単位調整可能、migration 007)
+   */
+  cpm_v2_coming_threshold: number /* int */;
+  cpm_v2_good_threshold: number /* int */;
+  cpm_v2_family_threshold: number /* int */;
+  cpm_v2_noah_threshold: number /* int */;
+  /**
+   * P2 CPM V1 判定閾値 (clinic 単位調整可能、migration 008)
+   */
+  cpm_v1_dormant_days: number /* int */;
+  cpm_v1_noah_days: number /* int */;
+  cpm_v1_noah_annual_visits: number /* int */;
+  cpm_v1_noah_ltv: number /* int64 */;
+  cpm_v1_core_days: number /* int */;
+  cpm_v1_core_annual_visits: number /* int */;
+  cpm_v1_core_ltv: number /* int64 */;
+  cpm_v1_spot_min_amount: number /* int64 */;
+  cpm_v1_spot_inactive_days: number /* int */;
+  cpm_v1_growing_max_days: number /* int */;
+  cpm_v1_growing_min_visits: number /* int */;
+  cpm_v1_growing_max_visits: number /* int */;
+  cpm_v1_ltv_break_low: number /* int64 */;
+  /**
+   * P9 健診・予防タグ判定閾値 (clinic 単位調整可能、migration 009)
+   */
+  health_prevention_lookback_days: number /* int */;
+  vaccine_deadline_days: number /* int */;
   created_at: string;
   updated_at: string;
 }
@@ -596,6 +672,127 @@ export interface Consultation {
 }
 
 //////////
+// source: cpm_v1_thresholds.go
+
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1DormantDays = 240;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1NoahDays = 365;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1NoahAnnualVisits = 3;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1NoahLTV: number /* int64 */ = 80_000;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1CoreDays = 180;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1CoreAnnualVisits = 2;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1CoreLTV: number /* int64 */ = 50_000;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1SpotMinAmount: number /* int64 */ = 30_000;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1SpotInactiveDays = 90;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1GrowingMaxDays = 90;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1GrowingMinVisits = 2;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1GrowingMaxVisits = 3;
+/**
+ * CPM V1 判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV1LTVBreakLow: number /* int64 */ = 20_000;
+/**
+ * CPMV1Thresholds は CPM V1 ステージ判定の全閾値を集約した DTO。
+ * ゼロ値は WithDefaults() で互換デフォルトに補完される。
+ */
+export interface CPMV1Thresholds {
+  DormantDays: number /* int */; // cpm_dormant: 最終来院からの経過日数 >= DormantDays (default 240)
+  NoahDays: number /* int */; // cpm_noah: 在籍日数 >= NoahDays (default 365)
+  NoahAnnualVisits: number /* int */; // cpm_noah: 年間来院回数 >= NoahAnnualVisits (default 3)
+  NoahLTV: number /* int64 */; // cpm_noah: 累計金額 >= NoahLTV (default 80_000)
+  CoreDays: number /* int */; // cpm_core: 在籍日数 >= CoreDays (default 180)
+  CoreAnnualVisits: number /* int */; // cpm_core: 年間来院回数 >= CoreAnnualVisits (default 2)
+  CoreLTV: number /* int64 */; // cpm_core: 累計金額 >= CoreLTV (default 50_000); growing 上限にも兼用
+  SpotMinAmount: number /* int64 */; // cpm_spot: 単回最大金額 >= SpotMinAmount (default 30_000)
+  SpotInactiveDays: number /* int */; // cpm_spot: 最終来院からの経過日数 > SpotInactiveDays (default 90)
+  GrowingMaxDays: number /* int */; // cpm_growing: 初来院からの経過日数 <= GrowingMaxDays (default 90)
+  GrowingMinVisits: number /* int */; // cpm_growing: 総来院回数 >= GrowingMinVisits (default 2)
+  GrowingMaxVisits: number /* int */; // cpm_growing: 総来院回数 <= GrowingMaxVisits (default 3)
+  LTVBreakLow: number /* int64 */; // growing 下限 / encounter 上限境界 (default 20_000)
+}
+
+//////////
+// source: cpm_v2_thresholds.go
+
+/**
+ * P1 CPM V2 来院回数閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV2ComingThreshold = 2;
+/**
+ * P1 CPM V2 来院回数閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV2GoodThreshold = 4;
+/**
+ * P1 CPM V2 来院回数閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV2FamilyThreshold = 8;
+/**
+ * P1 CPM V2 来院回数閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultCPMV2NoahThreshold = 13;
+/**
+ * CPMV2Thresholds は CPM V2 来院回数 4 段階閾値を集約した DTO。
+ */
+export interface CPMV2Thresholds {
+  Coming: number /* int */; // これから ステージ開始来院回数 (default 2)
+  Good: number /* int */; // いいかんじ ステージ開始来院回数 (default 4)
+  Family: number /* int */; // ファミリー ステージ開始来院回数 (default 8)
+  Noah: number /* int */; // ノア ステージ開始来院回数 (default 13)
+}
+
+//////////
 // source: diagnosis.go
 
 export interface DiagnosisType {
@@ -626,6 +823,39 @@ export interface DiagnosisName {
    * Relations
    */
   category?: DiagnosisType;
+}
+
+//////////
+// source: dormant_thresholds.go
+
+/**
+ * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
+ */
+export const DefaultDormantPrevention180Days = 180;
+/**
+ * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
+ */
+export const DefaultDormantPrevention210Days = 210;
+/**
+ * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
+ */
+export const DefaultDormantPrevention240Days = 240;
+/**
+ * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
+ */
+export const DefaultDormantPrevention365Days = 365;
+/**
+ * DormantThresholds は dormant prevention 4 段階閾値を集約した DTO。
+ */
+export interface DormantThresholds {
+  Stage180: number /* int */;
+  Stage210: number /* int */;
+  Stage240: number /* int */;
+  Stage365: number /* int */;
 }
 
 //////////
@@ -769,6 +999,7 @@ export interface ExaminationType {
   description: string;
   parent_id?: number /* uint64 */;
   sort_order: number /* int */;
+  is_non_insurance: boolean;
   created_at: string;
   updated_at: string;
   /**
@@ -786,6 +1017,28 @@ export interface ExamTypeField {
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
+}
+
+//////////
+// source: health_prevention_thresholds.go
+
+/**
+ * 健診・予防タグ判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultHealthPreventionLookbackDays = 365; // 健診・予防履歴の参照期間（日数）
+/**
+ * 健診・予防タグ判定閾値のデフォルト値。
+ * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
+ */
+export const DefaultVaccineDeadlineDays = 60; // ワクチン期限間近とみなす残日数
+/**
+ * HealthPreventionThresholds は健診・予防タグ判定の全閾値を集約した DTO。
+ * ゼロ値は WithDefaults() で互換デフォルトに補完される。
+ */
+export interface HealthPreventionThresholds {
+  LookbackDays: number /* int */; // 健診・予防履歴の参照期間（日数, default 365）
+  VaccineDeadline: number /* int */; // ワクチン期限間近とみなす残日数（default 60）
 }
 
 //////////
@@ -809,6 +1062,8 @@ export interface Hospitalization {
   status: HospitalizationStatus;
   cage_id?: number /* uint64 */;
   doctor_id?: number /* uint64 */;
+  insurance_company_name?: string;
+  insurance_number?: string;
   memo: string;
   owner_request: string;
   staff_notes: string;
@@ -1163,6 +1418,161 @@ export interface LineSendLog {
 }
 
 //////////
+// source: lstep_auto_managed_prefix.go
+
+export interface LstepAutoManagedPrefix {
+  id: number /* uint64 */;
+  prefix: string;
+  category: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lstep_condition_tag_mapping.go
+
+export interface LstepConditionTagMapping {
+  id: number /* uint64 */;
+  condition_code: string;
+  tag_name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lstep_csv_import.go
+
+/**
+ * LstepCsvImport は Lステップ CSV インポート履歴。
+ */
+export interface LstepCsvImport {
+  id: any /* uuid.UUID */;
+  clinic_id: number /* uint64 */;
+  csv_type: string;
+  file_name: string;
+  uploaded_by_user_id?: number /* uint64 */;
+  row_count: number /* int */;
+  success_count: number /* int */;
+  error_count: number /* int */;
+  status: string;
+  error_log?: any /* datatypes.JSON */;
+  imported_at?: string;
+  created_at: string;
+}
+
+//////////
+// source: lstep_delivery_trigger_log.go
+
+/**
+ * TriggerType は配信トリガーの種別を表す型エイリアス。
+ */
+export type TriggerType = string;
+/**
+ * TriggerStatus は配信トリガーログのステータスを表す型エイリアス。
+ */
+export type TriggerStatus = string;
+export const TriggerTypeFirstVisitFollowUp3D: TriggerType = "first_visit_followup_3d";
+export const TriggerTypeFirstVisitFollowUp7D: TriggerType = "first_visit_followup_7d";
+export const TriggerTypeNextVisitReminder: TriggerType = "next_visit_reminder";
+export const TriggerTypeVaccineDeadline60: TriggerType = "vaccine_deadline_60d";
+export const TriggerTypeVaccineDeadline30: TriggerType = "vaccine_deadline_30d";
+export const TriggerTypeBirthdayMessage: TriggerType = "birthday_message";
+export const TriggerTypeDormantPrevention180: TriggerType = "dormant_prevention_180d";
+export const TriggerTypeDormantPrevention210: TriggerType = "dormant_prevention_210d";
+export const TriggerTypeDormantPrevention240: TriggerType = "dormant_prevention_240d";
+export const TriggerTypeDormantPrevention365: TriggerType = "dormant_prevention_365d";
+export const TriggerTypeFilariaAlert: TriggerType = "filaria_alert";
+export const TriggerTypeFleaTickAlert: TriggerType = "flea_tick_alert";
+export const TriggerTypeFoodRefillReminder: TriggerType = "food_refill_reminder";
+export const TriggerTypeFirstVisitWelcome: TriggerType = "first_visit_welcome";
+export const TriggerTypeCheckupFollowUp: TriggerType = "checkup_followup";
+export const TriggerStatusScheduled: TriggerStatus = "scheduled";
+export const TriggerStatusFired: TriggerStatus = "fired";
+export const TriggerStatusExcluded: TriggerStatus = "excluded";
+export const TriggerStatusFailed: TriggerStatus = "failed";
+/**
+ * LstepDeliveryTriggerLog は自動配信トリガーの実行ログ。
+ */
+export interface LstepDeliveryTriggerLog {
+  ID: number /* uint64 */;
+  OwnerID: number /* uint64 */;
+  ClinicID: number /* uint64 */;
+  TriggerType: string;
+  ScheduledAt: string;
+  Status: string;
+  FiredAt?: string;
+  ExcludedReason?: string;
+  suppressed_by_priority: boolean;
+  suppression_reason?: string;
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+
+//////////
+// source: lstep_friend_attribute_snapshot.go
+
+/**
+ * LstepFriendAttributeSnapshot は Lステップ友だち属性スナップショット。
+ */
+export interface LstepFriendAttributeSnapshot {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  line_user_id: string;
+  display_name?: string;
+  registered_at?: string;
+  tags?: any /* datatypes.JSON */;
+  scenarios?: any /* datatypes.JSON */;
+  traffic_source?: string;
+  block_status?: string;
+  last_message_at?: string;
+  snapshot_taken_at: string;
+  csv_import_id?: any /* uuid.UUID */;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lstep_send_purpose_tag_prefix.go
+
+export interface LstepSendPurposeTagPrefix {
+  id: number /* uint64 */;
+  purpose: string;
+  tag_prefix: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lstep_settings.go
+
+/**
+ * LstepSettings はクリニックごとのLステップ同期設定。
+ */
+export interface LstepSettings {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  is_sync_enabled: boolean;
+  sync_enabled_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lstep_sync_error_counter.go
+
+export interface LstepSyncErrorCounter {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  failure_count: number /* int */;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: lstep_tag_cache.go
 
 /**
@@ -1175,7 +1585,91 @@ export interface LstepTagCache {
   owner_id: number /* uint64 */;
   tag_name: string;
   category: string;
+  reason?: string;
   synced_at: string;
+}
+
+//////////
+// source: lstep_tag_code_mapping.go
+
+export const CodeTypeCheckupType = "checkup_type";
+export const CodeTypePrescription = "prescription";
+export const CodeTypeMerchandiseItem = "merchandise_item";
+export const SpeciesScopeDog = "dog";
+export interface LstepTagCodeMapping {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  tag_name: string;
+  code_type: string;
+  codes: string[];
+  species_scope?: string;
+  age_min?: number /* int */;
+  deleted_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lstep_trigger_priority.go
+
+/**
+ * LstepTriggerPriority はクリニック単位のトリガー配信優先順位設定 (Q23)。
+ */
+export interface LstepTriggerPriority {
+  ID: number /* uint64 */;
+  ClinicID: number /* uint64 */;
+  TriggerType: string;
+  Priority: number /* int */;
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+/**
+ * DefaultPriorityFallback は DefaultTriggerPriorities に未定義のトリガーに使う最後尾優先度。
+ */
+export const DefaultPriorityFallback = 99;
+
+//////////
+// source: manual_article.go
+
+/**
+ * ManualCategory は取扱説明書のカテゴリ
+ */
+export type ManualCategory = string;
+export const ManualCategoryScreens: ManualCategory = "screens";
+export const ManualCategoryWorkflows: ManualCategory = "workflows";
+/**
+ * ManualArticle は取扱説明書のオーバーライド版（DB に保存された編集後マニュアル）
+ * 設計方針:
+ *   - フロントエンドが MD ファイルをデフォルト（バンドル）として保持
+ *   - DB にはオーバーライド版を保存
+ *   - 読み込み時: DB に該当 slug があればそれを優先、なければ MD ファイル
+ *   - 編集時: 該当 slug を DB に upsert
+ *   - マニュアルは医院共通の情報のため clinic_id は持たない
+ */
+export interface ManualArticle {
+  id: number /* uint64 */;
+  category: ManualCategory;
+  slug: string;
+  title: string;
+  order_value: number /* float64 */;
+  section: string;
+  body_markdown: string;
+  updated_by_staff_id?: number /* uint64 */;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * ManualArticleVersion はマニュアル編集履歴（編集ごとのスナップショット）
+ */
+export interface ManualArticleVersion {
+  id: number /* uint64 */;
+  article_id: number /* uint64 */;
+  title: string;
+  order_value: number /* float64 */;
+  section: string;
+  body_markdown: string;
+  edited_by_staff_id?: number /* uint64 */;
+  edited_at: string;
 }
 
 //////////
@@ -1196,6 +1690,8 @@ export interface MedicalRecord {
   status: MedicalRecordStatus;
   version: number /* int */;
   next_visit_recommended_date?: string;
+  recommendation_reason?: string;
+  visit_type?: VisitType;
   entered_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
@@ -1217,6 +1713,20 @@ export interface MedicalRecord {
   estimates?: Estimate[];
   billing_confirmation?: BillingConfirmation;
   billing?: Billing;
+}
+
+//////////
+// source: medical_record_addendum.go
+
+export interface MedicalRecordAddendum {
+  id: number /* uint64 */;
+  medical_record_id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  author_user_id: number /* uint64 */;
+  before_text: string;
+  after_text: string;
+  reason: string;
+  created_at: string;
 }
 
 //////////
@@ -1290,6 +1800,7 @@ export interface Medicine {
   tax_type: TaxType;
   tax_rate: number /* float64 */;
   sort_order: number /* int */;
+  is_non_insurance: boolean;
   created_at: string;
   updated_at: string;
   /**
@@ -1369,6 +1880,14 @@ export interface Owner {
   lstep_opt_out_reason?: string;
   line_followed_at?: string;
   line_blocked_at?: string;
+  line_id_confirmed_at?: string;
+  line_id_confirmed_by?: number /* uint64 */;
+  delivery_excluded: boolean;
+  delivery_excluded_reason?: string;
+  delivery_caution: boolean;
+  delivery_caution_reason?: string;
+  is_transferred: boolean;
+  transfer_at?: string;
   created_at: string;
   updated_at: string;
   /**
@@ -1454,6 +1973,15 @@ export const ResourceClosingSettings: Resource = "closing-settings"; // 締め�
  * 支払方法マスタ
  */
 export const ResourcePaymentMethod: Resource = "master-payment-method";
+/**
+ * FEAT-385: Lステップ CSV インポート・分析
+ */
+export const ResourceLstepCsvImport: Resource = "lstep-csv-import";
+export const ResourceLstepAnalytics: Resource = "lstep-analytics";
+/**
+ * 取扱説明書（マニュアル）編集権限
+ */
+export const ResourceManualEdit: Resource = "manual-edit";
 
 //////////
 // source: permission_group.go
@@ -1671,6 +2199,11 @@ export interface Reservation {
   notes: string;
   created_at: string;
   updated_at: string;
+  /**
+   * FEAT-381-2 Commit 3
+   */
+  reservation_route?: string;
+  actual_reservation_at?: string;
   /**
    * LINE予約用フィールド
    */

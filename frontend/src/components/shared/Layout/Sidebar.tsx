@@ -1,14 +1,14 @@
 import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
-import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase, Smartphone, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase, Smartphone, BarChart3, MessageSquare, Tag, ClipboardSignature, HelpCircle } from "lucide-react";
 import { useState, useEffect, memo, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
-import { ChangePasswordDialog } from "@/components/shared/ChangePasswordDialog/ChangePasswordDialog";
+import { ChangePasswordDialog } from "@/features/auth";
 import { paths } from "@/config/paths";
-import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCashRegisterClose, ResourceClosingSettings, ResourcePaymentMethod } from "@/types/generated/models";
+import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCashRegisterClose, ResourceAccountingReports, ResourceClosingSettings, ResourcePaymentMethod, ResourceLstepAnalytics } from "@/types/generated/models";
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */
@@ -305,7 +305,8 @@ export const Sidebar = memo(function Sidebar() {
           {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>運用・管理</p> : null}
           {[
             { icon: <CreditCard    className={ICON.toolbar} />, label: "会計管理",     path: paths.accounting.getHref(),      resource: ResourceAccounting },
-            { icon: <CreditCard    className={ICON.toolbar} />, label: "レジ締め",     path: paths.accounting.close.getHref(), resource: ResourceCashRegisterClose },
+            { icon: <CreditCard    className={ICON.toolbar} />, label: "レジ締め",           path: paths.accounting.close.getHref(),    resource: ResourceCashRegisterClose },
+            { icon: <BarChart3     className={ICON.toolbar} />, label: "月次集計レポート",   path: paths.accounting.reports.getHref(),  resource: ResourceAccountingReports },
             { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref(), resource: ResourceHospitalization },
             { icon: <Package       className={ICON.toolbar} />, label: "在庫管理",     path: paths.inventory.getHref(),       resource: ResourceInventory },
             { icon: <CalendarDays  className={ICON.toolbar} />, label: "シフト管理",   path: paths.shifts.getHref(),          resource: ResourceShifts },
@@ -333,8 +334,7 @@ export const Sidebar = memo(function Sidebar() {
           />
         </div>
 
-        {/* Lステップ連携 Section (temporary disabled until feature completion) */}
-        {/*
+        {/* Lステップ連携 Section */}
         <div className="space-y-px">
           {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>Lステップ連携</p> : null}
           <SidebarItemWithPermission
@@ -345,14 +345,14 @@ export const Sidebar = memo(function Sidebar() {
               resource: ResourceHospitalSettings,
               subItems: [
                 { icon: <MessageSquare className={ICON.toolbar} />, label: "連携設定", path: paths.lstep.settings.getHref(), resource: ResourceHospitalSettings },
-                { icon: <Tag className={ICON.toolbar} />, label: "タグ管理", path: paths.lstep.tags.getHref(), resource: ResourceOwners },
-                { icon: <ClipboardSignature className={ICON.toolbar} />, label: "健診対象者抽出", path: paths.lstep.checkupSync.getHref(), resource: ResourceOwners },
+                { icon: <Tag className={ICON.toolbar} />, label: "タグ管理", path: paths.lstep.tags.getHref(), resource: ResourceHospitalSettings },
+                { icon: <ClipboardSignature className={ICON.toolbar} />, label: "健診対象者抽出", path: paths.lstep.checkupSync.getHref(), resource: ResourceHospitalSettings },
+                { icon: <BarChart3 className={ICON.toolbar} />, label: "分析レポート", path: paths.lstep.analytics.getHref(), resource: ResourceLstepAnalytics },
               ],
             } as MenuItem}
             collapsed={collapsed}
           />
         </div>
-        */}
 
         {/* Settings Section */}
         <div className="space-y-px">
@@ -389,6 +389,19 @@ export const Sidebar = memo(function Sidebar() {
               ]
             } as MenuItem} 
             collapsed={collapsed} 
+          />
+        </div>
+
+        {/* Help Section — 取扱説明書 (全認証ユーザーに表示) */}
+        <div className="space-y-px">
+          {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>ヘルプ</p> : null}
+          <SidebarItemWithPermission
+            item={{
+              icon: <HelpCircle className={ICON.toolbar} />,
+              label: "取扱説明書",
+              path: paths.manual.getHref(),
+            } as MenuItem}
+            collapsed={collapsed}
           />
         </div>
       </nav>

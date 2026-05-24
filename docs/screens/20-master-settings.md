@@ -1,98 +1,51 @@
-# マスタ設定 仕様書
+# マスタ設定トップ 仕様書 (Master Settings Index)
 
 ## 概要
-
-- **画面の目的**: 診療・トリミング・入院・スタッフなど、システム全体で使用するマスタデータを一元管理する
-- **URLパターン**: `/settings`（トップ）、`/settings/*`（各カテゴリ）
-- **アクセス権限**: 認証済ユーザー全員
-
----
-
-## 13.1 マスタ設定トップ
-
-| 項目 | 内容 |
-|------|------|
-| **ルート** | `/settings` |
-| **コンポーネント** | `[R] MasterSettingsIndex` |
-| **目的** | マスタカテゴリ一覧を表示（Notionスタイルのセクションリスト） |
-
-### 画面構成
-
-- ヘッダー: タイトル「マスタ設定」（Settings アイコン）
-- デザイン: Notionスタイルのページ構成（大きなアイコン、大きなタイトル、区切り線）
-- リスト形式: セクションごとにグループ化された行ボタンリスト
-
-### セクション構成
-
-| セクション名 | カテゴリ / リンク |
-|---|---|
-| 基本設定 | 医院マスタ、動物種類マスタ |
-| カルテ | 診療項目マスタ、診断マスタ、問診テンプレート、薬剤マスタ |
-| 予約管理マスタ | 予約区分マスタ（LINE予約フィールド統合済み） |
-| 入院・ケージ管理 | 入院マスタ、ケージマスタ |
-| トリミング関連 | トリミングマスタ（コース・オプション統合） |
-| 会計・商品 | 商品マスタ、保険マスタ |
-| スタッフ・権限 | スタッフマスタ、職種マスタ、権限グループマスタ |
-
-### リスト行（`CardRow`）表示項目
-
-| 項目 | 表示内容 |
-|---|---|
-| アイコン | 各カテゴリに対応した Lucide アイコン |
-| 名称 | カテゴリ名（太字） |
-| 説明 | カテゴリの詳細説明（グレー文字、truncate） |
-| 矢印 | ChevronRight |
+- **画面の目的**: 診療、トリミング、入院、スタッフ、権限、および外部連携など、システム全体で共通利用される定義データ（マスタ）を一元的に管理するポータル。
+- **URLパターン**: `/settings` (トップ)
+- **アクセス権限**: 認証済ユーザー全員（各マスタへの操作権限はグループ設定により個別に制御）
 
 ---
 
-## 13.2 個別マスタ設定（共通パターン）
+## 画面構成
 
-診療項目、スタッフ、診断などの個別マスタは、以下の共通コンポーネントパターンで実装されています。
+### セクション別マスタ一覧
+管理対象を 8 つの論理的なセクションに分類し、直感的なアクセスを実現しています。
 
-| 項目 | 内容 |
-|------|------|
-| **コンポーネント** | `MasterCRUDPage` |
-| **構成** | 一覧テーブル + サイドパネル（`MasterSidePanel`） |
-
-### 一覧表示 (`DataTable`)
-- 検索フィルタ (`NotionFilter`): キーワード検索、ステータスフィルタ
-- ソート機能: ヘッダークリックによる並び替え
-- 行アクション: 編集ボタン
-
-### 編集サイドパネル (`MasterSidePanel`)
-- 表示: 右側からスライドインする Notion スタイルのパネル
-- 項目: タイトル（名称）、ステータス（有効/無効トグル）、プロパティ行 (`PropertyRow`)
-- アクション: 保存、削除（既存項目のみ）、閉じる
+| セクション名 | 管理対象（リンク） |
+|:---|:---|
+| **基本設定** | [医院情報](./19-clinic-settings.md)、[動物種類マスタ](./settings/master-animal-species.md) |
+| **カルテ** | [診療項目](./settings/master-treatment.md)、[診断マスタ](./settings/master-diagnosis.md)、[問診テンプレート](./settings/master-interview.md)、[薬剤マスタ](./settings/master-medicine.md)、[検査項目定義](./settings/master-examinations.md) |
+| **予約・シフト** | [予約区分マスタ](./settings/master-reservation-type.md)、[シフトパターン](./settings/master-shift-template.md)、[LINE予約設定](./28-line-reservation.md) |
+| **入院・ケージ** | [入院プラン](./settings/master-hospitalization-plan.md)、[ケージマスタ](./settings/master-cage.md) |
+| **トリミング** | [トリミングマスタ](./settings/master-trimming.md) |
+| **会計・分析** | [商品マスタ](./settings/master-merchandise.md)、[保険マスタ](./settings/master-insurance.md)、[支払方法](./settings/payment-methods.md)、[締め時間設定](./settings/closing-time-settings.md) |
+| **外部連携** | [Lステップ連携設定](./31-lstep-integration.md) |
+| **スタッフ・権限** | [スタッフ管理](./settings/master-staff.md)、[権限グループ設定](./settings/master-permission-group.md) |
 
 ---
 
-## 13.3 特殊なマスタ統合ページ
+## 共通の操作性
 
-一部の関連カテゴリは、タブ形式で一つのルートに統合されています。
+### 1. カード型リスト (`CardRow`)
+各マスタの項目は Notion ライクなカード形式で表示され、以下の情報を提供します。
+- **アイコン**: 視覚的な識別のための絵文字/アイコン。
+- **名称と説明**: そのマスタが何に使用されるかの要約。
+- **ステータス**: 有効/無効のインジケータ。
 
-| ルートパス | 統合されているカテゴリ |
-|---|---|
-| `/settings/treatment-items` | 診察、検査、処置、予防接種、定期健診 |
-| `/settings/diagnosis` | 診断カテゴリ、診断名 |
-| `/settings/trimming` | トリミングコース、トリミングオプション |
+### 2. サイドパネル編集 (`SidePeekPanel`)
+大部分のマスタ画面では、一覧を離れずに詳細を編集できるサイドパネル方式を採用しています。これにより、作業のコンテキストを維持したまま複数の項目を連続して編集することが可能です。
 
 ---
 
-## API連携
+## 技術仕様
 
-個別マスタごとに `/api/v1/masters/...` のエンドポイントが割り当てられています。
+### 権限制御 (RBAC)
+ポータル画面自体は全ユーザーが閲覧可能ですが、個別のマスタへのアクセスおよび操作権限は、`ResourceMasterMedical`, `ResourceMasterStaff`, `ResourceMasterTrimming` 等のリソースキーに基づき、バックエンドのハンドラー層で厳格に認可チェック（RequiredPermission）が適用されます。
 
-| メソッド | エンドポイント（例） | 用途 |
-|---------|-------------------|------|
-| GET | `/api/v1/masters/animal-species` | 一覧取得 |
-| POST | `/api/v1/masters/animal-species` | 新規作成 |
-| PATCH | `/api/v1/masters/animal-species/:id` | 更新 |
-| DELETE | `/api/v1/masters/animal-species/:id` | 削除 |
-| PATCH | `/api/v1/masters/animal-species/reorder` | 並び順保存 |
+### 使用コンポーネント
+- **`MasterSettingsIndex`**: メインコンテナ。
+- **`MasterCategorySection`**: セクション別のグループ表示部品。
+- **`MasterCard`**: 個別マスタへのリンク・サマリ表示部品。
 
-※ スタッフマスタのみ `/api/v1/masters/staffs` を使用します。
-
-## 実装状況
-
-- フロントエンド: 実装済（`features/master`）
-- バックエンドAPI: 実装済（`handler/master_handler.go` 他）
+---

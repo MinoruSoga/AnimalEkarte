@@ -75,6 +75,7 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 		SortOrder:       req.SortOrder,
 		TaxType:         req.TaxType,
 		TaxRate:         req.TaxRate,
+		IsNonInsurance:  req.IsNonInsurance,
 	})
 	if err != nil {
 		RespondError(c, err)
@@ -115,6 +116,7 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 		SortOrder:       req.SortOrder,
 		TaxType:         req.TaxType,
 		TaxRate:         req.TaxRate,
+		IsNonInsurance:  req.IsNonInsurance,
 	})
 	if err != nil {
 		RespondError(c, err)

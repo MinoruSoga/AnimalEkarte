@@ -41,6 +41,7 @@ export const transformExaminationType = (data: ExaminationType) => ({
   isActive: data.is_active,
   description: data.description ?? "",
   sortOrder: data.sort_order ?? 0,
+  isNonInsurance: data.is_non_insurance ?? false,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
 });
@@ -123,4 +124,5 @@ export type TreatmentItem = {
   sortOrder: number;
   taxType?: TaxType;
   taxRate?: number;
+  isNonInsurance?: boolean;
 };

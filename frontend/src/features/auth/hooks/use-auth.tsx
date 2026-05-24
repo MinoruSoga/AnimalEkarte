@@ -27,16 +27,16 @@ function readClinicFromStorage(): string | null {
 function saveClinicToStorage(clinicId: string): void {
   try {
     localStorage.setItem(STORAGE_KEY_CLINIC, clinicId);
-  } catch {
-    /* ignore */
+  } catch (error) {
+    console.warn("[auth] failed to save clinic to localStorage", error);
   }
 }
 
 function removeClinicFromStorage(): void {
   try {
     localStorage.removeItem(STORAGE_KEY_CLINIC);
-  } catch {
-    /* ignore */
+  } catch (error) {
+    console.warn("[auth] failed to remove clinic from localStorage", error);
   }
 }
 

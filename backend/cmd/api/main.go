@@ -76,7 +76,7 @@ func main() {
 	} else {
 		logger.Info("INTEGRATION_ENCRYPTION_KEY not set: running without encryption (dev mode)")
 	}
-	svcs.LstepSettings = service.NewLstepSettingsService(repos.LstepSettings, lstepCipher, svcs.Audit)
+	svcs.LstepSettings = service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, lstepCipher, svcs.Audit, repos.ClinicSettings)
 	svcs.LstepTagSync = service.NewLstepTagSyncService(
 		svcs.LstepSettings,
 		repos.Owner,
@@ -86,6 +86,12 @@ func main() {
 		repos.LstepTagCache,
 		repos.Pet,
 		repos.Prescription,
+		repos.Checkup,
+		repos.Reservation,
+		repos.LstepSyncErrorCounter,
+		repos.LstepTagCodeMapping,
+		repos.BillingItem,
+		repos.LstepTagConfig,
 	)
 	svcs.LstepLifecycle = service.NewLstepLifecycleService(
 		svcs.LstepSettings,
@@ -94,12 +100,14 @@ func main() {
 		repos.LstepTagCache,
 		svcs.LstepTagSync,
 		svcs.Audit,
+		repos.LstepTagConfig,
 	)
 	svcs.LstepTag = service.NewLstepTagService(
 		svcs.LstepSettings,
 		repos.Owner,
 		repos.LstepTagCache,
 		svcs.Audit,
+		repos.LstepTagConfig,
 	)
 
 	// 共有ファイルストレージ初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
@@ -120,15 +128,27 @@ func main() {
 	// LSTEP-BE-012: 慢性疾患フラグ
 	svcs.ChronicCondition = service.NewChronicConditionService(repos.ChronicCondition, repos.Pet, svcs.LstepTagSync)
 	// LSTEP-BE-013: LINE個別送信
-	svcs.LineSend = service.NewLineSendService(svcs.LstepSettings, repos.Owner, svcs.SharedFile, repos.LstepTagCache, svcs.Audit, repos.LineSendLog)
-	// LSTEP-BE-014: ノーショウ検知バッチ
-	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic, repos.MedicalRecord, svcs.Audit)
+	svcs.LineSend = service.NewLineSendService(svcs.LstepSettings, repos.Owner, svcs.SharedFile, repos.LstepTagCache, svcs.Audit, repos.LineSendLog, repos.LstepTagConfig)
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
 	svcs.LineLink = service.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, svcs.Audit)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	svcs.LstepTagSummary = service.NewLstepTagSummaryService(repos.LstepTagCache)
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
-	svcs.CheckupSync = service.NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.LstepTagCache, svcs.LstepSettings, svcs.Audit)
+	svcs.CheckupSync = service.NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.Pet, repos.LstepTagCache, svcs.LstepSettings, svcs.Audit)
+	// FEAT-384: 自動配信トリガー監視
+	svcs.LstepDeliveryMonitor = service.NewLstepDeliveryMonitorService(repos.LstepDeliveryTriggerLog)
+	// Q23: トリガー優先順位設定
+	svcs.LstepTriggerPriority = service.NewLstepTriggerPriorityService(repos.LstepTriggerPriority)
+	// FEAT-383: 自動配信トリガー（LstepBatch / MedicalRecord / Checkup より先に初期化）
+	svcs.LstepDeliveryTrigger = service.NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.BillingItem, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, svcs.LstepSettings, svcs.LstepTriggerPriority)
+	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に再初期化）
+	svcs.MedicalRecord = service.NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, svcs.LstepDeliveryTrigger, svcs.Audit)
+	svcs.Checkup = service.NewCheckupService(repos.Checkup, repos.MedicalRecord, svcs.LstepDeliveryTrigger)
+	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
+	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic, repos.MedicalRecord, svcs.Audit, svcs.LstepSettings, svcs.LstepDeliveryTrigger)
+	// FEAT-385: Lステップ CSV インポート・分析
+	svcs.LstepCsvImport = service.NewLstepCsvImportService(repos.DB(), repos.LstepCsvImport, repos.LstepFriendAttributeSnapshot, repos.Owner)
+	svcs.LstepAnalytics = service.NewLstepAnalyticsService(repos.Owner, repos.LstepDeliveryTriggerLog, repos.LstepFriendAttributeSnapshot)
 
 	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var uploader infra.FileUploader
@@ -199,6 +219,24 @@ func main() {
 			case <-timer.C:
 				if batchErr := svcs.LstepBatch.RunDormantDetectionAllClinics(appCtx); batchErr != nil {
 					logger.Error("dormant detection batch failed", slog.String("error", batchErr.Error()))
+				}
+			}
+		}
+	}()
+
+	// FEAT-383: 自動配信トリガーバッチ — 毎時0分に起動（10:00 JST 固定）
+	go func() {
+		for {
+			now := time.Now()
+			next := now.Truncate(time.Hour).Add(time.Hour)
+			timer := time.NewTimer(next.Sub(now))
+			select {
+			case <-appCtx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+				if batchErr := svcs.LstepBatch.RunDeliveryTriggerBatchAllClinics(appCtx); batchErr != nil {
+					logger.Error("delivery trigger batch failed", slog.String("error", batchErr.Error()))
 				}
 			}
 		}

@@ -14,6 +14,7 @@ type createMedicineRequest struct {
 	SortOrder       int      `json:"sort_order"`
 	TaxType         *string  `json:"tax_type"         binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate         *float64 `json:"tax_rate"         binding:"omitempty,min=0,max=1"`
+	IsNonInsurance  bool     `json:"is_non_insurance"`
 }
 
 // updateMedicineRequest は薬剤更新のバインド struct（全フィールドポインタ型）
@@ -34,4 +35,5 @@ type updateMedicineRequest struct {
 	SortOrder       *int     `json:"sort_order"`
 	TaxType         *string  `json:"tax_type"         binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate         *float64 `json:"tax_rate"         binding:"omitempty,min=0,max=1"`
+	IsNonInsurance  *bool    `json:"is_non_insurance"`
 }

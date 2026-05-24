@@ -232,7 +232,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 			if !r.Available {
 				continue
 			}
-			date, err := time.ParseInLocation("2006-01-02", r.Date, jstLocation())
+			date, err := time.ParseInLocation("2006-01-02", r.Date, jstLocation)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to parse date", "error", err)
 				return nil, window, apperrors.Wrap(err, "failed to parse date")
@@ -278,7 +278,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 	if err != nil {
 		slog.WarnContext(ctx, "failed to parse available dates settings, using defaults", "error", err)
 	}
-	dateJST := date.In(jstLocation())
+	dateJST := date.In(jstLocation)
 	dateStr := dateJST.Format("2006-01-02")
 	wd := int(dateJST.Weekday())
 	closedWeekdaySet := make(map[int]struct{}, len(datesSettings.ClosedWeekdays))
@@ -347,7 +347,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 // filterApplicableUnavailableTimes は date に適用される不可時間帯を返す。
 // 優先順位: specific > weekly（特定日設定が曜日設定を上書き）
 func filterApplicableUnavailableTimes(times []model.ReservationTypeUnavailableTime, date time.Time) []model.ReservationTypeUnavailableTime {
-	dateStr := date.In(jstLocation()).Format("2006-01-02")
+	dateStr := date.In(jstLocation).Format("2006-01-02")
 	var specific, weekly []model.ReservationTypeUnavailableTime
 	for i := range times {
 		switch times[i].UnavailableType {
@@ -356,7 +356,7 @@ func filterApplicableUnavailableTimes(times []model.ReservationTypeUnavailableTi
 				specific = append(specific, times[i])
 			}
 		case model.UnavailableTypeWeekly:
-			if times[i].DayOfWeek != nil && int(*times[i].DayOfWeek) == int(date.In(jstLocation()).Weekday()) {
+			if times[i].DayOfWeek != nil && int(*times[i].DayOfWeek) == int(date.In(jstLocation).Weekday()) {
 				weekly = append(weekly, times[i])
 			}
 		}
@@ -656,7 +656,7 @@ func parseBusinessHoursForDate(setting *model.LineReservationSetting, date time.
 	if len(setting.BusinessHoursByWeekday) > 0 {
 		var byWeekday map[string]BusinessHours
 		if err := json.Unmarshal(setting.BusinessHoursByWeekday, &byWeekday); err == nil {
-			key := strconv.Itoa(int(date.In(jstLocation()).Weekday()))
+			key := strconv.Itoa(int(date.In(jstLocation).Weekday()))
 			if wdBH, ok := byWeekday[key]; ok {
 				bh = wdBH
 			}

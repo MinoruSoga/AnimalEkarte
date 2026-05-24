@@ -83,8 +83,9 @@ func (r *inquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uin
 	return nil
 }
 
-// TODO: inquiry_answers テーブル追加時に以下の COUNT クエリを実装すること。
-// 現スキーマには inquiry_template_id FK を持つテーブルが存在しないため常に 0 を返す。
+// 現スキーマに inquiry_template_id を参照する FK テーブルが存在しないため常に 0 を返す。
+// PO判断（2026-05-25）: inquiry_answers は当面実装しない。
+// 将来 inquiry_answers 等を追加する場合は、その実装 PR 内でこの関数を COUNT クエリに書き換えること。
 func (r *inquiryTemplateRepository) CountUsageByInquiryTemplateID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }

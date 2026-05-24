@@ -50,6 +50,7 @@ export interface UpdateCheckupInput {
   date?: string;
   next_date?: string | null;
   doctor_id?: number | null;
+  doctor_id_clear?: boolean;
   result?: string;
 }
 

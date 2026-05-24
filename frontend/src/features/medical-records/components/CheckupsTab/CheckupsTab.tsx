@@ -13,12 +13,15 @@ import { C, STYLE, ICON, PALETTE } from "@/lib/design-tokens";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
 // Relative
+import { CheckupAlertBadge } from "@/features/checkups";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetCheckups } from "../../api/checkups";
 import { useCreateCheckup } from "../../api/checkups";
 import { useUpdateCheckup } from "../../api/checkups";
 import { useDeleteCheckup } from "../../api/checkups";
 import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
+import { useGetStaffs } from "@/hooks/use-staffs";
+import type { StaffItem } from "@/hooks/use-staffs";
 import type { Checkup, CreateCheckupInput, UpdateCheckupInput } from "../../api/checkups";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
 
@@ -43,6 +46,7 @@ interface AddFormState {
   checkup_type_id: string;
   date: string;
   next_date: string;
+  doctor_id: string;
   result: string;
 }
 
@@ -50,6 +54,7 @@ const EMPTY_ADD_FORM: AddFormState = {
   checkup_type_id: "",
   date: "",
   next_date: "",
+  doctor_id: "",
   result: "",
 };
 
@@ -70,13 +75,15 @@ interface EditRowProps {
   onCancel: () => void;
   isPending: boolean;
   checkupTypes: CheckupTypeItem[];
+  staffs: StaffItem[];
 }
 
-const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, checkupTypes }: EditRowProps) {
+const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, checkupTypes, staffs }: EditRowProps) {
   const [form, setForm] = useState<UpdateCheckupInput>({
     checkup_type_id: Number(checkup.checkup_type_id),
     date: checkup.date,
     next_date: checkup.next_date ?? "",
+    doctor_id: checkup.doctor_id ? Number(checkup.doctor_id) : null,
     result: checkup.result,
   });
 
@@ -88,7 +95,11 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
   );
 
   const handleSave = useCallback(() => {
-    onSave(checkup.id, form);
+    const payload: UpdateCheckupInput = { ...form };
+    if (form.doctor_id === null) {
+      payload.doctor_id_clear = true;
+    }
+    onSave(checkup.id, payload);
   }, [checkup.id, form, onSave]);
 
   return (
@@ -126,7 +137,20 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
         />
       </td>
       <td className="px-3 py-2">
-        <span className={`text-sm ${C.text60}`}>-</span>
+        <select
+          value={form.doctor_id ?? ""}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+            handleChange("doctor_id", e.target.value ? Number(e.target.value) : null)
+          }
+          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
+        >
+          <option value="">-</option>
+          {staffs.map((s: StaffItem) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
       </td>
       <td className="px-3 py-2">
         <input
@@ -168,6 +192,7 @@ type LstepStatus = "synced" | "not-linked" | "opt-out";
 interface CheckupsTabProps {
   medicalRecordId: string;
   lstepStatus?: LstepStatus;
+  isFinalized?: boolean;
 }
 
 function LstepStatusBadge({ status }: { status: LstepStatus }) {
@@ -197,10 +222,11 @@ function LstepStatusBadge({ status }: { status: LstepStatus }) {
 
 // ── Component ──────────────────────────────────────────────────────────
 
-export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepStatus }: CheckupsTabProps) {
+export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepStatus, isFinalized = false }: CheckupsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
+  const { data: staffs = [] } = useGetStaffs();
   const createMutation = useCreateCheckup(medicalRecordId);
   const { mutate: createCheckupFn } = createMutation;
   const updateMutation = useUpdateCheckup(medicalRecordId);
@@ -248,6 +274,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
       checkup_type_id: Number(addForm.checkup_type_id),
       date: addForm.date,
       next_date: addForm.next_date || null,
+      doctor_id: addForm.doctor_id ? Number(addForm.doctor_id) : null,
       result: addForm.result,
     };
     createCheckupFn(input, {
@@ -335,6 +362,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
                     onCancel={handleEditCancel}
                     isPending={updateMutation.isPending}
                     checkupTypes={checkupTypes}
+                    staffs={staffs}
                   />
                 ) : (
                   <tr
@@ -346,7 +374,14 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
                       {checkup.checkup_type?.name ?? checkup.checkup_type_id}
                     </td>
                     <td className={`px-3 text-sm ${C.text60}`}>
-                      {checkup.next_date ? checkup.next_date : "-"}
+                      {checkup.next_date ? (
+                        <div className="flex items-center gap-1.5">
+                          <span>{checkup.next_date}</span>
+                          <CheckupAlertBadge nextDate={checkup.next_date} />
+                        </div>
+                      ) : (
+                        "-"
+                      )}
                     </td>
                     <td className={`px-3 text-sm ${C.text60}`}>
                       {checkup.doctor?.name ?? (checkup.doctor_id ? checkup.doctor_id : "-")}
@@ -354,7 +389,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
                     <td className={`px-3 text-sm ${C.text}`}>{checkup.result}</td>
                     <td className="px-2">
                       <div className="flex items-center justify-end gap-1">
-                        {canEdit ? (
+                        {canEdit && !isFinalized ? (
                           <button
                             onClick={() => setEditingId(checkup.id)}
                             className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverText} ${C.hoverBgLight}`}
@@ -363,7 +398,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
                             <Pencil className={`${ICON.xs}`} />
                           </button>
                         ) : null}
-                        {canDelete ? (
+                        {canDelete && !isFinalized ? (
                           <DeleteIconButton
                             onClick={() => handleDelete(checkup.id)}
                             disabled={deleteMutation.isPending}
@@ -378,8 +413,15 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
           </tbody>
         </table>
 
+        {/* 確定済みカルテ: 閲覧専用メッセージ */}
+        {isFinalized ? (
+          <div className={`px-4 py-3 text-sm ${C.text60} border-t ${C.borderLight}`}>
+            確定済みカルテのため健診情報は編集できません
+          </div>
+        ) : null}
+
         {/* インライン追加フォーム */}
-        {isAdding ? (
+        {!isFinalized && isAdding ? (
           <div className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
             <div className="flex flex-col">
               <NotionDatePicker
@@ -407,6 +449,18 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
               placeholder="次回日"
               className="h-8 w-32"
             />
+            <select
+              value={addForm.doctor_id}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("doctor_id", e.target.value)}
+              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+            >
+              <option value="">担当医</option>
+              {staffs.map((s: StaffItem) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
             <input
               autoFocus
               type="text"
@@ -437,7 +491,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
             </Button>
           </div>
         ) : (
-          canCreate ? (
+          canCreate && !isFinalized ? (
             <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
               <Plus className={`${ICON.xs}`} />
               <span>記録を追加</span>

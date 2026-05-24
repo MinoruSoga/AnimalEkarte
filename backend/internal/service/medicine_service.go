@@ -24,6 +24,7 @@ const (
 	colMedicineSortOrder       = "sort_order"
 	colMedicineTaxType         = "tax_type"
 	colMedicineTaxRate         = "tax_rate"
+	colMedicineIsNonInsurance  = "is_non_insurance"
 )
 
 func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
@@ -74,6 +75,9 @@ func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
 	if input.TaxRate != nil {
 		fields[colMedicineTaxRate] = *input.TaxRate
 	}
+	if input.IsNonInsurance != nil {
+		fields[colMedicineIsNonInsurance] = *input.IsNonInsurance
+	}
 	return fields
 }
 
@@ -93,6 +97,7 @@ type CreateMedicineInput struct {
 	SortOrder       int
 	TaxType         *string  // nil = "excluded" (default)
 	TaxRate         *float64 // nil = 0.10 (default)
+	IsNonInsurance  bool
 }
 
 // UpdateMedicineInput は薬剤更新の入力DTO（nil = 未指定）
@@ -110,6 +115,7 @@ type UpdateMedicineInput struct {
 	SortOrder       *int
 	TaxType         *string
 	TaxRate         *float64
+	IsNonInsurance  *bool
 }
 
 // --- DB column constants ---
@@ -181,6 +187,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		SortOrder:       input.SortOrder,
 		TaxType:         taxType,
 		TaxRate:         taxRate,
+		IsNonInsurance:  input.IsNonInsurance,
 	}
 	if input.DosageForm != nil && *input.DosageForm != "" {
 		df := model.DosageForm(*input.DosageForm)

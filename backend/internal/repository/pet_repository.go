@@ -15,10 +15,15 @@ type PetRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
 	CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	// CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL）を返す。
+	// ISSUE-007: CreateCheckupSync のサーバ側二重防御で誤配信を防ぐ。
+	CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
 	Create(ctx context.Context, pet *model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
+	// FindOwnersByPetBirthday は指定月日と一致する誕生日の生存ペットを持つ飼い主IDリストを返す（FEAT-383）。
+	FindOwnersByPetBirthday(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error)
 }
 
 type petRepository struct {
@@ -105,6 +110,19 @@ func (r *petRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint
 	return count, nil
 }
 
+// CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL）を返す。
+// ISSUE-007: CreateCheckupSync のサーバ側二重防御で死亡ペットのみの飼い主を除外するために使用する。
+func (r *petRepository) CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
+		Scopes(clinicScope(clinicID)).
+		Where("owner_id = ? AND deceased_at IS NULL AND deleted_at IS NULL", ownerID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "pet", "")
+	}
+	return count, nil
+}
+
 func (r *petRepository) CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
@@ -163,4 +181,25 @@ func (r *petRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 		return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// FindOwnersByPetBirthday は指定月日と一致する誕生日の生存ペットを持つ飼い主IDリストを返す（FEAT-383）。
+func (r *petRepository) FindOwnersByPetBirthday(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error) {
+	type row struct{ OwnerID uint64 }
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Model(&model.Pet{}).
+		Scopes(clinicScope(clinicID)).
+		Where("deceased_at IS NULL AND deleted_at IS NULL").
+		Where("EXTRACT(month FROM birth_date) = ? AND EXTRACT(day FROM birth_date) = ?", month, day).
+		Distinct("owner_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("clinic=%d birthday=%02d-%02d", clinicID, month, day))
+	}
+	ids := make([]uint64, len(rows))
+	for i, r := range rows {
+		ids[i] = r.OwnerID
+	}
+	return ids, nil
 }

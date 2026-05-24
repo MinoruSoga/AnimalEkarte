@@ -1,6 +1,6 @@
 # FE-253: カルテ側トリミング機能 — appointments ベース API 対応
 
-**Status**: Open
+**Status**: Closed（2026-05-19 実装済み確認）
 **Priority**: High
 **Affects**: frontend/src/features/trimming/, frontend/src/types/trimming.ts
 **Date Created**: 2026-04-16

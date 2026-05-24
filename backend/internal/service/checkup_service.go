@@ -29,6 +29,7 @@ type UpdateCheckupInput struct {
 	Date          *time.Time
 	NextDate      *time.Time
 	DoctorID      *uint64
+	DoctorIDClear *bool // true のとき doctor_id を NULL にクリアする
 	Result        *string
 }
 
@@ -39,6 +40,12 @@ type ListCheckupsByClinicInput struct {
 	EndDate       *string
 	NextStartDate *string
 	NextEndDate   *string
+}
+
+// CheckupAlertsResult は overdue + upcoming のアラート集計結果
+type CheckupAlertsResult struct {
+	Overdue  []model.Checkup // next_date < today
+	Upcoming []model.Checkup // today <= next_date <= today + withinDays
 }
 
 // CheckupService は健診記録のビジネスロジックを定義するインターフェース
@@ -56,7 +63,9 @@ func buildCheckupUpdate(input *UpdateCheckupInput) map[string]any {
 	if input.NextDate != nil {
 		fields["next_date"] = *input.NextDate
 	}
-	if input.DoctorID != nil {
+	if input.DoctorIDClear != nil && *input.DoctorIDClear {
+		fields["doctor_id"] = nil
+	} else if input.DoctorID != nil {
 		fields["doctor_id"] = *input.DoctorID
 	}
 	if input.Result != nil {
@@ -72,15 +81,26 @@ type CheckupService interface {
 	Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error)
 	Delete(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) error
+	GetAlerts(ctx context.Context, clinicID uint64, withinDays int) (*CheckupAlertsResult, error)
 }
 
 type checkupService struct {
-	repo repository.CheckupRepository
+	repo                 repository.CheckupRepository
+	medicalRecordRepo    repository.MedicalRecordRepository
+	lstepDeliveryTrigger LstepDeliveryTriggerService
+	nowFn                func() time.Time // test hook; nil uses time.Now
 }
 
 // NewCheckupService は CheckupService の実装を返す
-func NewCheckupService(repo repository.CheckupRepository) CheckupService {
-	return &checkupService{repo: repo}
+func NewCheckupService(repo repository.CheckupRepository, medicalRecordRepo repository.MedicalRecordRepository, lstepDeliveryTrigger LstepDeliveryTriggerService) CheckupService {
+	return &checkupService{repo: repo, medicalRecordRepo: medicalRecordRepo, lstepDeliveryTrigger: lstepDeliveryTrigger}
+}
+
+func (s *checkupService) now() time.Time {
+	if s.nowFn != nil {
+		return s.nowFn()
+	}
+	return time.Now()
 }
 
 func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
@@ -120,6 +140,14 @@ func (s *checkupService) GetByID(ctx context.Context, clinicID, medicalRecordID,
 }
 
 func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error) {
+	parent, err := s.medicalRecordRepo.FindByID(ctx, input.ClinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict("確定済みカルテのため健診記録は追加できません")
+	}
 	checkup := &model.Checkup{
 		ClinicID:        input.ClinicID,
 		MedicalRecordID: medicalRecordID,
@@ -143,6 +171,22 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		slog.ErrorContext(ctx, "failed to get checkup after create", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get checkup after create")
 	}
+
+	// 健診フォローアップトリガー（非同期・非致命的）
+	if s.lstepDeliveryTrigger != nil && created.MedicalRecord != nil && created.MedicalRecord.OwnerID != nil {
+		clinicID := input.ClinicID
+		ownerID := *created.MedicalRecord.OwnerID
+		svc := s.lstepDeliveryTrigger
+		// context.WithoutCancel: HTTP request の cancel から切離しつつ tracing context を保持。
+		// fire-and-forget goroutine のため、timeout は Lstep API クライアント側 (30s) で吸収。
+		bgCtx := context.WithoutCancel(ctx)
+		go func() {
+			if err := svc.TriggerCheckupFollowUp(bgCtx, clinicID, ownerID); err != nil {
+				slog.WarnContext(bgCtx, "checkup followup trigger failed (non-fatal)", "error", err, "owner_id", ownerID)
+			}
+		}()
+	}
+
 	return created, nil
 }
 
@@ -155,6 +199,14 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 	}
 	if existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
+	}
+	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict("確定済みカルテのため健診記録は編集できません")
 	}
 	fields := buildCheckupUpdate(input)
 	if len(fields) == 0 {
@@ -176,6 +228,35 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 	return updated, nil
 }
 
+func (s *checkupService) GetAlerts(ctx context.Context, clinicID uint64, withinDays int) (*CheckupAlertsResult, error) {
+	if withinDays < 1 || withinDays > 365 {
+		return nil, apperrors.WrapInvalidInput("within_days must be 1-365")
+	}
+	checkups, err := s.repo.FindAlerts(ctx, clinicID, withinDays)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find checkup alerts", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to find checkup alerts")
+	}
+	nowJST := s.now().In(jstLocation)
+	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, jstLocation)
+	result := &CheckupAlertsResult{
+		Overdue:  make([]model.Checkup, 0),
+		Upcoming: make([]model.Checkup, 0),
+	}
+	for i := range checkups {
+		c := &checkups[i]
+		if c.NextDate == nil {
+			continue
+		}
+		if c.NextDate.Before(today) {
+			result.Overdue = append(result.Overdue, *c)
+		} else {
+			result.Upcoming = append(result.Upcoming, *c)
+		}
+	}
+	return result, nil
+}
+
 func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) error {
 	existing, err := s.repo.FindByID(ctx, clinicID, checkupID)
 	if err != nil {
@@ -183,6 +264,14 @@ func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, 
 	}
 	if existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
+	}
+	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return apperrors.WrapConflict("確定済みカルテのため健診記録は削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, checkupID); err != nil {
 		return apperrors.Wrap(err, "failed to delete checkup")

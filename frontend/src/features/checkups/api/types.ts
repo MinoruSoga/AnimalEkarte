@@ -20,3 +20,4 @@ export interface CheckupFilters {
   nextStartDate?: string;
   nextEndDate?: string;
 }
+

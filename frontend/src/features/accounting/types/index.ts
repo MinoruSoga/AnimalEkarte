@@ -77,6 +77,17 @@ export interface PaymentInfo {
   paidByName?: string; // 支払処理スタッフ名
 }
 
+/** @see {@link import("@/types/generated/models").PaymentSplit} */
+export interface PaymentSplitInfo {
+  id: string;
+  method: PaymentMethod;
+  paymentMethodId?: string;
+  amount: number;
+  receivedAmount: number;
+  changeAmount: number;
+  paidByName?: string;
+}
+
 /** @see {@link import("@/types/generated/models").BillingRefund} */
 export interface Refund {
   id: string;
@@ -103,6 +114,7 @@ export interface Accounting {
   completedAt?: string; // 会計完了日時
   items: AccountingItem[];
   payment?: PaymentInfo;
+  paymentSplits?: PaymentSplitInfo[];
   totalRefundedAmount: number; // 返金合計（0の場合はバッジ非表示）
   memo?: string;
 }

@@ -213,6 +213,15 @@ export const paths = {
     getHref: () => "/shifts",
   },
 
+  manual: {
+    path: "/manual",
+    getHref: () => "/manual",
+    article: {
+      path: "/manual/:category/:slug",
+      getHref: (category: string, slug: string) => `/manual/${category}/${slug}`,
+    },
+  },
+
   lineReservation: {
     path: "/line-reservation",
     getHref: () => "/line-reservation",
@@ -232,6 +241,10 @@ export const paths = {
     checkupSync: {
       path: "/lstep/checkup-sync",
       getHref: () => "/lstep/checkup-sync",
+    },
+    analytics: {
+      path: "/lstep/analytics",
+      getHref: () => "/lstep/analytics",
     },
   },
 
@@ -327,12 +340,12 @@ export const paths = {
       getHref: () => "/settings/treatment-items?tab=procedure",
     },
     diagnosisType: {
-      path: "/settings/diagnosis-type",
-      getHref: () => "/settings/diagnosis-type",
+      path: "/settings/diagnosis",
+      getHref: () => "/settings/diagnosis?tab=diagnosis_type",
     },
     diagnosisName: {
-      path: "/settings/diagnosis-name",
-      getHref: () => "/settings/diagnosis-name",
+      path: "/settings/diagnosis",
+      getHref: () => "/settings/diagnosis?tab=diagnosis_name",
     },
     interview: {
       chiefComplaint: {

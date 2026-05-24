@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type checkupResponse struct {
@@ -108,4 +109,80 @@ func toCheckupGlobalResponse(c *model.Checkup) checkupGlobalResponse {
 		}
 	}
 	return r
+}
+
+// ---- Alert response types ----
+
+type checkupAlertItemResponse struct {
+	CheckupID       uint64 `json:"checkup_id"`
+	PetID           uint64 `json:"pet_id"`
+	PetName         string `json:"pet_name"`
+	OwnerName       string `json:"owner_name"`
+	CheckupTypeName string `json:"checkup_type_name"`
+	LastCheckupDate string `json:"last_checkup_date"`
+	NextDate        string `json:"next_date"`
+	Days            int    `json:"days"` // overdue: 経過日数(正), upcoming: 残り日数(正)
+}
+
+type checkupAlertCategoryResponse struct {
+	Count int                        `json:"count"`
+	Items []checkupAlertItemResponse `json:"items"`
+}
+
+type checkupAlertsResponse struct {
+	Overdue  checkupAlertCategoryResponse `json:"overdue"`
+	Upcoming checkupAlertCategoryResponse `json:"upcoming"`
+}
+
+func toCheckupAlertItemResponse(c *model.Checkup, today time.Time) checkupAlertItemResponse {
+	var petID uint64
+	var petName, ownerName string
+	if c.MedicalRecord != nil && c.MedicalRecord.Pet != nil {
+		petID = c.MedicalRecord.Pet.ID
+		petName = c.MedicalRecord.Pet.Name
+		if c.MedicalRecord.Pet.Owner != nil {
+			ownerName = c.MedicalRecord.Pet.Owner.Name
+		}
+	}
+	var checkupTypeName string
+	if c.CheckupType != nil {
+		checkupTypeName = c.CheckupType.Name
+	}
+	nextDateStr := ""
+	var days int
+	if c.NextDate != nil {
+		nextDateStr = c.NextDate.Format("2006-01-02")
+		diff := int(c.NextDate.Sub(today).Hours() / 24)
+		if diff < 0 {
+			days = -diff
+		} else {
+			days = diff
+		}
+	}
+	return checkupAlertItemResponse{
+		CheckupID:       c.ID,
+		PetID:           petID,
+		PetName:         petName,
+		OwnerName:       ownerName,
+		CheckupTypeName: checkupTypeName,
+		LastCheckupDate: c.Date.Format("2006-01-02"),
+		NextDate:        nextDateStr,
+		Days:            days,
+	}
+}
+
+func toCheckupAlertsResponse(result *service.CheckupAlertsResult) checkupAlertsResponse {
+	today := time.Now().Truncate(24 * time.Hour)
+	overdueItems := make([]checkupAlertItemResponse, 0, len(result.Overdue))
+	for i := range result.Overdue {
+		overdueItems = append(overdueItems, toCheckupAlertItemResponse(&result.Overdue[i], today))
+	}
+	upcomingItems := make([]checkupAlertItemResponse, 0, len(result.Upcoming))
+	for i := range result.Upcoming {
+		upcomingItems = append(upcomingItems, toCheckupAlertItemResponse(&result.Upcoming[i], today))
+	}
+	return checkupAlertsResponse{
+		Overdue:  checkupAlertCategoryResponse{Count: len(overdueItems), Items: overdueItems},
+		Upcoming: checkupAlertCategoryResponse{Count: len(upcomingItems), Items: upcomingItems},
+	}
 }

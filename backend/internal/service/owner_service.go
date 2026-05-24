@@ -15,23 +15,34 @@ import (
 // --- Owner DB column constants ---
 
 const (
-	colOwnerName      = "name"
-	colOwnerNameKana  = "name_kana"
-	colBirthDate      = "birth_date"
-	colCompany        = "company"
-	colPostalCode     = "postal_code"
-	colAddress1       = "address1"
-	colAddress2       = "address2"
-	colHomePostalCode = "home_postal_code"
-	colHomeAddress1   = "home_address1"
-	colHomeAddress2   = "home_address2"
-	colPhone          = "phone"
-	colCompanyPhone   = "company_phone"
-	colEmail          = "email"
-	colRemarks        = "remarks"
-	colIsDangerous    = "is_dangerous"
-	colDiscountRate   = "discount_rate"
-	colMembershipType = "membership_type"
+	colOwnerName              = "name"
+	colOwnerNameKana          = "name_kana"
+	colBirthDate              = "birth_date"
+	colCompany                = "company"
+	colPostalCode             = "postal_code"
+	colAddress1               = "address1"
+	colAddress2               = "address2"
+	colHomePostalCode         = "home_postal_code"
+	colHomeAddress1           = "home_address1"
+	colHomeAddress2           = "home_address2"
+	colPhone                  = "phone"
+	colCompanyPhone           = "company_phone"
+	colEmail                  = "email"
+	colRemarks                = "remarks"
+	colIsDangerous            = "is_dangerous"
+	colDiscountRate           = "discount_rate"
+	colMembershipType         = "membership_type"
+	colLstepOptOut            = "lstep_opt_out"
+	colLstepOptOutAt          = "lstep_opt_out_at"
+	colLstepOptOutReason      = "lstep_opt_out_reason"
+	colLineIDConfirmedAt      = "line_id_confirmed_at"
+	colLineIDConfirmedBy      = "line_id_confirmed_by"
+	colDeliveryExcluded       = "delivery_excluded"
+	colDeliveryExcludedReason = "delivery_excluded_reason"
+	colDeliveryCaution        = "delivery_caution"
+	colDeliveryCautionReason  = "delivery_caution_reason"
+	colIsTransferred          = "is_transferred"
+	colTransferAt             = "transfer_at"
 )
 
 // --- Input DTOs（Service層の公開I/F） ---
@@ -101,6 +112,23 @@ type UpdateOwnerInput struct {
 	MembershipType *model.MembershipType
 }
 
+// UpdateDeliveryExclusionInput は配信除外フラグ更新の入力DTO（FEAT-381）
+type UpdateDeliveryExclusionInput struct {
+	Excluded bool
+	Reason   *string
+}
+
+// UpdateDeliveryCautionInput は配信注意フラグ更新の入力DTO（FEAT-381-2 Commit 1）
+type UpdateDeliveryCautionInput struct {
+	Caution bool
+	Reason  string
+}
+
+// UpdateTransferStatusInput は転院フラグ更新の入力DTO（FEAT-381）
+type UpdateTransferStatusInput struct {
+	IsTransferred bool
+}
+
 // buildOwnerUpdate はポインタが非 nil のフィールドのみ map に追加する
 func buildOwnerUpdate(input *UpdateOwnerInput) map[string]any {
 	fields := make(map[string]any)
@@ -167,17 +195,30 @@ type OwnerService interface {
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateOwnerInput) (*model.Owner, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// LinkLineUserID は飼主の LINE User ID を設定または解除する（BE-005）。nil で解除。
-	LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error
+	// 同一クリニック内で重複する lineUserID がある場合は 409 Conflict を返す。
+	// actorUserID は監査ログ記録用（nil 可）。
+	LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string, actorUserID *uint64) error
+	// UpdateDeliveryExclusion は配信除外フラグと理由を更新し、Lステップタグを同期する（FEAT-381）。
+	UpdateDeliveryExclusion(ctx context.Context, clinicID, id uint64, input UpdateDeliveryExclusionInput) (*model.Owner, error)
+	// UpdateDeliveryCaution は配信注意フラグと理由を更新し、Lステップタグを同期する（FEAT-381-2）。
+	UpdateDeliveryCaution(ctx context.Context, clinicID, id uint64, input UpdateDeliveryCautionInput) (*model.Owner, error)
+	// UpdateTransferStatus は転院フラグと転院日時を更新し、Lステップタグを同期する（FEAT-381）。
+	UpdateTransferStatus(ctx context.Context, clinicID, id uint64, input UpdateTransferStatusInput) (*model.Owner, error)
+	// ConfirmLineID は LINE ID 紐付け確認日時と確認者を設定する（FEAT-381 + Q22）。
+	// actorUserID は確認者として line_id_confirmed_by に記録される（nil 可）。
+	ConfirmLineID(ctx context.Context, clinicID, id uint64, actorUserID *uint64) (*model.Owner, error)
 }
 
 // --- Implementation ---
 
 type ownerService struct {
-	repo repository.OwnerRepository
+	repo       repository.OwnerRepository
+	tagSyncSvc LstepTagSyncService
+	auditSvc   AuditService
 }
 
-func NewOwnerService(repo repository.OwnerRepository) OwnerService {
-	return &ownerService{repo: repo}
+func NewOwnerService(repo repository.OwnerRepository, tagSyncSvc LstepTagSyncService, auditSvc AuditService) OwnerService {
+	return &ownerService{repo: repo, tagSyncSvc: tagSyncSvc, auditSvc: auditSvc}
 }
 
 func (s *ownerService) List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -457,13 +498,197 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 	return nil
 }
 
-func (s *ownerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
+func (s *ownerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string, actorUserID *uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find owner")
+	}
+	// Q22 Guard 1: 同一クリニック内で LINE User ID が重複していないか確認する。
+	if lineUserID != nil {
+		existing, err := s.repo.FindByLineUserID(ctx, clinicID, *lineUserID)
+		if err == nil && existing != nil && existing.ID != id {
+			return apperrors.WrapConflict("この LINE User ID はすでに別の飼主に紐付けられています")
+		}
 	}
 	if err := s.repo.UpdateLineUserID(ctx, clinicID, id, lineUserID); err != nil {
 		slog.ErrorContext(ctx, "failed to link line user id", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to link line user id")
 	}
+	// Q22 Guard 3: 監査ログ（best-effort — 失敗してもリンク操作は続行）。
+	if s.auditSvc != nil {
+		action := "owner.line_id.link"
+		if lineUserID == nil {
+			action = "owner.line_id.unlink"
+		}
+		if logErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorUserID, action, "owner", &id); logErr != nil {
+			slog.WarnContext(ctx, "audit log failed for line id link", "error", logErr, "owner_id", id)
+		}
+	}
 	return nil
+}
+
+func (s *ownerService) UpdateDeliveryExclusion(ctx context.Context, clinicID, id uint64, input UpdateDeliveryExclusionInput) (*model.Owner, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find owner")
+	}
+
+	var reason *string
+	if input.Excluded && input.Reason != nil {
+		trimmed := strings.TrimSpace(*input.Reason)
+		if len([]rune(trimmed)) > 100 {
+			return nil, apperrors.WrapInvalidInput("delivery_excluded_reason must be 100 characters or less")
+		}
+		if trimmed != "" {
+			reason = &trimmed
+		}
+	}
+
+	var optOutAt any
+	if input.Excluded {
+		optOutAt = time.Now()
+	}
+	fields := map[string]any{
+		colDeliveryExcluded:       input.Excluded,
+		colDeliveryExcludedReason: reason,
+		colLstepOptOut:            input.Excluded,
+		colLstepOptOutAt:          optOutAt,
+		colLstepOptOutReason:      reason,
+	}
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update delivery exclusion", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to update delivery exclusion")
+	}
+	slog.InfoContext(ctx, "delivery exclusion updated",
+		slog.Uint64("owner_id", id),
+		slog.Uint64("clinic_id", clinicID),
+		slog.Bool("excluded", input.Excluded))
+	if s.tagSyncSvc != nil {
+		if err := s.tagSyncSvc.SyncExclusionTags(ctx, clinicID, id); err != nil {
+			slog.ErrorContext(ctx, "failed to sync exclusion tag after delivery exclusion update", "error", err, "id", id, "clinic_id", clinicID)
+		}
+	}
+
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to reload owner after delivery exclusion update", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to reload owner")
+	}
+	return owner, nil
+}
+
+func (s *ownerService) UpdateDeliveryCaution(ctx context.Context, clinicID, id uint64, input UpdateDeliveryCautionInput) (*model.Owner, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find owner")
+	}
+
+	var reason *string
+	if input.Caution {
+		trimmed := strings.TrimSpace(input.Reason)
+		if len([]rune(trimmed)) > 100 {
+			return nil, apperrors.WrapInvalidInput("delivery_caution_reason must be 100 characters or less")
+		}
+		if trimmed != "" {
+			reason = &trimmed
+		}
+	}
+
+	fields := map[string]any{
+		colDeliveryCaution:       input.Caution,
+		colDeliveryCautionReason: reason,
+	}
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update delivery caution", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to update delivery caution")
+	}
+	slog.InfoContext(ctx, "delivery caution updated",
+		slog.Uint64("owner_id", id),
+		slog.Uint64("clinic_id", clinicID),
+		slog.Bool("caution", input.Caution))
+	if s.tagSyncSvc != nil {
+		if err := s.tagSyncSvc.SyncExclusionTags(ctx, clinicID, id); err != nil {
+			slog.WarnContext(ctx, "failed to sync exclusion tag after delivery caution update", "error", err, "id", id, "clinic_id", clinicID)
+		}
+	}
+
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to reload owner after delivery caution update", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to reload owner")
+	}
+	return owner, nil
+}
+
+func (s *ownerService) UpdateTransferStatus(ctx context.Context, clinicID, id uint64, input UpdateTransferStatusInput) (*model.Owner, error) {
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find owner")
+	}
+	var transferAt any
+	if input.IsTransferred {
+		now := time.Now()
+		transferAt = now
+	}
+	fields := map[string]any{
+		colIsTransferred: input.IsTransferred,
+		colTransferAt:    transferAt,
+	}
+	if input.IsTransferred {
+		fields[colMembershipType] = model.MembershipTypeTransferred
+	} else if owner.MembershipType == model.MembershipTypeTransferred {
+		fields[colMembershipType] = model.MembershipTypeNonMember
+	}
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update transfer status", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to update transfer status")
+	}
+	slog.InfoContext(ctx, "transfer status updated",
+		slog.Uint64("owner_id", id),
+		slog.Uint64("clinic_id", clinicID),
+		slog.Bool("is_transferred", input.IsTransferred))
+	if s.tagSyncSvc != nil {
+		if err := s.tagSyncSvc.SyncExclusionTags(ctx, clinicID, id); err != nil {
+			slog.ErrorContext(ctx, "failed to sync exclusion tag after transfer status update", "error", err, "id", id, "clinic_id", clinicID)
+		}
+	}
+
+	updated, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to reload owner after transfer status update", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to reload owner")
+	}
+	return updated, nil
+}
+
+func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64, actorUserID *uint64) (*model.Owner, error) {
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find owner")
+	}
+	if owner.LineUserID == nil || strings.TrimSpace(*owner.LineUserID) == "" {
+		return nil, apperrors.WrapInvalidInput("LINE User ID is not linked")
+	}
+	now := time.Now()
+	// Q22 Guard 2: 確認者（actorUserID）を line_id_confirmed_by に記録する。
+	fields := map[string]any{
+		colLineIDConfirmedAt: now,
+		colLineIDConfirmedBy: actorUserID,
+	}
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to confirm line id", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to confirm line id")
+	}
+	slog.InfoContext(ctx, "line id confirmed",
+		slog.Uint64("owner_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	// Q22 Guard 3: 監査ログ（best-effort）。
+	if s.auditSvc != nil {
+		if logErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorUserID, "owner.line_id.confirm", "owner", &id); logErr != nil {
+			slog.WarnContext(ctx, "audit log failed for line id confirm", "error", logErr, "owner_id", id)
+		}
+	}
+	updated, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to reload owner after line id confirmation", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to reload owner")
+	}
+	return updated, nil
 }

@@ -12,7 +12,7 @@ export interface OwnerApiResponse extends Omit<BackendOwner, "name" | "name_kana
   owner_name_kana?: string;
 }
 
-const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {
+export const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {
   "non_member": "非会員",
   "member": "会員",
   "deceased": "退亡者",
@@ -48,6 +48,17 @@ export const transformOwner = (owner: OwnerApiResponse): Owner => ({
   isDangerous: owner.is_dangerous ?? false,
   discountRate: owner.discount_rate ?? 0,
   membershipType: MEMBERSHIP_TYPE_FROM_API[owner.membership_type ?? ""] ?? owner.membership_type ?? "",
+  lineUserId: owner.line_user_id,
+  lineIdConfirmedAt: owner.line_id_confirmed_at,
+  deliveryExcluded: owner.delivery_excluded ?? false,
+  deliveryExcludedReason: owner.delivery_excluded_reason,
+  deliveryCaution: owner.delivery_caution ?? false,
+  deliveryCautionReason: owner.delivery_caution_reason,
+  isTransferred: owner.is_transferred ?? false,
+  transferAt: owner.transfer_at,
+  lstepOptOut: owner.lstep_opt_out ?? false,
+  lstepOptOutAt: owner.lstep_opt_out_at,
+  lstepOptOutReason: owner.lstep_opt_out_reason,
   createdAt: owner.created_at ?? "",
   updatedAt: owner.updated_at ?? "",
   pets: owner.pets?.map((pet) => transformPetInOwner(pet, owner.owner_name ?? "")),

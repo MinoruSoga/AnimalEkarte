@@ -206,8 +206,8 @@ func (h *Handler) DeleteClinic(c *gin.Context) {
 // RegisterClinicRoutes はクリニック設定関連のルートを登録する
 func (h *Handler) RegisterClinicRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics")
-	clinics.GET("", h.ListClinics)
-	clinics.GET("/:clinic_id", h.GetClinic)
+	clinics.GET("", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.ListClinics)
+	clinics.GET("/:clinic_id", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.GetClinic)
 	clinics.POST("", h.RequirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateClinic)
 	clinics.PATCH("/:clinic_id", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateClinic)
 	clinics.DELETE("/:clinic_id", h.RequirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteClinic)

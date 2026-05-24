@@ -182,8 +182,8 @@ func (h *Handler) GetOnDutyStaffs(c *gin.Context) {
 // RegisterShiftRoutes はシフト関連のルートを登録する
 func (h *Handler) RegisterShiftRoutes(rg *gin.RouterGroup) {
 	shifts := rg.Group("/shifts")
-	shifts.GET("", h.ListShiftEntries)
-	shifts.GET("/on-duty-staffs", h.GetOnDutyStaffs) // BUG-344
+	shifts.GET("", h.RequirePermission(string(model.ResourceShifts), "view"), h.ListShiftEntries)
+	shifts.GET("/on-duty-staffs", h.RequirePermission(string(model.ResourceShifts), "view"), h.GetOnDutyStaffs) // BUG-344
 	shifts.POST("", h.RequirePermission(string(model.ResourceShifts), "create"), h.CreateShiftEntry)
 	shifts.PATCH("/:id", h.RequirePermission(string(model.ResourceShifts), "edit"), h.UpdateShiftEntry)
 	shifts.DELETE("/:id", h.RequirePermission(string(model.ResourceShifts), "delete"), h.DeleteShiftEntry)

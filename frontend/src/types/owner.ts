@@ -25,6 +25,17 @@ export interface Owner {
   isDangerous: boolean;
   discountRate: number;
   membershipType: string;
+  lineUserId?: string;
+  lineIdConfirmedAt?: string;
+  deliveryExcluded: boolean;
+  deliveryExcludedReason?: string;
+  deliveryCaution: boolean;
+  deliveryCautionReason?: string | null;
+  isTransferred: boolean;
+  transferAt?: string;
+  lstepOptOut: boolean;
+  lstepOptOutAt?: string;
+  lstepOptOutReason?: string;
   createdAt: string;
   updatedAt: string;
   pets?: Pet[];

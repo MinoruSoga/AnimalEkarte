@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -141,7 +142,9 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 	}
 	// BE-003: ワクチンタグ同期（best-effort、失敗しても作成レスポンスは返す）
 	if vaccination.PetID != nil {
-		if pet, err := h.svc.Pet.GetByID(c.Request.Context(), clinicID, *vaccination.PetID); err == nil {
+		if pet, err := h.svc.Pet.GetByID(c.Request.Context(), clinicID, *vaccination.PetID); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to get pet for lstep vaccine tag sync", "pet_id", *vaccination.PetID, "vaccination_id", vaccination.ID, "error", err)
+		} else {
 			_ = h.svc.LstepTagSync.SyncVaccineTag(c.Request.Context(), clinicID, pet.OwnerID, vaccination.ID)
 		}
 	}
@@ -203,10 +206,13 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	// BE-REOPEN-002: ワクチン更新後にタグを再同期（best-effort）
+	// ISSUE-004: ワクチン更新後に飼い主全体のタグを DB 状態から再構築（best-effort）。
+	// 種別ごとの最新接種日のみがタグとして残り、編集前の古い日付タグは解除される。
 	if vaccination.PetID != nil {
-		if pet, err := h.svc.Pet.GetByID(c.Request.Context(), clinicID, *vaccination.PetID); err == nil {
-			_ = h.svc.LstepTagSync.SyncVaccineTag(c.Request.Context(), clinicID, pet.OwnerID, vaccination.ID)
+		if pet, err := h.svc.Pet.GetByID(c.Request.Context(), clinicID, *vaccination.PetID); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to get pet for lstep vaccine tag resync", "pet_id", *vaccination.PetID, "vaccination_id", vaccination.ID, "error", err)
+		} else {
+			_ = h.svc.LstepTagSync.ResyncOwnerVaccineTags(c.Request.Context(), clinicID, pet.OwnerID)
 		}
 	}
 	c.JSON(http.StatusOK, toVaccinationResponse(vaccination))
@@ -222,21 +228,29 @@ func (h *Handler) DeleteVaccination(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// BE-REOPEN-002: Delete 前に vaccination を取得してカテゴリタグ再計算に必要な pet_id を確保
+	// ISSUE-004: Delete 前に vaccination を取得してカテゴリタグ再計算に必要な owner_id を確保。
+	// ソフトデリート後は FindByID が NotFound を返すため、owner 解決は削除前に行う必要がある。
 	vaccination, err := h.svc.Vaccination.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
+	var ownerID uint64
+	if vaccination.PetID != nil {
+		if pet, err := h.svc.Pet.GetByID(c.Request.Context(), clinicID, *vaccination.PetID); err == nil {
+			ownerID = pet.OwnerID
+		}
+	}
 	if err := h.svc.Vaccination.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}
-	// BE-REOPEN-002: ワクチン削除後にカテゴリタグを再計算（best-effort）
-	if vaccination.PetID != nil {
-		if pet, err := h.svc.Pet.GetByID(c.Request.Context(), clinicID, *vaccination.PetID); err == nil {
-			_ = h.svc.LstepTagSync.SyncVaccineTag(c.Request.Context(), clinicID, pet.OwnerID, vaccination.ID)
-		}
+	// ISSUE-004: 削除後の DB 状態から飼い主全体のタグを再構築（best-effort）。
+	// 同じ種別の他レコードがあればその最新日タグを残す。残らなければ全 vaccine_* を解除する。
+	if ownerID != 0 {
+		_ = h.svc.LstepTagSync.ResyncOwnerVaccineTags(c.Request.Context(), clinicID, ownerID)
+	} else {
+		slog.WarnContext(c.Request.Context(), "ownerID is 0, skipping lstep resync", "vaccination_id", id, "clinic_id", clinicID)
 	}
 	c.Status(http.StatusNoContent)
 }

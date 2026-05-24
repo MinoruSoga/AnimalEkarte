@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -205,11 +206,115 @@ func (h *Handler) PatchOwnerLineUserID(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	if err := h.svc.Owner.LinkLineUserID(c.Request.Context(), clinicID, id, req.LineUserID); err != nil {
+	actorID := optionalStaffID(c)
+	if err := h.svc.Owner.LinkLineUserID(c.Request.Context(), clinicID, id, req.LineUserID, actorID); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// PatchOwnerDeliveryExclusion godoc
+// PATCH /owners/:id/delivery-exclusion — 配信除外フラグを更新する（FEAT-381）。
+func (h *Handler) PatchOwnerDeliveryExclusion(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchOwnerDeliveryExclusionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	input := service.UpdateDeliveryExclusionInput{
+		Excluded: req.Excluded,
+		Reason:   req.Reason,
+	}
+	owner, err := h.svc.Owner.UpdateDeliveryExclusion(c.Request.Context(), clinicID, id, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toOwnerResponse(owner))
+}
+
+// PatchOwnerDeliveryCaution godoc
+// PATCH /owners/:id/delivery-caution — 配信注意フラグを更新する（FEAT-381-2）。
+func (h *Handler) PatchOwnerDeliveryCaution(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchOwnerDeliveryCautionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	input := service.UpdateDeliveryCautionInput{
+		Caution: req.Caution,
+		Reason:  req.Reason,
+	}
+	owner, err := h.svc.Owner.UpdateDeliveryCaution(c.Request.Context(), clinicID, id, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toOwnerResponse(owner))
+}
+
+// PatchOwnerTransferStatus godoc
+// PATCH /owners/:id/transfer-status — 転院フラグを更新する（FEAT-381）。
+func (h *Handler) PatchOwnerTransferStatus(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchOwnerTransferStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	input := service.UpdateTransferStatusInput{
+		IsTransferred: req.IsTransferred,
+	}
+	owner, err := h.svc.Owner.UpdateTransferStatus(c.Request.Context(), clinicID, id, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toOwnerResponse(owner))
+}
+
+// PatchOwnerLineIDConfirm godoc
+// PATCH /owners/:id/line-id-confirm — LINE ID 紐付け確認日時を現在時刻に設定する（FEAT-381）。
+func (h *Handler) PatchOwnerLineIDConfirm(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	actorID := optionalStaffID(c)
+	owner, err := h.svc.Owner.ConfirmLineID(c.Request.Context(), clinicID, id, actorID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toOwnerResponse(owner))
 }
 
 // DeleteOwner godoc
@@ -223,7 +328,9 @@ func (h *Handler) DeleteOwner(c *gin.Context) {
 		return
 	}
 	// BE-017: 削除前に Lステップタグを全解除（best-effort、失敗しても削除は続行）
-	_ = h.svc.LstepLifecycle.HandleOwnerDeletion(c.Request.Context(), clinicID, id)
+	if err := h.svc.LstepLifecycle.HandleOwnerDeletion(c.Request.Context(), clinicID, id); err != nil {
+		slog.WarnContext(c.Request.Context(), "lstep cleanup failed on owner deletion", "owner_id", id, "clinic_id", clinicID, "error", err)
+	}
 	if err := h.svc.Owner.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return

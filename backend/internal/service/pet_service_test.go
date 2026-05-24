@@ -16,6 +16,7 @@ type mockPetRepository struct {
 	findAllFn                     func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	countByOwnerFn                func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	countLivingByOwnerFn          func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	countUsageByAnimalSpeciesIDFn func(ctx context.Context, speciesID uint64) (int64, error)
 	createFn                      func(ctx context.Context, pet *model.Pet) error
 	updateFn                      func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -37,6 +38,13 @@ func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 func (m *mockPetRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	if m.countByOwnerFn != nil {
 		return m.countByOwnerFn(ctx, clinicID, ownerID)
+	}
+	return 0, nil
+}
+
+func (m *mockPetRepository) CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	if m.countLivingByOwnerFn != nil {
+		return m.countLivingByOwnerFn(ctx, clinicID, ownerID)
 	}
 	return 0, nil
 }
@@ -64,6 +72,10 @@ func (m *mockPetRepository) FindLivingByOwner(ctx context.Context, clinicID, own
 	if m.findLivingByOwnerFn != nil {
 		return m.findLivingByOwnerFn(ctx, clinicID, ownerID)
 	}
+	return nil, nil
+}
+
+func (m *mockPetRepository) FindOwnersByPetBirthday(_ context.Context, _ uint64, _, _ int) ([]uint64, error) {
 	return nil, nil
 }
 

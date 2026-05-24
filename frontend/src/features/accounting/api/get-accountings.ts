@@ -15,6 +15,12 @@ interface AccountingsListResponse {
 export interface AccountingFilters {
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
+  /**
+   * 飼主 ID で会計履歴を絞り込む（飼主詳細の会計履歴セクションで使用）。
+   * 数値文字列を想定。空文字は無視される。
+   * Backend: GET /api/v1/accountings?owner_id=...
+   */
+  ownerId?: string;
 }
 
 export const getAccountings = async (
@@ -23,6 +29,7 @@ export const getAccountings = async (
   const params: Record<string, string> = {};
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
+  if (filters?.ownerId) params.owner_id = filters.ownerId;
   const { data } = await axios.get<AccountingsListResponse>("/v1/accountings", { params });
   return data.data.map(transformToAccounting);
 };
@@ -33,5 +40,7 @@ export const useGetAccountings = (filters?: AccountingFilters) => {
     queryFn: () => getAccountings(filters),
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
+    // ownerId フィルタが空文字の場合はクエリを実行しない（誤って全件取得しないため）
+    enabled: filters?.ownerId === undefined || filters.ownerId !== "",
   });
 };

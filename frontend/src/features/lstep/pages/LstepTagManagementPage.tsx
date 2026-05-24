@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { RefreshCw, Users } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,7 @@ function formatRelativeMinutes(asOf: string): string {
 
 export function LstepTagManagementPage() {
   const queryClient = useQueryClient();
-  // usePermission("owners") の canEdit で一括解除の可否を判定
-  const { canEdit } = usePermission(ResourceOwners);
+  const { canView, canEdit } = usePermission(ResourceOwners);
 
   const { data, isLoading } = useGetLstepTagSummary();
 
@@ -42,12 +41,10 @@ export function LstepTagManagementPage() {
     queryClient.invalidateQueries({ queryKey: ["lstep-tag-summary"] });
   }, [queryClient]);
 
-  // 対象者一覧を開く（TagSummaryTable の「対象者一覧」ボタン）
   const handleViewOwners = useCallback((tagName: string, ownerCount: number) => {
     setDrawerState({ open: true, tagName, ownerCount });
   }, []);
 
-  // 削除ボタン押下 → TagOwnerListDrawer を開く（canDelete=true でドロワー内に「一括解除」ボタン表示）
   const handleBulkRemove = useCallback((tagName: string, ownerCount: number) => {
     setDrawerState({ open: true, tagName, ownerCount });
   }, []);
@@ -82,19 +79,6 @@ export function LstepTagManagementPage() {
       }
     >
       <div className="flex flex-col gap-4 flex-1 min-h-0">
-        {/* サマリーカード */}
-        {data !== undefined ? (
-          <div className={`bg-white border ${C.borderLight} rounded-[4px] px-5 py-4 flex items-center gap-3`}>
-            <Users className={`${ICON.lg} ${C.textBrand}`} />
-            <div>
-              <p className={`text-2xl font-bold ${C.text}`}>
-                {data.total_owners_with_lstep.toLocaleString("ja-JP")}名
-              </p>
-              <p className={`text-sm ${C.text50}`}>がLステップ連携済み</p>
-            </div>
-          </div>
-        ) : null}
-
         {/* タグサマリーテーブル */}
         <TagSummaryTable
           tags={tags}
@@ -105,13 +89,14 @@ export function LstepTagManagementPage() {
         />
       </div>
 
-      {/* 対象者一覧ドロワー（一括解除ボタンはドロワー内に表示） */}
+      {/* 対象者一覧ドロワー */}
       <TagOwnerListDrawer
         open={drawerState.open}
         onOpenChange={handleDrawerOpenChange}
         tagName={drawerState.tagName}
         ownerCount={drawerState.ownerCount}
         canDelete={canEdit}
+        canExportCsv={canView || canEdit}
       />
     </PageLayout>
   );

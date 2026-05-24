@@ -15,10 +15,12 @@ import (
 
 // mockAccountingRepository は AccountingRepository のテスト用モック実装
 type mockAccountingRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
-	createFn       func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
-	updateFieldsFn func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	findAllFn           func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	createFn            func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
+	updateFieldsFn      func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	savePaymentSplitsFn func(ctx context.Context, splits []model.PaymentSplit) error
+	getDailySummaryFn   func(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error)
 }
 
 func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
@@ -44,6 +46,13 @@ func (m *mockAccountingRepository) SavePayment(_ context.Context, _ *model.Payme
 	return nil
 }
 
+func (m *mockAccountingRepository) SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error {
+	if m.savePaymentSplitsFn != nil {
+		return m.savePaymentSplitsFn(ctx, splits)
+	}
+	return nil
+}
+
 // BUG-370: 月末未納者一覧 repository メソッドの mock
 func (m *mockAccountingRepository) FindUnpaidByBilling(_ context.Context, _ uint64, _ string, _, _ int) ([]model.Billing, int64, error) {
 	return nil, 0, nil
@@ -53,20 +62,24 @@ func (m *mockAccountingRepository) FindUnpaidByOwner(_ context.Context, _ uint64
 	return nil, 0, repository.UnpaidSummary{}, nil
 }
 
-func (m *mockAccountingRepository) GetDailySummary(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
+func (m *mockAccountingRepository) GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error) {
+	if m.getDailySummaryFn != nil {
+		return m.getDailySummaryFn(ctx, clinicID, date)
+	}
 	return &repository.DailySummaryResult{PaymentTotals: []repository.PaymentMethodTotal{}, CategoryTotals: []repository.CategoryTotal{}}, nil
 }
 
 // FEAT-368: 集計・締め機能 mock スタブ
 func (m *mockAccountingRepository) GetCloseAggregate(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
 	return &repository.CloseAggregateResult{
-		AggregateRows:  []repository.BillingAggregateRow{},
+		PaymentRows:    []repository.PaymentAggregateRow{},
+		CategoryRows:   []repository.CategoryAggregateRow{},
 		BillingDetails: []repository.CloseBillingDetail{},
 	}, nil
 }
 
 func (m *mockAccountingRepository) GetMonthlyReport(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
-	return &repository.MonthlyReportResult{Rows: []repository.MonthlyReportRow{}}, nil
+	return &repository.MonthlyReportResult{}, nil
 }
 
 func (m *mockAccountingRepository) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
@@ -75,6 +88,10 @@ func (m *mockAccountingRepository) SumPaidByOwner(_ context.Context, _, _ uint64
 
 func (m *mockAccountingRepository) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
+}
+
+func (m *mockAccountingRepository) FindOwnersByAnnualRevenue(_ context.Context, _ uint64) ([]repository.OwnerAnnualRevenue, error) {
+	return nil, nil
 }
 
 func ptrString(v string) *string { return &v }
@@ -515,6 +532,348 @@ func TestAccountingService_Cancel(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func ptrInt64(v int64) *int64 { return &v }
+
+// TestValidatePaymentSplits は validatePaymentSplits の全バリデーションブランチを検証する。
+func TestValidatePaymentSplits(t *testing.T) {
+	tests := []struct {
+		name          string
+		splits        []PaymentSplitInput
+		billingAmount *int64
+		wantErr       bool
+		wantInvalid   bool
+	}{
+		{
+			name:          "splits が空: バリデーションをスキップ",
+			splits:        nil,
+			billingAmount: ptrInt64(5000),
+			wantErr:       false,
+		},
+		{
+			name: "現金1種のみ: 有効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 5000, ReceivedAmount: 5000, ChangeAmount: 0},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       false,
+		},
+		{
+			name: "3種混在 (cash + credit_card + electronic_money): 有効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 3000, ChangeAmount: 1000},
+				{Method: model.PaymentMethodCreditCard, Amount: 1500},
+				{Method: model.PaymentMethodElectronicMoney, Amount: 1500},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       false,
+		},
+		{
+			name: "支払い手段の重複: 無効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 2000, ChangeAmount: 0},
+				{Method: model.PaymentMethodCash, Amount: 3000, ReceivedAmount: 3000, ChangeAmount: 0},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			name: "金額ゼロ: 無効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCreditCard, Amount: 0},
+			},
+			billingAmount: ptrInt64(0),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			name: "合計不一致: 無効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 3000, ReceivedAmount: 3000, ChangeAmount: 0},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			name: "現金: 預り金不足",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 5000, ReceivedAmount: 4000, ChangeAmount: 0},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			name: "現金: お釣り計算不正",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 5000, ReceivedAmount: 6000, ChangeAmount: 500},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			name: "billingAmount が nil: 合計チェックをスキップ",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCreditCard, Amount: 9999},
+			},
+			billingAmount: nil,
+			wantErr:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePaymentSplits(tt.splits, tt.billingAmount)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantInvalid {
+					assert.True(t, apperrors.IsInvalidInput(err))
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestRepresentativeMethod は splits から代表支払い手段を選択するロジックを検証する。
+func TestRepresentativeMethod(t *testing.T) {
+	tests := []struct {
+		name   string
+		splits []PaymentSplitInput
+		want   model.PaymentMethod
+	}{
+		{
+			name:   "cash を含む場合: cash を返す",
+			splits: []PaymentSplitInput{{Method: model.PaymentMethodCash}, {Method: model.PaymentMethodCreditCard}},
+			want:   model.PaymentMethodCash,
+		},
+		{
+			name:   "cash なし credit_card あり: credit_card を返す",
+			splits: []PaymentSplitInput{{Method: model.PaymentMethodCreditCard}, {Method: model.PaymentMethodElectronicMoney}},
+			want:   model.PaymentMethodCreditCard,
+		},
+		{
+			name:   "electronic_money のみ: electronic_money を返す",
+			splits: []PaymentSplitInput{{Method: model.PaymentMethodElectronicMoney}},
+			want:   model.PaymentMethodElectronicMoney,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, representativeMethod(tt.splits))
+		})
+	}
+}
+
+// TestBuildPaymentSplits は splits 変換および単一支払い backward compat を検証する。
+func TestBuildPaymentSplits(t *testing.T) {
+	t.Run("PaymentSplits が設定済み: そのまま変換", func(t *testing.T) {
+		input := &UpdateAccountingInput{
+			ID:       10,
+			ClinicID: 1,
+			PaymentSplits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 3000, ChangeAmount: 1000},
+				{Method: model.PaymentMethodCreditCard, Amount: 3000},
+			},
+		}
+		result := buildPaymentSplits(input)
+		assert.Len(t, result, 2)
+		assert.Equal(t, uint64(1), result[0].ClinicID)
+		assert.Equal(t, uint64(10), result[0].BillingID)
+		assert.Equal(t, model.PaymentMethodCash, result[0].Method)
+		assert.Equal(t, int64(2000), result[0].Amount)
+		assert.Equal(t, int64(3000), result[0].ReceivedAmount)
+		assert.Equal(t, int64(1000), result[0].ChangeAmount)
+		assert.Equal(t, model.PaymentMethodCreditCard, result[1].Method)
+	})
+
+	t.Run("PaymentSplits 空 + BillingAmount あり: 単一 split を生成 (backward compat)", func(t *testing.T) {
+		input := &UpdateAccountingInput{
+			ID:             10,
+			ClinicID:       1,
+			PaymentMethod:  func() *model.PaymentMethod { m := model.PaymentMethodCreditCard; return &m }(),
+			BillingAmount:  ptrInt64(5000),
+			ReceivedAmount: ptrInt64(5000),
+		}
+		result := buildPaymentSplits(input)
+		assert.Len(t, result, 1)
+		assert.Equal(t, model.PaymentMethodCreditCard, result[0].Method)
+		assert.Equal(t, int64(5000), result[0].Amount)
+	})
+
+	t.Run("PaymentSplits 空 + BillingAmount nil: nil を返す", func(t *testing.T) {
+		input := &UpdateAccountingInput{ID: 10, ClinicID: 1}
+		result := buildPaymentSplits(input)
+		assert.Nil(t, result)
+	})
+}
+
+// TestAccountingService_Update_MixedPayment は3種混在支払いの全フローを検証する。
+// SavePaymentSplits に渡った splits の内容と、リロード後 billing の PaymentSplits を確認する。
+func TestAccountingService_Update_MixedPayment(t *testing.T) {
+	billingAmount := int64(5000)
+	reloadedBilling := &model.Billing{
+		ID:       1,
+		ClinicID: 1,
+		PaymentSplits: []model.PaymentSplit{
+			{ClinicID: 1, BillingID: 1, Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 3000, ChangeAmount: 1000},
+			{ClinicID: 1, BillingID: 1, Method: model.PaymentMethodCreditCard, Amount: 1500},
+			{ClinicID: 1, BillingID: 1, Method: model.PaymentMethodElectronicMoney, Amount: 1500},
+		},
+	}
+
+	var capturedSplits []model.PaymentSplit
+	callCount := 0
+	repo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			callCount++
+			if callCount == 2 {
+				return reloadedBilling, nil
+			}
+			return &model.Billing{ID: 1, ClinicID: 1}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+			return &model.Billing{ID: 1, ClinicID: 1}, nil
+		},
+		savePaymentSplitsFn: func(_ context.Context, splits []model.PaymentSplit) error {
+			capturedSplits = splits
+			return nil
+		},
+	}
+	svc := NewAccountingService(repo)
+
+	input := &UpdateAccountingInput{
+		ID:            1,
+		ClinicID:      1,
+		BillingAmount: &billingAmount,
+		PaymentSplits: []PaymentSplitInput{
+			{Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 3000, ChangeAmount: 1000},
+			{Method: model.PaymentMethodCreditCard, Amount: 1500},
+			{Method: model.PaymentMethodElectronicMoney, Amount: 1500},
+		},
+	}
+
+	result, err := svc.Update(context.Background(), input)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// SavePaymentSplits に3件渡されたことを確認
+	assert.Len(t, capturedSplits, 3)
+	assert.Equal(t, model.PaymentMethodCash, capturedSplits[0].Method)
+	assert.Equal(t, int64(2000), capturedSplits[0].Amount)
+	assert.Equal(t, int64(1000), capturedSplits[0].ChangeAmount)
+	assert.Equal(t, model.PaymentMethodCreditCard, capturedSplits[1].Method)
+	assert.Equal(t, model.PaymentMethodElectronicMoney, capturedSplits[2].Method)
+
+	// リロード後の billing に PaymentSplits が含まれることを確認
+	assert.Len(t, result.PaymentSplits, 3)
+}
+
+// TestAccountingService_GetDailySummary は日次集計取得ロジックを検証する。
+func TestAccountingService_GetDailySummary(t *testing.T) {
+	tests := []struct {
+		name              string
+		dateStr           string
+		getDailySummaryFn func(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error)
+		wantErr           bool
+		wantErrIs         error
+		checkResult       func(t *testing.T, got *repository.DailySummaryResult)
+	}{
+		{
+			name:      "エラー: 不正な日付文字列 → ErrInvalidInput",
+			dateStr:   "not-a-date",
+			wantErr:   true,
+			wantErrIs: apperrors.ErrInvalidInput,
+		},
+		{
+			name:    "エラー: repo がエラーを返す → ラップされたエラー",
+			dateStr: "2026-05-01",
+			getDailySummaryFn: func(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
+				return nil, errors.New("db error")
+			},
+			wantErr: true,
+		},
+		{
+			name:    "正常: 空文字列 → today をデフォルト使用、エラーなし",
+			dateStr: "",
+			getDailySummaryFn: func(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
+				return &repository.DailySummaryResult{
+					PaymentTotals:  []repository.PaymentMethodTotal{},
+					CategoryTotals: []repository.CategoryTotal{},
+					BillingCount:   0,
+					GrandTotal:     0,
+				}, nil
+			},
+			checkResult: func(t *testing.T, got *repository.DailySummaryResult) {
+				assert.NotNil(t, got)
+				assert.Equal(t, int64(0), got.GrandTotal)
+			},
+		},
+		{
+			name:    "正常: 3種混在支払い → PaymentTotals が支払方法別に正しく返される",
+			dateStr: "2026-05-01",
+			getDailySummaryFn: func(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
+				return &repository.DailySummaryResult{
+					PaymentTotals: []repository.PaymentMethodTotal{
+						{Method: "現金", Total: 5000},
+						{Method: "クレジットカード", Total: 3000},
+						{Method: "電子マネー", Total: 2000},
+					},
+					CategoryTotals: []repository.CategoryTotal{
+						{Category: "診察", Total: 10000},
+					},
+					BillingCount: 3,
+					GrandTotal:   10000,
+				}, nil
+			},
+			checkResult: func(t *testing.T, got *repository.DailySummaryResult) {
+				assert.Len(t, got.PaymentTotals, 3)
+				assert.Equal(t, "現金", got.PaymentTotals[0].Method)
+				assert.Equal(t, int64(5000), got.PaymentTotals[0].Total)
+				assert.Equal(t, "クレジットカード", got.PaymentTotals[1].Method)
+				assert.Equal(t, int64(3000), got.PaymentTotals[1].Total)
+				assert.Equal(t, "電子マネー", got.PaymentTotals[2].Method)
+				assert.Equal(t, int64(2000), got.PaymentTotals[2].Total)
+				assert.Len(t, got.CategoryTotals, 1)
+				assert.Equal(t, "診察", got.CategoryTotals[0].Category)
+				assert.Equal(t, int64(10000), got.CategoryTotals[0].Total)
+				assert.Equal(t, int64(3), got.BillingCount)
+				assert.Equal(t, int64(10000), got.GrandTotal)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockAccountingRepository{
+				getDailySummaryFn: tt.getDailySummaryFn,
+			}
+			svc := NewAccountingService(repo)
+
+			got, err := svc.GetDailySummary(context.Background(), 1, tt.dateStr)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantErrIs != nil {
+					assert.True(t, errors.Is(err, tt.wantErrIs), "want errors.Is(%v), got %v", tt.wantErrIs, err)
+				}
+				assert.Nil(t, got)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, got)
+			if tt.checkResult != nil {
+				tt.checkResult(t, got)
 			}
 		})
 	}

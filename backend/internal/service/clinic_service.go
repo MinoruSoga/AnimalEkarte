@@ -123,10 +123,11 @@ type ClinicService interface {
 type clinicService struct {
 	repo                repository.ClinicRepository
 	permissionGroupRepo repository.PermissionGroupRepository
+	transactor          repository.Transactor
 }
 
-func NewClinicService(repo repository.ClinicRepository, permissionGroupRepo repository.PermissionGroupRepository) ClinicService {
-	return &clinicService{repo: repo, permissionGroupRepo: permissionGroupRepo}
+func NewClinicService(repo repository.ClinicRepository, permissionGroupRepo repository.PermissionGroupRepository, transactor repository.Transactor) ClinicService {
+	return &clinicService{repo: repo, permissionGroupRepo: permissionGroupRepo, transactor: transactor}
 }
 
 func (s *clinicService) ListClinics(ctx context.Context) ([]model.Clinic, error) {
@@ -176,37 +177,41 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 		IsActive:           true,
 	}
 
-	if err := s.repo.Create(ctx, clinic); err != nil {
+	if err := s.transactor.WithTx(ctx, func(ctx context.Context) error {
+		if err := s.repo.Create(ctx, clinic); err != nil {
+			return apperrors.Wrap(err, "failed to create clinic")
+		}
+
+		// Initialize default permission groups: "執行" (executive) and "一般" (general)
+		defaultGroups := []struct {
+			name        string
+			description string
+			sortOrder   int
+		}{
+			{name: "執行", description: "執行権限", sortOrder: 1},
+			{name: "一般", description: "一般スタッフ権限", sortOrder: 2},
+		}
+
+		for _, groupDef := range defaultGroups {
+			group := &model.PermissionGroup{
+				ClinicID:    clinic.ID,
+				Name:        groupDef.name,
+				Description: groupDef.description,
+				IsActive:    true,
+				SortOrder:   groupDef.sortOrder,
+			}
+			if err := s.permissionGroupRepo.Create(ctx, group); err != nil {
+				return apperrors.Wrap(err, "failed to create default permission group")
+			}
+			slog.InfoContext(ctx, "default permission group created",
+				slog.Uint64("clinic_id", clinic.ID),
+				slog.String("group_name", group.Name),
+				slog.Uint64("group_id", group.ID))
+		}
+		return nil
+	}); err != nil {
 		slog.ErrorContext(ctx, "failed to create clinic", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create clinic")
-	}
-
-	// Initialize default permission groups: "執行" (executive) and "一般" (general)
-	defaultGroups := []struct {
-		name        string
-		description string
-		sortOrder   int
-	}{
-		{name: "執行", description: "執行権限", sortOrder: 1},
-		{name: "一般", description: "一般スタッフ権限", sortOrder: 2},
-	}
-
-	for _, groupDef := range defaultGroups {
-		group := &model.PermissionGroup{
-			ClinicID:    clinic.ID,
-			Name:        groupDef.name,
-			Description: groupDef.description,
-			IsActive:    true,
-			SortOrder:   groupDef.sortOrder,
-		}
-		if err := s.permissionGroupRepo.Create(ctx, group); err != nil {
-			slog.ErrorContext(ctx, "failed to create default permission group", "error", err)
-			return nil, apperrors.Wrap(err, "failed to create default permission group")
-		}
-		slog.InfoContext(ctx, "default permission group created",
-			slog.Uint64("clinic_id", clinic.ID),
-			slog.String("group_name", group.Name),
-			slog.Uint64("group_id", group.ID))
+		return nil, err
 	}
 
 	slog.InfoContext(ctx, "clinic created",
@@ -273,6 +278,16 @@ func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
 	}
 	if staffCount > 0 {
 		return apperrors.WrapConflict("スタッフが紐付いているため削除できません。先にスタッフを削除してください")
+	}
+
+	dependencies, err := s.repo.CountBlockingReferencesByClinicID(ctx, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check clinic dependencies", "error", err, "id", id)
+		return apperrors.Wrap(err, "failed to check clinic dependencies")
+	}
+	if len(dependencies) > 0 {
+		dep := dependencies[0]
+		return apperrors.WrapConflict(dep.Label + "が紐付いているため削除できません。関連データを先に整理してください")
 	}
 
 	if err := s.repo.Delete(ctx, id); err != nil {

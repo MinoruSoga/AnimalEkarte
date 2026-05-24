@@ -78,7 +78,7 @@ describe("transformExamination", () => {
     expect(result.items).toHaveLength(1);
     expect(result.items![0].id).toBe("10");
     expect(result.items![0].name).toBe("白血球");
-    expect(result.items![0].referenceRange).toBe("4.0-10.0");
+    expect(result.items![0].referenceValue).toBe("4.0-10.0");
   });
 
   it("pet.owner.name を ownerName にマップする", () => {

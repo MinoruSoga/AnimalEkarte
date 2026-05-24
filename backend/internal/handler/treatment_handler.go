@@ -219,7 +219,7 @@ func (h *Handler) BulkUpdateTreatments(c *gin.Context) {
 
 // RegisterTreatmentRoutes は治療項目関連のルートをカルテサブリソースとして登録する
 func (h *Handler) RegisterTreatmentRoutes(rg *gin.RouterGroup) {
-	rg.GET("/:id/treatments", h.ListTreatments)
+	rg.GET("/:id/treatments", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.ListTreatments)
 	rg.POST("/:id/treatments", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateTreatment)
 	rg.PATCH("/:id/treatments/:treatmentId", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateTreatment)
 	rg.DELETE("/:id/treatments/:treatmentId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteTreatment)

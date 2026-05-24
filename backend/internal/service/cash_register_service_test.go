@@ -77,6 +77,11 @@ func (m *mockAccountingRepositoryForClose) UpsertPayment(_ context.Context, _ *m
 func (m *mockAccountingRepositoryForClose) SavePayment(_ context.Context, _ *model.Payment) error {
 	return nil
 }
+
+func (m *mockAccountingRepositoryForClose) SavePaymentSplits(_ context.Context, _ []model.PaymentSplit) error {
+	return nil
+}
+
 func (m *mockAccountingRepositoryForClose) FindUnpaidByBilling(_ context.Context, _ uint64, _ string, _, _ int) ([]model.Billing, int64, error) {
 	return nil, 0, nil
 }
@@ -91,7 +96,8 @@ func (m *mockAccountingRepositoryForClose) GetCloseAggregate(ctx context.Context
 		return m.getCloseAggregateFn(ctx, input)
 	}
 	return &repository.CloseAggregateResult{
-		AggregateRows:  []repository.BillingAggregateRow{},
+		PaymentRows:    []repository.PaymentAggregateRow{},
+		CategoryRows:   []repository.CategoryAggregateRow{},
 		BillingDetails: []repository.CloseBillingDetail{},
 		TaxBreakdown:   []repository.TaxBreakdownRow{},
 	}, nil
@@ -100,7 +106,7 @@ func (m *mockAccountingRepositoryForClose) GetMonthlyReport(ctx context.Context,
 	if m.getMonthlyReportFn != nil {
 		return m.getMonthlyReportFn(ctx, clinicID, year, month)
 	}
-	return &repository.MonthlyReportResult{Rows: []repository.MonthlyReportRow{}}, nil
+	return &repository.MonthlyReportResult{}, nil
 }
 
 func (m *mockAccountingRepositoryForClose) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
@@ -109,6 +115,10 @@ func (m *mockAccountingRepositoryForClose) SumPaidByOwner(_ context.Context, _, 
 
 func (m *mockAccountingRepositoryForClose) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
+}
+
+func (m *mockAccountingRepositoryForClose) FindOwnersByAnnualRevenue(_ context.Context, _ uint64) ([]repository.OwnerAnnualRevenue, error) {
+	return nil, nil
 }
 
 // ---- モック: ClosingSettingsService（ResolveSchedule のみ） ----
@@ -150,7 +160,8 @@ func defaultSchedule() *DaySchedule {
 
 func emptyAggregateResult() *repository.CloseAggregateResult {
 	return &repository.CloseAggregateResult{
-		AggregateRows:  []repository.BillingAggregateRow{},
+		PaymentRows:    []repository.PaymentAggregateRow{},
+		CategoryRows:   []repository.CategoryAggregateRow{},
 		BillingDetails: []repository.CloseBillingDetail{},
 		TaxBreakdown:   []repository.TaxBreakdownRow{},
 	}
@@ -255,6 +266,44 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 			wantErrIs: apperrors.ErrInvalidInput,
 		},
 		{
+			name:    "正常: 混在会計 → TheoreticalCash は現金分のみ・カテゴリ按分を確認",
+			dateStr: targetDateStr,
+			period:  "am",
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+				creditID := uint64(1)
+				return &repository.CloseAggregateResult{
+					PaymentRows: []repository.PaymentAggregateRow{
+						{PaymentMethodID: nil, Amount: 3000},       // 現金
+						{PaymentMethodID: &creditID, Amount: 7000}, // クレジット
+					},
+					CategoryRows: []repository.CategoryAggregateRow{
+						{Category: "診察", Amount: 10000},
+					},
+					TotalRefund:    0,
+					BillingDetails: []repository.CloseBillingDetail{},
+					TaxBreakdown:   []repository.TaxBreakdownRow{},
+				}, nil
+			},
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+				return nil, nil
+			},
+			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return []model.PaymentMethodMaster{
+					{ID: 1, Name: "クレジット"},
+				}, nil
+			},
+			checkResult: func(t *testing.T, got *CashRegisterPreview) {
+				assert.Equal(t, int64(3000), got.Aggregate.TheoreticalCash)
+				// カテゴリ別按分: 診察 10000 を現金3000/クレジット7000 で按分
+				diagCats := got.Aggregate.Categories["診察"]
+				assert.Equal(t, int64(3000), diagCats["現金"])
+				assert.Equal(t, int64(7000), diagCats["クレジット"])
+			},
+		},
+		{
 			name:    "エラー: ResolveSchedule がエラーを返す",
 			dateStr: targetDateStr,
 			period:  "am",
@@ -346,6 +395,43 @@ func TestCashRegisterService_Close(t *testing.T) {
 				// 集計が空なので TheoreticalCash=0, CashDifference=50000
 				assert.Equal(t, int64(0), got.TheoreticalCash)
 				assert.Equal(t, int64(50000), got.CashDifference)
+			},
+		},
+		{
+			name: "正常: 混在会計 + 返金 → TheoreticalCash = 現金 - 返金、CashDifference = 実際 - 理論",
+			input: CloseRegisterInput{
+				Date:       targetDate,
+				Period:     "am",
+				ActualCash: 4000,
+				Memo:       "",
+			},
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+				return nil, nil
+			},
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+				creditID := uint64(1)
+				return &repository.CloseAggregateResult{
+					PaymentRows: []repository.PaymentAggregateRow{
+						{PaymentMethodID: nil, Amount: 3000},       // 現金
+						{PaymentMethodID: &creditID, Amount: 7000}, // クレジット
+					},
+					CategoryRows:   []repository.CategoryAggregateRow{},
+					TotalRefund:    500,
+					BillingDetails: []repository.CloseBillingDetail{},
+					TaxBreakdown:   []repository.TaxBreakdownRow{},
+				}, nil
+			},
+			createFn: func(_ context.Context, _ *model.CashRegisterClose) error {
+				return nil
+			},
+			checkResult: func(t *testing.T, got *model.CashRegisterClose) {
+				// TheoreticalCash = 現金(3000) - 返金(500) = 2500
+				assert.Equal(t, int64(2500), got.TheoreticalCash)
+				// CashDifference = ActualCash(4000) - TheoreticalCash(2500) = 1500
+				assert.Equal(t, int64(1500), got.CashDifference)
 			},
 		},
 		{

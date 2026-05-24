@@ -1,14 +1,82 @@
 package handler
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestVitalHandlerCompiles verifies vital_handler.go compiles
 func TestVitalHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "vital_handler.go compiled successfully")
+}
+
+// ---- mock VitalService ----
+
+type mockVitalService struct {
+	listFn   func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
+	createFn func(ctx context.Context, medicalRecordID uint64, input *service.CreateVitalInput) (*model.VitalRecord, error)
+	updateFn func(ctx context.Context, clinicID, medicalRecordID, vitalID uint64, input *service.UpdateVitalInput) (*model.VitalRecord, error)
+	deleteFn func(ctx context.Context, clinicID, medicalRecordID, vitalID uint64) error
+}
+
+func (m *mockVitalService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, clinicID, medicalRecordID)
+	}
+	return nil, nil
+}
+
+func (m *mockVitalService) Create(ctx context.Context, medicalRecordID uint64, input *service.CreateVitalInput) (*model.VitalRecord, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, medicalRecordID, input)
+	}
+	return &model.VitalRecord{}, nil
+}
+
+func (m *mockVitalService) Update(ctx context.Context, clinicID, medicalRecordID, vitalID uint64, input *service.UpdateVitalInput) (*model.VitalRecord, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, medicalRecordID, vitalID, input)
+	}
+	return &model.VitalRecord{}, nil
+}
+
+func (m *mockVitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vitalID uint64) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, medicalRecordID, vitalID)
+	}
+	return nil
+}
+
+// ---- view permission gate tests ----
+
+// TestListVitals_ViewPermissionDenied は view 権限を持たない非 system_admin が 403 を受けることを確認する。
+func TestListVitals_ViewPermissionDenied(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := &Handler{svc: &service.Services{
+		Vital:               &mockVitalService{},
+		EffectivePermission: &mockEffectivePermissionService{},
+	}}
+	r := gin.New()
+	r.GET("/medical-records/:id/vitals",
+		func(c *gin.Context) { setNonSystemAdmin(c); setClinicID(c) },
+		h.RequirePermission(string(model.ResourceMedicalRecords), "view"),
+		h.ListVitals,
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/medical-records/1/vitals", http.NoBody)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

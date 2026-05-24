@@ -1,160 +1,74 @@
-# リクエスト〜レスポンス データフロー
+# データフローとトレーサビリティ (Data Flow)
 
-Owner CRUD を例にした、HTTPリクエストからレスポンスまでの全層の処理フロー。
-層の責務概要は [architecture.md](./architecture.md) を参照。
+> **Animal Ekarte**: リクエストからレスポンス、バックグラウンド処理までの追跡
+> **最新更新**: 2026-05-21
 
 ---
 
-## トレーサビリティとロギング
+## 1. トレーサビリティとロギング
 
-本システムは、商用グレードの運用監視を実現するため、すべてのリクエストを一意の ID で追跡しています。
+本システムは、すべての処理を一意の ID で追跡し、商用グレードの運用監視を実現しています。
 
 ### Request ID の伝播フロー
-
-1.  **生成**: `middleware.RequestID()` がリクエスト受信時に一意の UUID を生成。
-2.  **格納**: `gin.Context` に `request_id` としてセット。
-3.  **レスポンスヘッダー**: `X-Request-ID` ヘッダーとしてクライアントに返却。
-4.  **ログ出力**: `middleware.RequestLoggingMiddleware()` および Service 層の `slog` 出力において、常に `request_id` フィールドが含まれる。
-
-### 構造化ログの実装方針
-
-- **コンテキストの保持**: すべての Service/Repository メソッドは `context.Context` を第一引数に受け取ります。
-- **slog の活用**: `slog.InfoContext(ctx, "message", ...)` を使用することで、ログ基盤（Datadog/CloudWatch等）でリクエスト単位のフィルタリングが可能になります。
+1.  **生成**: リクエスト受信時、`middleware.RequestID()` が UUID を生成。
+2.  **格納**: `gin.Context` に `request_id` として保持。
+3.  **返却**: レスポンスヘッダー `X-Request-ID` としてクライアントへ返却。
+4.  **記録**: `slog` 出力に常に含まれ、ログ基盤（CloudWatch等）での一括検索を可能にします。
 
 ---
 
-## CRUD 別フロー
+## 2. 典型的な処理フロー (CRUD)
 
-### GET /api/v1/owners — 一覧取得
+### 例：飼主一覧の取得 (GET /api/v1/owners)
 
-```
-Client
-  │  GET /api/v1/owners?page=1&per_page=20&search=山田
-  │  Cookie: access_token=<JWT>
-  ▼
-
-[Middleware: Auth]
-  1. Cookie "access_token" を読む（Authorization ヘッダーも対応）
-  2. JWT を検証（HMAC署名確認・有効期限確認）
-  3. claims を gin.Context に格納 (user_id, clinic_id, user_type)
-  4. account_status / deleted_at の有効性を DB で再検証（BUG-061/063対応）
-  5. c.Next() で次のハンドラへ
-
-[Handler: ListOwners]
-  1. extractClinicID(c) → clinicID 取得 (JWT claims 由来)
-  2. parsePagination(c) → page, limit 取得 (limit と per_page の両方をサポート)
-  3. h.svc.Owner.List(ctx, clinicID, page, limit, search)
-
-[Service: ownerService.List]
-  1. s.repo.FindAll(ctx, clinicID, page, limit, search) を呼び出し
-
-[Repository: ownerRepository.FindAll]
-  1. buildBase() でベースクエリ構築: 
-       SELECT * FROM owners 
-       WHERE clinic_id = 1 AND deleted_at IS NULL
-  2. search != "" なので追加条件:
-       AND (name ILIKE '%山田%' OR phone ILIKE '%山田%' OR email ILIKE '%山田%')
-  3. COUNT(*) で total 取得
-  4. Preload("Pets") 等の実データ取得
-  5. ([]model.Owner, total, nil) を返す
-
-[Handler: ListOwners — 続き]
-  4. RespondError(c, err) または 
-     c.JSON(200, PaginatedResponse{Data: owners, Total: total, Page: page, Limit: limit})
-```
+1.  **Middleware (Auth)**:
+    - `access_token` Cookie から JWT を検証。
+    - Claims から `clinic_id` を抽出し `gin.Context` へ格納。
+2.  **Handler (ListOwners)**:
+    - `extractClinicID` でテナントを確定。
+    - `parsePagination` でページ・リミットを解析。
+3.  **Service (OwnerService.List)**:
+    - 権限チェックと業務ルールの評価。
+4.  **Repository (OwnerRepository.FindAll)**:
+    - **テナント隔離**: `WHERE clinic_id = ?` を強制適用。
+    - 総件数 (Total) とリストを単一トランザクションまたは一貫した状態で取得。
 
 ---
 
-### POST /api/v1/owners — 新規作成（ペット同時登録）
+## 3. 非同期・イベント駆動フロー
 
-```
-Client
-  │  POST /api/v1/owners
-  │  Body: { "name": "林 文昭", "pets": [...] }
-  ▼
+### 例：Lステップタグ自動付与 (会計完了時)
 
-[Middleware: Auth] — 同上
-
-[Handler: CreateOwner]
-  1. extractClinicID(c) → clinicID 取得
-  2. c.ShouldBindJSON(&req)
-       失敗時: RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-  3. h.svc.Owner.CreateWithPets(ctx, clinicID, &input)
-
-[Service: ownerService.CreateWithPets]
-  1. 業務バリデーション (validators.go)
-  2. DTO → model.Owner 変換
-  3. s.repo.CreateWithPets(ctx, owner, pets)
-
-[Repository: ownerRepository.CreateWithPets]
-  1. db.Transaction(func(tx) error {
-       a. tx.Create(owner)
-       b. for pets { tx.Create(pet) }
-       return nil
-     })
-
-[Handler: CreateOwner — 続き]
-  4. RespondError(c, err) または c.JSON(201, toOwnerResponse(owner))
-```
+1.  **Event Trigger**: 会計完了 (`PATCH /accountings/:id`) ハンドラーが成功を検知。
+2.  **Goroutine Dispatch**: メインレスポンスを返却後、バックグラウンドで `LstepTagSyncService.Sync` を起動。
+3.  **Condition Judge**: 
+    - 累計売上、来院頻度、最終来院日を再計算。
+    - CPM ステージが変動したか判定。
+4.  **External API**: Lステップ API を呼び出し、タグを付与/解除。
+5.  **Audit Log**: 処理結果（成功/失敗/除外理由）を `audit_logs` および `lstep_delivery_trigger_log` に記録。
 
 ---
 
-## エラーハンドリング全体図
+## 4. エラーハンドリング体系
 
-### エラーレスポンス形式
+`RespondError(c, err)` による統一レスポンス。
 
-`RespondError(c, err)` は一律以下の JSON 形式でレスポンスを返却します。
-
-```json
-{
-  "error": "エラーメッセージ（ユーザー向け）"
-}
-```
-
-- **4xx (Client Error)**: `WrapInvalidInput` (400), `WrapNotFound` (404), `WrapConflict` (409) 等、具体的な理由を返却。
-- **5xx (Server Error)**: 予期せぬエラー。セキュリティのため詳細は露出せず、一律 `"internal server error"` を返却。サーバー側の `slog` に詳細を記録。
-- **入力バリデーション**: `ShouldBindJSON` 失敗時、`camelToSnake` により **snake_case のフィールド名**を含めたメッセージを返却。
-
-### RespondError のエラーマッピング
-
-| センチネルエラー (apperrors) | HTTPステータス |
-|---|---|
-| `ErrNotFound` | 404 |
-| `ErrInvalidInput` | 400 |
-| `ErrAlreadyExists` | 409 |
-| `ErrConflict` | 409 |
-| `ErrUnauthorized` | 401 |
-| `ErrForbidden` | 403 |
-| その他 | 500 |
+| ステータス | 分類 | レスポンス内容 |
+|:---|:---|:---|
+| **400** | 不正な入力 | フィールド名を含むバリデーションエラー |
+| **401/403** | 認証/認可エラー | 権限不足の明示 |
+| **404** | リソース不在 | 他テナントへのアクセスも「不在」として扱い情報を隠蔽 |
+| **409** | 整合性・衝突 | 使用中のマスタ削除、重複登録など |
+| **500** | サーバーエラー | 詳細は隠蔽し `"internal server error"` を返却 |
 
 ---
 
-## 3. ページネーションと検索のフロー
+## 5. マルチテナント隔離原則
 
-`GET /api/v1/owners?page=1&per_page=20&search=山田` を例にする。
+全エンドポイントで以下の原則を徹底しています。
 
-1.  **Handler**:
-    - `parsePagination(c)` を呼び出し。
-    - **エイリアス対応**: `limit` パラメータがない場合、`per_page` も自動的に参照。
-    - デフォルト値: `page=1`, `limit=20` (Max 100)。
-2.  **Service**:
-    - `List(ctx, clinicID, page, limit, search)` を実行。
-3.  **Repository**:
-    - `page`, `limit` から SQL の `OFFSET`, `LIMIT` を計算。
-    - `COUNT(*)` と `SELECT *` を同一コンテキスト内で実行し、総件数とリストを返却。
+- **No Trust**: クライアントからの `clinic_id` 指定は一切信用せず、JWT から取得。
+- **Strict Isolation**: 全クエリに `clinic_id` フィルタを適用し、他院のデータ混入を物理的に遮断。
+- **Audit Trace**: 全てのデータ変更（Create/Update/Delete）について、実行者と対象院を監査ログに記録。
 
 ---
-
-## マルチテナント分離の徹底
-
-全エンドポイントで `clinic_id` によるテナント分離を徹底している。
-
-```
-JWT claims (clinic_id) → extractClinicID() → Service → Repository
-                                                         ↓
-                                       WHERE clinic_id = ? AND deleted_at IS NULL
-```
-
-**セキュリティ原則**:
-- クライアントからの `clinic_id` 指定は一切信用せず、常に JWT 内の情報を正とする。
-- 他クリニックのリソースへのアクセス（ID指定等）が発生した場合は、存在を推測させないため `403` ではなく `404` を返却する。

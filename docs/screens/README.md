@@ -1,74 +1,78 @@
-# 個別画面詳細仕様書 一覧
+# 画面詳細仕様書 インデックス (Screen Specifications Index)
 
-本ディレクトリには、システムを構成する各画面の具体的な仕様、レイアウト、データ項目、およびAPI連携の詳細を定義したドキュメントが格納されています。
-
-概要レベルの仕様は **[SPECIFICATION.md](../SPECIFICATION.md)** を参照してください。
+本ディレクトリには、Animal Ekarte を構成する全 38 ページの具体的な機能、レイアウト、および API 連携の詳細が定義されています。
 
 ---
 
-## 画面一覧
+## 🩺 臨床・診療コア (Clinical Core)
 
-| No | 画面名 | ファイル | 概要 |
+| No | 画面名 | 仕様書 | 概要 |
 |:---|:---|:---|:---|
-| 00 | 共通ペット選択 | [00-pet-selection.md](./00-pet-selection.md) | 各機能の新規作成時に使用される共通中間画面 |
-| 01 | 当日の受付 | [01-reception.md](./01-reception.md) | 当日の受付状況管理（カンバンボード） |
-| 02 | 予約管理 | [02-reservations.md](./02-reservations.md) | 診療・トリミング等のカレンダー管理 |
-| 03 | 飼主・ペット一覧 | [03-owners-list.md](./03-owners-list.md) | 顧客情報の検索・一覧表示 |
-| 04 | 飼主・ペット登録/編集 | [04-owners-form.md](./04-owners-form.md) | 顧客情報の入力・更新、ペット管理 |
-| 05 | カルテ一覧 | [05-medical-records-list.md](./05-medical-records-list.md) | 過去の診療記録の検索・参照 |
-| 06 | カルテ入力/編集 | [06-medical-records-form.md](./06-medical-records-form.md) | SOAPS形式・9タブ構成の診療記録入力 |
-| 07 | 入院管理一覧 | [07-hospitalization-list.md](./07-hospitalization-list.md) | 入院・ホテル患者のボード/リスト管理 |
-| 08 | 入院詳細・デイリーカルテ | [08-hospitalization-detail.md](./08-hospitalization-detail.md) | 入院中のケア計画と日次実施記録 |
-| 09 | 入院登録/編集 | [09-hospitalization-form.md](./09-hospitalization-form.md) | 入院予約・初期プラン設定 |
-| 10 | 会計一覧 | [10-accounting-list.md](./10-accounting-list.md) | 会計データの検索・算定状況確認 |
-| 11 | 会計精算 | [11-accounting-detail.md](./11-accounting-detail.md) | 保険適用、支払処理、帳票発行 |
-| 12 | 検査一覧 | [12-examinations-list.md](./12-examinations-list.md) | 検査オーダーと結果概要の参照 |
-| 13 | 検査入力/結果登録 | [13-examinations-form.md](./13-examinations-form.md) | 検査詳細データの入力（カルテ連携） |
-| 14 | 予防接種一覧 | [14-vaccinations-list.md](./14-vaccinations-list.md) | 接種履歴の検索・証明書発行導線 |
-| 15 | 予防接種フォーム | [15-vaccinations-form.md](./15-vaccinations-form.md) | ワクチン接種記録の入力（カルテ連携） |
-| 16 | トリミング一覧 | [16-trimming-list.md](./16-trimming-list.md) | トリミング予約と施術状況の一覧 |
-| 17 | トリミング登録/編集 | [17-trimming-form.md](./17-trimming-form.md) | 施術内容・スタイル希望・画像の記録 |
-| 18 | 在庫管理 | [18-inventory-list.md](./18-inventory-list.md) | 薬品・消耗品の在庫数とアラート管理 |
-| 19 | 病院情報設定 | [19-clinic-settings.md](./19-clinic-settings.md) | 医院名、住所、インボイス番号等の設定 |
-| 20 | マスタ設定トップ | [20-master-settings.md](./20-master-settings.md) | システム全体の各種マスタ管理 |
-| 21 | ログイン | [21-login.md](./21-login.md) | ユーザー認証と初期遷移 |
-| 22 | 見積書一覧 | [22-estimate-list.md](./22-estimate-list.md) | 作成済み見積書の管理 |
-| 23 | 見積書作成・編集 | [23-estimate-form.md](./23-estimate-form.md) | 概算見積の算出と発行 |
-| 24 | シフト管理カレンダー | [24-shift-calendar.md](./24-shift-calendar.md) | スタッフ勤務シフトの可視化・管理 |
-| 25 | 定期健診一覧 | [25-checkups-list.md](./25-checkups-list.md) | 全ペットの定期健診記録の参照 |
-| 26 | 見積書詳細 | [26-estimate-detail.md](./26-estimate-detail.md) | 見積内容の確認と管理 |
-| 27 | 在庫登録/編集 | [27-inventory-form.md](./27-inventory-form.md) | 在庫品目の入力・更新 |
-| 28 | LINE予約設定 | [28-line-reservation.md](./28-line-reservation.md) | LINE予約システムの設定・編集 |
-| 29 | 集計・締め | [29-closing-aggregation.md](./29-closing-aggregation.md) | レジ締め・売上レポート・履歴 |
-| 30 | 未納者一覧 | [30-unpaid-list.md](./30-unpaid-list.md) | 売掛金把握・未精算管理 |
-| 99 | カルテ登録フロー | [99-medical-record-flow.md](./99-medical-record-flow.md) | カルテ登録・編集の複雑なライフサイクル仕様 |
-
-## マスタ設定詳細
-
-個別マスタの定義は [settings/README.md](./settings/README.md) を参照してください。
+| 00 | **ペット選択** | [00-pet-selection.md](./00-pet-selection.md) | 新規データ作成時の共通検索・特定フロー。 |
+| 01 | **当日の受付** | [01-reception.md](./01-reception.md) | カンバン形式による院内稼働状況の管理。 |
+| 02 | **予約管理** | [02-reservations.md](./02-reservations.md) | 月/週カレンダーによる予約枠とシフトの可視化。 |
+| 05 | **カルテ一覧** | [05-medical-records-list.md](./05-medical-records-list.md) | 全診療記録の時系列検索。 |
+| 06 | **カルテ詳細・入力** | [06-medical-records-form.md](./06-medical-records-form.md) | SOAPS 形式の診療録作成（9 タブ構成）。 |
+| 12 | **検査一覧** | [12-examinations-list.md](./12-examinations-list.md) | 検査オーダー状況と結果の進捗管理。 |
+| 13 | **検査登録・結果** | [13-examinations-form.md](./13-examinations-form.md) | 数値検査の入力と基準値判定。 |
+| 14 | **予防接種一覧** | [14-vaccinations-list.md](./14-vaccinations-list.md) | 接種実績と次回予定の時系列リスト。 |
+| 15 | **予防接種登録** | [15-vaccinations-form.md](./15-vaccinations-form.md) | ワクチン履歴記録と次回予定自動計算。 |
+| 16 | **トリミング一覧** | [16-trimming-list.md](./16-trimming-list.md) | 施術予約と完了ステータスの管理。 |
+| 17 | **トリミング登録** | [17-trimming-form.md](./17-trimming-form.md) | 施術内容と仕上がり画像の記録。 |
+| 25 | **定期健診一覧** | [25-checkups-list.md](./25-checkups-list.md) | 健診履歴の参照と当日カルテ自動生成。 |
 
 ---
 
-## 共通要素
+## 🛏️ 入院・ホテル管理 (Inpatient Care)
 
-- [共通ダイアログ・共有コンポーネント](./common-dialogs.md)
-
----
-
-## 共通レイアウト
-
-### サイドバー (共通ナビゲーション)
-![共通サイドバー](./images/sidebar.png)
-
-システム全体で共通して使用されるナビゲーションメニューです。
-- 各主要機能へのダイレクトリンク
-- 病院情報・マスタ設定へのアクセス
-- ログインユーザー情報の表示とログアウト
+| No | 画面名 | 仕様書 | 概要 |
+|:---|:---|:---|:---|
+| 07 | **入院管理一覧** | [07-hospitalization-list.md](./07-hospitalization-list.md) | ボードビューによるケージ稼働状況の監視. |
+| 08 | **入院詳細・記録** | [08-hospitalization-detail.md](./08-hospitalization-detail.md) | デイリーケア計画と時系列バイタル記録。 |
+| 09 | **入院登録・編集** | [09-hospitalization-form.md](./09-hospitalization-form.md) | ケアプランと値引き設定の定義。 |
 
 ---
 
-## 画像付き仕様書の活用
-本ディレクトリ内の主要な仕様書（飼主一覧、登録、カルテ、ログイン等）には、実際の画面キャプチャが埋め込まれています。これにより、設計上のデータ項目と実際のUIレイアウトの対応関係を直感的に把握することが可能です。
+## 💰 会計・経営管理 (Finance & Admin)
 
-新しい画面を追加したり既存の画面を大幅に変更した際は、`.design-specs/test-results/` や実際のブラウザキャプチャを `docs/screens/images/` に配置し、ドキュメントを更新することを推奨します。
+| No | 画面名 | 仕様書 | 概要 |
+|:---|:---|:---|:---|
+| 03 | **飼主・ペット一覧** | [03-owners-list.md](./03-owners-list.md) | 顧客データベースの検索と参照。 |
+| 04 | **飼主・ペット登録** | [04-owners-form.md](./04-owners-form.md) | 顧客情報の編集と Lステップ個別送信。 |
+| 10 | **会計一覧** | [10-accounting-list.md](./10-accounting-list.md) | 請求履歴の検索とステータス監視。 |
+| 11 | **会計精算** | [11-accounting-detail.md](./11-accounting-detail.md) | 保険窓口精算、決済、インボイス発行。 |
+| 22 | **見積書一覧** | [22-estimate-list.md](./22-estimate-list.md) | 発行済み見積の有効期限と承認管理。 |
+| 23 | **見積書作成** | [23-estimate-form.md](./23-estimate-form.md) | 概算費用の算出と飼主向け説明文編集。 |
+| 26 | **見積書詳細** | [26-estimate-detail.md](./26-estimate-detail.md) | 見積内容の最終確認とステータス制御。 |
+| 29 | **レジ締め・履歴** | [29-closing-aggregation.md](./29-closing-aggregation.md) | 日次売上の確定と現金の実査・履歴。 |
+| 30 | **未納者一覧** | [30-unpaid-list.md](./30-unpaid-list.md) | 売掛金の把握と督促業務支援。 |
+| 32 | **月次集計レポート** | [32-accounting-reports.md](./32-accounting-reports.md) | 経営分析用データの抽出と CSV 出力。 |
+| 36 | **顧客集計ダッシュボード** | [36-aggregation-dashboard.md](./36-aggregation-dashboard.md) | 売上・来院頻度による顧客分析。 |
 
+---
+
+## 📦 設定・外部連携・監視 (Infrastructure & CRM)
+
+| No | 画面名 | 仕様書 | 概要 |
+|:---|:---|:---|:---|
+| 18 | **在庫管理一覧** | [18-inventory-list.md](./18-inventory-list.md) | 品目別の在庫監視と発注点管理。 |
+| 27 | **在庫登録・編集** | [27-inventory-form.md](./27-inventory-form.md) | 薬品・備品の基本情報管理。 |
+| 24 | **シフト管理** | [24-shift-calendar.md](./24-shift-calendar.md) | スタッフ勤務と LINE 予約の連動. |
+| 28 | **LINE 予約設定** | [28-line-reservation.md](./28-line-reservation.md) | 予約システム稼働ルールと文言編集. |
+| 31 | **Lステップ連携** | [31-lstep-integration.md](./31-lstep-integration.md) | CPM 判定、自動配信、タグ管理。 |
+| 34 | **Lステップ配信監視** | [34-lstep-delivery-monitor.md](./34-lstep-delivery-monitor.md) | 自動配信トリガーの実行ログと失敗検知。 |
+| 35 | **取扱説明書** | [35-internal-manual.md](./35-internal-manual.md) | システム内マニュアルの閲覧と編集。 |
+| 21 | **ログイン** | [21-login.md](./21-login.md) | 認証プロセスとパスワード再設定。 |
+| 19 | **医院マスタ設定** | [19-clinic-settings.md](./19-clinic-settings.md) | 拠点基本情報と税務設定。 |
+
+---
+
+## 🛠️ 技術・共通基盤
+
+- **[共通ダイアログ](./common-dialogs.md)**: 全画面で共有される検索、入力部品。
+- **[カルテ保存フロー](./99-medical-record-flow.md)**: 診療記録の複雑なライフサイクル。
+- **[マスタ設定ポータル](./20-master-settings.md)**: 各種定義データ管理の入り口。
+
+---
+
+**最新更新**: 2026-05-21 | **ステータス**: All Sync with Implementation (95 Tables / 31 Resources)

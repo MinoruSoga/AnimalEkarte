@@ -1,7 +1,11 @@
 # BUG-CLEAR-BUTTON-COLOR-INCONSISTENCY: 「クリア」ボタンがプライマリカラー（黒）を使用しており視覚的に不統一
 
 ## ステータス
-🔴 **未修正**
+✅ **修正済み**（2026-05-13 確認）
+
+> コードレビューで修正済みを確認。VaccinationHistory.tsx:96 / ImageGalleryFilter.tsx:139 の
+> 「クリア」ボタンは `variant="outline"` + `C.bgWhite` + `C.borderMedium` に修正済み。
+> タスクファイルのステータス未更新のまま closed に移動されていた。
 
 ## 優先度
 Low

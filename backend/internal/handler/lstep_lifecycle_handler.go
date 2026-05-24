@@ -134,7 +134,8 @@ func (h *Handler) DeleteOwnerLine(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.svc.Owner.LinkLineUserID(c.Request.Context(), clinicID, id, nil); err != nil {
+	actorID := optionalStaffID(c)
+	if err := h.svc.Owner.LinkLineUserID(c.Request.Context(), clinicID, id, nil, actorID); err != nil {
 		RespondError(c, err)
 		return
 	}

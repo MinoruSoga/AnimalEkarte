@@ -15,6 +15,8 @@ export function PetHealthPage({ idToken, displayName, pictureUrl }: PetHealthPag
 
   const clinicId = new URLSearchParams(window.location.search).get('clinic_id') ?? '';
 
+  // 同期目的のため useEffect 内 setState は許容。
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!clinicId) {
       setLoadState('error');
@@ -31,6 +33,7 @@ export function PetHealthPage({ idToken, displayName, pictureUrl }: PetHealthPag
         setLoadState('error');
       });
   }, [idToken, clinicId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (loadState === 'loading') {
     return (

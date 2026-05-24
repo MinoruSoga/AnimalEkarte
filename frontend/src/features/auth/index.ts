@@ -1,7 +1,9 @@
 export { AuthProvider, useAuth } from "./hooks/use-auth";
 export { usePermission } from "./hooks/use-permission";
 export { Login } from "./routes/Login";
-export { ChangePasswordDialog } from "./components/ChangePasswordDialog";
+// 実装は共有レイヤ（@/components/shared/ChangePasswordDialog/）。
+// auth ドメインの公開 API として feature index から再エクスポートする。
+export { ChangePasswordDialog } from "@/components/shared/ChangePasswordDialog/ChangePasswordDialog";
 export { ForgotPasswordPage } from "./routes/ForgotPasswordPage";
 export { ResetPasswordPage } from "./routes/ResetPasswordPage";
 export type { ResourceAction } from "./types";

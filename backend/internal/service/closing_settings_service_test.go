@@ -15,15 +15,19 @@ import (
 // ---- モックリポジトリ定義 ----
 
 type mockClinicSettingsRepository struct {
-	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
-	upsertFn         func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
+	findByClinicIDFn          func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
+	upsertFn                  func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
+	updateCPMVersionFn        func(ctx context.Context, clinicID uint64, version string) error
+	updateDormantThresholdsFn func(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error
+	updateCPMV2ThresholdsFn   func(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error
+	updateCPMV1ThresholdsFn   func(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error
 }
 
 func (m *mockClinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
 	if m.findByClinicIDFn != nil {
 		return m.findByClinicIDFn(ctx, clinicID)
 	}
-	return nil, nil
+	return &model.ClinicSettings{}, nil
 }
 
 func (m *mockClinicSettingsRepository) Save(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error) {
@@ -31,6 +35,36 @@ func (m *mockClinicSettingsRepository) Save(ctx context.Context, clinicID uint64
 		return m.upsertFn(ctx, clinicID, s)
 	}
 	return s, nil
+}
+func (m *mockClinicSettingsRepository) UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error {
+	if m.updateCPMVersionFn != nil {
+		return m.updateCPMVersionFn(ctx, clinicID, version)
+	}
+	return nil
+}
+func (m *mockClinicSettingsRepository) UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error {
+	if m.updateDormantThresholdsFn != nil {
+		return m.updateDormantThresholdsFn(ctx, clinicID, thresholds)
+	}
+	return nil
+}
+func (m *mockClinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error {
+	if m.updateCPMV2ThresholdsFn != nil {
+		return m.updateCPMV2ThresholdsFn(ctx, clinicID, thresholds)
+	}
+	return nil
+}
+
+//nolint:gocritic // hugeParam: ClinicSettingsRepository interface に signatures を合わせるため必須
+func (m *mockClinicSettingsRepository) UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error {
+	if m.updateCPMV1ThresholdsFn != nil {
+		return m.updateCPMV1ThresholdsFn(ctx, clinicID, thresholds)
+	}
+	return nil
+}
+
+func (m *mockClinicSettingsRepository) UpdateHealthPreventionThresholds(_ context.Context, _ uint64, _ model.HealthPreventionThresholds) error {
+	return nil
 }
 
 type mockClosingSpecialPeriodRepository struct {

@@ -23,22 +23,24 @@ const (
 )
 
 type Hospitalization struct {
-	ID                  uint64                `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID            uint64                `gorm:"not null"                                       json:"clinic_id"`
-	OwnerID             uint64                `gorm:"not null"                                       json:"owner_id"`
-	PetID               uint64                `gorm:"not null"                                       json:"pet_id"`
-	HospitalizationType HospitalizationType   `gorm:"type:hospitalization_type;not null"             json:"hospitalization_type"`
-	StartDate           time.Time             `gorm:"type:date;not null"                             json:"start_date"`
-	EndDate             time.Time             `gorm:"type:date;not null"                             json:"end_date"`
-	Status              HospitalizationStatus `gorm:"type:hospitalization_status;default:'reserved'"  json:"status"`
-	CageID              *uint64               `                                                      json:"cage_id,omitempty"`
-	DoctorID            *uint64               `                                                      json:"doctor_id,omitempty"`
-	Memo                string                `gorm:"default:''"                                     json:"memo"`
-	OwnerRequest        string                `gorm:"default:''"                                     json:"owner_request"`
-	StaffNotes          string                `gorm:"default:''"                                     json:"staff_notes"`
-	CreatedAt           time.Time             `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt           time.Time             `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt           gorm.DeletedAt        `                                                      json:"-"`
+	ID                   uint64                `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID             uint64                `gorm:"not null"                                       json:"clinic_id"`
+	OwnerID              uint64                `gorm:"not null"                                       json:"owner_id"`
+	PetID                uint64                `gorm:"not null"                                       json:"pet_id"`
+	HospitalizationType  HospitalizationType   `gorm:"type:hospitalization_type;not null"             json:"hospitalization_type"`
+	StartDate            time.Time             `gorm:"type:date;not null"                             json:"start_date"`
+	EndDate              time.Time             `gorm:"type:date;not null"                             json:"end_date"`
+	Status               HospitalizationStatus `gorm:"type:hospitalization_status;default:'reserved'"  json:"status"`
+	CageID               *uint64               `                                                      json:"cage_id,omitempty"`
+	DoctorID             *uint64               `                                                      json:"doctor_id,omitempty"`
+	InsuranceCompanyName *string               `gorm:"column:insurance_company_name"                  json:"insurance_company_name,omitempty"`
+	InsuranceNumber      *string               `gorm:"column:insurance_number"                        json:"insurance_number,omitempty"`
+	Memo                 string                `gorm:"default:''"                                     json:"memo"`
+	OwnerRequest         string                `gorm:"default:''"                                     json:"owner_request"`
+	StaffNotes           string                `gorm:"default:''"                                     json:"staff_notes"`
+	CreatedAt            time.Time             `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt            time.Time             `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt            gorm.DeletedAt        `                                                      json:"-"`
 
 	// Relations
 	Owner          *Owner          `gorm:"foreignKey:OwnerID"           json:"owner,omitempty"`

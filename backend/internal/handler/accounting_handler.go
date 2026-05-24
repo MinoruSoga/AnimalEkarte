@@ -31,6 +31,24 @@ func paymentMethodPtr(s *string) *model.PaymentMethod {
 	return &v
 }
 
+// toPaymentSplitInputs は []paymentSplitRequest を []service.PaymentSplitInput に変換する。
+func toPaymentSplitInputs(reqs []paymentSplitRequest) []service.PaymentSplitInput {
+	if len(reqs) == 0 {
+		return nil
+	}
+	out := make([]service.PaymentSplitInput, 0, len(reqs))
+	for _, r := range reqs {
+		out = append(out, service.PaymentSplitInput{
+			Method:          model.PaymentMethod(r.Method),
+			PaymentMethodID: r.PaymentMethodID,
+			Amount:          r.Amount,
+			ReceivedAmount:  r.ReceivedAmount,
+			ChangeAmount:    r.ChangeAmount,
+		})
+	}
+	return out
+}
+
 // ListAccountings godoc
 func (h *Handler) ListAccountings(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -205,6 +223,7 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		ChangeAmount:      input.ChangeAmount,
 		Status:            billingStatusPtr(input.Status),
 		PaymentMethod:     paymentMethodPtr(input.PaymentMethod),
+		PaymentSplits:     toPaymentSplitInputs(input.PaymentSplits),
 	})
 	if err != nil {
 		RespondError(c, err)

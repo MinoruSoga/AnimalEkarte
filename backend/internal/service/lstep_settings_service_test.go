@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ---- mock LstepSettingsRepository ----
@@ -37,6 +40,26 @@ func (m *mockLstepSettingsRepository) DeleteByClinicAndService(ctx context.Conte
 	return nil
 }
 
+// ---- mock LstepSyncSettingsRepository ----
+
+type mockLstepSyncSettingsRepository struct {
+	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.LstepSettings, error)
+	upsertFn         func(ctx context.Context, settings *model.LstepSettings) (*model.LstepSettings, error)
+}
+
+func (m *mockLstepSyncSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LstepSettings, error) {
+	if m.findByClinicIDFn != nil {
+		return m.findByClinicIDFn(ctx, clinicID)
+	}
+	return nil, nil
+}
+func (m *mockLstepSyncSettingsRepository) Upsert(ctx context.Context, settings *model.LstepSettings) (*model.LstepSettings, error) {
+	if m.upsertFn != nil {
+		return m.upsertFn(ctx, settings)
+	}
+	return settings, nil
+}
+
 // ---- tests ----
 
 func TestGetSettings(t *testing.T) {
@@ -61,7 +84,7 @@ func TestGetSettings(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := NewLstepSettingsService(tt.repo, nil, nil)
+			svc := NewLstepSettingsService(tt.repo, &mockLstepSyncSettingsRepository{}, nil, nil, nil)
 			res, err := svc.GetSettings(context.Background(), 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -97,7 +120,7 @@ func TestDeleteSettings(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := NewLstepSettingsService(tt.repo, nil, nil)
+			svc := NewLstepSettingsService(tt.repo, &mockLstepSyncSettingsRepository{}, nil, nil, nil)
 			err := svc.DeleteSettings(context.Background(), 1, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -106,4 +129,261 @@ func TestDeleteSettings(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestIsSyncEnabled: レコード未作成は false、作成済みは IsSyncEnabled 値を返す
+func TestIsSyncEnabled(t *testing.T) {
+	t.Run("not found returns false without error", func(t *testing.T) {
+		syncRepo := &mockLstepSyncSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LstepSettings, error) {
+				return nil, apperrors.WrapNotFound("lstep_settings", "clinic_id=1")
+			},
+		}
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
+		enabled, err := svc.IsSyncEnabled(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.False(t, enabled)
+	})
+
+	t.Run("returns true when IsSyncEnabled=true", func(t *testing.T) {
+		syncRepo := &mockLstepSyncSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LstepSettings, error) {
+				return &model.LstepSettings{IsSyncEnabled: true}, nil
+			},
+		}
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
+		enabled, err := svc.IsSyncEnabled(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.True(t, enabled)
+	})
+
+	t.Run("repo error propagates", func(t *testing.T) {
+		syncRepo := &mockLstepSyncSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LstepSettings, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
+		_, err := svc.IsSyncEnabled(context.Background(), 1)
+		assert.Error(t, err)
+	})
+}
+
+// TestSyncEnabledAtLifecycle: false→true で SyncEnabledAt がセットされ、true→false では保持される
+func TestSyncEnabledAtLifecycle(t *testing.T) {
+	t.Run("false to true sets SyncEnabledAt", func(t *testing.T) {
+		before := time.Now()
+		var upserted *model.LstepSettings
+		syncRepo := &mockLstepSyncSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LstepSettings, error) {
+				return &model.LstepSettings{ClinicID: 1, IsSyncEnabled: false}, nil
+			},
+			upsertFn: func(_ context.Context, s *model.LstepSettings) (*model.LstepSettings, error) {
+				upserted = s
+				return s, nil
+			},
+		}
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
+		enabled := true
+		_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{IsSyncEnabled: &enabled}, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, upserted)
+		assert.True(t, upserted.IsSyncEnabled)
+		assert.NotNil(t, upserted.SyncEnabledAt)
+		assert.True(t, upserted.SyncEnabledAt.After(before))
+	})
+
+	t.Run("true to false preserves SyncEnabledAt", func(t *testing.T) {
+		original := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+		var upserted *model.LstepSettings
+		syncRepo := &mockLstepSyncSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LstepSettings, error) {
+				return &model.LstepSettings{ClinicID: 1, IsSyncEnabled: true, SyncEnabledAt: &original}, nil
+			},
+			upsertFn: func(_ context.Context, s *model.LstepSettings) (*model.LstepSettings, error) {
+				upserted = s
+				return s, nil
+			},
+		}
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
+		disabled := false
+		_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{IsSyncEnabled: &disabled}, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, upserted)
+		assert.False(t, upserted.IsSyncEnabled)
+		assert.NotNil(t, upserted.SyncEnabledAt)
+		assert.Equal(t, original, *upserted.SyncEnabledAt)
+	})
+
+	t.Run("nil IsSyncEnabled skips sync settings update", func(t *testing.T) {
+		upsertCalled := false
+		syncRepo := &mockLstepSyncSettingsRepository{
+			upsertFn: func(_ context.Context, _ *model.LstepSettings) (*model.LstepSettings, error) {
+				upsertCalled = true
+				return nil, nil
+			},
+		}
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
+		_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{}, nil)
+		assert.NoError(t, err)
+		assert.False(t, upsertCalled)
+	})
+}
+
+// TestAllClinicsFiltersBySyncEnabled: AllClinics バッチが is_sync_enabled=false のクリニックをスキップする
+func TestAllClinicsFiltersBySyncEnabled(t *testing.T) {
+	t.Run("RunNoShowCheckAllClinics skips disabled clinics", func(t *testing.T) {
+		processed := make([]uint64, 0)
+		clinicRepo := &mockClinicRepository{
+			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
+				return []model.Clinic{{ID: 1}, {ID: 2}}, nil
+			},
+		}
+		resRepo := &batchMockReservationRepo{
+			findNoShowCandidatesFn: func(_ context.Context, clinicID uint64) ([]model.Reservation, error) {
+				processed = append(processed, clinicID)
+				return nil, nil
+			},
+		}
+		settingsSvc := &mockLstepSettingsService{
+			isSyncEnabledFn: func(_ context.Context, clinicID uint64) (bool, error) {
+				return clinicID == 1, nil // clinic 1 のみ有効
+			},
+		}
+		svc := NewLstepBatchService(resRepo, &batchMockTagSyncSvc{}, clinicRepo, &batchMockMedRecordRepo{}, &batchMockAuditService{}, settingsSvc, nil)
+		err := svc.RunNoShowCheckAllClinics(context.Background())
+		assert.NoError(t, err)
+		assert.Equal(t, []uint64{1}, processed)
+	})
+
+	t.Run("RunDormantDetectionAllClinics skips disabled clinics", func(t *testing.T) {
+		processed := make([]uint64, 0)
+		clinicRepo := &mockClinicRepository{
+			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
+				return []model.Clinic{{ID: 10}, {ID: 20}}, nil
+			},
+		}
+		medRepo := &batchMockMedRecordRepo{
+			findDormantFn: func(_ context.Context, clinicID uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+				processed = append(processed, clinicID)
+				return nil, nil
+			},
+		}
+		settingsSvc := &mockLstepSettingsService{
+			isSyncEnabledFn: func(_ context.Context, clinicID uint64) (bool, error) {
+				return clinicID == 20, nil // clinic 20 のみ有効
+			},
+		}
+		svc := NewLstepBatchService(&batchMockReservationRepo{}, &batchMockTagSyncSvc{}, clinicRepo, medRepo, &batchMockAuditService{}, settingsSvc, nil)
+		err := svc.RunDormantDetectionAllClinics(context.Background())
+		assert.NoError(t, err)
+		assert.Equal(t, []uint64{20}, processed)
+	})
+}
+
+// TestGetDormantThresholds_DBValues: DB に値があれば DB 値を返す
+func TestGetDormantThresholds_DBValues(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return &model.ClinicSettings{
+				DormantPrevention180Days: 175,
+				DormantPrevention210Days: 200,
+				DormantPrevention240Days: 230,
+				DormantPrevention365Days: 350,
+			}, nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	got, err := svc.GetDormantThresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.DormantThresholds{Stage180: 175, Stage210: 200, Stage240: 230, Stage365: 350}, got)
+}
+
+// TestGetDormantThresholds_ZeroFallback: DB 値が 0 ならデフォルト補完される
+func TestGetDormantThresholds_ZeroFallback(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return &model.ClinicSettings{
+				DormantPrevention180Days: 0,
+				DormantPrevention210Days: 0,
+				DormantPrevention240Days: 0,
+				DormantPrevention365Days: 0,
+			}, nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	got, err := svc.GetDormantThresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.DormantThresholds{Stage180: 180, Stage210: 210, Stage240: 240, Stage365: 365}, got)
+}
+
+// TestGetDormantThresholds_NilRepo: clinicSettingsRepo が nil の場合はデフォルト値を返す
+func TestGetDormantThresholds_NilRepo(t *testing.T) {
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, nil)
+	got, err := svc.GetDormantThresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.DormantThresholds{Stage180: 180, Stage210: 210, Stage240: 240, Stage365: 365}, got)
+}
+
+// TestGetDormantThresholds_RepoError: リポジトリエラー時はエラーを返す
+func TestGetDormantThresholds_RepoError(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	_, err := svc.GetDormantThresholds(context.Background(), 1)
+	assert.Error(t, err)
+}
+
+// TestGetCPMV2Thresholds_DBValues: DB に値があれば DB 値を返す
+func TestGetCPMV2Thresholds_DBValues(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return &model.ClinicSettings{
+				CPMV2ComingThreshold: 3,
+				CPMV2GoodThreshold:   6,
+				CPMV2FamilyThreshold: 10,
+				CPMV2NoahThreshold:   15,
+			}, nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	got, err := svc.GetCPMV2Thresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.CPMV2Thresholds{Coming: 3, Good: 6, Family: 10, Noah: 15}, got)
+}
+
+// TestGetCPMV2Thresholds_ZeroFallback: DB 値が 0 ならデフォルト補完される
+func TestGetCPMV2Thresholds_ZeroFallback(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return &model.ClinicSettings{}, nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	got, err := svc.GetCPMV2Thresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.CPMV2Thresholds{Coming: 2, Good: 4, Family: 8, Noah: 13}, got)
+}
+
+// TestGetCPMV2Thresholds_NilRepo: clinicSettingsRepo が nil の場合はデフォルト値を返す
+func TestGetCPMV2Thresholds_NilRepo(t *testing.T) {
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, nil)
+	got, err := svc.GetCPMV2Thresholds(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, model.CPMV2Thresholds{Coming: 2, Good: 4, Family: 8, Noah: 13}, got)
+}
+
+// TestGetCPMV2Thresholds_RepoError: リポジトリエラー時はエラーを返す
+func TestGetCPMV2Thresholds_RepoError(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+	_, err := svc.GetCPMV2Thresholds(context.Background(), 1)
+	assert.Error(t, err)
 }

@@ -14,12 +14,14 @@ import (
 
 // mockExaminationRepository は ExaminationRepository のテスト用モック実装
 type mockExaminationRepository struct {
-	findAllFn            func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
-	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
-	createFn             func(ctx context.Context, exam *model.Examination) error
-	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
-	deleteFn             func(ctx context.Context, clinicID, id uint64) error
-	countItemsByExamIDFn func(ctx context.Context, clinicID, examID uint64) (int64, error)
+	findAllFn              func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	createFn               func(ctx context.Context, exam *model.Examination) error
+	updateFieldsFn         func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
+	deleteFn               func(ctx context.Context, clinicID, id uint64) error
+	countItemsByExamIDFn   func(ctx context.Context, clinicID, examID uint64) (int64, error)
+	findAllItemsByExamIDFn func(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
+	replaceItemsByExamIDFn func(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, error)
 }
 
 func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -50,6 +52,20 @@ func (m *mockExaminationRepository) CountItemsByExamID(ctx context.Context, clin
 		return 0, nil
 	}
 	return m.countItemsByExamIDFn(ctx, clinicID, examID)
+}
+
+func (m *mockExaminationRepository) FindAllItemsByExamID(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error) {
+	if m.findAllItemsByExamIDFn == nil {
+		return nil, nil
+	}
+	return m.findAllItemsByExamIDFn(ctx, clinicID, examID)
+}
+
+func (m *mockExaminationRepository) ReplaceItemsByExamID(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, error) {
+	if m.replaceItemsByExamIDFn == nil {
+		return items, nil
+	}
+	return m.replaceItemsByExamIDFn(ctx, clinicID, examID, items)
 }
 
 func TestExaminationService_List(t *testing.T) {
@@ -477,4 +493,215 @@ func TestExaminationService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestComputeExamResultStatus(t *testing.T) {
+	tests := []struct {
+		name           string
+		inspectionVal  string
+		refMin         *float64
+		refMax         *float64
+		wantStatus     model.ExaminationResultStatus
+		wantIsAbnormal bool
+	}{
+		{name: "empty value → normal/false", inspectionVal: "", refMin: ptrFloat64(1), refMax: ptrFloat64(10), wantStatus: model.ExaminationResultStatusNormal, wantIsAbnormal: false},
+		{name: "non-numeric value → normal/false", inspectionVal: "陰性", refMin: ptrFloat64(1), refMax: ptrFloat64(10), wantStatus: model.ExaminationResultStatusNormal, wantIsAbnormal: false},
+		{name: "in-range → normal/false", inspectionVal: "5.5", refMin: ptrFloat64(1), refMax: ptrFloat64(10), wantStatus: model.ExaminationResultStatusNormal, wantIsAbnormal: false},
+		{name: "below ref_min → low/true", inspectionVal: "0.5", refMin: ptrFloat64(1), refMax: ptrFloat64(10), wantStatus: model.ExaminationResultStatusLow, wantIsAbnormal: true},
+		{name: "above ref_max → high/true", inspectionVal: "10.1", refMin: ptrFloat64(1), refMax: ptrFloat64(10), wantStatus: model.ExaminationResultStatusHigh, wantIsAbnormal: true},
+		{name: "exactly ref_min → normal/false (boundary inclusive)", inspectionVal: "1.0", refMin: ptrFloat64(1), refMax: ptrFloat64(10), wantStatus: model.ExaminationResultStatusNormal, wantIsAbnormal: false},
+		{name: "exactly ref_max → normal/false (boundary inclusive)", inspectionVal: "10.0", refMin: ptrFloat64(1), refMax: ptrFloat64(10), wantStatus: model.ExaminationResultStatusNormal, wantIsAbnormal: false},
+		{name: "only ref_min, value above → normal", inspectionVal: "100", refMin: ptrFloat64(1), refMax: nil, wantStatus: model.ExaminationResultStatusNormal, wantIsAbnormal: false},
+		{name: "only ref_min, value below → low", inspectionVal: "0", refMin: ptrFloat64(1), refMax: nil, wantStatus: model.ExaminationResultStatusLow, wantIsAbnormal: true},
+		{name: "only ref_max, value above → high", inspectionVal: "100", refMin: nil, refMax: ptrFloat64(10), wantStatus: model.ExaminationResultStatusHigh, wantIsAbnormal: true},
+		{name: "only ref_max, value below → normal", inspectionVal: "5", refMin: nil, refMax: ptrFloat64(10), wantStatus: model.ExaminationResultStatusNormal, wantIsAbnormal: false},
+		{name: "no refs → normal/false", inspectionVal: "5", refMin: nil, refMax: nil, wantStatus: model.ExaminationResultStatusNormal, wantIsAbnormal: false},
+		{name: "negative value below ref_min → low", inspectionVal: "-5.0", refMin: ptrFloat64(0), refMax: ptrFloat64(10), wantStatus: model.ExaminationResultStatusLow, wantIsAbnormal: true},
+		{name: "whitespace-padded numeric → parsed", inspectionVal: "  3.5  ", refMin: ptrFloat64(1), refMax: ptrFloat64(10), wantStatus: model.ExaminationResultStatusNormal, wantIsAbnormal: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotStatus, gotIsAbnormal := computeExamResultStatus(tt.inspectionVal, tt.refMin, tt.refMax)
+			assert.Equal(t, tt.wantStatus, gotStatus)
+			assert.Equal(t, tt.wantIsAbnormal, gotIsAbnormal)
+		})
+	}
+}
+
+func TestExaminationService_ListItems(t *testing.T) {
+	tests := []struct {
+		name        string
+		findByIDErr error
+		repoItems   []model.ExamResult
+		repoErr     error
+		wantErr     bool
+		wantNF      bool
+		wantLen     int
+	}{
+		{
+			name: "returns items when exam exists",
+			repoItems: []model.ExamResult{
+				{ID: 1, ExamID: 10, Name: "WBC", Status: model.ExaminationResultStatusNormal},
+				{ID: 2, ExamID: 10, Name: "RBC", Status: model.ExaminationResultStatusHigh, IsAbnormal: true},
+			},
+			wantLen: 2,
+		},
+		{
+			name:        "returns not found when exam does not exist",
+			findByIDErr: apperrors.WrapNotFound("exam", "999"),
+			wantErr:     true,
+			wantNF:      true,
+		},
+		{
+			name:    "propagates repo error",
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockExaminationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Examination{ID: 10, Status: model.ExaminationStatusInProgress}, nil
+				},
+				findAllItemsByExamIDFn: func(_ context.Context, _, _ uint64) ([]model.ExamResult, error) {
+					return tt.repoItems, tt.repoErr
+				},
+			}
+			svc := NewExaminationService(repo)
+
+			items, err := svc.ListItems(context.Background(), 1, 10)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, items)
+				if tt.wantNF {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, items, tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestExaminationService_ReplaceItems(t *testing.T) {
+	t.Run("computes status from ref_min/ref_max and overrides FE-supplied values", func(t *testing.T) {
+		var capturedItems []model.ExamResult
+		repo := &mockExaminationRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+				return &model.Examination{ID: 10, Status: model.ExaminationStatusInProgress}, nil
+			},
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, error) {
+				capturedItems = items
+				return items, nil
+			},
+		}
+		svc := NewExaminationService(repo)
+
+		min1 := 1.0
+		max10 := 10.0
+		inputs := []UpsertExamItemInput{
+			{Name: "WBC", InspectionValue: "5.0", RefMin: &min1, RefMax: &max10}, // normal
+			{Name: "RBC", InspectionValue: "0.5", RefMin: &min1, RefMax: &max10}, // low
+			{Name: "PLT", InspectionValue: "11", RefMin: &min1, RefMax: &max10},  // high
+			{Name: "Note", InspectionValue: "陰性"},                                // non-numeric → normal
+		}
+
+		saved, err := svc.ReplaceItems(context.Background(), 1, 10, inputs)
+		assert.NoError(t, err)
+		assert.Len(t, saved, 4)
+
+		assert.Equal(t, model.ExaminationResultStatusNormal, capturedItems[0].Status)
+		assert.False(t, capturedItems[0].IsAbnormal)
+
+		assert.Equal(t, model.ExaminationResultStatusLow, capturedItems[1].Status)
+		assert.True(t, capturedItems[1].IsAbnormal)
+
+		assert.Equal(t, model.ExaminationResultStatusHigh, capturedItems[2].Status)
+		assert.True(t, capturedItems[2].IsAbnormal)
+
+		assert.Equal(t, model.ExaminationResultStatusNormal, capturedItems[3].Status)
+		assert.False(t, capturedItems[3].IsAbnormal)
+
+		// ExamID は service が強制設定する
+		for _, it := range capturedItems {
+			assert.Equal(t, uint64(10), it.ExamID)
+		}
+	})
+
+	t.Run("rejects update when exam is confirmed", func(t *testing.T) {
+		repo := &mockExaminationRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+				return &model.Examination{ID: 10, Status: model.ExaminationStatusConfirmed}, nil
+			},
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, _ []model.ExamResult) ([]model.ExamResult, error) {
+				t.Fatal("repo should not be called when exam is confirmed")
+				return nil, nil
+			},
+		}
+		svc := NewExaminationService(repo)
+
+		_, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
+			{Name: "WBC", InspectionValue: "5.0"},
+		})
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("returns not found when exam does not exist", func(t *testing.T) {
+		repo := &mockExaminationRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+				return nil, apperrors.WrapNotFound("exam", "999")
+			},
+		}
+		svc := NewExaminationService(repo)
+
+		_, err := svc.ReplaceItems(context.Background(), 1, 999, []UpsertExamItemInput{})
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("accepts empty items list (clears all)", func(t *testing.T) {
+		called := false
+		repo := &mockExaminationRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+				return &model.Examination{ID: 10, Status: model.ExaminationStatusInProgress}, nil
+			},
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, error) {
+				called = true
+				assert.Empty(t, items)
+				return []model.ExamResult{}, nil
+			},
+		}
+		svc := NewExaminationService(repo)
+
+		saved, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{})
+		assert.NoError(t, err)
+		assert.Empty(t, saved)
+		assert.True(t, called)
+	})
+
+	t.Run("propagates repository error", func(t *testing.T) {
+		repo := &mockExaminationRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+				return &model.Examination{ID: 10, Status: model.ExaminationStatusInProgress}, nil
+			},
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, _ []model.ExamResult) ([]model.ExamResult, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewExaminationService(repo)
+
+		_, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
+			{Name: "WBC", InspectionValue: "5.0"},
+		})
+		assert.Error(t, err)
+	})
 }

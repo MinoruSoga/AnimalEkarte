@@ -61,6 +61,7 @@ func newLineSendSvc(ownerRepo repository.OwnerRepository, logRepo repository.Lin
 		&mockLstepTagCacheRepository{},
 		&mockAuditService{},
 		logRepo,
+		nil, // tagConfigRepo
 	)
 }
 

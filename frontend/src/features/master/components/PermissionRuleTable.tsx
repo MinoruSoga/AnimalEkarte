@@ -38,6 +38,7 @@ const RESOURCE_LABELS: Record<string, string> = {
   "accounting-reports": "月次売上レポート",
   "closing-settings": "締め設定",
   "master-payment-method": "支払方法マスタ",
+  "manual-edit": "取扱説明書 編集",
 };
 
 // All available resources for permission configuration

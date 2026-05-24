@@ -41,6 +41,7 @@ type TagOwnerItem struct {
 	OwnerName     string
 	LastVisitDate *string
 	AllTags       []string
+	Reason        *string
 }
 
 // TagOwnerListResponse は GET /lstep/owners のレスポンス。
@@ -107,6 +108,7 @@ func (s *lstepTagSummaryService) ListOwnersByTag(ctx context.Context, clinicID u
 			OwnerName:     r.OwnerName,
 			AllTags:       r.Tags,
 			LastVisitDate: extractLastVisitDate(r.Tags),
+			Reason:        r.Reason,
 		}
 		items[i] = item
 	}

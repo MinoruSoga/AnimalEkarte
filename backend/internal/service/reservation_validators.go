@@ -220,7 +220,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 // - 休憩時間と重複（break_hours）
 // エラーは apperrors.WrapInvalidInput で 400 を返す。
 func validateBusinessRules(settings *model.LineReservationSetting, date time.Time, startTime, endTime string) error {
-	loc := jstLocation()
+	loc := jstLocation
 	now := time.Now().In(loc)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, loc)
@@ -314,7 +314,7 @@ func toDateTime(date time.Time, hhmm string) (time.Time, error) {
 	}
 	h := mins / 60
 	m := mins % 60
-	return time.Date(date.Year(), date.Month(), date.Day(), h, m, 0, 0, jstLocation()), nil
+	return time.Date(date.Year(), date.Month(), date.Day(), h, m, 0, 0, jstLocation), nil
 }
 
 // generateConfirmationNumber は "R-YYYYMMDD-XXXX" 形式の確認番号を生成する。

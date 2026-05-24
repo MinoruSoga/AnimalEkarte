@@ -166,7 +166,13 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 		nextVisitDate = &parsed
 	}
 
-	// 5. モデル組み立て（RecordNo は service 層で自動生成）
+	// 5. visit_type の解決: FE 送信値があればそれを使い、なければ 'revisit' をデフォルトとする
+	visitType := model.VisitTypeRevisit
+	if input.VisitType == string(model.VisitTypeFirst) {
+		visitType = model.VisitTypeFirst
+	}
+
+	// 6. モデル組み立て（RecordNo は service 層で自動生成）
 	record := &model.MedicalRecord{
 		ClinicID:                 clinicID,
 		RecordNo:                 input.RecordNo,
@@ -176,6 +182,7 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 		DoctorID:                 doctorID,
 		AppointmentID:            appointmentID,
 		NextVisitRecommendedDate: nextVisitDate,
+		VisitType:                &visitType,
 	}
 	if input.Status != "" {
 		status, err := validateEnum(input.Status,
@@ -186,6 +193,9 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 			return nil, apperrors.WrapInvalidInput("invalid status: " + err.Error())
 		}
 		record.Status = status
+	}
+	if input.RecommendationReason != nil && *input.RecommendationReason != "" {
+		record.RecommendationReason = input.RecommendationReason
 	}
 	return record, nil
 }
@@ -275,6 +285,11 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		nextVisitDate = &parsed
 	}
 
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
+
 	svcInput := service.UpdateMedicalRecordInput{
 		Date:                     input.Date,
 		OwnerID:                  input.OwnerID,
@@ -284,6 +299,7 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		Status:                   status,
 		Version:                  input.Version,
 		NextVisitRecommendedDate: nextVisitDate,
+		ActorID:                  &staffID,
 	}
 
 	ctx := c.Request.Context()
@@ -303,6 +319,33 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, toMedicalRecordResponse(record))
 }
 
+// PatchMedicalRecordRecommendationReason godoc
+// PATCH /medical-records/:id/recommendation-reason — 受診推奨理由を更新する（FEAT-381-2）。
+func (h *Handler) PatchMedicalRecordRecommendationReason(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchMedicalRecordRecommendationReasonRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	record, err := h.svc.MedicalRecord.UpdateRecommendationReason(
+		c.Request.Context(), clinicID, id,
+		service.UpdateRecommendationReasonInput{Reason: req.Reason},
+	)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toMedicalRecordResponse(record))
+}
+
 // DeleteMedicalRecord godoc
 func (h *Handler) DeleteMedicalRecord(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -313,7 +356,7 @@ func (h *Handler) DeleteMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// BE-REOPEN-002: Delete 前に医療記録を取得して来院/LTV タグ再計算に必要な owner_id を確保
+	// ISSUE-004: Delete 前に医療記録を取得して owner_id を確保
 	record, err := h.svc.MedicalRecord.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
@@ -323,9 +366,13 @@ func (h *Handler) DeleteMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	// BE-REOPEN-002: 医療記録削除後に来院/LTV タグを再計算（best-effort）
+	// ISSUE-004: 医療記録削除後に来院/LTV/次回来院推奨日タグを再計算（best-effort）。
+	// SyncVisitCompletionTags は first_visit_/last_visit_/ltv_amount_/visit_count_annual_ を DB から再算定。
+	// SyncNextVisitTag は最新カルテの next_visit_recommended_date を参照して next_visit_* を更新する。
+	// 削除されたカルテが最新だった場合に古い next_visit_* タグが残らない。
 	if record.OwnerID != nil {
 		_ = h.svc.LstepTagSync.SyncVisitCompletionTags(c.Request.Context(), clinicID, *record.OwnerID)
+		_ = h.svc.LstepTagSync.SyncNextVisitTag(c.Request.Context(), clinicID, *record.OwnerID)
 	}
 	c.Status(http.StatusNoContent)
 }

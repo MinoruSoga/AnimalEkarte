@@ -117,6 +117,22 @@ func (m *mockAuditServiceForPG) LogLstepOperation(_ context.Context, _ uint64, _
 	return nil
 }
 
+func (m *mockAuditServiceForPG) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
+	return nil
+}
+func (m *mockAuditServiceForPG) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
+	return nil
+}
+func (m *mockAuditServiceForPG) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
+	return nil
+}
+func (m *mockAuditServiceForPG) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
+	return nil
+}
+func (m *mockAuditServiceForPG) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
+	return nil
+}
+
 // ---- helper ----
 
 func newHandlerWithPermissionGroupSvc(pgSvc service.PermissionGroupService) *Handler {

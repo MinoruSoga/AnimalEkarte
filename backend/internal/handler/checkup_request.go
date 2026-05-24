@@ -15,5 +15,6 @@ type updateCheckupRequest struct {
 	Date          *string `json:"date"`
 	NextDate      *string `json:"next_date"`
 	DoctorID      *uint64 `json:"doctor_id"`
+	DoctorIDClear *bool   `json:"doctor_id_clear"`
 	Result        *string `json:"result"`
 }

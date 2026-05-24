@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -15,12 +16,14 @@ import (
 // ---- BillingItem モック ----
 
 type mockBillingItemRepository struct {
-	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error)
-	findByBillingIDFn   func(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
-	createFn            func(ctx context.Context, item *model.BillingItem) error
-	updateFieldsFn      func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn            func(ctx context.Context, clinicID, id uint64) error
-	updateBillingTotals func(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
+	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error)
+	findByBillingIDFn             func(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
+	createFn                      func(ctx context.Context, item *model.BillingItem) error
+	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
+	updateBillingTotals           func(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
+	hasItemByOwnerSinceFn         func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
+	hasFoodPurchaseByOwnerSinceFn func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 }
 
 func (m *mockBillingItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error) {
@@ -43,6 +46,21 @@ func (m *mockBillingItemRepository) UpdateBillingTotals(ctx context.Context, cli
 		return m.updateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount)
 	}
 	return nil
+}
+func (m *mockBillingItemRepository) HasItemByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
+	if m.hasItemByOwnerSinceFn != nil {
+		return m.hasItemByOwnerSinceFn(ctx, clinicID, ownerID, since, names)
+	}
+	return false, nil
+}
+func (m *mockBillingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
+	if m.hasFoodPurchaseByOwnerSinceFn != nil {
+		return m.hasFoodPurchaseByOwnerSinceFn(ctx, clinicID, ownerID, since, names)
+	}
+	return false, nil
+}
+func (m *mockBillingItemRepository) FindOwnersByCategoryPurchaseDate(_ context.Context, _ uint64, _ string, _ time.Time) ([]uint64, error) {
+	return nil, nil
 }
 
 func defaultMockBillingItemRepo() *mockBillingItemRepository {

@@ -12,7 +12,8 @@ import type { Resource } from "./generated/models";
 export type { Owner, CreateOwnerRequest, UpdateOwnerRequest } from './owner';
 export type { Pet } from "@/lib/transforms/pet";
 export type { Medicine } from "@/lib/transforms/medicine";
-export type { ExamResult, ExaminationRecord } from "@/features/examinations/api/transforms";
+// ExamResult / ExaminationRecord は examination feature 固有の view model のため、
+// @/features/examinations から直接 import すること（@/types で二重管理しない）。
 export type { VaccinationRecord } from "@/features/vaccinations/api/transforms";
 export type { TrimmingUI } from "@/features/trimming/api/transforms";
 export type { InventoryItem } from "@/features/inventory/api/inventory";

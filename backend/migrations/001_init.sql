@@ -1,7 +1,7 @@
 -- =============================================================================
--- Animal Ekarte - 統合スキーマ定義 v20.0 (consolidated)
+-- Animal Ekarte - 統合スキーマ定義 v22.1 (consolidated)
 -- PostgreSQL 18
--- テーブル数: 79 (旧 001–017 を統合)
+-- テーブル数: 94 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル を統合)
 -- 統合内容:
 --   002: マスタシードデータ
 --   003: デモシードデータ
@@ -19,6 +19,32 @@
 --   015: owners.line_followed_at/line_blocked_at カラム
 --   016: line_link_tokens テーブル
 --   017: lstep_migration_progress テーブル
+-- --- 外部マイグレーション統合 (ext-005〜ext-021) ---
+--   ext-005: audit_logs.metadata カラム
+--   ext-006: hospitalizations.insurance_* カラム
+--   ext-007: lstep_settings テーブル
+--   ext-008: lstep_sync_error_counters テーブル
+--   ext-009: owners.line_id_confirmed_at/delivery_excluded/is_transferred 等カラム
+--   ext-010: lstep_tag_code_mappings テーブル
+--   ext-011: lstep_tag_code_mappings デフォルトシード → 002 へ
+--   ext-012: lstep_delivery_trigger_log テーブル
+--   ext-013: lstep_tag_cache.reason カラム
+--   ext-014: owners.delivery_caution/* カラム
+--   ext-015: medical_records.recommendation_reason カラム
+--   ext-016: appointments.reservation_route/actual_reservation_at カラム
+--   ext-017: lstep_csv_imports テーブル
+--   ext-018: lstep_friend_attribute_snapshots テーブル
+--   ext-019: permission_group_rules (lstep-csv-import/analytics) シード → 003 へ (group_id FK は 003 生成)
+--   ext-021: medical_record_addenda テーブル
+--   mig-005: clinic_settings.cpm_version カラム
+--   mig-006: clinic_settings.dormant_prevention_* カラム
+--   mig-007: owners.line_id_confirmed_by カラム + インデックス
+--   mig-008: lstep_trigger_priorities テーブル
+--   mig-009: lstep_delivery_trigger_log.suppressed_by_priority / suppression_reason カラム + インデックス
+--   mig-010: lstep_auto_managed_prefixes / lstep_condition_tag_mappings / lstep_send_purpose_tag_prefixes テーブル (旧 006) + seed → 002 へ
+--   mig-011: clinic_settings.cpm_v2_*_threshold カラム (旧 007)
+--   mig-012: clinic_settings.cpm_v1_* カラム (旧 008)
+--   mig-013: clinic_settings.health_prevention_lookback_days / vaccine_deadline_days (旧 009)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -262,6 +288,16 @@ CREATE TABLE owners (
     -- 015: LINEフォロー・ブロック
     line_followed_at     timestamptz,                                -- LINE フォロー日時（最終フォロー時刻）。Webhook follow イベントで更新。
     line_blocked_at      timestamptz,                                -- LINE ブロック日時。Webhook unfollow イベントで更新。再フォロー時に NULL にリセット。
+    -- ext-009: LINE確認・配信停止・転院フィールド
+    line_id_confirmed_by    bigint      REFERENCES staffs(id) ON DELETE SET NULL,
+    line_id_confirmed_at    timestamptz,
+    delivery_excluded       boolean     NOT NULL DEFAULT false,
+    delivery_excluded_reason varchar(100),
+    is_transferred          boolean     NOT NULL DEFAULT false,
+    transfer_at             timestamptz,
+    -- ext-014: 配信注意フラグ
+    delivery_caution        boolean     NOT NULL DEFAULT false,
+    delivery_caution_reason varchar(100),
     created_at       timestamptz     NOT NULL DEFAULT now(),
     updated_at       timestamptz     NOT NULL DEFAULT now(),
     deleted_at       timestamptz
@@ -279,11 +315,29 @@ CREATE INDEX idx_owners_line_user_id
     WHERE line_user_id IS NOT NULL AND deleted_at IS NULL;
 
 COMMENT ON COLUMN owners.line_user_id       IS 'LINE User ID（Lステップ連携・LINE通知用）。NULL = 未連携。';
+COMMENT ON COLUMN owners.line_id_confirmed_by IS 'LINE ID 紐付け確認者 (staff_id)。NULL = 未確認。';
 COMMENT ON COLUMN owners.lstep_opt_out      IS 'Lステップ配信オプトアウトフラグ。true = すべてのタグ付与をスキップ。';
 COMMENT ON COLUMN owners.lstep_opt_out_at   IS 'オプトアウト設定日時。';
 COMMENT ON COLUMN owners.lstep_opt_out_reason IS 'オプトアウト理由（監査ログ用）。';
 COMMENT ON COLUMN owners.line_followed_at   IS 'LINE フォロー日時（最終フォロー時刻）。Webhook follow イベントで更新。';
 COMMENT ON COLUMN owners.line_blocked_at    IS 'LINE ブロック日時。Webhook unfollow イベントで更新。再フォロー時に NULL にリセット。';
+
+-- ext-009: owners 配信・転院フィールドインデックス
+CREATE INDEX idx_owners_delivery_excluded
+    ON owners (clinic_id, delivery_excluded)
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_owners_is_transferred
+    ON owners (clinic_id, is_transferred)
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_owners_line_id_confirmed
+    ON owners (clinic_id, line_id_confirmed_at)
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_owners_line_id_confirmed_by
+    ON owners (line_id_confirmed_by)
+    WHERE line_id_confirmed_by IS NOT NULL;
 
 -- ------------------------------------
 -- 7a. lstep_tag_cache（Lステップタグキャッシュ: 008 統合）
@@ -296,6 +350,7 @@ CREATE TABLE lstep_tag_cache (
     category    varchar(20)  NOT NULL DEFAULT 'auto'
                 CHECK (category IN ('auto', 'manual')),
     synced_at   timestamptz  NOT NULL DEFAULT now(),
+    reason      text,                                         -- ext-013: タグ付与理由（任意）
     UNIQUE (clinic_id, owner_id, tag_name)
 );
 
@@ -351,6 +406,206 @@ CREATE INDEX idx_lstep_migration_progress_clinic_id
 COMMENT ON TABLE lstep_migration_progress IS '既存飼い主データ一括同期の進捗管理テーブル（017 統合）';
 
 -- ------------------------------------
+-- 7d. lstep_settings（Lステップ同期設定: ext-007 統合）
+-- ------------------------------------
+CREATE TABLE lstep_settings (
+    id               BIGSERIAL    PRIMARY KEY,
+    clinic_id        bigint       NOT NULL UNIQUE REFERENCES clinics(id) ON DELETE RESTRICT,
+    is_sync_enabled  boolean      NOT NULL DEFAULT false,
+    sync_enabled_at  timestamptz  NULL,
+    created_at       timestamptz  NOT NULL DEFAULT now(),
+    updated_at       timestamptz  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_lstep_settings_clinic_id ON lstep_settings (clinic_id);
+
+COMMENT ON TABLE lstep_settings IS 'クリニックごとのLステップ同期設定（ext-007 統合）';
+
+-- ------------------------------------
+-- 7e. lstep_sync_error_counters（Lステップ同期エラーカウンター: ext-008 統合）
+-- ------------------------------------
+CREATE TABLE lstep_sync_error_counters (
+    id            BIGSERIAL    PRIMARY KEY,
+    clinic_id     bigint       NOT NULL REFERENCES clinics(id)  ON DELETE RESTRICT,
+    owner_id      bigint       NOT NULL REFERENCES owners(id)   ON DELETE RESTRICT,
+    failure_count int          NOT NULL DEFAULT 0,
+    created_at    timestamptz  NOT NULL DEFAULT now(),
+    updated_at    timestamptz  NOT NULL DEFAULT now(),
+    UNIQUE (clinic_id, owner_id)
+);
+
+CREATE INDEX idx_lstep_sync_error_counters_clinic_owner ON lstep_sync_error_counters (clinic_id, owner_id);
+
+COMMENT ON TABLE lstep_sync_error_counters IS 'Lステップ同期APIの連続失敗回数を記録するカウンター（ext-008 統合）';
+
+-- ------------------------------------
+-- 7f. lstep_tag_code_mappings（Lステップタグコードマッピング: ext-010 統合）
+-- ------------------------------------
+CREATE TABLE lstep_tag_code_mappings (
+    id            BIGSERIAL    PRIMARY KEY,
+    clinic_id     bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    tag_name      text         NOT NULL,
+    code_type     text         NOT NULL,
+    codes         text[]       NOT NULL DEFAULT '{}',
+    species_scope text,
+    age_min       int,
+    deleted_at    timestamptz,
+    created_at    timestamptz  NOT NULL DEFAULT now(),
+    updated_at    timestamptz  NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX idx_lstep_tag_code_mappings_clinic_tag_type
+    ON lstep_tag_code_mappings (clinic_id, tag_name, code_type)
+    WHERE deleted_at IS NULL;
+
+COMMENT ON TABLE lstep_tag_code_mappings IS 'Lステップタグ → 診療コード の対応マスタ（ext-010 統合）';
+
+-- ------------------------------------
+-- 7f-2. lstep_trigger_priorities（Q23 配信衝突優先順位: mig-008 統合）
+-- ------------------------------------
+CREATE TABLE lstep_trigger_priorities (
+    id           BIGSERIAL PRIMARY KEY,
+    clinic_id    BIGINT NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    trigger_type VARCHAR(64) NOT NULL,
+    priority     INTEGER NOT NULL CHECK (priority >= 1),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (clinic_id, trigger_type)
+);
+
+CREATE INDEX idx_lstep_trigger_priorities_clinic
+    ON lstep_trigger_priorities(clinic_id);
+
+COMMENT ON TABLE lstep_trigger_priorities IS 'Q23 配信トリガー優先順位 (clinic単位カスタマイズ可)';
+COMMENT ON COLUMN lstep_trigger_priorities.priority IS '小さいほど優先 (1=最優先)。同日複数トリガー発火時、MIN(priority) のみ実配信';
+
+-- ------------------------------------
+-- 7g. lstep_delivery_trigger_log（Lステップ配信トリガーログ: ext-012 統合）
+-- ------------------------------------
+CREATE TABLE lstep_delivery_trigger_log (
+    id               BIGSERIAL    PRIMARY KEY,
+    owner_id         bigint       NOT NULL REFERENCES owners(id)   ON DELETE RESTRICT,
+    clinic_id        bigint       NOT NULL REFERENCES clinics(id)  ON DELETE RESTRICT,
+    trigger_type     varchar(50)  NOT NULL,
+    scheduled_at     timestamptz  NOT NULL,
+    status           varchar(20)  NOT NULL DEFAULT 'scheduled',  -- scheduled | fired | excluded | cancelled
+    fired_at         timestamptz,
+    excluded_reason  varchar(100),
+    suppressed_by_priority BOOLEAN   NOT NULL DEFAULT FALSE,
+    suppression_reason VARCHAR(255),
+    created_at       timestamptz  NOT NULL DEFAULT now(),
+    updated_at       timestamptz  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_lstep_delivery_trigger_log_lookup
+    ON lstep_delivery_trigger_log (clinic_id, owner_id, trigger_type, scheduled_at);
+CREATE INDEX idx_lstep_delivery_trigger_log_clinic_date
+    ON lstep_delivery_trigger_log (clinic_id, scheduled_at);
+CREATE INDEX idx_lstep_delivery_trigger_log_suppressed
+    ON lstep_delivery_trigger_log(clinic_id, suppressed_by_priority)
+    WHERE suppressed_by_priority = TRUE;
+
+COMMENT ON TABLE lstep_delivery_trigger_log IS 'Lステップ自動配信トリガーの実行ログ（ext-012 統合）';
+COMMENT ON COLUMN lstep_delivery_trigger_log.suppressed_by_priority IS 'Q23 優先順位により抑制されたか (FALSE=実配信 / TRUE=ログのみ)';
+COMMENT ON COLUMN lstep_delivery_trigger_log.suppression_reason IS '抑制理由 (例: "owner_id=42 already triggered by dormant_365d at 2026-05-11")';
+
+-- ------------------------------------
+-- 7h. lstep_csv_imports（Lステップ CSV インポート: ext-017 統合）
+-- ------------------------------------
+CREATE TABLE lstep_csv_imports (
+    id                  uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+    clinic_id           bigint       NOT NULL REFERENCES clinics(id)    ON DELETE RESTRICT,
+    csv_type            varchar(50)  NOT NULL,
+    file_name           varchar(255) NOT NULL,
+    uploaded_by_user_id bigint       NOT NULL REFERENCES accounts(id)   ON DELETE RESTRICT,
+    row_count           int          NOT NULL DEFAULT 0,
+    success_count       int          NOT NULL DEFAULT 0,
+    error_count         int          NOT NULL DEFAULT 0,
+    status              varchar(20)  NOT NULL DEFAULT 'pending',  -- pending | processing | completed | failed
+    error_log           jsonb,
+    imported_at         timestamptz,
+    created_at          timestamptz  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_lstep_csv_imports_clinic_imported
+    ON lstep_csv_imports (clinic_id, imported_at DESC);
+
+COMMENT ON TABLE lstep_csv_imports IS 'Lステップ友だち属性CSVのインポート履歴（ext-017 統合）';
+
+-- ------------------------------------
+-- 7i. lstep_friend_attribute_snapshots（Lステップ友だち属性スナップショット: ext-018 統合）
+-- ------------------------------------
+CREATE TABLE lstep_friend_attribute_snapshots (
+    id                BIGSERIAL    PRIMARY KEY,
+    clinic_id         bigint       NOT NULL REFERENCES clinics(id)       ON DELETE RESTRICT,
+    line_user_id      varchar(50)  NOT NULL,
+    display_name      varchar(255),
+    registered_at     timestamptz,
+    tags              jsonb,
+    scenarios         jsonb,
+    traffic_source    varchar(100),
+    block_status      varchar(20),
+    last_message_at   timestamptz,
+    snapshot_taken_at timestamptz  NOT NULL,
+    csv_import_id     uuid         REFERENCES lstep_csv_imports(id)      ON DELETE RESTRICT,
+    created_at        timestamptz  NOT NULL DEFAULT now(),
+    updated_at        timestamptz  NOT NULL DEFAULT now(),
+    UNIQUE (clinic_id, line_user_id, snapshot_taken_at)
+);
+
+CREATE INDEX idx_lstep_friend_attribute_snapshots_clinic_user
+    ON lstep_friend_attribute_snapshots (clinic_id, line_user_id);
+CREATE INDEX idx_lstep_friend_attribute_snapshots_clinic_taken
+    ON lstep_friend_attribute_snapshots (clinic_id, snapshot_taken_at DESC);
+
+COMMENT ON TABLE lstep_friend_attribute_snapshots IS 'Lステップ友だちの属性スナップショット（CSVインポート経由、ext-018 統合）';
+
+-- ------------------------------------
+-- 7j. lstep_auto_managed_prefixes（自動管理タグプレフィックス: mig-010 統合）
+-- B / C1 / C2 / C3 カテゴリのプレフィックスをコード固定から DB 管理へ移行
+-- ------------------------------------
+CREATE TABLE lstep_auto_managed_prefixes (
+    id          BIGSERIAL    PRIMARY KEY,
+    prefix      VARCHAR(100) NOT NULL UNIQUE,
+    category    VARCHAR(20)  NOT NULL,
+    description TEXT,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_lstep_auto_managed_prefixes_category ON lstep_auto_managed_prefixes (category);
+
+COMMENT ON TABLE lstep_auto_managed_prefixes IS 'Lステップ自動管理タグプレフィックス (B / C1 / C2 / C3、mig-010 統合)';
+
+-- ------------------------------------
+-- 7k. lstep_condition_tag_mappings（慢性疾患コード→タグ名マッピング: mig-010 統合）
+-- ------------------------------------
+CREATE TABLE lstep_condition_tag_mappings (
+    id             BIGSERIAL    PRIMARY KEY,
+    condition_code VARCHAR(50)  NOT NULL UNIQUE,
+    tag_name       VARCHAR(100) NOT NULL,
+    description    TEXT,
+    created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE lstep_condition_tag_mappings IS '慢性疾患コード→Lステップタグ名マッピング (mig-010 統合)';
+
+-- ------------------------------------
+-- 7l. lstep_send_purpose_tag_prefixes（LINE送信目的→タグプレフィックスマッピング: mig-010 統合）
+-- ------------------------------------
+CREATE TABLE lstep_send_purpose_tag_prefixes (
+    id          BIGSERIAL    PRIMARY KEY,
+    purpose     VARCHAR(100) NOT NULL UNIQUE,
+    tag_prefix  VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE lstep_send_purpose_tag_prefixes IS 'LINE送信目的→Lステップタグプレフィックスマッピング (mig-010 統合)';
+
+-- ------------------------------------
 -- 8. inventory_items（在庫管理）
 -- ------------------------------------
 CREATE TABLE inventory_items (
@@ -375,17 +630,18 @@ CREATE TABLE inventory_items (
 -- 9. exam_types（検査種別マスタ）
 -- ------------------------------------
 CREATE TABLE exam_types (
-    id          BIGSERIAL   PRIMARY KEY,
-    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    name        text        NOT NULL,
-    price       bigint,
-    is_active   boolean     NOT NULL DEFAULT true,
-    description text        NOT NULL DEFAULT '',
-    parent_id   bigint               REFERENCES exam_types(id) ON DELETE SET NULL,
-    sort_order  integer              DEFAULT 0,
-    created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now(),
-    deleted_at  timestamptz
+    id               BIGSERIAL   PRIMARY KEY,
+    clinic_id        bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name             text        NOT NULL,
+    price            bigint,
+    is_active        boolean     NOT NULL DEFAULT true,
+    description      text        NOT NULL DEFAULT '',
+    parent_id        bigint               REFERENCES exam_types(id) ON DELETE SET NULL,
+    sort_order       integer              DEFAULT 0,
+    is_non_insurance boolean     NOT NULL DEFAULT false,
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    updated_at       timestamptz NOT NULL DEFAULT now(),
+    deleted_at       timestamptz
 );
 
 -- ------------------------------------
@@ -441,6 +697,7 @@ CREATE TABLE medicines (
     tax_type         tax_type      NOT NULL DEFAULT 'excluded',
     tax_rate         numeric       NOT NULL DEFAULT 0.10,
     sort_order       integer                DEFAULT 0,
+    is_non_insurance boolean       NOT NULL DEFAULT false,
     created_at       timestamptz   NOT NULL DEFAULT now(),
     updated_at       timestamptz   NOT NULL DEFAULT now(),
     deleted_at       timestamptz
@@ -932,6 +1189,8 @@ CREATE TABLE appointments (
     created_by         bigint                        REFERENCES staffs(id),
     is_staff_delegated boolean              NOT NULL DEFAULT false,
     customer_fields    jsonb                NOT NULL DEFAULT '{}',
+    reservation_route  varchar(20),                                    -- ext-016: 予約経路（phone/web/walk_in等）
+    actual_reservation_at timestamptz,                                -- ext-016: 実際の予約受付日時
     created_at         timestamptz          NOT NULL DEFAULT now(),
     updated_at         timestamptz          NOT NULL DEFAULT now(),
     deleted_at         timestamptz,
@@ -956,6 +1215,8 @@ CREATE TABLE hospitalizations (
     memo                 text                   NOT NULL DEFAULT '',
     owner_request        text                   NOT NULL DEFAULT '',
     staff_notes          text                   NOT NULL DEFAULT '',
+    insurance_company_name varchar(100)         NULL,                 -- ext-006: 保険会社名
+    insurance_number       varchar(50)          NULL,                 -- ext-006: 保険証番号
     created_at           timestamptz            NOT NULL DEFAULT now(),
     updated_at           timestamptz            NOT NULL DEFAULT now(),
     deleted_at           timestamptz,
@@ -1016,6 +1277,8 @@ CREATE TABLE medical_records (
     entered_by                     bigint                         REFERENCES staffs(id),
     -- 010: 次回来院推奨日
     next_visit_recommended_date    date                  NULL,
+    recommendation_reason          varchar(100),                  -- ext-015: 次回来院推奨理由
+    visit_type                     visit_type            NULL,    -- 初診/再診（Path B 自動生成カルテで設定）
     created_at                     timestamptz           NOT NULL DEFAULT now(),
     updated_at                     timestamptz           NOT NULL DEFAULT now(),
     deleted_at                     timestamptz
@@ -1041,6 +1304,26 @@ CREATE INDEX idx_prescriptions_clinic_owner    ON prescriptions(clinic_id, owner
 CREATE INDEX idx_prescriptions_medical_record  ON prescriptions(medical_record_id)          WHERE deleted_at IS NULL;
 
 COMMENT ON TABLE prescriptions IS '処方薬記録テーブル（011 統合）';
+
+-- ------------------------------------
+-- 37b. medical_record_addenda（カルテ修正記録: ext-021 統合）
+-- ------------------------------------
+CREATE TABLE medical_record_addenda (
+    id                BIGSERIAL    PRIMARY KEY,
+    medical_record_id BIGINT       NOT NULL REFERENCES medical_records(id) ON DELETE RESTRICT,
+    clinic_id         BIGINT       NOT NULL REFERENCES clinics(id)         ON DELETE RESTRICT,
+    author_user_id    BIGINT       NOT NULL REFERENCES staffs(id)          ON DELETE RESTRICT,
+    before_text       TEXT         NOT NULL DEFAULT '',
+    after_text        TEXT         NOT NULL,
+    reason            TEXT         NOT NULL,
+    created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_medical_record_addenda_medical_record_id ON medical_record_addenda (medical_record_id);
+CREATE INDEX idx_medical_record_addenda_clinic_id         ON medical_record_addenda (clinic_id);
+CREATE INDEX idx_medical_record_addenda_created_at        ON medical_record_addenda (created_at);
+
+COMMENT ON TABLE medical_record_addenda IS 'カルテテキスト修正の追記記録。修正前後テキストと理由を保持する（ext-021 統合）';
 
 -- ------------------------------------
 -- 38. vaccinations（予防接種記録）
@@ -1314,7 +1597,7 @@ CREATE TABLE daily_records (
 -- ------------------------------------
 CREATE TABLE vital_records (
     id                BIGSERIAL   PRIMARY KEY,
-    pet_id            bigint      NOT NULL REFERENCES pets(id) ON DELETE CASCADE,
+    pet_id            bigint      NOT NULL REFERENCES pets(id) ON DELETE RESTRICT,
     medical_record_id bigint               REFERENCES medical_records(id) ON DELETE CASCADE,  -- 外来時
     daily_record_id   bigint               REFERENCES daily_records(id) ON DELETE CASCADE,    -- 入院時
     recorded_at       timestamptz NOT NULL DEFAULT now(),
@@ -1327,6 +1610,7 @@ CREATE TABLE vital_records (
     notes             text        NOT NULL DEFAULT '',
     created_at        timestamptz NOT NULL DEFAULT now(),
     updated_at        timestamptz NOT NULL DEFAULT now(),
+    deleted_at        timestamptz,
     CONSTRAINT chk_vital_records_context CHECK (
         (medical_record_id IS NOT NULL) OR (daily_record_id IS NOT NULL)
     ),
@@ -1538,6 +1822,24 @@ CREATE TABLE payments (
 );
 
 -- ------------------------------------
+-- 58b. payment_splits（混在支払い明細）
+-- ------------------------------------
+CREATE TABLE payment_splits (
+    id                bigserial    PRIMARY KEY,
+    clinic_id         bigint       NOT NULL,
+    billing_id        bigint       NOT NULL REFERENCES billings(id) ON DELETE RESTRICT,
+    method            payment_method NOT NULL,
+    payment_method_id bigint       REFERENCES payment_methods(id),
+    amount            bigint       NOT NULL DEFAULT 0,
+    received_amount   bigint       NOT NULL DEFAULT 0,
+    change_amount     bigint       NOT NULL DEFAULT 0,
+    paid_by           bigint       REFERENCES staffs(id),
+    created_at        timestamptz  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_payment_splits_clinic_billing ON payment_splits(clinic_id, billing_id);
+
+-- ------------------------------------
 -- 59. billing_refunds（返金レコード）
 -- ------------------------------------
 CREATE TABLE billing_refunds (
@@ -1591,11 +1893,63 @@ CREATE TABLE clinic_settings (
     closing_weekday_end    time         NOT NULL DEFAULT '18:30',
     closing_sunday_end     time         NOT NULL DEFAULT '17:30',
     closed_weekdays        smallint[]   NOT NULL DEFAULT '{}',
+    cpm_version            varchar(8)   NOT NULL DEFAULT 'v1'
+                           CHECK (cpm_version IN ('v1', 'v2')),
+    dormant_prevention_180_days integer  NOT NULL DEFAULT 180,
+    dormant_prevention_210_days integer  NOT NULL DEFAULT 210,
+    dormant_prevention_240_days integer  NOT NULL DEFAULT 240,
+    dormant_prevention_365_days integer  NOT NULL DEFAULT 365,
+    -- mig-011: CPM V2 来院回数閾値 (clinic 単位調整可能)
+    cpm_v2_coming_threshold  INT NOT NULL DEFAULT 2  CHECK (cpm_v2_coming_threshold  >= 1),
+    cpm_v2_good_threshold    INT NOT NULL DEFAULT 4  CHECK (cpm_v2_good_threshold    >= 1),
+    cpm_v2_family_threshold  INT NOT NULL DEFAULT 8  CHECK (cpm_v2_family_threshold  >= 1),
+    cpm_v2_noah_threshold    INT NOT NULL DEFAULT 13 CHECK (cpm_v2_noah_threshold    >= 1),
+    -- mig-012: CPM V1 判定閾値 (clinic 単位調整可能)
+    cpm_v1_dormant_days       INT     NOT NULL DEFAULT 240    CHECK (cpm_v1_dormant_days       >= 1),
+    cpm_v1_noah_days          INT     NOT NULL DEFAULT 365    CHECK (cpm_v1_noah_days          >= 1),
+    cpm_v1_noah_annual_visits INT     NOT NULL DEFAULT 3      CHECK (cpm_v1_noah_annual_visits >= 1),
+    cpm_v1_noah_ltv           BIGINT  NOT NULL DEFAULT 80000  CHECK (cpm_v1_noah_ltv           >= 0),
+    cpm_v1_core_days          INT     NOT NULL DEFAULT 180    CHECK (cpm_v1_core_days          >= 1),
+    cpm_v1_core_annual_visits INT     NOT NULL DEFAULT 2      CHECK (cpm_v1_core_annual_visits >= 1),
+    cpm_v1_core_ltv           BIGINT  NOT NULL DEFAULT 50000  CHECK (cpm_v1_core_ltv           >= 0),
+    cpm_v1_spot_min_amount    BIGINT  NOT NULL DEFAULT 30000  CHECK (cpm_v1_spot_min_amount    >= 0),
+    cpm_v1_spot_inactive_days INT     NOT NULL DEFAULT 90     CHECK (cpm_v1_spot_inactive_days >= 1),
+    cpm_v1_growing_max_days   INT     NOT NULL DEFAULT 90     CHECK (cpm_v1_growing_max_days   >= 1),
+    cpm_v1_growing_min_visits INT     NOT NULL DEFAULT 2      CHECK (cpm_v1_growing_min_visits >= 1),
+    cpm_v1_growing_max_visits INT     NOT NULL DEFAULT 3      CHECK (cpm_v1_growing_max_visits >= 1),
+    cpm_v1_ltv_break_low      BIGINT  NOT NULL DEFAULT 20000  CHECK (cpm_v1_ltv_break_low      >= 0),
+    -- mig-013: 健診・予防タグ判定閾値 (clinic 単位調整可能)
+    health_prevention_lookback_days INT NOT NULL DEFAULT 365,
+    vaccine_deadline_days           INT NOT NULL DEFAULT 60,
     created_at             timestamptz  NOT NULL DEFAULT now(),
     updated_at             timestamptz  NOT NULL DEFAULT now()
 );
 
 COMMENT ON TABLE clinic_settings IS '医院締め時間・休診曜日設定（FEAT-368）';
+COMMENT ON COLUMN clinic_settings.cpm_version IS 'CPM 判定方式 (v1: 既存 6-stage / v2: Q19 来院回数 5-stage, 2026-05-08 確定)';
+COMMENT ON COLUMN clinic_settings.dormant_prevention_180_days IS 'dormant_prevention_1st 配信トリガー閾値日数 (Q21、デフォルト 180)';
+COMMENT ON COLUMN clinic_settings.dormant_prevention_210_days IS 'dormant_prevention_2nd 配信トリガー閾値日数 (Q21、デフォルト 210)';
+COMMENT ON COLUMN clinic_settings.dormant_prevention_240_days IS 'dormant_prevention_3rd 配信トリガー閾値日数 (Q21、デフォルト 240)';
+COMMENT ON COLUMN clinic_settings.dormant_prevention_365_days IS 'dormant_prevention_4th 配信トリガー閾値日数 (Q21、デフォルト 365)';
+COMMENT ON COLUMN clinic_settings.cpm_v2_coming_threshold  IS 'CPM V2 これから ステージ開始来院回数 (デフォルト 2)';
+COMMENT ON COLUMN clinic_settings.cpm_v2_good_threshold    IS 'CPM V2 いいかんじ ステージ開始来院回数 (デフォルト 4)';
+COMMENT ON COLUMN clinic_settings.cpm_v2_family_threshold  IS 'CPM V2 ファミリー ステージ開始来院回数 (デフォルト 8)';
+COMMENT ON COLUMN clinic_settings.cpm_v2_noah_threshold    IS 'CPM V2 ノア ステージ開始来院回数 (デフォルト 13)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_dormant_days       IS 'CPM V1 cpm_dormant: 最終来院からの経過日数 >= この値で dormant 判定 (デフォルト 240)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_noah_days          IS 'CPM V1 cpm_noah: 初来院からの経過日数 >= この値 (デフォルト 365)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_noah_annual_visits IS 'CPM V1 cpm_noah: 年間来院回数 >= この値 (デフォルト 3)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_noah_ltv           IS 'CPM V1 cpm_noah: 累計金額 >= この値 (デフォルト 80000)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_core_days          IS 'CPM V1 cpm_core: 初来院からの経過日数 >= この値 (デフォルト 180)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_core_annual_visits IS 'CPM V1 cpm_core: 年間来院回数 >= この値 (デフォルト 2)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_core_ltv           IS 'CPM V1 cpm_core: 累計金額 >= この値; growing 上限にも兼用 (デフォルト 50000)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_spot_min_amount    IS 'CPM V1 cpm_spot: 単回最大金額 >= この値 (デフォルト 30000)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_spot_inactive_days IS 'CPM V1 cpm_spot: 最終来院からの経過日数 > この値 (デフォルト 90)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_growing_max_days   IS 'CPM V1 cpm_growing: 初来院からの経過日数 <= この値 (デフォルト 90)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_growing_min_visits IS 'CPM V1 cpm_growing: 総来院回数 >= この値 (デフォルト 2)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_growing_max_visits IS 'CPM V1 cpm_growing: 総来院回数 <= この値 (デフォルト 3)';
+COMMENT ON COLUMN clinic_settings.cpm_v1_ltv_break_low      IS 'CPM V1 growing 下限 / encounter 上限境界 (デフォルト 20000)';
+COMMENT ON COLUMN clinic_settings.health_prevention_lookback_days IS '健診・予防履歴の参照期間日数 (mig-013、デフォルト 365)';
+COMMENT ON COLUMN clinic_settings.vaccine_deadline_days           IS 'ワクチン期限間近とみなす残日数 (mig-013、デフォルト 60)';
 
 -- ------------------------------------
 -- 62b. closing_special_periods（特別期間: 年末年始・お盆等）
@@ -1750,6 +2104,7 @@ CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
 CREATE INDEX idx_vital_records_medical_record_id ON vital_records(medical_record_id);
 CREATE INDEX idx_vital_records_daily_record_id ON vital_records(daily_record_id);
 CREATE INDEX idx_vital_records_pet_id ON vital_records(pet_id);
+CREATE INDEX idx_vital_records_deleted_at ON vital_records (deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id);
 CREATE INDEX idx_exams_pet_id ON exams(pet_id);
 CREATE INDEX idx_exams_exam_type_id ON exams(exam_type_id);
@@ -2003,14 +2358,21 @@ COMMENT ON TABLE closing_special_periods IS '特別診療時間設定（FEAT-368
 COMMENT ON TABLE payment_methods IS '支払方法マスタ（FEAT-368）';
 COMMENT ON TABLE cash_register_closes IS 'レジ締めレコード（FEAT-368）';
 -- 統合テーブルコメント（005–017）
-COMMENT ON TABLE clinic_integrations       IS 'Lステップ/LINE連携設定保存テーブル（005 統合）';
-COMMENT ON TABLE shared_files              IS 'LINE個別送信用ファイルストレージ（006 統合）';
-COMMENT ON TABLE lstep_tag_cache           IS 'Lステップタグのカルテ側キャッシュ（008 統合）';
-COMMENT ON TABLE prescriptions             IS '処方薬記録テーブル（011 統合）';
-COMMENT ON TABLE pet_chronic_conditions    IS '慢性疾患フラグ管理テーブル（012 統合）';
-COMMENT ON TABLE line_send_logs            IS 'LINE送信ログ（013 統合）';
-COMMENT ON TABLE line_link_tokens          IS 'LINE User ID 紐付け用の一時トークン（016 統合）';
-COMMENT ON TABLE lstep_migration_progress  IS '既存飼い主データ一括同期の進捗管理テーブル（017 統合）';
+COMMENT ON TABLE clinic_integrations                  IS 'Lステップ/LINE連携設定保存テーブル（005 統合）';
+COMMENT ON TABLE shared_files                         IS 'LINE個別送信用ファイルストレージ（006 統合）';
+COMMENT ON TABLE lstep_settings                       IS 'クリニックごとのLステップ同期設定（ext-007 統合）';
+COMMENT ON TABLE lstep_sync_error_counters            IS 'Lステップ同期APIの連続失敗回数カウンター（ext-008 統合）';
+COMMENT ON TABLE lstep_tag_cache                      IS 'Lステップタグのカルテ側キャッシュ（008 統合）';
+COMMENT ON TABLE lstep_tag_code_mappings              IS 'Lステップタグ → 診療コード 対応マスタ（ext-010 統合）';
+COMMENT ON TABLE lstep_delivery_trigger_log           IS 'Lステップ自動配信トリガーの実行ログ（ext-012 統合）';
+COMMENT ON TABLE prescriptions                        IS '処方薬記録テーブル（011 統合）';
+COMMENT ON TABLE medical_record_addenda               IS 'カルテテキスト修正の追記記録（ext-021 統合）';
+COMMENT ON TABLE pet_chronic_conditions               IS '慢性疾患フラグ管理テーブル（012 統合）';
+COMMENT ON TABLE line_send_logs                       IS 'LINE送信ログ（013 統合）';
+COMMENT ON TABLE line_link_tokens                     IS 'LINE User ID 紐付け用の一時トークン（016 統合）';
+COMMENT ON TABLE lstep_csv_imports                    IS 'Lステップ友だち属性CSVのインポート履歴（ext-017 統合）';
+COMMENT ON TABLE lstep_friend_attribute_snapshots     IS 'Lステップ友だちの属性スナップショット（ext-018 統合）';
+COMMENT ON TABLE lstep_migration_progress             IS '既存飼い主データ一括同期の進捗管理テーブル（017 統合）';
 
 -- ------------------------------------
 -- 62. audit_logs（権限変更・認証操作の監査ログ）
@@ -2027,6 +2389,7 @@ CREATE TABLE audit_logs (
     new_value    jsonb        NULL,
     ip_address   inet         NULL,
     user_agent   text         NULL,
+    metadata     jsonb        NULL,                  -- ext-005: 追加コンテキスト情報
     created_at   timestamptz  NOT NULL DEFAULT now()
 );
 
@@ -2254,3 +2617,53 @@ CREATE TRIGGER trg_create_default_payment_methods
     FOR EACH ROW
     EXECUTE FUNCTION create_default_payment_methods();
 
+-- =============================================
+-- 取扱説明書（マニュアル）の DB 管理
+-- =============================================
+-- 設計方針:
+--   - フロントエンドが MD ファイルをデフォルト（バンドル）として保持
+--   - DB にはオーバーライド版を保存
+--   - 読み込み時: DB に該当 slug があればそれを優先、なければ MD ファイル
+--   - 編集時: 該当 slug を DB に upsert
+--   - マニュアルは医院共通の情報のため clinic_id は持たない
+-- =============================================
+
+CREATE TABLE manual_articles (
+    id                  bigserial      PRIMARY KEY,
+    category            text           NOT NULL CHECK (category IN ('screens', 'workflows')),
+    slug                text           NOT NULL,
+    title               text           NOT NULL,
+    order_value         numeric(10, 2) NOT NULL DEFAULT 9999,
+    section             text           NOT NULL,
+    body_markdown       text           NOT NULL,
+    updated_by_staff_id bigint         REFERENCES staffs(id) ON DELETE SET NULL,
+    created_at          timestamptz    NOT NULL DEFAULT now(),
+    updated_at          timestamptz    NOT NULL DEFAULT now(),
+
+    UNIQUE (category, slug)
+);
+
+CREATE INDEX idx_manual_articles_category_slug ON manual_articles(category, slug);
+CREATE INDEX idx_manual_articles_updated_at    ON manual_articles(updated_at DESC);
+
+COMMENT ON TABLE manual_articles IS '取扱説明書のオーバーライド版（DBに保存された編集後マニュアル）';
+COMMENT ON COLUMN manual_articles.category IS 'カテゴリ: screens | workflows';
+COMMENT ON COLUMN manual_articles.slug IS 'ファイル名（拡張子除く）。例: 13-cash-register';
+COMMENT ON COLUMN manual_articles.order_value IS 'セクション内表示順（昇順）';
+COMMENT ON COLUMN manual_articles.section IS 'サイドバーのグループ名';
+COMMENT ON COLUMN manual_articles.body_markdown IS 'マニュアル本文（frontmatter 除く）';
+
+CREATE TABLE manual_article_versions (
+    id                 bigserial      PRIMARY KEY,
+    article_id         bigint         NOT NULL REFERENCES manual_articles(id) ON DELETE CASCADE,
+    title              text           NOT NULL,
+    order_value        numeric(10, 2) NOT NULL,
+    section            text           NOT NULL,
+    body_markdown      text           NOT NULL,
+    edited_by_staff_id bigint         REFERENCES staffs(id) ON DELETE SET NULL,
+    edited_at          timestamptz    NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_manual_article_versions_article ON manual_article_versions(article_id, edited_at DESC);
+
+COMMENT ON TABLE manual_article_versions IS 'マニュアル編集履歴（編集ごとに過去版を保持）';
