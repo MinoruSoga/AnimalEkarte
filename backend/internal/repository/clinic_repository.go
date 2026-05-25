@@ -150,7 +150,7 @@ func (r *clinicRepository) CountBlockingReferencesByClinicID(ctx context.Context
 		{table: "billings", label: "会計", softDel: true},
 		{table: "clinic_settings", label: "医院設定", softDel: false},
 		{table: "clinic_integrations", label: "連携設定", softDel: false},
-		{table: "lstep_settings", label: "Lステップ設定", softDel: true},
+		{table: "lstep_settings", label: "Lステップ設定", softDel: false},
 		{table: "permission_groups", label: "権限グループ", softDel: true},
 	}
 
