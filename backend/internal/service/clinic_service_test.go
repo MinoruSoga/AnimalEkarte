@@ -546,6 +546,41 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			wantErr:       true,
 			wantNF:        true,
 		},
+		// FK cleanup regression tests: soft-deleted PGs must not block clinic hard-delete
+		{
+			// CountBlockingReferencesByClinicID uses "deleted_at IS NULL" for permission_groups,
+			// so soft-deleted PGs return count=0 → service allows deletion → repo cleans them up.
+			name:         "succeeds when only soft-deleted permission_groups remain",
+			id:           1,
+			ownerCount:   0,
+			staffCount:   0,
+			blockingRefs: nil, // soft-deleted PGs are not counted (deleted_at IS NULL filter)
+			repoErr:      nil,
+			wantErr:      false,
+		},
+		{
+			// Active (non-soft-deleted) PGs must still produce 409 via blockingRefs path.
+			name:         "returns conflict when active permission_groups exist",
+			id:           1,
+			ownerCount:   0,
+			staffCount:   0,
+			blockingRefs: []repository.ClinicDependencyCount{{Label: "権限グループ", Count: 1}},
+			repoErr:      nil,
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			// The FK 23503 path (repo returning 400 due to soft-deleted PG rows) must not occur.
+			// repo.Delete now purges soft-deleted PGs in a transaction, so it never reaches this.
+			// If it did, the error would propagate as-is (not swallowed).
+			name:         "propagates unexpected repo error without masking",
+			id:           1,
+			ownerCount:   0,
+			staffCount:   0,
+			blockingRefs: nil,
+			repoErr:      errors.New("unexpected db error"),
+			wantErr:      true,
+		},
 	}
 
 	for _, tt := range tests {

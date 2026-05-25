@@ -100,14 +100,24 @@ func (r *clinicRepository) Update(ctx context.Context, id uint64, fields map[str
 }
 
 func (r *clinicRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Clinic{}, "id = ?", id)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "clinic", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Soft-deleted PG rows remain as physical rows and block the clinic FK.
+		// Hard-delete only those rows (deleted_at IS NOT NULL) before removing the clinic.
+		// Active PGs (deleted_at IS NULL) are still caught by CountBlockingReferencesByClinicID → 409.
+		if err := tx.Unscoped().
+			Where("clinic_id = ? AND deleted_at IS NOT NULL", id).
+			Delete(&model.PermissionGroup{}).Error; err != nil {
+			return apperrors.FromGORM(err, "permission_group", fmt.Sprintf("clinic_id=%d", id))
+		}
+		result := tx.Delete(&model.Clinic{}, "id = ?", id)
+		if result.Error != nil {
+			return apperrors.FromGORM(result.Error, "clinic", fmt.Sprintf("%d", id))
+		}
+		if result.RowsAffected == 0 {
+			return apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
+		}
+		return nil
+	})
 }
 
 func (r *clinicRepository) CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
