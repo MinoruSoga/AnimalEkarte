@@ -161,7 +161,7 @@ func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, 
 	}{
 		{table: "medical_records", column: "doctor_id", label: "カルテ", softDel: true},
 		{table: "medical_records", column: "entered_by", label: "カルテ入力履歴", softDel: true},
-		{table: "medical_record_addendums", column: "author_user_id", label: "カルテ追記", softDel: true},
+		{table: "medical_record_addenda", column: "author_user_id", label: "カルテ追記", softDel: false},
 		{table: "payments", column: "paid_by", label: "支払い", softDel: true},
 		{table: "hospitalizations", column: "doctor_id", label: "入院記録", softDel: true},
 		{table: "exams", column: "doctor_id", label: "検査", softDel: true},
