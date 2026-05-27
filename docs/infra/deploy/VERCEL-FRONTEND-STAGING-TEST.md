@@ -28,7 +28,7 @@
 
 **失敗時アクション**:
 - Status が `Building` → デプロイ進行中。数分待機。
-- Status が `Error` → Build Log を確認。[トラブルシューティング §3.1](#31-vercel-ビルドエラー) を参照。
+- Status が `Error` → Build Log を確認。[トラブルシューティング §7.1](#71-vercel-ビルドエラー) を参照。
 - Status が `Canceled` → デプロイキャンセル。GitHub Actions の再実行検討。
 
 ### 2.2 デプロイメント履歴確認
@@ -57,8 +57,8 @@
    - [ ] "Animal Ekarte" ロゴが表示される
 
 **失敗時アクション**:
-- Page 読み込み > 10 秒 → [§3.5 CloudFront キャッシュ](#35-cloudfront-キャッシュ無効化オプション) を確認
-- White screen / CSS なし → Build error 発生の可能性。[トラブルシューティング](#4-トラブルシューティング) へ。
+- Page 読み込み > 10 秒 → [§7.4 CloudFront キャッシュ無効化](#74-cloudfront-キャッシュ無効化) を確認
+- White screen / CSS なし → Build error 発生の可能性。[トラブルシューティング](#7-トラブルシューティング) へ。
 
 ---
 
@@ -75,7 +75,7 @@
 - レスポンシブデザイン確認（PC/tablet/mobile で確認推奨）
 
 **失敗時アクション**:
-- CSS が反映されていない → [§4.1 CSS Load Failure](#41-css-読み込み失敗) を参照
+- CSS が反映されていない → [§7.2 CSS 読み込み失敗](#72-css-読み込み失敗) を参照
 - Form validation メッセージが表示 → バリデーション正常動作（期待動作）
 
 ---
@@ -132,8 +132,8 @@
 
 **失敗時アクション**:
 - "Invalid email or password" → 認証情報確認。Stone を再確認。
-- 401 Unauthorized → [§5.2 Demo Account 認証エラー](#52-demo-account-認証エラー) を参照。
-- リダイレクトループ → Cookie / Token 期限切れの可能性。§5.2 を参照。
+- 401 Unauthorized → [§7.3 API 接続エラー](#73-api-接続エラー) を参照。
+- リダイレクトループ → Cookie / Token 期限切れの可能性。§7.3 を参照。
 
 ---
 
@@ -265,7 +265,7 @@ DevTools → Network タブで、API リクエストの **Time** 列を確認。
    - `200 but blank` → CSS 内容が空
 
 **対処**:
-- [§3.5 CloudFront キャッシュ無効化](#35-cloudfront-キャッシュ無効化オプション) を実施
+- [§7.4 CloudFront キャッシュ無効化](#74-cloudfront-キャッシュ無効化) を実施
 - ブラウザキャッシュクリア: Ctrl+Shift+Delete / Cmd+Shift+Delete
 - Vercel deployment ページを再チェック（Status = `Ready` 確認）
 
@@ -289,7 +289,7 @@ curl -s https://api.stg.noah-karte.com/health | jq '.status'
 
 ---
 
-### 7.4 CloudFront キャッシュ無効化（オプション）
+### 7.4 CloudFront キャッシュ無効化
 
 Vercel デプロイ直後に CSS/JS が古いバージョンで配信される場合、CloudFront キャッシュを無効化。
 

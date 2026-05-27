@@ -44,13 +44,13 @@ export TEST_ADMIN_USER=admin@example.com
 ### 3.2 実行
 ```bash
 # 全ての E2E シナリオを実行 (Headless)
-pnpm test:e2e
+docker compose exec frontend pnpm test:e2e
 
 # 特定の機能（例：会計）に絞って実行
-pnpm test:e2e tests/accounting.spec.ts
+docker compose exec frontend pnpm test:e2e tests/accounting.spec.ts
 
 # UI モードで動作を確認しながら実行
-pnpm test:e2e --ui
+docker compose exec frontend pnpm test:e2e --ui
 ```
 
 ---

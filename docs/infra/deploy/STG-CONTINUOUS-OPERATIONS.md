@@ -121,7 +121,7 @@ aws logs tail /ecs/animalekarte-stg \
 - Cookie 検証（F12 → Application → Cookies）
 - Token 期限確認（`refresh_token` が残っているか）
 
-参考: [VERCEL-FRONTEND-STAGING-TEST.md §2](./VERCEL-FRONTEND-STAGING-TEST.md#2-demo-アカウントログイン検証)
+参考: [VERCEL-FRONTEND-STAGING-TEST.md §4](./VERCEL-FRONTEND-STAGING-TEST.md#4-demo-アカウントログイン検証)
 
 ---
 

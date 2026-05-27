@@ -78,6 +78,11 @@ docs/tasks/
 test-results/
 .vercel
 
+# Antigravity CLI / Codex local state
+.antigravitycli/
+.codex/
+.agents/
+
 # Root-level schema inspection artifacts
 db_schema.json
 enums.txt
