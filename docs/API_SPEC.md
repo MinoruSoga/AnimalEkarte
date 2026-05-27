@@ -1,7 +1,17 @@
 # API 仕様書 (API Specification)
 
 > **Animal Ekarte**: 高信頼な動物病院バックエンド Go API
-> **バージョン**: v2.3 | **最新更新**: 2026-05-21 | **ステータス**: Production Ready
+> **バージョン**: v3.1.0 | **最新更新**: 2026-05-27 | **ステータス**: Production Ready
+
+## ⚠️ OpenAPI の Single Source of Truth (SSOT) 運用方針
+
+本プロジェクトには `docs/openapi.yaml` と `backend/docs/api.yaml` の 2 つの OpenAPI 仕様書が存在します。以後の開発・運用において矛盾が発生しないよう、以下の運用方針を徹底します：
+
+1. **真実の源泉 (SSOT)**: **`docs/openapi.yaml`** を唯一の SSOT とします。
+   - `docker-compose.swagger.yml` の Swagger UI / Redoc コンテナは `docs/openapi.yaml` を読み込みます。
+   - 認証方式（`access_token` / `refresh_token` の dual-token 構成）の最新化もこちらが正となります。
+2. **同期（内部コピー）**: **`backend/docs/api.yaml`** は、詳細なAPIリクエスト/レスポンススキーマを保持するバックエンド内部向けの互換コピーです。
+   - エンドポイントの追加・変更時には、必ず `docs/openapi.yaml` を正として更新し、必要に応じて最小差分で `backend/docs/api.yaml` に同期させてください。
 
 ---
 

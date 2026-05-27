@@ -14,6 +14,7 @@ info:
     |----------|------|---------|------|------|
     | `access_token` | JWT (HS256) | 15分 | `/` | 全保護エンドポイントの認証 |
     | `refresh_token` | JWT (HS256, sub=refresh) | 7日 | `/api/v1/auth/refresh` | アクセストークン再発行 |
+    | `prev_clinic_id` | クリニックID数値 | 15分 | `/` | クリニック切替の監査・履歴用 |
     | `auth_token` | (legacy) | — | `/` | 旧 Cookie 名。読み取りのみ後方互換 |
 
     本番環境では `Secure=true` + `SameSite=None`、開発環境では `Secure=false` + `SameSite=Lax`。

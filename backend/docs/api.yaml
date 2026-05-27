@@ -2,17 +2,26 @@ openapi: "3.0.3"
 info:
   title: Animal Ekarte API
   description: |
-    動物病院電子カルテシステム API
+    動物病院電子カルテシステム API (Implementation Synced v3.1.0)
 
     ## 認証
-    全エンドポイント（`/login`、`/logout` を除く）は httpOnly Cookie (`auth_token`) が必要。
-    後方互換のため `Authorization: Bearer <JWT>` ヘッダーも受け付ける（移行完了後に廃止予定）。
-    ⚠️ BUG-055: 現在は単一 JWT (24時間)。BE-078 完了後に dual-token (access 15分 + refresh 7日) に移行。
+    主メカニズムは **HttpOnly Cookie** ベース。フロントエンドは axios `withCredentials: true` で
+    Cookie を自動送信する。`Authorization: Bearer <jwt>` ヘッダはミドルウェアの後方互換
+    フォールバックとしてサポートされる。
+
+    | Cookie 名 | 内容 | 有効期限 | Path | 用途 |
+    |----------|------|---------|------|------|
+    | `access_token` | JWT (HS256) | 15分 | `/` | 全保護エンドポイントの認証 |
+    | `refresh_token` | JWT (HS256, sub=refresh) | 7日 | `/api/v1/auth/refresh` | アクセストークン再発行 |
+    | `prev_clinic_id` | クリニックID数値 | 15分 | `/` | クリニック切替の監査・履歴用 |
+    | `auth_token` | (legacy) | — | `/` | 旧 Cookie 名。読み取りのみ後方互換 |
+
+    本番環境では `Secure=true` + `SameSite=None`、開発環境では `Secure=false` + `SameSite=Lax`。
 
     ## ページネーション
     一覧エンドポイントは `page` / `limit` クエリパラメータでページネーション。
     レスポンスは `{ data: [], total: number, page: number, limit: number }` 形式。
-  version: "2.0.0"
+  version: "3.1.0"
   contact:
     name: Animal Ekarte
 servers:
@@ -5045,75 +5054,96 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
-  # ─── 未実装エンドポイント（BUG-055 / BE-078 実装予定）───────────────────────
-  # /auth/refresh:
-  #   post:
-  #     summary: アクセストークンのリフレッシュ（BE-078）
-  #     description: |
-  #       httpOnly Cookie の refresh_token を使って新しい access_token を発行する。
-  #       トークンローテーション（旧 refresh_token の無効化）も実施する。
-  #   delete:
-  #     summary: ログアウト（全セッション削除）
-  #     description: refresh_tokens テーブルの全レコードを削除して強制ログアウト。
-  # ─── 未実装エンドポイント（BUG-060 / BE-081 実装予定）──────────────────────────
-  # /auth/forgot-password:
-  #   post:
-  #     summary: パスワードリセット申請（BE-081）
-  #     description: |
-  #       メールアドレスを受け取り、パスワードリセットリンクをメール送信する。
-  #       ユーザーが存在しない場合も同じ成功レスポンスを返す（ユーザー列挙攻撃対策）。
-  #       dev 環境はバックエンドログにトークンを出力（メール不要）。
-  #     requestBody:
-  #       required: true
-  #       content:
-  #         application/json:
-  #           schema:
-  #             type: object
-  #             properties:
-  #               email: { type: string, format: email }
-  #     responses:
-  #       '200':
-  #         description: |
-  #           "If this email is registered, a reset link has been sent."
-  #           （ユーザー存否に関わらず 200 を返す）
-  # /auth/reset-password:
-  #   post:
-  #     summary: パスワードリセット実行（BE-081）
-  #     description: |
-  #       メールのリンクに含まれるトークンと新パスワードを受け取り、パスワードを更新する。
-  #       トークンは SHA-256 ハッシュで DB 照合。有効期限 30分・ワンタイム。
-  #       成功後は全 refresh_tokens を revoke する。
-  #     requestBody:
-  #       required: true
-  #       content:
-  #         application/json:
-  #           schema:
-  #             type: object
-  #             properties:
-  #               token:    { type: string }
-  #               password: { type: string, minLength: 8 }
-  #     responses:
-  #       '200':
-  #         description: パスワードリセット成功
-  #       '400':
-  #         description: トークン無効・期限切れ・使用済み
-  # ─── 未実装エンドポイント（BUG-062 実装予定）──────────────────────────────────
-  # /users/me/password:
-  #   put:
-  #     summary: パスワード変更（BUG-062）
-  #     description: |
-  #       認証済みユーザーが自分のパスワードを変更する。
-  #       current_password の確認が必須。他ユーザーのパスワードは変更不可。
-  #     requestBody:
-  #       required: true
-  #       content:
-  #         application/json:
-  #           schema:
-  #             type: object
-  #             properties:
-  #               current_password: { type: string }
-  #               new_password:     { type: string, minLength: 8 }
-  # ─────────────────────────────────────────────────────────────────────────────
+  /auth/refresh:
+    post:
+      summary: アクセストークンのリフレッシュ
+      description: |
+        httpOnly Cookie の refresh_token を使って新しい access_token を発行する。
+        トークンローテーション（旧 refresh_token の無効化）も実施する。
+      tags: [Auth]
+      responses:
+        '200':
+          description: トークン再発行成功。新しい access_token / refresh_token を Cookie でセット。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/forgot-password:
+    post:
+      summary: パスワードリセット申請
+      description: |
+        メールアドレスを受け取り、パスワードリセットリンクをメール送信する。
+        ユーザーが存在しない場合も同じ成功レスポンスを返す（ユーザー列挙攻撃対策）。
+        dev 環境はバックエンドログにトークンを出力（メール不要）。
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: |
+            "If this email is registered, a reset link has been sent."
+            （ユーザー存否に関わらず 200 を返す）
+
+  /auth/reset-password:
+    post:
+      summary: パスワードリセット実行
+      description: |
+        メールのリンクに含まれるトークンと新パスワードを受け取り、パスワードを更新する。
+        トークンは SHA-256 ハッシュで DB 照合。有効期限 30分・ワンタイム。
+        成功後は全 refresh_tokens を revoke する。
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:    { type: string }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200':
+          description: パスワードリセット成功
+        '400':
+          description: トークン無効・期限切れ・使用済み
+
+  /users/me/password:
+    put:
+      summary: パスワード変更
+      description: |
+        認証済みユーザーが自分のパスワードを変更する。
+        current_password の確認が必須。他ユーザーのパスワードは変更不可。
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password: { type: string }
+                new_password:     { type: string, minLength: 8 }
+      responses:
+        '200':
+          description: パスワード変更成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /owners:
     get:
       operationId: listOwners
