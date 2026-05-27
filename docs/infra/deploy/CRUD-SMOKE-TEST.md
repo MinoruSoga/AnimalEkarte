@@ -5,6 +5,14 @@
 
 ---
 
+> [!TIP]
+> **自動化スモークテストの導入**
+> 本手順書に記載されたテスト項目は、GitHub Actions ワークフローによって自動化されています。
+> 迅速かつ安全な疎通確認のために、まずは以下の自動化ワークフローの実行を推奨します。
+> 詳細は [CRUD-SMOKE-AUTOMATION.md](./CRUD-SMOKE-AUTOMATION.md) を参照してください。
+> - ログイン・読み込み専用 API 疎通検証: `stg-readonly-smoke.yml`
+> - CRUD 自動検証 (Clinics write deferred): `stg-crud-smoke.yml`
+
 ## 1. テストの目的
 本テストは、デプロイ完了直後のステージング環境において、主要な 3 系統（医院・権限・スタッフ）の機能が、インフラ・DB・API の各層で正しく連携して動作することを確認するために実施します。
 

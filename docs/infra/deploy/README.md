@@ -61,6 +61,15 @@ aws logs tail /ecs/animalekarte-stg --follow --region us-east-1
 gh workflow run backend-deploy.yml --ref staging
 ```
 
+### 3.4 自動スモークテストの実行 (手動トリガー)
+```bash
+# Phase 2: ログイン & 読み込み専用 API 疎通確認
+gh workflow run stg-readonly-smoke.yml
+
+# Phase 3: CRUD 自動化検証 (Clinics write deferred)
+gh workflow run stg-crud-smoke.yml
+```
+
 ---
 
 ## 4. デプロイ後のロールバック判定フレームワーク

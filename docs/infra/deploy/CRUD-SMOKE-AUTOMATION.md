@@ -42,6 +42,9 @@ curl -s https://api.stg.noah-karte.com/health | jq '.status'
 - [x] workflow_dispatch 手動トリガー実装完了
 - [x] jq による JSON 安全パース + HTTP 200 & `.status=="ok"` 二段階検証
 
+**初回実行結果** (2026-05-27):
+- Run ID: 26494484591 | Conclusion: success | Endpoint validation: HTTP 200 + JSON `.status=="ok"` ✅
+
 **実装詳細**:
 - **ワークフロー**: `.github/workflows/stg-health-check.yml` 作成済み
 - **トリガー**: `workflow_dispatch` により手動実行のみ（自動実行なし）
@@ -59,36 +62,28 @@ curl -s https://api.stg.noah-karte.com/health | jq '.status'
 
 **認証フロー** (API 経由):
 ```bash
-# 手順 1: SSM Parameter Store からcredentials 取得
-export DEMO_EMAIL=$(aws ssm get-parameter --name /stg/demo/email --query 'Parameter.Value' --output text)
-export DEMO_PASSWORD=$(aws ssm get-parameter --name /stg/demo/password --with-decryption --query 'Parameter.Value' --output text)
-
-# 手順 2: ログイン API 実行
-RESPONSE=$(curl -s -X POST "https://api.stg.noah-karte.com/api/v1/auth/login" \
+# ログイン API 実行 (/api/v1/login)
+# クッキー jar を使って session を維持
+curl -s -c cookie.txt -X POST "https://api.stg.noah-karte.com/api/v1/login" \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"${DEMO_EMAIL}\",\"password\":\"${DEMO_PASSWORD}\"}")
-
-# 手順 3: Token 抽出
-TOKEN=$(echo ${RESPONSE} | jq -r '.data.access_token')
-REFRESH_TOKEN=$(echo ${RESPONSE} | jq -r '.data.refresh_token')
+  -d "{\"email\":\"${DEMO_EMAIL}\",\"password\":\"${DEMO_PASSWORD}\"}"
 ```
 
 **期待結果**:
 - HTTP 200 OK
-- `.data.access_token` 存在
-- `.data.refresh_token` 存在
+- レスポンス内の `is_system_admin` が `true`
 
 **自動化方針**:
 - Health check PASS 後、直ちに実行
-- SSM Parameter Store から credentials 取得（ハードコード禁止）
-- Token 抽出に成功したら環境変数へ設定（後続 CRUD テストで使用）
-- 失敗時はロールバック判定
+- GitHub Secrets から credentials 取得（ハードコード禁止、ログマスク）
+- `cookie.txt` にクッキーを保存し、後続の Read-only / CRUD テストで使用する
+- ログイン失敗時はワークフロー失敗
 
-**GitHub Actions TODO**:
-- [ ] `.github/workflows/stg-login-test.yml` 作成
-- [ ] `aws ssm get-parameter` コマンド統合
-- [ ] output: `access_token`, `refresh_token` （secrets として設定）
-- [ ] error handling: `jq -e` で null チェック
+**GitHub Actions Phase 2 実装済み**:
+- [x] `.github/workflows/stg-readonly-smoke.yml` 作成
+- [x] `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` 統合
+- [x] ログマスク検証（実値をログに出さない）
+- [x] `jq -e` 等で `is_system_admin` 検証
 
 ---
 
@@ -96,52 +91,50 @@ REFRESH_TOKEN=$(echo ${RESPONSE} | jq -r '.data.refresh_token')
 
 **テスト項目**: [CRUD-SMOKE-TEST.md § 3](./CRUD-SMOKE-TEST.md#3-テスト項目と実行例) 参照
 
-- **A-1**: Clinics 一覧取得
-- **A-2**: 権限制限チェック（403）
-- **A-3**: 医院編集・保存
-- **A-4**: マルチテナント検証
-- **B-1**: 新規グループ作成
-- **B-2**: グループ削除保護（409）
-- **B-3**: テスト用グループ削除
-- **C-1**: スタッフ新規登録
-- **C-2**: ログイン検証
-- **C-3**: 削除保護（FK 検証）
-- **C-4**: 削除可能スタッフ削除
+- **A-1**: Clinics 一覧取得 (Read-Only)
+- **A-2**: 権限制限チェック (403)
+- **A-3**: 医院編集・保存 [Deferred]
+- **A-4**: マルチテナント検証 [Deferred]
+- **B-1**: 新規グループ作成 (POST 201)
+- **B-2**: グループ削除保護 (409) [手動手順書で検証済み、CIではテスト用グループのCRUDにフォーカス]
+- **B-3**: テスト用グループ削除 (DELETE 204)
+- **C-1**: スタッフ新規登録 (POST 201)
+- **C-2**: ログイン検証 [手動手順書で検証済み、CIではスタッフ作成・更新・削除にフォーカス]
+- **C-3**: 削除保護 (FK 検証) [手動手順書で検証済み]
+- **C-4**: 削除可能スタッフ削除 (DELETE 204)
 
 **自動化方針**:
-- 全 11 項目を curl スクリプトで自動実行
-- 各項目の HTTP ステータスコードを期待値と比較
-- 不一致時は即座にロールバック判定
-- テストデータ生成・削除も含める（cleanup 段階で一括削除）
+- 安全性を最優先し、**Option A** を採用。過去に STG 環境で cleanup 残置問題が発生した経緯から、`clinics` の書き込みは deferred とし、TODO および Read-Only GET 疎通チェックに留める。
+- `permission_groups` と `staffs` にフォーカスし、POST -> GET -> PATCH -> DELETE の一連の CRUD フローを完全に自動化。
+- 各操作が期待する HTTP ステータスコード（201/200/204）を返すかを厳密に検証し、失敗時は即座にワークフローを FAIL と判定する。
 
-**GitHub Actions TODO**:
-- [ ] `.github/workflows/stg-crud-smoke-test.yml` 作成
-- [ ] bash 配列で 11 テストケースを定義
-- [ ] 各テストの status code 検証ロジック実装
-- [ ] 失敗サマリー出力（どのテストが失敗したか明記）
-- [ ] timeout: 120s（各テスト）
+**GitHub Actions Phase 3 実装済み**:
+- [x] `.github/workflows/stg-crud-smoke.yml` 作成
+- [x] `permission_groups` および `staffs` の動的 ID 取得と CRUD 自動化
+- [x] 一意 suffix (`${GITHUB_RUN_ID}`) による安全なテストデータ作成
+- [x] `clinics` write automation の deferred 化と TODO のドキュメント・ワークフローへの明記
 
 ---
 
 ### 2.4 テストデータ削除（Cleanup）
 
-**削除対象**: CRUD テストで生成したテンポラリデータ
+**削除対象**: CRUD テストで生成した一時的なテストデータ
 
-**削除順序** (FK 順):
-1. Staffs （最後に削除）
-2. Permission Groups
-3. Clinics （最後に作成したものから逆順）
+**削除順序** (FK 制約を考慮):
+1. Staffs (依存している子レコードを先に削除)
+2. Permission Groups (親側レコードを後に削除)
+3. Clinics (Deferred のため自動削除対象外)
 
 **自動化方針**:
-- CRUD テスト成功後、即座に DELETE API を実行
-- 404 or 204 を期待値として検証
-- 削除ログを CloudWatch に出力
-- 削除失敗時は**手動ロールバック対象** (自動化は削除成功時のみ)
+- **絶対にテストデータを残置しない**ことを保証するため、ワークフロー内で `trap cleanup EXIT` によるシグナルハンドリングを導入。
+- 途中でどのステップが失敗しても、生成された ID を追跡して逆順で API DELETE エンドポイントを呼び出し、削除する。
+- 明示的な DELETE 成功時には ID をクリアし、二重削除を防止しつつ、冪等性を担保。
+- 削除失敗時は警告をログに出力し、ワークフローを FAIL とする。
 
-**GitHub Actions TODO**:
-- [ ] cleanup job を CRUD テスト job の直後に配置
-- [ ] dependsOn: crud-test （失敗時は cleanup 実行しない）
-- [ ] DELETE 実行 + 監査ログ確認（CloudWatch Logs Insights query）
+**GitHub Actions Phase 3 実装済み**:
+- [x] `trap cleanup EXIT` を用いた強固な自動 cleanup フロー
+- [x] 依存順（Staffs -> Permission Groups）を厳密に考慮した逆順削除
+- [x] `cookie.txt` 一時ファイルのクリーンアップ処理も自動化
 
 ---
 
@@ -338,47 +331,37 @@ fi
 
 ## 7. GitHub Actions ロードマップ
 
-### Phase 1: ファイル整備（2 週間）
+### Phase 1: エンドポイント疎通確認 (完了)
+- [x] `.github/workflows/stg-health-check.yml` 作成
+- [x] jq による JSON 安全パース + HTTP 200 & `.status=="ok"` 検証
+- [x] workflow_dispatch 手動トリガー実装完了
 
-- [ ] `.github/workflows/stg-health-check.yml` 作成
-- [ ] `.github/workflows/stg-login-test.yml` 作成
-- [ ] `.github/workflows/stg-crud-smoke-test.yml` 作成（11 テスト項目実装）
-- [ ] `.github/workflows/stg-cleanup.yml` 作成
-- [ ] GitHub Secrets に `STG_DEMO_EMAIL`, `STG_DEMO_PASSWORD` 登録
+### Phase 2: Demo Account Login + Read-only API 自動化 (完了)
+- [x] `.github/workflows/stg-readonly-smoke.yml` 新規作成
+- [x] GitHub Secrets (`STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD`) との統合
+- [x] クッキー jar 認証方式によるセッション管理
+- [x] Read-only API (`GET clinics?scope=all`, `GET permission-groups`, `GET staffs`) の HTTP 200 返却と JSON parse 検証
 
-**実装チェックリスト**:
-- [ ] Health Check: curl + jq で status 検証
-- [ ] Login: credentials 取得 + token 抽出
-- [ ] CRUD: 11 テストのループ + status code 検証
-- [ ] Cleanup: DELETE + 監査ログ確認
-- [ ] Error handling: `set -e` + trap で cleanup 保証
-- [ ] timeout: 各 job に max-wait 設定
-
-### Phase 2: 統合（1 週間）
-
-- [ ] 既存 `stg-deploy.yml` に `stg-health-check.yml` トリガー追加
-- [ ] Health check PASS 後に CRUD test を呼び出し
-- [ ] CRUD test PASS 後に Cleanup を呼び出し
-- [ ] 全フェーズ失敗時のロールバック判定フロー作成
-
-**依存グラフ**:
-```
-stg-deploy
-    ↓
-stg-health-check (fail → rollback)
-    ↓
-stg-login-test (fail → rollback)
-    ↓
-stg-crud-smoke-test (fail → rollback)
-    ↓
-stg-cleanup (fail → manual cleanup)
+**手動実行コマンド**:
+```bash
+gh workflow run stg-readonly-smoke.yml
 ```
 
-### Phase 3: 本番化（当面は Option B 推奨）
+### Phase 3: CRUD Smoke 自動化 (完了 - Clinics write は deferred)
+- [x] `.github/workflows/stg-crud-smoke.yml` 新規作成
+- [x] `permission_groups` および `staffs` に対する完全自動 CRUD フローの実装 (POST -> GET -> PATCH -> DELETE)
+- [x] `trap cleanup EXIT` による強固な自動 cleanup フローの実装
+- [x] 安全な削除順序（Staffs -> Permission Groups）の適用
+- [x] `clinics` write automation の deferred 決定 (TODO としてワークフロー内に記録。安全性を最優先)
 
-- [ ] workflow_dispatch で手動トリガー確認（1 週間検証）
-- [ ] daily smoke test の schedule (cron) 設定（オプション）
-- [ ] ロールバック自動化の実装（CI failure → git revert → re-push）
+**手動実行コマンド**:
+```bash
+gh workflow run stg-crud-smoke.yml
+```
+
+**現在の運用方針**:
+- 不要な自動実行や不整合を避けるため、`workflow_dispatch` による手動実行（Option B）で運用します。
+- ワークフローの実行は、ユーザーの承認または指示に基づいて行い、勝手に自動実行されないように管理します。
 
 ---
 
