@@ -25,6 +25,11 @@
 - **[混在会計スモークテスト (MIXED-PAYMENT-SMOKE-TEST.md)](./MIXED-PAYMENT-SMOKE-TEST.md)**: 混在会計 (payment_splits) の詳細動作確認。
 - **[PR #49 Post-Merge Smoke Checklist (PR49_POST_MERGE_SMOKE_TEST.md)](./PR49_POST_MERGE_SMOKE_TEST.md)**: PR #49 merge 後の総合スモークチェックリスト（予約・会計・返金・CRUD・入院・健診・seed）。
 - **[Lステップ Write API 一時停止メモ (LSTEP_WRITE_API_PAUSE.md)](./LSTEP_WRITE_API_PAUSE.md)**: Lステップへのタグ付与・解除・プロパティ更新を再有効化する前提条件。
+- **[STG デモデータライフサイクル (STG-DEMO-DATA-LIFECYCLE.md)](./STG-DEMO-DATA-LIFECYCLE.md)**: Seed/Demo/Smoke テストデータの分類、作成元、Cleanup 方針、DB_RESET 機構。
+- **[STG 継続運用チェックリスト (STG-CONTINUOUS-OPERATIONS.md)](./STG-CONTINUOUS-OPERATIONS.md)**: 日次/週次/月次の STG 環境監視・検査・メンテナンス。
+- **[Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./VERCEL-FRONTEND-STAGING-TEST.md)**: デプロイ後の UI・ログイン・API 連携検証。
+- **[CRUD スモーク自動化戦略 (CRUD-SMOKE-AUTOMATION.md)](./CRUD-SMOKE-AUTOMATION.md)**: デプロイ後スモークテスト自動化スコープ・実装ロードマップ。
+- **[Delete / Soft Delete 設計パターン (../../architecture/delete-soft-delete-patterns.md)](../../architecture/delete-soft-delete-patterns.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
 
 ---
 
@@ -58,10 +63,102 @@ gh workflow run backend-deploy.yml --ref staging
 
 ---
 
-## 4. トラブルシューティングの第一歩
+## 4. デプロイ後のロールバック判定フレームワーク
 
-1.  **ヘルスチェック確認**: `https://api.stg.noah-karte.com/health` が `"status": "ok"` を返すか。
-2.  **DB接続確認**: ECS タスクが起動失敗している場合、SSM Parameter Store の認証情報が正しいか確認。
-3.  **CORSエラー**: フロントエンドのドメインが `CORS_ALLOWED_ORIGIN` 環境変数に含まれているか確認。
+### 4.1 ヘルスチェック手順
+
+デプロイ完了直後、以下の順序でシステム稼働状態を確認してください。
+
+1.  **API ヘルスチェック** (`/health` エンドポイント):
+    ```bash
+    curl -s https://api.stg.noah-karte.com/health | jq '.status'
+    # 期待: "ok"
+    ```
+    **失敗時アクション**: HTTP 200 が返らない場合、§4.2 のロールバック判定へ。
+
+2.  **ECS サービス稼働確認** (desired count == running count):
+    ```bash
+    aws ecs describe-services \
+      --cluster animalekarte-stg-cluster \
+      --services animalekarte-stg-service \
+      --region us-east-1 \
+      --query 'services[0].{desiredCount,runningCount}'
+    ```
+    **期待**: `desiredCount` と `runningCount` が同じ値。不一致時は §4.2 へ。
+
+3.  **CloudWatch エラーログ監視**:
+    ```bash
+    aws logs tail /ecs/animalekarte-stg --region us-east-1 --follow | grep -i "error\|fatal"
+    ```
+    **期待**: ERROR/FATAL ログが 5 分間で 3 件以下。多発時は §4.2 へ。
+
+4.  **(オプション) ALB ターゲット健全性確認**:
+    ```bash
+    aws elbv2 describe-target-health \
+      --target-group-arn <TARGET_GROUP_ARN> \
+      --region us-east-1
+    ```
+    **期待**: 全タスクが `healthy` 状態。
+
+---
+
+### 4.2 ロールバック 要否判定基準
+
+以下の 6 つのいずれかに該当した場合、**即座にロールバックを実行してください**。
+
+| # | 症状 | 判定方法 | ロールバック判定 |
+|---|------|--------|-----------------|
+| 1 | `/health` エンドポイント非応答 | HTTP 200 か確認 | **即ロールバック** |
+| 2 | ECS desired count ≠ running count | describe-services 確認 | **即ロールバック** |
+| 3 | CloudWatch ERROR/FATAL ログ多発 | 5 分間で 3 件以上 | **即ロールバック** |
+| 4 | CRUD スモークテスト想定外エラー | 想定外 400/500 レスポンス | **即ロールバック** |
+| 5 | FK 保護が 409 ではなく 4xx/5xx 返す | DELETE 試行時ステータス確認 | **即ロールバック** |
+| 6 | データ破損・想定外削除・テナント隔離破綻 | スモークテスト後に手動確認 | **即ロールバック** |
+
+**ロールバック実行フロー**:
+1. 上記症状のいずれかを発見したら、まず **チーム内に通知** 
+2. [CI-CD-PIPELINE.md](./CI-CD-PIPELINE.md) §ロールバック手順に従い自動ロールバック実行
+3. ロールバック後、前回デプロイ版に戻ったことを確認
+4. 復帰後、インシデント報告書作成（原因分析、再発防止策記載）
+
+---
+
+### 4.3 ロールバック不要の条件
+
+以下の 3 つがすべて成立した場合、デプロイ成功と判定し、運用へ移行します。
+
+| 条件 | 確認方法 | 判定 |
+|------|--------|------|
+| **ヘルスチェック PASS** | §4.1 §1-3 をすべて通過 | ✅ |
+| **CRUD スモークテスト PASS** | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) を完全実行し、全ステータスコードが期待値 | ✅ |
+| **テストデータ削除完了・記録済み** | §4.1 の cleanup 処理完了、削除レコード数・操作者・タイムスタンプをログ記録 | ✅ |
+
+**3 つすべて ✅ の場合**: デプロイは本番リリース候補として承認。
+
+---
+
+### 4.4 認証情報保護ポリシー
+
+デプロイ検証時、以下のいずれも **本ドキュメント・成果物・ログ出力に記録してはいけません**：
+
+- `password` （パスワード）
+- `access_token` （アクセストークン）
+- `refresh_token` （リフレッシュトークン）
+- Cookie の `Set-Cookie` ヘッダ値
+- demo アカウントの token / cookie 値
+
+**実装方法**:
+- API 検証時は、ブラウザ DevTools の Network タブで Cookie を確認し、スクリプト/出力には含めない
+- curl 実行時は `${TOKEN}` 等の環境変数を使用し、実トークン値を可視化しない
+- CloudWatch ログは自動サニタイズされていることを確認（パスワード値が出力されていないこと）
+
+---
+
+### 4.5 参考資料
+
+- [デプロイ手順書 (CI-CD-PIPELINE.md)](./CI-CD-PIPELINE.md)：自動デプロイ・手動トリガー・ロールバック手順
+- [スモークテスト手順 (CRUD-SMOKE-TEST.md)](./CRUD-SMOKE-TEST.md)：CRUD 全操作・FK保護検証・権限テスト
+- AWS CloudWatch: `/ecs/animalekarte-stg` ロググループ
+- SSM Parameter Store: API 認証情報（team lead のみアクセス可）
 
 ---
