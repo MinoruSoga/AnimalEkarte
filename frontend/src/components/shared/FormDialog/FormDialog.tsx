@@ -55,6 +55,7 @@ export const FormDialog = memo(function FormDialog({
         {children}
         <DialogFooter>
           <Button
+            type="button"
             variant="outline"
             onClick={onClose}
             disabled={isPending}
@@ -63,6 +64,7 @@ export const FormDialog = memo(function FormDialog({
             {cancelLabel}
           </Button>
           <Button
+            type="button"
             variant="primary"
             onClick={onSave}
             disabled={isPending || isSaveDisabled}

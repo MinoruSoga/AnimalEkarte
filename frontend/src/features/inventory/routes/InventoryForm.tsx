@@ -34,6 +34,7 @@ const CATEGORY_OPTIONS: { value: InventoryItem["category"]; label: string }[] =
     { value: "food", label: "フード" },
     { value: "other", label: "その他" },
   ];
+const INVENTORY_FORM_ID = "inventory-form";
 
 // ─── BasicInfoSection ────────────────────────────────────────────────────────
 
@@ -337,7 +338,7 @@ export function InventoryForm() {
       onBack={handleBack}
       headerAction={
         canSubmit ? (
-          <SubmitButton size="sm">
+          <SubmitButton size="sm" form={INVENTORY_FORM_ID}>
             <Save className={`mr-1.5 ${ICON.action}`} />
             {isEdit ? "更新" : "登録"}
           </SubmitButton>
@@ -346,7 +347,7 @@ export function InventoryForm() {
       maxWidth="max-w-3xl"
     >
       <NavigationBlocker when={isDirty && !isPending} />
-      <form action={formAction} onChange={markDirty} className="space-y-6">
+      <form id={INVENTORY_FORM_ID} action={formAction} onChange={markDirty} className="space-y-6">
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <BasicInfoSection
           defaultName={existingItem?.name}

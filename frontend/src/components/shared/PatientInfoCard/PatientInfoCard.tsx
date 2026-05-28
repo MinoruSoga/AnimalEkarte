@@ -153,6 +153,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
         <div className="flex items-center gap-2 ml-auto shrink-0">
           {onVitalClick ? (
             <Button
+              type="button"
               variant="outline"
               size="sm"
               className={`h-9 text-sm font-normal bg-white ${C.hoverBgPage} px-3 ${C.borderMedium} ${C.text}`}
@@ -165,6 +166,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
             onStaffClick ? (
               <Button
                 id={staffButtonId}
+                type="button"
                 variant="ghost"
                 size="sm"
                 className={`h-9 text-sm gap-1 px-3 ${C.bgPage} ${C.hoverBgMedium} ${C.text} border ${C.borderMedium}`}

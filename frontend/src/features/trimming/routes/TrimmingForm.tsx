@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON, C } from "@/lib/design-tokens";
+import { ICON, C, STYLE } from "@/lib/design-tokens";
 import { useDeferredValue, lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
@@ -16,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
 import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
@@ -162,6 +161,7 @@ const LeftColumn = memo(function LeftColumn({
               className={`w-full h-32 object-cover rounded-md border ${C.borderPrimary20}`}
             />
             <button
+              type="button"
               onClick={onRemoveStyleImage}
               className={`absolute top-1 right-1 p-1 ${C.bgWhite} rounded-full shadow-sm ${C.hoverBgPage}`}
             >
@@ -275,6 +275,7 @@ const MiddleColumn = memo(function MiddleColumn({
               className={`w-full h-32 object-cover rounded-md border ${C.borderPrimary20}`}
             />
             <button
+              type="button"
               onClick={onRemoveCompletedImage}
               className={`absolute top-1 right-1 p-1 ${C.bgWhite} rounded-full shadow-sm ${C.hoverBgPage}`}
             >
@@ -388,6 +389,7 @@ const RightColumn = memo(function RightColumn({
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
 const TRIMMING_PRIORITY_FIELDS = ["staffId", "courseId"] as const;
+const TRIMMING_FORM_ID = "trimming-form";
 
 // ─── メインコンポーネント ────────────────────────────────────────────────────
 
@@ -598,16 +600,21 @@ export function TrimmingForm() {
             </Button>
           ) : null}
           {canSubmit ? (
-            <SubmitButton className="h-10" disabled={isSaving}>
-              保存
-            </SubmitButton>
+            <Button
+              type="submit"
+              form={TRIMMING_FORM_ID}
+              className={`${STYLE.confirmPrimary} h-10`}
+              disabled={isSaving}
+            >
+              {isSaving ? "保存中..." : "保存"}
+            </Button>
           ) : null}
         </div>
       }
     >
       {/* NavigationBlocker: isSaving 中はブロック無効化 */}
       <NavigationBlocker when={isDirty && !isSaving} />
-      <form action={formAction}>
+      <form id={TRIMMING_FORM_ID} action={formAction}>
       <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
       {/* rendering-conditional-render: && → ? ... : null */}
       {selectedPet ? (

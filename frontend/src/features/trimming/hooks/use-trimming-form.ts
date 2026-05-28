@@ -33,6 +33,58 @@ const defaultFormData: TrimmingFormData = {
   staffName: "",
 };
 
+function optionalNumber(value: string): number | undefined {
+  if (value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function optionalDateTime(value: string): string | undefined {
+  return value === "" ? undefined : value;
+}
+
+function buildUpdateTrimmingRequest(formData: TrimmingFormData): UpdateTrimmingRequest {
+  return {
+    start_time: optionalDateTime(formData.startTime),
+    end_time: optionalDateTime(formData.endTime),
+    staff_id: optionalNumber(formData.staffId),
+    course_id: optionalNumber(formData.courseId),
+    style_request: formData.styleRequest,
+    bw: optionalNumber(formData.bw),
+    bw_unit: formData.bwUnit,
+    bt: optionalNumber(formData.bt),
+    used_shampoo: formData.usedShampoo,
+    used_ribbon: formData.usedRibbon,
+    remarks: formData.remarks,
+    option_ids: formData.optionIds.map(Number),
+  };
+}
+
+function buildCreateTrimmingRequest(
+  formData: TrimmingFormData,
+  petID: number,
+  reservationTypeID: number,
+  startTime: string,
+  endTime: string,
+): CreateTrimmingRequest {
+  return {
+    reservation_type_id: reservationTypeID,
+    start_time: startTime,
+    end_time: endTime,
+    pet_id: petID,
+    staff_id: optionalNumber(formData.staffId),
+    course_id: optionalNumber(formData.courseId),
+    style_request: formData.styleRequest,
+    bw: optionalNumber(formData.bw),
+    bw_unit: formData.bwUnit,
+    bt: optionalNumber(formData.bt),
+    used_shampoo: formData.usedShampoo,
+    used_ribbon: formData.usedRibbon,
+    remarks: formData.remarks,
+    option_ids: formData.optionIds.map(Number),
+  };
+}
+
 export function useTrimmingForm(id?: string) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -133,16 +185,7 @@ export function useTrimmingForm(id?: string) {
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       try {
         if (isEdit && id) {
-          const req: UpdateTrimmingRequest = {
-            style_request: formData.styleRequest || undefined,
-            bw: formData.bw ? Number(formData.bw) : undefined,
-            bw_unit: formData.bwUnit || undefined,
-            bt: formData.bt ? Number(formData.bt) : undefined,
-            used_shampoo: formData.usedShampoo || undefined,
-            used_ribbon: formData.usedRibbon || undefined,
-            remarks: formData.remarks || undefined,
-            option_ids: formData.optionIds.length > 0 ? formData.optionIds.map(Number) : undefined,
-          };
+          const req = buildUpdateTrimmingRequest(formData);
           await updateMutation.mutateAsync({ id, req });
           localStorage.removeItem(DRAFT_KEY);
           toast.success("トリミング情報を更新しました");
@@ -173,16 +216,13 @@ export function useTrimmingForm(id?: string) {
           const now = new Date();
           const startDate = formData.startTime || `${now.toISOString().split("T")[0]}T10:00:00+09:00`;
           const endDate = formData.endTime || `${now.toISOString().split("T")[0]}T11:30:00+09:00`;
-          const req: CreateTrimmingRequest = {
-            reservation_type_id: reservationTypeId,
-            start_time: startDate,
-            end_time: endDate,
-            pet_id: Number(pet.id),
-            staff_id: Number(formData.staffId) || undefined,
-            course_id: Number(formData.courseId) || undefined,
-            style_request: formData.styleRequest || undefined,
-            remarks: formData.remarks || undefined,
-          };
+          const req = buildCreateTrimmingRequest(
+            formData,
+            Number(pet.id),
+            reservationTypeId,
+            startDate,
+            endDate,
+          );
           await createMutation.mutateAsync(req);
           localStorage.removeItem(DRAFT_KEY);
           toast.success("トリミング情報を登録しました");
