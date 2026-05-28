@@ -10,12 +10,12 @@ import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceMasterTrimming } from "@/types/generated/models";
-import {
-  TrimmingCourseSidePanel,
-  TrimmingOptionSidePanel,
-  type CourseFormData,
-  type OptionFormData,
-} from "../components/TrimmingSidePanels";
+import { TrimmingCourseSidePanel } from "../components/TrimmingCourseSidePanel";
+import { TrimmingOptionSidePanel } from "../components/TrimmingOptionSidePanel";
+import type {
+  CourseFormData,
+  OptionFormData,
+} from "../components/TrimmingSidePanelModel";
 import { TrimmingCourseTab, TrimmingOptionTab } from "../components/TrimmingTabs";
 import {
   useCreateTrimmingCourse,
