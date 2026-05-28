@@ -11,12 +11,12 @@ import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceMasterMedical } from "@/types/generated/models";
-import {
-  DiagnosisNameSidePanel,
-  DiagnosisTypeSidePanel,
-  type DiagnosisNameFormData,
-  type DiagnosisTypeFormData,
-} from "../components/DiagnosisSidePanels";
+import { DiagnosisNameSidePanel } from "../components/DiagnosisNameSidePanel";
+import type {
+  DiagnosisNameFormData,
+  DiagnosisTypeFormData,
+} from "../components/DiagnosisSidePanelModel";
+import { DiagnosisTypeSidePanel } from "../components/DiagnosisTypeSidePanel";
 import { DiagnosisNameTab, DiagnosisTypeTab } from "../components/DiagnosisTabs";
 import {
   useCreateDiagnosisName,
