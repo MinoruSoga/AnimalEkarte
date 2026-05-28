@@ -29,6 +29,14 @@ import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MedicineTable } from "../components/MedicineTable";
 import { MedicineSidePanel, type MedicineFormData } from "../components/MedicineSidePanel";
+import {
+  applyMedicineCategoryOverrides,
+  buildMedicineCreateRequest,
+  buildMedicineUpdateRequest,
+  getCategoryMedicines,
+  groupFilteredMedicines,
+  isCategoryMedicine,
+} from "./MedicineSettingsModel";
 
 // Internal – feature API (direct import, no barrel)
 import { useGetAllMedicines, useCreateMedicine, useUpdateMedicine, useDeleteMedicine, useReorderMedicines } from "../api/medicines";
@@ -38,15 +46,6 @@ import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type { Medicine } from "@/types";
-
-// ─────────────────────────────────────────────────
-// Main component
-// ─────────────────────────────────────────────────
-
-// カテゴリかどうかの判定ヘルパー
-function isCategoryMedicine(m: Medicine | null): boolean {
-  return m !== null && !m.parentId && m.price === 0;
-}
 
 export function MedicineSettings() {
   const navigate = useNavigate();
@@ -110,12 +109,7 @@ export function MedicineSettings() {
 
   // ── Derived: overrideCategories 適用済みリスト ──
   const orderedMedicines = useMemo(() => {
-    if (overrideCategories.size === 0) return sortedMedicines;
-    return sortedMedicines.map((m) =>
-      overrideCategories.has(m.id)
-        ? { ...m, parentId: overrideCategories.get(m.id) }
-        : m,
-    );
+    return applyMedicineCategoryOverrides(sortedMedicines, overrideCategories);
   }, [sortedMedicines, overrideCategories]);
 
   // ── Derived: medicines ID → Medicine マップ (js-cache-function-results) ──
@@ -132,7 +126,7 @@ export function MedicineSettings() {
 
   // ── Derived: カテゴリ medicine（parentId なし、price === 0）(js-cache-function-results) ──
   const categoryMedicines = useMemo(
-    () => medicines.filter((m) => !m.parentId && m.price === 0),
+    () => getCategoryMedicines(medicines),
     [medicines],
   );
 
@@ -140,48 +134,12 @@ export function MedicineSettings() {
   const deferredSearch = useDeferredValue(searchTerm);
 
   const { groupedMedicines, ungroupedMedicines, totalCount } = useMemo(() => {
-    let items = orderedMedicines;
-    for (const f of activeFilters) {
-      if (f.key === "status" && typeof f.value === "string") {
-        const want = f.value === "active";
-        items = items.filter((m) => f.condition === "is" ? m.isActive === want : m.isActive !== want);
-      }
-    }
-    const lower = deferredSearch.toLowerCase();
-    const filtered = items.filter(
-      (m) => !deferredSearch || m.name.toLowerCase().includes(lower),
-    );
-
-    const groups = new Map<string, { header: Medicine; items: Medicine[] }>();
-    const ungrouped: Medicine[] = [];
-
-    for (const m of filtered) {
-      if (m.parentId) {
-        // 子 medicine → 親グループに追加
-        const existing = groups.get(m.parentId);
-        if (existing) {
-          existing.items.push(m);
-        } else {
-          // 親が filtered にない場合でも medicinesById から取得
-          const parent = medicinesById.get(m.parentId);
-          if (parent) {
-            groups.set(m.parentId, { header: parent, items: [m] });
-          } else {
-            ungrouped.push(m); // 孤立アイテム
-          }
-        }
-      } else if (m.price === 0) {
-        // カテゴリ medicine（price=0, parentId なし）→ グループヘッダー
-        if (!groups.has(m.id)) {
-          groups.set(m.id, { header: m, items: [] });
-        }
-      } else {
-        // 通常の ungrouped medicine（price > 0, parentId なし）
-        ungrouped.push(m);
-      }
-    }
-
-    return { groupedMedicines: groups, ungroupedMedicines: ungrouped, totalCount: filtered.length };
+    return groupFilteredMedicines({
+      orderedMedicines,
+      activeFilters,
+      searchTerm: deferredSearch,
+      medicinesById,
+    });
   }, [orderedMedicines, activeFilters, deferredSearch, medicinesById]);
 
   // ── Handlers ──
@@ -282,45 +240,8 @@ export function MedicineSettings() {
     createMutation,
     updateMutation,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data) => {
-      // カテゴリ編集時は price を 0 に固定
-      const effectivePrice = isCategory ? 0 : data.price;
-      return {
-        name: data.name,
-        dosage_form: data.dosageForm || undefined,
-        medicine_unit: data.medicineUnit || undefined,
-        price: effectivePrice,
-        description: data.description,
-        is_active: data.isActive,
-        tax_type: data.taxType,
-        tax_rate: data.taxRate,
-        is_non_insurance: data.isNonInsurance,
-        ...(data.parentId ? { parent_id: Number(data.parentId) } : {}),
-      };
-    },
-    toUpdateRequest: (data) => {
-      // カテゴリ編集時は price を 0 に固定
-      const effectivePrice = isCategory ? 0 : data.price;
-      const req: UpdateMedicineRequest = {
-        name: data.name,
-        dosage_form: data.dosageForm || undefined,
-        medicine_unit: data.medicineUnit || undefined,
-        price: effectivePrice,
-        description: data.description,
-        is_active: data.isActive,
-        tax_type: data.taxType,
-        tax_rate: data.taxRate,
-        is_non_insurance: data.isNonInsurance,
-      };
-      // parent_id の処理
-      if (data.parentId) {
-        req.parent_id = Number(data.parentId);
-      } else if (selectedMedicine?.parentId) {
-        // 元々グループに属していたが今は外す
-        req.clear_parent_id = true;
-      }
-      return req;
-    },
+    toCreateRequest: (data) => buildMedicineCreateRequest(data, isCategory),
+    toUpdateRequest: (data) => buildMedicineUpdateRequest({ data, isCategory, selectedMedicine }),
   });
 
   // handleSave delegates to hook
