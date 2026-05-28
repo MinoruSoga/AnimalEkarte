@@ -2,7 +2,7 @@ import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 import type { Medicine } from "@/types";
 
-import type { MedicineFormData } from "../components/MedicineSidePanel";
+import type { MedicineFormData } from "../components/MedicineSidePanelModel";
 
 export interface MedicineGroups {
   groupedMedicines: Map<string, { header: Medicine; items: Medicine[] }>;
