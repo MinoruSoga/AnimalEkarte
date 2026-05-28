@@ -59,13 +59,23 @@
 - `GET /accountings/unpaid` — 売掛金・未納者一覧。
 - `GET /cash-register/preview` — レジ締め前の売上集計。
 - `POST /cash-register/closes` — レジ締め確定保存。
+- `GET /cash-register/closes` — レジ締め履歴一覧取得。
+- `GET /cash-register/closes/:id` — レジ締め履歴詳細取得。
 - `GET /reports/monthly` — 月次売上レポート。
+- `GET /reports/monthly/csv` — 月次売上レポートの CSV エクスポート。
 - `GET /clinics/:clinic_id/owners/aggregations` — 累計売上・来院頻度ランキング。
 
-### 2.4 LINE/Lステップ連携 (CRM)
+### 2.4 シフト設定 (Shifts)
+- `GET/POST /clinic-holidays` — クリニック休診日一覧取得・登録。
+- `DELETE /clinic-holidays/:date` — 指定日の休診日削除。
+
+### 2.5 LINE/Lステップ連携 (CRM)
 - `GET/PATCH /lstep-settings` — 連携状態・判定閾値の管理。
-- `GET /lstep/tags/summary` — タグ分布統計。
+- `GET /lstep/tag-summary` — タグ別飼い主数集計（タグ分布統計）。
+- `GET /lstep/owners` — Lステップタグ別の飼い主一覧（絞り込み・CSVダウンロード）。
 - `GET /clinics/:clinic_id/lstep/delivery-monitor/logs` — 自動配信実行ログ。
+- `GET /clinics/:clinic_id/lstep/delivery-monitor/summary` — 自動配信ステータス集計。
+- `GET /clinics/:clinic_id/lstep/checkup-sync/preview` — 健診対象者とタグ同期プレビュー。
 - `POST /clinics/:clinic_id/lstep/checkup-sync` — 健診タグ一括付与。
 
 ---

@@ -59,7 +59,10 @@
 | 27 | **在庫登録・編集** | [27-inventory-form.md](./27-inventory-form.md) | 薬品・備品の基本情報管理。 |
 | 24 | **シフト管理** | [24-shift-calendar.md](./24-shift-calendar.md) | スタッフ勤務と LINE 予約の連動. |
 | 28 | **LINE 予約設定** | [28-line-reservation.md](./28-line-reservation.md) | 予約システム稼働ルールと文言編集. |
-| 31 | **Lステップ連携** | [31-lstep-integration.md](./31-lstep-integration.md) | CPM 判定、自動配信、タグ管理。 |
+| 31 | **Lステップ連携設定** | [31-lstep-integration.md](./31-lstep-integration.md) | CPM 判定、配信自動化、各種プレフィックス設定。 |
+| - | ├ **Lステップタグ管理** | [31-lstep-integration.md](./31-lstep-integration.md) | 連携タグのマスタ管理・コードマッピング。 |
+| - | ├ **健診タグ一括同期** | [31-lstep-integration.md](./31-lstep-integration.md) | 健診対象者の抽出と一括タグ連携（プレビュー付）。 |
+| - | └ **Lステップ顧客分析** | [31-lstep-integration.md](./31-lstep-integration.md) | CPM 分析と友だち属性推移ダッシュボード。 |
 | 34 | **Lステップ配信監視** | [34-lstep-delivery-monitor.md](./34-lstep-delivery-monitor.md) | 自動配信トリガーの実行ログと失敗検知。 |
 | 35 | **取扱説明書** | [35-internal-manual.md](./35-internal-manual.md) | システム内マニュアルの閲覧と編集。 |
 | 21 | **ログイン** | [21-login.md](./21-login.md) | 認証プロセスとパスワード再設定。 |

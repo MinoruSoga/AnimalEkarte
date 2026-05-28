@@ -627,6 +627,68 @@ paths:
                         type: array
                         items: { $ref: '#/components/schemas/LstepDeliveryLog' }
 
+  /api/v1/clinics/{clinic_id}/lstep/tag-summary:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: タグ別飼い主数集計取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepTagSummary' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/lstep/owners:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: タグ別飼い主一覧取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: tag
+          in: query
+          required: true
+          schema: { type: string }
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - name: format
+          in: query
+          required: false
+          schema: { type: string, enum: [json, csv], default: json }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepTagOwnerList' }
+            text/csv:
+              description: CSVデータ
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
   /api/v1/medical-records:
     parameters:
       - $ref: '#/components/parameters/XClinicIDHeader'
@@ -822,6 +884,71 @@ paths:
       summary: LINE Webhook
       responses:
         '200': { description: OK }
+  /api/v1/clinic-holidays:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Shifts]
+      summary: クリニックの祝日一覧取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: year_month
+          in: query
+          description: YYYY-MM (optional)
+          schema:
+            type: string
+            pattern: "^\\d{4}-\\d{2}$"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClinicHoliday'
+    post:
+      tags: [Shifts]
+      summary: 祝日を設定
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetClinicHolidayRequest'
+      responses:
+        '201':
+          description: 祝日作成
+          headers:
+            Location:
+              description: 作成された祝日リソースの相対 URI。
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicHoliday'
+
+  /api/v1/clinic-holidays/{date}:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    delete:
+      tags: [Shifts]
+      summary: 祝日を削除
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: YYYY-MM-DD
+          schema:
+            type: string
+            format: date
+      responses:
+        '204':
+          description: No Content
+
 
   /api/v1/examinations:
     parameters:
@@ -972,6 +1099,35 @@ components:
     ExaminationStatus:
       type: string
       enum: [pending, in_progress, result_entered, completed, confirmed]
+    ClinicHoliday:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinic_id:
+          type: integer
+        date:
+          type: string
+          format: date
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    SetClinicHolidayRequest:
+      type: object
+      required:
+        - date
+      properties:
+        date:
+          type: string
+          format: date
+        reason:
+          type: string
+
 
     ExaminationResultStatus:
       type: string
@@ -1618,6 +1774,46 @@ components:
         status: { type: string, enum: [scheduled, fired, excluded, failed, suppressed] }
         fired_at: { type: string, format: date-time, nullable: true }
         exclusion_reason: { type: string, nullable: true }
+
+    LstepTagSummary:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/LstepTagSummaryItem'
+        total_owners_with_lstep: { type: integer }
+        as_of: { type: string, format: date-time }
+
+    LstepTagSummaryItem:
+      type: object
+      properties:
+        tag_name: { type: string }
+        owner_count: { type: integer }
+        category: { type: string }
+
+    LstepTagOwnerList:
+      type: object
+      properties:
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/LstepTagOwnerItem'
+        total: { type: integer }
+        page: { type: integer }
+        per_page: { type: integer }
+
+    LstepTagOwnerItem:
+      type: object
+      properties:
+        owner_id: { type: string }
+        owner_name: { type: string }
+        line_user_id_masked: { type: string, nullable: true }
+        last_visit_date: { type: string, nullable: true }
+        all_tags:
+          type: array
+          items: { type: string }
+        reason: { type: string, nullable: true }
 
     CashRegisterPreview:
       type: object
