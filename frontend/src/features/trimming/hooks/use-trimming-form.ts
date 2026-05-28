@@ -32,6 +32,7 @@ const defaultFormData: TrimmingFormData = {
   staffId: "",
   staffName: "",
 };
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function optionalNumber(value: string): number | undefined {
   if (value === "") return undefined;
@@ -41,6 +42,15 @@ function optionalNumber(value: string): number | undefined {
 
 function optionalDateTime(value: string): string | undefined {
   return value === "" ? undefined : value;
+}
+
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function formatJSTDate(date: Date): string {
+  const jstDate = new Date(date.getTime() + JST_OFFSET_MS);
+  return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}`;
 }
 
 function buildUpdateTrimmingRequest(formData: TrimmingFormData): UpdateTrimmingRequest {
@@ -213,9 +223,9 @@ export function useTrimmingForm(id?: string) {
             ? Number(formData.reservationTypeId)
             : FALLBACK_TRIMMING_RESERVATION_TYPE_ID;
           // 日時: フォームから選択していない場合は当日 10:00〜11:30
-          const now = new Date();
-          const startDate = formData.startTime || `${now.toISOString().split("T")[0]}T10:00:00+09:00`;
-          const endDate = formData.endTime || `${now.toISOString().split("T")[0]}T11:30:00+09:00`;
+          const today = formatJSTDate(new Date());
+          const startDate = formData.startTime || `${today}T10:00:00+09:00`;
+          const endDate = formData.endTime || `${today}T11:30:00+09:00`;
           const req = buildCreateTrimmingRequest(
             formData,
             Number(pet.id),

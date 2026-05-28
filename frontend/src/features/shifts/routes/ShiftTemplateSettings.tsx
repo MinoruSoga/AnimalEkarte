@@ -17,13 +17,13 @@ import { useGetShiftTemplates } from "../api/get-shift-templates";
 import { useReorderShiftTemplates } from "../api/reorder-shift-templates";
 import { useUpdateShiftTemplate } from "../api/update-shift-template";
 import {
-  SHIFT_TEMPLATE_COLUMNS,
   ShiftTemplateDeleteDialog,
   ShiftTemplateRow,
   ShiftTemplateSidePanel,
   ShiftTemplateToolbar,
-  type TemplateFormData,
 } from "../components/ShiftTemplateSettingsParts";
+import type { TemplateFormData } from "../components/shift-template-form-model";
+import { SHIFT_TEMPLATE_COLUMNS } from "../components/shift-template-table-model";
 import type { ShiftTemplate } from "../types";
 
 export function ShiftTemplateSettings() {

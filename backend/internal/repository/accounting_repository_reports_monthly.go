@@ -1,0 +1,191 @@
+package repository
+
+import (
+	"context"
+	"time"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+// GetMonthlyReport は指定年月の月次売上レポートを集計する。FEAT-368
+// payment_splits を正として集計（SUM(DISTINCT) hack を除去）。
+func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error) {
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst)
+	end := start.AddDate(0, 1, 0)
+
+	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
+	mArgs := []any{clinicID, model.BillingStatusCompleted, start, end}
+	mCompletedCTE := `WITH completed_billings AS (
+		SELECT id, completed_at FROM billings
+		WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
+		  AND completed_at AT TIME ZONE 'Asia/Tokyo' >= ?
+		  AND completed_at AT TIME ZONE 'Asia/Tokyo' < ?
+	)`
+
+	// Query 1: 日×支払方法別合計 (payment_splits のみ)
+	type mPmRow struct {
+		Date            string
+		PaymentMethodID *uint64
+		Amount          int64
+	}
+	var mPmRows []mPmRow
+	if err := r.db.WithContext(ctx).Raw(
+		mCompletedCTE+`
+		SELECT
+			TO_CHAR(cb.completed_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS date,
+			ps.payment_method_id,
+			COALESCE(SUM(ps.amount), 0) AS amount
+		FROM completed_billings cb
+		JOIN payment_splits ps ON ps.billing_id = cb.id
+		GROUP BY date, ps.payment_method_id
+		ORDER BY date ASC
+		`, mArgs...).Scan(&mPmRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to get monthly payment report")
+	}
+
+	// Query 2: 日×カテゴリ別合計 (billing_items のみ)
+	type mCatRow struct {
+		Date     string
+		Category string
+		Amount   int64
+	}
+	var mCatRows []mCatRow
+	if err := r.db.WithContext(ctx).Raw(
+		mCompletedCTE+`
+		SELECT
+			TO_CHAR(cb.completed_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS date,
+			bi.category::text AS category,
+			COALESCE(SUM(ROUND(bi.unit_price * bi.quantity::numeric)), 0) AS amount
+		FROM completed_billings cb
+		JOIN billing_items bi ON bi.billing_id = cb.id AND bi.deleted_at IS NULL
+		GROUP BY date, bi.category
+		ORDER BY date ASC
+		`, mArgs...).Scan(&mCatRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to get monthly category report")
+	}
+
+	// Query 3: 返金合計
+	var mTotalRefund int64
+	if err := r.db.WithContext(ctx).Raw(
+		mCompletedCTE+`
+		SELECT COALESCE(SUM(br.amount), 0)
+		FROM billing_refunds br
+		WHERE br.billing_id IN (SELECT id FROM completed_billings)
+		`, mArgs...).Scan(&mTotalRefund).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to aggregate monthly refunds")
+	}
+
+	// Query 4: 日別会計件数
+	type mCountRow struct {
+		Date  string
+		Count int64
+	}
+	var mCountRows []mCountRow
+	if err := r.db.WithContext(ctx).Raw(
+		mCompletedCTE+`
+		SELECT
+			TO_CHAR(cb.completed_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS date,
+			COUNT(cb.id) AS count
+		FROM completed_billings cb
+		GROUP BY date
+		`, mArgs...).Scan(&mCountRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to count daily billings for monthly report")
+	}
+
+	// 締めレコード取得（日付→AM/PM 締め状態マップ）
+	type closeRow struct {
+		CloseDate string
+		Period    string
+	}
+	var closeRows []closeRow
+	if err := r.db.WithContext(ctx).
+		Table("cash_register_closes").
+		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Where("close_date >= ? AND close_date < ?", start.Format("2006-01-02"), end.Format("2006-01-02")).
+		Select("close_date::text AS close_date, period").
+		Scan(&closeRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to get cash register closes for monthly report")
+	}
+	closedAM := make(map[string]bool)
+	closedPM := make(map[string]bool)
+	for _, cr := range closeRows {
+		if cr.Period == "am" {
+			closedAM[cr.CloseDate] = true
+		} else {
+			closedPM[cr.CloseDate] = true
+		}
+	}
+
+	// 集計結果を構造体に変換
+	payRows := make([]MonthlyPaymentRow, 0, len(mPmRows))
+	var grandTotal int64
+	for _, r := range mPmRows {
+		payRows = append(payRows, MonthlyPaymentRow(r))
+		grandTotal += r.Amount
+	}
+
+	catRows := make([]MonthlyCategoryRow, 0, len(mCatRows))
+	for _, r := range mCatRows {
+		catRows = append(catRows, MonthlyCategoryRow(r))
+	}
+
+	dailyBillingCount := make(map[string]int64, len(mCountRows))
+	for _, r := range mCountRows {
+		dailyBillingCount[r.Date] = r.Count
+	}
+
+	// 税率別集計
+	type taxRow struct {
+		TaxRate       int64
+		TaxableAmount int64
+		TaxAmount     int64
+	}
+	var taxRows []taxRow
+	if err := r.db.WithContext(ctx).
+		Table("billing_items").
+		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.deleted_at IS NULL").
+		Where("billings.clinic_id = ? AND billing_items.deleted_at IS NULL", clinicID).
+		Where("billings.status = ?", model.BillingStatusCompleted).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
+		Select(
+			"ROUND(billing_items.tax_rate * 100)::bigint AS tax_rate," +
+				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric)), 0) AS taxable_amount," +
+				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * billing_items.tax_rate)), 0) AS tax_amount",
+		).
+		Group("billing_items.tax_rate").
+		Scan(&taxRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to aggregate tax breakdown for monthly report")
+	}
+
+	taxBreakdown := make([]TaxBreakdownRow, 0, len(taxRows))
+	for _, tr := range taxRows {
+		taxBreakdown = append(taxBreakdown, TaxBreakdownRow(tr))
+	}
+
+	// 会計件数（billings 単位）
+	var billingCount int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Billing{}).
+		Scopes(clinicScope(clinicID)).
+		Where("status = ?", model.BillingStatusCompleted).
+		Where("completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
+		Where("completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
+		Count(&billingCount).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to count monthly billings")
+	}
+
+	return &MonthlyReportResult{
+		PaymentRows:       payRows,
+		CategoryRows:      catRows,
+		DailyBillingCount: dailyBillingCount,
+		ClosedAM:          closedAM,
+		ClosedPM:          closedPM,
+		GrandTotal:        grandTotal - mTotalRefund,
+		TotalRefund:       mTotalRefund,
+		BillingCount:      billingCount,
+		TaxBreakdown:      taxBreakdown,
+	}, nil
+}

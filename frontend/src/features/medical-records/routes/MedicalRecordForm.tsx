@@ -24,6 +24,7 @@ import {
 import { OwnerSearchModal, StaffSelectionModal, VitalsModal } from "./MedicalRecordLazyModals";
 import { MEDICAL_RECORD_TAB_ITEMS, VISIT_TYPE_OPTIONS } from "./MedicalRecordFormModel";
 import { useMedicalRecordDirtyFields } from "./useMedicalRecordDirtyFields";
+import { useMedicalRecordPostSave } from "./useMedicalRecordPostSave";
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
@@ -115,47 +116,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   // BUG-MEDI-005: タブ切替時にスクロール位置をトップにリセットするための ref
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // activeTab を保存時に正確に参照するための ref
-  const activeTabRef = useRef(activeTab);
-  useEffect(() => {
-    activeTabRef.current = activeTab;
-  }, [activeTab]);
-
-  const clinicalPlanSaveRef = useRef<(() => Promise<void>) | null>(null);
-  const estimateSaveRef = useRef<(() => Promise<void>) | null>(null);
-
-  const handleRegisterClinicalPlanSave = useCallback((fn: () => Promise<void>) => {
-    clinicalPlanSaveRef.current = fn;
-  }, []);
-
-  const handleRegisterEstimateSave = useCallback((fn: () => Promise<void>) => {
-    estimateSaveRef.current = fn;
-  }, []);
-
-  // React 19 Action の成功を検知してタブ別サブ保存を実行
-  useEffect(() => {
-    if (!formState.success) return;
-
-    const currentTab = activeTabRef.current;
-
-    const doPostSave = async () => {
-      try {
-        if (currentTab === "診察/治療プラン") {
-          await (clinicalPlanSaveRef.current?.() ?? Promise.resolve());
-        } else if (currentTab === "見積書") {
-          await (estimateSaveRef.current?.() ?? Promise.resolve());
-        }
-      } catch (error) {
-        // サブ保存失敗: メインカルテは保存済み。ユーザーに通知して再保存を促す
-        handleApiError(error, "データの保存");
-      }
-      markClean();
-      // ナビゲーションなし: タブに留まる
-    };
-
-    doPostSave();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formState.success, formState.timestamp]);
+  const {
+    handleRegisterClinicalPlanSave,
+    handleRegisterEstimateSave,
+  } = useMedicalRecordPostSave({
+    activeTab,
+    formState,
+    markClean,
+  });
 
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("medical-records");

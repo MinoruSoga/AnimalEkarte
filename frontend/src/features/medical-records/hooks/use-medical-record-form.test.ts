@@ -3,6 +3,8 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { useMedicalRecordForm } from "./use-medical-record-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
+import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
+import { useCreateReservation } from "@/features/reservations/api/create-reservation";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 
 // ──────────────────────────────────────────────────────────
@@ -37,9 +39,33 @@ vi.mock("@/hooks/use-pet", () => ({ useGetPet: vi.fn(() => ({ data: undefined, i
 vi.mock("@/hooks/use-owner", () => ({ useGetOwner: vi.fn(() => noData) }));
 vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: () => noData }));
 vi.mock("../api/create-medical-record", () => ({ useCreateMedicalRecord: vi.fn(() => noMutation) }));
+vi.mock("@/features/reservations/api/create-reservation", () => ({ useCreateReservation: vi.fn(() => noMutation) }));
 vi.mock("../api/update-medical-record", () => ({ useUpdateMedicalRecord: () => noMutation }));
 vi.mock("../api/inquiries", () => ({ useUpdateInquiry: () => noMutation }));
 vi.mock("../api/clinical-plan", () => ({ useUpdateClinicalPlan: () => noMutation }));
+vi.mock("@/hooks/use-reservation-types", () => ({
+  useGetReservationTypesGrouped: vi.fn(() => ({
+    data: [
+      {
+        label: "一般診療",
+        types: [
+          {
+            id: 1,
+            name: "一般診察",
+            color: "#000000",
+            is_active: true,
+            duration_minutes: 15,
+            sort_order: 1,
+            is_internal: false,
+            category: "general",
+            group_id: 1,
+            group: { id: 1, name: "一般診療", color: "#000000" },
+          },
+        ],
+      },
+    ],
+  })),
+}));
 
 // ──────────────────────────────────────────────────────────
 // テスト
@@ -55,6 +81,31 @@ describe("useMedicalRecordForm", () => {
     vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false, isError: false });
     // デフォルト: owner データなし
     vi.mocked(useGetOwner).mockReturnValue(noData as never);
+    vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
+      data: [
+        {
+          label: "一般診療",
+          types: [
+            {
+              id: 1,
+              name: "一般診察",
+              color: "#000000",
+              is_active: true,
+              duration_minutes: 15,
+              sort_order: 1,
+              is_internal: false,
+              category: "general",
+              group_id: 1,
+              group: { id: 1, name: "一般診療", color: "#000000" },
+            },
+          ],
+        },
+      ],
+    } as ReturnType<typeof useGetReservationTypesGrouped>);
+    vi.mocked(useCreateReservation).mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ id: "appointment-1" }),
+      isPending: false,
+    } as ReturnType<typeof useCreateReservation>);
   });
 
   afterEach(() => {
@@ -437,17 +488,65 @@ describe("useMedicalRecordForm", () => {
         mutateAsync: mockMutateAsync,
         isPending: false,
       } as ReturnType<typeof useCreateMedicalRecord>);
+      const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
+      vi.mocked(useCreateReservation).mockReturnValue({
+        mutateAsync: mockCreateReservation,
+        isPending: false,
+      } as ReturnType<typeof useCreateReservation>);
 
       await act(async () => {
         renderHook(() => useMedicalRecordForm()); // recordId なし → isNewRecord=true
       });
 
       await waitFor(() => {
+        expect(mockCreateReservation).toHaveBeenCalledWith(
+          expect.objectContaining({
+            pet_id: Number(mockPet.id),
+            owner_id: Number(mockPet.ownerId),
+            reservation_type_id: 1,
+            status: "in_consultation",
+          })
+        );
         expect(mockMutateAsync).toHaveBeenCalledWith(
           expect.objectContaining({
             pet_id: mockPet.id,
             owner_id: mockPet.ownerId,
+            appointment_id: "appointment-1",
             status: "draft",
+          })
+        );
+      });
+    });
+
+    it("受付から遷移した新規作成では既存 appointment_id をカルテに紐付ける", async () => {
+      mockSearchParams = new URLSearchParams({ petId: "5" });
+      mockLocationState = { appointmentId: "77" };
+      vi.mocked(useGetPet).mockReturnValue({
+        data: mockPet,
+        isLoading: false,
+        isError: false,
+      });
+
+      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+      vi.mocked(useCreateMedicalRecord).mockReturnValue({
+        mutateAsync: mockCreateRecord,
+        isPending: false,
+      } as ReturnType<typeof useCreateMedicalRecord>);
+      const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
+      vi.mocked(useCreateReservation).mockReturnValue({
+        mutateAsync: mockCreateReservation,
+        isPending: false,
+      } as ReturnType<typeof useCreateReservation>);
+
+      await act(async () => {
+        renderHook(() => useMedicalRecordForm());
+      });
+
+      await waitFor(() => {
+        expect(mockCreateReservation).not.toHaveBeenCalled();
+        expect(mockCreateRecord).toHaveBeenCalledWith(
+          expect.objectContaining({
+            appointment_id: "77",
           })
         );
       });

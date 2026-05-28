@@ -1,0 +1,31 @@
+import {
+  ACQUISITION_TYPE_VALUES,
+  DANGER_LEVEL_VALUES,
+  type PetFormData,
+} from "../types";
+
+export function createPetFormData(petData?: PetFormData): PetFormData {
+  return {
+    id: petData?.id || "",
+    petNumber: petData?.petNumber || "",
+    petName: petData?.petName || "",
+    petNameKana: petData?.petNameKana || "",
+    species: petData?.species || "",
+    animalSpeciesId: petData?.animalSpeciesId || "",
+    gender: petData?.gender || "",
+    birthDate: petData?.birthDate || "",
+    breed: petData?.breed || "",
+    color: petData?.color || "",
+    weight: petData?.weight || "",
+    neuteredDate: petData?.neuteredDate || "",
+    acquisitionType: (petData?.acquisitionType || "購入") as typeof ACQUISITION_TYPE_VALUES[number],
+    dangerLevel: (petData?.dangerLevel || "低") as typeof DANGER_LEVEL_VALUES[number],
+    food: petData?.food || "",
+    environment: petData?.environment || "",
+    status: petData?.status || "生存",
+    remarks: petData?.remarks || "",
+    insuranceId: petData?.insuranceId || "",
+    insuranceName: petData?.insuranceName,
+    insuranceDetails: petData?.insuranceDetails,
+  };
+}

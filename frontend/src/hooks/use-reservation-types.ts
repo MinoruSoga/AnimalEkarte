@@ -15,6 +15,10 @@ interface ReservationTypeRaw {
   name: string;
   color: string;
   is_active: boolean;
+  duration_minutes: number;
+  sort_order: number;
+  is_internal: boolean;
+  category: string;
   group_id: number | null;
   group: ReservationTypeGroupSummary | null;
 }

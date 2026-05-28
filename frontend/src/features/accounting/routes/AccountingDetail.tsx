@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, useTransition, useActionState, useEffect, useRef } from "react";
+import { useState, useMemo, memo, useTransition, useActionState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
@@ -18,15 +18,11 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
-import { updateBillingItem } from "../api/update-billing-item";
 import { createBillingItem } from "../api/create-billing-item";
 import { getUnbilledItems } from "../api/get-unbilled-items";
-import { createRefund } from "../api/create-refund";
 import { useGetPet } from "@/hooks/use-pet";
-import { queryKeys } from "@/lib/query-keys";
 import { handleApiError } from "@/lib/handle-api-error";
 import { calculateBillingTotals } from "@/lib/calculations";
-import { cancelAccounting } from "../api/cancel-accounting";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { paths } from "@/config/paths";
 import {
@@ -38,10 +34,11 @@ import {
 } from "../components/AccountingDetailPanels";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import { createInitialPaymentSplits, type AccountingFormState } from "./AccountingDetailModel";
+import { useAccountingItemActions } from "./useAccountingItemActions";
+import { useAccountingSettlementActions } from "./useAccountingSettlementActions";
 
 // Types
-import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
-import type { TaxType } from "@/types/generated/models";
+import type { Accounting, AccountingItem, PaymentInfo, PaymentMethod } from "../types";
 import { ResourceAccounting } from "@/types/generated/models";
 
 // ── メインコンポーネント ──────────────────────────────────
@@ -329,117 +326,25 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   // rerender-dependencies: user?.clinic（オブジェクト）の代わりに user（安定参照）を deps に使用
   }, [user, invoiceRegistrationNumber]);
 
-  const handleAddItem = useCallback((name: string, price: string, category: string, taxRate?: number) => {
-    const unitPrice = parseInt(price, 10);
-    const qty = 1;
-    const rate = taxRate ?? 0.1;
-    const tempId = `manual_${crypto.randomUUID()}`;
-    const newItem: AccountingItem = {
-      id: tempId,
-      category: category as ItemCategory,
-      name,
-      unitPrice,
-      quantity: qty,
-      taxType: "excluded" as TaxType,
-      taxRate: rate,
-      taxAmount: Math.round(unitPrice * qty * rate),
-      subtotal: unitPrice * qty,
-      isInsuranceApplicable: false,
-      source: "manual",
-    };
+  const { handleAddItem, handleDeleteItem, handleUpdateItemTax } = useAccountingItemActions({
+    accountingId: id,
+    baseItems,
+    queryClient,
+    setLocalItems,
+    setNewItemOpen,
+    startAddItemTransition,
+    startTaxUpdateTransition,
+  });
 
-    // BUG-045: localItems が null (未編集) の場合は baseAccounting.items を seed として使用し、
-    // 既存の治療明細を失わないようにする
-    setLocalItems((prev) => [...(prev ?? baseItems), newItem]);
-    setNewItemOpen(false);
-
-    // 既存の会計 (id あり) の場合は POST API を呼び出してサーバーに永続化
-    if (id) {
-      startAddItemTransition(async () => {
-        try {
-          await createBillingItem({
-            billing_id: Number(id),
-            category,
-            name,
-            unit_price: unitPrice,
-            quantity: qty,
-            tax_type: "excluded",
-            tax_rate: rate,
-            is_insurance_applicable: false,
-            source: "manual",
-          });
-          await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(id) });
-          setLocalItems(null);
-          toast.success("明細を追加しました");
-        } catch (error) {
-          // 楽観的更新をロールバック
-          setLocalItems((prev) => (prev ?? []).filter((i) => i.id !== tempId));
-          handleApiError(error, "明細の追加");
-        }
-      });
-    } else {
-      // 新規会計（id なし）はローカル追加のみで API 呼び出しなし
-      toast.success("明細を追加しました");
-    }
-  }, [id, queryClient, baseItems]);
-
-  // BUG-045: 削除時も baseAccounting.items を seed として使用
-  const handleDeleteItem = useCallback((itemId: string) => {
-    setLocalItems((prev) => (prev ?? baseItems).filter((i) => i.id !== itemId));
-  }, [baseItems]);
-
-  const handleUpdateItemTax = useCallback(
-    (itemId: string, taxType: TaxType, taxRate: number) => {
-      if (!id) return;
-      startTaxUpdateTransition(async () => {
-        try {
-          await updateBillingItem(itemId, { tax_type: taxType, tax_rate: taxRate });
-          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(id) });
-        } catch (error) {
-          handleApiError(error, "税区分の更新");
-        }
-      });
-    },
-    [id, queryClient],
-  );
-
-  const handleRefund = useCallback(
-    (amount: number, reason: string) => {
-      if (!id) return;
-      startRefundTransition(async () => {
-        try {
-          await createRefund(id, { amount, reason });
-          queryClient.invalidateQueries({ queryKey: ["accounting-refunds", id] });
-          queryClient.invalidateQueries({ queryKey: ["accountings"] });
-          toast.success(`¥${amount.toLocaleString()} の返金を登録しました`);
-      } catch (error) {
-        handleApiError(error, "返金の登録");
-      }
-      });
-    },
-    [id, queryClient],
-  );
-
-  const handlePrint = useCallback(() => {
-    setPreviewOpen(true);
-  }, []);
-
-  // BUG-371: 会計キャンセル（論理削除）実行
-  const handleCancelConfirm = useCallback(() => {
-    if (!id) return;
-    startCancelTransition(async () => {
-      try {
-        await cancelAccounting(id);
-        toast.success("会計をキャンセルしました");
-        await queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
-        navigate(paths.accounting.getHref());
-      } catch (error) {
-        handleApiError(error, "会計のキャンセル");
-      } finally {
-        setCancelConfirmOpen(false);
-      }
-    });
-  }, [id, queryClient, navigate]);
+  const { handleCancelConfirm, handlePrint, handleRefund } = useAccountingSettlementActions({
+    accountingId: id,
+    navigate,
+    queryClient,
+    setCancelConfirmOpen,
+    setPreviewOpen,
+    startCancelTransition,
+    startRefundTransition,
+  });
 
   if (id && isLoading) return <LoadingFallback />;
   if (!accounting || !calculation) return <ErrorFallback message="データが見つかりません" />;

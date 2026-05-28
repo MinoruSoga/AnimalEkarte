@@ -8,7 +8,8 @@ import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { useGetInsurances } from "../api/get-insurances";
 import { useAnimalSpecies } from "../hooks/use-animal-species";
 import type { PetFormData } from "../types";
-import { createPetFormData, PetEditModalFields } from "./PetEditModalFields";
+import { PetEditModalFields } from "./PetEditModalFields";
+import { createPetFormData } from "./pet-form-data";
 
 const OwnerSearchModal = lazy(() =>
   import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal }))

@@ -19,6 +19,7 @@ export interface CreateReservationRequest {
   visit_type: string;
   reservation_type_id: number;
   is_designated?: boolean;
+  status?: string;
   notes?: string;
   source?: "manual" | "line";
 }

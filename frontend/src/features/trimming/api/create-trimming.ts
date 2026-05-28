@@ -20,6 +20,7 @@ export const useCreateTrimming = () => {
     onSuccess: () => {
       // ["trimmings"] 配下のすべてのキー（一覧・ペット別一覧）を無効化
       queryClient.invalidateQueries({ queryKey: ["trimmings"] });
+      queryClient.invalidateQueries({ queryKey: ["reception"] });
     },
     onError: (error) => {
       handleApiError(error, "作成");

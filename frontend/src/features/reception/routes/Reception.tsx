@@ -1,12 +1,12 @@
 // React/Framework
-import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useState, useCallback, useMemo, Suspense } from "react";
 import { useNavigate } from "react-router";
 
 // External
-import { DndContext, PointerSensor, useSensor, useSensors, DragOverEvent, DragEndEvent, pointerWithin } from "@dnd-kit/core";
+import { DndContext, PointerSensor, useSensor, useSensors, pointerWithin } from "@dnd-kit/core";
 import Filter from "lucide-react/dist/esm/icons/filter";
 import { toast } from "sonner";
-import { format, addHours } from "date-fns";
+import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 
 // Internal
@@ -27,10 +27,8 @@ import { ReceptionFilterPanel } from "../components/ReceptionFilterPanel";
 import { useReceptionKanban } from "../hooks/use-reception-kanban";
 import { ReceptionDetailModal, ReservationFormModal } from "./ReceptionLazyModals";
 import { NO_ADD_BUTTON_COLUMNS } from "./ReceptionModel";
-
-// Types
-import type { Reservation, Pet } from "@/types";
-import type { ReceptionAppointment } from "../api/types";
+import { useReceptionDragHandlers } from "./useReceptionDragHandlers";
+import { useReceptionModalHandlers } from "./useReceptionModalHandlers";
 
 export function Reception() {
     const navigate = useNavigate();
@@ -59,22 +57,27 @@ export function Reception() {
       { id: "医師指名なし", name: "医師指名なし" },
     ], [staffs]);
 
-    const [modalOpen, setModalOpen] = useState(false);
-    const [selectedAppointment, setSelectedAppointment] = useState<ReceptionAppointment | null>(null);
-    // rerender-dependencies: primitive id で deps 安定化
-    const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
-
-    // Edit Modal State
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingAppointment, setEditingAppointment] = useState<Partial<Reservation> | null>(null);
-    // rerender-dependencies: primitive id で deps 安定化
-    const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
-
-    // Cancel Confirm Dialog State
-    const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
-    const [cancelTarget, setCancelTarget] = useState<ReceptionAppointment | null>(null);
-    // rerender-dependencies: primitive id で deps 安定化
-    const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+    const {
+        cancelConfirmOpen,
+        cancelTarget,
+        closeCancelConfirm,
+        closeEditModal,
+        editingAppointment,
+        executeCancel,
+        handleAdvanceStatus,
+        handleCancelAppointment,
+        handleCardClick,
+        handleEditAppointment,
+        handleEditSave,
+        isEditModalOpen,
+        modalOpen,
+        selectedAppointment,
+        setModalOpen,
+    } = useReceptionModalHandlers({
+        advanceStatus,
+        cancelAppointment,
+        updateAppointment,
+    });
 
     const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -82,93 +85,7 @@ export function Reception() {
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
     );
 
-    // rerender-dependencies: columns オブジェクト配列を useRef で参照し deps から除外
-    const columnsRef = useRef(columns);
-    useEffect(() => { columnsRef.current = columns; }, [columns]);
-
-    const handleDragOver = useCallback((event: DragOverEvent) => {
-        const { active, over } = event;
-        if (!over) return;
-
-        const activeId = active.id as string;
-
-        // Use over.data.columnTitle for reliable column detection
-        const targetTitle = ((over.data?.current as Record<string, unknown>)?.columnTitle as string) || (over.id as string).replace("column-", "");
-
-        // rerender-dependencies: columns は ref 経由で参照
-        const cols = columnsRef.current;
-        const sourceColumn = cols.find(col => col.appointments.some(a => a.id === activeId));
-        if (!sourceColumn) return;
-
-        const targetCol = cols.find(c => c.title === targetTitle);
-        if (!targetCol) return;
-
-        const sourceTitle = sourceColumn.title;
-        const dragIndex = sourceColumn.appointments.findIndex(a => a.id === activeId);
-        if (dragIndex === -1) return;
-
-        // Find hover position in target column
-        const overId = over.id as string;
-        let hoverIndex: number;
-
-        if (overId.startsWith("column-")) {
-            hoverIndex = targetCol.appointments.length;
-        } else {
-            hoverIndex = targetCol.appointments.findIndex(a => a.id === overId);
-            if (hoverIndex === -1) {
-                hoverIndex = targetCol.appointments.length;
-            }
-        }
-
-        // Skip if same column and same position
-        if (sourceTitle === targetTitle && dragIndex === hoverIndex) return;
-
-        moveCard(dragIndex, hoverIndex, sourceTitle, targetTitle, activeId);
-    }, [moveCard]);
-
-    const handleDragEnd = useCallback((event: DragEndEvent) => {
-        const { active, over } = event;
-        if (!over) return;
-
-        const activeId = active.id as string;
-
-        // Use over.data.columnTitle (set in KanbanColumn's useDroppable) for reliable column detection
-        // This avoids collision detection ambiguity with closestCorners
-        const targetTitle = ((over.data?.current as Record<string, unknown>)?.columnTitle as string) || (over.id as string).replace("column-", "");
-
-        // rerender-dependencies: columns は ref 経由で参照
-        const cols = columnsRef.current;
-        const sourceColumn = cols.find(col => col.appointments.some(a => a.id === activeId));
-        if (!sourceColumn) return;
-
-        const targetCol = cols.find(c => c.title === targetTitle);
-        if (!targetCol) return;
-
-        // Find the card ID in the target column to determine insert position
-        const overId = over.id as string;
-        let hoverIndex: number;
-
-        if (overId.startsWith("column-")) {
-            // Dropped on empty column area
-            hoverIndex = targetCol.appointments.length;
-        } else {
-            // Dropped on a card - find its position in the target column
-            hoverIndex = targetCol.appointments.findIndex(a => a.id === overId);
-            if (hoverIndex === -1) {
-                // Card not in target column, append to end
-                hoverIndex = targetCol.appointments.length;
-            }
-        }
-
-        const dragIndex = sourceColumn.appointments.findIndex(a => a.id === activeId);
-        if (dragIndex === -1) return;
-
-        // Same column, same position - no change needed
-        if (sourceColumn.title === targetTitle && dragIndex === hoverIndex) return;
-
-        // Call moveCard with draggedCardId for reliable card identification
-        moveCard(dragIndex, hoverIndex, sourceColumn.title, targetTitle, activeId);
-    }, [moveCard]);
+    const { handleDragEnd, handleDragOver } = useReceptionDragHandlers(columns, moveCard);
 
     const todayLabel = format(new Date(), "yyyy年M月d日 (E)", { locale: ja });
 
@@ -196,100 +113,6 @@ export function Reception() {
         }
         return handlers;
     }, [filteredColumns, handleAddClick, canCreateReservation]);
-
-    const handleCardClick = useCallback((appointment: ReceptionAppointment) => {
-        setSelectedAppointment(appointment);
-        setSelectedAppointmentId(appointment.id);
-        setModalOpen(true);
-    }, []);
-
-    // rerender-dependencies: selectedAppointment オブジェクトを ref 経由で参照し primitive id を deps に使用
-    const selectedAppointmentRef = useRef(selectedAppointment);
-    useEffect(() => { selectedAppointmentRef.current = selectedAppointment; }, [selectedAppointment]);
-
-    const handleAdvanceStatus = useCallback(() => {
-        if (!selectedAppointmentId) return;
-        const appt = selectedAppointmentRef.current;
-        if (!appt) return;
-        advanceStatus(appt);
-        setModalOpen(false);
-        setSelectedAppointment(null);
-        setSelectedAppointmentId(null);
-    }, [selectedAppointmentId, advanceStatus]);
-
-    const handleEditAppointment = useCallback((appointment: ReceptionAppointment) => {
-        // ReceptionAppointment を ReservationFormModal 用の Partial<Reservation> に変換
-        const now = new Date();
-        const [hours, minutes] = appointment.time.split(':').map(Number);
-        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
-
-        const reservationFormData: Partial<Reservation> = {
-            id: appointment.id,
-            start: start,
-            end: addHours(start, 1), // Default 1 hour duration
-            status: "confirmed",
-            visitType: appointment.visitType === "初診" ? "first" : "revisit",
-            type: appointment.reservationType,
-            doctor: appointment.doctor || "医師A",
-            isDesignated: appointment.isDesignated || false,
-            petId: appointment.petId,
-            ownerName: appointment.ownerName,
-            petName: appointment.petName
-        };
-
-        setEditingAppointment(reservationFormData);
-        setEditingAppointmentId(appointment.id);
-        setIsEditModalOpen(true);
-        setModalOpen(false);
-    }, []);
-
-    // rerender-dependencies: editingAppointment オブジェクトを ref 経由で参照し primitive id を deps に使用
-    const editingAppointmentRef = useRef(editingAppointment);
-    useEffect(() => { editingAppointmentRef.current = editingAppointment; }, [editingAppointment]);
-
-    const handleEditSave = useCallback((data: Partial<Reservation>, selectedPets: Pet[]) => {
-        if (!editingAppointmentId || !data.start) return;
-
-        const updatedTime = format(data.start, "HH:mm");
-
-        const updatedAppointment: ReceptionAppointment = {
-            id: editingAppointmentId,
-            time: updatedTime,
-            ownerName: selectedPets[0]?.ownerName || data.ownerName || "",
-            petName: selectedPets[0]?.name || data.petName || "",
-            petType: selectedPets[0]?.species || "犬",
-            visitType: data.visitType === "first" ? "初診" : "再診",
-            reservationType: data.type || "診療",
-            doctor: data.doctor,
-            isDesignated: data.isDesignated ?? false,
-            petId: selectedPets[0]?.id || data.petId || "",
-            ownerId: "",
-            status: "confirmed",
-            notes: undefined,
-            source: "manual" as const,
-        };
-
-        updateAppointment(updatedAppointment);
-        setIsEditModalOpen(false);
-        setEditingAppointment(null);
-        setEditingAppointmentId(null);
-    }, [editingAppointmentId, updateAppointment]);
-
-    const handleCancelAppointment = useCallback((appointment: ReceptionAppointment) => {
-        setCancelTarget(appointment);
-        setCancelTargetId(appointment.id);
-        setCancelConfirmOpen(true);
-    }, []);
-
-    const executeCancel = useCallback(() => {
-        if (!cancelTargetId) return;
-        cancelAppointment(cancelTargetId);
-        toast.success("予約を取り消しました");
-        setModalOpen(false);
-        setCancelConfirmOpen(false);
-        setCancelTarget(null);
-        setCancelTargetId(null);
-    }, [cancelTargetId, cancelAppointment]);
 
     const columnElements = useMemo(() =>
         filteredColumns.map((column) => (
@@ -392,10 +215,7 @@ export function Reception() {
               <Suspense fallback={null}>
                 <ReservationFormModal
                     isOpen={isEditModalOpen}
-                    onClose={() => {
-                        setIsEditModalOpen(false);
-                        setEditingAppointment(null);
-                    }}
+                    onClose={closeEditModal}
                     onSave={handleEditSave}
                     initialData={editingAppointment}
                     canCreate={canCreateReservation}
@@ -406,10 +226,7 @@ export function Reception() {
 
             <ConfirmDialog
                 open={cancelConfirmOpen}
-                onClose={() => {
-                    setCancelConfirmOpen(false);
-                    setCancelTarget(null);
-                }}
+                onClose={closeCancelConfirm}
                 onConfirm={executeCancel}
                 title="予約を取り消しますか？"
                 description={cancelTarget ? `${cancelTarget.petName}（${cancelTarget.ownerName}）の予約を取り消します。` : ""}

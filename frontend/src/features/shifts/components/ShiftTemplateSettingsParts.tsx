@@ -1,79 +1,24 @@
 import { memo, useCallback, useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import Calendar from "lucide-react/dist/esm/icons/calendar";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import X from "lucide-react/dist/esm/icons/x";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
-import { ShiftTypeOff, ShiftTypePaidLeave } from "@/types/generated/models";
-import { SHIFT_TYPE_LABELS, type ShiftTemplate, type ShiftType } from "../types";
-
-export const SHIFT_TEMPLATE_COLUMNS = [
-  { header: "", className: "w-[32px]" },
-  { header: "テンプレート名" },
-  { header: "種別", className: "w-[80px]" },
-  { header: "時間", className: "w-[140px]" },
-  { header: "ステータス", className: "w-[100px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
-];
-
-const SHIFT_TYPE_OPTIONS = (
-  Object.entries(SHIFT_TYPE_LABELS) as [ShiftType, string][]
-).map(([value, label]) => (
-  <SelectItem key={value} value={value}>
-    {label}
-  </SelectItem>
-));
-
-export interface BreakInput {
-  break_start: string;
-  break_end: string;
-}
-
-export interface TemplateFormData {
-  name: string;
-  shift_type: ShiftType;
-  start_time: string;
-  end_time: string;
-  notes: string;
-  is_active: boolean;
-  breaks: BreakInput[];
-}
-
-const DEFAULT_FORM: TemplateFormData = {
-  name: "",
-  shift_type: "full",
-  start_time: "",
-  end_time: "",
-  notes: "",
-  is_active: true,
-  breaks: [],
-};
-
-function templateToFormData(template: ShiftTemplate): TemplateFormData {
-  return {
-    name: template.name,
-    shift_type: template.shift_type,
-    start_time: template.start_time,
-    end_time: template.end_time,
-    notes: template.notes,
-    is_active: template.is_active,
-    breaks: template.breaks.map((b) => ({
-      break_start: b.break_start,
-      break_end: b.break_end,
-    })),
-  };
-}
+import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
+import { SHIFT_TYPE_LABELS, type ShiftTemplate } from "../types";
+import {
+  DEFAULT_SHIFT_TEMPLATE_FORM,
+  templateToFormData,
+  type TemplateFormData,
+} from "./shift-template-form-model";
+import { isShiftTemplateTimeHidden } from "./shift-template-form-utils";
+import { ShiftTemplateProperties } from "./ShiftTemplateSidePanelFields";
 
 interface ShiftTemplateRowProps {
   item: ShiftTemplate;
@@ -84,7 +29,7 @@ export const ShiftTemplateRow = memo(function ShiftTemplateRow({
   item,
   onEdit,
 }: ShiftTemplateRowProps) {
-  const isTimeHidden = item.shift_type === ShiftTypeOff || item.shift_type === ShiftTypePaidLeave;
+  const isTimeHidden = isShiftTemplateTimeHidden(item.shift_type);
   const timeLabel = isTimeHidden
     ? "-"
     : item.start_time && item.end_time
@@ -147,7 +92,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
   onDirtyChange,
 }: ShiftTemplateSidePanelProps) {
   const [formData, setFormData] = useState<TemplateFormData>(() =>
-    item ? templateToFormData(item) : DEFAULT_FORM,
+    item ? templateToFormData(item) : DEFAULT_SHIFT_TEMPLATE_FORM,
   );
   const [isDirty, setIsDirty] = useState(false);
 
@@ -160,8 +105,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
     setIsDirty(true);
   }, []);
 
-  const isTimeHidden =
-    formData.shift_type === ShiftTypeOff || formData.shift_type === ShiftTypePaidLeave;
+  const isTimeHidden = isShiftTemplateTimeHidden(formData.shift_type);
 
   const handleField = useCallback(
     <K extends keyof TemplateFormData>(key: K, value: TemplateFormData[K]) => {
@@ -259,103 +203,14 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
 
           <div className={`${STYLE.sectionDivider} mb-1`} />
 
-          <div className="py-1">
-            <PropertyRow label="ステータス">
-              <button
-                type="button"
-                onClick={() => handleField("is_active", !formData.is_active)}
-                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-              >
-                <NotionStatusPill isActive={formData.is_active} />
-              </button>
-            </PropertyRow>
-
-            <PropertyRow label="シフト種別">
-              <Select
-                value={formData.shift_type}
-                onValueChange={(v) => handleField("shift_type", v as ShiftType)}
-              >
-                <SelectTrigger className="h-7 text-sm border-0 shadow-none bg-transparent px-1.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>{SHIFT_TYPE_OPTIONS}</SelectContent>
-              </Select>
-            </PropertyRow>
-
-            {!isTimeHidden ? (
-              <>
-                <PropertyRow label="開始時刻">
-                  <PropInput
-                    type="time"
-                    value={formData.start_time}
-                    onChange={(v) => handleField("start_time", v)}
-                  />
-                </PropertyRow>
-                <PropertyRow label="終了時刻">
-                  <PropInput
-                    type="time"
-                    value={formData.end_time}
-                    onChange={(v) => handleField("end_time", v)}
-                  />
-                </PropertyRow>
-              </>
-            ) : null}
-
-            <PropertyRow label="メモ">
-              <PropInput
-                value={formData.notes}
-                onChange={(v) => handleField("notes", v)}
-                placeholder="補足情報など"
-              />
-            </PropertyRow>
-          </div>
-
-          {!isTimeHidden ? (
-            <div className="mt-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className={`text-sm font-medium ${C.text}`}>休憩時間</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={handleAddBreak}
-                >
-                  <Plus className={`${ICON.xxs} mr-1`} />
-                  追加
-                </Button>
-              </div>
-              {formData.breaks.map((b, i) => (
-                <div key={i} className="flex items-center gap-2 mb-2">
-                  <Input
-                    type="time"
-                    value={b.break_start}
-                    onChange={(e) => handleBreakChange(i, "break_start", e.target.value)}
-                    className="flex-1 h-8 text-sm"
-                  />
-                  <span className={`text-xs ${C.text50}`}>〜</span>
-                  <Input
-                    type="time"
-                    value={b.break_end}
-                    onChange={(e) => handleBreakChange(i, "break_end", e.target.value)}
-                    className="flex-1 h-8 text-sm"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => handleRemoveBreak(i)}
-                  >
-                    <X className={ICON.smXs} />
-                  </Button>
-                </div>
-              ))}
-              {formData.breaks.length === 0 ? (
-                <p className={`text-xs ${C.text40}`}>休憩なし</p>
-              ) : null}
-            </div>
-          ) : null}
+          <ShiftTemplateProperties
+            formData={formData}
+            isTimeHidden={isTimeHidden}
+            onField={handleField}
+            onBreakChange={handleBreakChange}
+            onAddBreak={handleAddBreak}
+            onRemoveBreak={handleRemoveBreak}
+          />
         </div>
       </div>
 
@@ -396,41 +251,6 @@ export function ShiftTemplateDeleteDialog({
       confirmLabel="削除"
       variant="destructive"
       onConfirm={onConfirm}
-    />
-  );
-}
-
-function PropertyRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div
-      className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}
-    >
-      <div className={`w-[120px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
-        {label}
-      </div>
-      <div className="flex-1 flex items-center">{children}</div>
-    </div>
-  );
-}
-
-function PropInput({
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-}) {
-  return (
-    <input
-      type={type}
-      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} transition-colors ${C.textPlaceholder}`}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder ?? "空"}
     />
   );
 }
