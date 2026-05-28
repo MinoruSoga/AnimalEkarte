@@ -23,48 +23,15 @@ import { useApplyMedicalRecord } from "./use-apply-medical-record";
 import { useMedicalRecordDraft } from "./use-medical-record-draft";
 import { useMedicalRecordManualErrors } from "./use-medical-record-manual-errors";
 import { useMedicalRecordOwnerChange } from "./use-medical-record-owner-change";
-
-const DEFAULT_CHIEF_COMPLAINT = "# どんな症状\n\n# どこが\n\n# いつから\n\n# その他・備考\n\n# フリースペース";
-const DEFAULT_TREATMENT_POLICY = "# 治療方針";
-const DEFAULT_PLAN = "# 治療方針";
-const DEFAULT_ASSESSMENT = "# 診断詳細";
-const DEFAULT_RECEPTION_APPOINTMENT_MINUTES = 15;
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
-
-function toVisitTypeValue(visitTypeLabel: string): "first" | "revisit" {
-  return visitTypeLabel === "初診" || visitTypeLabel === "first" ? "first" : "revisit";
-}
-
-function padDatePart(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-function formatJSTDate(date: Date): string {
-  const jstDate = new Date(date.getTime() + JST_OFFSET_MS);
-  return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}`;
-}
-
-function formatJSTDateTime(date: Date): string {
-  const jstDate = new Date(date.getTime() + JST_OFFSET_MS);
-  return `${formatJSTDate(date)}T${padDatePart(jstDate.getUTCHours())}:${padDatePart(jstDate.getUTCMinutes())}:00+09:00`;
-}
-
-function createReceptionAppointmentTimeRange(durationMinutes: number) {
-  const start = new Date();
-  start.setSeconds(0, 0);
-  const end = new Date(start);
-  end.setMinutes(end.getMinutes() + durationMinutes);
-  return {
-    startTime: formatJSTDateTime(start),
-    endTime: formatJSTDateTime(end),
-  };
-}
-
-function normalizeAppointmentId(value: unknown): string | undefined {
-  if (typeof value === "string" && value !== "") return value;
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  return undefined;
-}
+import { useMedicalRecordAutoCreate } from "./use-medical-record-auto-create";
+import {
+  DEFAULT_ASSESSMENT,
+  DEFAULT_CHIEF_COMPLAINT,
+  DEFAULT_PLAN,
+  DEFAULT_TREATMENT_POLICY,
+  findGeneralReservationType,
+  normalizeAppointmentId,
+} from "./use-medical-record-form-model";
 
 export function useMedicalRecordForm(recordId?: string) {
   const navigate = useNavigate();
@@ -151,19 +118,7 @@ export function useMedicalRecordForm(recordId?: string) {
   const ownerDiscountRate = owner?.discountRate ?? 0;
   const appointmentIdFromState = normalizeAppointmentId(location.state?.appointmentId);
   const { data: reservationTypeGroups } = useGetReservationTypesGrouped();
-  const generalReservationType = reservationTypeGroups
-    ?.flatMap((group) => group.types)
-    .filter((type) => type.category === "general" && !type.is_internal)
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .find((type) =>
-      toVisitTypeValue(visitType) === "revisit"
-        ? type.name.includes("再診")
-        : !type.name.includes("再診"),
-    )
-    ?? reservationTypeGroups
-      ?.flatMap((group) => group.types)
-      .filter((type) => type.category === "general" && !type.is_internal)
-      .sort((a, b) => a.sort_order - b.sort_order)[0];
+  const generalReservationType = findGeneralReservationType(reservationTypeGroups, visitType);
 
   const queryClient = useQueryClient();
   const createMutation = useCreateMedicalRecord();
@@ -293,48 +248,19 @@ export function useMedicalRecordForm(recordId?: string) {
   });
 
   // 新規作成時: ページ表示と同時にカルテを自動作成
-  useEffect(() => {
-    if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;
-    if (!appointmentIdFromState && !generalReservationType) return;
-    hasAutoCreatedRef.current = true;
-
-    startCreateTransition(async () => {
-      try {
-        let appointmentId = appointmentIdFromState;
-        if (!appointmentId) {
-          const duration = generalReservationType?.duration_minutes || DEFAULT_RECEPTION_APPOINTMENT_MINUTES;
-          const { startTime, endTime } = createReceptionAppointmentTimeRange(duration);
-          const appointment = await createReservationMutation.mutateAsync({
-            pet_id: Number(selectedPet.id),
-            owner_id: Number(selectedPet.ownerId),
-            start_time: startTime,
-            end_time: endTime,
-            visit_type: toVisitTypeValue(visitType),
-            reservation_type_id: generalReservationType?.id ?? 0,
-            status: "in_consultation",
-            source: "manual",
-          });
-          appointmentId = appointment.id;
-        }
-
-        const today = formatJSTDate(new Date());
-        const record = await createMutation.mutateAsync({
-          pet_id: selectedPet.id,
-          owner_id: selectedPet.ownerId,
-          visit_date: today,
-          visit_type: visitType,
-          appointment_id: appointmentId,
-          status: "draft",
-          recommendation_reason: createRecommendationReason ?? "",
-        });
-        navigate(paths.medicalRecords.detail.getHref(record.id), { replace: true });
-      } catch (error) {
-        handleApiError(error, "カルテ作成");
-        hasAutoCreatedRef.current = false;
-      }
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run only when isNewRecord or petId changes; createMutation/navigate/visitType are stable references
-  }, [isNewRecord, selectedPet?.id, appointmentIdFromState, generalReservationType?.id]);
+  useMedicalRecordAutoCreate({
+    isNewRecord,
+    selectedPet,
+    hasAutoCreatedRef,
+    appointmentIdFromState,
+    generalReservationType,
+    createReservationMutation,
+    createMutation,
+    startCreateTransition,
+    visitType,
+    createRecommendationReason,
+    navigate,
+  });
 
   const shouldRedirectToSelectPet = isNewRecord && !petId;
   const notFound = !isNewRecord && !!recordId && !isRecordLoading && isRecordError;
