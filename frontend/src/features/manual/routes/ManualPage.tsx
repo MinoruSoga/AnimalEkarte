@@ -88,7 +88,7 @@ export function ManualPage() {
   }
 
   return (
-    <div className="flex flex-1 overflow-hidden relative manual-root" style={{ backgroundColor: "#FFFFFF" }}>
+    <div className={`flex flex-1 overflow-hidden relative manual-root ${C.bgWhite}`}>
       {/* モバイル用ハンバーガー (md 未満で表示)
        * アプリのメインサイドバー（collapsed 約50px）と被らないよう left-16 に配置 */}
       <button
@@ -142,13 +142,12 @@ export function ManualPage() {
       {drawerOpen ? (
         <>
           {/* オーバーレイ */}
-          <div
-            role="button"
-            tabIndex={0}
+          <button
+            type="button"
             aria-label="ドロワーを閉じる"
             onClick={() => setDrawerOpen(false)}
             onKeyDown={(e) => {
-              if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
+              if (e.key === "Escape") {
                 setDrawerOpen(false);
               }
             }}

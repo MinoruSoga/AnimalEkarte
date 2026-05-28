@@ -7,7 +7,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // GetClinicalPlan godoc
@@ -45,16 +44,7 @@ func (h *Handler) UpdateClinicalPlan(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	input := &service.UpdateClinicalPlanInput{
-		PhysicalExam:         req.PhysicalExam,
-		DiagnosisTypeID:      req.DiagnosisTypeID,
-		DiagnosisNameID:      req.DiagnosisNameID,
-		DiagnosisDetails:     req.DiagnosisDetails,
-		TreatmentPolicy:      req.TreatmentPolicy,
-		Diagnosis2CategoryID: req.Diagnosis2CategoryID,
-		Diagnosis2NameID:     req.Diagnosis2NameID,
-	}
-	plan, err := h.svc.ClinicalPlan.Update(c.Request.Context(), clinicID, medicalRecordID, input)
+	plan, err := h.svc.ClinicalPlan.Update(c.Request.Context(), clinicID, medicalRecordID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

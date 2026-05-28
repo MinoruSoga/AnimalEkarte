@@ -77,9 +77,9 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             <Label className={`text-sm ${C.text60}`}>主訴区分</Label>
             {canEdit ? (
               <button
+                type="button"
                 onClick={() => navigate(paths.settings.interview.chiefComplaint.getHref())}
                 className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
-                type="button"
               >
                 <Settings className={ICON.xs} />
                 マスタ編集
@@ -105,9 +105,9 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             <Label className={`text-sm ${C.text60}`}>定型文挿入</Label>
             {canEdit ? (
               <button
+                type="button"
                 onClick={() => navigate(paths.settings.interview.interviewTemplate.getHref())}
                 className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
-                type="button"
               >
                 <Settings className={ICON.xs} />
                 マスタ編集

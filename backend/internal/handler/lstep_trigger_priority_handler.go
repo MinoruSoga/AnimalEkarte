@@ -8,7 +8,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // triggerPriorityItemResponse はトリガー優先順位1件のJSONレスポンス。
@@ -21,17 +20,6 @@ type triggerPriorityItemResponse struct {
 type triggerPriorityListResponse struct {
 	ClinicID string                        `json:"clinic_id"`
 	Items    []triggerPriorityItemResponse `json:"items"`
-}
-
-// updateTriggerPriorityItemRequest は PATCH /lstep/trigger-priorities のリクエスト内1件。
-type updateTriggerPriorityItemRequest struct {
-	TriggerType string `json:"trigger_type" binding:"required"`
-	Priority    int    `json:"priority"     binding:"required,min=1"`
-}
-
-// updateTriggerPrioritiesRequest は PATCH /lstep/trigger-priorities のリクエストボディ。
-type updateTriggerPrioritiesRequest struct {
-	Items []updateTriggerPriorityItemRequest `json:"items" binding:"required,min=1,dive"`
 }
 
 func toTriggerPriorityListResponse(clinicID uint64, items []model.LstepTriggerPriority) triggerPriorityListResponse {
@@ -75,16 +63,7 @@ func (h *Handler) UpdateLstepTriggerPriorities(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	input := service.UpdateTriggerPrioritiesInput{
-		Items: make([]service.TriggerPriorityItem, len(req.Items)),
-	}
-	for i, it := range req.Items {
-		input.Items[i] = service.TriggerPriorityItem{
-			TriggerType: it.TriggerType,
-			Priority:    it.Priority,
-		}
-	}
-	if err := h.svc.LstepTriggerPriority.UpdatePriorities(c.Request.Context(), clinicID, input); err != nil {
+	if err := h.svc.LstepTriggerPriority.UpdatePriorities(c.Request.Context(), clinicID, req.toServiceInput()); err != nil {
 		RespondError(c, err)
 		return
 	}

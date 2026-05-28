@@ -3,14 +3,11 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"path/filepath"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListSharedFiles godoc
@@ -55,33 +52,22 @@ func (h *Handler) UploadSharedFile(c *gin.Context) {
 	}
 	defer file.Close() //nolint:errcheck // multipart file close error is not actionable
 
-	// 拡張子チェック（.pdf, .jpg, .jpeg, .png のみ許可）
-	ext := strings.ToLower(filepath.Ext(header.Filename))
-	contentType, allowed := model.AllowedFileExtensions[ext]
-	if !allowed {
-		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("file type %q is not allowed", ext)))
+	meta, err := newSharedFileUploadMeta(header)
+	if err != nil {
+		RespondError(c, err)
 		return
 	}
-	fileType := model.AllowedFileTypes[ext]
 
 	var req uploadSharedFileRequest
 	if err := c.ShouldBind(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	if req.Purpose == "" {
-		req.Purpose = model.SharedFilePurposeOther
-	}
 
-	resp, err := h.svc.SharedFile.Upload(c.Request.Context(), clinicID, staffID, &service.UploadSharedFileInput{
-		Content:     file,
-		FileName:    header.Filename,
-		ContentType: contentType,
-		FileType:    fileType,
-		FileSize:    header.Size,
-		Purpose:     req.Purpose,
-		OwnerID:     req.OwnerID,
-	})
+	resp, err := h.svc.SharedFile.Upload(c.Request.Context(), clinicID, staffID, req.toServiceInput(
+		file,
+		meta,
+	))
 	if err != nil {
 		RespondError(c, err)
 		return

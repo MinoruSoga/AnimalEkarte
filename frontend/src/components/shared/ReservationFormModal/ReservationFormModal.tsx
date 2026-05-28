@@ -1,34 +1,31 @@
 // React/Framework
-import { C, ICON, LAYOUT, PALETTE } from "@/lib/design-tokens";
+import { LAYOUT } from "@/lib/design-tokens";
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo } from "react";
 import { format as dateFnsFormat } from "date-fns";
 
 // External
-import { Calendar, CalendarCheck, PawPrint, X, Search, UserPlus, Users } from "lucide-react";
 // Internal
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useGetPet } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
-import { FormFieldError } from "@/components/shared/FormFieldError";
 
 import { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
 import { useGetOwnerLineTags } from "@/features/owners";
-import { ReservationRouteSelect, useGetReservation } from "@/features/reservations";
-import type { ReservationRoute, NewOwnerFormData } from "@/features/reservations";
+import { useGetReservation } from "@/features/reservations";
+import type { NewOwnerFormData } from "@/features/reservations";
 
 // Relative
-import { PatientSelectionTable } from "./PatientSelectionTable";
-import { ReservationFormFields } from "./ReservationFormFields";
-import { NewOwnerInlineForm } from "./NewOwnerInlineForm";
+import {
+  ReservationDetailsPanel,
+  ReservationModalFooter,
+  ReservationModalHeader,
+  ReservationPatientPanel,
+  type MobilePanel,
+  type OwnerMode,
+} from "./ReservationFormModalPanels";
 
 // Types
 import type { Pet, Reservation } from "@/types";
-
-type OwnerMode = "existing" | "new";
 
 const EMPTY_NEW_OWNER: NewOwnerFormData = {
   ownerName: "",
@@ -37,6 +34,7 @@ const EMPTY_NEW_OWNER: NewOwnerFormData = {
   chiefComplaint: "",
   animalSpeciesId: 0,
 };
+const RESERVATION_FORM_DESCRIPTION_ID = "reservation-form-description";
 
 interface ReservationFormModalProps {
   isOpen: boolean;
@@ -46,44 +44,6 @@ interface ReservationFormModalProps {
   canCreate?: boolean;
   canEdit?: boolean;
 }
-
-
-const StepIndicator = memo(function StepIndicator({ step, label, active }: { step: number; label: string; active: boolean }) {
-  return (
-    <div className={`flex items-center gap-1.5 text-xs ${active ? C.accent : C.text30}`}>
-      <span
-        className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
-          active ? `${C.bgAccent} ${C.textWhite}` : `${C.bgPrimary10} ${C.text30}`
-        }`}
-      >
-        {step}
-      </span>
-      {label}
-    </div>
-  );
-});
-
-const SelectedPetChip = memo(function SelectedPetChip({ pet, onRemove }: { pet: Pet; onRemove: () => void }) {
-  return (
-    <div className={`flex items-center gap-2 bg-white p-2 rounded-lg border ${C.borderMediumLight} shadow-sm`}>
-      <PawPrint className={`${ICON.action} ${C.text60} flex-shrink-0`} />
-      <span className={`text-sm font-bold ${C.text}`}>{pet.name}</span>
-      <Badge variant="outline" className={`text-[11px] font-normal ${C.text60} ${C.bgPage} ${C.borderMediumLight} h-5`}>
-        {pet.species}
-      </Badge>
-      <span className={`text-[11px] ${C.text60} ml-auto`}>
-        No. {pet.ownerId} {pet.ownerName}
-      </span>
-      <button
-        onClick={onRemove}
-        className={`ml-1 p-1 ${C.hoverBgDanger5} rounded transition-colors`}
-      >
-        <X className={`${ICON.action} ${C.danger} ${C.hoverTextDanger}`} />
-      </button>
-    </div>
-  );
-});
-
 export const ReservationFormModal = memo(function ReservationFormModal({
   isOpen,
   onClose,
@@ -94,7 +54,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
 }: ReservationFormModalProps) {
   const [formData, setFormData] = useState<Partial<Reservation>>({});
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
-  const [mobilePanel, setMobilePanel] = useState<"search" | "form">("search");
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("search");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [calendarMonth, setCalendarMonth] = useState<string>(() => dateFnsFormat(new Date(), "yyyy-MM"));
   const [ownerMode, setOwnerMode] = useState<OwnerMode>("existing");
@@ -171,11 +131,11 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     }
   }, [isOpen, initialData, setSelectedPets]);
 
-  const isEditMode = initialData && initialData.id;
+  const isEditMode = Boolean(initialData?.id);
   const canSave = isEditMode ? canEdit : canCreate;
 
   // edit mode: subscribe to single-reservation query and sync reservationRoute into formData
-  const reservationQueryId = isEditMode ? String(initialData.id) : "";
+  const reservationQueryId = isEditMode ? String(initialData?.id) : "";
   const { data: latestReservation } = useGetReservation(reservationQueryId);
   useEffect(() => {
     if (!latestReservation) return;
@@ -262,220 +222,69 @@ export const ReservationFormModal = memo(function ReservationFormModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${LAYOUT.modal.full} flex flex-col p-0 gap-0 bg-white overflow-hidden rounded-xl`}>
-        <DialogHeader className="p-4 border-b shrink-0 h-auto flex flex-col gap-3 space-y-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {isEditMode ? (
-                <CalendarCheck className={`${ICON.page} ${C.textNotice}`} />
-              ) : (
-                <Calendar className={`${ICON.page} ${C.accent}`} />
-              )}
-              <DialogTitle className={`text-sm font-bold ${C.text}`}>
-                {isEditMode ? "予約編集" : "新規予約作成"}
-              </DialogTitle>
-            </div>
-            <DialogDescription className="sr-only">
-              左側のリストからペットを選択し、右側のフォームで予約情報を入力してください
-            </DialogDescription>
-          </div>
-          <div className="flex items-center gap-6">
-            <StepIndicator step={1} label="患者選択" active={mobilePanel === "search"} />
-            <StepIndicator step={2} label="予約情報" active={mobilePanel === "form"} />
-          </div>
-          {/* Mobile Tab Bar */}
-          <div className="flex gap-2 lg:hidden border-t pt-3 -mx-4 px-4">
-            <Button
-              size="sm"
-              variant={mobilePanel === "search" ? "default" : "outline"}
-              onClick={() => setMobilePanel("search")}
-              className="flex-1 h-9 text-sm"
-            >
-              患者選択
-            </Button>
-            <Button
-              size="sm"
-              variant={mobilePanel === "form" ? "default" : "outline"}
-              onClick={() => setMobilePanel("form")}
-              className="flex-1 h-9 text-sm"
-            >
-              予約情報
-            </Button>
-          </div>
-        </DialogHeader>
+      <DialogContent
+        aria-describedby={RESERVATION_FORM_DESCRIPTION_ID}
+        className={`${LAYOUT.modal.full} flex flex-col p-0 gap-0 bg-white overflow-hidden rounded-xl`}
+      >
+        <ReservationModalHeader
+          isEditMode={isEditMode}
+          mobilePanel={mobilePanel}
+          onMobilePanelChange={setMobilePanel}
+          descriptionId={RESERVATION_FORM_DESCRIPTION_ID}
+        />
 
         <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-          {/* Left Panel: Patient Selection Table */}
-          <div
-            className={cn(
-              `w-full lg:w-7/12 border-b lg:border-b-0 lg:border-r ${C.bgSubtle} p-4 flex flex-col overflow-hidden min-h-[300px] lg:min-h-auto flex-1`,
-              mobilePanel !== "search" && "hidden lg:flex"
-            )}
-          >
-            {/* Mode toggle — create mode only */}
-            {!isEditMode ? (
-              <div className="flex rounded-lg border overflow-hidden mb-3 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setOwnerMode("existing")}
-                  data-testid="mode-existing"
-                  className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "existing" ? `${C.bgAccent} ${C.textWhite}` : `bg-white ${C.text60}`}`}
-                >
-                  <Users size={12} className="inline mr-1" />既存飼主
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOwnerMode("new")}
-                  data-testid="mode-new"
-                  className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "new" ? `${C.bgAccent} ${C.textWhite}` : `bg-white ${C.text60}`}`}
-                >
-                  <UserPlus size={12} className="inline mr-1" />新規飼主
-                </button>
-              </div>
-            ) : null}
+          <ReservationPatientPanel
+            isEditMode={isEditMode}
+            ownerMode={ownerMode}
+            mobilePanel={mobilePanel}
+            selectedPets={selectedPets}
+            newOwnerData={newOwnerData}
+            newOwnerErrors={newOwnerErrors}
+            onOwnerModeChange={setOwnerMode}
+            onPetSelect={togglePetSelection}
+            onNewOwnerChange={setNewOwnerData}
+          />
 
-            {ownerMode === "existing" ? (
-              <>
-                <div className="mb-3 flex items-center gap-2 shrink-0">
-                  <Search className={`${ICON.action} ${C.text60}`} />
-                  <Label className={`text-sm font-bold ${C.text}`}>患者検索</Label>
-                </div>
-                <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-                  <PatientSelectionTable
-                    onSelect={togglePetSelection}
-                    selectedPets={selectedPets}
-                  />
-                </div>
-              </>
-            ) : (
-              <NewOwnerInlineForm
-                value={newOwnerData}
-                onChange={setNewOwnerData}
-                errors={newOwnerErrors}
-              />
-            )}
-          </div>
-
-          {/* Right Panel: Reservation Form */}
-          <div
-            className={cn(
-              "w-full lg:w-5/12 bg-white flex flex-col overflow-hidden min-h-[300px] lg:min-h-auto flex-1",
-              mobilePanel !== "form" && "hidden lg:flex"
-            )}
-          >
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-              {/* Selected Patient Summary (Top of Form) */}
-              <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgAccentLight50} ${C.borderAccentLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
-                <Label className={`text-[12px] ${C.text40} font-bold tracking-widest uppercase block mb-3`}>
-                  予約対象（選択中）
-                  <span style={{ color: C.danger }} className="ml-1 normal-case" aria-hidden="true">*</span>
-                </Label>
-
-                {selectedPets.length > 0 ? (
-                  <div className="flex flex-col gap-2">
-                    {selectedPets.map(pet => (
-                      <SelectedPetChip
-                        key={pet.id}
-                        pet={pet}
-                        onRemove={() => {
-                          setSelectedPets(prev => prev.filter(p => p.id !== pet.id));
-                        }}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-20 text-center">
-                    <PawPrint className={`${ICON.lg} ${C.text15} mb-2`} />
-                    <div className={`text-[12px] ${C.text40}`}>
-                      左側から患者を選択してください
-                    </div>
-                  </div>
-                )}
-                {selectedPets.length === 0 ? (
-                  <FormFieldError message={validationErrors.patient} />
-                ) : null}
-              </div>
-
-              {/* LINE Integration Status */}
-              {lstepStatus === "not-linked" ? (
-                <div className={`rounded-[4px] border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}>
-                  この飼い主はLINEアカウントが未連携のため、予約確定後のLINE自動通知は送信されません。
-                </div>
-              ) : lstepStatus === "opt-out" ? (
-                <div className={`rounded-[4px] border ${C.borderMediumLight} ${C.bgPage30} px-3 py-2 text-xs ${C.text40}`}>
-                  この飼い主はLINEメッセージの受信を拒否しています。予約確定後のLINE自動通知は送信されません。
-                </div>
-              ) : lstepStatus === "synced" ? (
-                <div className="rounded-[4px] border px-3 py-2 text-xs text-white flex items-center gap-1.5" style={{ backgroundColor: PALETTE.lineGreen, borderColor: PALETTE.lineGreen }}>
-                  LINE連携済み — 予約確定後に自動通知が送信されます。
-                </div>
-              ) : null}
-
-              {/* Form Fields */}
-              <div className="space-y-4">
-                <Label className={`text-sm font-bold ${C.text}`}>予約詳細</Label>
-                <ReservationFormFields
-                  formData={formData}
-                  onChange={(data) => {
-                    setFormData(data);
-                    setValidationErrors((prev) => {
-                      const next = { ...prev };
-                      if (data.start) delete next.date;
-                      if (data.type) delete next.type;
-                      return next;
-                    });
-                  }}
-                  validationErrors={validationErrors}
-                  onClearError={(field) =>
-                    setValidationErrors((prev) => {
-                      const next = { ...prev };
-                      delete next[field];
-                      return next;
-                    })
-                  }
-                  holidayDates={holidayDates}
-                  onMonthChange={handleCalendarMonthChange}
-                />
-                {isEditMode ? (
-                  <ReservationRouteSelect
-                    reservationId={String(initialData.id)}
-                    value={(formData.reservationRoute as ReservationRoute | undefined) ?? null}
-                    disabled={!canEdit}
-                  />
-                ) : null}
-              </div>
-            </div>
-          </div>
+          <ReservationDetailsPanel
+            mobilePanel={mobilePanel}
+            selectedPets={selectedPets}
+            lstepStatus={lstepStatus}
+            formData={formData}
+            validationErrors={validationErrors}
+            holidayDates={holidayDates}
+            isEditMode={isEditMode}
+            reservationId={reservationQueryId || undefined}
+            canEdit={canEdit}
+            onSelectedPetsChange={setSelectedPets}
+            onFormChange={(data) => {
+              setFormData(data);
+              setValidationErrors((prev) => {
+                const next = { ...prev };
+                if (data.start) delete next.date;
+                if (data.type) delete next.type;
+                return next;
+              });
+            }}
+            onClearError={(field) =>
+              setValidationErrors((prev) => {
+                const next = { ...prev };
+                delete next[field];
+                return next;
+              })
+            }
+            onMonthChange={handleCalendarMonthChange}
+          />
         </div>
 
-        <DialogFooter className="p-4 border-t bg-white shrink-0 h-14 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            {ownerMode === "new" ? (
-              <>
-                <UserPlus className={`${ICON.action} ${C.text60}`} />
-                <span className={`text-sm ${C.text60}`}>新規飼主モード</span>
-              </>
-            ) : (
-              <>
-                <PawPrint className={`${ICON.action} ${C.text60}`} />
-                <span className={`text-sm ${C.text60}`}>{selectedPets.length}頭 選択中</span>
-              </>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="h-10 text-sm">
-              キャンセル
-            </Button>
-            {canSave ? (
-              <Button
-                onClick={handleSave}
-                className={`${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} h-10 text-sm min-w-[100px]`}
-              >
-                {isEditMode ? "更新する" : "予約を確定"}
-              </Button>
-            ) : null}
-          </div>
-        </DialogFooter>
+        <ReservationModalFooter
+          ownerMode={ownerMode}
+          selectedPetsCount={selectedPets.length}
+          isEditMode={isEditMode}
+          canSave={canSave}
+          onClose={onClose}
+          onSave={handleSave}
+        />
       </DialogContent>
     </Dialog>
   );

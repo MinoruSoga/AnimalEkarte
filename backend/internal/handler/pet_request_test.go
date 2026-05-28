@@ -1,0 +1,113 @@
+package handler
+
+import (
+	"testing"
+	"time"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestListPetQuery_ToServiceFilters(t *testing.T) {
+	filters, err := (listPetQuery{
+		OwnerID: "10",
+		Search:  "momo",
+	}).toServiceFilters()
+	if err != nil {
+		t.Fatalf("toServiceFilters returned error: %v", err)
+	}
+
+	require.NotNil(t, filters.OwnerID)
+	assert.Equal(t, uint64(10), *filters.OwnerID)
+	assert.Equal(t, "momo", filters.Search)
+}
+
+func TestListPetQuery_ToServiceFilters_InvalidOwnerID(t *testing.T) {
+	filters, err := (listPetQuery{OwnerID: "abc"}).toServiceFilters()
+	require.Error(t, err)
+	assert.Equal(t, listPetFilters{}, filters)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestCreatePetRequest_ToServiceInput(t *testing.T) {
+	birthDate := &jsonDate{Time: time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)}
+	neuteredDate := &jsonDate{Time: time.Date(2021, 3, 4, 0, 0, 0, 0, time.UTC)}
+	weight := 4.2
+	insuranceID := uint64(9)
+
+	input := createPetRequest{
+		OwnerID:         5,
+		AnimalSpeciesID: 1,
+		Name:            "ポチ",
+		NameKana:        "ポチ",
+		Gender:          "male",
+		Status:          "alive",
+		BirthDate:       birthDate,
+		Breed:           "柴犬",
+		Color:           "茶",
+		Weight:          &weight,
+		NeuteredDate:    neuteredDate,
+		AcquisitionType: "purchase",
+		DangerLevel:     "low",
+		Food:            "ドライ",
+		Environment:     "室内",
+		Phone:           "090-1234-5678",
+		InsuranceID:     &insuranceID,
+		Remarks:         "備考",
+	}.toServiceInput()
+
+	assert.Equal(t, uint64(5), input.OwnerID)
+	assert.Equal(t, uint64(1), input.AnimalSpeciesID)
+	assert.Equal(t, "ポチ", input.Name)
+	assert.Equal(t, "ポチ", input.PetNameKana)
+	assert.Equal(t, "male", input.Gender)
+	assert.Equal(t, "alive", input.Status)
+	require.NotNil(t, input.BirthDate)
+	assert.Equal(t, birthDate.Time, *input.BirthDate)
+	require.NotNil(t, input.NeuteredDate)
+	assert.Equal(t, neuteredDate.Time, *input.NeuteredDate)
+	assert.Same(t, &weight, input.Weight)
+	assert.Same(t, &insuranceID, input.InsuranceID)
+	assert.Equal(t, "備考", input.Remarks)
+}
+
+func TestUpdatePetRequest_ToServiceInput(t *testing.T) {
+	lastVisit := &jsonDate{Time: time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC)}
+	ownerID := uint64(6)
+	animalSpeciesID := uint64(2)
+	name := "タマ"
+	status := "alive"
+	insuranceID := uint64(12)
+	insuranceIDField := &insuranceID
+
+	input := updatePetRequest{
+		OwnerID:         &ownerID,
+		AnimalSpeciesID: &animalSpeciesID,
+		Name:            &name,
+		Status:          &status,
+		LastVisit:       lastVisit,
+		InsuranceID:     &insuranceIDField,
+	}.toServiceInput()
+
+	assert.Same(t, &ownerID, input.OwnerID)
+	assert.Same(t, &animalSpeciesID, input.AnimalSpeciesID)
+	assert.Same(t, &name, input.Name)
+	assert.Same(t, &status, input.Status)
+	require.NotNil(t, input.LastVisit)
+	assert.Equal(t, lastVisit.Time, *input.LastVisit)
+	require.NotNil(t, input.InsuranceID)
+	require.NotNil(t, *input.InsuranceID)
+	assert.Equal(t, insuranceID, **input.InsuranceID)
+}
+
+func TestUpdatePetRequest_ToServiceInput_InsuranceIDClear(t *testing.T) {
+	var insuranceID *uint64
+
+	input := updatePetRequest{
+		InsuranceID: &insuranceID,
+	}.toServiceInput()
+
+	require.NotNil(t, input.InsuranceID)
+	assert.Nil(t, *input.InsuranceID)
+}

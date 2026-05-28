@@ -1,25 +1,13 @@
 // React/Framework
-import { ICON, C, LAYOUT } from "@/lib/design-tokens";
-import { useState, useMemo, useCallback, memo, useTransition, useDeferredValue, useActionState, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, memo, useTransition, useActionState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
-import { Plus, Save, CreditCard, Printer, RotateCcw, EyeOff } from "lucide-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 
 // Shared Hooks
 import { useAuth } from "@/hooks/use-auth";
@@ -27,814 +15,34 @@ import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
 import { updateBillingItem } from "../api/update-billing-item";
 import { createBillingItem } from "../api/create-billing-item";
 import { getUnbilledItems } from "../api/get-unbilled-items";
-import { useGetRefunds } from "../api/get-refunds";
 import { createRefund } from "../api/create-refund";
-import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
 import { useGetPet } from "@/hooks/use-pet";
-import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
-import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
-import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { queryKeys } from "@/lib/query-keys";
 import { handleApiError } from "@/lib/handle-api-error";
 import { calculateBillingTotals } from "@/lib/calculations";
-import { AccountingDocument } from "../components/AccountingDocument";
 import { cancelAccounting } from "../api/cancel-accounting";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { paths } from "@/config/paths";
-import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
-import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import {
+  AccountingDetailColumns,
+  AccountingDocumentPreviewDialog,
+  AccountingHeaderActions,
+  AccountingPrintArea,
+  ReadOnlyAccountingBanner,
+} from "../components/AccountingDetailPanels";
+import type { PaymentSplitDraft } from "../components/PaymentCard";
+import { createInitialPaymentSplits, type AccountingFormState } from "./AccountingDetailModel";
 
 // Types
 import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
 import type { TaxType } from "@/types/generated/models";
 import { ResourceAccounting } from "@/types/generated/models";
-
-// ── 静的定数（rendering-hoist-jsx）──────────────────────────
-
-const CATEGORY_LABELS: Record<ItemCategory, string> = {
-  examination: "診察",
-  test: "検査",
-  procedure: "処置",
-  surgery: "手術",
-  medicine: "処方",
-  food: "フード",
-  goods: "物販",
-  other: "その他",
-};
-
-// ── memo 化サブコンポーネント ──────────────────────────────
-
-interface ItemListCardProps {
-  items: AccountingItem[];
-  subtotal: number;
-  taxTotal: number;
-  totalAmount: number;
-  newItemOpen: boolean;
-  onNewItemOpenChange: (open: boolean) => void;
-  onAddItem: (name: string, price: string, category: string, taxRate?: number) => void;
-  onDeleteItem: (id: string) => void;
-  /** 既存会計の ID（billing_id）。未設定の場合は新規作成モード */
-  accountingId?: string;
-  onUpdateItemTax?: (itemId: string, taxType: TaxType, taxRate: number) => void;
-  canEdit: boolean;
-  canDelete: boolean;
-}
-
-const MERCHANDISE_CATEGORY_OPTIONS = [
-  { value: "all", label: "すべて" },
-  { value: "food", label: "フード" },
-  { value: "goods", label: "物販" },
-  { value: "other", label: "その他" },
-];
-
-// rendering-hoist-jsx: 静的 SelectItem リストをモジュールスコープに巻き上げ
-const MERCHANDISE_CATEGORY_SELECT_ITEMS = MERCHANDISE_CATEGORY_OPTIONS.map((o) => (
-  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-));
-
-const ItemListCard = memo(function ItemListCard({
-  items,
-  subtotal,
-  taxTotal,
-  totalAmount,
-  newItemOpen,
-  onNewItemOpenChange,
-  onAddItem,
-  onDeleteItem,
-  accountingId,
-  onUpdateItemTax,
-  canEdit,
-  canDelete,
-}: ItemListCardProps) {
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [merchandiseSearch, setMerchandiseSearch] = useState("");
-  const deferredMerchandiseSearch = useDeferredValue(merchandiseSearch);
-  // BUG-088: 手動入力モード
-  const [addMode, setAddMode] = useState<"master" | "manual">("master");
-  const [manualName, setManualName] = useState("");
-  const [manualPrice, setManualPrice] = useState("");
-  const [manualPriceError, setManualPriceError] = useState<string>("");
-
-  // マスタデータ取得
-  const { data: merchandiseItems = [] } = useGetAllMerchandiseItems();
-
-  const filteredMerchandise = useMemo(() => {
-    let result = merchandiseItems.filter((item) => item.isActive);
-    if (categoryFilter !== "all") {
-      result = result.filter((item) => item.category === categoryFilter);
-    }
-    if (deferredMerchandiseSearch) {
-      const lower = deferredMerchandiseSearch.toLowerCase();
-      result = result.filter((item) => item.name.toLowerCase().includes(lower));
-    }
-    return result;
-  }, [merchandiseItems, categoryFilter, deferredMerchandiseSearch]);
-
-  const handleSelectMerchandise = useCallback(
-    (item: FrontendMerchandiseItem) => {
-      onAddItem(item.name, String(item.unitPrice), item.category, item.taxRate);
-    },
-    [onAddItem],
-  );
-
-  const itemRows = useMemo(
-    () =>
-      items.map((item) => (
-        <TableRow key={item.id} className="h-12">
-          <TableCell>
-            <Badge variant="outline" className="font-normal text-xs">
-              {CATEGORY_LABELS[item.category as ItemCategory] ?? "その他"}
-            </Badge>
-          </TableCell>
-          <TableCell className="font-medium">
-            {item.name}
-            {item.source === "medical_record" ? (
-              <span className={`ml-2 text-[10px] ${C.accent} ${C.bgAccent5} px-1.5 py-0.5 rounded`}>
-                カルテ連携
-              </span>
-            ) : null}
-          </TableCell>
-          <TableCell className="text-right">
-            ¥{item.unitPrice.toLocaleString()}
-          </TableCell>
-          <TableCell className="text-center">
-            <div className="flex items-center justify-center gap-2">
-              {item.quantity}
-            </div>
-          </TableCell>
-          <TableCell className="text-center">
-            {accountingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
-              <TaxTypeSelector
-                value={item.taxType}
-                onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
-              />
-            ) : (
-              <span className={`text-sm ${C.text50}`}>
-                {item.taxType === "excluded" ? "外税" : item.taxType === "included" ? "内税" : "非課税"}
-              </span>
-            )}
-          </TableCell>
-          <TableCell className="text-center">
-            {accountingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
-              <TaxRateSelector
-                value={item.taxRate}
-                onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
-              />
-            ) : (
-              <span className={`text-sm ${C.text50}`}>{Math.round(item.taxRate * 100)}%</span>
-            )}
-          </TableCell>
-          <TableCell className="text-right font-mono text-sm">
-            ¥{item.taxAmount.toLocaleString()}
-          </TableCell>
-          <TableCell className="text-center">
-            {item.isInsuranceApplicable ? (
-              <span className={`${C.textStatusGreen} font-bold text-xs`}>●</span>
-            ) : (
-              <span className={`${C.text20} text-xs`}>-</span>
-            )}
-          </TableCell>
-          <TableCell className="text-right font-medium">
-            ¥{(item.subtotal + item.taxAmount).toLocaleString()}
-          </TableCell>
-          <TableCell>
-            {item.source === "manual" && canDelete ? (
-              <DeleteIconButton onClick={() => onDeleteItem(item.id)} />
-            ) : null}
-          </TableCell>
-        </TableRow>
-      )),
-    [items, accountingId, onDeleteItem, onUpdateItemTax, canEdit, canDelete],
-  );
-
-  return (
-    <Card className="flex-1 flex flex-col overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between py-4 border-b shrink-0">
-        <CardTitle className="text-base font-medium">明細一覧</CardTitle>
-        {canEdit ? (
-          <Dialog open={newItemOpen} onOpenChange={onNewItemOpenChange}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="h-9">
-              <Plus className={`mr-2 ${ICON.action}`} />
-              物販・その他追加
-            </Button>
-          </DialogTrigger>
-          <DialogContent className={`${LAYOUT.modal.md} max-h-[70vh] flex flex-col`}>
-            <DialogHeader>
-              <DialogTitle>物販・その他追加</DialogTitle>
-              <DialogDescription>マスタから選択するか、手動入力で追加できます。</DialogDescription>
-            </DialogHeader>
-            {/* BUG-088: モード切替タブ */}
-            <div className="flex gap-0 border-b">
-              <button
-                type="button"
-                onClick={() => setAddMode("master")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  addMode === "master"
-                    ? `${C.borderBrand} ${C.textBrand}`
-                    : `border-transparent ${C.text50} ${C.hoverText}`
-                }`}
-              >
-                マスタから選択
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddMode("manual")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  addMode === "manual"
-                    ? `${C.borderBrand} ${C.textBrand}`
-                    : `border-transparent ${C.text50} ${C.hoverText}`
-                }`}
-              >
-                手動入力
-              </button>
-            </div>
-
-            {addMode === "master" ? (
-              <>
-                <div className="flex items-center gap-2 py-2">
-                  <Input
-                    autoFocus
-                    value={merchandiseSearch}
-                    onChange={(e) => setMerchandiseSearch(e.target.value)}
-                    placeholder="品目名で検索..."
-                    className="flex-1 h-9"
-                  />
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[120px] h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MERCHANDISE_CATEGORY_SELECT_ITEMS}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1 overflow-auto min-h-[200px] border rounded-md">
-                  {filteredMerchandise.length > 0 ? (
-                    <table className="w-full">
-                      <thead>
-                        <tr className={`border-b ${C.bgPage30} text-xs`}>
-                          <th className="px-3 py-2 text-left font-medium">品目名</th>
-                          <th className="px-3 py-2 text-left font-medium w-[70px]">区分</th>
-                          <th className="px-3 py-2 text-right font-medium w-[90px]">単価</th>
-                          <th className="px-3 py-2 text-right font-medium w-[60px]">税率</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredMerchandise.map((item) => (
-                          <tr
-                            key={item.id}
-                            onClick={() => handleSelectMerchandise(item)}
-                            className={`border-b cursor-pointer ${C.hoverBgLight} transition-colors`}
-                          >
-                            <td className="px-3 py-2 text-sm font-medium">{item.name}</td>
-                            <td className={`px-3 py-2 text-sm ${C.text50}`}>
-                              {CATEGORY_LABELS[item.category as ItemCategory] ?? item.category}
-                            </td>
-                            <td className="px-3 py-2 text-sm text-right font-mono">
-                              ¥{item.unitPrice.toLocaleString()}
-                            </td>
-                            <td className={`px-3 py-2 text-sm text-right ${C.text50}`}>
-                              {item.taxRate === 0.1 ? "10%" : item.taxRate === 0.08 ? "8%" : `${item.taxRate * 100}%`}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className={`flex items-center justify-center h-full text-sm ${C.text50} py-8`}>
-                      該当する品目がありません
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              /* 手動入力フォーム */
-              <div className="flex flex-col gap-4 py-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="manual-name" className="text-sm">品目名 <span className={C.textRequired}>*</span></Label>
-                  <Input
-                    id="manual-name"
-                    autoFocus
-                    value={manualName}
-                    onChange={(e) => setManualName(e.target.value)}
-                    placeholder="例: 診察料（その他）"
-                    className="h-9"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="manual-price" className="text-sm">単価（円）<span className={C.textRequired}>*</span></Label>
-                  <Input
-                    id="manual-price"
-                    type="number"
-                    step={1}
-                    min={0}
-                    value={manualPrice}
-                    onChange={(e) => setManualPrice(e.target.value)}
-                    placeholder="例: 3000"
-                    className="h-9"
-                  />
-                  <FormFieldError message={manualPriceError} />
-                </div>
-                <Button
-                  type="button"
-                  className="w-full"
-                  disabled={!manualName.trim() || !manualPrice}
-                  onClick={() => {
-                    if (!manualName.trim() || !manualPrice) return;
-                    // BUG-072: 金額の範囲チェック（負の値・上限超過）
-                    const priceNum = parseInt(manualPrice, 10);
-                    if (isNaN(priceNum) || priceNum < 0) {
-                      setManualPriceError("単価は0以上の整数で入力してください");
-                      return;
-                    }
-                    if (priceNum > 999999999) {
-                      setManualPriceError("単価は999,999,999円以下で入力してください");
-                      return;
-                    }
-                    setManualPriceError("");
-                    onAddItem(manualName.trim(), manualPrice, "other");
-                    setManualName("");
-                    setManualPrice("");
-                    onNewItemOpenChange(false);
-                  }}
-                >
-                  追加する
-                </Button>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-        ) : null}
-      </CardHeader>
-      <CardContent className="p-0 overflow-auto flex-1">
-        <Table>
-          <TableHeader className={`sticky top-0 ${C.bgWhite} z-10 shadow-sm`}>
-            <TableRow>
-              <TableHead className="w-[100px]">区分</TableHead>
-              <TableHead>項目名</TableHead>
-              <TableHead className="text-right w-[90px]">単価</TableHead>
-              <TableHead className="text-center w-[60px]">数量</TableHead>
-              <TableHead className="w-[100px] text-center">課税区分</TableHead>
-              <TableHead className="text-center w-[70px]">税率</TableHead>
-              <TableHead className="text-right w-[80px]">税額</TableHead>
-              <TableHead className="text-center w-[60px]">保険</TableHead>
-              <TableHead className="text-right w-[100px]">金額</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {itemRows}
-          </TableBody>
-        </Table>
-      </CardContent>
-      <div className={`p-4 ${C.bgPage} border-t flex justify-end gap-6 text-sm`}>
-        <span>税抜小計: ¥{subtotal.toLocaleString()}</span>
-        <span>消費税: ¥{taxTotal.toLocaleString()}</span>
-        <span className="font-bold text-lg">
-          合計: ¥{totalAmount.toLocaleString()}
-        </span>
-      </div>
-    </Card>
-  );
-});
-
-// ── 保険カード ──────────────────────────────────────────
-
-interface InsuranceCardProps {
-  useInsurance: boolean;
-  onUseInsuranceChange: (v: boolean) => void;
-  insuranceRatio: string;
-  onInsuranceRatioChange: (v: string) => void;
-  insuranceAmount: number;
-}
-
-// rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ
-const INSURANCE_RATIO_ITEMS = (
-  <>
-    <SelectItem value="0.5">50%</SelectItem>
-    <SelectItem value="0.7">70%</SelectItem>
-    <SelectItem value="0.9">90%</SelectItem>
-    <SelectItem value="1.0">100%</SelectItem>
-  </>
-);
-
-const InsuranceCard = memo(function InsuranceCard({
-  useInsurance,
-  onUseInsuranceChange,
-  insuranceRatio,
-  onInsuranceRatioChange,
-  insuranceAmount,
-}: InsuranceCardProps) {
-  return (
-    <Card>
-      <CardHeader className={`py-3 px-4 ${C.bgPage} border-b`}>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <CreditCard className={ICON.action} /> ペット保険（窓口精算）
-          </CardTitle>
-          <Switch checked={useInsurance} onCheckedChange={onUseInsuranceChange} />
-        </div>
-      </CardHeader>
-      {useInsurance ? (
-        <CardContent className="p-4 space-y-4">
-          <div className="space-y-2">
-            <Label className="text-xs">負担割合（保険会社が支払う割合）</Label>
-            <Select value={insuranceRatio} onValueChange={onInsuranceRatioChange}>
-              <SelectTrigger className="h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>{INSURANCE_RATIO_ITEMS}</SelectContent>
-            </Select>
-          </div>
-          <div className={`flex justify-between items-center text-sm font-medium ${C.textStatusGreen} ${C.bgStatusGreen} p-2 rounded`}>
-            <span>保険負担額（マイナス）</span>
-            <span>{insuranceAmount.toLocaleString()} 円</span>
-          </div>
-        </CardContent>
-      ) : null}
-    </Card>
-  );
-});
-
-// ── 決済カード ──────────────────────────────────────────
-
-interface PaymentSplitDraft {
-  method: PaymentMethod;
-  amount: string;
-  receivedAmount: string; // 現金のみ意味あり
-}
-
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: "現金",
-  credit_card: "カード",
-  electronic_money: "電子マネー",
-};
-
-const PAYMENT_METHODS: PaymentMethod[] = ["cash", "credit_card", "electronic_money"];
-
-interface PaymentCardProps {
-  billingAmount: number;
-  paymentSplits: PaymentSplitDraft[];
-  onSplitsChange: (splits: PaymentSplitDraft[]) => void;
-  isCompleted: boolean;
-  canEdit: boolean;
-  canCreate: boolean;
-  isEditMode: boolean;
-}
-
-const PaymentCard = memo(function PaymentCard({
-  billingAmount,
-  paymentSplits,
-  onSplitsChange,
-  isCompleted,
-  canEdit,
-  canCreate,
-  isEditMode,
-}: PaymentCardProps) {
-  const canSubmit = isEditMode ? canEdit : canCreate;
-
-  const splitTotal = paymentSplits.reduce((sum, s) => sum + (parseInt(s.amount || "0", 10)), 0);
-  const remaining = billingAmount - splitTotal;
-
-  const isDisabled = remaining !== 0 || paymentSplits.some((s) => {
-    if (!s.amount || parseInt(s.amount, 10) <= 0) return true;
-    if (s.method === "cash") {
-      const received = parseInt(s.receivedAmount || "0", 10);
-      return received < parseInt(s.amount, 10);
-    }
-    return false;
-  });
-
-  const handleMethodChange = useCallback((idx: number, method: PaymentMethod) => {
-    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, method } : s));
-  }, [paymentSplits, onSplitsChange]);
-
-  const handleAmountChange = useCallback((idx: number, value: string) => {
-    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, amount: value } : s));
-  }, [paymentSplits, onSplitsChange]);
-
-  const handleReceivedChange = useCallback((idx: number, value: string) => {
-    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, receivedAmount: value } : s));
-  }, [paymentSplits, onSplitsChange]);
-
-  const handleRemoveSplit = useCallback((idx: number) => {
-    onSplitsChange(paymentSplits.filter((_, i) => i !== idx));
-  }, [paymentSplits, onSplitsChange]);
-
-  const handleAddSplit = useCallback(() => {
-    const rem = billingAmount - paymentSplits.reduce((sum, s) => sum + (parseInt(s.amount || "0", 10)), 0);
-    onSplitsChange([...paymentSplits, { method: "cash", amount: rem > 0 ? rem.toString() : "", receivedAmount: "" }]);
-  }, [paymentSplits, onSplitsChange, billingAmount]);
-
-  return (
-    <Card className="flex-1">
-      <CardHeader className="py-3 px-4 border-b">
-        <CardTitle className="text-base font-medium">決済情報</CardTitle>
-      </CardHeader>
-      <CardContent className="p-6 space-y-6">
-        <div className="text-center space-y-1">
-          <p className={`text-sm ${C.text50}`}>今回の請求金額</p>
-          <p className={`text-4xl font-bold ${C.text}`}>
-            ¥{billingAmount.toLocaleString()}
-          </p>
-        </div>
-
-        <Separator />
-
-        {canEdit ? (
-          <div className="space-y-4">
-            {paymentSplits.map((split, idx) => {
-              const parsedAmount = parseInt(split.amount || "0", 10);
-              const parsedReceived = parseInt(split.receivedAmount || "0", 10);
-              const splitChange = split.method === "cash" ? parsedReceived - parsedAmount : 0;
-
-              return (
-                <div key={idx} className="border rounded-lg p-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">支払方法</Label>
-                    {paymentSplits.length > 1 ? (
-                      <DeleteIconButton
-                        onClick={() => handleRemoveSplit(idx)}
-                        aria-label="この支払いを削除"
-                      />
-                    ) : null}
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {PAYMENT_METHODS.map((m) => (
-                      <Button
-                        key={m}
-                        type="button"
-                        variant={split.method === m ? "default" : "outline"}
-                        onClick={() => handleMethodChange(idx, m)}
-                        className="h-10 text-sm"
-                      >
-                        {PAYMENT_METHOD_LABELS[m]}
-                      </Button>
-                    ))}
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">金額</Label>
-                    <NumberInput
-                      className="h-12 text-lg font-bold"
-                      value={split.amount}
-                      onChange={(v) => handleAmountChange(idx, v)}
-                      suffix="円"
-                      align="right"
-                    />
-                  </div>
-                  {split.method === "cash" ? (
-                    <>
-                      <div className="space-y-1">
-                        <Label className="text-xs">お預かり金額</Label>
-                        <NumberInput
-                          id={idx === 0 ? "receivedAmount" : undefined}
-                          className="h-12 text-lg font-bold"
-                          value={split.receivedAmount}
-                          onChange={(v) => handleReceivedChange(idx, v)}
-                          suffix="円"
-                          align="right"
-                        />
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleReceivedChange(idx, parsedAmount.toString())}
-                          >
-                            丁度
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / 1000) * 1000).toString())}
-                          >
-                            千円単位
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / 10000) * 10000).toString())}
-                          >
-                            一万単位
-                          </Button>
-                        </div>
-                      </div>
-                      <div className={`${C.bgPrimary5} p-3 rounded-lg flex justify-between items-center`}>
-                        <span className={`text-sm font-bold ${C.text60}`}>お釣り</span>
-                        <span className={`text-xl font-bold ${splitChange < 0 ? C.danger : C.text}`}>
-                          ¥{splitChange.toLocaleString()}
-                        </span>
-                      </div>
-                    </>
-                  ) : null}
-                </div>
-              );
-            })}
-
-            {remaining !== 0 ? (
-              <p className={`text-xs text-right ${remaining < 0 ? C.danger : C.text50}`}>
-                {remaining > 0
-                  ? `残り ¥${remaining.toLocaleString()} 未入力`
-                  : `¥${Math.abs(remaining).toLocaleString()} 超過`}
-              </p>
-            ) : null}
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddSplit}
-              className="w-full"
-            >
-              <Plus className={`mr-1 ${ICON.action}`} />
-              支払方法を追加
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {paymentSplits.map((split, idx) => (
-              <div key={idx} className="flex justify-between items-center text-sm">
-                <span className={C.text50}>{PAYMENT_METHOD_LABELS[split.method] ?? split.method}</span>
-                <span className="font-medium">¥{parseInt(split.amount || "0", 10).toLocaleString()}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {canSubmit ? (
-          <SubmitButton
-            className="w-full h-14 text-lg font-bold mt-4"
-            size="lg"
-            disabled={isDisabled}
-            loadingText="処理中..."
-          >
-            <Save className={`mr-2 ${ICON.action}`} />
-            {isCompleted ? "修正を保存する" : "会計を確定する"}
-          </SubmitButton>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-});
-
-// ── 返金セクション ──────────────────────────────────────
-interface RefundSectionProps {
-  /** 会計 ID（バックエンドの billing_id に対応） */
-  accountingId: string;
-  totalAmount: number;
-  isRefunding: boolean;
-  onRefund: (amount: number, reason: string) => void;
-  canEdit: boolean;
-}
-
-const RefundSection = memo(function RefundSection({
-  accountingId,
-  totalAmount,
-  isRefunding,
-  onRefund,
-  canEdit,
-}: RefundSectionProps) {
-  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
-  const [refundAmount, setRefundAmount] = useState("");
-  const [refundReason, setRefundReason] = useState("");
-  const { data: refunds = [] } = useGetRefunds(accountingId);
-
-  const totalRefunded = refunds.reduce((sum, r) => sum + r.amount, 0);
-  const refundableAmount = totalAmount - totalRefunded;
-
-  const handleSubmit = useCallback(() => {
-    const amount = parseInt(refundAmount, 10);
-    if (!amount || amount <= 0) return;
-    onRefund(amount, refundReason);
-    setRefundDialogOpen(false);
-    setRefundAmount("");
-    setRefundReason("");
-  }, [refundAmount, refundReason, onRefund]);
-
-
-  return (
-    <Card>
-      <CardHeader className={`py-3 px-4 ${C.bgSubtle} border-b`}>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <RotateCcw className={`${ICON.action} ${C.textDiscount}`} />
-            返金管理
-            <span className={`text-xs font-normal ${C.text50}`}>
-              残額 ¥{refundableAmount.toLocaleString()}
-            </span>
-            {totalRefunded > 0 ? (
-              <span className={`text-xs font-normal ${C.textDiscount} ${C.bgDiscountLight} px-2 py-0.5 rounded`}>
-                合計 ¥{totalRefunded.toLocaleString()} 返金済
-              </span>
-            ) : null}
-          </CardTitle>
-          {canEdit ? (
-            <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                disabled={refundableAmount <= 0}
-              >
-                <Plus className={`mr-1 ${ICON.action}`} />
-                返金を登録
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-sm">
-              <DialogHeader>
-                <DialogTitle>返金を登録</DialogTitle>
-                <DialogDescription>返金金額と理由を入力してください。</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <Label>返金金額（円）</Label>
-                  <Input
-                    type="number"
-                    step={1}
-                    min={1}
-                    value={refundAmount}
-                    onChange={(e) => setRefundAmount(e.target.value)}
-                    placeholder="0"
-                    className="h-10"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>返金理由（任意）</Label>
-                  <Input
-                    value={refundReason}
-                    onChange={(e) => setRefundReason(e.target.value)}
-                    placeholder="返金理由を入力..."
-                    className="h-10"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setRefundDialogOpen(false)}>
-                  キャンセル
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!refundAmount || parseInt(refundAmount, 10) <= 0 || isRefunding}
-                >
-                  {isRefunding ? "処理中..." : "登録する"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          ) : null}
-        </div>
-      </CardHeader>
-      {refunds.length > 0 ? (
-        <CardContent className="p-0">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className={`border-b ${C.bgPage30} text-xs`}>
-                <th className="px-3 py-2 text-left font-medium">日時</th>
-                <th className="px-3 py-2 text-left font-medium">処理者</th>
-                <th className="px-3 py-2 text-right font-medium">金額</th>
-                <th className="px-3 py-2 text-left font-medium">理由</th>
-              </tr>
-            </thead>
-            <tbody>
-              {refunds.map((r) => (
-                <tr key={r.id} className="border-b last:border-0">
-                  <td className={`px-3 py-2 font-mono text-xs ${C.text50}`}>
-                    {new Date(r.refundedAt).toLocaleDateString("ja-JP")}
-                  </td>
-                  <td className={`px-3 py-2 text-xs ${C.text50}`}>
-                    {r.refundedByName || "-"}
-                  </td>
-                  <td className={`px-3 py-2 text-right font-medium ${C.textDiscount}`}>
-                    ¥{r.amount.toLocaleString()}
-                  </td>
-                  <td className={`px-3 py-2 ${C.text50} truncate max-w-[120px]`}>
-                    {r.reason || "-"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      ) : (
-        <CardContent className={`p-4 text-center text-sm ${C.text50}`}>
-          返金記録はありません
-        </CardContent>
-      )}
-    </Card>
-  );
-});
 
 // ── メインコンポーネント ──────────────────────────────────
 
@@ -928,27 +136,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const [hasInsurance, setHasInsurance] = useState(() => (baseAccounting?.payment?.insuranceAmount ?? 0) < 0);
   const [insuranceRatio, setInsuranceRatio] = useState(() => baseAccounting?.payment?.insuranceRatio?.toString() ?? "0.5");
 
-  const initPaymentSplits = (): PaymentSplitDraft[] => {
-    const splits = baseAccounting?.paymentSplits;
-    if (splits && splits.length > 0) {
-      return splits.map((s) => ({
-        method: s.method,
-        amount: s.amount.toString(),
-        receivedAmount: s.receivedAmount > 0 ? s.receivedAmount.toString() : "",
-      }));
-    }
-    const payment = baseAccounting?.payment;
-    if (payment) {
-      return [{
-        method: payment.method,
-        amount: payment.billingAmount.toString(),
-        receivedAmount: payment.receivedAmount > 0 ? payment.receivedAmount.toString() : "",
-      }];
-    }
-    return [{ method: "cash", amount: "", receivedAmount: "" }];
-  };
-
-  const [paymentSplits, setPaymentSplits] = useState<PaymentSplitDraft[]>(initPaymentSplits);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplitDraft[]>(() => createInitialPaymentSplits(baseAccounting));
 
   // 金額計算
   const calculation = useMemo(() => {
@@ -986,16 +174,11 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const editConfirmedRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
 
-  interface FormState {
-    success: boolean;
-    timestamp: number;
-  }
-
   /**
    * React 19 useActionState を使用した会計確定アクション
    */
   const [formState, formAction, _isPending] = useActionState(
-    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+    async (_prevState: AccountingFormState, _formData: FormData): Promise<AccountingFormState> => {
       if (!accounting || !calculation) return { success: false, timestamp: Date.now() };
 
       // BUG-371: 精算済会計の修正時は確認モーダル経由を強制
@@ -1271,119 +454,46 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
         description={`受付No: ${accounting.id} | ${accounting.ownerName}様 - ${accounting.petName}ちゃん`}
         onBack={() => navigate(paths.accounting.getHref())}
         headerAction={
-          accounting.status === "completed" ? (
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handlePrint}>
-                <Printer className={`mr-2 ${ICON.action}`} />
-                明細兼領収書
-              </Button>
-              {canDelete ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCancelConfirmOpen(true)}
-                  className={C.danger}
-                  disabled={isCancelling}
-                >
-                  会計をキャンセル
-                </Button>
-              ) : null}
-            </div>
-          ) : undefined
+          <AccountingHeaderActions
+            status={accounting.status}
+            canDelete={canDelete}
+            isCancelling={isCancelling}
+            onPrint={handlePrint}
+            onCancelClick={() => setCancelConfirmOpen(true)}
+          />
         }
       >
-        {id && !canEdit ? (
-          <div
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-md border mb-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
-            role="status"
-            aria-label="閲覧専用モード"
-          >
-            <EyeOff className={`shrink-0 h-4 w-4 ${C.textWarningIcon}`} aria-hidden="true" />
-            <span className="text-sm font-medium">閲覧専用 — 編集権限がないため変更できません</span>
-          </div>
-        ) : null}
+        <ReadOnlyAccountingBanner show={Boolean(id && !canEdit)} />
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
-        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
-          {/* 左カラム：明細リスト */}
-          <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-            <ItemListCard
-              items={accounting.items}
-              subtotal={calculation.subtotal}
-              taxTotal={calculation.taxTotal}
-              totalAmount={calculation.totalAmount}
-              newItemOpen={newItemOpen}
-              onNewItemOpenChange={setNewItemOpen}
-              onAddItem={handleAddItem}
-              onDeleteItem={handleDeleteItem}
-              accountingId={id}
-              onUpdateItemTax={handleUpdateItemTax}
-              canEdit={canEdit}
-              canDelete={canDelete}
-            />
-          </div>
-
-          {/* 右カラム：支払い情報 */}
-          <div className="w-full lg:w-[400px] flex flex-col gap-4 overflow-y-auto">
-            <InsuranceCard
-              useInsurance={hasInsurance}
-              onUseInsuranceChange={setHasInsurance}
-              insuranceRatio={insuranceRatio}
-              onInsuranceRatioChange={setInsuranceRatio}
-              insuranceAmount={calculation.insuranceAmount}
-            />
-
-            <PaymentCard
-              billingAmount={calculation.billingAmount}
-              paymentSplits={paymentSplits}
-              onSplitsChange={setPaymentSplits}
-              isCompleted={accounting.status === "completed"}
-              canEdit={canEdit}
-              canCreate={canCreate}
-              isEditMode={!!id}
-            />
-
-            {id && accounting.status === "completed" ? (
-              <RefundSection
-                accountingId={id}
-                totalAmount={accounting.payment?.totalAmount ?? 0}
-                isRefunding={isRefunding}
-                onRefund={handleRefund}
-                canEdit={canEdit}
-              />
-            ) : null}
-          </div>
-        </div>
+        <AccountingDetailColumns
+          accounting={accounting}
+          calculation={calculation}
+          accountingId={id}
+          hasInsurance={hasInsurance}
+          insuranceRatio={insuranceRatio}
+          paymentSplits={paymentSplits}
+          newItemOpen={newItemOpen}
+          isRefunding={isRefunding}
+          canEdit={canEdit}
+          canCreate={canCreate}
+          canDelete={canDelete}
+          onNewItemOpenChange={setNewItemOpen}
+          onAddItem={handleAddItem}
+          onDeleteItem={handleDeleteItem}
+          onUpdateItemTax={handleUpdateItemTax}
+          onUseInsuranceChange={setHasInsurance}
+          onInsuranceRatioChange={setInsuranceRatio}
+          onSplitsChange={setPaymentSplits}
+          onRefund={handleRefund}
+        />
         </fieldset>
 
-        {/* Document Preview Modal */}
-        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-          <DialogContent className="max-w-4xl h-[90vh] overflow-hidden flex flex-col">
-            <DialogHeader>
-              <DialogTitle>明細兼領収書プレビュー</DialogTitle>
-              <DialogDescription>印刷イメージを確認できます。</DialogDescription>
-            </DialogHeader>
-            <div className={`flex-1 ${C.bgActive} overflow-auto p-8 flex items-center justify-center`}>
-              <div className="shadow-lg transform scale-100 origin-top">
-                {accounting.payment ? (
-                  <AccountingDocument
-                    accounting={accounting}
-                    paymentInfo={accounting.payment}
-                    clinic={clinicForDocument}
-                  />
-                ) : null}
-              </div>
-            </div>
-            <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={() => setPreviewOpen(false)}>
-                閉じる
-              </Button>
-              <Button onClick={() => window.print()}>
-                <Printer className={`mr-2 ${ICON.action}`} />
-                印刷する
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <AccountingDocumentPreviewDialog
+          open={previewOpen}
+          accounting={accounting}
+          clinic={clinicForDocument}
+          onOpenChange={setPreviewOpen}
+        />
 
         {/* BUG-371: 精算済修正の確認モーダル */}
         <ConfirmDialog
@@ -1417,24 +527,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
       </PageLayout>
     </form>
 
-      {/* Hidden Print Area */}
-      {accounting.payment ? (
-        <div className={`hidden print:block fixed inset-0 ${C.bgWhite} z-[9999] p-0 m-0 w-full h-full`}>
-          <style type="text/css" media="print">
-            {`
-              @page { size: auto; margin: 0; }
-              body { margin: 0; -webkit-print-color-adjust: exact; }
-            `}
-          </style>
-          <div className="p-8">
-            <AccountingDocument
-              accounting={accounting}
-              paymentInfo={accounting.payment}
-              clinic={clinicForDocument}
-            />
-          </div>
-        </div>
-      ) : null}
+      <AccountingPrintArea accounting={accounting} clinic={clinicForDocument} />
     </>
   );
 });

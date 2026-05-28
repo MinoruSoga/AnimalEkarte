@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListReservationStaffs godoc
@@ -48,14 +47,7 @@ func (h *Handler) CreateReservationStaff(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	staff, excluded, err := h.svc.ReservationStaff.Create(c.Request.Context(), clinicID, &service.CreateReservationStaffInput{
-		Name:               req.Name,
-		StaffType:          req.StaffType,
-		ReservationVisible: req.ReservationVisible,
-		ReservationComment: req.ReservationComment,
-		SortOrder:          req.SortOrder,
-		ExcludedTypeIDs:    req.ExcludedTypeIDs,
-	})
+	staff, excluded, err := h.svc.ReservationStaff.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -79,14 +71,7 @@ func (h *Handler) UpdateReservationStaff(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	staff, excluded, err := h.svc.ReservationStaff.Update(c.Request.Context(), clinicID, id, &service.UpdateReservationStaffInput{
-		Name:               req.Name,
-		StaffType:          req.StaffType,
-		ReservationVisible: req.ReservationVisible,
-		ReservationComment: req.ReservationComment,
-		SortOrder:          req.SortOrder,
-		ExcludedTypeIDs:    req.ExcludedTypeIDs,
-	})
+	staff, excluded, err := h.svc.ReservationStaff.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

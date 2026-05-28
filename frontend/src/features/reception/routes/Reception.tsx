@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -13,9 +13,6 @@ import { ja } from "date-fns/locale";
 import { paths } from "@/config/paths";
 import { C, STYLE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
 import { ResourceReception, ResourceReservations, ResourceMedicalRecords, ResourceAccounting, ResourceHospitalization } from "@/types/generated/models";
@@ -25,22 +22,15 @@ import { usePermission } from "@/hooks/use-permission";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
-// Lazy-loaded modals — only loaded when first opened (bundle splitting)
-const ReceptionDetailModal = lazy(() =>
-  import("../components/ReceptionDetailModal").then(m => ({ default: m.ReceptionDetailModal }))
-);
-const ReservationFormModal = lazy(() =>
-  import("@/components/shared/ReservationFormModal/ReservationFormModal").then(m => ({ default: m.ReservationFormModal }))
-);
 import { KanbanColumn } from "../components/KanbanColumn";
+import { ReceptionFilterPanel } from "../components/ReceptionFilterPanel";
 import { useReceptionKanban } from "../hooks/use-reception-kanban";
+import { ReceptionDetailModal, ReservationFormModal } from "./ReceptionLazyModals";
+import { NO_ADD_BUTTON_COLUMNS } from "./ReceptionModel";
 
 // Types
 import type { Reservation, Pet } from "@/types";
 import type { ReceptionAppointment } from "../api/types";
-
-// Columns that don't show the "add" button — Set for O(1) lookup
-const NO_ADD_BUTTON_COLUMNS = new Set(["診療中", "会計待ち", "会計済"]);
 
 export function Reception() {
     const navigate = useNavigate();
@@ -68,14 +58,6 @@ export function Reception() {
       ...staffs.flatMap((s) => s.isActive ? [{ id: s.name, name: s.name }] : []),
       { id: "医師指名なし", name: "医師指名なし" },
     ], [staffs]);
-
-    // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
-    const doctorSelectItems = useMemo(
-      () => doctors.map((doctor) => (
-        <SelectItem key={doctor.id} value={doctor.id}>{doctor.name}</SelectItem>
-      )),
-      [doctors]
-    );
 
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<ReceptionAppointment | null>(null);
@@ -369,54 +351,15 @@ export function Reception() {
             />
 
             {isFilterOpen ? (
-                <div className={`${C.bgWhite} border-b border-border px-6 py-4 animate-in slide-in-from-top-1 fade-in duration-200`}>
-                    <div className="flex flex-wrap gap-8">
-                        {/* Visit Type */}
-                        <div className="space-y-2">
-                            <h4 className={`font-bold text-base ${C.text}`}>診察区分</h4>
-                            <div className="flex gap-4">
-                                {["初診", "再診"].map(type => (
-                                    <div key={type} className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={`visit-${type}`}
-                                            checked={filters.selectedVisitTypes.includes(type)}
-                                            onCheckedChange={() => filters.toggleVisitType(type)}
-                                            className="size-4"
-                                        />
-                                        <Label htmlFor={`visit-${type}`} className={`text-base font-normal cursor-pointer ${C.text}`}>{type}</Label>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Doctor/Designation Selection */}
-                        <div className="space-y-2">
-                            <h4 className={`font-bold text-base ${C.text}`}>指名</h4>
-                            <Select value={filters.selectedDoctor} onValueChange={filters.setSelectedDoctor}>
-                                <SelectTrigger className={`w-[200px] h-10 text-base ${C.bgWhite} border-input`}>
-                                    <SelectValue placeholder="指名を選択" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {doctorSelectItems}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Trimming */}
-                        <div className="space-y-2">
-                            <h4 className={`font-bold text-base ${C.text}`}>種類</h4>
-                            <div className="flex items-center space-x-2 pt-0.5">
-                                <Checkbox
-                                    id="trimming-only"
-                                    checked={filters.isTrimmingOnly}
-                                    onCheckedChange={(c) => filters.setIsTrimmingOnly(!!c)}
-                                    className="size-4"
-                                />
-                                <Label htmlFor="trimming-only" className={`text-base font-normal cursor-pointer ${C.text}`}>トリミングのみ表示</Label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <ReceptionFilterPanel
+                    selectedVisitTypes={filters.selectedVisitTypes}
+                    selectedDoctor={filters.selectedDoctor}
+                    doctors={doctors}
+                    isTrimmingOnly={filters.isTrimmingOnly}
+                    onToggleVisitType={filters.toggleVisitType}
+                    onSelectedDoctorChange={filters.setSelectedDoctor}
+                    onTrimmingOnlyChange={filters.setIsTrimmingOnly}
+                />
             ) : null}
 
             <div className="flex-1 overflow-hidden p-5 pt-4">

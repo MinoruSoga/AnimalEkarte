@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Insurance ----
@@ -58,16 +57,7 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 		return
 	}
 
-	svcInput := &service.CreateInsuranceInput{
-		Name:         req.Name,
-		IsActive:     req.IsActive,
-		Description:  req.Description,
-		CoverageRate: req.CoverageRate,
-		ContactPhone: req.ContactPhone,
-		SortOrder:    req.SortOrder,
-	}
-
-	insurance, err := h.svc.Insurance.Create(c.Request.Context(), clinicID, svcInput)
+	insurance, err := h.svc.Insurance.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -92,16 +82,7 @@ func (h *Handler) UpdateInsurance(c *gin.Context) {
 		return
 	}
 
-	svcInput := service.UpdateInsuranceInput{
-		Name:         req.Name,
-		IsActive:     req.IsActive,
-		Description:  req.Description,
-		CoverageRate: req.CoverageRate,
-		ContactPhone: req.ContactPhone,
-		SortOrder:    req.SortOrder,
-	}
-
-	insurance, err := h.svc.Insurance.Update(c.Request.Context(), clinicID, id, &svcInput)
+	insurance, err := h.svc.Insurance.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

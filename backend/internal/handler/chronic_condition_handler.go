@@ -3,14 +3,12 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // chronicConditionResponse は慢性疾患フラグのレスポンス型（BE-012）。
@@ -65,9 +63,8 @@ func (h *Handler) ListChronicConditions(c *gin.Context) {
 	if !ok {
 		return
 	}
-	petID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid pet id"))
+	petID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -85,41 +82,21 @@ func (h *Handler) CreateChronicCondition(c *gin.Context) {
 	if !ok {
 		return
 	}
-	petID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid pet id"))
+	petID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
-	var req struct {
-		ConditionCode string  `json:"condition_code" binding:"required"`
-		ConditionName string  `json:"condition_name" binding:"required"`
-		DiagnosedAt   string  `json:"diagnosed_at"   binding:"required"`
-		Notes         *string `json:"notes"`
-		IsActive      *bool   `json:"is_active"`
-	}
+	var req createChronicConditionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	diagnosedAt, err := time.Parse("2006-01-02", req.DiagnosedAt)
+	input, err := req.toServiceInput()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("diagnosed_at must be YYYY-MM-DD"))
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
-	}
-
-	isActive := true
-	if req.IsActive != nil {
-		isActive = *req.IsActive
-	}
-
-	input := service.CreateChronicConditionInput{
-		ConditionCode: req.ConditionCode,
-		ConditionName: req.ConditionName,
-		DiagnosedAt:   diagnosedAt,
-		Notes:         req.Notes,
-		IsActive:      isActive,
 	}
 
 	record, err := h.svc.ChronicCondition.Create(c.Request.Context(), clinicID, petID, input)
@@ -138,42 +115,25 @@ func (h *Handler) UpdateChronicCondition(c *gin.Context) {
 	if !ok {
 		return
 	}
-	petID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid pet id"))
+	petID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
-	ccID, err := strconv.ParseUint(c.Param("cc_id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid cc_id"))
+	ccID, ok := parseIDParam(c, "cc_id")
+	if !ok {
 		return
 	}
 
-	var req struct {
-		ConditionCode *string `json:"condition_code"`
-		ConditionName *string `json:"condition_name"`
-		DiagnosedAt   *string `json:"diagnosed_at"`
-		Notes         *string `json:"notes"`
-		IsActive      *bool   `json:"is_active"`
-	}
+	var req updateChronicConditionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	input := service.UpdateChronicConditionInput{
-		ConditionCode: req.ConditionCode,
-		ConditionName: req.ConditionName,
-		Notes:         req.Notes,
-		IsActive:      req.IsActive,
-	}
-	if req.DiagnosedAt != nil {
-		t, parseErr := time.Parse("2006-01-02", *req.DiagnosedAt)
-		if parseErr != nil {
-			RespondError(c, apperrors.WrapInvalidInput("diagnosed_at must be YYYY-MM-DD"))
-			return
-		}
-		input.DiagnosedAt = &t
+	input, err := req.toServiceInput()
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		return
 	}
 
 	record, err := h.svc.ChronicCondition.Update(c.Request.Context(), clinicID, petID, ccID, input)
@@ -190,14 +150,12 @@ func (h *Handler) DeleteChronicCondition(c *gin.Context) {
 	if !ok {
 		return
 	}
-	petID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid pet id"))
+	petID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
-	ccID, err := strconv.ParseUint(c.Param("cc_id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid cc_id"))
+	ccID, ok := parseIDParam(c, "cc_id")
+	if !ok {
 		return
 	}
 

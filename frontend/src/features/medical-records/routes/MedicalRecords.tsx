@@ -244,7 +244,7 @@ export function MedicalRecords() {
                 </TableCell>
                 <TableCell className="py-2.5 hidden lg:table-cell">
                   {r.accountingId ? (
-                    <button
+                    <button type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate(paths.accounting.detail.getHref(r.accountingId ?? ""));

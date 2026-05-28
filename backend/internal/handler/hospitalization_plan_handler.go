@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- HospitalizationPlan ----
@@ -58,18 +57,7 @@ func (h *Handler) CreateHospitalizationPlan(c *gin.Context) {
 		return
 	}
 
-	svcInput := &service.CreateHospitalizationPlanInput{
-		Name:        req.Name,
-		Price:       req.Price,
-		IsActive:    req.IsActive,
-		Description: req.Description,
-		SortOrder:   req.SortOrder,
-		TaxType:     req.TaxType,
-		TaxRate:     req.TaxRate,
-		BodySize:    req.BodySize,
-		BillingUnit: req.BillingUnit,
-	}
-	plan, err := h.svc.HospitalizationPlan.Create(c.Request.Context(), clinicID, svcInput)
+	plan, err := h.svc.HospitalizationPlan.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -88,25 +76,13 @@ func (h *Handler) UpdateHospitalizationPlan(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input updateHospitalizationPlanRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req updateHospitalizationPlanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	svcInput := service.UpdateHospitalizationPlanInput{
-		Name:        input.Name,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		BodySize:    input.BodySize,
-		BillingUnit: input.BillingUnit,
-		SortOrder:   input.SortOrder,
-		TaxType:     input.TaxType,
-		TaxRate:     input.TaxRate,
-	}
-
-	plan, err := h.svc.HospitalizationPlan.Update(c.Request.Context(), clinicID, id, &svcInput)
+	plan, err := h.svc.HospitalizationPlan.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

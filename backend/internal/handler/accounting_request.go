@@ -1,6 +1,110 @@
 package handler
 
-import "time"
+import (
+	"net/url"
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
+)
+
+type listAccountingQuery struct {
+	PetID     string
+	OwnerID   string
+	Status    string
+	StartDate string
+	EndDate   string
+}
+
+func newListAccountingQuery(values url.Values) listAccountingQuery {
+	return listAccountingQuery{
+		PetID:     values.Get("pet_id"),
+		OwnerID:   values.Get("owner_id"),
+		Status:    values.Get("status"),
+		StartDate: values.Get("start_date"),
+		EndDate:   values.Get("end_date"),
+	}
+}
+
+type listAccountingFilters struct {
+	PetID     *uint64
+	OwnerID   *uint64
+	Status    *string
+	StartDate *string
+	EndDate   *string
+}
+
+func (q listAccountingQuery) toServiceFilters() (listAccountingFilters, error) {
+	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
+	if err != nil {
+		return listAccountingFilters{}, err
+	}
+	ownerID, err := parseOptionalUintQueryFilter(q.OwnerID, "owner_id")
+	if err != nil {
+		return listAccountingFilters{}, err
+	}
+	startDate, err := parseOptionalDateQueryFilter(q.StartDate, "start_date")
+	if err != nil {
+		return listAccountingFilters{}, err
+	}
+	endDate, err := parseOptionalDateQueryFilter(q.EndDate, "end_date")
+	if err != nil {
+		return listAccountingFilters{}, err
+	}
+	return listAccountingFilters{
+		PetID:     petID,
+		OwnerID:   ownerID,
+		Status:    optionalStringQueryFilter(q.Status),
+		StartDate: startDate,
+		EndDate:   endDate,
+	}, nil
+}
+
+type listUnpaidBillingsQuery struct {
+	BaseDate string
+	GroupBy  string
+}
+
+func newListUnpaidBillingsQuery(values url.Values) listUnpaidBillingsQuery {
+	return listUnpaidBillingsQuery{
+		BaseDate: values.Get("base_date"),
+		GroupBy:  values.Get("group_by"),
+	}
+}
+
+type listUnpaidBillingsFilters struct {
+	BaseDate string
+	GroupBy  string
+}
+
+type dailySummaryQuery struct {
+	Date string
+}
+
+func newDailySummaryQuery(values url.Values) dailySummaryQuery {
+	return dailySummaryQuery{Date: values.Get("date")}
+}
+
+func (q listUnpaidBillingsQuery) toServiceFilters(defaultBaseDate string) (listUnpaidBillingsFilters, error) {
+	baseDate := defaultBaseDate
+	parsedBaseDate, err := parseOptionalDateQueryFilter(q.BaseDate, "base_date")
+	if err != nil {
+		return listUnpaidBillingsFilters{}, err
+	}
+	if parsedBaseDate != nil {
+		baseDate = *parsedBaseDate
+	}
+
+	groupBy := q.GroupBy
+	if groupBy == "" {
+		groupBy = "owner"
+	}
+
+	return listUnpaidBillingsFilters{
+		BaseDate: baseDate,
+		GroupBy:  groupBy,
+	}, nil
+}
 
 // createAccountingRequest は会計作成リクエスト。
 type createAccountingRequest struct {
@@ -18,6 +122,24 @@ type createAccountingRequest struct {
 	Memo              string     `json:"memo"`
 }
 
+func (r createAccountingRequest) toServiceInput(clinicID uint64) *service.CreateAccountingInput {
+	return &service.CreateAccountingInput{
+		ClinicID:          clinicID,
+		MedicalRecordID:   r.MedicalRecordID,
+		HospitalizationID: r.HospitalizationID,
+		OwnerID:           r.OwnerID,
+		PetID:             r.PetID,
+		Subtotal:          r.Subtotal,
+		TaxTotal:          r.TaxTotal,
+		TotalAmount:       r.TotalAmount,
+		HasInsurance:      r.HasInsurance,
+		Status:            model.BillingStatus(r.Status),
+		ScheduledDate:     r.ScheduledDate,
+		CompletedAt:       r.CompletedAt,
+		Memo:              r.Memo,
+	}
+}
+
 // paymentSplitRequest は混在会計の支払い内訳1行リクエスト。
 type paymentSplitRequest struct {
 	Method          string  `json:"method"           binding:"required,oneof=cash credit_card electronic_money"`
@@ -25,6 +147,27 @@ type paymentSplitRequest struct {
 	Amount          int64   `json:"amount"           binding:"required,min=1"`
 	ReceivedAmount  int64   `json:"received_amount"`
 	ChangeAmount    int64   `json:"change_amount"`
+}
+
+func (r paymentSplitRequest) toServiceInput() service.PaymentSplitInput {
+	return service.PaymentSplitInput{
+		Method:          model.PaymentMethod(r.Method),
+		PaymentMethodID: r.PaymentMethodID,
+		Amount:          r.Amount,
+		ReceivedAmount:  r.ReceivedAmount,
+		ChangeAmount:    r.ChangeAmount,
+	}
+}
+
+func toPaymentSplitInputs(reqs []paymentSplitRequest) []service.PaymentSplitInput {
+	if len(reqs) == 0 {
+		return nil
+	}
+	out := make([]service.PaymentSplitInput, 0, len(reqs))
+	for _, r := range reqs {
+		out = append(out, r.toServiceInput())
+	}
+	return out
 }
 
 // updateAccountingRequest は会計更新リクエスト。
@@ -56,6 +199,53 @@ type updateAccountingRequest struct {
 	PaymentSplits []paymentSplitRequest `json:"payment_splits"`
 }
 
+func (r updateAccountingRequest) toServiceInput(id, clinicID, staffID uint64) *service.UpdateAccountingInput {
+	return &service.UpdateAccountingInput{
+		ID:                id,
+		ClinicID:          clinicID,
+		StaffID:           &staffID,
+		MedicalRecordID:   r.MedicalRecordID,
+		HospitalizationID: r.HospitalizationID,
+		OwnerID:           r.OwnerID,
+		PetID:             r.PetID,
+		Subtotal:          r.Subtotal,
+		TaxTotal:          r.TaxTotal,
+		TotalAmount:       r.TotalAmount,
+		HasInsurance:      r.HasInsurance,
+		ScheduledDate:     r.ScheduledDate,
+		CompletedAt:       r.CompletedAt,
+		Memo:              r.Memo,
+		InsuranceRatio:    r.InsuranceRatio,
+		InsuranceName:     r.InsuranceName,
+		InsuranceAmount:   r.InsuranceAmount,
+		DiscountAmount:    r.DiscountAmount,
+		BillingAmount:     r.BillingAmount,
+		ReceivedAmount:    r.ReceivedAmount,
+		ChangeAmount:      r.ChangeAmount,
+		Status:            billingStatusPtr(r.Status),
+		PaymentMethod:     paymentMethodPtr(r.PaymentMethod),
+		PaymentSplits:     toPaymentSplitInputs(r.PaymentSplits),
+	}
+}
+
+// billingStatusPtr は *string を *model.BillingStatus に変換する。nil の場合は nil を返す。
+func billingStatusPtr(s *string) *model.BillingStatus {
+	if s == nil {
+		return nil
+	}
+	v := model.BillingStatus(*s)
+	return &v
+}
+
+// paymentMethodPtr は *string を *model.PaymentMethod に変換する。nil の場合は nil を返す。
+func paymentMethodPtr(s *string) *model.PaymentMethod {
+	if s == nil {
+		return nil
+	}
+	v := model.PaymentMethod(*s)
+	return &v
+}
+
 // createBillingItemRequest は明細作成リクエスト。
 type createBillingItemRequest struct {
 	BillingID             uint64  `json:"billing_id" binding:"required"`
@@ -70,6 +260,22 @@ type createBillingItemRequest struct {
 	SortOrder             int     `json:"sort_order"`
 }
 
+func (r createBillingItemRequest) toServiceInput(clinicID uint64) *service.CreateBillingItemInput {
+	return &service.CreateBillingItemInput{
+		ClinicID:              clinicID,
+		BillingID:             r.BillingID,
+		Category:              r.Category,
+		Name:                  r.Name,
+		UnitPrice:             r.UnitPrice,
+		Quantity:              r.Quantity,
+		TaxType:               r.TaxType,
+		TaxRate:               r.TaxRate,
+		IsInsuranceApplicable: r.IsInsuranceApplicable,
+		Source:                r.Source,
+		SortOrder:             r.SortOrder,
+	}
+}
+
 // updateBillingItemRequest は明細更新リクエスト（nil = 未指定）。
 type updateBillingItemRequest struct {
 	UnitPrice             *int64   `json:"unit_price"`
@@ -77,6 +283,25 @@ type updateBillingItemRequest struct {
 	TaxType               *string  `json:"tax_type"  binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate               *float64 `json:"tax_rate"`
 	IsInsuranceApplicable *bool    `json:"is_insurance_applicable"`
+}
+
+func (r updateBillingItemRequest) toServiceInput() (*service.UpdateBillingItemInput, error) {
+	var taxType *model.TaxType
+	if r.TaxType != nil {
+		if err := validateTaxType(*r.TaxType); err != nil {
+			return nil, err
+		}
+		t := model.TaxType(*r.TaxType)
+		taxType = &t
+	}
+
+	return &service.UpdateBillingItemInput{
+		UnitPrice:             r.UnitPrice,
+		Quantity:              r.Quantity,
+		TaxType:               taxType,
+		TaxRate:               r.TaxRate,
+		IsInsuranceApplicable: r.IsInsuranceApplicable,
+	}, nil
 }
 
 // createRefundRequest は返金登録リクエスト。

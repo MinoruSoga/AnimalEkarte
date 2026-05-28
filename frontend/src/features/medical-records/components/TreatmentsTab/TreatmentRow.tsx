@@ -1,35 +1,20 @@
 // React/Framework
 import { memo, useState, useCallback, useRef, useEffect, useLayoutEffect } from "react";
 
-// External
-import { ChevronUp, ChevronDown, Shield } from "lucide-react";
-
 // Internal
-import { Button } from "@/components/ui/button";
-import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { C, BADGE, ICON, STYLE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 
 // Relative
-import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
-
-// ── 静的JSX (モジュール定数に巻き上げ) ────────────────────────────────
-
-const ITEM_TYPE_LABELS: Record<TreatmentItemType, string> = {
-  consultation: "診療",
-  procedure: "処置",
-  medicine: "薬品",
-  other: "その他",
-};
-
-const ITEM_TYPE_BADGE: Record<TreatmentItemType, string> = {
-  consultation: BADGE.blue,
-  procedure:    BADGE.purple,
-  medicine:     BADGE.green,
-  other:        BADGE.muted,
-};
+import type { Treatment, UpdateTreatmentInput } from "../../types";
+import {
+  TreatmentInsuranceCell,
+  TreatmentRowActions,
+  TreatmentSelectionCell,
+  TreatmentSubtotalCell,
+  TreatmentTypeCell,
+} from "./TreatmentRowParts";
 
 // ── Props ─────────────────────────────────────────────────────────────
 
@@ -197,32 +182,14 @@ export const TreatmentRow = memo(function TreatmentRow({
   // ── 小計計算 ──
   const subtotal = treatment.unit_price * treatment.quantity - treatment.discount_amount;
 
-  const badgeClass = ITEM_TYPE_BADGE[treatment.item_type] ?? BADGE.muted;
-  const typeLabel = ITEM_TYPE_LABELS[treatment.item_type] ?? treatment.item_type;
-
   return (
     <tr
       className={`border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors ${
         !treatment.is_selected ? "opacity-50" : ""
       } ${isUpdating ? "pointer-events-none" : ""}`}
     >
-      {/* チェックボックス (selected) */}
-      <td className="px-3 py-2 w-10 text-center">
-        <Checkbox
-          checked={treatment.is_selected}
-          onCheckedChange={handleSelectedChange}
-          className={`${C.dataCheckedBgAccent} ${C.dataCheckedBorderAccent}`}
-        />
-      </td>
-
-      {/* 種別バッジ */}
-      <td className="px-3 py-2 w-24">
-        <span
-          className={`inline-flex items-center h-[22px] px-2 text-xs font-medium rounded border ${badgeClass}`}
-        >
-          {typeLabel}
-        </span>
-      </td>
+      <TreatmentSelectionCell checked={treatment.is_selected} onChange={handleSelectedChange} />
+      <TreatmentTypeCell itemType={treatment.item_type} />
 
       {/* 内容 */}
       <td className="px-3 py-2 min-w-[160px]">
@@ -236,7 +203,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             className={`h-8 text-sm px-2 ${C.borderMedium}`}
           />
         ) : (
-          <button
+          <button type="button"
             className={`w-full text-left text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors`}
             onClick={() => setEditField("content")}
           >
@@ -247,17 +214,7 @@ export const TreatmentRow = memo(function TreatmentRow({
         )}
       </td>
 
-      {/* 保険アイコン */}
-      <td className="px-3 py-2 w-16 text-center">
-        <Checkbox
-          checked={treatment.is_insurance}
-          onCheckedChange={handleInsuranceChange}
-          className={`${C.dataCheckedBgBrand} ${C.dataCheckedBorderBrand}`}
-        />
-        {treatment.is_insurance ? (
-          <Shield className={`${ICON.xs} mt-0.5 mx-auto ${C.textStatusGreen}`} />
-        ) : null}
-      </td>
+      <TreatmentInsuranceCell checked={treatment.is_insurance} onChange={handleInsuranceChange} />
 
       {/* 単価 */}
       <td className="px-3 py-2 w-28 text-right">
@@ -276,7 +233,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             <FormFieldError message={unitPriceError} />
           </>
         ) : (
-          <button
+          <button type="button"
             className={`w-full text-right text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors font-mono`}
             onClick={() => setEditField("unit_price")}
           >
@@ -300,7 +257,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             className={`h-8 text-sm text-right px-2 ${C.borderMedium}`}
           />
         ) : (
-          <button
+          <button type="button"
             className={`w-full text-right text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors`}
             onClick={() => setEditField("quantity")}
           >
@@ -326,7 +283,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             <FormFieldError message={discountAmountError} />
           </>
         ) : (
-          <button
+          <button type="button"
             className={`w-full text-right text-sm ${
               treatment.discount_amount > 0 ? C.textDiscount : C.text40
             } ${canEditDiscount ? C.hoverBgLight : ""} px-1 py-0.5 rounded-[3px] transition-colors font-mono ${!canEditDiscount ? "cursor-not-allowed opacity-60" : ""}`}
@@ -341,12 +298,7 @@ export const TreatmentRow = memo(function TreatmentRow({
         )}
       </td>
 
-      {/* 小計 */}
-      <td className="px-3 py-2 w-28 text-right">
-        <span className={`text-sm font-medium ${C.text} font-mono`}>
-          ¥{subtotal.toLocaleString()}
-        </span>
-      </td>
+      <TreatmentSubtotalCell subtotal={subtotal} />
 
       {/* メモ */}
       <td className="px-3 py-2 min-w-[120px]">
@@ -360,7 +312,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             className={`h-8 text-sm px-2 ${C.borderMedium}`}
           />
         ) : (
-          <button
+          <button type="button"
             className={`w-full text-left text-sm ${C.text60} ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors`}
             onClick={() => setEditField("memo")}
           >
@@ -369,37 +321,14 @@ export const TreatmentRow = memo(function TreatmentRow({
         )}
       </td>
 
-      {/* 並び替え & 削除 */}
-      <td className="px-2 py-2 w-28">
-        <div className="flex items-center gap-0.5 justify-end">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverText} disabled:opacity-20`}
-            onClick={handleMoveUp}
-            disabled={isFirst}
-            title="上に移動"
-          >
-            <ChevronUp className={`${ICON.xs}`} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverText} disabled:opacity-20`}
-            onClick={handleMoveDown}
-            disabled={isLast}
-            title="下に移動"
-          >
-            <ChevronDown className={`${ICON.xs}`} />
-          </Button>
-          {canDelete ? (
-            <DeleteIconButton
-              onClick={handleDelete}
-              className={STYLE.iconBtn28}
-            />
-          ) : null}
-        </div>
-      </td>
+      <TreatmentRowActions
+        isFirst={isFirst}
+        isLast={isLast}
+        canDelete={canDelete}
+        onMoveUp={handleMoveUp}
+        onMoveDown={handleMoveDown}
+        onDelete={handleDelete}
+      />
     </tr>
   );
 });

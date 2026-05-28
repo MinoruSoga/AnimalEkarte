@@ -1,6 +1,60 @@
 package handler
 
-import "time"
+import (
+	"net/url"
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
+)
+
+type listTrimmingQuery struct {
+	PetID     string
+	OwnerID   string
+	StartDate string
+	EndDate   string
+}
+
+func newListTrimmingQuery(values url.Values) listTrimmingQuery {
+	return listTrimmingQuery{
+		PetID:     values.Get("pet_id"),
+		OwnerID:   values.Get("owner_id"),
+		StartDate: values.Get("start_date"),
+		EndDate:   values.Get("end_date"),
+	}
+}
+
+type listTrimmingFilters struct {
+	PetID     *uint64
+	OwnerID   *uint64
+	StartDate *string
+	EndDate   *string
+}
+
+func (q listTrimmingQuery) toServiceFilters() (listTrimmingFilters, error) {
+	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
+	if err != nil {
+		return listTrimmingFilters{}, err
+	}
+	ownerID, err := parseOptionalUintQueryFilter(q.OwnerID, "owner_id")
+	if err != nil {
+		return listTrimmingFilters{}, err
+	}
+	startDate, err := parseOptionalDateQueryFilter(q.StartDate, "start_date")
+	if err != nil {
+		return listTrimmingFilters{}, err
+	}
+	endDate, err := parseOptionalDateQueryFilter(q.EndDate, "end_date")
+	if err != nil {
+		return listTrimmingFilters{}, err
+	}
+	return listTrimmingFilters{
+		PetID:     petID,
+		OwnerID:   ownerID,
+		StartDate: startDate,
+		EndDate:   endDate,
+	}, nil
+}
 
 // createTrimmingRequest はトリミング予約作成のバインド struct（BE-119: appointments ベース）
 type createTrimmingRequest struct {
@@ -24,6 +78,37 @@ type createTrimmingRequest struct {
 	OptionIDs      []uint64 `json:"option_ids"`
 }
 
+func (r createTrimmingRequest) toServiceInput() *service.CreateTrimmingInput {
+	input := &service.CreateTrimmingInput{
+		ReservationTypeID: r.ReservationTypeID,
+		PetID:             r.PetID,
+		StaffID:           r.StaffID,
+		CourseID:          r.CourseID,
+		StyleRequest:      r.StyleRequest,
+		BodyWeight:        r.BW,
+		BodyTemperature:   r.BT,
+		UsedShampoo:       r.UsedShampoo,
+		UsedRibbon:        r.UsedRibbon,
+		Remarks:           r.Remarks,
+		StyleImage:        r.StyleImage,
+		CompletedImage:    r.CompletedImage,
+		OptionIDs:         r.OptionIDs,
+	}
+	if r.StartTime != nil {
+		input.StartTime = *r.StartTime
+	}
+	if r.EndTime != nil {
+		input.EndTime = *r.EndTime
+	}
+	if r.Status != "" {
+		input.Status = model.ReservationStatus(r.Status)
+	}
+	if r.BWUnit != "" {
+		input.BWUnit = model.BodyWeightUnit(r.BWUnit)
+	}
+	return input
+}
+
 // updateTrimmingRequest はトリミング予約更新のバインド struct（BE-119）
 type updateTrimmingRequest struct {
 	StartTime *time.Time `json:"start_time"`
@@ -44,4 +129,32 @@ type updateTrimmingRequest struct {
 	CompletedImage *string  `json:"completed_image"`
 	// nil = 変更なし、non-nil（空スライス含む）= 全置換
 	OptionIDs *[]uint64 `json:"option_ids"`
+}
+
+func (r updateTrimmingRequest) toServiceInput() *service.UpdateTrimmingInput {
+	input := &service.UpdateTrimmingInput{
+		StartTime:       r.StartTime,
+		EndTime:         r.EndTime,
+		PetID:           r.PetID,
+		StaffID:         r.StaffID,
+		CourseID:        r.CourseID,
+		StyleRequest:    r.StyleRequest,
+		BodyWeight:      r.BW,
+		BodyTemperature: r.BT,
+		UsedShampoo:     r.UsedShampoo,
+		UsedRibbon:      r.UsedRibbon,
+		Remarks:         r.Remarks,
+		StyleImage:      r.StyleImage,
+		CompletedImage:  r.CompletedImage,
+		OptionIDs:       r.OptionIDs,
+	}
+	if r.Status != nil {
+		status := model.ReservationStatus(*r.Status)
+		input.Status = &status
+	}
+	if r.BWUnit != nil {
+		unit := model.BodyWeightUnit(*r.BWUnit)
+		input.BWUnit = &unit
+	}
+	return input
 }

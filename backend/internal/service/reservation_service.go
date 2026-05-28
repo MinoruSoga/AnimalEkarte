@@ -20,6 +20,23 @@ const colReservationRoute = "reservation_route"
 // UpdateReservationRouteInput は予約経路更新の入力DTO（FEAT-381-2 Commit 3）。
 type UpdateReservationRouteInput struct{ Route string }
 
+// CreateManualReservationInput は管理画面からの予約作成入力 DTO。
+type CreateManualReservationInput struct {
+	ClinicID          uint64
+	StartTime         time.Time
+	EndTime           time.Time
+	OwnerID           *uint64
+	PetID             *uint64
+	VisitType         model.VisitType
+	ReservationTypeID uint64
+	DoctorID          *uint64
+	IsDesignated      bool
+	Status            model.ReservationStatus
+	Notes             string
+	Source            model.ReservationSource
+	CreatedBy         *uint64
+}
+
 // UpdateReservationInput は予約更新のサービス入力 DTO
 type UpdateReservationInput struct {
 	StartTime         *time.Time
@@ -76,7 +93,7 @@ func buildReservationUpdate(input *UpdateReservationInput) map[string]any {
 type ReservationService interface {
 	List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	Create(ctx context.Context, reservation *model.Reservation) error
+	Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error)
@@ -109,10 +126,29 @@ func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (
 	return result, nil
 }
 
-func (s *reservationService) Create(ctx context.Context, reservation *model.Reservation) error {
+func (s *reservationService) Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input must not be nil")
+	}
+	reservation := &model.Reservation{
+		ClinicID:          input.ClinicID,
+		StartTime:         input.StartTime,
+		EndTime:           input.EndTime,
+		OwnerID:           input.OwnerID,
+		PetID:             input.PetID,
+		VisitType:         input.VisitType,
+		ReservationTypeID: input.ReservationTypeID,
+		DoctorID:          input.DoctorID,
+		IsDesignated:      input.IsDesignated,
+		Status:            input.Status,
+		Notes:             input.Notes,
+		Source:            input.Source,
+		CreatedBy:         input.CreatedBy,
+	}
+
 	// BUG-034: end_time <= start_time の場合は 400 Bad Request
 	if err := validateTimeRange(reservation.StartTime, reservation.EndTime); err != nil {
-		return err
+		return nil, err
 	}
 
 	// SELECT FOR UPDATE + トランザクションで競合を防止
@@ -124,13 +160,13 @@ func (s *reservationService) Create(ctx context.Context, reservation *model.Rese
 		}
 		return s.repo.Create(ctx, reservation)
 	}); err != nil {
-		return apperrors.Wrap(err, "failed to create reservation")
+		return nil, apperrors.Wrap(err, "failed to create reservation")
 	}
 
 	slog.InfoContext(ctx, "reservation created",
 		slog.Uint64("reservation_id", reservation.ID),
 		slog.Uint64("clinic_id", reservation.ClinicID))
-	return nil
+	return reservation, nil
 }
 
 // validateTimeRange は end_time > start_time を確認する共通バリデーション。

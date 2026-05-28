@@ -3,13 +3,11 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListPets godoc
@@ -23,19 +21,13 @@ func (h *Handler) ListPets(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	search := c.Query("search")
-
-	var ownerID *uint64
-	if ownerIDStr := c.Query("owner_id"); ownerIDStr != "" {
-		id, err := strconv.ParseUint(ownerIDStr, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
-			return
-		}
-		ownerID = &id
+	filters, err := newListPetQuery(c.Request.URL.Query()).toServiceFilters()
+	if err != nil {
+		RespondError(c, err)
+		return
 	}
 
-	pets, total, err := h.svc.Pet.List(c.Request.Context(), clinicID, ownerID, page, limit, search)
+	pets, total, err := h.svc.Pet.List(c.Request.Context(), clinicID, filters.OwnerID, page, limit, filters.Search)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -78,35 +70,12 @@ func (h *Handler) CreatePet(c *gin.Context) {
 		return
 	}
 
-	input := service.CreatePetInput{
-		OwnerID:         req.OwnerID,
-		AnimalSpeciesID: req.AnimalSpeciesID,
-		Name:            req.Name,
-		PetNameKana:     req.NameKana,
-		Gender:          req.Gender,
-		Status:          req.Status,
-		BirthDate:       jsonDatePtr(req.BirthDate),
-		Breed:           req.Breed,
-		Color:           req.Color,
-		Weight:          req.Weight,
-		NeuteredDate:    jsonDatePtr(req.NeuteredDate),
-		AcquisitionType: req.AcquisitionType,
-		DangerLevel:     req.DangerLevel,
-		Food:            req.Food,
-		Environment:     req.Environment,
-		Phone:           req.Phone,
-		InsuranceID:     req.InsuranceID,
-		Remarks:         req.Remarks,
-	}
-
-	pet, err := h.svc.Pet.Create(c.Request.Context(), clinicID, &input)
+	input := req.toServiceInput()
+	pet, err := h.svc.Pet.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	// BE-005: ペット基本情報・動物分類タグ同期（best-effort）
-	_ = h.svc.LstepTagSync.SyncOwnerAnimalClassificationTags(c.Request.Context(), clinicID, pet.OwnerID)
-	_ = h.svc.LstepTagSync.SyncPetBasicInfoTags(c.Request.Context(), clinicID, pet.OwnerID)
 	c.Header("Location", fmt.Sprintf("/api/v1/pets/%d", pet.ID))
 	c.JSON(http.StatusCreated, toPetResponse(pet))
 }
@@ -127,37 +96,12 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 		return
 	}
 
-	input := service.UpdatePetInput{
-		OwnerID:         req.OwnerID,
-		AnimalSpeciesID: req.AnimalSpeciesID,
-		PetNumber:       req.PetNumber,
-		Name:            req.Name,
-		PetNameKana:     req.NameKana,
-		Gender:          req.Gender,
-		Status:          req.Status,
-		BirthDate:       jsonDatePtr(req.BirthDate),
-		Breed:           req.Breed,
-		Color:           req.Color,
-		Weight:          req.Weight,
-		NeuteredDate:    jsonDatePtr(req.NeuteredDate),
-		AcquisitionType: req.AcquisitionType,
-		DangerLevel:     req.DangerLevel,
-		Food:            req.Food,
-		Environment:     req.Environment,
-		Phone:           req.Phone,
-		LastVisit:       jsonDatePtr(req.LastVisit),
-		InsuranceID:     req.InsuranceID,
-		Remarks:         req.Remarks,
-	}
-
-	pet, err := h.svc.Pet.Update(c.Request.Context(), clinicID, id, &input)
+	input := req.toServiceInput()
+	pet, err := h.svc.Pet.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	// BE-005: ペット基本情報・動物分類タグ同期（best-effort）
-	_ = h.svc.LstepTagSync.SyncOwnerAnimalClassificationTags(c.Request.Context(), clinicID, pet.OwnerID)
-	_ = h.svc.LstepTagSync.SyncPetBasicInfoTags(c.Request.Context(), clinicID, pet.OwnerID)
 	c.JSON(http.StatusOK, toPetResponse(pet))
 }
 

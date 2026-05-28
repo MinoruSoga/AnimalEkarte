@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListReservationSchedules godoc
@@ -21,11 +20,8 @@ func (h *Handler) ListReservationSchedules(c *gin.Context) {
 	if !ok {
 		return
 	}
-	month := c.Query("month")
-	if month == "" {
-		month = time.Now().Format("2006-01")
-	}
-	entries, err := h.svc.ReservationSchedule.ListByMonth(c.Request.Context(), clinicID, staffID, month)
+	query := newListReservationSchedulesQuery(c.Request.URL.Query(), time.Now())
+	entries, err := h.svc.ReservationSchedule.ListByMonth(c.Request.Context(), clinicID, staffID, query.Month)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -60,17 +56,7 @@ func (h *Handler) UpsertReservationSchedule(c *gin.Context) {
 		return
 	}
 
-	breaks := make([]service.ReservationScheduleBreakInput, 0, len(req.Breaks))
-	for _, b := range req.Breaks {
-		breaks = append(breaks, service.ReservationScheduleBreakInput{Start: b.Start, End: b.End})
-	}
-
-	entry, isNew, err := h.svc.ReservationSchedule.Save(c.Request.Context(), clinicID, staffID, date, &service.CreateReservationScheduleInput{
-		ShiftType: req.ShiftType,
-		WorkStart: req.WorkStart,
-		WorkEnd:   req.WorkEnd,
-		Breaks:    breaks,
-	})
+	entry, isNew, err := h.svc.ReservationSchedule.Save(c.Request.Context(), clinicID, staffID, date, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

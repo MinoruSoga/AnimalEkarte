@@ -1,6 +1,48 @@
 package handler
 
-import "time"
+import (
+	"net/url"
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
+)
+
+type listEstimateQuery struct {
+	OwnerID         string
+	MedicalRecordID string
+	Status          string
+}
+
+func newListEstimateQuery(values url.Values) listEstimateQuery {
+	return listEstimateQuery{
+		OwnerID:         values.Get("owner_id"),
+		MedicalRecordID: values.Get("medical_record_id"),
+		Status:          values.Get("status"),
+	}
+}
+
+type listEstimateFilters struct {
+	OwnerID         *uint64
+	MedicalRecordID *uint64
+	Status          *string
+}
+
+func (q listEstimateQuery) toServiceFilters() (listEstimateFilters, error) {
+	ownerID, err := parseOptionalUintQueryFilter(q.OwnerID, "owner_id")
+	if err != nil {
+		return listEstimateFilters{}, err
+	}
+	medicalRecordID, err := parseOptionalUintQueryFilter(q.MedicalRecordID, "medical_record_id")
+	if err != nil {
+		return listEstimateFilters{}, err
+	}
+	return listEstimateFilters{
+		OwnerID:         ownerID,
+		MedicalRecordID: medicalRecordID,
+		Status:          optionalStringQueryFilter(q.Status),
+	}, nil
+}
 
 // createEstimateRequest は見積書作成リクエスト
 type createEstimateRequest struct {
@@ -19,6 +61,27 @@ type createEstimateRequest struct {
 	CreatedBy       *uint64    `json:"created_by"`
 }
 
+func (r createEstimateRequest) toServiceInput() *service.CreateEstimateInput {
+	input := &service.CreateEstimateInput{
+		MedicalRecordID: r.MedicalRecordID,
+		Title:           r.Title,
+		OwnerID:         r.OwnerID,
+		Subtotal:        r.Subtotal,
+		TaxTotal:        r.TaxTotal,
+		TotalAmount:     r.TotalAmount,
+		InsuranceAmount: r.InsuranceAmount,
+		DiscountAmount:  r.DiscountAmount,
+		ValidUntil:      r.ValidUntil,
+		Comment:         r.Comment,
+		Notes:           r.Notes,
+		CreatedBy:       r.CreatedBy,
+	}
+	if r.Status != "" {
+		input.Status = model.EstimateStatus(r.Status)
+	}
+	return input
+}
+
 // updateEstimateRequest は見積書更新リクエスト（PATCH: nil = 未送信）
 type updateEstimateRequest struct {
 	Title           *string    `json:"title"`
@@ -32,4 +95,24 @@ type updateEstimateRequest struct {
 	ClearValidUntil bool       `json:"clear_valid_until"`
 	Comment         *string    `json:"comment"`
 	Notes           *string    `json:"notes"`
+}
+
+func (r updateEstimateRequest) toServiceInput() *service.UpdateEstimateInput {
+	input := &service.UpdateEstimateInput{
+		Title:           r.Title,
+		Subtotal:        r.Subtotal,
+		TaxTotal:        r.TaxTotal,
+		TotalAmount:     r.TotalAmount,
+		InsuranceAmount: r.InsuranceAmount,
+		DiscountAmount:  r.DiscountAmount,
+		ValidUntil:      r.ValidUntil,
+		ClearValidUntil: r.ClearValidUntil,
+		Comment:         r.Comment,
+		Notes:           r.Notes,
+	}
+	if r.Status != nil {
+		status := model.EstimateStatus(*r.Status)
+		input.Status = &status
+	}
+	return input
 }

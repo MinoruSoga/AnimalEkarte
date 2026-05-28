@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -99,41 +98,23 @@ func (h *Handler) SearchLstepOwnersByTag(c *gin.Context) {
 		return
 	}
 
-	tagName := c.Query("tag")
-	if tagName == "" {
-		RespondError(c, apperrors.WrapInvalidInput("tag パラメータは必須です"))
+	query, err := newLstepOwnersByTagQuery(c.Request.URL.Query())
+	if err != nil {
+		RespondError(c, err)
 		return
 	}
-	nameQuery := c.Query("q")
-
-	if c.Query("format") == "csv" {
+	if query.isCSV() {
 		date := time.Now().Format("2006-01-02")
-		filename := fmt.Sprintf("lstep-%s-%s.csv", tagName, date)
+		filename := fmt.Sprintf("lstep-%s-%s.csv", query.TagName, date)
 		c.Header("Content-Type", "text/csv; charset=utf-8")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
-		if err := h.svc.LstepTagSummary.ExportOwnersByTagCSV(c.Request.Context(), clinicID, tagName, nameQuery, c.Writer); err != nil {
+		if err := h.svc.LstepTagSummary.ExportOwnersByTagCSV(c.Request.Context(), clinicID, query.TagName, query.NameQuery, c.Writer); err != nil {
 			RespondError(c, err)
 		}
 		return
 	}
 
-	page, pageErr := strconv.Atoi(c.DefaultQuery("page", "1"))
-	if pageErr != nil || page < 1 {
-		RespondError(c, apperrors.WrapInvalidInput("page は1以上の整数で指定してください"))
-		return
-	}
-	perPage, ppErr := strconv.Atoi(c.DefaultQuery("per_page", "20"))
-	if ppErr != nil || perPage < 1 || perPage > 100 {
-		RespondError(c, apperrors.WrapInvalidInput("per_page は1〜100の範囲で指定してください"))
-		return
-	}
-
-	result, err := h.svc.LstepTagSummary.ListOwnersByTag(c.Request.Context(), clinicID, service.ListOwnersByTagInput{
-		TagName:   tagName,
-		NameQuery: nameQuery,
-		Page:      page,
-		PerPage:   perPage,
-	})
+	result, err := h.svc.LstepTagSummary.ListOwnersByTag(c.Request.Context(), clinicID, query.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -3,12 +3,10 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -21,7 +19,7 @@ func (h *Handler) GetMonthlyReport(c *gin.Context) {
 		return
 	}
 
-	year, month, err := parseYearMonth(c)
+	year, month, err := newMonthlyReportQuery(c.Request.URL.Query()).toYearMonth(time.Now())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -43,7 +41,7 @@ func (h *Handler) ExportMonthlyCSV(c *gin.Context) {
 		return
 	}
 
-	year, month, err := parseYearMonth(c)
+	year, month, err := newMonthlyReportQuery(c.Request.URL.Query()).toYearMonth(time.Now())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -155,20 +153,4 @@ func toMonthlyReportResponse(r *service.MonthlyReportResponse) monthlyReportResp
 		},
 		DailyDetails: dailyDetails,
 	}
-}
-
-// parseYearMonth はクエリパラメータ year/month を検証してパースする
-func parseYearMonth(c *gin.Context) (year, month int, err error) {
-	yearStr := c.DefaultQuery("year", strconv.Itoa(time.Now().Year()))
-	monthStr := c.DefaultQuery("month", strconv.Itoa(int(time.Now().Month())))
-
-	year, err = strconv.Atoi(yearStr)
-	if err != nil || year < 2000 || year > 2100 {
-		return 0, 0, apperrors.WrapInvalidInput("year は 2000〜2100 の整数で指定してください")
-	}
-	month, err = strconv.Atoi(monthStr)
-	if err != nil || month < 1 || month > 12 {
-		return 0, 0, apperrors.WrapInvalidInput("month は 1〜12 の整数で指定してください")
-	}
-	return year, month, nil
 }

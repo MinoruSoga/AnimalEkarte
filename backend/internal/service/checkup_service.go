@@ -88,12 +88,13 @@ type checkupService struct {
 	repo                 repository.CheckupRepository
 	medicalRecordRepo    repository.MedicalRecordRepository
 	lstepDeliveryTrigger LstepDeliveryTriggerService
+	tagSyncSvc           LstepTagSyncService
 	nowFn                func() time.Time // test hook; nil uses time.Now
 }
 
 // NewCheckupService は CheckupService の実装を返す
-func NewCheckupService(repo repository.CheckupRepository, medicalRecordRepo repository.MedicalRecordRepository, lstepDeliveryTrigger LstepDeliveryTriggerService) CheckupService {
-	return &checkupService{repo: repo, medicalRecordRepo: medicalRecordRepo, lstepDeliveryTrigger: lstepDeliveryTrigger}
+func NewCheckupService(repo repository.CheckupRepository, medicalRecordRepo repository.MedicalRecordRepository, lstepDeliveryTrigger LstepDeliveryTriggerService, tagSyncSvc LstepTagSyncService) CheckupService {
+	return &checkupService{repo: repo, medicalRecordRepo: medicalRecordRepo, lstepDeliveryTrigger: lstepDeliveryTrigger, tagSyncSvc: tagSyncSvc}
 }
 
 func (s *checkupService) now() time.Time {
@@ -186,6 +187,7 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 			}
 		}()
 	}
+	s.syncCheckupTag(ctx, input.ClinicID, created)
 
 	return created, nil
 }
@@ -225,6 +227,7 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 		slog.ErrorContext(ctx, "failed to get checkup after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get checkup after update")
 	}
+	s.resyncOwnerCheckupTags(ctx, clinicID, updated)
 	return updated, nil
 }
 
@@ -280,5 +283,26 @@ func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, 
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("checkup_id", checkupID),
 		slog.Uint64("medical_record_id", medicalRecordID))
+	s.resyncOwnerCheckupTags(ctx, clinicID, existing)
 	return nil
+}
+
+func (s *checkupService) syncCheckupTag(ctx context.Context, clinicID uint64, checkup *model.Checkup) {
+	if s.tagSyncSvc == nil || checkup == nil || checkup.MedicalRecord == nil || checkup.MedicalRecord.OwnerID == nil {
+		return
+	}
+	ownerID := *checkup.MedicalRecord.OwnerID
+	if err := s.tagSyncSvc.SyncCheckupTag(ctx, clinicID, ownerID, checkup.CheckupTypeID, checkup.Date, checkup.NextDate); err != nil {
+		slog.ErrorContext(ctx, "failed to sync checkup tag", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "checkup_id", checkup.ID)
+	}
+}
+
+func (s *checkupService) resyncOwnerCheckupTags(ctx context.Context, clinicID uint64, checkup *model.Checkup) {
+	if s.tagSyncSvc == nil || checkup == nil || checkup.MedicalRecord == nil || checkup.MedicalRecord.OwnerID == nil {
+		return
+	}
+	ownerID := *checkup.MedicalRecord.OwnerID
+	if err := s.tagSyncSvc.ResyncOwnerCheckupTags(ctx, clinicID, ownerID); err != nil {
+		slog.ErrorContext(ctx, "failed to resync owner checkup tags", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "checkup_id", checkup.ID)
+	}
 }

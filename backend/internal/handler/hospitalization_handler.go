@@ -3,13 +3,10 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListHospitalizations godoc
@@ -24,42 +21,23 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 		return
 	}
 
-	var petID *uint64
-	if s := c.Query("pet_id"); s != "" {
-		id, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
-			return
-		}
-		petID = &id
-	}
-	var ownerID *uint64
-	if s := c.Query("owner_id"); s != "" {
-		id, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
-			return
-		}
-		ownerID = &id
-	}
-
-	var status *string
-	if s := c.Query("status"); s != "" {
-		status = &s
-	}
-
-	startDate, err := parseDateQuery(c, "start_date")
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	endDate, err := parseDateQuery(c, "end_date")
+	filters, err := newListHospitalizationQuery(c.Request.URL.Query()).toServiceFilters()
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 
-	hospitalizations, total, err := h.svc.Hospitalization.List(c.Request.Context(), clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	hospitalizations, total, err := h.svc.Hospitalization.List(
+		c.Request.Context(),
+		clinicID,
+		filters.PetID,
+		filters.OwnerID,
+		filters.Status,
+		filters.StartDate,
+		filters.EndDate,
+		page,
+		limit,
+	)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -97,44 +75,10 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 		return
 	}
 
-	hospType, err := validateEnum(input.HospitalizationType,
-		model.HospitalizationTypeInpatient,
-		model.HospitalizationTypeHotel,
-	)
+	svcInput, err := input.toServiceInput()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid hospitalization_type: "+err.Error()))
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
-	}
-
-	var status model.HospitalizationStatus
-	if input.Status != "" {
-		s, err := validateEnum(input.Status,
-			model.HospitalizationStatusAdmitted,
-			model.HospitalizationStatusDischarged,
-			model.HospitalizationStatusReserved,
-		)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
-			return
-		}
-		status = s
-	}
-
-	svcInput := &service.CreateHospitalizationInput{
-		OwnerID:              input.OwnerID,
-		PetID:                input.PetID,
-		HospitalizationType:  hospType,
-		StartDate:            input.StartDate,
-		EndDate:              input.EndDate,
-		Status:               status,
-		CageID:               input.CageID,
-		DoctorID:             input.DoctorID,
-		Memo:                 input.Memo,
-		OwnerRequest:         input.OwnerRequest,
-		StaffNotes:           input.StaffNotes,
-		IsInsurance:          input.IsInsurance,
-		InsuranceCompanyName: input.InsuranceCompanyName,
-		InsuranceNumber:      input.InsuranceNumber,
 	}
 	ctx := c.Request.Context()
 	hospitalization, err := h.svc.Hospitalization.Create(ctx, clinicID, svcInput)
@@ -162,42 +106,10 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 		return
 	}
 
-	svcInput := service.UpdateHospitalizationInput{
-		OwnerID:              input.OwnerID,
-		PetID:                input.PetID,
-		StartDate:            input.StartDate,
-		EndDate:              input.EndDate,
-		CageID:               input.CageID,
-		DoctorID:             input.DoctorID,
-		Memo:                 input.Memo,
-		OwnerRequest:         input.OwnerRequest,
-		StaffNotes:           input.StaffNotes,
-		IsInsurance:          input.IsInsurance,
-		InsuranceCompanyName: input.InsuranceCompanyName,
-		InsuranceNumber:      input.InsuranceNumber,
-	}
-	if input.HospitalizationType != nil {
-		hospType, err := validateEnum(*input.HospitalizationType,
-			model.HospitalizationTypeInpatient,
-			model.HospitalizationTypeHotel,
-		)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid hospitalization_type: "+err.Error()))
-			return
-		}
-		svcInput.HospitalizationType = &hospType
-	}
-	if input.Status != nil {
-		status, err := validateEnum(*input.Status,
-			model.HospitalizationStatusAdmitted,
-			model.HospitalizationStatusDischarged,
-			model.HospitalizationStatusReserved,
-		)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
-			return
-		}
-		svcInput.Status = &status
+	svcInput, err := input.toServiceInput()
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		return
 	}
 
 	ctx := c.Request.Context()
@@ -227,10 +139,7 @@ func (h *Handler) DischargeWithBilling(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.Hospitalization.DischargeWithBilling(c.Request.Context(), clinicID, id, service.DischargeWithBillingInput{
-		DischargeDate:    req.DischargeDate,
-		CreateAccounting: req.CreateAccounting,
-	})
+	result, err := h.svc.Hospitalization.DischargeWithBilling(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

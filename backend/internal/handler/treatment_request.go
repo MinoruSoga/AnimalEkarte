@@ -1,5 +1,10 @@
 package handler
 
+import (
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
+)
+
 type createTreatmentRequest struct {
 	ItemType       string  `json:"item_type"       binding:"required,oneof=consultation procedure medicine other"`
 	ConsultationID *uint64 `json:"consultation_id"`
@@ -17,6 +22,27 @@ type createTreatmentRequest struct {
 	DiscountRate   float64 `json:"discount_rate"`
 	DiscountAmount int64   `json:"discount_amount"`
 	SortOrder      int     `json:"sort_order"`
+}
+
+func (r createTreatmentRequest) toServiceInput() *service.CreateTreatmentInput {
+	return &service.CreateTreatmentInput{
+		ItemType:       model.TreatmentItemType(r.ItemType),
+		ConsultationID: r.ConsultationID,
+		ProcedureID:    r.ProcedureID,
+		MedicineID:     r.MedicineID,
+		InventoryID:    r.InventoryID,
+		UnitPrice:      r.UnitPrice,
+		Quantity:       r.Quantity,
+		IsSelected:     r.IsSelected,
+		Status:         r.Status,
+		Content:        r.Content,
+		Memo:           r.Memo,
+		AdminRoute:     r.AdminRoute,
+		IsInsurance:    r.IsInsurance,
+		DiscountRate:   r.DiscountRate,
+		DiscountAmount: r.DiscountAmount,
+		SortOrder:      r.SortOrder,
+	}
 }
 
 type updateTreatmentRequest struct {
@@ -38,8 +64,44 @@ type updateTreatmentRequest struct {
 	SortOrder      *int     `json:"sort_order"`
 }
 
+func (r updateTreatmentRequest) toServiceInput() *service.UpdateTreatmentInput {
+	input := &service.UpdateTreatmentInput{
+		ConsultationID: r.ConsultationID,
+		ProcedureID:    r.ProcedureID,
+		MedicineID:     r.MedicineID,
+		InventoryID:    r.InventoryID,
+		UnitPrice:      r.UnitPrice,
+		Quantity:       r.Quantity,
+		IsSelected:     r.IsSelected,
+		Status:         r.Status,
+		Content:        r.Content,
+		Memo:           r.Memo,
+		AdminRoute:     r.AdminRoute,
+		IsInsurance:    r.IsInsurance,
+		DiscountRate:   r.DiscountRate,
+		DiscountAmount: r.DiscountAmount,
+		SortOrder:      r.SortOrder,
+	}
+	if r.ItemType != nil {
+		itemType := model.TreatmentItemType(*r.ItemType)
+		input.ItemType = &itemType
+	}
+	return input
+}
+
 type bulkUpdateTreatmentsRequest struct {
 	Treatments []bulkTreatmentItem `json:"treatments" binding:"required"`
+}
+
+func (r bulkUpdateTreatmentsRequest) toServiceInput() *service.BulkUpdateTreatmentsInput {
+	items := make([]service.BulkTreatmentItem, 0, len(r.Treatments))
+	for _, treatment := range r.Treatments {
+		items = append(items, service.BulkTreatmentItem{
+			ID:        treatment.ID,
+			SortOrder: treatment.SortOrder,
+		})
+	}
+	return &service.BulkUpdateTreatmentsInput{Treatments: items}
 }
 
 type bulkTreatmentItem struct {

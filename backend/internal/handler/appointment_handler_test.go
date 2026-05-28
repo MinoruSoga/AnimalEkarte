@@ -24,7 +24,7 @@ import (
 type mockReservationService struct {
 	listFn                   func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	getByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	createFn                 func(ctx context.Context, r *model.Reservation) error
+	createFn                 func(ctx context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error)
 	updateFn                 func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.Reservation, error)
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
 	updateReservationRouteFn func(ctx context.Context, clinicID, id uint64, input service.UpdateReservationRouteInput) (*model.Reservation, error)
@@ -38,8 +38,8 @@ func (m *mockReservationService) GetByID(ctx context.Context, clinicID, id uint6
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockReservationService) Create(ctx context.Context, r *model.Reservation) error {
-	return m.createFn(ctx, r)
+func (m *mockReservationService) Create(ctx context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error) {
+	return m.createFn(ctx, input)
 }
 
 func (m *mockReservationService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.Reservation, error) {
@@ -279,11 +279,11 @@ func TestCreateReservation(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockReservationService{
-				createFn: func(_ context.Context, r *model.Reservation) error {
-					assert.Equal(t, "健康診断", r.Notes)
-					require.NotNil(t, r.CreatedBy)
-					assert.Equal(t, uint64(1), *r.CreatedBy) // extractStaffID from user_id="1"
-					return nil
+				createFn: func(_ context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error) {
+					assert.Equal(t, "健康診断", input.Notes)
+					require.NotNil(t, input.CreatedBy)
+					assert.Equal(t, uint64(1), *input.CreatedBy) // extractStaffID from user_id="1"
+					return &model.Reservation{ID: 1, Notes: input.Notes}, nil
 				},
 			},
 			wantStatus: http.StatusCreated,
@@ -329,8 +329,8 @@ func TestCreateReservation(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockReservationService{
-				createFn: func(_ context.Context, _ *model.Reservation) error {
-					return fmt.Errorf("db error")
+				createFn: func(_ context.Context, _ *service.CreateManualReservationInput) (*model.Reservation, error) {
+					return nil, fmt.Errorf("db error")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,

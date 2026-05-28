@@ -97,11 +97,12 @@ type VaccinationService interface {
 }
 
 type vaccinationService struct {
-	repo repository.VaccinationRepository
+	repo       repository.VaccinationRepository
+	tagSyncSvc LstepTagSyncService
 }
 
-func NewVaccinationService(repo repository.VaccinationRepository) VaccinationService {
-	return &vaccinationService{repo: repo}
+func NewVaccinationService(repo repository.VaccinationRepository, tagSyncSvc LstepTagSyncService) VaccinationService {
+	return &vaccinationService{repo: repo, tagSyncSvc: tagSyncSvc}
 }
 
 func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
@@ -149,7 +150,17 @@ func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input 
 	slog.InfoContext(ctx, "vaccination created",
 		slog.Uint64("vaccination_id", vaccination.ID),
 		slog.Uint64("clinic_id", vaccination.ClinicID))
-	return vaccination, nil
+	created, err := s.repo.FindByID(ctx, clinicID, vaccination.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get vaccination after create for vaccine tag sync", "error", err, "vaccination_id", vaccination.ID)
+		return vaccination, nil
+	}
+	if created == nil {
+		slog.WarnContext(ctx, "vaccination not found after create for vaccine tag sync", "vaccination_id", vaccination.ID)
+		return vaccination, nil
+	}
+	s.syncVaccineTag(ctx, clinicID, created)
+	return created, nil
 }
 
 func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateVaccinationInput) (*model.Vaccination, error) {
@@ -172,10 +183,12 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 	slog.InfoContext(ctx, "vaccination updated",
 		slog.Uint64("vaccination_id", id),
 		slog.Uint64("clinic_id", clinicID))
+	s.resyncOwnerVaccineTags(ctx, clinicID, vaccination)
 	return vaccination, nil
 }
 func (s *vaccinationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		return apperrors.Wrap(err, "failed to find vaccination")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
@@ -184,5 +197,26 @@ func (s *vaccinationService) Delete(ctx context.Context, clinicID, id uint64) er
 	slog.InfoContext(ctx, "vaccination deleted",
 		slog.Uint64("vaccination_id", id),
 		slog.Uint64("clinic_id", clinicID))
+	s.resyncOwnerVaccineTags(ctx, clinicID, existing)
 	return nil
+}
+
+func (s *vaccinationService) syncVaccineTag(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) {
+	if s.tagSyncSvc == nil || vaccination == nil || vaccination.Pet == nil {
+		return
+	}
+	ownerID := vaccination.Pet.OwnerID
+	if err := s.tagSyncSvc.SyncVaccineTag(ctx, clinicID, ownerID, vaccination.ID); err != nil {
+		slog.ErrorContext(ctx, "failed to sync vaccine tag", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "vaccination_id", vaccination.ID)
+	}
+}
+
+func (s *vaccinationService) resyncOwnerVaccineTags(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) {
+	if s.tagSyncSvc == nil || vaccination == nil || vaccination.Pet == nil {
+		return
+	}
+	ownerID := vaccination.Pet.OwnerID
+	if err := s.tagSyncSvc.ResyncOwnerVaccineTags(ctx, clinicID, ownerID); err != nil {
+		slog.ErrorContext(ctx, "failed to resync owner vaccine tags", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "vaccination_id", vaccination.ID)
+	}
 }

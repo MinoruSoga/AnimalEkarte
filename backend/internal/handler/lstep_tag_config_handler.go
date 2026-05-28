@@ -3,34 +3,12 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
-
-// --- request structs ---
-
-type createAutoManagedPrefixRequest struct {
-	Prefix      string  `json:"prefix"       binding:"required"`
-	Category    string  `json:"category"     binding:"required"`
-	Description *string `json:"description"`
-}
-
-type createConditionTagMappingRequest struct {
-	ConditionCode string  `json:"condition_code" binding:"required"`
-	TagName       string  `json:"tag_name"       binding:"required"`
-	Description   *string `json:"description"`
-}
-
-type createSendPurposeTagPrefixRequest struct {
-	Purpose     string  `json:"purpose"     binding:"required"`
-	TagPrefix   string  `json:"tag_prefix"  binding:"required"`
-	Description *string `json:"description"`
-}
 
 // --- response structs ---
 
@@ -129,11 +107,7 @@ func (h *Handler) CreateAutoManagedPrefix(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	item, err := h.svc.LstepTagConfig.CreateAutoManagedPrefix(c.Request.Context(), service.CreateAutoManagedPrefixInput{
-		Prefix:      req.Prefix,
-		Category:    req.Category,
-		Description: req.Description,
-	})
+	item, err := h.svc.LstepTagConfig.CreateAutoManagedPrefix(c.Request.Context(), req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -145,9 +119,8 @@ func (h *Handler) CreateAutoManagedPrefix(c *gin.Context) {
 // DeleteAutoManagedPrefix godoc
 // DELETE /api/v1/lstep-tag-config/auto-managed-prefixes/:id
 func (h *Handler) DeleteAutoManagedPrefix(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.LstepTagConfig.DeleteAutoManagedPrefix(c.Request.Context(), id); err != nil {
@@ -178,11 +151,7 @@ func (h *Handler) CreateConditionTagMapping(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	item, err := h.svc.LstepTagConfig.CreateConditionTagMapping(c.Request.Context(), service.CreateConditionTagMappingInput{
-		ConditionCode: req.ConditionCode,
-		TagName:       req.TagName,
-		Description:   req.Description,
-	})
+	item, err := h.svc.LstepTagConfig.CreateConditionTagMapping(c.Request.Context(), req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -194,9 +163,8 @@ func (h *Handler) CreateConditionTagMapping(c *gin.Context) {
 // DeleteConditionTagMapping godoc
 // DELETE /api/v1/lstep-tag-config/condition-tag-mappings/:id
 func (h *Handler) DeleteConditionTagMapping(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.LstepTagConfig.DeleteConditionTagMapping(c.Request.Context(), id); err != nil {
@@ -227,11 +195,7 @@ func (h *Handler) CreateSendPurposeTagPrefix(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	item, err := h.svc.LstepTagConfig.CreateSendPurposeTagPrefix(c.Request.Context(), service.CreateSendPurposeTagPrefixInput{
-		Purpose:     req.Purpose,
-		TagPrefix:   req.TagPrefix,
-		Description: req.Description,
-	})
+	item, err := h.svc.LstepTagConfig.CreateSendPurposeTagPrefix(c.Request.Context(), req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -243,9 +207,8 @@ func (h *Handler) CreateSendPurposeTagPrefix(c *gin.Context) {
 // DeleteSendPurposeTagPrefix godoc
 // DELETE /api/v1/lstep-tag-config/send-purpose-tag-prefixes/:id
 func (h *Handler) DeleteSendPurposeTagPrefix(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.LstepTagConfig.DeleteSendPurposeTagPrefix(c.Request.Context(), id); err != nil {

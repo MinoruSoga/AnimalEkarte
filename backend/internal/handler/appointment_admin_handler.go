@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListReservationsAdmin godoc
@@ -18,15 +17,11 @@ func (h *Handler) ListReservationsAdmin(c *gin.Context) {
 		return
 	}
 
-	view := c.DefaultQuery("view", "month")
-	dateStr := c.Query("date")
-	if dateStr == "" {
-		dateStr = time.Now().Format("2006-01")
-	}
+	query := newListReservationsAdminQuery(c.Request.URL.Query(), time.Now())
 
-	switch view {
+	switch query.View {
 	case "month":
-		items, err := h.svc.ReservationAdmin.ListByMonth(c.Request.Context(), clinicID, dateStr)
+		items, err := h.svc.ReservationAdmin.ListByMonth(c.Request.Context(), clinicID, query.Date)
 		if err != nil {
 			RespondError(c, err)
 			return
@@ -38,7 +33,7 @@ func (h *Handler) ListReservationsAdmin(c *gin.Context) {
 		c.JSON(http.StatusOK, list)
 
 	case "day":
-		date, err := time.Parse("2006-01-02", dateStr)
+		date, err := time.Parse("2006-01-02", query.Date)
 		if err != nil {
 			RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format for day view"))
 			return
@@ -82,21 +77,7 @@ func (h *Handler) CreateReservationAdmin(c *gin.Context) {
 		}
 	}
 
-	ra, err := h.svc.ReservationAdmin.Create(c.Request.Context(), clinicID, &service.CreateReservationAdminInput{
-		StartTime:         req.StartTime,
-		EndTime:           req.EndTime,
-		OwnerID:           req.OwnerID,
-		PetID:             req.PetID,
-		VisitType:         req.VisitType,
-		ReservationTypeID: req.ReservationTypeID,
-		DoctorID:          req.DoctorID,
-		IsDesignated:      req.IsDesignated,
-		Notes:             req.Notes,
-		LineCustomerID:    req.LineCustomerID,
-		IsStaffDelegated:  req.IsStaffDelegated,
-		CustomerFields:    req.CustomerFields,
-		CreatedBy:         &staffID,
-	})
+	ra, err := h.svc.ReservationAdmin.Create(c.Request.Context(), clinicID, req.toServiceInput(staffID))
 	if err != nil {
 		RespondError(c, err)
 		return

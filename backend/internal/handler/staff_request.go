@@ -1,5 +1,11 @@
 package handler
 
+import (
+	"strings"
+
+	"github.com/animal-ekarte/backend/internal/service"
+)
+
 // createStaffRequest はスタッフ登録リクエスト。
 type createStaffRequest struct {
 	Name          string  `json:"name"           binding:"required"`
@@ -17,6 +23,42 @@ type createStaffRequest struct {
 	ReservationImageURL    string `json:"reservation_image_url"`
 }
 
+func (r createStaffRequest) hasAccountEmail() bool {
+	return strings.TrimSpace(r.Email) != ""
+}
+
+func (r createStaffRequest) toCreateServiceInput(clinicID uint64) *service.CreateStaffInput {
+	return &service.CreateStaffInput{
+		ClinicID:               clinicID,
+		Name:                   r.Name,
+		LicenseNumber:          r.LicenseNumber,
+		OccupationID:           r.OccupationID,
+		SortOrder:              r.SortOrder,
+		StaffType:              r.StaffType,
+		ReservationDisplayName: r.ReservationDisplayName,
+		ReservationVisible:     r.ReservationVisible,
+		ReservationComment:     r.ReservationComment,
+		ReservationImageURL:    r.ReservationImageURL,
+	}
+}
+
+func (r createStaffRequest) toCreateWithAccountServiceInput(clinicID uint64) *service.CreateStaffWithAccountInput {
+	return &service.CreateStaffWithAccountInput{
+		ClinicID:               clinicID,
+		Name:                   r.Name,
+		LicenseNumber:          r.LicenseNumber,
+		OccupationID:           r.OccupationID,
+		SortOrder:              r.SortOrder,
+		Email:                  strings.TrimSpace(r.Email),
+		Password:               r.Password,
+		StaffType:              r.StaffType,
+		ReservationDisplayName: r.ReservationDisplayName,
+		ReservationVisible:     r.ReservationVisible,
+		ReservationComment:     r.ReservationComment,
+		ReservationImageURL:    r.ReservationImageURL,
+	}
+}
+
 // updateStaffRequest はスタッフ更新リクエスト。nil = 未送信として扱う。
 type updateStaffRequest struct {
 	Name          *string `json:"name"`
@@ -32,6 +74,22 @@ type updateStaffRequest struct {
 	ReservationVisible     *bool   `json:"reservation_visible"`
 	ReservationComment     *string `json:"reservation_comment"`
 	ReservationImageURL    *string `json:"reservation_image_url"`
+}
+
+func (r updateStaffRequest) toServiceInput() *service.UpdateStaffInput {
+	return &service.UpdateStaffInput{
+		Name:                   r.Name,
+		LicenseNumber:          r.LicenseNumber,
+		OccupationID:           r.OccupationID,
+		SortOrder:              r.SortOrder,
+		IsActive:               r.IsActive,
+		Password:               r.Password,
+		StaffType:              r.StaffType,
+		ReservationDisplayName: r.ReservationDisplayName,
+		ReservationVisible:     r.ReservationVisible,
+		ReservationComment:     r.ReservationComment,
+		ReservationImageURL:    r.ReservationImageURL,
+	}
 }
 
 // setStaffPermissionGroupsRequest は権限グループ割当リクエスト。

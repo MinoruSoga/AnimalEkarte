@@ -7,7 +7,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // UpdateInquiry godoc
@@ -26,13 +25,7 @@ func (h *Handler) UpdateInquiry(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	inquiry, err := h.svc.Inquiry.Save(c.Request.Context(), service.UpsertInquiryInput{
-		ClinicID:             clinicID,
-		MedicalRecordID:      medicalRecordID,
-		ChiefComplaintTypeID: req.ChiefComplaintTypeID,
-		ChiefComplaint:       req.ChiefComplaint,
-		Notes:                req.Notes,
-	})
+	inquiry, err := h.svc.Inquiry.Save(c.Request.Context(), req.toServiceInput(clinicID, medicalRecordID))
 	if err != nil {
 		RespondError(c, err)
 		return

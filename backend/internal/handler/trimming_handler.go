@@ -3,13 +3,10 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListTrimmings はトリミング予約一覧を返す（BE-119: appointments ベース）
@@ -25,38 +22,22 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 		return
 	}
 
-	var petID *uint64
-	if petIDStr := c.Query("pet_id"); petIDStr != "" {
-		id, err := strconv.ParseUint(petIDStr, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
-			return
-		}
-		petID = &id
-	}
-
-	var ownerID *uint64
-	if s := c.Query("owner_id"); s != "" {
-		id, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
-			return
-		}
-		ownerID = &id
-	}
-
-	startDate, err := parseDateQuery(c, "start_date")
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	endDate, err := parseDateQuery(c, "end_date")
+	filters, err := newListTrimmingQuery(c.Request.URL.Query()).toServiceFilters()
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 
-	appts, total, err := h.svc.Trimming.List(c.Request.Context(), clinicID, petID, ownerID, startDate, endDate, page, limit)
+	appts, total, err := h.svc.Trimming.List(
+		c.Request.Context(),
+		clinicID,
+		filters.PetID,
+		filters.OwnerID,
+		filters.StartDate,
+		filters.EndDate,
+		page,
+		limit,
+	)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -104,35 +85,7 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 		return
 	}
 
-	input := &service.CreateTrimmingInput{
-		ReservationTypeID: req.ReservationTypeID,
-		PetID:             req.PetID,
-		StaffID:           req.StaffID,
-		CourseID:          req.CourseID,
-		StyleRequest:      req.StyleRequest,
-		BodyWeight:        req.BW,
-		BodyTemperature:   req.BT,
-		UsedShampoo:       req.UsedShampoo,
-		UsedRibbon:        req.UsedRibbon,
-		Remarks:           req.Remarks,
-		StyleImage:        req.StyleImage,
-		CompletedImage:    req.CompletedImage,
-		OptionIDs:         req.OptionIDs,
-	}
-	if req.StartTime != nil {
-		input.StartTime = *req.StartTime
-	}
-	if req.EndTime != nil {
-		input.EndTime = *req.EndTime
-	}
-	if req.Status != "" {
-		input.Status = model.ReservationStatus(req.Status)
-	}
-	if req.BWUnit != "" {
-		input.BWUnit = model.BodyWeightUnit(req.BWUnit)
-	}
-
-	appt, err := h.svc.Trimming.Create(c.Request.Context(), clinicID, input)
+	appt, err := h.svc.Trimming.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -158,32 +111,7 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		return
 	}
 
-	input := &service.UpdateTrimmingInput{
-		StartTime:       req.StartTime,
-		EndTime:         req.EndTime,
-		PetID:           req.PetID,
-		StaffID:         req.StaffID,
-		CourseID:        req.CourseID,
-		StyleRequest:    req.StyleRequest,
-		BodyWeight:      req.BW,
-		BodyTemperature: req.BT,
-		UsedShampoo:     req.UsedShampoo,
-		UsedRibbon:      req.UsedRibbon,
-		Remarks:         req.Remarks,
-		StyleImage:      req.StyleImage,
-		CompletedImage:  req.CompletedImage,
-		OptionIDs:       req.OptionIDs,
-	}
-	if req.Status != nil {
-		status := model.ReservationStatus(*req.Status)
-		input.Status = &status
-	}
-	if req.BWUnit != nil {
-		unit := model.BodyWeightUnit(*req.BWUnit)
-		input.BWUnit = &unit
-	}
-
-	appt, err := h.svc.Trimming.Update(c.Request.Context(), clinicID, id, input)
+	appt, err := h.svc.Trimming.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

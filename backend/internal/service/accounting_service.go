@@ -287,11 +287,12 @@ type AccountingService interface {
 }
 
 type accountingService struct {
-	repo repository.AccountingRepository
+	repo       repository.AccountingRepository
+	tagSyncSvc LstepTagSyncService
 }
 
-func NewAccountingService(repo repository.AccountingRepository) AccountingService {
-	return &accountingService{repo: repo}
+func NewAccountingService(repo repository.AccountingRepository, tagSyncSvc LstepTagSyncService) AccountingService {
+	return &accountingService{repo: repo, tagSyncSvc: tagSyncSvc}
 }
 
 func (s *accountingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
@@ -345,6 +346,9 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	slog.InfoContext(ctx, "accounting created",
 		slog.Uint64("billing_id", billing.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
+	if billing.Status == model.BillingStatusCompleted {
+		s.syncCPMStageTag(ctx, input.ClinicID, billing)
+	}
 	return billing, nil
 }
 
@@ -402,7 +406,20 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	slog.InfoContext(ctx, "accounting updated",
 		slog.Uint64("billing_id", accounting.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
+	if input.Status != nil && *input.Status == model.BillingStatusCompleted {
+		s.syncCPMStageTag(ctx, input.ClinicID, accounting)
+	}
 	return accounting, nil
+}
+
+func (s *accountingService) syncCPMStageTag(ctx context.Context, clinicID uint64, billing *model.Billing) {
+	if s.tagSyncSvc == nil || billing == nil || billing.OwnerID == nil {
+		return
+	}
+	ownerID := *billing.OwnerID
+	if err := s.tagSyncSvc.SyncCPMStageTag(ctx, clinicID, ownerID); err != nil {
+		slog.ErrorContext(ctx, "failed to sync CPM stage tag", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "billing_id", billing.ID)
+	}
 }
 
 // BUG-370: 月末未納者一覧（会計単位）

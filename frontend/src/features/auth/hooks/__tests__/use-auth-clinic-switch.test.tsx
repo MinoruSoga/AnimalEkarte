@@ -51,15 +51,15 @@ const { mockQueryClient, MOCK_SYSTEM_ADMIN, MOCK_STAFF } = vi.hoisted(() => {
   };
 });
 
-vi.mock("@/features/auth/api/refresh-token", () => ({
+vi.mock("../../api/refresh-token", () => ({
   refreshToken: vi.fn().mockResolvedValue({ user: MOCK_SYSTEM_ADMIN }),
 }));
 
-vi.mock("@/features/auth/api/get-me", () => ({
+vi.mock("../../api/get-me", () => ({
   useGetMe: vi.fn().mockReturnValue({ data: undefined }),
 }));
 
-vi.mock("@/features/auth/api/logout", () => ({
+vi.mock("../../api/logout", () => ({
   logout: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -85,14 +85,14 @@ function ClinicSwitcher({
   return (
     <div>
       <span data-testid="current-clinic">{currentClinicId}</span>
-      <button onClick={() => switchClinic(targetClinicId)}>{label}</button>
+      <button type="button" onClick={() => switchClinic(targetClinicId)}>{label}</button>
     </div>
   );
 }
 
 function LogoutTrigger() {
   const { logout } = useAuth();
-  return <button onClick={() => void logout()}>logout</button>;
+  return <button type="button" onClick={() => void logout()}>logout</button>;
 }
 
 async function renderWithAuth(children: React.ReactNode) {

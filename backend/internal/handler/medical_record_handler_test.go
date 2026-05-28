@@ -26,7 +26,7 @@ type mockMedicalRecordService struct {
 	listFn                       func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	getByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	countByPetFn                 func(ctx context.Context, clinicID, petID uint64) (int64, error)
-	createFn                     func(ctx context.Context, record *model.MedicalRecord) error
+	createFn                     func(ctx context.Context, clinicID uint64, input service.CreateMedicalRecordInput) (*model.MedicalRecord, error)
 	updateFn                     func(ctx context.Context, clinicID, id uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error)
 	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
 	updateRecommendationReasonFn func(ctx context.Context, clinicID, id uint64, input service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error)
@@ -47,8 +47,24 @@ func (m *mockMedicalRecordService) CountByPetID(ctx context.Context, clinicID, p
 	return 0, nil
 }
 
-func (m *mockMedicalRecordService) Create(ctx context.Context, record *model.MedicalRecord) error {
-	return m.createFn(ctx, record)
+func (m *mockMedicalRecordService) Create(ctx context.Context, clinicID uint64, input service.CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, input)
+	}
+	return &model.MedicalRecord{
+		ID:                       1,
+		ClinicID:                 clinicID,
+		RecordNo:                 input.RecordNo,
+		Date:                     input.Date,
+		OwnerID:                  input.OwnerID,
+		PetID:                    input.PetID,
+		DoctorID:                 input.DoctorID,
+		AppointmentID:            input.AppointmentID,
+		VisitType:                &input.VisitType,
+		NextVisitRecommendedDate: input.NextVisitRecommendedDate,
+		RecommendationReason:     input.RecommendationReason,
+		EnteredBy:                input.EnteredBy,
+	}, nil
 }
 
 func (m *mockMedicalRecordService) Update(ctx context.Context, clinicID, id uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
@@ -59,7 +75,10 @@ func (m *mockMedicalRecordService) Update(ctx context.Context, clinicID, id uint
 }
 
 func (m *mockMedicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, id)
+	}
+	return nil
 }
 
 func (m *mockMedicalRecordService) CreateSubRecords(_ context.Context, _, _ uint64, _ service.CreateSubRecordsInput) {
@@ -400,16 +419,16 @@ func TestCreateMedicalRecord(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
-				createFn: func(_ context.Context, record *model.MedicalRecord) error {
-					assert.Equal(t, uint64(1), record.ClinicID)
-					require.NotNil(t, record.OwnerID)
-					assert.Equal(t, uint64(10), *record.OwnerID)
-					require.NotNil(t, record.PetID)
-					assert.Equal(t, uint64(20), *record.PetID)
-					assert.Equal(t, 2026, record.Date.Year())
-					require.NotNil(t, record.EnteredBy)
-					assert.Equal(t, uint64(1), *record.EnteredBy) // extractStaffID from user_id="1"
-					return nil
+				createFn: func(_ context.Context, clinicID uint64, input service.CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					require.NotNil(t, input.OwnerID)
+					assert.Equal(t, uint64(10), *input.OwnerID)
+					require.NotNil(t, input.PetID)
+					assert.Equal(t, uint64(20), *input.PetID)
+					assert.Equal(t, 2026, input.Date.Year())
+					require.NotNil(t, input.EnteredBy)
+					assert.Equal(t, uint64(1), *input.EnteredBy) // extractStaffID from user_id="1"
+					return &model.MedicalRecord{ID: 1, ClinicID: clinicID, Date: input.Date, OwnerID: input.OwnerID, PetID: input.PetID, EnteredBy: input.EnteredBy}, nil
 				},
 			},
 			cpSvc:      &mockClinicalPlanService{},
@@ -422,9 +441,9 @@ func TestCreateMedicalRecord(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
-				createFn: func(_ context.Context, record *model.MedicalRecord) error {
-					assert.Empty(t, record.RecordNo) // handler は空で渡す（service が生成）
-					return nil
+				createFn: func(_ context.Context, clinicID uint64, input service.CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					assert.Empty(t, input.RecordNo) // handler は空で渡す（service が生成）
+					return &model.MedicalRecord{ID: 1, ClinicID: clinicID, Date: input.Date}, nil
 				},
 			},
 			cpSvc:      &mockClinicalPlanService{},
@@ -439,9 +458,9 @@ func TestCreateMedicalRecord(t *testing.T) {
 			}(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
-				createFn: func(_ context.Context, record *model.MedicalRecord) error {
-					assert.Equal(t, "MR-CUSTOM-001", record.RecordNo)
-					return nil
+				createFn: func(_ context.Context, clinicID uint64, input service.CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					assert.Equal(t, "MR-CUSTOM-001", input.RecordNo)
+					return &model.MedicalRecord{ID: 1, ClinicID: clinicID, Date: input.Date, RecordNo: input.RecordNo}, nil
 				},
 			},
 			cpSvc:      &mockClinicalPlanService{},
@@ -456,7 +475,9 @@ func TestCreateMedicalRecord(t *testing.T) {
 			}(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
-				createFn: func(_ context.Context, _ *model.MedicalRecord) error { return nil },
+				createFn: func(_ context.Context, clinicID uint64, input service.CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 1, ClinicID: clinicID, Date: input.Date}, nil
+				},
 			},
 			cpSvc: &mockClinicalPlanService{
 				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
@@ -524,8 +545,8 @@ func TestCreateMedicalRecord(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
-				createFn: func(_ context.Context, _ *model.MedicalRecord) error {
-					return fmt.Errorf("db error")
+				createFn: func(_ context.Context, _ uint64, _ service.CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					return nil, fmt.Errorf("db error")
 				},
 			},
 			cpSvc:      &mockClinicalPlanService{},
@@ -541,10 +562,10 @@ func TestCreateMedicalRecord(t *testing.T) {
 			}(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
-				createFn: func(_ context.Context, record *model.MedicalRecord) error {
-					require.NotNil(t, record.RecommendationReason)
-					assert.Equal(t, "checkup", *record.RecommendationReason)
-					return nil
+				createFn: func(_ context.Context, clinicID uint64, input service.CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					require.NotNil(t, input.RecommendationReason)
+					assert.Equal(t, "checkup", *input.RecommendationReason)
+					return &model.MedicalRecord{ID: 1, ClinicID: clinicID, Date: input.Date, RecommendationReason: input.RecommendationReason}, nil
 				},
 			},
 			cpSvc:      &mockClinicalPlanService{},
@@ -559,8 +580,8 @@ func TestCreateMedicalRecord(t *testing.T) {
 			}(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
-				createFn: func(_ context.Context, _ *model.MedicalRecord) error {
-					return apperrors.WrapInvalidInput("recommendation_reason must be one of: revisit, checkup, prevention, exam")
+				createFn: func(_ context.Context, _ uint64, _ service.CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapInvalidInput("recommendation_reason must be one of: revisit, checkup, prevention, exam")
 				},
 			},
 			cpSvc:      &mockClinicalPlanService{},
@@ -575,9 +596,9 @@ func TestCreateMedicalRecord(t *testing.T) {
 			}(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
-				createFn: func(_ context.Context, record *model.MedicalRecord) error {
-					assert.Nil(t, record.RecommendationReason)
-					return nil
+				createFn: func(_ context.Context, clinicID uint64, input service.CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					assert.Nil(t, input.RecommendationReason)
+					return &model.MedicalRecord{ID: 1, ClinicID: clinicID, Date: input.Date, RecommendationReason: input.RecommendationReason}, nil
 				},
 			},
 			cpSvc:      &mockClinicalPlanService{},
@@ -726,9 +747,6 @@ func TestDeleteMedicalRecord(t *testing.T) {
 			name:    "deletes record successfully",
 			paramID: "1",
 			svc: &mockMedicalRecordService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{ID: 1, OwnerID: nil}, nil
-				},
 				deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
 			},
 			wantStatus: http.StatusNoContent,
@@ -743,8 +761,8 @@ func TestDeleteMedicalRecord(t *testing.T) {
 			name:    "returns 404 when not found",
 			paramID: "999",
 			svc: &mockMedicalRecordService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return nil, apperrors.WrapNotFound("medical_record", "999")
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("medical_record", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,
@@ -877,11 +895,11 @@ func TestPatchMedicalRecordRecommendationReason(t *testing.T) {
 	})
 }
 
-// ---- buildMedicalRecord unit tests ----
+// ---- createMedicalRecordRequest conversion unit tests ----
 
-// TestBuildMedicalRecord_VisitType は Path B（visit_type 未送信）で 'revisit' がデフォルト設定され、
+// TestCreateMedicalRecordRequest_ToServiceInput_VisitType は Path B（visit_type 未送信）で 'revisit' がデフォルト設定され、
 // "first" 送信時は 'first' になることを検証する。
-func TestBuildMedicalRecord_VisitType(t *testing.T) {
+func TestCreateMedicalRecordRequest_ToServiceInput_VisitType(t *testing.T) {
 	ownerID := "10"
 	petID := "20"
 	visitDate := "2026-03-24"
@@ -921,10 +939,9 @@ func TestBuildMedicalRecord_VisitType(t *testing.T) {
 				VisitDate: &visitDate,
 				VisitType: tt.inputVisitType,
 			}
-			record, err := buildMedicalRecord(1, req)
+			input, err := req.toServiceInput(9)
 			require.NoError(t, err)
-			require.NotNil(t, record.VisitType, "VisitType は nil であってはならない")
-			assert.Equal(t, tt.wantVisitType, *record.VisitType)
+			assert.Equal(t, tt.wantVisitType, input.VisitType)
 		})
 	}
 }

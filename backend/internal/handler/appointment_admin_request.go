@@ -1,6 +1,28 @@
 package handler
 
-import "time"
+import (
+	"net/url"
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/service"
+)
+
+type listReservationsAdminQuery struct {
+	View string
+	Date string
+}
+
+func newListReservationsAdminQuery(values url.Values, now time.Time) listReservationsAdminQuery {
+	view := values.Get("view")
+	if view == "" {
+		view = "month"
+	}
+	date := values.Get("date")
+	if date == "" {
+		date = now.Format("2006-01")
+	}
+	return listReservationsAdminQuery{View: view, Date: date}
+}
 
 type createReservationAdminRequest struct {
 	StartTime         time.Time      `json:"start_time"         binding:"required"`
@@ -15,4 +37,22 @@ type createReservationAdminRequest struct {
 	LineCustomerID    *uint64        `json:"line_customer_id"`
 	IsStaffDelegated  bool           `json:"is_staff_delegated"`
 	CustomerFields    jsonRawOrEmpty `json:"customer_fields"`
+}
+
+func (r createReservationAdminRequest) toServiceInput(createdBy uint64) *service.CreateReservationAdminInput {
+	return &service.CreateReservationAdminInput{
+		StartTime:         r.StartTime,
+		EndTime:           r.EndTime,
+		OwnerID:           r.OwnerID,
+		PetID:             r.PetID,
+		VisitType:         r.VisitType,
+		ReservationTypeID: r.ReservationTypeID,
+		DoctorID:          r.DoctorID,
+		IsDesignated:      r.IsDesignated,
+		Notes:             r.Notes,
+		LineCustomerID:    r.LineCustomerID,
+		IsStaffDelegated:  r.IsStaffDelegated,
+		CustomerFields:    r.CustomerFields,
+		CreatedBy:         &createdBy,
+	}
 }

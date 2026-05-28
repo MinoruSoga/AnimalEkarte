@@ -1,0 +1,227 @@
+import { memo } from "react";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { C } from "@/lib/design-tokens";
+import type { InventoryItem } from "@/types";
+
+const CATEGORY_OPTIONS: { value: InventoryItem["category"]; label: string }[] = [
+  { value: "medicine", label: "医薬品" },
+  { value: "consumable", label: "消耗品" },
+  { value: "food", label: "フード" },
+  { value: "other", label: "その他" },
+];
+
+interface BasicInfoSectionProps {
+  defaultName: string | undefined;
+  defaultUnit: string | undefined;
+  category: InventoryItem["category"];
+  existingCategory: InventoryItem["category"] | undefined;
+  onCategoryChange: (value: string) => void;
+  onMarkDirty: () => void;
+}
+
+export const BasicInfoSection = memo(function BasicInfoSection({
+  defaultName,
+  defaultUnit,
+  category,
+  existingCategory,
+  onCategoryChange,
+  onMarkDirty,
+}: BasicInfoSectionProps) {
+  return (
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
+      <h3 className={`text-base font-medium ${C.text} mb-4`}>基本情報</h3>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="col-span-2">
+          <Label htmlFor="name" className={`text-sm ${C.text}`}>
+            品名 <span className={C.textRequired}>*</span>
+          </Label>
+          <Input
+            id="name"
+            name="name"
+            defaultValue={defaultName}
+            placeholder="品名を入力"
+            className="mt-1"
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="category" className={`text-sm ${C.text}`}>
+            カテゴリ <span className={C.textRequired}>*</span>
+          </Label>
+          <Select
+            value={category || (existingCategory ?? "medicine")}
+            onValueChange={(value) => {
+              onMarkDirty();
+              onCategoryChange(value);
+            }}
+          >
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="カテゴリを選択" />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORY_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="unit" className={`text-sm ${C.text}`}>
+            単位 <span className={C.textRequired}>*</span>
+          </Label>
+          <Input
+            id="unit"
+            name="unit"
+            defaultValue={defaultUnit}
+            placeholder="例: 錠, 本, 袋"
+            className="mt-1"
+            required
+          />
+        </div>
+      </div>
+    </div>
+  );
+});
+
+interface StockInfoSectionProps {
+  defaultQuantity: number | undefined;
+  defaultMinStockLevel: number | undefined;
+  defaultLocation: string | undefined;
+  resolvedExpiry: string;
+  onExpiryChange: (value: string) => void;
+  onMarkDirty: () => void;
+  minStockLevelError?: string;
+}
+
+export const StockInfoSection = memo(function StockInfoSection({
+  defaultQuantity,
+  defaultMinStockLevel,
+  defaultLocation,
+  resolvedExpiry,
+  onExpiryChange,
+  onMarkDirty,
+  minStockLevelError,
+}: StockInfoSectionProps) {
+  return (
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
+      <h3 className={`text-base font-medium ${C.text} mb-4`}>在庫情報</h3>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="quantity" className={`text-sm ${C.text}`}>
+            現在庫数 <span className={C.textRequired}>*</span>
+          </Label>
+          <Input
+            id="quantity"
+            name="quantity"
+            type="number"
+            min="0"
+            step="1"
+            defaultValue={defaultQuantity ?? 0}
+            className="mt-1"
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="minStockLevel" className={`text-sm ${C.text}`}>
+            最低在庫数 <span className={C.textRequired}>*</span>
+          </Label>
+          <Input
+            id="minStockLevel"
+            name="minStockLevel"
+            type="number"
+            min="0"
+            step="1"
+            defaultValue={defaultMinStockLevel ?? 0}
+            className="mt-1"
+            required
+          />
+          <FormFieldError id="minStockLevel-error" message={minStockLevelError} />
+        </div>
+        <div>
+          <Label htmlFor="location" className={`text-sm ${C.text}`}>
+            保管場所
+          </Label>
+          <Input
+            id="location"
+            name="location"
+            defaultValue={defaultLocation}
+            placeholder="例: 薬品棚A-1"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label htmlFor="expiryDate" className={`text-sm ${C.text}`}>
+            有効期限
+          </Label>
+          <input type="hidden" name="expiryDate" value={resolvedExpiry} />
+          <NotionDatePicker
+            id="expiryDate"
+            value={resolvedExpiry}
+            onChange={(value) => {
+              onMarkDirty();
+              onExpiryChange(value);
+            }}
+            placeholder="有効期限を選択…"
+            className="mt-1"
+          />
+        </div>
+      </div>
+    </div>
+  );
+});
+
+interface SupplierInfoSectionProps {
+  defaultSupplier: string | undefined;
+  resolvedLastRestocked: string;
+  onLastRestockedChange: (value: string) => void;
+  onMarkDirty: () => void;
+}
+
+export const SupplierInfoSection = memo(function SupplierInfoSection({
+  defaultSupplier,
+  resolvedLastRestocked,
+  onLastRestockedChange,
+  onMarkDirty,
+}: SupplierInfoSectionProps) {
+  return (
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
+      <h3 className={`text-base font-medium ${C.text} mb-4`}>仕入先情報</h3>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="supplier" className={`text-sm ${C.text}`}>
+            仕入先
+          </Label>
+          <Input
+            id="supplier"
+            name="supplier"
+            defaultValue={defaultSupplier}
+            placeholder="仕入先名"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label htmlFor="lastRestocked" className={`text-sm ${C.text}`}>
+            最終入荷日
+          </Label>
+          <input type="hidden" name="lastRestocked" value={resolvedLastRestocked} />
+          <NotionDatePicker
+            id="lastRestocked"
+            value={resolvedLastRestocked}
+            onChange={(value) => {
+              onMarkDirty();
+              onLastRestockedChange(value);
+            }}
+            placeholder="最終入荷日を選択…"
+            className="mt-1"
+          />
+        </div>
+      </div>
+    </div>
+  );
+});

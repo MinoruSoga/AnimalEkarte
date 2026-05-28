@@ -104,15 +104,13 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* ツールバー */}
       <div
-        className={`flex flex-wrap items-center gap-2 px-3 py-2 border-b ${C.borderDivider} no-print`}
-        style={{ backgroundColor: "#FFFFFF" }}
+        className={`flex flex-wrap items-center gap-2 px-3 py-2 border-b ${C.borderDivider} ${C.bgWhite} no-print`}
       >
         <span className={`text-sm font-semibold ${C.text}`}>編集中</span>
         <span className={`text-xs ${C.text50} truncate`}>{article.title}</span>
         {isDirty ? (
           <span
-            className="text-[10px] px-1.5 py-0.5 rounded-[3px]"
-            style={{ backgroundColor: "#FFF3CD", color: "#856404" }}
+            className={`text-[10px] px-1.5 py-0.5 rounded-[3px] ${C.bgWarning50} ${C.textWarning}`}
           >
             未保存
           </span>
@@ -206,8 +204,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
 
       {/* 注意バナー */}
       <div
-        className={`px-4 py-2 text-xs border-b ${C.borderDivider}`}
-        style={{ backgroundColor: "#FFF8E1", color: "#856404" }}
+        className={`px-4 py-2 text-xs border-b ${C.borderDivider} ${C.bgWarning50} ${C.textWarning}`}
       >
         💡 「<strong>保存</strong>」ボタン: 変更を <strong>DB に保存</strong>（管理者権限が必要、全スタッフに即時反映）／
         「<strong>コピー</strong>」「<strong>ダウンロード</strong>」: 編集案を IT 担当者に手動で渡す場合に使用。
@@ -220,8 +217,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className={`flex-1 p-4 font-mono text-sm resize-none outline-none ${mode === "split" ? `border-r ${C.borderDivider}` : ""}`}
-            style={{ backgroundColor: "#FAFAFA" }}
+            className={`flex-1 p-4 font-mono text-sm resize-none outline-none ${C.bgSubtle} ${mode === "split" ? `border-r ${C.borderDivider}` : ""}`}
             spellCheck={false}
             aria-label="マニュアル本文編集"
           />

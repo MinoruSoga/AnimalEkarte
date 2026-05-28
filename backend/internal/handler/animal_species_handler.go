@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListAnimalSpecies godoc
@@ -43,11 +42,7 @@ func (h *Handler) CreateAnimalSpecies(c *gin.Context) {
 		return
 	}
 
-	species, err := h.svc.AnimalSpecies.Create(c.Request.Context(), &service.CreateAnimalSpeciesInput{
-		Name:      req.Name,
-		IsActive:  req.IsActive,
-		SortOrder: req.SortOrder,
-	})
+	species, err := h.svc.AnimalSpecies.Create(c.Request.Context(), req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -69,11 +64,7 @@ func (h *Handler) UpdateAnimalSpecies(c *gin.Context) {
 		return
 	}
 
-	species, err := h.svc.AnimalSpecies.Update(c.Request.Context(), id, &service.UpdateAnimalSpeciesInput{
-		Name:      req.Name,
-		IsActive:  req.IsActive,
-		SortOrder: req.SortOrder,
-	})
+	species, err := h.svc.AnimalSpecies.Update(c.Request.Context(), id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

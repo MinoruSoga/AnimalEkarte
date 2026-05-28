@@ -10,6 +10,7 @@ import (
 
 type AuditService interface {
 	Log(ctx context.Context, log *model.AuditLog) error
+	LogEntry(ctx context.Context, input AuditLogInput) error
 	LogAuthLogin(ctx context.Context, clinicID *uint64, staffID *uint64, action string, ipAddress string, userAgent string) error
 	// LogLstepOperation はLステップ / LINE連携操作を監査ログに記録する。
 	// actorID: 操作スタッフID（nil = システム自動実行）, resource: 対象リソース種別, resourceID: 対象ID
@@ -35,6 +36,20 @@ type AuditService interface {
 	LogClinicSwitch(ctx context.Context, actorID *uint64, fromClinicID, toClinicID uint64, ipAddress, userAgent string) error
 }
 
+type AuditLogInput struct {
+	ClinicID   *uint64
+	ActorID    *uint64
+	ActorType  string
+	Action     string
+	Resource   string
+	ResourceID *uint64
+	OldValue   any
+	NewValue   any
+	Metadata   any
+	IPAddress  string
+	UserAgent  string
+}
+
 type auditService struct {
 	repo repository.AuditRepository
 }
@@ -49,6 +64,23 @@ func (s *auditService) Log(ctx context.Context, log *model.AuditLog) error {
 		return apperrors.Wrap(err, "failed to create audit log")
 	}
 	return nil
+}
+
+func (s *auditService) LogEntry(ctx context.Context, input AuditLogInput) error {
+	log := &model.AuditLog{
+		ClinicID:   input.ClinicID,
+		ActorID:    input.ActorID,
+		ActorType:  input.ActorType,
+		Action:     input.Action,
+		Resource:   input.Resource,
+		ResourceID: input.ResourceID,
+		OldValue:   repository.MarshalAuditJSON(input.OldValue),
+		NewValue:   repository.MarshalAuditJSON(input.NewValue),
+		Metadata:   repository.MarshalAuditJSON(input.Metadata),
+		IPAddress:  input.IPAddress,
+		UserAgent:  input.UserAgent,
+	}
+	return s.Log(ctx, log)
 }
 
 // LogAuthLogin は認証イベントログを記録する

@@ -3,13 +3,11 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListPrescriptions は指定カルテに紐づく処方薬記録の一覧を返す
@@ -50,22 +48,17 @@ func (h *Handler) CreatePrescription(c *gin.Context) {
 		return
 	}
 
-	date, err := time.Parse("2006-01-02", req.Date)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
-		return
-	}
-
-	p, err := h.svc.Prescription.Create(c.Request.Context(), clinicID, medicalRecordID, &service.CreatePrescriptionInput{
-		PrescribedAt: date,
-		DurationDays: req.DurationDays,
-	})
+	svcInput, err := req.toServiceInput()
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	// BE-009: 処方タグ同期（best-effort）
-	_ = h.svc.LstepTagSync.SyncPrescriptionTag(c.Request.Context(), clinicID, p.OwnerID)
+
+	p, err := h.svc.Prescription.Create(c.Request.Context(), clinicID, medicalRecordID, svcInput)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/prescriptions/%d", medicalRecordID, p.ID))
 	c.JSON(http.StatusCreated, toPrescriptionResponse(p))
 }
@@ -93,26 +86,17 @@ func (h *Handler) UpdatePrescription(c *gin.Context) {
 		return
 	}
 
-	var updateDate *time.Time
-	if req.Date != nil && *req.Date != "" {
-		d, err := time.Parse("2006-01-02", *req.Date)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
-			return
-		}
-		updateDate = &d
-	}
-
-	p, err := h.svc.Prescription.Update(c.Request.Context(), clinicID, medicalRecordID, prescriptionID, &service.UpdatePrescriptionInput{
-		PrescribedAt: updateDate,
-		DurationDays: req.DurationDays,
-	})
+	svcInput, err := req.toServiceInput()
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	// BE-009: 処方タグ同期（best-effort）
-	_ = h.svc.LstepTagSync.SyncPrescriptionTag(c.Request.Context(), clinicID, p.OwnerID)
+
+	p, err := h.svc.Prescription.Update(c.Request.Context(), clinicID, medicalRecordID, prescriptionID, svcInput)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 	c.JSON(http.StatusOK, toPrescriptionResponse(p))
 }
 
@@ -133,20 +117,10 @@ func (h *Handler) DeletePrescription(c *gin.Context) {
 		return
 	}
 
-	// タグ同期用に削除前に ownerID を取得する
-	existing, err := h.svc.Prescription.GetByID(c.Request.Context(), clinicID, prescriptionID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	ownerID := existing.OwnerID
-
 	if err := h.svc.Prescription.Delete(c.Request.Context(), clinicID, medicalRecordID, prescriptionID); err != nil {
 		RespondError(c, err)
 		return
 	}
-	// BE-009: 処方タグ同期（best-effort）
-	_ = h.svc.LstepTagSync.SyncPrescriptionTag(c.Request.Context(), clinicID, ownerID)
 	c.Status(http.StatusNoContent)
 }
 

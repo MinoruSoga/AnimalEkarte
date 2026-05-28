@@ -221,7 +221,7 @@ func TestAccountingService_List(t *testing.T) {
 					return tt.repoBillings, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo)
+			svc := NewAccountingService(repo, nil)
 
 			billings, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -283,7 +283,7 @@ func TestAccountingService_GetByID(t *testing.T) {
 					return tt.repoBilling, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo)
+			svc := NewAccountingService(repo, nil)
 
 			billing, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -344,7 +344,7 @@ func TestAccountingService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo)
+			svc := NewAccountingService(repo, nil)
 
 			billing, err := svc.Create(context.Background(), &tt.input)
 
@@ -357,6 +357,38 @@ func TestAccountingService_Create(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAccountingService_Create_SyncsCPMStageTagBestEffortWhenCompleted(t *testing.T) {
+	ownerID := uint64(10)
+	var syncedClinicID, syncedOwnerID uint64
+
+	repo := &mockAccountingRepository{
+		createFn: func(_ context.Context, _ uint64, accounting *model.Billing) error {
+			accounting.ID = 30
+			return nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		syncCPMStageTagFn: func(_ context.Context, clinicID, ownerID uint64) error {
+			syncedClinicID = clinicID
+			syncedOwnerID = ownerID
+			return errors.New("sync failed")
+		},
+	}
+	svc := NewAccountingService(repo, tagSync)
+
+	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
+		ClinicID:      1,
+		OwnerID:       &ownerID,
+		Status:        model.BillingStatusCompleted,
+		ScheduledDate: time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, billing)
+	assert.Equal(t, uint64(1), syncedClinicID)
+	assert.Equal(t, ownerID, syncedOwnerID)
 }
 
 func TestAccountingService_Update(t *testing.T) {
@@ -431,7 +463,7 @@ func TestAccountingService_Update(t *testing.T) {
 					return tt.repoRet, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo)
+			svc := NewAccountingService(repo, nil)
 
 			billing, err := svc.Update(context.Background(), &tt.input)
 
@@ -447,6 +479,40 @@ func TestAccountingService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAccountingService_Update_SyncsCPMStageTagBestEffortWhenCompleted(t *testing.T) {
+	ownerID := uint64(10)
+	status := model.BillingStatusCompleted
+	var syncedClinicID, syncedOwnerID uint64
+
+	repo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: clinicID, OwnerID: &ownerID, Status: status}, nil
+		},
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: clinicID, OwnerID: &ownerID, Status: status}, nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		syncCPMStageTagFn: func(_ context.Context, clinicID, ownerID uint64) error {
+			syncedClinicID = clinicID
+			syncedOwnerID = ownerID
+			return errors.New("sync failed")
+		},
+	}
+	svc := NewAccountingService(repo, tagSync)
+
+	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:       30,
+		ClinicID: 1,
+		Status:   &status,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, billing)
+	assert.Equal(t, uint64(1), syncedClinicID)
+	assert.Equal(t, ownerID, syncedOwnerID)
 }
 
 // TestAccountingService_Cancel は BUG-371: 論理削除 (status=cancelled) の挙動を検証する。
@@ -518,7 +584,7 @@ func TestAccountingService_Cancel(t *testing.T) {
 					return tt.findByIDResult, nil
 				},
 			}
-			svc := NewAccountingService(repo)
+			svc := NewAccountingService(repo, nil)
 
 			err := svc.Cancel(context.Background(), tt.clinicID, tt.id)
 
@@ -749,7 +815,7 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewAccountingService(repo)
+	svc := NewAccountingService(repo, nil)
 
 	input := &UpdateAccountingInput{
 		ID:            1,
@@ -858,7 +924,7 @@ func TestAccountingService_GetDailySummary(t *testing.T) {
 			repo := &mockAccountingRepository{
 				getDailySummaryFn: tt.getDailySummaryFn,
 			}
-			svc := NewAccountingService(repo)
+			svc := NewAccountingService(repo, nil)
 
 			got, err := svc.GetDailySummary(context.Background(), 1, tt.dateStr)
 

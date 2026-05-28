@@ -1,0 +1,130 @@
+import { C, ICON, STYLE } from "@/lib/design-tokens";
+import type { MenuItem } from "@/types";
+import { ChevronDown } from "lucide-react";
+import { memo, useState, type MouseEvent } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
+import { usePermission } from "@/hooks/use-permission";
+
+interface SidebarItemProps {
+  item: MenuItem;
+  collapsed?: boolean;
+  level?: number;
+}
+
+function checkAnyChildActive(items: MenuItem[], pathname: string): boolean {
+  return items.some(
+    (sub) =>
+      (sub.path ? pathname.startsWith(sub.path) : false) ||
+      (sub.subItems ? checkAnyChildActive(sub.subItems, pathname) : false),
+  );
+}
+
+const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level = 0 }: SidebarItemProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
+
+  const isActive = item.path
+    ? item.path === "/"
+      ? location.pathname === "/"
+      : location.pathname.startsWith(item.path)
+    : false;
+
+  const hasSubItems = !!item.subItems?.length;
+  const hasActiveChild = hasSubItems ? checkAnyChildActive(item.subItems ?? [], location.pathname) : false;
+  const isExpanded = manualExpanded ?? hasActiveChild;
+
+  const handleClick = (event: MouseEvent) => {
+    if (!hasSubItems) return;
+
+    event.preventDefault();
+    setManualExpanded(!isExpanded);
+    if (item.path) navigate(item.path);
+  };
+
+  const handleChevronClick = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setManualExpanded(!isExpanded);
+  };
+
+  const content = (
+    <div
+      className={[
+        "w-full flex items-center gap-3 px-3 h-12 rounded-[3px] text-base transition-colors",
+        isActive ? STYLE.sidebarItemActive : STYLE.sidebarItemIdle,
+        collapsed ? "justify-center" : "",
+        level === 1 ? "pl-8" : level > 1 ? "pl-14" : "",
+      ].join(" ")}
+    >
+      <div className={`size-[18px] flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>
+        {item.icon}
+      </div>
+      {!collapsed ? (
+        <>
+          <span className="truncate flex-1 text-left">{item.label}</span>
+          {hasSubItems ? (
+            <button
+              type="button"
+              onClick={handleChevronClick}
+              aria-label={isExpanded ? `${item.label}を折りたむ` : `${item.label}を展開`}
+              className={`p-0.5 rounded ${C.hoverBgMedium} transition-colors`}
+            >
+              <ChevronDown className={`${ICON.xs} transition-transform${isExpanded ? " rotate-180" : ""}`} />
+            </button>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+
+  return (
+    <div className="w-full">
+      {hasSubItems ? (
+        <button
+          type="button"
+          onClick={handleClick}
+          className="w-full block"
+          title={collapsed ? item.label : undefined}
+          aria-expanded={isExpanded}
+        >
+          {content}
+        </button>
+      ) : (
+        <Link
+          to={item.path || "#"}
+          className="w-full block"
+          title={collapsed ? item.label : undefined}
+          aria-current={isActive ? "page" : undefined}
+        >
+          {content}
+        </Link>
+      )}
+
+      {hasSubItems && isExpanded && !collapsed ? (
+        <div className="space-y-0.5 mt-0.5 mb-1">
+          {item.subItems?.map((sub) => (
+            <SidebarItemWithPermission key={sub.label} item={sub} collapsed={collapsed} level={level + 1} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+});
+
+interface SidebarItemWithPermissionProps {
+  item: MenuItem;
+  collapsed?: boolean;
+  level?: number;
+}
+
+export const SidebarItemWithPermission = memo(function SidebarItemWithPermission({
+  item,
+  collapsed = false,
+  level = 0,
+}: SidebarItemWithPermissionProps) {
+  const { canView } = usePermission(item.resource ?? "");
+  if (item.resource !== undefined && !canView) return null;
+
+  return <SidebarItem item={item} collapsed={collapsed} level={level} />;
+});

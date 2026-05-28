@@ -9,7 +9,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListDailyRecords godoc
@@ -124,20 +123,10 @@ func (h *Handler) AddVitalRecord(c *gin.Context) {
 		return
 	}
 
-	parsedVitalTime, err := time.Parse("15:04:05", req.Time)
+	input, err := req.toServiceInput()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid time format, expected HH:MM:SS"))
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
-	}
-
-	input := &service.CreateVitalRecordInput{
-		Time:            parsedVitalTime,
-		Temperature:     req.Temperature,
-		HeartRate:       req.HeartRate,
-		RespirationRate: req.RespirationRate,
-		Weight:          req.Weight,
-		Notes:           req.Notes,
-		StaffID:         req.StaffID,
 	}
 
 	record, err := h.svc.DailyRecord.AddVitalRecord(c.Request.Context(), clinicID, hospitalizationID, date, input)
@@ -174,19 +163,10 @@ func (h *Handler) AddCareLog(c *gin.Context) {
 		return
 	}
 
-	parsedCareLogTime, err := time.Parse("15:04:05", req.Time)
+	input, err := req.toServiceInput()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid time format, expected HH:MM:SS"))
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
-	}
-
-	input := &service.CreateCareLogInput{
-		Time:    parsedCareLogTime,
-		Type:    req.Type,
-		Status:  req.Status,
-		Value:   req.Value,
-		StaffID: req.StaffID,
-		Notes:   req.Notes,
 	}
 
 	record, err := h.svc.DailyRecord.AddCareLog(c.Request.Context(), clinicID, hospitalizationID, date, input)
@@ -223,16 +203,10 @@ func (h *Handler) AddStaffNote(c *gin.Context) {
 		return
 	}
 
-	parsedStaffNoteTime, err := time.Parse("15:04:05", req.Time)
+	input, err := req.toServiceInput()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid time format, expected HH:MM:SS"))
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
-	}
-
-	input := &service.CreateStaffNoteInput{
-		Time:    parsedStaffNoteTime,
-		Content: req.Content,
-		StaffID: req.StaffID,
 	}
 
 	record, err := h.svc.DailyRecord.AddStaffNote(c.Request.Context(), clinicID, hospitalizationID, date, input)

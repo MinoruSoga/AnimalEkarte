@@ -1,6 +1,6 @@
 // React/Framework
 import { ICON, C } from "@/lib/design-tokens";
-import { useState, useCallback, useDeferredValue, useEffect, useMemo, memo } from "react";
+import { useState, useCallback, useDeferredValue, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
@@ -9,32 +9,17 @@ import { useModalState } from "@/hooks/use-modal-state";
 import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
 
 // External
-import { Plus, Scissors, AlertTriangle, Edit, Trash2, Calendar, CircleDot, PawPrint, User } from "lucide-react";
+import { Plus, Scissors } from "lucide-react";
 import { toast } from "sonner";
 
 // Types
-import type {
-  FilterProperty,
-  ActiveFilter,
-  SortProperty,
-} from "@/components/shared/NotionFilter/types";
-import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter, FilterProperty } from "@/components/shared/NotionFilter/types";
 
 // Internal
-import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
-import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
-import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { Pagination } from "@/components/shared/Pagination";
-import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
-import { getTrimmingStatusColor } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/use-pagination";
 import { useStaffValidation } from "@/hooks/use-staff-validation";
 import type { TrimmingUI } from "@/types";
@@ -46,110 +31,7 @@ import type { TrimmingFilters } from "../api/get-trimmings";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceTrimming } from "@/types/generated/models";
 import { handleApiError } from "@/lib/handle-api-error";
-
-// rerender-memo + js-cache-function-results: renderRow インライン closure を memo コンポーネントに抽出
-interface TrimmingTableRowProps {
-  record: TrimmingUI;
-  isValidStaff: (staff: string) => boolean;
-  onEdit: (id: string) => void;
-  onDeleteClick: (record: TrimmingUI) => void;
-  canEdit: boolean;
-  canDelete: boolean;
-}
-
-const TrimmingTableRow = memo(function TrimmingTableRow({
-  record,
-  isValidStaff,
-  onEdit,
-  onDeleteClick,
-  canEdit,
-  canDelete,
-}: TrimmingTableRowProps) {
-  return (
-    <DataTableRow onClick={() => onEdit(record.id)}>
-      <TableCell className={`font-mono text-base ${C.text} py-2`}>
-        {record.date}
-      </TableCell>
-      <TableCell className={`text-base ${C.text} py-2`}>{record.ownerName}</TableCell>
-      <TableCell className="py-2">
-        <div className="flex flex-col">
-          <span className={`text-base ${C.text}`}>{record.petName}</span>
-          <span className={`text-base ${C.text60}`}>{record.petNumber}</span>
-        </div>
-      </TableCell>
-      <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.species}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.weight}</TableCell>
-      <TableCell className={`text-base ${C.text} truncate max-w-[200px] py-2 hidden lg:table-cell`}>
-        {record.styleRequest}
-      </TableCell>
-      <TableCell className={`text-base ${C.text} py-2`}>
-        <div className="flex items-center gap-1.5">
-          {!isValidStaff(record.staff) ? (
-            <AlertTriangle className={`${ICON.action} ${C.textWarningIcon}`} />
-          ) : null}
-          {record.staff}
-        </div>
-      </TableCell>
-      <TableCell className="py-2">
-        <StatusBadge colorClass={getTrimmingStatusColor(record.status)}>
-          {record.status}
-        </StatusBadge>
-      </TableCell>
-      <TableCell className="text-right py-2">
-        {(canEdit || canDelete) ? (
-          <RowActionDropdown
-            actions={[
-              ...(canEdit ? [{
-                label: "編集",
-                icon: Edit,
-                onClick: () => onEdit(record.id),
-              }] : []),
-              ...(canDelete ? [{
-                label: "削除",
-                icon: Trash2,
-                variant: "destructive" as const,
-                onClick: () => onDeleteClick(record),
-              }] : []),
-            ]}
-          />
-        ) : null}
-      </TableCell>
-    </DataTableRow>
-  );
-});
-
-// rendering-hoist-jsx: 静的フィルタプロパティ（種・担当は動的オプションのためコンポーネント内で構築）
-const TRIMMING_STATIC_FILTER_PROPERTIES: FilterProperty[] = [
-  {
-    key: "date",
-    label: "日付",
-    type: "date-range",
-    icon: Calendar,
-  },
-  {
-    key: "status",
-    label: "ステータス",
-    type: "select",
-    icon: CircleDot,
-    // 予約ステータスはAPIレスポンスで必ず返るため空値は存在しない
-    conditions: CONDITIONS_NO_EMPTY,
-    options: [
-      { value: "予約", label: "予約" },
-      { value: "進行中", label: "進行中" },
-      { value: "完了", label: "完了" },
-    ],
-  },
-];
-
-// rendering-hoist-jsx: 静的ソートプロパティ定義
-const TRIMMING_SORT_PROPERTIES: SortProperty[] = [
-  { key: "date", label: "診療日" },
-  { key: "ownerName", label: "飼主名" },
-  { key: "petName", label: "ペット名" },
-  { key: "species", label: "種" },
-  { key: "staff", label: "担当" },
-  { key: "status", label: "ステータス" },
-];
+import { buildTrimmingDynamicFilterProperties, TrimmingListTable } from "../components/TrimmingListTable";
 
 export function TrimmingList() {
   const navigate = useNavigate();
@@ -180,13 +62,7 @@ export function TrimmingList() {
   const filterProperties = useMemo<FilterProperty[]>(() => {
     const speciesOptions = uniqueSortedOptions(allTrimmings, (r) => r.species);
     const staffOptions = uniqueSortedOptions(allTrimmings, (r) => r.staff);
-    return [
-      ...TRIMMING_STATIC_FILTER_PROPERTIES,
-      // pets.animal_species_id NOT NULL — 空値は存在しない
-      { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: CONDITIONS_NO_EMPTY, options: speciesOptions },
-      // staff_id ON DELETE SET NULL — 空値（未割当）あり
-      { key: "staff", label: "担当", type: "select" as const, icon: User, conditions: CONDITIONS_WITH_EMPTY, options: staffOptions },
-    ];
+    return buildTrimmingDynamicFilterProperties(speciesOptions, staffOptions);
   }, [allTrimmings]);
 
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
@@ -269,70 +145,6 @@ export function TrimmingList() {
     setSearchKeyword(v);
   }, []);
 
-  const columns = useMemo(() => [
-    {
-      header: (
-        <SortableHeader
-          label="診療日"
-          direction={directionFor("date")}
-          onToggle={() => toggleSort("date")}
-        />
-      ),
-      className: "w-[120px]",
-    },
-    {
-      header: (
-        <SortableHeader
-          label="飼主名"
-          direction={directionFor("ownerName")}
-          onToggle={() => toggleSort("ownerName")}
-        />
-      ),
-    },
-    {
-      header: (
-        <SortableHeader
-          label="ペット名"
-          direction={directionFor("petName")}
-          onToggle={() => toggleSort("petName")}
-        />
-      ),
-    },
-    {
-      header: (
-        <SortableHeader
-          label="種"
-          direction={directionFor("species")}
-          onToggle={() => toggleSort("species")}
-        />
-      ),
-      className: "w-[80px] hidden lg:table-cell",
-    },
-    { header: "体重", className: "w-[80px] hidden lg:table-cell" },
-    { header: "スタイル希望", className: "hidden lg:table-cell" },
-    {
-      header: (
-        <SortableHeader
-          label="担当"
-          direction={directionFor("staff")}
-          onToggle={() => toggleSort("staff")}
-        />
-      ),
-      className: "w-[100px]",
-    },
-    {
-      header: (
-        <SortableHeader
-          label="ステータス"
-          direction={directionFor("status")}
-          onToggle={() => toggleSort("status")}
-        />
-      ),
-      className: "w-[100px]",
-    },
-    { header: "操作", className: "w-[100px]", align: "right" as const },
-  ], [directionFor, toggleSort]);
-
   if (isLoading) return <LoadingFallback />;
   if (error) return <ErrorFallback />;
 
@@ -352,49 +164,29 @@ export function TrimmingList() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        {/* Filters */}
-        <NotionFilter
-          properties={filterProperties}
-          activeFilters={activeFilters}
-          onFilterChange={setActiveFilters}
-          searchTerm={searchKeyword}
-          onSearchChange={handleSearchChange}
-          searchPlaceholder="飼主名、ペット名..."
-          count={filteredRecords.length}
-          sortProperties={TRIMMING_SORT_PROPERTIES}
-          activeSorts={activeSorts}
-          onSortChange={setActiveSorts}
-        />
-
-        {/* Table */}
-        <FilteringIndicator isFiltering={isFiltering}>
-          <DataTable
-            columns={columns}
-            data={paginatedData}
-            renderRow={(record) => (
-              <TrimmingTableRow
-                key={record.id}
-                record={record}
-                isValidStaff={isValidStaff}
-                onEdit={handleEdit}
-                onDeleteClick={handleDeleteClick}
-                canEdit={canEdit}
-                canDelete={canDelete}
-              />
-            )}
-          />
-        </FilteringIndicator>
-
-        {/* Pagination */}
-        <Pagination
+        <TrimmingListTable
+          records={paginatedData}
+          filteredCount={filteredRecords.length}
           currentPage={currentPage}
           totalPages={totalPages}
-          totalCount={filteredRecords.length}
           startIndex={startIndex}
           endIndex={endIndex}
+          searchKeyword={searchKeyword}
+          activeFilters={activeFilters}
+          activeSorts={activeSorts}
+          filterProperties={filterProperties}
+          isFiltering={isFiltering}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          isValidStaff={isValidStaff}
+          directionFor={directionFor}
+          onSearchChange={handleSearchChange}
+          onFilterChange={setActiveFilters}
+          onSortChange={setActiveSorts}
+          onToggleSort={toggleSort}
+          onEdit={handleEdit}
+          onDeleteClick={handleDeleteClick}
           onPageChange={handlePageChange}
-          onPrev={() => handlePageChange(currentPage - 1)}
-          onNext={() => handlePageChange(currentPage + 1)}
         />
       </div>
 

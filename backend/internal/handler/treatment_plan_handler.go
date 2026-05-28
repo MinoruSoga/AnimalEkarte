@@ -8,7 +8,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 func (h *Handler) ListTreatmentPlansByMedicalRecord(c *gin.Context) {
@@ -61,18 +60,7 @@ func (h *Handler) CreateTreatmentPlanForMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	input := &service.CreateTreatmentPlanInput{
-		TreatmentContent: req.TreatmentContent,
-		Memo:             req.Memo,
-		IsInsurance:      req.IsInsurance,
-		UnitPrice:        req.UnitPrice,
-		Quantity:         req.Quantity,
-		DiscountRate:     req.DiscountRate,
-		DiscountAmount:   req.DiscountAmount,
-		Subtotal:         req.Subtotal,
-		SortOrder:        req.SortOrder,
-	}
-	plan, err := h.svc.TreatmentPlan.Create(c.Request.Context(), clinicID, &id, nil, input)
+	plan, err := h.svc.TreatmentPlan.Create(c.Request.Context(), clinicID, &id, nil, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -133,39 +121,13 @@ func (h *Handler) CreateTreatmentPlanForHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	input := &service.CreateTreatmentPlanInput{
-		TreatmentContent: req.TreatmentContent,
-		Memo:             req.Memo,
-		IsInsurance:      req.IsInsurance,
-		UnitPrice:        req.UnitPrice,
-		Quantity:         req.Quantity,
-		DiscountRate:     req.DiscountRate,
-		DiscountAmount:   req.DiscountAmount,
-		Subtotal:         req.Subtotal,
-		SortOrder:        req.SortOrder,
-	}
-	plan, err := h.svc.TreatmentPlan.Create(c.Request.Context(), clinicID, nil, &id, input)
+	plan, err := h.svc.TreatmentPlan.Create(c.Request.Context(), clinicID, nil, &id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/treatment-plans/%d", id, plan.ID))
 	c.JSON(http.StatusCreated, toTreatmentPlanResponse(plan))
-}
-
-// buildUpdateTreatmentPlanInput は共通の更新入力を組み立てる
-func buildUpdateTreatmentPlanInput(req updateTreatmentPlanRequest) *service.UpdateTreatmentPlanInput {
-	return &service.UpdateTreatmentPlanInput{
-		TreatmentContent: req.TreatmentContent,
-		Memo:             req.Memo,
-		IsInsurance:      req.IsInsurance,
-		UnitPrice:        req.UnitPrice,
-		Quantity:         req.Quantity,
-		DiscountRate:     req.DiscountRate,
-		DiscountAmount:   req.DiscountAmount,
-		Subtotal:         req.Subtotal,
-		SortOrder:        req.SortOrder,
-	}
 }
 
 // BUG-372: 既存 TreatmentPlan を取得し discount フィールド変更時の権限チェックを行う。
@@ -211,7 +173,7 @@ func (h *Handler) UpdateTreatmentPlanInMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	plan, err := h.svc.TreatmentPlan.Update(c.Request.Context(), clinicID, planID, buildUpdateTreatmentPlanInput(req))
+	plan, err := h.svc.TreatmentPlan.Update(c.Request.Context(), clinicID, planID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -272,7 +234,7 @@ func (h *Handler) UpdateTreatmentPlanInHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	plan, err := h.svc.TreatmentPlan.Update(c.Request.Context(), clinicID, planID, buildUpdateTreatmentPlanInput(req))
+	plan, err := h.svc.TreatmentPlan.Update(c.Request.Context(), clinicID, planID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

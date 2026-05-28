@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Vaccine ----
@@ -19,10 +18,7 @@ func (h *Handler) ListVaccines(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var species *string
-	if s := c.Query("species"); s != "" {
-		species = &s
-	}
+	species := newListVaccinesQuery(c.Request.URL.Query()).toServiceFilter()
 	vaccines, err := h.svc.Vaccine.List(c.Request.Context(), clinicID, species)
 	if err != nil {
 		RespondError(c, err)
@@ -56,24 +52,13 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 		return
 	}
 
-	var input createVaccineRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req createVaccineRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	svcInput := &service.CreateVaccineInput{
-		Name:        input.Name,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		Interval:    input.Interval,
-		ParentID:    input.ParentID,
-		SortOrder:   input.SortOrder,
-	}
-	svcInput.Species = nilIfEmpty(input.Species)
-
-	vaccine, err := h.svc.Vaccine.Create(c.Request.Context(), clinicID, svcInput)
+	vaccine, err := h.svc.Vaccine.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -92,25 +77,13 @@ func (h *Handler) UpdateVaccine(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input updateVaccineRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req updateVaccineRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	svcInput := service.UpdateVaccineInput{
-		Name:          input.Name,
-		Price:         input.Price,
-		IsActive:      input.IsActive,
-		Description:   input.Description,
-		Species:       input.Species,
-		Interval:      input.Interval,
-		ParentID:      input.ParentID,
-		ClearParentID: input.ClearParentID,
-		SortOrder:     input.SortOrder,
-	}
-
-	vaccine, err := h.svc.Vaccine.Update(c.Request.Context(), clinicID, id, &svcInput)
+	vaccine, err := h.svc.Vaccine.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

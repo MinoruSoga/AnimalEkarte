@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -164,6 +163,7 @@ type petService struct {
 	ownerRepo         repository.OwnerRepository
 	insuranceRepo     repository.InsuranceRepository
 	medicalRecordRepo repository.MedicalRecordRepository
+	tagSyncSvc        LstepTagSyncService
 }
 
 func NewPetService(
@@ -171,12 +171,14 @@ func NewPetService(
 	ownerRepo repository.OwnerRepository,
 	insuranceRepo repository.InsuranceRepository,
 	medicalRecordRepo repository.MedicalRecordRepository,
+	tagSyncSvc LstepTagSyncService,
 ) PetService {
 	return &petService{
 		repo:              repo,
 		ownerRepo:         ownerRepo,
 		insuranceRepo:     insuranceRepo,
 		medicalRecordRepo: medicalRecordRepo,
+		tagSyncSvc:        tagSyncSvc,
 	}
 }
 
@@ -199,27 +201,8 @@ func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.P
 }
 
 func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreatePetInput) (*model.Pet, error) {
-	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
-	if err := validateRequiredName(input.Name); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate required name")
-	}
-	input.Name = strings.TrimSpace(input.Name)
-
-	// ビジネスルールバリデーション
-	if input.Weight != nil && *input.Weight < 0 {
-		return nil, apperrors.WrapInvalidInput(ErrMsgWeightZeroOrMore)
-	}
-	if err := validatePetGender(input.Gender); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate pet gender")
-	}
-	if err := validatePetStatus(input.Status); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate pet status")
-	}
-	if err := validatePetAcquisitionType(input.AcquisitionType); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate pet acquisition type")
-	}
-	if err := validatePetDangerLevel(input.DangerLevel); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate pet danger level")
+	if err := validateCreatePetInput(input); err != nil {
+		return nil, err
 	}
 
 	// owner_id の clinic 所属確認
@@ -242,38 +225,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 	}
 	petNumber := fmt.Sprintf("%d-%d", input.OwnerID, count+1)
 
-	// DTO → Model 変換
-	pet := &model.Pet{
-		ClinicID:        clinicID,
-		OwnerID:         input.OwnerID,
-		AnimalSpeciesID: input.AnimalSpeciesID,
-		PetNumber:       petNumber,
-		Name:            input.Name,
-		NameKana:        input.PetNameKana,
-		BirthDate:       input.BirthDate,
-		Breed:           input.Breed,
-		Color:           input.Color,
-		Weight:          input.Weight,
-		NeuteredDate:    input.NeuteredDate,
-		Food:            input.Food,
-		Environment:     input.Environment,
-		Phone:           input.Phone,
-		InsuranceID:     input.InsuranceID,
-		Remarks:         input.Remarks,
-	}
-	if input.Gender != "" {
-		pet.Gender = model.PetGender(input.Gender)
-	}
-	if input.Status != "" {
-		pet.Status = model.PetStatus(input.Status)
-	}
-	if input.AcquisitionType != "" {
-		at := model.AcquisitionType(input.AcquisitionType)
-		pet.AcquisitionType = &at
-	}
-	if input.DangerLevel != "" {
-		pet.DangerLevel = model.DangerLevel(input.DangerLevel)
-	}
+	pet := buildPetModel(clinicID, petNumber, input)
 
 	if err := s.repo.Create(ctx, pet); err != nil {
 		slog.ErrorContext(ctx, "failed to create pet", "error", err)
@@ -284,6 +236,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 		slog.Uint64("pet_id", pet.ID),
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("owner_id", input.OwnerID))
+	s.syncLstepTags(ctx, clinicID, pet.OwnerID)
 
 	return pet, nil
 }
@@ -293,38 +246,9 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		slog.ErrorContext(ctx, "failed to find pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find pet")
 	}
-	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
-	if input.Name != nil {
-		if err := validateRequiredName(*input.Name); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate required name")
-		}
-		trimmed := strings.TrimSpace(*input.Name)
-		input.Name = &trimmed
-	}
 
-	// ビジネスルールバリデーション
-	if input.Weight != nil && *input.Weight < 0 {
-		return nil, apperrors.WrapInvalidInput(ErrMsgWeightZeroOrMore)
-	}
-	if input.Gender != nil {
-		if err := validatePetGender(*input.Gender); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate pet gender")
-		}
-	}
-	if input.Status != nil {
-		if err := validatePetStatus(*input.Status); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate pet status")
-		}
-	}
-	if input.AcquisitionType != nil {
-		if err := validatePetAcquisitionType(*input.AcquisitionType); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate pet acquisition type")
-		}
-	}
-	if input.DangerLevel != nil {
-		if err := validatePetDangerLevel(*input.DangerLevel); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate pet danger level")
-		}
+	if err := validateUpdatePetInput(input); err != nil {
+		return nil, err
 	}
 
 	// owner_id 変更時の clinic 所属確認
@@ -346,22 +270,51 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update pet", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update pet")
+	if err := s.updatePetFields(ctx, clinicID, id, fields, "failed to update pet", "failed to update pet"); err != nil {
+		return nil, err
 	}
 
 	slog.InfoContext(ctx, "pet updated",
 		slog.Uint64("pet_id", id),
 		slog.Uint64("clinic_id", clinicID))
 
+	pet, err := s.reloadPet(ctx, clinicID, id, "failed to get updated pet", "failed to get updated pet")
+	if err != nil {
+		return nil, err
+	}
+	s.syncLstepTags(ctx, clinicID, pet.OwnerID)
+	return pet, nil
+}
+
+func (s *petService) updatePetFields(ctx context.Context, clinicID, id uint64, fields map[string]any, logMessage, wrapMessage string) error {
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, logMessage, "error", err)
+		return apperrors.Wrap(err, wrapMessage)
+	}
+	return nil
+}
+
+func (s *petService) reloadPet(ctx context.Context, clinicID, id uint64, logMessage, wrapMessage string) (*model.Pet, error) {
 	pet, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get updated pet", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get updated pet")
+		slog.ErrorContext(ctx, logMessage, "error", err)
+		return nil, apperrors.Wrap(err, wrapMessage)
 	}
 	return pet, nil
 }
+
+func (s *petService) syncLstepTags(ctx context.Context, clinicID, ownerID uint64) {
+	if s.tagSyncSvc == nil {
+		return
+	}
+	if err := s.tagSyncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, ownerID); err != nil {
+		slog.ErrorContext(ctx, "failed to sync animal classification tags after pet change", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
+	}
+	if err := s.tagSyncSvc.SyncPetBasicInfoTags(ctx, clinicID, ownerID); err != nil {
+		slog.ErrorContext(ctx, "failed to sync pet basic info tags after pet change", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
+	}
+}
+
 func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find pet")

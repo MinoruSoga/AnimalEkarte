@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"maps"
 	"net/http"
 	"reflect"
@@ -80,10 +79,6 @@ func RespondError(c *gin.Context, err error) {
 		pgMsg := classifyPgError(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": pgMsg})
 	default:
-		slog.ErrorContext(c.Request.Context(), "internal server error",
-			slog.String("error", err.Error()),
-			slog.String("path", c.FullPath()),
-			slog.String("method", c.Request.Method))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
 }

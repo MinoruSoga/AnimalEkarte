@@ -8,7 +8,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListVitals は指定カルテIDのバイタル一覧を返す
@@ -65,20 +64,7 @@ func (h *Handler) CreateVital(c *gin.Context) {
 	if mr.PetID != nil {
 		petID = *mr.PetID
 	}
-	input := &service.CreateVitalInput{
-		ClinicID:        clinicID,
-		PetID:           petID,
-		RecordedAt:      req.RecordedAt,
-		StaffID:         req.StaffID,
-		Temperature:     req.Temperature,
-		HeartRate:       req.HeartRate,
-		RespirationRate: req.RespirationRate,
-		Weight:          req.Weight,
-		WeightUnit:      toBodyWeightUnit(req.WeightUnit),
-		Notes:           req.Notes,
-	}
-
-	vital, err := h.svc.Vital.Create(c.Request.Context(), medicalRecordID, input)
+	vital, err := h.svc.Vital.Create(c.Request.Context(), medicalRecordID, req.toServiceInput(clinicID, petID))
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -118,19 +104,7 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 		return
 	}
 
-	input := &service.UpdateVitalInput{
-		RecordedAt:      req.RecordedAt,
-		StaffID:         req.StaffID,
-		Temperature:     req.Temperature,
-		HeartRate:       req.HeartRate,
-		RespirationRate: req.RespirationRate,
-		Weight:          req.Weight,
-		WeightUnit:      toBodyWeightUnit(req.WeightUnit),
-		Notes:           req.Notes,
-		ActorID:         &staffID,
-	}
-
-	vital, err := h.svc.Vital.Update(c.Request.Context(), clinicID, medicalRecordID, vitalID, input)
+	vital, err := h.svc.Vital.Update(c.Request.Context(), clinicID, medicalRecordID, vitalID, req.toServiceInput(staffID))
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -163,16 +137,6 @@ func (h *Handler) DeleteVital(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
-}
-
-// toBodyWeightUnit は文字列ポインタを *model.BodyWeightUnit に変換するヘルパー。
-// nil の場合は nil を返し、サービス層でデフォルト値（Kg）が適用される。
-func toBodyWeightUnit(s *string) *model.BodyWeightUnit {
-	if s == nil {
-		return nil
-	}
-	u := model.BodyWeightUnit(*s)
-	return &u
 }
 
 // RegisterVitalRoutes はバイタル関連のルートをmedical-recordsグループに登録する

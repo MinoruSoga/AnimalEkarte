@@ -388,6 +388,36 @@ func TestOwnerService_CreateWithPets(t *testing.T) {
 	}
 }
 
+func TestOwnerService_CreateWithPets_SyncAnimalClassificationTagsBestEffort(t *testing.T) {
+	syncCalled := false
+	repo := &mockOwnerRepository{
+		createWithPetsFn: func(_ context.Context, owner *model.Owner, _ []model.Pet) error {
+			owner.ID = 123
+			return nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		syncOwnerAnimalClassificationTagFn: func(_ context.Context, clinicID, ownerID uint64) error {
+			syncCalled = true
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(123), ownerID)
+			return errors.New("lstep unavailable")
+		},
+	}
+	svc := NewOwnerService(repo, tagSync, nil)
+
+	owner, err := svc.CreateWithPets(context.Background(), 1, &CreateOwnerInput{
+		OwnerName: "同期 太郎",
+		Pets: []CreatePetForOwnerInput{
+			{Name: "ポチ", AnimalSpeciesID: 1},
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, owner)
+	assert.True(t, syncCalled)
+}
+
 func TestOwnerService_Update(t *testing.T) {
 	updatedOwner := &model.Owner{ID: 1, ClinicID: 1, Name: "更新後 氏名"}
 

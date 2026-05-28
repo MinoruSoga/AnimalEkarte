@@ -1,6 +1,10 @@
 package handler
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/animal-ekarte/backend/internal/service"
+)
 
 type upsertLineReservationSettingRequest struct {
 	Status                  string         `json:"status"`
@@ -31,6 +35,39 @@ type upsertLineReservationSettingRequest struct {
 	LineChannelSecret       string         `json:"line_channel_secret"`
 	LiffID                  string         `json:"liff_id"`
 	LineAccessToken         string         `json:"line_access_token"`
+}
+
+func (r upsertLineReservationSettingRequest) toServiceInput() *service.UpsertLineReservationSettingInput {
+	return &service.UpsertLineReservationSettingInput{
+		Status:                  r.Status,
+		HeaderText:              r.HeaderText,
+		ReservationNotice:       r.ReservationNotice,
+		CancelNotice:            r.CancelNotice,
+		PrivacyPolicy:           r.PrivacyPolicy,
+		ClosedWeekdays:          r.ClosedWeekdays,
+		ClosedDates:             r.ClosedDates,
+		NationalHolidayClosed:   r.NationalHolidayClosed,
+		BusinessHours:           r.BusinessHours,
+		BusinessHoursByWeekday:  r.BusinessHoursByWeekday,
+		BreakHours:              r.BreakHours,
+		DailyLimit:              r.DailyLimit,
+		MonthlyLimit:            r.MonthlyLimit,
+		BookingWindowMaxDays:    r.BookingWindowMaxDays,
+		BookingWindowMinDays:    r.BookingWindowMinDays,
+		CalendarMonths:          r.CalendarMonths,
+		PhoneNumber:             r.PhoneNumber,
+		NotificationEmail:       r.NotificationEmail,
+		RequestExample:          r.RequestExample,
+		TimeSlotMode:            r.TimeSlotMode,
+		TimeSlotIntervalMinutes: r.TimeSlotIntervalMinutes,
+		NoStaffMode:             r.NoStaffMode,
+		ShowNoStaffOption:       r.ShowNoStaffOption,
+		AdditionalFields:        r.AdditionalFields,
+		LineChannelID:           r.LineChannelID,
+		LineChannelSecret:       r.LineChannelSecret,
+		LiffID:                  r.LiffID,
+		LineAccessToken:         r.LineAccessToken,
+	}
 }
 
 // jsonRawOrEmpty は JSON フィールドを生の JSON として保持するためのエイリアス。

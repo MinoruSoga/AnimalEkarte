@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { FlaskConical } from "lucide-react";
 
 // Internal
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -89,11 +89,10 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
             <FlaskConical className={`${ICON.action} ${C.textMedicalBlue}`} />
             検査取り込み
           </DialogTitle>
+          <DialogDescription>
+            このペットの検査記録からカルテに取り込む検査を選択します。
+          </DialogDescription>
         </DialogHeader>
-
-        <p className={`text-sm ${C.text60} -mt-2`}>
-          このペットの検査記録からカルテに取り込む検査を選択してください。
-        </p>
 
         {/* Exam List */}
         <div className="flex-1 overflow-y-auto min-h-0 space-y-2 py-1">

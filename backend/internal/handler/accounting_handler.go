@@ -3,51 +3,12 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
-
-// billingStatusPtr は *string を *model.BillingStatus に変換する。nil の場合は nil を返す。
-func billingStatusPtr(s *string) *model.BillingStatus {
-	if s == nil {
-		return nil
-	}
-	v := model.BillingStatus(*s)
-	return &v
-}
-
-// paymentMethodPtr は *string を *model.PaymentMethod に変換する。nil の場合は nil を返す。
-func paymentMethodPtr(s *string) *model.PaymentMethod {
-	if s == nil {
-		return nil
-	}
-	v := model.PaymentMethod(*s)
-	return &v
-}
-
-// toPaymentSplitInputs は []paymentSplitRequest を []service.PaymentSplitInput に変換する。
-func toPaymentSplitInputs(reqs []paymentSplitRequest) []service.PaymentSplitInput {
-	if len(reqs) == 0 {
-		return nil
-	}
-	out := make([]service.PaymentSplitInput, 0, len(reqs))
-	for _, r := range reqs {
-		out = append(out, service.PaymentSplitInput{
-			Method:          model.PaymentMethod(r.Method),
-			PaymentMethodID: r.PaymentMethodID,
-			Amount:          r.Amount,
-			ReceivedAmount:  r.ReceivedAmount,
-			ChangeAmount:    r.ChangeAmount,
-		})
-	}
-	return out
-}
 
 // ListAccountings godoc
 func (h *Handler) ListAccountings(c *gin.Context) {
@@ -62,42 +23,23 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 		return
 	}
 
-	var petID *uint64
-	if s := c.Query("pet_id"); s != "" {
-		id, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
-			return
-		}
-		petID = &id
-	}
-	var ownerID *uint64
-	if s := c.Query("owner_id"); s != "" {
-		id, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
-			return
-		}
-		ownerID = &id
-	}
-
-	var status *string
-	if s := c.Query("status"); s != "" {
-		status = &s
-	}
-
-	startDate, err := parseDateQuery(c, "start_date")
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	endDate, err := parseDateQuery(c, "end_date")
+	filters, err := newListAccountingQuery(c.Request.URL.Query()).toServiceFilters()
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 
-	accountings, total, err := h.svc.Accounting.List(c.Request.Context(), clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	accountings, total, err := h.svc.Accounting.List(
+		c.Request.Context(),
+		clinicID,
+		filters.PetID,
+		filters.OwnerID,
+		filters.Status,
+		filters.StartDate,
+		filters.EndDate,
+		page,
+		limit,
+	)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -138,28 +80,10 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	created, err := h.svc.Accounting.Create(ctx, &service.CreateAccountingInput{
-		ClinicID:          clinicID,
-		MedicalRecordID:   input.MedicalRecordID,
-		HospitalizationID: input.HospitalizationID,
-		OwnerID:           input.OwnerID,
-		PetID:             input.PetID,
-		Subtotal:          input.Subtotal,
-		TaxTotal:          input.TaxTotal,
-		TotalAmount:       input.TotalAmount,
-		HasInsurance:      input.HasInsurance,
-		Status:            model.BillingStatus(input.Status),
-		ScheduledDate:     input.ScheduledDate,
-		CompletedAt:       input.CompletedAt,
-		Memo:              input.Memo,
-	})
+	created, err := h.svc.Accounting.Create(ctx, input.toServiceInput(clinicID))
 	if err != nil {
 		RespondError(c, err)
 		return
-	}
-	// BE-011: CPM ステージタグ同期（completed 時のみ、best-effort）
-	if model.BillingStatus(input.Status) == model.BillingStatusCompleted && created.OwnerID != nil {
-		_ = h.svc.LstepTagSync.SyncCPMStageTag(ctx, clinicID, *created.OwnerID)
 	}
 	c.Header("Location", fmt.Sprintf("/v1/accountings/%d", created.ID))
 	c.JSON(http.StatusCreated, toAccountingResponse(created))
@@ -199,39 +123,10 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	updated, err := h.svc.Accounting.Update(ctx, &service.UpdateAccountingInput{
-		ID:                id,
-		ClinicID:          clinicID,
-		StaffID:           &staffID,
-		MedicalRecordID:   input.MedicalRecordID,
-		HospitalizationID: input.HospitalizationID,
-		OwnerID:           input.OwnerID,
-		PetID:             input.PetID,
-		Subtotal:          input.Subtotal,
-		TaxTotal:          input.TaxTotal,
-		TotalAmount:       input.TotalAmount,
-		HasInsurance:      input.HasInsurance,
-		ScheduledDate:     input.ScheduledDate,
-		CompletedAt:       input.CompletedAt,
-		Memo:              input.Memo,
-		InsuranceRatio:    input.InsuranceRatio,
-		InsuranceName:     input.InsuranceName,
-		InsuranceAmount:   input.InsuranceAmount,
-		DiscountAmount:    input.DiscountAmount,
-		BillingAmount:     input.BillingAmount,
-		ReceivedAmount:    input.ReceivedAmount,
-		ChangeAmount:      input.ChangeAmount,
-		Status:            billingStatusPtr(input.Status),
-		PaymentMethod:     paymentMethodPtr(input.PaymentMethod),
-		PaymentSplits:     toPaymentSplitInputs(input.PaymentSplits),
-	})
+	updated, err := h.svc.Accounting.Update(ctx, input.toServiceInput(id, clinicID, staffID))
 	if err != nil {
 		RespondError(c, err)
 		return
-	}
-	// BE-011: CPM ステージタグ同期（completed 遷移時のみ、best-effort）
-	if input.Status != nil && model.BillingStatus(*input.Status) == model.BillingStatusCompleted && updated.OwnerID != nil {
-		_ = h.svc.LstepTagSync.SyncCPMStageTag(ctx, clinicID, *updated.OwnerID)
 	}
 	c.JSON(http.StatusOK, toAccountingResponse(updated))
 }
@@ -249,24 +144,19 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 		return
 	}
 
-	baseDatePtr, err := parseDateQuery(c, "base_date")
+	filters, err := newListUnpaidBillingsQuery(c.Request.URL.Query()).toServiceFilters(time.Now().Format("2006-01-02"))
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	baseDate := time.Now().Format("2006-01-02")
-	if baseDatePtr != nil {
-		baseDate = *baseDatePtr
-	}
 
-	groupBy := c.DefaultQuery("group_by", "owner")
 	ctx := c.Request.Context()
 
-	switch groupBy {
+	switch filters.GroupBy {
 	case "billing":
 		// ListUnpaidByBilling は model.Billing スライスを返す（DBテーブル名 billings 由来）。
 		// 会計ドメイン(accounting)と DB モデル(Billing)の命名差異はここで吸収する。
-		accountings, total, err := h.svc.Accounting.ListUnpaidByBilling(ctx, clinicID, baseDate, page, limit)
+		accountings, total, err := h.svc.Accounting.ListUnpaidByBilling(ctx, clinicID, filters.BaseDate, page, limit)
 		if err != nil {
 			RespondError(c, err)
 			return
@@ -277,7 +167,7 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, newPaginatedResponse(responses, total, page, limit))
 	case "owner":
-		aggregates, total, summary, err := h.svc.Accounting.ListUnpaidByOwner(ctx, clinicID, baseDate, page, limit)
+		aggregates, total, summary, err := h.svc.Accounting.ListUnpaidByOwner(ctx, clinicID, filters.BaseDate, page, limit)
 		if err != nil {
 			RespondError(c, err)
 			return
@@ -296,8 +186,8 @@ func (h *Handler) GetDailySummary(c *gin.Context) {
 		return
 	}
 
-	dateStr := c.Query("date")
-	result, err := h.svc.Accounting.GetDailySummary(c.Request.Context(), clinicID, dateStr)
+	query := newDailySummaryQuery(c.Request.URL.Query())
+	result, err := h.svc.Accounting.GetDailySummary(c.Request.Context(), clinicID, query.Date)
 	if err != nil {
 		RespondError(c, err)
 		return

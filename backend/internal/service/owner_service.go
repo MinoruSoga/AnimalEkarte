@@ -15,6 +15,8 @@ import (
 // --- Owner DB column constants ---
 
 const (
+	ownerDeliveryReasonMaxLength = 100
+
 	colOwnerName              = "name"
 	colOwnerNameKana          = "name_kana"
 	colBirthDate              = "birth_date"
@@ -186,6 +188,17 @@ func buildOwnerUpdate(input *UpdateOwnerInput) map[string]any {
 	return fields
 }
 
+func normalizeOwnerReason(reason, fieldName string) (*string, error) {
+	trimmed := strings.TrimSpace(reason)
+	if len([]rune(trimmed)) > ownerDeliveryReasonMaxLength {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s must be %d characters or less", fieldName, ownerDeliveryReasonMaxLength))
+	}
+	if trimmed == "" {
+		return nil, nil
+	}
+	return &trimmed, nil
+}
+
 // --- Interface ---
 
 type OwnerService interface {
@@ -240,132 +253,19 @@ func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model
 }
 
 func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error) {
-	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
-	if err := validateRequiredName(input.OwnerName); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate required name")
-	}
-	input.OwnerName = strings.TrimSpace(input.OwnerName)
-
-	// メールアドレス形式バリデーション（空でない場合）
-	if err := validateEmailFormat(input.Email); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate email format")
+	if err := validateCreateOwnerInput(input); err != nil {
+		return nil, err
 	}
 
-	// 電話番号形式バリデーション（空でない場合）
-	if err := validatePhoneFormat(input.Phone); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate phone format")
+	if err := s.ensureOwnerEmailUnique(ctx, clinicID, 0, input.Email); err != nil {
+		return nil, err
+	}
+	if err := s.ensureOwnerPhoneUnique(ctx, clinicID, 0, input.Phone); err != nil {
+		return nil, err
 	}
 
-	// 郵便番号形式バリデーション（空でない場合）
-	if err := validatePostalCodeFormat(input.PostalCode); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate postal code format")
-	}
-
-	// ビジネスルールバリデーション
-	if err := validateDiscountRate(input.DiscountRate); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate discount rate")
-	}
-	if err := validateMembershipType(input.MembershipType); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate membership type")
-	}
-	for i := range input.Pets {
-		if err := validatePetGender(input.Pets[i].Gender); err != nil {
-			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
-		}
-		if err := validatePetStatus(input.Pets[i].Status); err != nil {
-			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
-		}
-		if err := validatePetAcquisitionType(input.Pets[i].AcquisitionType); err != nil {
-			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
-		}
-		if err := validatePetDangerLevel(input.Pets[i].DangerLevel); err != nil {
-			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
-		}
-	}
-
-	// メールアドレス重複チェック（空でない場合のみ）
-	if input.Email != "" {
-		existing, err := s.repo.FindByEmail(ctx, clinicID, input.Email)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to check email uniqueness", "error", err)
-			return nil, apperrors.Wrap(err, "failed to check email uniqueness")
-		}
-		if existing != nil {
-			return nil, apperrors.WrapAlreadyExists("owner", "このメールアドレスはすでに登録されています")
-		}
-	}
-
-	// BUG-064: 電話番号重複チェック（空でない場合のみ）
-	if input.Phone != "" {
-		existing, err := s.repo.FindByPhone(ctx, clinicID, input.Phone)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to check phone uniqueness", "error", err)
-			return nil, apperrors.Wrap(err, "failed to check phone uniqueness")
-		}
-		if existing != nil {
-			return nil, apperrors.WrapAlreadyExists("owner", "この電話番号はすでに登録されています")
-		}
-	}
-
-	// DTO → Model 変換
-	membershipType := input.MembershipType
-	if membershipType == "" {
-		membershipType = model.MembershipTypeNonMember
-	}
-
-	owner := &model.Owner{
-		ClinicID:       clinicID,
-		Name:           input.OwnerName,
-		NameKana:       input.OwnerNameKana,
-		BirthDate:      input.BirthDate,
-		Company:        input.Company,
-		PostalCode:     input.PostalCode,
-		Address1:       input.Address1,
-		Address2:       input.Address2,
-		HomePostalCode: input.HomePostalCode,
-		HomeAddress1:   input.HomeAddress1,
-		HomeAddress2:   input.HomeAddress2,
-		Phone:          input.Phone,
-		CompanyPhone:   input.CompanyPhone,
-		Email:          input.Email,
-		Remarks:        input.Remarks,
-		IsDangerous:    input.IsDangerous,
-		DiscountRate:   input.DiscountRate,
-		MembershipType: membershipType,
-	}
-
-	pets := make([]model.Pet, 0, len(input.Pets))
-	for i := range input.Pets {
-		p := &input.Pets[i]
-		pet := model.Pet{
-			Name:            p.Name,
-			AnimalSpeciesID: p.AnimalSpeciesID,
-			NameKana:        p.PetNameKana,
-			Breed:           p.Breed,
-			Color:           p.Color,
-			BirthDate:       p.BirthDate,
-			Weight:          p.Weight,
-			NeuteredDate:    p.NeuteredDate,
-			Food:            p.Food,
-			Environment:     p.Environment,
-			InsuranceID:     p.InsuranceID,
-			Remarks:         p.Remarks,
-		}
-		if p.Gender != "" {
-			pet.Gender = model.PetGender(p.Gender)
-		}
-		if p.Status != "" {
-			pet.Status = model.PetStatus(p.Status)
-		}
-		if p.AcquisitionType != "" {
-			at := model.AcquisitionType(p.AcquisitionType)
-			pet.AcquisitionType = &at
-		}
-		if p.DangerLevel != "" {
-			pet.DangerLevel = model.DangerLevel(p.DangerLevel)
-		}
-		pets = append(pets, pet)
-	}
+	owner := buildOwnerModel(clinicID, input)
+	pets := buildOwnerPetModels(input.Pets)
 
 	if err := s.repo.CreateWithPets(ctx, owner, pets); err != nil {
 		slog.ErrorContext(ctx, "failed to create owner with pets", "error", err)
@@ -376,6 +276,11 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 		slog.Uint64("owner_id", owner.ID),
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("pets_count", len(pets)))
+	if s.tagSyncSvc != nil {
+		if err := s.tagSyncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, owner.ID); err != nil {
+			slog.ErrorContext(ctx, "failed to sync animal classification tags after owner create", "error", err, "owner_id", owner.ID, "clinic_id", clinicID)
+		}
+	}
 
 	return owner, nil
 }
@@ -385,69 +290,19 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		slog.ErrorContext(ctx, "failed to find owner", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}
-	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
-	if input.OwnerName != nil {
-		if err := validateRequiredName(*input.OwnerName); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate required name")
-		}
-		trimmed := strings.TrimSpace(*input.OwnerName)
-		input.OwnerName = &trimmed
+
+	if err := validateUpdateOwnerInput(input); err != nil {
+		return nil, err
 	}
 
-	// メールアドレス形式バリデーション（指定されている場合）
 	if input.Email != nil {
-		if err := validateEmailFormat(*input.Email); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate email format")
+		if err := s.ensureOwnerEmailUnique(ctx, clinicID, id, *input.Email); err != nil {
+			return nil, err
 		}
 	}
-
-	// 電話番号形式バリデーション（指定されている場合）
 	if input.Phone != nil {
-		if err := validatePhoneFormat(*input.Phone); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate phone format")
-		}
-	}
-
-	// 郵便番号形式バリデーション（指定されている場合）
-	if input.PostalCode != nil {
-		if err := validatePostalCodeFormat(*input.PostalCode); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate postal code format")
-		}
-	}
-
-	// ビジネスルールバリデーション
-	if input.DiscountRate != nil {
-		if err := validateDiscountRate(*input.DiscountRate); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate discount rate")
-		}
-	}
-	if input.MembershipType != nil {
-		if err := validateMembershipType(*input.MembershipType); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate membership type")
-		}
-	}
-
-	// メールアドレス変更時の重複チェック（空でない場合のみ）
-	if input.Email != nil && *input.Email != "" {
-		existing, err := s.repo.FindByEmail(ctx, clinicID, *input.Email)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to check email uniqueness", "error", err)
-			return nil, apperrors.Wrap(err, "failed to check email uniqueness")
-		}
-		if existing != nil && existing.ID != id {
-			return nil, apperrors.WrapAlreadyExists("owner", "このメールアドレスはすでに登録されています")
-		}
-	}
-
-	// BUG-064: 電話番号変更時の重複チェック（空でない場合のみ）
-	if input.Phone != nil && *input.Phone != "" {
-		existing, err := s.repo.FindByPhone(ctx, clinicID, *input.Phone)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to check phone uniqueness", "error", err)
-			return nil, apperrors.Wrap(err, "failed to check phone uniqueness")
-		}
-		if existing != nil && existing.ID != id {
-			return nil, apperrors.WrapAlreadyExists("owner", "この電話番号はすでに登録されています")
+		if err := s.ensureOwnerPhoneUnique(ctx, clinicID, id, *input.Phone); err != nil {
+			return nil, err
 		}
 	}
 
@@ -458,8 +313,7 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update owner", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update owner")
+		return nil, s.wrapOwnerUpdateError(ctx, clinicID, id, err, "failed to update owner", "failed to update owner")
 	}
 
 	slog.InfoContext(ctx, "owner updated",
@@ -467,13 +321,60 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		slog.Uint64("clinic_id", clinicID))
 
 	// DB の最新状態を返す
+	return s.reloadOwner(ctx, clinicID, id, "failed to get updated owner", "failed to get updated owner")
+}
+
+func (s *ownerService) ensureOwnerEmailUnique(ctx context.Context, clinicID, currentOwnerID uint64, email string) error {
+	if email == "" {
+		return nil
+	}
+	existing, err := s.repo.FindByEmail(ctx, clinicID, email)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check email uniqueness", "error", err)
+		return apperrors.Wrap(err, "failed to check email uniqueness")
+	}
+	if existing != nil && existing.ID != currentOwnerID {
+		return apperrors.WrapAlreadyExists("owner", "このメールアドレスはすでに登録されています")
+	}
+	return nil
+}
+
+func (s *ownerService) ensureOwnerPhoneUnique(ctx context.Context, clinicID, currentOwnerID uint64, phone string) error {
+	if phone == "" {
+		return nil
+	}
+	existing, err := s.repo.FindByPhone(ctx, clinicID, phone)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check phone uniqueness", "error", err)
+		return apperrors.Wrap(err, "failed to check phone uniqueness")
+	}
+	if existing != nil && existing.ID != currentOwnerID {
+		return apperrors.WrapAlreadyExists("owner", "この電話番号はすでに登録されています")
+	}
+	return nil
+}
+
+func (s *ownerService) updateOwnerFields(ctx context.Context, clinicID, id uint64, fields map[string]any, logMessage, wrapMessage string) error {
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		return s.wrapOwnerUpdateError(ctx, clinicID, id, err, logMessage, wrapMessage)
+	}
+	return nil
+}
+
+func (s *ownerService) wrapOwnerUpdateError(ctx context.Context, clinicID, id uint64, err error, logMessage, wrapMessage string) error {
+	slog.ErrorContext(ctx, logMessage, "error", err, "id", id, "clinic_id", clinicID)
+	return apperrors.Wrap(err, wrapMessage)
+}
+
+func (s *ownerService) reloadOwner(ctx context.Context, clinicID, id uint64, logMessage, wrapMessage string) (*model.Owner, error) {
 	owner, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get updated owner", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get updated owner")
+		slog.ErrorContext(ctx, logMessage, "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, wrapMessage)
 	}
 	return owner, nil
 }
+
 func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find owner")
@@ -533,13 +434,11 @@ func (s *ownerService) UpdateDeliveryExclusion(ctx context.Context, clinicID, id
 
 	var reason *string
 	if input.Excluded && input.Reason != nil {
-		trimmed := strings.TrimSpace(*input.Reason)
-		if len([]rune(trimmed)) > 100 {
-			return nil, apperrors.WrapInvalidInput("delivery_excluded_reason must be 100 characters or less")
+		normalized, err := normalizeOwnerReason(*input.Reason, colDeliveryExcludedReason)
+		if err != nil {
+			return nil, err
 		}
-		if trimmed != "" {
-			reason = &trimmed
-		}
+		reason = normalized
 	}
 
 	var optOutAt any
@@ -553,9 +452,8 @@ func (s *ownerService) UpdateDeliveryExclusion(ctx context.Context, clinicID, id
 		colLstepOptOutAt:          optOutAt,
 		colLstepOptOutReason:      reason,
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update delivery exclusion", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to update delivery exclusion")
+	if err := s.updateOwnerFields(ctx, clinicID, id, fields, "failed to update delivery exclusion", "failed to update delivery exclusion"); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "delivery exclusion updated",
 		slog.Uint64("owner_id", id),
@@ -567,12 +465,7 @@ func (s *ownerService) UpdateDeliveryExclusion(ctx context.Context, clinicID, id
 		}
 	}
 
-	owner, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to reload owner after delivery exclusion update", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to reload owner")
-	}
-	return owner, nil
+	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after delivery exclusion update", "failed to reload owner")
 }
 
 func (s *ownerService) UpdateDeliveryCaution(ctx context.Context, clinicID, id uint64, input UpdateDeliveryCautionInput) (*model.Owner, error) {
@@ -582,22 +475,19 @@ func (s *ownerService) UpdateDeliveryCaution(ctx context.Context, clinicID, id u
 
 	var reason *string
 	if input.Caution {
-		trimmed := strings.TrimSpace(input.Reason)
-		if len([]rune(trimmed)) > 100 {
-			return nil, apperrors.WrapInvalidInput("delivery_caution_reason must be 100 characters or less")
+		normalized, err := normalizeOwnerReason(input.Reason, colDeliveryCautionReason)
+		if err != nil {
+			return nil, err
 		}
-		if trimmed != "" {
-			reason = &trimmed
-		}
+		reason = normalized
 	}
 
 	fields := map[string]any{
 		colDeliveryCaution:       input.Caution,
 		colDeliveryCautionReason: reason,
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update delivery caution", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to update delivery caution")
+	if err := s.updateOwnerFields(ctx, clinicID, id, fields, "failed to update delivery caution", "failed to update delivery caution"); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "delivery caution updated",
 		slog.Uint64("owner_id", id),
@@ -609,12 +499,7 @@ func (s *ownerService) UpdateDeliveryCaution(ctx context.Context, clinicID, id u
 		}
 	}
 
-	owner, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to reload owner after delivery caution update", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to reload owner")
-	}
-	return owner, nil
+	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after delivery caution update", "failed to reload owner")
 }
 
 func (s *ownerService) UpdateTransferStatus(ctx context.Context, clinicID, id uint64, input UpdateTransferStatusInput) (*model.Owner, error) {
@@ -636,9 +521,8 @@ func (s *ownerService) UpdateTransferStatus(ctx context.Context, clinicID, id ui
 	} else if owner.MembershipType == model.MembershipTypeTransferred {
 		fields[colMembershipType] = model.MembershipTypeNonMember
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update transfer status", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to update transfer status")
+	if err := s.updateOwnerFields(ctx, clinicID, id, fields, "failed to update transfer status", "failed to update transfer status"); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "transfer status updated",
 		slog.Uint64("owner_id", id),
@@ -650,12 +534,7 @@ func (s *ownerService) UpdateTransferStatus(ctx context.Context, clinicID, id ui
 		}
 	}
 
-	updated, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to reload owner after transfer status update", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to reload owner")
-	}
-	return updated, nil
+	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after transfer status update", "failed to reload owner")
 }
 
 func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64, actorUserID *uint64) (*model.Owner, error) {
@@ -672,9 +551,8 @@ func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64, a
 		colLineIDConfirmedAt: now,
 		colLineIDConfirmedBy: actorUserID,
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to confirm line id", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to confirm line id")
+	if err := s.updateOwnerFields(ctx, clinicID, id, fields, "failed to confirm line id", "failed to confirm line id"); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "line id confirmed",
 		slog.Uint64("owner_id", id),
@@ -685,10 +563,5 @@ func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64, a
 			slog.WarnContext(ctx, "audit log failed for line id confirm", "error", logErr, "owner_id", id)
 		}
 	}
-	updated, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to reload owner after line id confirmation", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to reload owner")
-	}
-	return updated, nil
+	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after line id confirmation", "failed to reload owner")
 }

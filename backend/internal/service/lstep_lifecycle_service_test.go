@@ -133,9 +133,16 @@ func (m *mockLstepTagCacheRepository) FindOwnerIDsByTag(_ context.Context, _ uin
 // ---- LstepTagSyncService モック ----
 
 type mockLstepTagSyncService struct {
-	syncVaccineTagFn          func(ctx context.Context, clinicID, ownerID, vaccinationID uint64) error
-	syncVisitCompletionTagsFn func(ctx context.Context, clinicID, ownerID uint64) error
-	syncCPMStageTagFn         func(ctx context.Context, clinicID, ownerID uint64) error
+	syncVaccineTagFn                   func(ctx context.Context, clinicID, ownerID, vaccinationID uint64) error
+	syncVisitCompletionTagsFn          func(ctx context.Context, clinicID, ownerID uint64) error
+	syncNextVisitTagFn                 func(ctx context.Context, clinicID, ownerID uint64) error
+	syncOwnerAnimalClassificationTagFn func(ctx context.Context, clinicID, ownerID uint64) error
+	syncPetBasicInfoTagsFn             func(ctx context.Context, clinicID, ownerID uint64) error
+	syncCheckupTagFn                   func(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error
+	syncPrescriptionTagFn              func(ctx context.Context, clinicID, ownerID uint64) error
+	syncCPMStageTagFn                  func(ctx context.Context, clinicID, ownerID uint64) error
+	resyncOwnerVaccineTagsFn           func(ctx context.Context, clinicID, ownerID uint64) error
+	resyncOwnerCheckupTagsFn           func(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 func (m *mockLstepTagSyncService) SyncVaccineTag(ctx context.Context, clinicID, ownerID, vaccinationID uint64) error {
@@ -150,19 +157,34 @@ func (m *mockLstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, c
 	}
 	return nil
 }
-func (m *mockLstepTagSyncService) SyncOwnerAnimalClassificationTags(_ context.Context, _, _ uint64) error {
+func (m *mockLstepTagSyncService) SyncOwnerAnimalClassificationTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.syncOwnerAnimalClassificationTagFn != nil {
+		return m.syncOwnerAnimalClassificationTagFn(ctx, clinicID, ownerID)
+	}
 	return nil
 }
-func (m *mockLstepTagSyncService) SyncPetBasicInfoTags(_ context.Context, _, _ uint64) error {
+func (m *mockLstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.syncPetBasicInfoTagsFn != nil {
+		return m.syncPetBasicInfoTagsFn(ctx, clinicID, ownerID)
+	}
 	return nil
 }
-func (m *mockLstepTagSyncService) SyncNextVisitTag(_ context.Context, _, _ uint64) error {
+func (m *mockLstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.syncNextVisitTagFn != nil {
+		return m.syncNextVisitTagFn(ctx, clinicID, ownerID)
+	}
 	return nil
 }
-func (m *mockLstepTagSyncService) SyncCheckupTag(_ context.Context, _, _, _ uint64, _ time.Time, _ *time.Time) error {
+func (m *mockLstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error {
+	if m.syncCheckupTagFn != nil {
+		return m.syncCheckupTagFn(ctx, clinicID, ownerID, checkupTypeID, checkupDate, nextDate)
+	}
 	return nil
 }
-func (m *mockLstepTagSyncService) SyncPrescriptionTag(_ context.Context, _, _ uint64) error {
+func (m *mockLstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.syncPrescriptionTagFn != nil {
+		return m.syncPrescriptionTagFn(ctx, clinicID, ownerID)
+	}
 	return nil
 }
 func (m *mockLstepTagSyncService) SyncChronicConditionTags(_ context.Context, _, _ uint64, _ []string) error {
@@ -179,11 +201,17 @@ func (m *mockLstepTagSyncService) SyncDormantTags(_ context.Context, _, _ uint64
 	return nil
 }
 
-func (m *mockLstepTagSyncService) ResyncOwnerVaccineTags(_ context.Context, _, _ uint64) error {
+func (m *mockLstepTagSyncService) ResyncOwnerVaccineTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.resyncOwnerVaccineTagsFn != nil {
+		return m.resyncOwnerVaccineTagsFn(ctx, clinicID, ownerID)
+	}
 	return nil
 }
 
-func (m *mockLstepTagSyncService) ResyncOwnerCheckupTags(_ context.Context, _, _ uint64) error {
+func (m *mockLstepTagSyncService) ResyncOwnerCheckupTags(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.resyncOwnerCheckupTagsFn != nil {
+		return m.resyncOwnerCheckupTagsFn(ctx, clinicID, ownerID)
+	}
 	return nil
 }
 
@@ -244,6 +272,9 @@ func (m *mockLstepTagSyncService) SyncHealthPreventionTagsForClinic(_ context.Co
 type mockAuditService struct{}
 
 func (m *mockAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
+func (m *mockAuditService) LogEntry(_ context.Context, _ AuditLogInput) error {
+	return nil
+}
 func (m *mockAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
 	return nil
 }

@@ -1,5 +1,7 @@
 package handler
 
+import "github.com/animal-ekarte/backend/internal/service"
+
 type createTrimmingCourseRequest struct {
 	Name        string `json:"name"        binding:"required"`
 	Price       *int64 `json:"price"`
@@ -10,6 +12,18 @@ type createTrimmingCourseRequest struct {
 	SortOrder   int    `json:"sort_order"`
 }
 
+func (r createTrimmingCourseRequest) toServiceInput() *service.CreateTrimmingCourseInput {
+	return &service.CreateTrimmingCourseInput{
+		Name:        r.Name,
+		TargetSize:  r.TargetSize,
+		Price:       r.Price,
+		Duration:    r.Duration,
+		IsActive:    r.IsActive,
+		Description: r.Description,
+		SortOrder:   r.SortOrder,
+	}
+}
+
 type updateTrimmingCourseRequest struct {
 	Name        *string `json:"name"`
 	Price       *int64  `json:"price"`
@@ -18,4 +32,16 @@ type updateTrimmingCourseRequest struct {
 	TargetSize  *string `json:"target_size" binding:"omitempty,oneof=small medium large cat"`
 	Duration    *int    `json:"duration"`
 	SortOrder   *int    `json:"sort_order"`
+}
+
+func (r updateTrimmingCourseRequest) toServiceInput() *service.UpdateTrimmingCourseInput {
+	return &service.UpdateTrimmingCourseInput{
+		Name:        r.Name,
+		Price:       r.Price,
+		IsActive:    r.IsActive,
+		Description: r.Description,
+		TargetSize:  r.TargetSize,
+		Duration:    r.Duration,
+		SortOrder:   r.SortOrder,
+	}
 }

@@ -115,7 +115,7 @@ func TestCheckupService_List(t *testing.T) {
 					return tt.repoCheckups, tt.repoErr
 				},
 			}
-			svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil)
+			svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
 
 			checkups, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
@@ -191,7 +191,7 @@ func TestCheckupService_Create(t *testing.T) {
 					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 				},
 			}
-			svc := NewCheckupService(repo, mrRepo, nil)
+			svc := NewCheckupService(repo, mrRepo, nil, nil)
 
 			checkup, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 
@@ -294,7 +294,7 @@ func TestCheckupService_Update(t *testing.T) {
 					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 				},
 			}
-			svc := NewCheckupService(repo, mrRepo, nil)
+			svc := NewCheckupService(repo, mrRepo, nil, nil)
 
 			checkup, err := svc.Update(context.Background(), 1, tt.medicalRecordID, tt.checkupID, tt.input)
 
@@ -361,7 +361,7 @@ func TestCheckupService_Delete(t *testing.T) {
 					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 				},
 			}
-			svc := NewCheckupService(repo, mrRepo, nil)
+			svc := NewCheckupService(repo, mrRepo, nil, nil)
 
 			err := svc.Delete(context.Background(), 1, tt.medicalRecordID, tt.checkupID)
 
@@ -374,8 +374,146 @@ func TestCheckupService_Delete(t *testing.T) {
 	}
 }
 
+func TestCheckupService_Create_SyncsCheckupTagBestEffort(t *testing.T) {
+	ownerID := uint64(10)
+	nextDate := time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC)
+	var syncedClinicID, syncedOwnerID, syncedCheckupTypeID uint64
+	var syncedDate time.Time
+	var syncedNextDate *time.Time
+
+	repo := &mockCheckupRepository{
+		createFn: func(_ context.Context, checkup *model.Checkup) error {
+			checkup.ID = 30
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return &model.Checkup{
+				ID:              30,
+				MedicalRecordID: 2,
+				CheckupTypeID:   3,
+				Date:            time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC),
+				NextDate:        &nextDate,
+				MedicalRecord:   &model.MedicalRecord{OwnerID: &ownerID},
+			}, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		syncCheckupTagFn: func(_ context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error {
+			syncedClinicID = clinicID
+			syncedOwnerID = ownerID
+			syncedCheckupTypeID = checkupTypeID
+			syncedDate = checkupDate
+			syncedNextDate = nextDate
+			return errors.New("sync failed")
+		},
+	}
+	svc := NewCheckupService(repo, mrRepo, nil, tagSync)
+
+	result, err := svc.Create(context.Background(), 2, &CreateCheckupInput{
+		ClinicID:      1,
+		CheckupTypeID: 3,
+		Date:          time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC),
+		NextDate:      &nextDate,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, uint64(1), syncedClinicID)
+	assert.Equal(t, ownerID, syncedOwnerID)
+	assert.Equal(t, uint64(3), syncedCheckupTypeID)
+	assert.Equal(t, result.Date, syncedDate)
+	assert.Equal(t, result.NextDate, syncedNextDate)
+}
+
+func TestCheckupService_Update_ResyncsOwnerCheckupTags(t *testing.T) {
+	ownerID := uint64(10)
+	medicalRecordID := uint64(2)
+	findCount := 0
+	var syncedOwnerID uint64
+
+	repo := &mockCheckupRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			findCount++
+			if findCount == 1 {
+				return &model.Checkup{ID: 30, MedicalRecordID: medicalRecordID}, nil
+			}
+			return &model.Checkup{
+				ID:              30,
+				MedicalRecordID: medicalRecordID,
+				MedicalRecord:   &model.MedicalRecord{OwnerID: &ownerID},
+			}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		resyncOwnerCheckupTagsFn: func(_ context.Context, _, ownerID uint64) error {
+			syncedOwnerID = ownerID
+			return errors.New("sync failed")
+		},
+	}
+	resultText := "updated"
+	svc := NewCheckupService(repo, mrRepo, nil, tagSync)
+
+	result, err := svc.Update(context.Background(), 1, medicalRecordID, 30, &UpdateCheckupInput{Result: &resultText})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, ownerID, syncedOwnerID)
+}
+
+func TestCheckupService_Delete_ResyncsOwnerCheckupTagsAfterDelete(t *testing.T) {
+	ownerID := uint64(10)
+	medicalRecordID := uint64(2)
+	deleted := false
+	syncedAfterDelete := false
+
+	repo := &mockCheckupRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return &model.Checkup{
+				ID:              30,
+				MedicalRecordID: medicalRecordID,
+				MedicalRecord:   &model.MedicalRecord{OwnerID: &ownerID},
+			}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleted = true
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		resyncOwnerCheckupTagsFn: func(_ context.Context, _, syncedOwnerID uint64) error {
+			syncedAfterDelete = deleted
+			assert.Equal(t, ownerID, syncedOwnerID)
+			return nil
+		},
+	}
+	svc := NewCheckupService(repo, mrRepo, nil, tagSync)
+
+	err := svc.Delete(context.Background(), 1, medicalRecordID, 30)
+
+	assert.NoError(t, err)
+	assert.True(t, syncedAfterDelete)
+}
+
 func TestGetAlerts_RejectsInvalidWithinDays(t *testing.T) {
-	svc := NewCheckupService(&mockCheckupRepository{}, &mockMedicalRecordRepository{}, nil)
+	svc := NewCheckupService(&mockCheckupRepository{}, &mockMedicalRecordRepository{}, nil, nil)
 
 	for _, days := range []int{0, -1, 366} {
 		result, err := svc.GetAlerts(context.Background(), 1, days)
@@ -399,7 +537,7 @@ func TestGetAlerts_SeparatesOverdueAndUpcoming(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil)
+	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
 	svc.(*checkupService).nowFn = func() time.Time { return fixedNow }
 
 	result, err := svc.GetAlerts(context.Background(), 1, 30)
@@ -417,7 +555,7 @@ func TestGetAlerts_NilNextDateExcluded(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil)
+	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
 	svc.(*checkupService).nowFn = func() time.Time {
 		return time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation)
 	}
@@ -434,7 +572,7 @@ func TestGetAlerts_PropagatesRepositoryError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil)
+	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
 	svc.(*checkupService).nowFn = func() time.Time {
 		return time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation)
 	}
@@ -460,7 +598,7 @@ func TestGetAlerts_JSTLateNight_TodayIsCorrectJSTDate(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil)
+	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
 	svc.(*checkupService).nowFn = func() time.Time { return jstLateNight }
 
 	result, err := svc.GetAlerts(context.Background(), 1, 30)
@@ -497,7 +635,7 @@ func TestCheckupService_Create_FinalizedRejection(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil)
+	svc := NewCheckupService(repo, mrRepo, nil, nil)
 
 	_, err := svc.Create(context.Background(), 1, &CreateCheckupInput{
 		ClinicID: 1, CheckupTypeID: 1, Date: now,
@@ -517,7 +655,7 @@ func TestCheckupService_Update_FinalizedRejection(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil)
+	svc := NewCheckupService(repo, mrRepo, nil, nil)
 
 	_, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCheckupInput{Result: &newResult})
 	assert.Error(t, err)
@@ -534,7 +672,7 @@ func TestCheckupService_Delete_FinalizedRejection(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil)
+	svc := NewCheckupService(repo, mrRepo, nil, nil)
 
 	err := svc.Delete(context.Background(), 1, 1, 1)
 	assert.Error(t, err)

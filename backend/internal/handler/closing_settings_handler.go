@@ -8,7 +8,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // GetClosingSettings godoc
@@ -38,12 +37,7 @@ func (h *Handler) UpdateClosingSettings(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	result, err := h.svc.ClosingSettings.UpdateStandard(c.Request.Context(), clinicID, service.UpdateClinicSettingsInput{
-		ClosingAmPmBoundary: req.ClosingAmPmBoundary,
-		ClosingWeekdayEnd:   req.ClosingWeekdayEnd,
-		ClosingSundayEnd:    req.ClosingSundayEnd,
-		ClosedWeekdays:      req.ClosedWeekdays,
-	})
+	result, err := h.svc.ClosingSettings.UpdateStandard(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -78,13 +72,7 @@ func (h *Handler) CreateSpecialPeriod(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	period, err := h.svc.ClosingSettings.CreateSpecialPeriod(c.Request.Context(), clinicID, &service.CreateSpecialPeriodInput{
-		StartDate:    req.StartDate,
-		EndDate:      req.EndDate,
-		AmPmBoundary: req.AmPmBoundary,
-		PmEnd:        req.PmEnd,
-		Note:         req.Note,
-	})
+	period, err := h.svc.ClosingSettings.CreateSpecialPeriod(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -110,15 +98,7 @@ func (h *Handler) UpdateSpecialPeriod(c *gin.Context) {
 		return
 	}
 
-	input := service.UpdateSpecialPeriodInput{
-		StartDate:    req.StartDate,
-		EndDate:      req.EndDate,
-		AmPmBoundary: req.AmPmBoundary,
-		PmEnd:        req.PmEnd,
-		Note:         req.Note,
-	}
-
-	period, err := h.svc.ClosingSettings.UpdateSpecialPeriod(c.Request.Context(), clinicID, id, input)
+	period, err := h.svc.ClosingSettings.UpdateSpecialPeriod(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

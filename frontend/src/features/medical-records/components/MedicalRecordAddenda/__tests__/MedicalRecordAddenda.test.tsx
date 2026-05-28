@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-vi.mock("@/features/medical-records/hooks/use-medical-record-addenda", () => ({
+vi.mock("../../../hooks/use-medical-record-addenda", () => ({
   useMedicalRecordAddenda: vi.fn(),
   useCreateMedicalRecordAddendum: vi.fn(),
 }));
@@ -11,7 +11,7 @@ import { MedicalRecordAddenda } from "../MedicalRecordAddenda";
 import {
   useMedicalRecordAddenda,
   useCreateMedicalRecordAddendum,
-} from "@/features/medical-records/hooks/use-medical-record-addenda";
+} from "../../../hooks/use-medical-record-addenda";
 import type { MedicalRecordAddendum as AddendumType } from "@/types/generated/models";
 
 function makeAddendum(overrides: Partial<AddendumType> = {}): AddendumType {

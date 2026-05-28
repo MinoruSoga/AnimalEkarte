@@ -3,13 +3,11 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 func (h *Handler) RegisterMedicalRecordAddendumRoutes(records *gin.RouterGroup) {
@@ -23,9 +21,8 @@ func (h *Handler) ListMedicalRecordAddenda(c *gin.Context) {
 		return
 	}
 
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -49,9 +46,8 @@ func (h *Handler) CreateMedicalRecordAddendum(c *gin.Context) {
 		return
 	}
 
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -61,14 +57,7 @@ func (h *Handler) CreateMedicalRecordAddendum(c *gin.Context) {
 		return
 	}
 
-	input := service.CreateMedicalRecordAddendumInput{
-		MedicalRecordID: medicalRecordID,
-		AuthorUserID:    staffID,
-		AfterText:       req.AfterText,
-		Reason:          req.Reason,
-	}
-
-	addendum, svcErr := h.svc.MedicalRecordAddendum.Create(c.Request.Context(), clinicID, input)
+	addendum, svcErr := h.svc.MedicalRecordAddendum.Create(c.Request.Context(), clinicID, req.toServiceInput(medicalRecordID, staffID))
 	if svcErr != nil {
 		RespondError(c, svcErr)
 		return

@@ -8,7 +8,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListPaymentMethods godoc
@@ -57,10 +56,7 @@ func (h *Handler) CreatePaymentMethod(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	m, err := h.svc.PaymentMethodMaster.Create(c.Request.Context(), clinicID, &service.CreatePaymentMethodMasterInput{
-		Name:         req.Name,
-		DisplayOrder: req.DisplayOrder,
-	})
+	m, err := h.svc.PaymentMethodMaster.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -85,11 +81,7 @@ func (h *Handler) UpdatePaymentMethod(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	m, err := h.svc.PaymentMethodMaster.Update(c.Request.Context(), clinicID, id, &service.UpdatePaymentMethodMasterInput{
-		Name:         req.Name,
-		DisplayOrder: req.DisplayOrder,
-		IsActive:     req.IsActive,
-	})
+	m, err := h.svc.PaymentMethodMaster.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

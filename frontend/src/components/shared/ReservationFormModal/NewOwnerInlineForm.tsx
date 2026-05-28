@@ -26,7 +26,7 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
 
       <div className="flex flex-col gap-1">
         <Label className={`text-xs ${C.text60}`}>
-          飼主名 <span aria-hidden="true" style={{ color: "var(--color-danger, #e03e3e)" }}>*</span>
+          飼主名 <span aria-hidden="true" className={C.textRequired}>*</span>
         </Label>
         <Input
           data-testid="new-owner-name"
@@ -40,7 +40,7 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
 
       <div className="flex flex-col gap-1">
         <Label className={`text-xs ${C.text60}`}>
-          電話番号 <span aria-hidden="true" style={{ color: "var(--color-danger, #e03e3e)" }}>*</span>
+          電話番号 <span aria-hidden="true" className={C.textRequired}>*</span>
         </Label>
         <Input
           data-testid="new-owner-phone"
@@ -55,7 +55,7 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
 
       <div className="flex flex-col gap-1">
         <Label className={`text-xs ${C.text60}`}>
-          ペット名 <span aria-hidden="true" style={{ color: "var(--color-danger, #e03e3e)" }}>*</span>
+          ペット名 <span aria-hidden="true" className={C.textRequired}>*</span>
         </Label>
         <Input
           data-testid="new-owner-pet-name"
@@ -69,7 +69,7 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
 
       <div className="flex flex-col gap-1">
         <Label className={`text-xs ${C.text60}`}>
-          動物種 <span aria-hidden="true" style={{ color: "var(--color-danger, #e03e3e)" }}>*</span>
+          動物種 <span aria-hidden="true" className={C.textRequired}>*</span>
         </Label>
         <Select
           value={value.animalSpeciesId ? String(value.animalSpeciesId) : ""}
@@ -92,7 +92,7 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
 
       <div className="flex flex-col gap-1">
         <Label className={`text-xs ${C.text60}`}>
-          主訴 <span aria-hidden="true" style={{ color: "var(--color-danger, #e03e3e)" }}>*</span>
+          主訴 <span aria-hidden="true" className={C.textRequired}>*</span>
         </Label>
         <Textarea
           data-testid="new-owner-chief-complaint"

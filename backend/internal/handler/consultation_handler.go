@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Consultation ----
@@ -52,26 +51,13 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		return
 	}
 
-	var input createConsultationRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req createConsultationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	svcInput := &service.CreateConsultationInput{
-		Name:          input.Name,
-		Price:         input.Price,
-		IsActive:      input.IsActive,
-		Description:   input.Description,
-		TimeCondition: input.TimeCondition,
-		Duration:      input.Duration,
-		ParentID:      input.ParentID,
-		SortOrder:     input.SortOrder,
-		TaxType:       nilIfEmpty(input.TaxType),
-		TaxRate:       input.TaxRate,
-	}
-
-	consultation, err := h.svc.Consultation.Create(c.Request.Context(), clinicID, svcInput)
+	consultation, err := h.svc.Consultation.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -90,27 +76,13 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input updateConsultationRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req updateConsultationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	svcInput := service.UpdateConsultationInput{
-		Name:          input.Name,
-		Price:         input.Price,
-		IsActive:      input.IsActive,
-		Description:   input.Description,
-		TimeCondition: input.TimeCondition,
-		Duration:      input.Duration,
-		ParentID:      input.ParentID,
-		ClearParentID: input.ClearParentID,
-		SortOrder:     input.SortOrder,
-		TaxType:       input.TaxType,
-		TaxRate:       input.TaxRate,
-	}
-
-	consultation, err := h.svc.Consultation.Update(c.Request.Context(), clinicID, id, &svcInput)
+	consultation, err := h.svc.Consultation.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

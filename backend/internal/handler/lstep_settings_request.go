@@ -1,5 +1,7 @@
 package handler
 
+import "github.com/animal-ekarte/backend/internal/service"
+
 // updateLstepSettingsRequest はLステップ設定更新リクエスト。空文字=変更なし。
 type updateLstepSettingsRequest struct {
 	LstepAPIKey              string  `json:"lstep_api_key"`
@@ -35,4 +37,40 @@ type updateLstepSettingsRequest struct {
 	// 健診・予防タグ判定閾値。nil = 変更なし。
 	HealthPreventionLookbackDays *int `json:"health_prevention_lookback_days"`
 	VaccineDeadlineDays          *int `json:"vaccine_deadline_days"`
+}
+
+func (r updateLstepSettingsRequest) toServiceInput() *service.UpdateLstepSettingsInput {
+	return &service.UpdateLstepSettingsInput{
+		LstepAPIKey:                  r.LstepAPIKey,
+		LstepBaseURL:                 r.LstepBaseURL,
+		LineChannelAccessToken:       r.LineChannelAccessToken,
+		LineChannelSecret:            r.LineChannelSecret,
+		LiffID:                       r.LiffID,
+		LineAccountName:              r.LineAccountName,
+		IsSyncEnabled:                r.IsSyncEnabled,
+		CPMVersion:                   r.CPMVersion,
+		DormantPrevention180Days:     r.DormantPrevention180Days,
+		DormantPrevention210Days:     r.DormantPrevention210Days,
+		DormantPrevention240Days:     r.DormantPrevention240Days,
+		DormantPrevention365Days:     r.DormantPrevention365Days,
+		CPMV2ComingThreshold:         r.CPMV2ComingThreshold,
+		CPMV2GoodThreshold:           r.CPMV2GoodThreshold,
+		CPMV2FamilyThreshold:         r.CPMV2FamilyThreshold,
+		CPMV2NoahThreshold:           r.CPMV2NoahThreshold,
+		CPMV1DormantDays:             r.CPMV1DormantDays,
+		CPMV1NoahDays:                r.CPMV1NoahDays,
+		CPMV1NoahAnnualVisits:        r.CPMV1NoahAnnualVisits,
+		CPMV1NoahLTV:                 r.CPMV1NoahLTV,
+		CPMV1CoreDays:                r.CPMV1CoreDays,
+		CPMV1CoreAnnualVisits:        r.CPMV1CoreAnnualVisits,
+		CPMV1CoreLTV:                 r.CPMV1CoreLTV,
+		CPMV1SpotMinAmount:           r.CPMV1SpotMinAmount,
+		CPMV1SpotInactiveDays:        r.CPMV1SpotInactiveDays,
+		CPMV1GrowingMaxDays:          r.CPMV1GrowingMaxDays,
+		CPMV1GrowingMinVisits:        r.CPMV1GrowingMinVisits,
+		CPMV1GrowingMaxVisits:        r.CPMV1GrowingMaxVisits,
+		CPMV1LTVBreakLow:             r.CPMV1LTVBreakLow,
+		HealthPreventionLookbackDays: r.HealthPreventionLookbackDays,
+		VaccineDeadlineDays:          r.VaccineDeadlineDays,
+	}
 }

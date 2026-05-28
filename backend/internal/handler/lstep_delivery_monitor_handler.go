@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -84,32 +83,6 @@ func toDeliveryTriggerLogsPageResponse(page service.DeliveryTriggerLogsPage) del
 	return deliveryTriggerLogsPageResponse{Items: items, Total: page.Total, Page: page.Page, PerPage: page.PerPage}
 }
 
-// parseDateRange は from/to クエリパラメータを JST 基準でパースする。
-// 未指定時は当日の範囲（当日0時 〜 翌日0時）をデフォルトとする。
-// to は日付指定を inclusive end として扱い、内部的に翌日0時（exclusive）に変換する。
-func parseDateRange(c *gin.Context) (from, to time.Time, ok bool) {
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	now := time.Now().In(jst)
-	defaultDate := now.Format("2006-01-02")
-
-	fromStr := c.DefaultQuery("from", defaultDate)
-	toStr := c.DefaultQuery("to", defaultDate)
-
-	var err error
-	from, err = time.ParseInLocation("2006-01-02", fromStr, jst)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("from は YYYY-MM-DD 形式で指定してください"))
-		return time.Time{}, time.Time{}, false
-	}
-	to, err = time.ParseInLocation("2006-01-02", toStr, jst)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("to は YYYY-MM-DD 形式で指定してください"))
-		return time.Time{}, time.Time{}, false
-	}
-	to = to.AddDate(0, 0, 1) // inclusive end → exclusive upper bound
-	return from, to, true
-}
-
 // GetLstepDeliveryTriggerSummary godoc
 // GET /api/clinics/:clinic_id/lstep/delivery-monitor/summary — ステータス別集計を返す（FEAT-384）。
 func (h *Handler) GetLstepDeliveryTriggerSummary(c *gin.Context) {
@@ -117,18 +90,12 @@ func (h *Handler) GetLstepDeliveryTriggerSummary(c *gin.Context) {
 	if !ok {
 		return
 	}
-	from, to, ok := parseDateRange(c)
-	if !ok {
+	query, err := newLstepDeliveryMonitorSummaryQuery(clinicID, c.Request.URL.Query(), time.Now())
+	if err != nil {
+		RespondError(c, err)
 		return
 	}
-	triggerType := c.Query("trigger_type")
-
-	result, err := h.svc.LstepDeliveryMonitor.GetSummary(c.Request.Context(), service.GetDeliveryMonitorSummaryInput{
-		ClinicID:    clinicID,
-		From:        from,
-		To:          to,
-		TriggerType: triggerType,
-	})
+	result, err := h.svc.LstepDeliveryMonitor.GetSummary(c.Request.Context(), query.toSummaryServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -143,34 +110,12 @@ func (h *Handler) GetLstepDeliveryTriggerLogs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	from, to, ok := parseDateRange(c)
-	if !ok {
+	query, err := newLstepDeliveryMonitorLogsQuery(clinicID, c.Request.URL.Query(), time.Now())
+	if err != nil {
+		RespondError(c, err)
 		return
 	}
-
-	triggerType := c.Query("trigger_type")
-	status := c.Query("status")
-
-	page, pageErr := strconv.Atoi(c.DefaultQuery("page", "1"))
-	if pageErr != nil || page < 1 {
-		RespondError(c, apperrors.WrapInvalidInput("page は1以上の整数で指定してください"))
-		return
-	}
-	perPage, ppErr := strconv.Atoi(c.DefaultQuery("per_page", "20"))
-	if ppErr != nil || perPage < 1 || perPage > 100 {
-		RespondError(c, apperrors.WrapInvalidInput("per_page は1〜100の範囲で指定してください"))
-		return
-	}
-
-	result, err := h.svc.LstepDeliveryMonitor.GetLogs(c.Request.Context(), &service.GetDeliveryMonitorLogsInput{
-		ClinicID:    clinicID,
-		From:        from,
-		To:          to,
-		TriggerType: triggerType,
-		Status:      status,
-		Page:        page,
-		PerPage:     perPage,
-	})
+	result, err := h.svc.LstepDeliveryMonitor.GetLogs(c.Request.Context(), query.toLogsServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

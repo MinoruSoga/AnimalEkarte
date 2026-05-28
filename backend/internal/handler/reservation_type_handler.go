@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- ReservationType ----
@@ -56,24 +55,7 @@ func (h *Handler) CreateReservationType(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	st, err := h.svc.ReservationType.Create(c.Request.Context(), clinicID, &service.CreateReservationTypeInput{
-		Name:                   req.Name,
-		Color:                  req.Color,
-		IsActive:               req.IsActive,
-		Description:            req.Description,
-		SortOrder:              req.SortOrder,
-		Category:               req.Category,
-		ReservationDisplayName: req.ReservationDisplayName,
-		DurationMinutes:        req.DurationMinutes,
-		ShortName:              req.ShortName,
-		ShowShortName:          req.ShowShortName,
-		ReservationVisible:     req.ReservationVisible,
-		ReservationComment:     req.ReservationComment,
-		ReservationImageURL:    req.ReservationImageURL,
-		ReservationDayOption:   req.ReservationDayOption,
-		IsInternal:             req.IsInternal,
-		GroupID:                req.GroupID,
-	})
+	st, err := h.svc.ReservationType.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -97,25 +79,7 @@ func (h *Handler) UpdateReservationType(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	st, err := h.svc.ReservationType.Update(c.Request.Context(), clinicID, id, &service.UpdateReservationTypeInput{
-		Name:                   req.Name,
-		Color:                  req.Color,
-		IsActive:               req.IsActive,
-		Description:            req.Description,
-		SortOrder:              req.SortOrder,
-		Category:               req.Category,
-		ReservationDisplayName: req.ReservationDisplayName,
-		DurationMinutes:        req.DurationMinutes,
-		ShortName:              req.ShortName,
-		ShowShortName:          req.ShowShortName,
-		ReservationVisible:     req.ReservationVisible,
-		ReservationComment:     req.ReservationComment,
-		ReservationImageURL:    req.ReservationImageURL,
-		ReservationDayOption:   req.ReservationDayOption,
-		IsInternal:             req.IsInternal,
-		GroupID:                req.GroupID,
-		ClearGroupID:           req.ClearGroupID,
-	})
+	st, err := h.svc.ReservationType.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -188,19 +152,10 @@ func (h *Handler) CreateUnavailableTime(c *gin.Context) {
 		}
 	}
 
-	input := service.CreateUnavailableTimeInput{
-		UnavailableType: req.UnavailableType,
-		DayOfWeek:       req.DayOfWeek,
-		StartTime:       req.StartTime,
-		EndTime:         req.EndTime,
-	}
-	if req.SpecificDate != nil {
-		t, err := parseDate(req.SpecificDate)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("specific_date は YYYY-MM-DD 形式で入力してください"))
-			return
-		}
-		input.SpecificDate = t
+	input, err := req.toServiceInput()
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("specific_date は YYYY-MM-DD 形式で入力してください"))
+		return
 	}
 	result, err := h.svc.ReservationTypeUnavailableTime.CreateUnavailableTime(c.Request.Context(), clinicID, id, input)
 	if err != nil {

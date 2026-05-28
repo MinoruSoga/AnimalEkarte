@@ -1,7 +1,7 @@
 import { memo, useState, useEffect, useRef, useCallback, useActionState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -206,6 +206,9 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
           <DialogTitle>
             {isEdit ? "シフト編集" : "シフト追加"}
           </DialogTitle>
+          <DialogDescription>
+            {staffName} の {formattedDate} のシフト内容を入力します。
+          </DialogDescription>
           <p className={`text-sm ${C.text50}`}>
             {staffName} — {formattedDate}
           </p>

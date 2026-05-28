@@ -356,14 +356,14 @@ func TestReservationService_Create(t *testing.T) {
 	// 競合チェック（SELECT FOR UPDATE + トランザクション）は統合テストで担保する。
 	tests := []struct {
 		name             string
-		reservation      *model.Reservation
+		input            *CreateManualReservationInput
 		wantErr          bool
 		wantInvalidInput bool
 	}{
 		{
 			// BUG-034: end_time == start_time は 400 Bad Request
 			name: "returns invalid input when end_time equals start_time",
-			reservation: &model.Reservation{
+			input: &CreateManualReservationInput{
 				ClinicID:          1,
 				StartTime:         now,
 				EndTime:           now,
@@ -375,7 +375,7 @@ func TestReservationService_Create(t *testing.T) {
 		{
 			// BUG-034: end_time < start_time は 400 Bad Request
 			name: "returns invalid input when end_time is before start_time",
-			reservation: &model.Reservation{
+			input: &CreateManualReservationInput{
 				ClinicID:          1,
 				StartTime:         now,
 				EndTime:           now.Add(-time.Minute),
@@ -391,7 +391,7 @@ func TestReservationService_Create(t *testing.T) {
 			repo := &mockReservationRepository{}
 			svc := NewReservationService(repo, nil)
 
-			err := svc.Create(context.Background(), tt.reservation)
+			_, err := svc.Create(context.Background(), tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)

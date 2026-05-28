@@ -1,47 +1,33 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, useDeferredValue, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
-import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
-import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
-
-// DnD
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 // Shared hooks
-import { useSortableList } from "@/hooks/use-sortable-list";
 import { useMasterSave } from "../hooks/use-master-save";
 import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
 
 // External
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
-import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import { handleApiError } from "@/lib/handle-api-error";
-import { toast } from "sonner";
 
 // Tabs
 import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 
 // Internal shared
-import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { MASTER_STATUS_FILTER } from "../constants/styles";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
-import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
-import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { RowActionButton } from "@/components/shared/RowActionButton";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow, PropertyInput, MasterSidePanel, MoneyInput, StatusToggleButton } from "@/components/shared/SidePeek";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
+import {
+  TreatmentPlanTabContent,
+  type TreatmentTabConfig,
+} from "../components/TreatmentPlanTabContent";
+import {
+  TreatmentItemSidePanel,
+  type TreatmentFormData,
+} from "../components/TreatmentItemSidePanel";
 
 // API hooks
 import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useReorderConsultations } from "../api/consultations";
@@ -57,44 +43,11 @@ import type { CreateCheckupTypeRequest, UpdateCheckupTypeRequest } from "@/types
 
 // Types
 import type { TreatmentItem } from "@/lib/transforms/treatment";
-import type { TaxType } from "@/types/generated/models";
 import { ResourceMasterMedical } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────
-
-type TreeItem = TreatmentItem & { children: TreatmentItem[] };
-
-type TreatmentFormData = {
-  name: string;
-  price: number;
-  description: string;
-  isActive: boolean;
-  taxType: TaxType;
-  taxRate: number;
-  isNonInsurance: boolean;
-};
-
-type MutateCallbacks = {
-  onSuccess: () => void;
-  onError: (error?: unknown) => void;
-};
-
-interface TreatmentTabConfig {
-  data: TreatmentItem[] | undefined;
-  entityLabel: string;
-  emptyMessage: string;
-  searchPlaceholder: string;
-  onCreate?: (data: TreatmentFormData, callbacks: MutateCallbacks) => void;
-  onUpdate?: (id: string, data: TreatmentFormData, callbacks: MutateCallbacks) => void;
-  onDelete?: (id: string, callbacks: MutateCallbacks) => void;
-  onReorder: (ids: number[]) => void;
-}
-
-type VirtualRow =
-  | { type: "root"; item: TreeItem; isExpanded: boolean }
-  | { type: "child"; item: TreatmentItem };
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -107,381 +60,6 @@ const TABS = [
   { value: "vaccine", label: "予防接種" },
   { value: "checkup", label: "定期健診" },
 ] as const;
-
-const TREATMENT_COLUMNS = [
-  { header: "", className: "w-[32px]" },
-  { header: "名称" },
-  { header: "単価(税込)", className: "w-[120px]", align: "right" as const },
-  { header: "ステータス", className: "w-[100px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
-];
-
-// ─────────────────────────────────────────────────
-// buildTree: flat array → tree
-// ─────────────────────────────────────────────────
-
-function buildTree(items: TreatmentItem[]): TreeItem[] {
-  const map = new Map<string, TreeItem>(
-    items.map((i) => [i.id, { ...i, children: [] }]),
-  );
-  const roots: TreeItem[] = [];
-  for (const item of map.values()) {
-    if (item.parentId) {
-      map.get(item.parentId)?.children.push(item);
-    } else {
-      roots.push(item);
-    }
-  }
-  return roots;
-}
-
-// ─────────────────────────────────────────────────
-// TreatmentItemSidePanel
-// ─────────────────────────────────────────────────
-
-interface TreatmentItemSidePanelProps {
-  item: TreatmentItem | null;
-  onClose: () => void;
-  onSave: (data: TreatmentFormData) => void;
-  onDeleteRequest?: () => void;
-  readOnly?: boolean;
-  onDirtyChange?: (dirty: boolean) => void;
-}
-
-const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
-  item,
-  onClose,
-  onSave,
-  onDeleteRequest,
-  readOnly,
-  onDirtyChange,
-}: TreatmentItemSidePanelProps) {
-  // rerender-lazy-state-init: 初回マウント時のみ item から初期化
-  const [formData, setFormData] = useState<TreatmentFormData>(() => ({
-    name: item?.name ?? "",
-    price: item?.price ?? 0,
-    description: item?.description ?? "",
-    isActive: item?.isActive ?? true,
-    taxType: (item?.taxType ?? "excluded") as TaxType,
-    taxRate: item?.taxRate ?? 0.1,
-    isNonInsurance: item?.isNonInsurance ?? false,
-  }));
-  const [nameError, setNameError] = useState("");
-  const [isDirty, setIsDirty] = useState(false);
-
-  // BUG-380
-  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
-
-  const handleAction = () => {
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      return;
-    }
-    setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  };
-
-  return (
-    <MasterSidePanel
-      isNew={item === null}
-      title={formData.name}
-      onTitleChange={(v) => { setFormDataDirty((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
-      onClose={onClose}
-      action={readOnly ? undefined : handleAction}
-      onDelete={!readOnly && item !== null && onDeleteRequest ? onDeleteRequest : undefined}
-      icon={<Stethoscope className={LAYOUT.pageIcon.innerIcon} />}
-      titleError={nameError}
-      titleMaxLength={100}
-      readOnly={readOnly}
-    >
-      <StatusToggleButton
-        isActive={formData.isActive}
-        onToggle={() => setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))}
-      />
-      <MoneyInput
-        value={formData.price}
-        onChange={(v) => setFormDataDirty((prev) => ({ ...prev, price: v }))}
-      />
-      <PropertyRow label="課税区分">
-        <TaxTypeSelector
-          value={formData.taxType}
-          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, taxType: v }))}
-        />
-      </PropertyRow>
-      <PropertyRow label="税率">
-        <TaxRateSelector
-          value={formData.taxRate}
-          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, taxRate: v }))}
-        />
-      </PropertyRow>
-      <PropertyRow label="保険対象外">
-        <button
-          type="button"
-          onClick={() => setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))}
-          aria-label="保険対象外を切り替え"
-          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.accent : C.text50}`}
-        >
-          {formData.isNonInsurance ? "対象外" : "対象"}
-        </button>
-      </PropertyRow>
-      <PropertyRow label="備考">
-        <PropertyInput
-          value={formData.description}
-          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, description: v }))}
-          placeholder="補足情報など"
-        />
-      </PropertyRow>
-    </MasterSidePanel>
-  );
-});
-
-// ─────────────────────────────────────────────────
-// ChildTreatmentRow (child items — not sortable)
-// ─────────────────────────────────────────────────
-
-function ChildTreatmentRow({
-  item,
-  onEdit,
-  canEdit,
-}: {
-  item: TreatmentItem;
-  onEdit: () => void;
-  canEdit: boolean;
-}) {
-  return (
-    <DataTableRow onClick={onEdit}>
-      <TableCell className="w-[32px]" />
-      <TableCell>
-        <div className="flex items-center gap-1 pl-[22px]">
-          <span className="size-[22px] shrink-0" />
-          <span className={`text-base ${C.text}`}>{item.name}</span>
-        </div>
-      </TableCell>
-      <TableCell className="text-right">
-        <span className={`text-base ${C.text70} font-mono`}>
-          {item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}
-        </span>
-      </TableCell>
-      <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
-      </TableCell>
-      <TableCell className="p-0 text-right">
-        {canEdit ? <RowActionButton onClick={onEdit} /> : null}
-      </TableCell>
-    </DataTableRow>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// TreatmentTabContent (generic — shared across all 5 tabs)
-// ─────────────────────────────────────────────────
-
-interface TreatmentTabContentProps extends TreatmentTabConfig {
-  editTarget: TreatmentItem | "new" | null;
-  onEditTargetChange: (v: TreatmentItem | "new" | null) => void;
-  onSave: (data: TreatmentFormData) => void;
-  onDeleteRequest?: () => void;
-  pendingDelete: TreatmentItem | null;
-  onPendingDeleteChange: (item: TreatmentItem | null) => void;
-  canEdit: boolean;
-}
-
-function TreatmentTabContent({
-  data: rawData,
-  entityLabel,
-  emptyMessage,
-  searchPlaceholder,
-  onDelete,
-  onReorder,
-  onEditTargetChange,
-  pendingDelete,
-  onPendingDeleteChange,
-  canEdit,
-}: TreatmentTabContentProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const deferredSearch = useDeferredValue(searchTerm);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  const treeItems = useMemo(() => buildTree(rawData ?? []), [rawData]);
-
-  const { orderedItems: orderedRoots, sensors, handleDragEnd } = useSortableList({
-    items: treeItems,
-    onReorder: (newIds) => {
-      onReorder(newIds.map(Number));
-    },
-  });
-
-  const filteredRoots = useMemo(() => {
-    let items = orderedRoots;
-    for (const f of activeFilters) {
-      if (f.key === "status" && typeof f.value === "string") {
-        const want = f.value === "active";
-        items = items.filter((r) => f.condition === "is" ? r.isActive === want : r.isActive !== want);
-      }
-    }
-    if (deferredSearch) {
-      const lower = deferredSearch.toLowerCase();
-      items = items.filter(
-        (r) =>
-          r.name.toLowerCase().includes(lower) ||
-          r.children.some((c) => c.name.toLowerCase().includes(lower)),
-      );
-    }
-    return items;
-  }, [orderedRoots, activeFilters, deferredSearch]);
-
-  const toggleExpanded = useCallback((id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const flatRows = useMemo<VirtualRow[]>(
-    () =>
-      filteredRoots.flatMap((root) => {
-        const isExpanded = expandedIds.has(root.id);
-        const rows: VirtualRow[] = [{ type: "root", item: root, isExpanded }];
-        if (isExpanded && root.children.length > 0) {
-          for (const child of root.children) {
-            rows.push({ type: "child", item: child });
-          }
-        }
-        return rows;
-      }),
-    [filteredRoots, expandedIds],
-  );
-
-  const totalCount = (rawData ?? []).length;
-
-  const handleEdit = useCallback((item: TreatmentItem) => {
-    onEditTargetChange(item);
-  }, [onEditTargetChange]);
-
-  const handleClose = useCallback(() => {
-    onEditTargetChange(null);
-  }, [onEditTargetChange]);
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDelete || !onDelete) return;
-    onDelete(pendingDelete.id, {
-      onSuccess: () => {
-        onPendingDeleteChange(null);
-        handleClose();
-        toast.success("削除しました");
-      },
-      onError: (error) => handleApiError(error, "削除"),
-    });
-  }, [pendingDelete, onDelete, handleClose, onPendingDeleteChange]);
-
-  return (
-    <>
-      <div className="flex flex-col gap-4">
-        <NotionFilter
-          properties={[MASTER_STATUS_FILTER]}
-          activeFilters={activeFilters}
-          onFilterChange={setActiveFilters}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder={searchPlaceholder}
-          count={totalCount}
-        />
-
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={filteredRoots.map((r) => r.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <DataTable
-              columns={TREATMENT_COLUMNS}
-              data={flatRows}
-              emptyMessage={emptyMessage}
-              renderRow={(row) => {
-                if (row.type === "root") {
-                  return (
-                    <SortableDataTableRow
-                      key={row.item.id}
-                      id={row.item.id}
-                      onClick={() => handleEdit(row.item)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {row.item.children.length > 0 ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleExpanded(row.item.id);
-                              }}
-                              className={`size-[22px] flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
-                            >
-                              {row.isExpanded ? (
-                                <ChevronDown className={`${ICON.xs}`} />
-                              ) : (
-                                <ChevronRight className={`${ICON.xs}`} />
-                              )}
-                            </button>
-                          ) : (
-                            <span className="size-[22px] shrink-0" />
-                          )}
-                          <span className={`text-base font-medium ${C.text}`}>{row.item.name}</span>
-                          {row.item.children.length > 0 ? (
-                            <span className={`text-base ${C.text25} ml-0.5`}>{row.item.children.length}</span>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className={`text-base ${C.text70} font-mono`}>
-                          {row.item.price > 0 ? `¥${row.item.price.toLocaleString()}` : "-"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <NotionStatusPill isActive={row.item.isActive} />
-                      </TableCell>
-                      <TableCell className="p-0 text-right">
-                        {canEdit ? <RowActionButton onClick={() => handleEdit(row.item)} /> : null}
-                      </TableCell>
-                    </SortableDataTableRow>
-                  );
-                }
-                return (
-                  <ChildTreatmentRow
-                    key={row.item.id}
-                    item={row.item}
-                    onEdit={() => handleEdit(row.item)}
-                    canEdit={canEdit}
-                  />
-                );
-              }}
-            />
-          </SortableContext>
-        </DndContext>
-      </div>
-
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        onClose={() => onPendingDeleteChange(null)}
-        title={`${entityLabel}を削除しますか？`}
-        description={`「${pendingDelete?.name}」を削除します。この操作は取り消せません。`}
-        confirmLabel="削除"
-        variant="destructive"
-        onConfirm={handleDeleteConfirm}
-      />
-    </>
-  );
-}
 
 // ─────────────────────────────────────────────────
 // TreatmentPlanMaster (main page)
@@ -767,12 +345,9 @@ export function TreatmentPlanMaster() {
                 const config = tabConfigs[tab.value];
                 return (
                   <UnifiedTabsContent key={tab.value} value={tab.value} className="mt-4">
-                    <TreatmentTabContent
+                    <TreatmentPlanTabContent
                       {...config}
-                      editTarget={editTarget}
                       onEditTargetChange={setEditTargetGuarded}
-                      onSave={handleSave}
-                      onDeleteRequest={handleDeleteRequest}
                       pendingDelete={pendingDelete}
                       onPendingDeleteChange={setPendingDelete}
                       canEdit={canEdit}

@@ -5,7 +5,7 @@ import { useState, useCallback, useMemo, memo, Fragment } from "react";
 import { Search, X } from "lucide-react";
 
 // Internal
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -52,26 +52,21 @@ const CategoryFilter = memo(function CategoryFilter({
       <div className="flex gap-1.5 min-w-max">
         {activeCategory ? (
           <Badge
+            asChild
             variant="outline"
             className={`h-8 px-3 text-sm cursor-pointer ${C.hoverBgMedium} gap-1 ${C.text60} border-transparent bg-transparent`}
-            onClick={() => onSelectCategory(null)}
-            tabIndex={0}
-            role="button"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSelectCategory(null);
-              }
-            }}
           >
-            <X className={ICON.action} />
-            解除
+            <button type="button" onClick={() => onSelectCategory(null)}>
+              <X className={ICON.action} />
+              解除
+            </button>
           </Badge>
         ) : null}
         {categories.map((category) => {
           const isSelected = activeCategory === category;
           return (
             <Badge
+              asChild
               key={category}
               variant={isSelected ? "default" : "outline"}
               className={cn(
@@ -80,17 +75,10 @@ const CategoryFilter = memo(function CategoryFilter({
                   ? `${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} border-transparent`
                   : `bg-white ${C.text} ${C.hoverBgLight} ${C.borderMedium}`
               )}
-              onClick={() => onSelectCategory(isSelected ? null : category)}
-              tabIndex={0}
-              role="button"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onSelectCategory(isSelected ? null : category);
-                }
-              }}
             >
-              {category}
+              <button type="button" onClick={() => onSelectCategory(isSelected ? null : category)}>
+                {category}
+              </button>
             </Badge>
           );
         })}
@@ -192,6 +180,9 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
       <DialogContent className="sm:max-w-[560px] max-h-[80vh] flex flex-col gap-3">
         <DialogHeader>
           <DialogTitle className={`text-base font-bold ${C.text}`}>治療プラン検索</DialogTitle>
+          <DialogDescription className="sr-only">
+            治療プランを検索して選択します。
+          </DialogDescription>
         </DialogHeader>
 
         {/* Search */}
@@ -204,7 +195,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
             className={`pl-9 h-11 text-sm bg-white ${C.borderMedium}`}
           />
           {searchTerm ? (
-            <button
+            <button type="button"
               onClick={() => setSearchTerm("")}
               className={`absolute right-2.5 top-1/2 -translate-y-1/2 ${C.text40} ${C.hoverText}`}
             >
@@ -240,10 +231,11 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
                   ) : null}
                   <div className="space-y-1.5">
                     {items.map((item) => (
-                      <div
+                      <button
                         key={item.id}
+                        type="button"
                         onClick={() => handleSelect(item)}
-                        className={`p-3 border rounded-lg cursor-pointer transition-all flex items-center justify-between group bg-white ${C.borderMedium} ${C.hoverBorderPrimary30} ${C.hoverBgPageHalf}`}
+                        className={`w-full text-left p-3 border rounded-lg cursor-pointer transition-all flex items-center justify-between group bg-white ${C.borderMedium} ${C.hoverBorderPrimary30} ${C.hoverBgPageHalf}`}
                       >
                         <div className="flex-1 min-w-0">
                           <div className={`text-sm font-medium ${C.text}`}>{item.name}</div>
@@ -252,7 +244,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
                           </div>
                         </div>
                         <div className={`size-5 rounded-full border ${C.borderLight} group-hover:border-current transition-colors shrink-0 ml-3`} />
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </Fragment>

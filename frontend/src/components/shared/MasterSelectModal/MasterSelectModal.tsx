@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, memo } from "react";
 import { Search, X, Check } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { C, ICON } from "@/lib/design-tokens";
 
@@ -59,6 +59,9 @@ export const MasterSelectModal = memo(function MasterSelectModal({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className={`text-base font-bold ${C.text}`}>{title}</DialogTitle>
+          <DialogDescription className="sr-only">
+            マスタ項目を検索して選択します。
+          </DialogDescription>
         </DialogHeader>
 
         {/* Search */}
@@ -72,6 +75,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
           />
           {searchTerm ? (
             <button
+              type="button"
               onClick={() => setSearchTerm("")}
               className={`absolute right-2.5 top-1/2 -translate-y-1/2 ${C.text40} ${C.hoverText}`}
             >
@@ -94,11 +98,12 @@ export const MasterSelectModal = memo(function MasterSelectModal({
                   : selectedValue === item.name;
 
               return (
-                <div
+                <button
                   key={item.id}
+                  type="button"
                   onClick={() => handleSelect(item)}
                   className={`
-                    p-3 border rounded-lg cursor-pointer transition-all flex items-center justify-between group
+                    w-full p-3 border rounded-lg cursor-pointer transition-all flex items-center justify-between group text-left
                     ${
                       isSelected
                         ? `${C.bgPage} ${C.borderPrimary} shadow-sm`
@@ -123,7 +128,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
                       <div className={`size-5 rounded-full border ${C.borderLight} group-hover:${C.borderPrimary} transition-colors`} />
                     )}
                   </div>
-                </div>
+                </button>
               );
             })
           )}

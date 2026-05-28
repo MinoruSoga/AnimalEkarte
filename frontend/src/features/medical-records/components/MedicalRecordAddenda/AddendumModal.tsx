@@ -1,5 +1,5 @@
 import { useActionState, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C } from "@/lib/design-tokens";
@@ -52,6 +52,9 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>追記</DialogTitle>
+          <DialogDescription>
+            確定済みカルテに修正内容と理由を追記します。
+          </DialogDescription>
         </DialogHeader>
         <form action={formAction} className="space-y-4">
           {state.error ? (

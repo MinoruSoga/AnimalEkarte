@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- DiagnosisType ----
@@ -65,12 +64,7 @@ func (h *Handler) CreateDiagnosisType(c *gin.Context) {
 		return
 	}
 
-	category, err := h.svc.DiagnosisType.Create(c.Request.Context(), clinicID, &service.CreateDiagnosisTypeInput{
-		Name:        req.Name,
-		IsActive:    req.IsActive,
-		Description: req.Description,
-		SortOrder:   req.SortOrder,
-	})
+	category, err := h.svc.DiagnosisType.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -96,12 +90,7 @@ func (h *Handler) UpdateDiagnosisType(c *gin.Context) {
 		return
 	}
 
-	category, err := h.svc.DiagnosisType.Update(c.Request.Context(), clinicID, id, &service.UpdateDiagnosisTypeInput{
-		Name:        req.Name,
-		IsActive:    req.IsActive,
-		Description: req.Description,
-		SortOrder:   req.SortOrder,
-	})
+	category, err := h.svc.DiagnosisType.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -225,13 +214,7 @@ func (h *Handler) CreateDiagnosisName(c *gin.Context) {
 		return
 	}
 
-	diagnosisName, err := h.svc.DiagnosisName.Create(c.Request.Context(), clinicID, &service.CreateDiagnosisNameInput{
-		Name:            req.Name,
-		DiagnosisTypeID: req.DiagnosisTypeID,
-		IsActive:        req.IsActive,
-		Description:     req.Description,
-		SortOrder:       req.SortOrder,
-	})
+	diagnosisName, err := h.svc.DiagnosisName.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -257,13 +240,7 @@ func (h *Handler) UpdateDiagnosisName(c *gin.Context) {
 		return
 	}
 
-	diagnosisName, err := h.svc.DiagnosisName.Update(c.Request.Context(), clinicID, id, &service.UpdateDiagnosisNameInput{
-		Name:            req.Name,
-		DiagnosisTypeID: req.DiagnosisTypeID,
-		IsActive:        req.IsActive,
-		Description:     req.Description,
-		SortOrder:       req.SortOrder,
-	})
+	diagnosisName, err := h.svc.DiagnosisName.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
