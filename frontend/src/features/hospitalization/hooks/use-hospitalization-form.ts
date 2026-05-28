@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
-import type { TreatmentPlan, Pet } from "@/types";
+import type { TreatmentPlan } from "@/types";
 import type { HospitalizationFormData } from "../types";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
@@ -13,35 +13,17 @@ import { createHospitalization } from "../api/create-hospitalization";
 import { updateHospitalization } from "../api/update-hospitalization";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
 import { calculateBillingTotals } from "@/lib/calculations";
-
-const MS_PER_DAY = 86_400_000;
-const DEFAULT_HOSPITALIZATION_DAYS = 7;
-
-// rerender-lazy-state-init: モジュールスコープ定数にすることでレンダーごとのオブジェクト生成を排除
-const DEFAULT_TREATMENT_PLANS: TreatmentPlan[] = [
-  {
-    id: "1",
-    treatmentContent: "adm rate",
-    memo: "入院料1日分",
-    is_insurance: true,
-    unitPrice: 990,
-    quantity: 1,
-    discount: 0,
-    discountAmount: 0,
-    subtotal: 990,
-  },
-  {
-    id: "2",
-    treatmentContent: "PCG/SC ~15kg",
-    memo: "",
-    is_insurance: false,
-    unitPrice: 990,
-    quantity: 1,
-    discount: 0,
-    discountAmount: 0,
-    subtotal: 990,
-  },
-];
+import {
+  DEFAULT_TREATMENT_PLANS,
+  buildCreateHospitalizationRequest,
+  buildHospitalizationFormDataFromRecord,
+  buildSelectedPetFromHospitalization,
+  buildUpdateHospitalizationRequest,
+  createEmptyTreatmentPlan,
+  createInitialHospitalizationFormData,
+  mergePetIntoHospitalizationFormData,
+  updateTreatmentPlanField,
+} from "./use-hospitalization-form-model";
 
 export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   const navigate = useNavigate();
@@ -54,27 +36,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
 
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
 
-  const [formData, setFormData] = useState<HospitalizationFormData>(() => ({
-    hospitalizationType: "入院",
-    ownerName: "",
-    species: "",
-    petName: "",
-    petNumber: "",
-    petInsurance: "",
-    petDetails: "",
-    visit: "診療",
-    nextVisit: "",
-    weight: "",
-    displayDate: "",
-    endDate: new Date(Date.now() + DEFAULT_HOSPITALIZATION_DAYS * MS_PER_DAY).toISOString().split("T")[0],
-    memo: "",
-    ownerRequest: "",
-    staffNotes: "",
-    cageId: "",
-    isInsurance: false,
-    insuranceCompanyName: "",
-    insuranceNumber: "",
-  }));
+  const [formData, setFormData] = useState<HospitalizationFormData>(createInitialHospitalizationFormData);
 
   const handleFormDataChange = (updates: Partial<HospitalizationFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -92,38 +54,12 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
       }
 
       const pet = selectedPets[0];
-      const today = new Date().toISOString().split("T")[0];
-
       try {
         if (isEdit && id) {
-          await updateHospitalization(id, {
-            hospitalization_type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
-            owner_request: formData.ownerRequest,
-            staff_notes: formData.staffNotes,
-            memo: formData.memo,
-            cage_id: formData.cageId || undefined,
-            is_insurance: formData.isInsurance,
-            insurance_company_name: formData.isInsurance ? (formData.insuranceCompanyName || null) : null,
-            insurance_number: formData.isInsurance ? (formData.insuranceNumber || null) : null,
-          });
+          await updateHospitalization(id, buildUpdateHospitalizationRequest(formData));
           toast.success("入院情報を更新しました");
         } else {
-          const startISO = (formData.displayDate || today) + "T00:00:00Z";
-          const endISO = (formData.endDate || new Date(Date.now() + DEFAULT_HOSPITALIZATION_DAYS * MS_PER_DAY).toISOString().split("T")[0]) + "T00:00:00Z";
-          await createHospitalization({
-            pet_id: pet.id,
-            owner_id: pet.ownerId || "",
-            hospitalization_type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
-            start_date: startISO,
-            end_date: endISO,
-            owner_request: formData.ownerRequest,
-            staff_notes: formData.staffNotes,
-            memo: formData.memo,
-            cage_id: formData.cageId || undefined,
-            is_insurance: formData.isInsurance,
-            insurance_company_name: formData.isInsurance ? (formData.insuranceCompanyName || null) : null,
-            insurance_number: formData.isInsurance ? (formData.insuranceNumber || null) : null,
-          });
+          await createHospitalization(buildCreateHospitalizationRequest(formData, pet));
           toast.success("入院情報を登録しました");
         }
 
@@ -147,38 +83,10 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   const [prevHospId, setPrevHospId] = useState(hospitalizationData?.id);
   if (prevHospId !== hospitalizationData?.id && hospitalizationData) {
     setPrevHospId(hospitalizationData.id);
-    setFormData((prev) => ({
-      ...prev,
-      hospitalizationType:
-        hospitalizationData.hospitalization_type === "hospitalization"
-          ? "入院"
-          : "ホテル",
-      cageId: hospitalizationData.cage_id
-        ? String(hospitalizationData.cage_id)
-        : "",
-      displayDate: hospitalizationData.start_date,
-      endDate: hospitalizationData.end_date
-        ? hospitalizationData.end_date.split("T")[0]
-        : new Date(Date.now() + DEFAULT_HOSPITALIZATION_DAYS * MS_PER_DAY).toISOString().split("T")[0],
-      memo: hospitalizationData.memo ?? "",
-      ownerRequest: hospitalizationData.owner_request ?? "",
-      staffNotes: hospitalizationData.staff_notes ?? "",
-      isInsurance: !!(hospitalizationData.insurance_company_name || hospitalizationData.insurance_number),
-      insuranceCompanyName: hospitalizationData.insurance_company_name ?? "",
-      insuranceNumber: hospitalizationData.insurance_number ?? "",
-    }));
-    if (hospitalizationData.pet && hospitalizationData.owner_id) {
-      setSelectedPets([
-        {
-          id: String(hospitalizationData.pet_id),
-          ownerId: String(hospitalizationData.owner_id),
-          ownerName: hospitalizationData.owner?.name ?? "",
-          name: hospitalizationData.pet.name,
-          species: hospitalizationData.pet.animal_species?.name ?? "",
-          breed: hospitalizationData.pet.breed,
-          gender: hospitalizationData.pet.gender,
-        } as Pet,
-      ]);
+    setFormData((prev) => buildHospitalizationFormDataFromRecord(prev, hospitalizationData));
+    const selectedPet = buildSelectedPetFromHospitalization(hospitalizationData);
+    if (selectedPet) {
+      setSelectedPets([selectedPet]);
     }
   }
 
@@ -199,32 +107,11 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
     }
   }, [petId, id, petFromQuery, isPetLoading, setSelectedPets, navigate]);
 
-  const formDataWithPet =
-    selectedPets.length > 0
-      ? {
-          ...formData,
-          ownerName: selectedPets[0].ownerName,
-          petName: selectedPets[0].name,
-          petNumber: selectedPets[0].id,
-          species: selectedPets[0].species,
-          weight: selectedPets[0].weight ? `${selectedPets[0].weight}kg` : "",
-        }
-      : formData;
+  const formDataWithPet = mergePetIntoHospitalizationFormData(formData, selectedPets);
 
   // rerender-functional-setstate: prev => 形式で treatmentPlans を deps から除外
   const addTreatmentPlan = useCallback(() => {
-    const newPlan: TreatmentPlan = {
-      id: crypto.randomUUID(),
-      treatmentContent: "",
-      memo: "",
-      is_insurance: false,
-      unitPrice: 0,
-      quantity: 1,
-      discount: 0,
-      discountAmount: 0,
-      subtotal: 0,
-    };
-    setTreatmentPlans((prev) => [...prev, newPlan]);
+    setTreatmentPlans((prev) => [...prev, createEmptyTreatmentPlan()]);
   }, []);
 
   const removeTreatmentPlan = useCallback((planId: string) => {
@@ -239,26 +126,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
     setTreatmentPlans((prev) =>
       prev.map((plan) => {
         if (plan.id === planId) {
-          const updated = { ...plan, [field]: value };
-          if (
-            field === "unitPrice" ||
-            field === "quantity" ||
-            field === "discount"
-          ) {
-            const unitPrice = (
-              field === "unitPrice" ? value : plan.unitPrice
-            ) as number;
-            const quantity = (
-              field === "quantity" ? value : plan.quantity
-            ) as number;
-            const discount = (
-              field === "discount" ? value : plan.discount
-            ) as number;
-            const baseAmount = unitPrice * quantity;
-            updated.discountAmount = Math.floor(baseAmount * (discount / 100));
-            updated.subtotal = baseAmount - updated.discountAmount;
-          }
-          return updated;
+          return updateTreatmentPlanField(plan, field, value);
         }
         return plan;
       })
