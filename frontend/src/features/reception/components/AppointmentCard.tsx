@@ -82,6 +82,7 @@ export const AppointmentCard = memo(function AppointmentCard({
     const params = new URLSearchParams();
     if (appointment.petId) params.set("petId", appointment.petId);
     if (appointment.id) params.set("appointmentId", appointment.id);
+    if (appointment.visitDate) params.set("visitDate", appointment.visitDate);
     const query = params.toString();
     const basePath = isTrimming
       ? appointment.petId
@@ -93,9 +94,9 @@ export const AppointmentCard = memo(function AppointmentCard({
 
     navigate(
       query ? `${basePath}?${query}` : basePath,
-      { state: { from: "/", appointmentId: appointment.id } },
+      { state: { from: "/", appointmentId: appointment.id, visitDate: appointment.visitDate } },
     );
-  }, [navigate, isTrimming, appointment.petId, appointment.id]);
+  }, [navigate, isTrimming, appointment.petId, appointment.id, appointment.visitDate]);
 
   const handleAccountingClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

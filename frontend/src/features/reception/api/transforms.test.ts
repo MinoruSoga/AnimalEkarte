@@ -35,6 +35,15 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.time).toMatch(/^\d{2}:\d{2}$/);
   });
 
+  it("start_time から JST 基準の visitDate を生成する", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      start_time: "2026-03-25T15:30:00Z",
+    });
+
+    expect(result.visitDate).toBe("2026-03-26");
+  });
+
   it("visit_type: first → '初診'", () => {
     expect(transformReservationToReceptionAppointment({ ...minimal, visit_type: "first" }).visitType).toBe("初診");
   });

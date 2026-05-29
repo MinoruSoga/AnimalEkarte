@@ -69,6 +69,15 @@ function optionalID(value: number | null | undefined): string {
   return value ? String(value) : "";
 }
 
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function formatJSTDate(date: Date): string {
+  const jstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}`;
+}
+
 /** BackendReceptionReservation → ReceptionAppointment 変換 */
 export function transformReservationToReceptionAppointment(
   reservation: BackendReceptionReservation
@@ -90,6 +99,7 @@ export function transformReservationToReceptionAppointment(
   return {
     id: String(reservation.id ?? 0),
     time,
+    visitDate: formatJSTDate(startDate),
     ownerName,
     petType,
     petName,

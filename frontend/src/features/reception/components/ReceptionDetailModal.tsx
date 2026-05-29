@@ -48,6 +48,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   const petId = appointment?.petId;
   const appointmentId = appointment?.id;
   const ownerId = appointment?.ownerId;
+  const visitDate = appointment?.visitDate;
 
   const navigateAndClose = useCallback((path: string, extraState?: Record<string, unknown>) => {
     navigate(path, { state: { from: "/", ...extraState } });
@@ -58,19 +59,21 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
     const params = new URLSearchParams();
     if (petId) params.set("petId", petId);
     if (appointmentId) params.set("appointmentId", appointmentId);
+    if (visitDate) params.set("visitDate", visitDate);
     if (tab) params.set("tab", tab);
     const query = params.toString();
     const basePath = petId
       ? paths.medicalRecords.new.getHref()
       : paths.medicalRecords.selectPet.getHref();
     const base = query ? `${basePath}?${query}` : basePath;
-    navigateAndClose(base, { appointmentId });
-  }, [petId, appointmentId, navigateAndClose]);
+    navigateAndClose(base, { appointmentId, visitDate });
+  }, [petId, appointmentId, visitDate, navigateAndClose]);
 
   const handleCreateTrimming = useCallback(() => {
     const params = new URLSearchParams();
     if (petId) params.set("petId", petId);
     if (appointmentId) params.set("appointmentId", appointmentId);
+    if (visitDate) params.set("visitDate", visitDate);
     const query = params.toString();
     const basePath = petId
       ? paths.trimming.new.getHref()
@@ -78,8 +81,9 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
     const path = query ? `${basePath}?${query}` : basePath;
     navigateAndClose(path, {
       appointmentId,
+      visitDate,
     });
-  }, [petId, appointmentId, navigateAndClose]);
+  }, [petId, appointmentId, visitDate, navigateAndClose]);
 
   const handleCreateHospitalization = useCallback(() =>
     navigateAndClose(petId ? `${paths.hospitalization.new.getHref()}?petId=${petId}` : paths.hospitalization.new.getHref()),

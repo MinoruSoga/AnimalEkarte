@@ -7,6 +7,7 @@ import type { ReceptionAppointment } from "../api/types";
 const trimmingAppointment: ReceptionAppointment = {
   id: "1",
   time: "09:45",
+  visitDate: "2026-05-29",
   ownerName: "山田",
   petType: "犬",
   petName: "ポチ",

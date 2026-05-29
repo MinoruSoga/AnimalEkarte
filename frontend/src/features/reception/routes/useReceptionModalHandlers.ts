@@ -83,6 +83,7 @@ export function useReceptionModalHandlers({
       const updatedAppointment: ReceptionAppointment = {
         id: editingAppointmentId,
         time: format(data.start, "HH:mm"),
+        visitDate: format(data.start, "yyyy-MM-dd"),
         ownerName: selectedPets[0]?.ownerName || data.ownerName || "",
         petName: selectedPets[0]?.name || data.petName || "",
         petType: selectedPets[0]?.species || "犬",

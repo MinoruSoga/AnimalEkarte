@@ -20,6 +20,7 @@ afterEach(() => {
 const baseAppointment: ReceptionAppointment = {
   id: "101",
   time: "09:45",
+  visitDate: "2026-05-29",
   ownerName: "山田",
   petType: "犬",
   petName: "ポチ",
@@ -54,8 +55,8 @@ describe("AppointmentCard", () => {
     fireEvent.click(screen.getByRole("button", { name: /ポチのカルテ/ }));
 
     expect(navigateMock).toHaveBeenCalledWith(
-      "/medical-records/new?petId=10&appointmentId=101",
-      { state: { from: "/", appointmentId: "101" } },
+      "/medical-records/new?petId=10&appointmentId=101&visitDate=2026-05-29",
+      { state: { from: "/", appointmentId: "101", visitDate: "2026-05-29" } },
     );
   });
 
@@ -68,8 +69,8 @@ describe("AppointmentCard", () => {
     fireEvent.click(screen.getByRole("button", { name: /ポチのカルテ/ }));
 
     expect(navigateMock).toHaveBeenCalledWith(
-      "/medical-records/select-pet?appointmentId=101",
-      { state: { from: "/", appointmentId: "101" } },
+      "/medical-records/select-pet?appointmentId=101&visitDate=2026-05-29",
+      { state: { from: "/", appointmentId: "101", visitDate: "2026-05-29" } },
     );
   });
 
@@ -84,8 +85,8 @@ describe("AppointmentCard", () => {
     fireEvent.click(screen.getByRole("button", { name: /ポチのトリミング記録/ }));
 
     expect(navigateMock).toHaveBeenCalledWith(
-      "/trimming/new?petId=10&appointmentId=202",
-      { state: { from: "/", appointmentId: "202" } },
+      "/trimming/new?petId=10&appointmentId=202&visitDate=2026-05-29",
+      { state: { from: "/", appointmentId: "202", visitDate: "2026-05-29" } },
     );
   });
 
@@ -101,8 +102,8 @@ describe("AppointmentCard", () => {
     fireEvent.click(screen.getByRole("button", { name: /ポチのトリミング記録/ }));
 
     expect(navigateMock).toHaveBeenCalledWith(
-      "/trimming/select-pet?appointmentId=202",
-      { state: { from: "/", appointmentId: "202" } },
+      "/trimming/select-pet?appointmentId=202&visitDate=2026-05-29",
+      { state: { from: "/", appointmentId: "202", visitDate: "2026-05-29" } },
     );
   });
 });
