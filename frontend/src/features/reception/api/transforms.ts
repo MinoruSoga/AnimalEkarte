@@ -65,7 +65,7 @@ const ANIMAL_SPECIES_MAP: Record<number, string> = {
   9: "その他",
 };
 
-function optionalID(value: number | undefined): string {
+function optionalID(value: number | null | undefined): string {
   return value ? String(value) : "";
 }
 

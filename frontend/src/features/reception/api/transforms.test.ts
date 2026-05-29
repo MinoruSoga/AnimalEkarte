@@ -121,6 +121,17 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.ownerId).toBe("");
   });
 
+  it("pet_id / owner_id が null の場合も空文字にする", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      pet_id: null,
+      owner_id: null,
+    } as BackendReservation);
+
+    expect(result.petId).toBe("");
+    expect(result.ownerId).toBe("");
+  });
+
   it("reservation_type.name を reservationType にマップする", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
