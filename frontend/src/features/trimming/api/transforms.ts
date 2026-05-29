@@ -12,6 +12,7 @@ const STATUS_MAP: Record<string, TrimmingStatus> = {
   in_consultation: "進行中",
   accounting: "進行中",
   completed: "完了",
+  cancelled: "キャンセル",
   canceled: "キャンセル",
   no_show: "キャンセル",
 };

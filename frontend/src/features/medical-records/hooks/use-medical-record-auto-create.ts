@@ -5,6 +5,7 @@ import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { MedicalRecord, Pet, Reservation } from "@/types";
 import type { CreateReservationRequest } from "@/features/reservations/api/types";
+import type { Reservation as ReservationUI } from "@/features/reservations/api/transforms";
 
 import type { CreateMedicalRecordRequest } from "../api/types";
 import type { RecommendationReason } from "../constants/recommendation-reason";
@@ -25,6 +26,7 @@ interface UseMedicalRecordAutoCreateParams {
   selectedPet: Pet | undefined;
   hasAutoCreatedRef: MutableRefObject<boolean>;
   appointmentIdFromState: string | undefined;
+  reusableAppointment: ReservationUI | undefined;
   visitDateFromState: string | undefined;
   generalReservationType: MedicalRecordReservationType | undefined;
   createReservationMutation: AsyncMutation<CreateReservationRequest, Reservation>;
@@ -40,6 +42,7 @@ export function useMedicalRecordAutoCreate({
   selectedPet,
   hasAutoCreatedRef,
   appointmentIdFromState,
+  reusableAppointment,
   visitDateFromState,
   generalReservationType,
   createReservationMutation,
@@ -57,6 +60,9 @@ export function useMedicalRecordAutoCreate({
     startCreateTransition(async () => {
       try {
         let appointmentId = appointmentIdFromState;
+        if (!appointmentId && reusableAppointment) {
+          appointmentId = reusableAppointment.id;
+        }
         if (!appointmentId) {
           const duration = generalReservationType?.duration_minutes || DEFAULT_RECEPTION_APPOINTMENT_MINUTES;
           const { startTime, endTime } = createReceptionAppointmentTimeRange(duration, visitDateFromState);
@@ -90,5 +96,5 @@ export function useMedicalRecordAutoCreate({
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run only when isNewRecord or petId changes; createMutation/navigate/visitType are stable references
-  }, [isNewRecord, selectedPet?.id, appointmentIdFromState, visitDateFromState, generalReservationType?.id]);
+  }, [isNewRecord, selectedPet?.id, appointmentIdFromState, reusableAppointment?.id, visitDateFromState, generalReservationType?.id]);
 }

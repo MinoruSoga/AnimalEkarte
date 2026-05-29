@@ -9,6 +9,7 @@ import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useCreateReservation } from "@/features/reservations/api/create-reservation";
+import { useGetReservations } from "@/features/reservations/api/get-reservations";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
@@ -30,6 +31,7 @@ import {
   DEFAULT_PLAN,
   DEFAULT_TREATMENT_POLICY,
   findGeneralReservationType,
+  formatJSTDate,
   normalizeAppointmentId,
   normalizeVisitDate,
 } from "./use-medical-record-form-model";
@@ -123,6 +125,16 @@ export function useMedicalRecordForm(recordId?: string) {
     ?? normalizeVisitDate(searchParams.get("visitDate"));
   const { data: reservationTypeGroups } = useGetReservationTypesGrouped();
   const generalReservationType = findGeneralReservationType(reservationTypeGroups, visitType);
+  const appointmentLookupDate = visitDateFromState ?? formatJSTDate(new Date());
+  const { data: sameDayAppointments = [] } = useGetReservations({
+    date: appointmentLookupDate,
+    petId: resolvedPetId,
+    enabled: isNewRecord && !appointmentIdFromState && resolvedPetId !== "",
+  });
+  const reusableAppointment = sameDayAppointments.find((appointment) =>
+    appointment.category === "general" &&
+    !["completed", "cancelled", "no_show"].includes(String(appointment.status))
+  );
 
   const queryClient = useQueryClient();
   const createMutation = useCreateMedicalRecord();
@@ -257,6 +269,7 @@ export function useMedicalRecordForm(recordId?: string) {
     selectedPet,
     hasAutoCreatedRef,
     appointmentIdFromState,
+    reusableAppointment,
     visitDateFromState,
     generalReservationType,
     createReservationMutation,

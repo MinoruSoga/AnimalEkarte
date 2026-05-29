@@ -352,8 +352,8 @@ UI と仕様上は「対応可能コース」として扱う。
 
 変更すること:
 
-- 一覧から新規作成するときは、当日 `appointments` を作る
-- すでに当日同ペットの未完了 appointment がある場合は新規作成せず、それに紐付ける
+- 一覧から新規作成するときは、当日 `appointments` を作る（完了）
+- すでに当日同ペットの未完了 appointment がある場合は新規作成せず、それに紐付ける（完了）
 - `appointment_id` があるカルテは受付カードと同一業務として扱う
 
 ### トリミング一覧
@@ -361,7 +361,7 @@ UI と仕様上は「対応可能コース」として扱う。
 変更すること:
 
 - 一覧から新規作成するときは、当日 `appointments` を作る
-- すでに当日同ペットの未完了 trimming appointment がある場合は新規作成せず、それに紐付ける
+- すでに当日同ペットの未完了 trimming appointment がある場合は新規作成せず、それに紐付ける（完了）
 - デフォルト日付は JST の当日を使う
 
 ## 7. データモデル
@@ -562,7 +562,7 @@ erDiagram
 ### Phase 1: 導線の統一
 
 - 受付カードの category 判定を `reservation_types.category` に変更
-- 通常カルテ一覧からの作成で appointment を作る／既存 appointment に紐付ける
+- 通常カルテ一覧からの作成で appointment を作る／既存 appointment に紐付ける（完了）
 - トリミング一覧からの作成で appointment が受付に反映されることを保証する（完了）
 - トリミング一覧からの作成では seed ID に依存せず、active な `trimming` 予約区分を使う（完了）
 - 作成後に `reception` query を無効化する

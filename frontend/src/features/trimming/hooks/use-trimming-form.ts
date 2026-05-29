@@ -6,6 +6,7 @@ import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useGetTrimming } from "../api/get-trimming";
+import { useGetTrimmings } from "../api/get-trimmings";
 import { useCreateTrimming } from "../api/create-trimming";
 import { useUpdateTrimming } from "../api/update-trimming";
 import { useDeleteTrimming } from "../api/delete-trimming";
@@ -149,11 +150,23 @@ export function useTrimmingForm(id?: string) {
   );
   const { data: reservationTypeGroups } = useGetReservationTypesGrouped();
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
+  const existingLookupDate = visitDateFromState ?? formatJSTDate(new Date());
+  const lookupPetId = petId ?? selectedPets[0]?.id ?? "";
+  const { data: sameDayTrimmings = [] } = useGetTrimmings({
+    startDate: existingLookupDate,
+    endDate: existingLookupDate,
+    petId: lookupPetId,
+    enabled: !isEdit && existingAppointmentId === "" && lookupPetId !== "",
+  });
   const createMutation = useCreateTrimming();
   const updateMutation = useUpdateTrimming();
   const deleteMutation = useDeleteTrimming();
   const existingAppointmentHasDetail = existingAppointmentTrimming?.hasDetail ?? false;
   const defaultTrimmingReservationTypeId = findDefaultTrimmingReservationTypeId(reservationTypeGroups);
+  const reusableTrimming = sameDayTrimmings.find((trimming) =>
+    trimming.status !== "完了" && trimming.status !== "キャンセル"
+  );
+  const reusableAppointmentId = reusableTrimming?.id ? Number(reusableTrimming.id) : undefined;
 
   // BUG-027: inline field validation errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -280,9 +293,9 @@ export function useTrimmingForm(id?: string) {
           await updateMutation.mutateAsync({ id, req });
           localStorage.removeItem(DRAFT_KEY);
           toast.success("トリミング情報を更新しました");
-        } else if (existingAppointmentHasDetail && existingAppointmentId) {
+        } else if ((existingAppointmentHasDetail && existingAppointmentId) || reusableTrimming?.hasDetail) {
           const req = buildUpdateTrimmingRequest(formData);
-          await updateMutation.mutateAsync({ id: existingAppointmentId, req });
+          await updateMutation.mutateAsync({ id: existingAppointmentId || reusableTrimming?.id || "", req });
           localStorage.removeItem(DRAFT_KEY);
           toast.success("トリミング情報を更新しました");
         } else {
@@ -310,7 +323,7 @@ export function useTrimmingForm(id?: string) {
           const resolvedReservationTypeId = Number(reservationTypeId);
           // 日時: フォームから選択していない場合は指定日（未指定なら当日）10:00〜11:30
           const fallbackDate = visitDateFromState ?? formatJSTDate(new Date());
-          const hasExistingAppointment = Number.isFinite(appointmentIdFromState);
+          const hasExistingAppointment = Number.isFinite(appointmentIdFromState) || Number.isFinite(reusableAppointmentId);
           const startDate = formData.startTime || (hasExistingAppointment ? undefined : `${fallbackDate}T10:00:00+09:00`);
           const endDate = formData.endTime || (hasExistingAppointment ? undefined : `${fallbackDate}T11:30:00+09:00`);
           const req = buildCreateTrimmingRequest(
@@ -319,7 +332,7 @@ export function useTrimmingForm(id?: string) {
             resolvedReservationTypeId,
             startDate,
             endDate,
-            Number.isFinite(appointmentIdFromState) ? appointmentIdFromState : undefined,
+            Number.isFinite(appointmentIdFromState) ? appointmentIdFromState : reusableAppointmentId,
           );
           await createMutation.mutateAsync(req);
           localStorage.removeItem(DRAFT_KEY);

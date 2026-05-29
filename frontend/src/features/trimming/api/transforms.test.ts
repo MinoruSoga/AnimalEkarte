@@ -70,6 +70,11 @@ describe("transformTrimming", () => {
     expect(result.status).toBe("キャンセル");
   });
 
+  it("status: cancelled → 'キャンセル'", () => {
+    const result = transformTrimming({ ...minimalBackend, status: "cancelled" });
+    expect(result.status).toBe("キャンセル");
+  });
+
   it("未知の status は '予約' にフォールバックする", () => {
     const result = transformTrimming({ ...minimalBackend, status: "unknown" as "confirmed" });
     expect(result.status).toBe("予約");

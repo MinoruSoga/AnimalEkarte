@@ -6,6 +6,7 @@ import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useCreateReservation } from "@/features/reservations/api/create-reservation";
+import { useGetReservations } from "@/features/reservations/api/get-reservations";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 
 // ──────────────────────────────────────────────────────────
@@ -49,6 +50,9 @@ vi.mock("@/hooks/use-owner", () => ({ useGetOwner: vi.fn(() => noData) }));
 vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: () => noData }));
 vi.mock("../api/create-medical-record", () => ({ useCreateMedicalRecord: vi.fn(() => noMutation) }));
 vi.mock("@/features/reservations/api/create-reservation", () => ({ useCreateReservation: vi.fn(() => noMutation) }));
+vi.mock("@/features/reservations/api/get-reservations", () => ({
+  useGetReservations: vi.fn(() => ({ data: [], isLoading: false })),
+}));
 vi.mock("../api/update-medical-record", () => ({ useUpdateMedicalRecord: () => noMutation }));
 vi.mock("../api/inquiries", () => ({ useUpdateInquiry: () => noMutation }));
 vi.mock("../api/clinical-plan", () => ({ useUpdateClinicalPlan: () => noMutation }));
@@ -115,6 +119,7 @@ describe("useMedicalRecordForm", () => {
       mutateAsync: vi.fn().mockResolvedValue({ id: "appointment-1" }),
       isPending: false,
     } as ReturnType<typeof useCreateReservation>);
+    vi.mocked(useGetReservations).mockReturnValue({ data: [], isLoading: false } as ReturnType<typeof useGetReservations>);
   });
 
   afterEach(() => {
@@ -600,6 +605,50 @@ describe("useMedicalRecordForm", () => {
         expect(mockCreateRecord).toHaveBeenCalledWith(
           expect.objectContaining({
             appointment_id: "appointment-1",
+            visit_date: "2026-06-01",
+          })
+        );
+      });
+    });
+
+    it("一覧新規作成では同日同ペットの未完了通常 appointment を再利用する", async () => {
+      mockSearchParams = new URLSearchParams({ petId: "5", visitDate: "2026-06-01" });
+      vi.mocked(useGetPet).mockReturnValue({
+        data: mockPet,
+        isLoading: false,
+        isError: false,
+      });
+      vi.mocked(useGetReservations).mockReturnValue({
+        data: [
+          {
+            id: "appointment-existing",
+            category: "general",
+            status: "checked_in",
+          },
+        ],
+        isLoading: false,
+      } as ReturnType<typeof useGetReservations>);
+
+      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+      vi.mocked(useCreateMedicalRecord).mockReturnValue({
+        mutateAsync: mockCreateRecord,
+        isPending: false,
+      } as ReturnType<typeof useCreateMedicalRecord>);
+      const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
+      vi.mocked(useCreateReservation).mockReturnValue({
+        mutateAsync: mockCreateReservation,
+        isPending: false,
+      } as ReturnType<typeof useCreateReservation>);
+
+      await act(async () => {
+        renderHook(() => useMedicalRecordForm());
+      });
+
+      await waitFor(() => {
+        expect(mockCreateReservation).not.toHaveBeenCalled();
+        expect(mockCreateRecord).toHaveBeenCalledWith(
+          expect.objectContaining({
+            appointment_id: "appointment-existing",
             visit_date: "2026-06-01",
           })
         );

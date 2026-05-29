@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { startTransition } from "react";
 import { useTrimmingForm } from "./use-trimming-form";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
+import { useGetTrimmings } from "../api/get-trimmings";
 
 const {
   mockNavigate,
@@ -77,6 +78,10 @@ vi.mock("../api/get-trimming", () => ({
   })),
 }));
 
+vi.mock("../api/get-trimmings", () => ({
+  useGetTrimmings: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
 vi.mock("../api/create-trimming", () => ({
   useCreateTrimming: vi.fn(() => ({ mutateAsync: mockCreateMutateAsync })),
 }));
@@ -119,6 +124,7 @@ describe("useTrimmingForm", () => {
     mockSelectedPets.length = 0;
     mockCreateMutateAsync.mockResolvedValue({});
     mockUpdateMutateAsync.mockResolvedValue({});
+    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<typeof useGetTrimmings>);
     vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
       data: [
         {
@@ -203,6 +209,77 @@ describe("useTrimmingForm", () => {
         end_time: "2026-06-01T11:30:00+09:00",
       }),
     );
+  });
+
+  it("一覧新規作成では同日同ペットの未完了 trimming appointment に詳細を作成する", async () => {
+    mockSearchParamsHolder.value = new URLSearchParams({ petId: "10", visitDate: "2026-06-01" });
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
+    vi.mocked(useGetTrimmings).mockReturnValue({
+      data: [
+        {
+          id: "77",
+          hasDetail: false,
+          status: "予約",
+          reservationTypeId: "9",
+        },
+      ],
+      isLoading: false,
+    } as ReturnType<typeof useGetTrimmings>);
+
+    const { result } = renderHook(() => useTrimmingForm());
+
+    act(() => {
+      result.current.setFormData({
+        staffId: "3",
+        courseId: "4",
+      });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appointment_id: 77,
+        start_time: undefined,
+        end_time: undefined,
+      }),
+    );
+  });
+
+  it("一覧新規作成で同日同ペットの trimming detail がある場合は update payload を送る", async () => {
+    mockSearchParamsHolder.value = new URLSearchParams({ petId: "10", visitDate: "2026-06-01" });
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
+    vi.mocked(useGetTrimmings).mockReturnValue({
+      data: [
+        {
+          id: "77",
+          hasDetail: true,
+          status: "予約",
+          reservationTypeId: "9",
+        },
+      ],
+      isLoading: false,
+    } as ReturnType<typeof useGetTrimmings>);
+
+    const { result } = renderHook(() => useTrimmingForm());
+
+    act(() => {
+      result.current.setFormData({
+        staffId: "3",
+        courseId: "4",
+      });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
+      id: "77",
+      req: expect.objectContaining({
+        staff_id: 3,
+        course_id: 4,
+      }),
+    });
   });
 
   it("編集保存時にコース・担当者・オプションを update payload に含める", async () => {
