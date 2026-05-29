@@ -33,6 +33,7 @@ const noop = () => {};
 
 afterEach(() => {
   server.resetHandlers();
+  localStorage.removeItem("auth_current_clinic:v1");
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -283,5 +284,96 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
       chiefComplaint: "食欲不振",
       animalSpeciesId: 1,
     });
+  }, 15000);
+});
+
+describe("ReservationFormModal — 担当者候補", () => {
+  it("選択した予約区分を対応不可にしているスタッフを担当者候補から除外する", async () => {
+    localStorage.setItem("auth_current_clinic:v1", "1");
+    server.use(
+      http.get("/api/v1/clinic-holidays", () => HttpResponse.json([])),
+      http.get("/api/v1/pets", () => HttpResponse.json({ data: [] })),
+      http.get("/api/v1/masters/animal-species", () => HttpResponse.json([])),
+      http.get("/api/v1/masters/staffs", () =>
+        HttpResponse.json([
+          {
+            id: 10,
+            name: "非対応スタッフ",
+            is_active: true,
+            clinic_assignments: [{ clinic_id: 1, is_main: true }],
+          },
+          {
+            id: 11,
+            name: "対応スタッフ",
+            is_active: true,
+            clinic_assignments: [{ clinic_id: 1, is_main: true }],
+          },
+        ])
+      ),
+      http.get("/api/v1/shifts/on-duty-staffs", () =>
+        HttpResponse.json([
+          { id: 10, name: "非対応スタッフ" },
+          { id: 11, name: "対応スタッフ" },
+        ])
+      ),
+      http.get("/api/v1/clinics/1/reservation-staffs", () =>
+        HttpResponse.json([
+          {
+            id: 10,
+            name: "非対応スタッフ",
+            is_active: true,
+            excluded_courses: [{ id: 5, name: "トリミング" }],
+          },
+          {
+            id: 11,
+            name: "対応スタッフ",
+            is_active: true,
+            excluded_courses: [],
+          },
+        ])
+      ),
+      http.get("/api/v1/masters/reservation-types", () =>
+        HttpResponse.json([
+          {
+            id: 5,
+            name: "トリミング",
+            color: "#111111",
+            is_active: true,
+            duration_minutes: 60,
+            sort_order: 1,
+            is_internal: false,
+            category: "trimming",
+            group_id: null,
+            group: null,
+          },
+        ])
+      )
+    );
+
+    const user = userEvent.setup({ delay: null });
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={null}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    await user.click(screen.getByTestId("res-type-trigger"));
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "トリミング" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("option", { name: "トリミング" }));
+
+    await user.click(screen.getByTestId("res-staff-trigger"));
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "対応スタッフ" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("option", { name: "非対応スタッフ" })).not.toBeInTheDocument();
   }, 15000);
 });

@@ -35,6 +35,18 @@ interface OnDutyStaff {
   name: string;
 }
 
+interface ReservationStaffExcludedCourse {
+  id: number;
+  name?: string;
+}
+
+export interface ReservationStaff {
+  id: number;
+  name: string;
+  is_active: boolean;
+  excluded_courses: ReservationStaffExcludedCourse[];
+}
+
 // GET /v1/masters/reservation-types
 const fetchReservationTypesRaw = async (): Promise<ReservationTypeRaw[]> => {
   const { data } = await axios.get<ReservationTypeRaw[]>("/v1/masters/reservation-types");
@@ -46,6 +58,21 @@ const fetchOnDutyStaffs = async (date: string): Promise<OnDutyStaff[]> => {
   const { data } = await axios.get<OnDutyStaff[]>("/v1/shifts/on-duty-staffs", {
     params: { date },
   });
+  return data;
+};
+
+const getCurrentClinicId = (): string => {
+  try {
+    return localStorage.getItem("auth_current_clinic:v1") ?? "";
+  } catch {
+    return "";
+  }
+};
+
+const fetchReservationStaffs = async (clinicId: string): Promise<ReservationStaff[]> => {
+  const { data } = await axios.get<ReservationStaff[]>(
+    `/v1/clinics/${clinicId}/reservation-staffs`,
+  );
   return data;
 };
 
@@ -85,5 +112,20 @@ export function useGetOnDutyStaffs(date: string | null) {
     enabled: date !== null,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.SHORT,
+  });
+}
+
+/**
+ * 予約スタッフ一覧を取得する。
+ * excluded_courses は院内予約フォームの担当者候補から非対応コースを除外するために使う。
+ */
+export function useGetReservationStaffs() {
+  const clinicId = getCurrentClinicId();
+  return useQuery({
+    queryKey: ["clinics", clinicId, "reservation-staffs"],
+    queryFn: () => fetchReservationStaffs(clinicId),
+    enabled: clinicId !== "",
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }

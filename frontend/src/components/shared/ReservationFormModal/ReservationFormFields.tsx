@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/hooks/use-master-items";
-import { useGetReservationTypesGrouped, useGetOnDutyStaffs } from "@/hooks/use-reservation-types";
+import { useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs } from "@/hooks/use-reservation-types";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { isOneOf } from "@/lib/type-utils";
 import type { Reservation } from "@/types";
@@ -93,13 +93,31 @@ export const ReservationFormFields = memo(function ReservationFormFields({
 
   // BUG-344: 選択日に出勤しているスタッフのみに絞り込む
   const selectedDateStr = formData.start ? format(formData.start, "yyyy-MM-dd") : null;
+  const selectedReservationTypeId = formData.type ? String(formData.type) : null;
   const { data: onDutyStaffs } = useGetOnDutyStaffs(selectedDateStr);
+  const { data: reservationStaffs } = useGetReservationStaffs();
+  const reservationStaffMap = useMemo(() => {
+    if (reservationStaffs === undefined) return undefined;
+    return new Map(reservationStaffs.map((staff) => [String(staff.id), staff]));
+  }, [reservationStaffs]);
   const staffOptions = useMemo(() => {
-    if (selectedDateStr === null || onDutyStaffs === undefined) return activeStaff;
-    // 出勤スタッフの ID セットで絞り込む
-    const onDutyIdSet = new Set(onDutyStaffs.map((s) => String(s.id)));
-    return activeStaff.filter((s) => onDutyIdSet.has(String(s.id)));
-  }, [selectedDateStr, onDutyStaffs, activeStaff]);
+    let options = activeStaff;
+    if (selectedDateStr !== null && onDutyStaffs !== undefined) {
+      // 出勤スタッフの ID セットで絞り込む
+      const onDutyIdSet = new Set(onDutyStaffs.map((s) => String(s.id)));
+      options = options.filter((s) => onDutyIdSet.has(String(s.id)));
+    }
+    if (selectedReservationTypeId !== null && reservationStaffMap !== undefined) {
+      options = options.filter((s) => {
+        const reservationStaff = reservationStaffMap.get(String(s.id));
+        if (reservationStaff === undefined) return true;
+        return !reservationStaff.excluded_courses.some(
+          (course) => String(course.id) === selectedReservationTypeId,
+        );
+      });
+    }
+    return options;
+  }, [selectedDateStr, onDutyStaffs, activeStaff, selectedReservationTypeId, reservationStaffMap]);
 
   return (
     <div className="space-y-4">
@@ -313,7 +331,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           value={formData.doctor || ""}
           onValueChange={(v) => onChange({ ...formData, doctor: v })}
         >
-          <SelectTrigger className={TRIGGER_CLASS}>
+          <SelectTrigger data-testid="res-staff-trigger" className={TRIGGER_CLASS}>
             <SelectValue placeholder="選択してください" />
           </SelectTrigger>
           <SelectContent>
@@ -325,7 +343,9 @@ export const ReservationFormFields = memo(function ReservationFormFields({
               ))
             ) : (
               <div className={`px-3 py-2 text-sm ${C.text40}`}>
-                {selectedDateStr !== null
+                {selectedReservationTypeId !== null
+                  ? "この条件で対応可能なスタッフがいません"
+                  : selectedDateStr !== null
                   ? "この日に出勤しているスタッフがいません"
                   : "スタッフが登録されていません"}
               </div>
