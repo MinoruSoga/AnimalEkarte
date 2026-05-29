@@ -6,7 +6,7 @@ import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPil
 import { C, LAYOUT } from "@/lib/design-tokens";
 
 import type { TrimmingOption } from "../api/trimming";
-import { CombinablePill } from "./TrimmingTabs";
+import { CombinablePill } from "./TrimmingTabRows";
 import {
   trimmingOptionToFormData,
   type OptionFormData,

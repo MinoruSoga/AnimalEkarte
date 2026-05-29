@@ -82,6 +82,9 @@ type mockMiddlewareAuditService struct {
 }
 
 func (m *mockMiddlewareAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
+func (m *mockMiddlewareAuditService) LogEntry(_ context.Context, _ service.AuditLogInput) error {
+	return nil
+}
 func (m *mockMiddlewareAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
 	return nil
 }

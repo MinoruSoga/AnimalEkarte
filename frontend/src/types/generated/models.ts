@@ -2509,21 +2509,8 @@ export interface ShiftTemplateBreak {
 }
 
 //////////
-// source: staff_reservation_exclusion.go
+// source: staff_reservation_capability.go
 
-/**
- * StaffReservationExclusion records which reservation types a staff member cannot handle.
- */
-export interface StaffReservationExclusion {
-  id: number /* uint64 */;
-  staff_id: number /* uint64 */;
-  reservation_type_id: number /* uint64 */;
-  /**
-   * Relations
-   */
-  staff?: Staff;
-  reservation_type?: ReservationType;
-}
 /**
  * StaffReservationCapability records which reservation types a staff member can handle.
  */
@@ -2537,6 +2524,23 @@ export interface StaffReservationCapability {
    * Relations
    */
   clinic?: Clinic;
+  staff?: Staff;
+  reservation_type?: ReservationType;
+}
+
+//////////
+// source: staff_reservation_exclusion.go
+
+/**
+ * StaffReservationExclusion records which reservation types a staff member cannot handle.
+ */
+export interface StaffReservationExclusion {
+  id: number /* uint64 */;
+  staff_id: number /* uint64 */;
+  reservation_type_id: number /* uint64 */;
+  /**
+   * Relations
+   */
   staff?: Staff;
   reservation_type?: ReservationType;
 }
