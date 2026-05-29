@@ -27,7 +27,7 @@ type createClinicRequest struct {
 	Website            string `json:"website"`
 }
 
-func (r createClinicRequest) toServiceInput() *service.CreateClinicInput {
+func (r *createClinicRequest) toServiceInput() *service.CreateClinicInput {
 	return &service.CreateClinicInput{
 		Name:               r.Name,
 		PostalCode:         r.PostalCode,
@@ -59,7 +59,7 @@ type updateClinicRequest struct {
 	ReducedTaxRate     *float64 `json:"reduced_tax_rate"`
 }
 
-func (r updateClinicRequest) toServiceInput() *service.UpdateClinicInput {
+func (r *updateClinicRequest) toServiceInput() *service.UpdateClinicInput {
 	return &service.UpdateClinicInput{
 		Name:               r.Name,
 		PostalCode:         r.PostalCode,

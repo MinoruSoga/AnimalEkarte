@@ -16,7 +16,7 @@ type updateCompanyRequest struct {
 	LogoURL                   *string `json:"logo_url"`
 }
 
-func (r updateCompanyRequest) toServiceInput() *service.UpdateCompanyInput {
+func (r *updateCompanyRequest) toServiceInput() *service.UpdateCompanyInput {
 	return &service.UpdateCompanyInput{
 		Name:                      r.Name,
 		PostalCode:                r.PostalCode,

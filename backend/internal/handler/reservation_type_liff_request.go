@@ -16,7 +16,7 @@ type createReservationTypeLiffRequest struct {
 	IsInternal           bool   `json:"is_internal"`
 }
 
-func (r createReservationTypeLiffRequest) toServiceInput() *service.CreateReservationTypeLiffInput {
+func (r *createReservationTypeLiffRequest) toServiceInput() *service.CreateReservationTypeLiffInput {
 	return &service.CreateReservationTypeLiffInput{
 		Name:                 r.Name,
 		Color:                r.Color,
@@ -46,7 +46,7 @@ type updateReservationTypeLiffRequest struct {
 	IsInternal           *bool   `json:"is_internal"`
 }
 
-func (r updateReservationTypeLiffRequest) toServiceInput() *service.UpdateReservationTypeLiffInput {
+func (r *updateReservationTypeLiffRequest) toServiceInput() *service.UpdateReservationTypeLiffInput {
 	return &service.UpdateReservationTypeLiffInput{
 		Name:                 r.Name,
 		Color:                r.Color,

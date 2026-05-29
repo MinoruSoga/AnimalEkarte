@@ -3,7 +3,7 @@ package handler
 import "testing"
 
 func TestCreateClinicRequest_ToServiceInput(t *testing.T) {
-	input := createClinicRequest{
+	input := (&createClinicRequest{
 		Name:               "Main Clinic",
 		PostalCode:         "100-0001",
 		Address:            "Tokyo",
@@ -13,7 +13,7 @@ func TestCreateClinicRequest_ToServiceInput(t *testing.T) {
 		DirectorName:       "Dr. Test",
 		Email:              "clinic@example.test",
 		Website:            "https://example.test",
-	}.toServiceInput()
+	}).toServiceInput()
 
 	if input.Name != "Main Clinic" {
 		t.Fatalf("Name = %q, want Main Clinic", input.Name)
@@ -32,12 +32,12 @@ func TestUpdateClinicRequest_ToServiceInput(t *testing.T) {
 	standardTaxRate := 0.1
 	reducedTaxRate := 0.08
 
-	input := updateClinicRequest{
+	input := (&updateClinicRequest{
 		Name:            &name,
 		IsActive:        &isActive,
 		StandardTaxRate: &standardTaxRate,
 		ReducedTaxRate:  &reducedTaxRate,
-	}.toServiceInput()
+	}).toServiceInput()
 
 	if input.Name != &name {
 		t.Fatalf("Name pointer was not preserved")
@@ -54,7 +54,7 @@ func TestUpdateClinicRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateClinicRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateClinicRequest{}.toServiceInput()
+	input := (&updateClinicRequest{}).toServiceInput()
 
 	if input.Name != nil || input.IsActive != nil || input.StandardTaxRate != nil {
 		t.Fatalf("expected nil optional fields, got %#v", input)

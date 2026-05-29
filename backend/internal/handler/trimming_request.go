@@ -80,7 +80,7 @@ type createTrimmingRequest struct {
 	OptionIDs      []uint64 `json:"option_ids"`
 }
 
-func (r createTrimmingRequest) toServiceInput() *service.CreateTrimmingInput {
+func (r *createTrimmingRequest) toServiceInput() *service.CreateTrimmingInput {
 	input := &service.CreateTrimmingInput{
 		AppointmentID:     r.AppointmentID,
 		ReservationTypeID: r.ReservationTypeID,
@@ -137,7 +137,7 @@ type updateTrimmingRequest struct {
 	OptionIDs *[]uint64 `json:"option_ids"`
 }
 
-func (r updateTrimmingRequest) toServiceInput() *service.UpdateTrimmingInput {
+func (r *updateTrimmingRequest) toServiceInput() *service.UpdateTrimmingInput {
 	input := &service.UpdateTrimmingInput{
 		StartTime:       r.StartTime,
 		EndTime:         r.EndTime,

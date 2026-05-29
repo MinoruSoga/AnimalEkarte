@@ -119,7 +119,7 @@ func TestUpdateProcedureRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateProcedureRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateProcedureRequest{}.toServiceInput()
+	input := (&updateProcedureRequest{}).toServiceInput()
 
 	if input.Name != nil {
 		t.Fatalf("Name = %v, want nil", input.Name)

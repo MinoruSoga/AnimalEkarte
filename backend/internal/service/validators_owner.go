@@ -51,7 +51,7 @@ func validateCreateOwnerInput(input *CreateOwnerInput) error {
 		return apperrors.Wrap(err, "failed to validate membership type")
 	}
 	for i := range input.Pets {
-		if err := validatePetForOwnerInput(input.Pets[i]); err != nil {
+		if err := validatePetForOwnerInput(&input.Pets[i]); err != nil {
 			return apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
 		}
 	}

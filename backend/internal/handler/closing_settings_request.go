@@ -26,7 +26,7 @@ type createSpecialPeriodRequest struct {
 	Note         string `json:"note"`
 }
 
-func (r createSpecialPeriodRequest) toServiceInput() *service.CreateSpecialPeriodInput {
+func (r *createSpecialPeriodRequest) toServiceInput() *service.CreateSpecialPeriodInput {
 	return &service.CreateSpecialPeriodInput{
 		StartDate:    r.StartDate,
 		EndDate:      r.EndDate,

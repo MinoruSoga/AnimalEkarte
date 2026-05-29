@@ -15,7 +15,7 @@ type createProcedureRequest struct {
 	TaxRate     *float64 `json:"tax_rate" binding:"omitempty,min=0,max=1"`
 }
 
-func (r createProcedureRequest) toServiceInput() *service.CreateProcedureInput {
+func (r *createProcedureRequest) toServiceInput() *service.CreateProcedureInput {
 	return &service.CreateProcedureInput{
 		Name:        r.Name,
 		Price:       r.Price,
@@ -44,7 +44,7 @@ type updateProcedureRequest struct {
 	TaxRate       *float64 `json:"tax_rate" binding:"omitempty,min=0,max=1"`
 }
 
-func (r updateProcedureRequest) toServiceInput() *service.UpdateProcedureInput {
+func (r *updateProcedureRequest) toServiceInput() *service.UpdateProcedureInput {
 	return &service.UpdateProcedureInput{
 		Name:          r.Name,
 		Price:         r.Price,

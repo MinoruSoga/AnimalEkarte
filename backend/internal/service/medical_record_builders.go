@@ -59,7 +59,7 @@ func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
 	return fields
 }
 
-func buildMedicalRecordForCreate(clinicID uint64, input CreateMedicalRecordInput) *model.MedicalRecord {
+func buildMedicalRecordForCreate(clinicID uint64, input *CreateMedicalRecordInput) *model.MedicalRecord {
 	visitType := input.VisitType
 	record := &model.MedicalRecord{
 		ClinicID:                 clinicID,

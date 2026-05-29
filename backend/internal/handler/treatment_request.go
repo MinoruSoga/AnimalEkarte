@@ -24,7 +24,7 @@ type createTreatmentRequest struct {
 	SortOrder      int     `json:"sort_order"`
 }
 
-func (r createTreatmentRequest) toServiceInput() *service.CreateTreatmentInput {
+func (r *createTreatmentRequest) toServiceInput() *service.CreateTreatmentInput {
 	return &service.CreateTreatmentInput{
 		ItemType:       model.TreatmentItemType(r.ItemType),
 		ConsultationID: r.ConsultationID,
@@ -64,7 +64,7 @@ type updateTreatmentRequest struct {
 	SortOrder      *int     `json:"sort_order"`
 }
 
-func (r updateTreatmentRequest) toServiceInput() *service.UpdateTreatmentInput {
+func (r *updateTreatmentRequest) toServiceInput() *service.UpdateTreatmentInput {
 	input := &service.UpdateTreatmentInput{
 		ConsultationID: r.ConsultationID,
 		ProcedureID:    r.ProcedureID,

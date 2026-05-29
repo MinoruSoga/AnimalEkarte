@@ -85,7 +85,7 @@ func TestUpdateMerchandiseItemRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateMerchandiseItemRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateMerchandiseItemRequest{}.toServiceInput()
+	input := (&updateMerchandiseItemRequest{}).toServiceInput()
 
 	if input.Name != nil || input.Category != nil || input.UnitPrice != nil || input.TaxType != nil ||
 		input.TaxRate != nil || input.IsActive != nil || input.SortOrder != nil {

@@ -56,7 +56,7 @@ type createPetRequest struct {
 	Remarks         string    `json:"remarks"`
 }
 
-func (r createPetRequest) toServiceInput() *service.CreatePetInput {
+func (r *createPetRequest) toServiceInput() *service.CreatePetInput {
 	return &service.CreatePetInput{
 		OwnerID:         r.OwnerID,
 		AnimalSpeciesID: r.AnimalSpeciesID,
@@ -104,7 +104,7 @@ type updatePetRequest struct {
 	Remarks         *string   `json:"remarks"`
 }
 
-func (r updatePetRequest) toServiceInput() *service.UpdatePetInput {
+func (r *updatePetRequest) toServiceInput() *service.UpdatePetInput {
 	return &service.UpdatePetInput{
 		OwnerID:         r.OwnerID,
 		AnimalSpeciesID: r.AnimalSpeciesID,

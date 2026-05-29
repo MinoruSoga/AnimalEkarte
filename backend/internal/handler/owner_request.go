@@ -35,7 +35,7 @@ type createPetForOwnerRequest struct {
 	Remarks         string    `json:"remarks"`
 }
 
-func (r createPetForOwnerRequest) toServiceInput() service.CreatePetForOwnerInput {
+func (r *createPetForOwnerRequest) toServiceInput() service.CreatePetForOwnerInput {
 	return service.CreatePetForOwnerInput{
 		Name:            r.Name,
 		AnimalSpeciesID: r.AnimalSpeciesID,
@@ -78,7 +78,7 @@ type createOwnerRequest struct {
 	Pets           []createPetForOwnerRequest `json:"pets"`
 }
 
-func (r createOwnerRequest) toServiceInput() service.CreateOwnerInput {
+func (r *createOwnerRequest) toServiceInput() service.CreateOwnerInput {
 	pets := make([]service.CreatePetForOwnerInput, 0, len(r.Pets))
 	for i := range r.Pets {
 		pets = append(pets, r.Pets[i].toServiceInput())
@@ -127,7 +127,7 @@ type updateOwnerRequest struct {
 	MembershipType *string   `json:"membership_type"  binding:"omitempty,oneof=non_member member deceased transferred"`
 }
 
-func (r updateOwnerRequest) toServiceInput() *service.UpdateOwnerInput {
+func (r *updateOwnerRequest) toServiceInput() *service.UpdateOwnerInput {
 	var membershipType *model.MembershipType
 	if r.MembershipType != nil {
 		mt := model.MembershipType(*r.MembershipType)

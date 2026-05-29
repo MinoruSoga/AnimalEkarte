@@ -389,7 +389,7 @@ func TestMedicalRecordService_GetByID_NotFound(t *testing.T) {
 	assert.True(t, apperrors.IsNotFound(err))
 }
 
-func createMedicalRecordForTest(svc MedicalRecordService, ctx context.Context, record *model.MedicalRecord) (*model.MedicalRecord, error) {
+func createMedicalRecordForTest(ctx context.Context, svc MedicalRecordService, record *model.MedicalRecord) (*model.MedicalRecord, error) {
 	var status *model.MedicalRecordStatus
 	if record.Status != "" {
 		v := record.Status
@@ -399,7 +399,7 @@ func createMedicalRecordForTest(svc MedicalRecordService, ctx context.Context, r
 	if record.VisitType != nil {
 		visitType = *record.VisitType
 	}
-	return svc.Create(ctx, record.ClinicID, CreateMedicalRecordInput{
+	return svc.Create(ctx, record.ClinicID, &CreateMedicalRecordInput{
 		RecordNo:                 record.RecordNo,
 		Date:                     record.Date,
 		OwnerID:                  record.OwnerID,
@@ -462,7 +462,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 			}
 			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 
-			record, err := svc.Create(context.Background(), 1, tt.input)
+			record, err := svc.Create(context.Background(), 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -485,7 +485,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 			},
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
-		record, err := svc.Create(context.Background(), 1, CreateMedicalRecordInput{
+		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:                 time.Now(),
 			RecommendationReason: &reason,
 		})
@@ -506,7 +506,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 			},
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
-		record, err := svc.Create(context.Background(), 1, CreateMedicalRecordInput{
+		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:                 time.Now(),
 			RecommendationReason: &reason,
 		})
@@ -524,7 +524,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 			},
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
-		record, err := svc.Create(context.Background(), 1, CreateMedicalRecordInput{
+		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date: time.Now(),
 		})
 		assert.NoError(t, err)
@@ -555,7 +555,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 
-		record, err := svc.Create(context.Background(), 1, CreateMedicalRecordInput{
+		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
 			PetID:         &petID,
 			AppointmentID: &appointmentID,
@@ -586,7 +586,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, nil, nil)
 
-		record, err := svc.Create(context.Background(), 1, CreateMedicalRecordInput{
+		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
 			PetID:         &requestPetID,
 			AppointmentID: &appointmentID,
@@ -626,7 +626,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, nil, nil)
 
-		record, err := svc.Create(context.Background(), 1, CreateMedicalRecordInput{
+		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
 			OwnerID:       &ownerID,
 			PetID:         &petID,
@@ -659,7 +659,7 @@ func TestMedicalRecordService_Create_SyncsNextVisitTagBestEffort(t *testing.T) {
 	}
 	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, tagSync)
 
-	record, err := svc.Create(context.Background(), 1, CreateMedicalRecordInput{
+	record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 		Date:    time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
 		OwnerID: &ownerID,
 	})
@@ -1464,7 +1464,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
-		_, err := createMedicalRecordForTest(svc, context.Background(), newRecord(&appointmentID))
+		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
 		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called once")
@@ -1484,7 +1484,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
-		_, err := createMedicalRecordForTest(svc, context.Background(), newRecord(&appointmentID))
+		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
 		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called even when owner has prior records")
@@ -1501,7 +1501,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
-		_, err := createMedicalRecordForTest(svc, context.Background(), newRecord(&appointmentID))
+		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must NOT be called for revisit")
@@ -1520,7 +1520,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
-		_, err := createMedicalRecordForTest(svc, context.Background(), newRecord(&appointmentID))
+		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
 		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called when COUNT=0")
@@ -1539,7 +1539,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
-		_, err := createMedicalRecordForTest(svc, context.Background(), newRecord(&appointmentID))
+		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must NOT be called when COUNT>0")
@@ -1554,7 +1554,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
-		_, err := createMedicalRecordForTest(svc, context.Background(), newRecord(nil)) // no AppointmentID
+		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(nil)) // no AppointmentID
 
 		assert.NoError(t, err)
 		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called for walk-in with COUNT=0")
@@ -1570,7 +1570,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
-		_, err := createMedicalRecordForTest(svc, context.Background(), newRecord(nil))
+		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(nil))
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must NOT be called for walk-in with COUNT>0")
@@ -1590,7 +1590,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
-		_, err := createMedicalRecordForTest(svc, context.Background(), newRecord(&appointmentID))
+		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err, "reservation lookup error must be non-fatal")
 		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called after fallback with COUNT=0")
@@ -1610,7 +1610,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
-		_, err := createMedicalRecordForTest(svc, context.Background(), newRecord(&appointmentID))
+		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
 		assert.Equal(t, 1, trigger.triggerFirstVisitWelcomeCount, "TriggerFirstVisitWelcome must be called after fallback with COUNT=0")
@@ -1754,7 +1754,7 @@ type mockMedicalRecordAuditService struct {
 }
 
 func (m *mockMedicalRecordAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *mockMedicalRecordAuditService) LogEntry(_ context.Context, _ AuditLogInput) error {
+func (m *mockMedicalRecordAuditService) LogEntry(_ context.Context, _ *AuditLogInput) error {
 	return nil
 }
 func (m *mockMedicalRecordAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
@@ -1809,7 +1809,7 @@ func TestMedicalRecordService_Create_AuditLog(t *testing.T) {
 		Status:    model.MedicalRecordStatusDraft,
 		EnteredBy: &enteredBy,
 	}
-	created, err := createMedicalRecordForTest(svc, context.Background(), record)
+	created, err := createMedicalRecordForTest(context.Background(), svc, record)
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.Contains(t, auditSvc.calls, "create", "create 操作が audit に記録されること")
@@ -1917,7 +1917,7 @@ func TestMedicalRecordService_AuditFailure_NonFatal(t *testing.T) {
 	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, auditSvc)
 
 	record := &model.MedicalRecord{ClinicID: 1, Date: time.Now(), Status: model.MedicalRecordStatusDraft}
-	created, err := createMedicalRecordForTest(svc, context.Background(), record)
+	created, err := createMedicalRecordForTest(context.Background(), svc, record)
 	assert.NoError(t, err, "監査ログ失敗はメイン処理のエラーを返さない（best-effort）")
 	assert.NotNil(t, created)
 }

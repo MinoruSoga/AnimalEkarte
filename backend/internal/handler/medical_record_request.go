@@ -91,7 +91,7 @@ type createMedicalRecordRequest struct {
 	RecommendationReason *string `json:"recommendation_reason"`
 }
 
-func (r createMedicalRecordRequest) toServiceInput(staffID uint64) (service.CreateMedicalRecordInput, error) {
+func (r *createMedicalRecordRequest) toServiceInput(staffID uint64) (service.CreateMedicalRecordInput, error) {
 	recordDate, err := r.recordDate()
 	if err != nil {
 		return service.CreateMedicalRecordInput{}, err
@@ -162,7 +162,7 @@ func (r createMedicalRecordRequest) toServiceInput(staffID uint64) (service.Crea
 	}, nil
 }
 
-func (r createMedicalRecordRequest) recordDate() (time.Time, error) {
+func (r *createMedicalRecordRequest) recordDate() (time.Time, error) {
 	switch {
 	case r.Date != nil:
 		return *r.Date, nil
@@ -177,7 +177,7 @@ func (r createMedicalRecordRequest) recordDate() (time.Time, error) {
 	}
 }
 
-func (r createMedicalRecordRequest) nextVisitDate(recordDate time.Time) (*time.Time, error) {
+func (r *createMedicalRecordRequest) nextVisitDate(recordDate time.Time) (*time.Time, error) {
 	if r.NextVisitRecommendedDate == nil || *r.NextVisitRecommendedDate == "" {
 		return nil, nil
 	}
@@ -194,7 +194,7 @@ func (r createMedicalRecordRequest) nextVisitDate(recordDate time.Time) (*time.T
 	return &parsed, nil
 }
 
-func (r createMedicalRecordRequest) toSubRecordsInput() service.CreateSubRecordsInput {
+func (r *createMedicalRecordRequest) toSubRecordsInput() service.CreateSubRecordsInput {
 	return service.CreateSubRecordsInput{
 		ChiefComplaintTypeID: r.ChiefComplaintTypeID,
 		ChiefComplaint:       r.ChiefComplaint,

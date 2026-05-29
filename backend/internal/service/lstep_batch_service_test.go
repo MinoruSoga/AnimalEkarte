@@ -219,7 +219,7 @@ type batchMockAuditService struct {
 }
 
 func (m *batchMockAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *batchMockAuditService) LogEntry(_ context.Context, _ AuditLogInput) error {
+func (m *batchMockAuditService) LogEntry(_ context.Context, _ *AuditLogInput) error {
 	return nil
 }
 func (m *batchMockAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {

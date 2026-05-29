@@ -29,7 +29,7 @@ type createCageRequest struct {
 	SortOrder   int    `json:"sort_order"`
 }
 
-func (r createCageRequest) toServiceInput() *service.CreateCageInput {
+func (r *createCageRequest) toServiceInput() *service.CreateCageInput {
 	return &service.CreateCageInput{
 		Name:        r.Name,
 		CageType:    r.CageType,

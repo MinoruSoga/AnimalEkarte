@@ -9,7 +9,7 @@ import (
 )
 
 func TestListAccountingQuery_ToServiceFilters(t *testing.T) {
-	filters, err := (listAccountingQuery{
+	filters, err := (&listAccountingQuery{
 		PetID:     "10",
 		OwnerID:   "20",
 		Status:    "completed",
@@ -65,7 +65,7 @@ func TestListAccountingQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 }
 
 func TestListUnpaidBillingsQuery_ToServiceFilters(t *testing.T) {
-	filters, err := (listUnpaidBillingsQuery{
+	filters, err := (&listUnpaidBillingsQuery{
 		BaseDate: "2026-05-28",
 		GroupBy:  "billing",
 	}).toServiceFilters("2026-05-01")
@@ -82,7 +82,7 @@ func TestListUnpaidBillingsQuery_ToServiceFilters(t *testing.T) {
 }
 
 func TestListUnpaidBillingsQuery_ToServiceFilters_Defaults(t *testing.T) {
-	filters, err := (listUnpaidBillingsQuery{}).toServiceFilters("2026-05-01")
+	filters, err := (&listUnpaidBillingsQuery{}).toServiceFilters("2026-05-01")
 	if err != nil {
 		t.Fatalf("toServiceFilters returned error: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestListUnpaidBillingsQuery_ToServiceFilters_Defaults(t *testing.T) {
 }
 
 func TestListUnpaidBillingsQuery_ToServiceFilters_InvalidBaseDate(t *testing.T) {
-	filters, err := (listUnpaidBillingsQuery{BaseDate: "2026/05/28"}).toServiceFilters("2026-05-01")
+	filters, err := (&listUnpaidBillingsQuery{BaseDate: "2026/05/28"}).toServiceFilters("2026-05-01")
 	if err == nil {
 		t.Fatal("toServiceFilters returned nil error")
 	}

@@ -71,7 +71,7 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 
 	// 監査ログ: マニュアル編集（ベストエフォート、失敗は無視）
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.LogEntry(c.Request.Context(), service.AuditLogInput{
+		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionManualArticleUpsert,
@@ -112,7 +112,7 @@ func (h *Handler) DeleteManualArticle(c *gin.Context) {
 
 	// 監査ログ: マニュアル削除（ベストエフォート）
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.LogEntry(c.Request.Context(), service.AuditLogInput{
+		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionManualArticleDelete,

@@ -8,7 +8,7 @@ import (
 )
 
 func TestListReservationQuery_ToServiceFilters(t *testing.T) {
-	filters, err := (listReservationQuery{
+	filters, err := (&listReservationQuery{
 		Date:    "2026-05-28",
 		Status:  "confirmed",
 		PetID:   "12",
@@ -37,7 +37,7 @@ func TestListReservationQuery_ToServiceFilters(t *testing.T) {
 }
 
 func TestListReservationQuery_ToServiceFilters_Empty(t *testing.T) {
-	filters, err := (listReservationQuery{}).toServiceFilters()
+	filters, err := (&listReservationQuery{}).toServiceFilters()
 	if err != nil {
 		t.Fatalf("toServiceFilters() error = %v", err)
 	}
@@ -48,17 +48,17 @@ func TestListReservationQuery_ToServiceFilters_Empty(t *testing.T) {
 }
 
 func TestListReservationQuery_ToServiceFilters_InvalidDate(t *testing.T) {
-	_, err := (listReservationQuery{Date: "2026/05/28"}).toServiceFilters()
+	_, err := (&listReservationQuery{Date: "2026/05/28"}).toServiceFilters()
 	if err == nil {
 		t.Fatalf("toServiceFilters() error = nil, want error")
 	}
 }
 
 func TestListReservationQuery_ToServiceFilters_InvalidIDs(t *testing.T) {
-	if _, err := (listReservationQuery{PetID: "abc"}).toServiceFilters(); err == nil {
+	if _, err := (&listReservationQuery{PetID: "abc"}).toServiceFilters(); err == nil {
 		t.Fatalf("PetID error = nil, want error")
 	}
-	if _, err := (listReservationQuery{OwnerID: "abc"}).toServiceFilters(); err == nil {
+	if _, err := (&listReservationQuery{OwnerID: "abc"}).toServiceFilters(); err == nil {
 		t.Fatalf("OwnerID error = nil, want error")
 	}
 }
@@ -75,7 +75,7 @@ func TestUpdateReservationRequest_ToServiceInput(t *testing.T) {
 	status := string(model.ReservationStatusCheckedIn)
 	notes := "follow up"
 
-	input, err := (updateReservationRequest{
+	input, err := (&updateReservationRequest{
 		StartTime:         &startTime,
 		EndTime:           &endTime,
 		OwnerID:           &ownerID,
@@ -130,7 +130,7 @@ func TestCreateReservationRequest_ToServiceInput(t *testing.T) {
 	petID := uint64(2)
 	doctorID := uint64(4)
 
-	input, err := (createReservationRequest{
+	input, err := (&createReservationRequest{
 		StartTime:         startTime,
 		EndTime:           endTime,
 		OwnerID:           &ownerID,
@@ -172,7 +172,7 @@ func TestCreateReservationRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestCreateReservationRequest_ToServiceInput_DefaultSource(t *testing.T) {
-	input, err := (createReservationRequest{}).toServiceInput(9, 8)
+	input, err := (&createReservationRequest{}).toServiceInput(9, 8)
 	if err != nil {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}
@@ -183,7 +183,7 @@ func TestCreateReservationRequest_ToServiceInput_DefaultSource(t *testing.T) {
 }
 
 func TestUpdateReservationRequest_ToServiceInput_NilFields(t *testing.T) {
-	input, err := (updateReservationRequest{}).toServiceInput()
+	input, err := (&updateReservationRequest{}).toServiceInput()
 	if err != nil {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}
@@ -194,7 +194,7 @@ func TestUpdateReservationRequest_ToServiceInput_NilFields(t *testing.T) {
 }
 
 func TestPatchReservationReservationRouteRequest_ToServiceInput(t *testing.T) {
-	input := patchReservationReservationRouteRequest{Route: "line"}.toServiceInput()
+	input := (&patchReservationReservationRouteRequest{Route: "line"}).toServiceInput()
 
 	if input.Route != "line" {
 		t.Fatalf("Route = %q, want line", input.Route)

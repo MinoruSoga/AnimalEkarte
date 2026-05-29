@@ -13,7 +13,7 @@ type createCheckupTypeRequest struct {
 	SortOrder   int     `json:"sort_order"`
 }
 
-func (r createCheckupTypeRequest) toServiceInput() *service.CreateCheckupTypeInput {
+func (r *createCheckupTypeRequest) toServiceInput() *service.CreateCheckupTypeInput {
 	return &service.CreateCheckupTypeInput{
 		Name:        r.Name,
 		Price:       r.Price,

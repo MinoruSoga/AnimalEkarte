@@ -37,7 +37,7 @@ type upsertLineReservationSettingRequest struct {
 	LineAccessToken         string         `json:"line_access_token"`
 }
 
-func (r upsertLineReservationSettingRequest) toServiceInput() *service.UpsertLineReservationSettingInput {
+func (r *upsertLineReservationSettingRequest) toServiceInput() *service.UpsertLineReservationSettingInput {
 	return &service.UpsertLineReservationSettingInput{
 		Status:                  r.Status,
 		HeaderText:              r.HeaderText,

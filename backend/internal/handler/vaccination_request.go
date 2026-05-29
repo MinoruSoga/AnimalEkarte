@@ -74,7 +74,7 @@ type createVaccinationRequest struct {
 	Remarks          string  `json:"remarks"`
 }
 
-func (r createVaccinationRequest) toServiceInput() (*service.CreateVaccinationInput, error) {
+func (r *createVaccinationRequest) toServiceInput() (*service.CreateVaccinationInput, error) {
 	date, err := parseDate(r.Date)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid date: %v", err))
@@ -129,7 +129,7 @@ type updateVaccinationRequest struct {
 	Remarks          *string `json:"remarks"`
 }
 
-func (r updateVaccinationRequest) toServiceInput() (*service.UpdateVaccinationInput, error) {
+func (r *updateVaccinationRequest) toServiceInput() (*service.UpdateVaccinationInput, error) {
 	date, err := parseDate(r.Date)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid date: %v", err))

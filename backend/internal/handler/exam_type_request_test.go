@@ -90,7 +90,7 @@ func TestUpdateExaminationTypeRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateExaminationTypeRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateExaminationTypeRequest{}.toServiceInput()
+	input := (&updateExaminationTypeRequest{}).toServiceInput()
 
 	if input.Name != nil {
 		t.Fatalf("Name = %v, want nil", input.Name)

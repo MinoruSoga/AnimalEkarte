@@ -61,7 +61,7 @@ type createEstimateRequest struct {
 	CreatedBy       *uint64    `json:"created_by"`
 }
 
-func (r createEstimateRequest) toServiceInput() *service.CreateEstimateInput {
+func (r *createEstimateRequest) toServiceInput() *service.CreateEstimateInput {
 	input := &service.CreateEstimateInput{
 		MedicalRecordID: r.MedicalRecordID,
 		Title:           r.Title,
@@ -97,7 +97,7 @@ type updateEstimateRequest struct {
 	Notes           *string    `json:"notes"`
 }
 
-func (r updateEstimateRequest) toServiceInput() *service.UpdateEstimateInput {
+func (r *updateEstimateRequest) toServiceInput() *service.UpdateEstimateInput {
 	input := &service.UpdateEstimateInput{
 		Title:           r.Title,
 		Subtotal:        r.Subtotal,

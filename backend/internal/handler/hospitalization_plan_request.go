@@ -15,7 +15,7 @@ type createHospitalizationPlanRequest struct {
 	TaxRate     *float64 `json:"tax_rate"`
 }
 
-func (r createHospitalizationPlanRequest) toServiceInput() *service.CreateHospitalizationPlanInput {
+func (r *createHospitalizationPlanRequest) toServiceInput() *service.CreateHospitalizationPlanInput {
 	return &service.CreateHospitalizationPlanInput{
 		Name:        r.Name,
 		Price:       r.Price,

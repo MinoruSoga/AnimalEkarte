@@ -6,7 +6,7 @@ func TestCreateStaffRequest_ToCreateServiceInput(t *testing.T) {
 	occupationID := uint64(10)
 	visible := false
 
-	input := createStaffRequest{
+	input := (&createStaffRequest{
 		Name:                   "Dr. Staff",
 		LicenseNumber:          "LIC-001",
 		OccupationID:           &occupationID,
@@ -16,7 +16,7 @@ func TestCreateStaffRequest_ToCreateServiceInput(t *testing.T) {
 		ReservationVisible:     &visible,
 		ReservationComment:     "comment",
 		ReservationImageURL:    "https://example.test/staff.png",
-	}.toCreateServiceInput(5)
+	}).toCreateServiceInput(5)
 
 	if input.ClinicID != 5 {
 		t.Fatalf("ClinicID = %d, want 5", input.ClinicID)
@@ -30,11 +30,11 @@ func TestCreateStaffRequest_ToCreateServiceInput(t *testing.T) {
 }
 
 func TestCreateStaffRequest_ToCreateWithAccountServiceInput(t *testing.T) {
-	input := createStaffRequest{
+	input := (&createStaffRequest{
 		Name:     "Dr. Staff",
 		Email:    " staff@example.test ",
 		Password: "password123",
-	}.toCreateWithAccountServiceInput(5)
+	}).toCreateWithAccountServiceInput(5)
 
 	if input.ClinicID != 5 {
 		t.Fatalf("ClinicID = %d, want 5", input.ClinicID)
@@ -48,10 +48,10 @@ func TestCreateStaffRequest_ToCreateWithAccountServiceInput(t *testing.T) {
 }
 
 func TestCreateStaffRequest_HasAccountEmail(t *testing.T) {
-	if (createStaffRequest{Email: "   "}).hasAccountEmail() {
+	if (&createStaffRequest{Email: "   "}).hasAccountEmail() {
 		t.Fatalf("hasAccountEmail() = true, want false")
 	}
-	if !(createStaffRequest{Email: "staff@example.test"}).hasAccountEmail() {
+	if !(&createStaffRequest{Email: "staff@example.test"}).hasAccountEmail() {
 		t.Fatalf("hasAccountEmail() = false, want true")
 	}
 }
@@ -69,7 +69,7 @@ func TestUpdateStaffRequest_ToServiceInput(t *testing.T) {
 	reservationComment := ""
 	reservationImageURL := ""
 
-	input := updateStaffRequest{
+	input := (&updateStaffRequest{
 		Name:                   &name,
 		LicenseNumber:          &licenseNumber,
 		OccupationID:           &occupationID,
@@ -81,7 +81,7 @@ func TestUpdateStaffRequest_ToServiceInput(t *testing.T) {
 		ReservationVisible:     &reservationVisible,
 		ReservationComment:     &reservationComment,
 		ReservationImageURL:    &reservationImageURL,
-	}.toServiceInput()
+	}).toServiceInput()
 
 	if input.Name != &name {
 		t.Fatalf("Name pointer was not preserved")
@@ -95,7 +95,7 @@ func TestUpdateStaffRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateStaffRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateStaffRequest{}.toServiceInput()
+	input := (&updateStaffRequest{}).toServiceInput()
 
 	if input.Name != nil || input.IsActive != nil || input.ReservationVisible != nil {
 		t.Fatalf("expected nil optional fields, got %#v", input)

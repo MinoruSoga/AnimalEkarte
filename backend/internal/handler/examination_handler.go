@@ -22,7 +22,8 @@ func (h *Handler) ListExaminations(c *gin.Context) {
 		return
 	}
 
-	filters, err := newListExaminationQuery(c.Request.URL.Query()).toServiceFilters()
+	q := newListExaminationQuery(c.Request.URL.Query())
+	filters, err := q.toServiceFilters()
 	if err != nil {
 		RespondError(c, err)
 		return

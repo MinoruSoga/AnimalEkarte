@@ -34,7 +34,7 @@ type listAccountingFilters struct {
 	EndDate   *string
 }
 
-func (q listAccountingQuery) toServiceFilters() (listAccountingFilters, error) {
+func (q *listAccountingQuery) toServiceFilters() (listAccountingFilters, error) {
 	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
 	if err != nil {
 		return listAccountingFilters{}, err
@@ -122,7 +122,7 @@ type createAccountingRequest struct {
 	Memo              string     `json:"memo"`
 }
 
-func (r createAccountingRequest) toServiceInput(clinicID uint64) *service.CreateAccountingInput {
+func (r *createAccountingRequest) toServiceInput(clinicID uint64) *service.CreateAccountingInput {
 	return &service.CreateAccountingInput{
 		ClinicID:          clinicID,
 		MedicalRecordID:   r.MedicalRecordID,
@@ -199,7 +199,7 @@ type updateAccountingRequest struct {
 	PaymentSplits []paymentSplitRequest `json:"payment_splits"`
 }
 
-func (r updateAccountingRequest) toServiceInput(id, clinicID, staffID uint64) *service.UpdateAccountingInput {
+func (r *updateAccountingRequest) toServiceInput(id, clinicID, staffID uint64) *service.UpdateAccountingInput {
 	return &service.UpdateAccountingInput{
 		ID:                id,
 		ClinicID:          clinicID,
@@ -264,7 +264,7 @@ type createBillingItemRequest struct {
 	SortOrder             int     `json:"sort_order"`
 }
 
-func (r createBillingItemRequest) toServiceInput(clinicID uint64) *service.CreateBillingItemInput {
+func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *service.CreateBillingItemInput {
 	return &service.CreateBillingItemInput{
 		ClinicID:              clinicID,
 		BillingID:             r.BillingID,

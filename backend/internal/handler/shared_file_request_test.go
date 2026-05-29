@@ -12,10 +12,10 @@ func TestUploadSharedFileRequest_ToServiceInput(t *testing.T) {
 	ownerID := uint64(10)
 	content := strings.NewReader("file")
 
-	input := uploadSharedFileRequest{
+	input := (&uploadSharedFileRequest{
 		Purpose: "prescription",
 		OwnerID: &ownerID,
-	}.toServiceInput(content, sharedFileUploadMeta{
+	}).toServiceInput(content, sharedFileUploadMeta{
 		fileName:    "file.pdf",
 		contentType: "application/pdf",
 		fileType:    "pdf",
@@ -46,7 +46,7 @@ func TestUploadSharedFileRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUploadSharedFileRequest_ToServiceInput_DefaultPurpose(t *testing.T) {
-	input := uploadSharedFileRequest{}.toServiceInput(strings.NewReader("file"), sharedFileUploadMeta{
+	input := (&uploadSharedFileRequest{}).toServiceInput(strings.NewReader("file"), sharedFileUploadMeta{
 		fileName:    "file.pdf",
 		contentType: "application/pdf",
 		fileType:    "pdf",

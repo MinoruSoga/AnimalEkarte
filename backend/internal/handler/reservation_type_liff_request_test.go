@@ -73,7 +73,7 @@ func TestUpdateReservationTypeLiffRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateReservationTypeLiffRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateReservationTypeLiffRequest{}.toServiceInput()
+	input := (&updateReservationTypeLiffRequest{}).toServiceInput()
 
 	if input.Name != nil || input.Color != nil || input.Description != nil || input.SortOrder != nil ||
 		input.DurationMinutes != nil || input.ShortName != nil || input.ShowShortName != nil ||

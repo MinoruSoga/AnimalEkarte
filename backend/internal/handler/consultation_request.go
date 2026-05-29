@@ -15,7 +15,7 @@ type createConsultationRequest struct {
 	TaxRate       *float64 `json:"tax_rate"`
 }
 
-func (r createConsultationRequest) toServiceInput() *service.CreateConsultationInput {
+func (r *createConsultationRequest) toServiceInput() *service.CreateConsultationInput {
 	return &service.CreateConsultationInput{
 		Name:          r.Name,
 		Price:         r.Price,
@@ -44,7 +44,7 @@ type updateConsultationRequest struct {
 	TaxRate       *float64 `json:"tax_rate"`
 }
 
-func (r updateConsultationRequest) toServiceInput() *service.UpdateConsultationInput {
+func (r *updateConsultationRequest) toServiceInput() *service.UpdateConsultationInput {
 	return &service.UpdateConsultationInput{
 		Name:          r.Name,
 		Price:         r.Price,

@@ -56,7 +56,7 @@ func TestCreateConsultationRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestCreateConsultationRequest_ToServiceInput_EmptyTaxType(t *testing.T) {
-	input := createConsultationRequest{}.toServiceInput()
+	input := (&createConsultationRequest{}).toServiceInput()
 
 	if input.TaxType != nil {
 		t.Fatalf("TaxType = %v, want nil", input.TaxType)
@@ -127,7 +127,7 @@ func TestUpdateConsultationRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateConsultationRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateConsultationRequest{}.toServiceInput()
+	input := (&updateConsultationRequest{}).toServiceInput()
 
 	if input.Name != nil {
 		t.Fatalf("Name = %v, want nil", input.Name)

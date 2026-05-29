@@ -21,7 +21,8 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 		return
 	}
 
-	filters, err := newListHospitalizationQuery(c.Request.URL.Query()).toServiceFilters()
+	q := newListHospitalizationQuery(c.Request.URL.Query())
+	filters, err := q.toServiceFilters()
 	if err != nil {
 		RespondError(c, err)
 		return

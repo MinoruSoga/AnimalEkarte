@@ -7,7 +7,7 @@ import (
 )
 
 func TestCheckupSyncPreviewQuery_ToServiceInput(t *testing.T) {
-	input, err := checkupSyncPreviewQuery{
+	input, err := (&checkupSyncPreviewQuery{
 		CheckupType:         "annual",
 		Species:             "dog",
 		CPMStage:            string(service.CPMStageCore),
@@ -20,7 +20,7 @@ func TestCheckupSyncPreviewQuery_ToServiceInput(t *testing.T) {
 		MinAnnualVisitCount: "3",
 		LastCheckupBefore:   "2026-04-01",
 		LastCheckupAfter:    "2026-02-01",
-	}.toServiceInput()
+	}).toServiceInput()
 	if err != nil {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}
@@ -43,25 +43,25 @@ func TestCheckupSyncPreviewQuery_ToServiceInput(t *testing.T) {
 }
 
 func TestCheckupSyncPreviewQuery_ToServiceInput_InvalidBool(t *testing.T) {
-	_, err := checkupSyncPreviewQuery{HasChronicCondition: "yes"}.toServiceInput()
+	_, err := (&checkupSyncPreviewQuery{HasChronicCondition: "yes"}).toServiceInput()
 	if err == nil {
 		t.Fatalf("toServiceInput() error = nil, want error")
 	}
 }
 
 func TestCheckupSyncPreviewQuery_ToServiceInput_InvalidCPMStage(t *testing.T) {
-	_, err := checkupSyncPreviewQuery{CPMStage: "invalid"}.toServiceInput()
+	_, err := (&checkupSyncPreviewQuery{CPMStage: "invalid"}).toServiceInput()
 	if err == nil {
 		t.Fatalf("toServiceInput() error = nil, want error")
 	}
 }
 
 func TestCheckupSyncRequest_ToServiceInput(t *testing.T) {
-	input, err := checkupSyncRequest{
+	input, err := (&checkupSyncRequest{
 		CheckupType: "annual",
 		OwnerIDs:    []string{"1", "2"},
 		TagName:     "annual_checkup",
-	}.toServiceInput()
+	}).toServiceInput()
 	if err != nil {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}
@@ -78,11 +78,11 @@ func TestCheckupSyncRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestCheckupSyncRequest_ToServiceInput_InvalidOwnerID(t *testing.T) {
-	_, err := checkupSyncRequest{
+	_, err := (&checkupSyncRequest{
 		CheckupType: "annual",
 		OwnerIDs:    []string{"x"},
 		TagName:     "annual_checkup",
-	}.toServiceInput()
+	}).toServiceInput()
 	if err == nil {
 		t.Fatalf("toServiceInput() error = nil, want error")
 	}

@@ -97,7 +97,7 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	record, err := h.svc.MedicalRecord.Create(ctx, clinicID, svcInput)
+	record, err := h.svc.MedicalRecord.Create(ctx, clinicID, &svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return

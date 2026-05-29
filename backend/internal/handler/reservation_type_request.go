@@ -23,7 +23,7 @@ type createReservationTypeRequest struct {
 	IsInternal             bool   `json:"is_internal"`
 }
 
-func (r createReservationTypeRequest) toServiceInput() *service.CreateReservationTypeInput {
+func (r *createReservationTypeRequest) toServiceInput() *service.CreateReservationTypeInput {
 	return &service.CreateReservationTypeInput{
 		Name:                   r.Name,
 		Color:                  r.Color,
@@ -66,7 +66,7 @@ type updateReservationTypeRequest struct {
 	IsInternal             *bool   `json:"is_internal"`
 }
 
-func (r updateReservationTypeRequest) toServiceInput() *service.UpdateReservationTypeInput {
+func (r *updateReservationTypeRequest) toServiceInput() *service.UpdateReservationTypeInput {
 	return &service.UpdateReservationTypeInput{
 		Name:                   r.Name,
 		Color:                  r.Color,

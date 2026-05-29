@@ -92,7 +92,7 @@ func newOwnerAggregationQuery(values url.Values) (ownerAggregationQuery, error) 
 	}, nil
 }
 
-func (q ownerAggregationQuery) toServiceInput() *service.ListOwnerAggregationInput {
+func (q *ownerAggregationQuery) toServiceInput() *service.ListOwnerAggregationInput {
 	return &service.ListOwnerAggregationInput{
 		Sort:            q.Sort,
 		MinTotalAmount:  q.MinTotalAmount,

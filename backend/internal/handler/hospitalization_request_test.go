@@ -9,7 +9,7 @@ import (
 )
 
 func TestListHospitalizationQuery_ToServiceFilters(t *testing.T) {
-	filters, err := (listHospitalizationQuery{
+	filters, err := (&listHospitalizationQuery{
 		PetID:     "10",
 		OwnerID:   "20",
 		Status:    "admitted",
@@ -67,10 +67,10 @@ func TestListHospitalizationQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 func TestDischargeWithBillingRequest_ToServiceInput(t *testing.T) {
 	dischargeDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
 
-	input := dischargeWithBillingRequest{
+	input := (&dischargeWithBillingRequest{
 		DischargeDate:    dischargeDate,
 		CreateAccounting: true,
-	}.toServiceInput()
+	}).toServiceInput()
 
 	if input.DischargeDate != dischargeDate {
 		t.Fatalf("DischargeDate = %v, want %v", input.DischargeDate, dischargeDate)
@@ -88,7 +88,7 @@ func TestCreateHospitalizationRequest_ToServiceInput(t *testing.T) {
 	insuranceCompanyName := "Pet Insurance"
 	insuranceNumber := "INS-001"
 
-	input, err := (createHospitalizationRequest{
+	input, err := (&createHospitalizationRequest{
 		OwnerID:              1,
 		PetID:                2,
 		HospitalizationType:  string(model.HospitalizationTypeHotel),
@@ -147,7 +147,7 @@ func TestUpdateHospitalizationRequest_ToServiceInput(t *testing.T) {
 	insuranceCompanyName := ""
 	insuranceNumber := ""
 
-	input, err := (updateHospitalizationRequest{
+	input, err := (&updateHospitalizationRequest{
 		OwnerID:              &ownerID,
 		PetID:                &petID,
 		HospitalizationType:  &hospitalizationType,
@@ -188,7 +188,7 @@ func TestUpdateHospitalizationRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateHospitalizationRequest_ToServiceInput_NilFields(t *testing.T) {
-	input, err := (updateHospitalizationRequest{}).toServiceInput()
+	input, err := (&updateHospitalizationRequest{}).toServiceInput()
 	if err != nil {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}

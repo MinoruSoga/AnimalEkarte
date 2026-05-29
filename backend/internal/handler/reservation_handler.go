@@ -23,7 +23,8 @@ func (h *Handler) ListReservations(c *gin.Context) {
 		return
 	}
 
-	filters, err := newListReservationQuery(c.Request.URL.Query()).toServiceFilters()
+	q := newListReservationQuery(c.Request.URL.Query())
+	filters, err := q.toServiceFilters()
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return

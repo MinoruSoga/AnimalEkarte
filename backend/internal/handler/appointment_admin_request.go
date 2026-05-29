@@ -39,7 +39,7 @@ type createReservationAdminRequest struct {
 	CustomerFields    jsonRawOrEmpty `json:"customer_fields"`
 }
 
-func (r createReservationAdminRequest) toServiceInput(createdBy uint64) *service.CreateReservationAdminInput {
+func (r *createReservationAdminRequest) toServiceInput(createdBy uint64) *service.CreateReservationAdminInput {
 	return &service.CreateReservationAdminInput{
 		StartTime:         r.StartTime,
 		EndTime:           r.EndTime,

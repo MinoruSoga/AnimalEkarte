@@ -8,7 +8,7 @@ import (
 )
 
 func TestListTrimmingQuery_ToServiceFilters(t *testing.T) {
-	filters, err := (listTrimmingQuery{
+	filters, err := (&listTrimmingQuery{
 		PetID:     "10",
 		OwnerID:   "20",
 		StartDate: "2026-05-01",

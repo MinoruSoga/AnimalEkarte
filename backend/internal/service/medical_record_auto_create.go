@@ -75,7 +75,7 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 		input.DoctorID = reservation.DoctorID
 	}
 
-	record, err := s.Create(ctx, clinicID, input)
+	record, err := s.Create(ctx, clinicID, &input)
 	if err != nil {
 		slog.WarnContext(ctx, "autoCreateFromReservation: failed to create medical record",
 			slog.Uint64("reservation_id", reservation.ID),

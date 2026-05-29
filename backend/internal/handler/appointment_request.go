@@ -37,7 +37,7 @@ type listReservationFilters struct {
 	OwnerID *uint64
 }
 
-func (q listReservationQuery) toServiceFilters() (listReservationFilters, error) {
+func (q *listReservationQuery) toServiceFilters() (listReservationFilters, error) {
 	var filters listReservationFilters
 
 	if q.Date != "" {
@@ -123,7 +123,7 @@ type createReservationRequest struct {
 	ReservationRoute  string    `json:"reservation_route"   binding:"omitempty,oneof=line phone reception exam_room record_shortcut"`
 }
 
-func (r createReservationRequest) toServiceInput(clinicID, staffID uint64) (*service.CreateManualReservationInput, error) {
+func (r *createReservationRequest) toServiceInput(clinicID, staffID uint64) (*service.CreateManualReservationInput, error) {
 	source := model.ReservationSourceManual
 	if r.Source == string(model.ReservationSourceLine) {
 		source = model.ReservationSourceLine
@@ -196,7 +196,7 @@ type updateReservationRequest struct {
 	Notes             *string    `json:"notes"`
 }
 
-func (r updateReservationRequest) toServiceInput() (service.UpdateReservationInput, error) {
+func (r *updateReservationRequest) toServiceInput() (service.UpdateReservationInput, error) {
 	input := service.UpdateReservationInput{
 		StartTime:         r.StartTime,
 		EndTime:           r.EndTime,

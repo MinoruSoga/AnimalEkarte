@@ -76,7 +76,7 @@ func TestUpdateInsuranceRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateInsuranceRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateInsuranceRequest{}.toServiceInput()
+	input := (&updateInsuranceRequest{}).toServiceInput()
 
 	if input.Name != nil {
 		t.Fatalf("Name = %v, want nil", input.Name)

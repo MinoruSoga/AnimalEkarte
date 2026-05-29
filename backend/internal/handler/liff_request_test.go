@@ -36,7 +36,7 @@ func TestLiffCourseQuery_ToCourseID_InvalidInput(t *testing.T) {
 }
 
 func TestLiffAvailableDatesQuery_ToServiceFilters(t *testing.T) {
-	filters, err := (liffAvailableDatesQuery{
+	filters, err := (&liffAvailableDatesQuery{
 		CourseID: "10",
 		StaffID:  "20",
 	}).toServiceFilters()
@@ -49,7 +49,7 @@ func TestLiffAvailableDatesQuery_ToServiceFilters(t *testing.T) {
 }
 
 func TestLiffAvailableDatesQuery_ToServiceFilters_InvalidStaffIDAsNoPreference(t *testing.T) {
-	filters, err := (liffAvailableDatesQuery{
+	filters, err := (&liffAvailableDatesQuery{
 		CourseID: "10",
 		StaffID:  "abc",
 	}).toServiceFilters()
@@ -62,7 +62,7 @@ func TestLiffAvailableDatesQuery_ToServiceFilters_InvalidStaffIDAsNoPreference(t
 }
 
 func TestLiffAvailableTimesQuery_ToServiceFilters(t *testing.T) {
-	filters, err := (liffAvailableTimesQuery{
+	filters, err := (&liffAvailableTimesQuery{
 		CourseID: "10",
 		StaffID:  "20",
 		Date:     "2026-05-28",
@@ -79,7 +79,7 @@ func TestLiffAvailableTimesQuery_ToServiceFilters(t *testing.T) {
 }
 
 func TestLiffAvailableTimesQuery_ToServiceFilters_InvalidDate(t *testing.T) {
-	filters, err := (liffAvailableTimesQuery{
+	filters, err := (&liffAvailableTimesQuery{
 		CourseID: "10",
 		Date:     "2026/05/28",
 	}).toServiceFilters()
@@ -97,7 +97,7 @@ func TestLiffAvailableTimesQuery_ToServiceFilters_InvalidDate(t *testing.T) {
 func TestLiffCreateReservationRequest_ToServiceInput(t *testing.T) {
 	trimmingCourseID := uint64(10)
 
-	input, err := liffCreateReservationRequest{
+	input, err := (&liffCreateReservationRequest{
 		TypeID:               1,
 		StaffID:              2,
 		Date:                 "2026-05-28",
@@ -108,7 +108,7 @@ func TestLiffCreateReservationRequest_ToServiceInput(t *testing.T) {
 		TrimmingCourseID:     &trimmingCourseID,
 		TrimmingOptionIDs:    []uint64{3, 4},
 		TrimmingStyleRequest: "short",
-	}.toServiceInput()
+	}).toServiceInput()
 	if err != nil {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}
@@ -129,7 +129,7 @@ func TestLiffCreateReservationRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestLiffCreateReservationRequest_ToServiceInput_InvalidDate(t *testing.T) {
-	_, err := liffCreateReservationRequest{Date: "2026/05/28"}.toServiceInput()
+	_, err := (&liffCreateReservationRequest{Date: "2026/05/28"}).toServiceInput()
 	if err == nil {
 		t.Fatalf("toServiceInput() error = nil, want error")
 	}

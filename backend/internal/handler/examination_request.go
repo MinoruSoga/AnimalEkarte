@@ -34,7 +34,7 @@ type listExaminationFilters struct {
 	EndDate   *string
 }
 
-func (q listExaminationQuery) toServiceFilters() (listExaminationFilters, error) {
+func (q *listExaminationQuery) toServiceFilters() (listExaminationFilters, error) {
 	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
 	if err != nil {
 		return listExaminationFilters{}, err
@@ -72,7 +72,7 @@ type createExaminationRequest struct {
 	Status          string    `json:"status"             binding:"omitempty,oneof=pending in_progress result_entered completed confirmed"`
 }
 
-func (r createExaminationRequest) toServiceInput() *service.CreateExaminationInput {
+func (r *createExaminationRequest) toServiceInput() *service.CreateExaminationInput {
 	return &service.CreateExaminationInput{
 		MedicalRecordID: r.MedicalRecordID,
 		PetID:           r.PetID,

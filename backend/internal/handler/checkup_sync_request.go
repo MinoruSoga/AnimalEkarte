@@ -41,7 +41,7 @@ func newCheckupSyncPreviewQuery(values url.Values) checkupSyncPreviewQuery {
 	}
 }
 
-func (q checkupSyncPreviewQuery) toServiceInput() (*service.PreviewCheckupSyncInput, error) {
+func (q *checkupSyncPreviewQuery) toServiceInput() (*service.PreviewCheckupSyncInput, error) {
 	input := &service.PreviewCheckupSyncInput{
 		CheckupType: q.CheckupType,
 		Species:     q.Species,

@@ -35,7 +35,7 @@ type listHospitalizationFilters struct {
 	EndDate   *string
 }
 
-func (q listHospitalizationQuery) toServiceFilters() (listHospitalizationFilters, error) {
+func (q *listHospitalizationQuery) toServiceFilters() (listHospitalizationFilters, error) {
 	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
 	if err != nil {
 		return listHospitalizationFilters{}, err
@@ -92,7 +92,7 @@ type createHospitalizationRequest struct {
 	InsuranceNumber      *string   `json:"insurance_number,omitempty"`
 }
 
-func (r createHospitalizationRequest) toServiceInput() (*service.CreateHospitalizationInput, error) {
+func (r *createHospitalizationRequest) toServiceInput() (*service.CreateHospitalizationInput, error) {
 	hospType, err := validateEnum(r.HospitalizationType,
 		model.HospitalizationTypeInpatient,
 		model.HospitalizationTypeHotel,
@@ -150,7 +150,7 @@ type updateHospitalizationRequest struct {
 	InsuranceNumber      *string    `json:"insurance_number,omitempty"`
 }
 
-func (r updateHospitalizationRequest) toServiceInput() (service.UpdateHospitalizationInput, error) {
+func (r *updateHospitalizationRequest) toServiceInput() (service.UpdateHospitalizationInput, error) {
 	input := service.UpdateHospitalizationInput{
 		OwnerID:              r.OwnerID,
 		PetID:                r.PetID,

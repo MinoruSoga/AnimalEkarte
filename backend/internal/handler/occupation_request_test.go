@@ -56,7 +56,7 @@ func TestUpdateOccupationRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateOccupationRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateOccupationRequest{}.toServiceInput()
+	input := (&updateOccupationRequest{}).toServiceInput()
 
 	if input.Name != nil {
 		t.Fatalf("Name = %v, want nil", input.Name)

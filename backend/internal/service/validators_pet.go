@@ -62,7 +62,7 @@ func validatePetDangerLevel(level string) error {
 
 // validateRequiredName は必須名前フィールドのバリデーションを行う。
 // スペースのみ・NULL バイト・制御文字・255文字超が含まれていないかを検証する。
-func validatePetForOwnerInput(input CreatePetForOwnerInput) error {
+func validatePetForOwnerInput(input *CreatePetForOwnerInput) error {
 	if err := validatePetGender(input.Gender); err != nil {
 		return err
 	}

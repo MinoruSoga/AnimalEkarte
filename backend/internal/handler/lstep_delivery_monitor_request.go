@@ -56,7 +56,7 @@ func newLstepDeliveryMonitorLogsQuery(clinicID uint64, values url.Values, now ti
 	}, nil
 }
 
-func (q lstepDeliveryMonitorQuery) toSummaryServiceInput() service.GetDeliveryMonitorSummaryInput {
+func (q *lstepDeliveryMonitorQuery) toSummaryServiceInput() service.GetDeliveryMonitorSummaryInput {
 	return service.GetDeliveryMonitorSummaryInput{
 		ClinicID:    q.ClinicID,
 		From:        q.From,
@@ -65,7 +65,7 @@ func (q lstepDeliveryMonitorQuery) toSummaryServiceInput() service.GetDeliveryMo
 	}
 }
 
-func (q lstepDeliveryMonitorQuery) toLogsServiceInput() *service.GetDeliveryMonitorLogsInput {
+func (q *lstepDeliveryMonitorQuery) toLogsServiceInput() *service.GetDeliveryMonitorLogsInput {
 	return &service.GetDeliveryMonitorLogsInput{
 		ClinicID:    q.ClinicID,
 		From:        q.From,

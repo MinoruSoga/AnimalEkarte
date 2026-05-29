@@ -18,7 +18,7 @@ type createCarePlanItemRequest struct {
 	SortOrder             int      `json:"sort_order"`
 }
 
-func (r createCarePlanItemRequest) toServiceInput() *service.CreateCarePlanItemInput {
+func (r *createCarePlanItemRequest) toServiceInput() *service.CreateCarePlanItemInput {
 	return &service.CreateCarePlanItemInput{
 		Type:                  r.Type,
 		Name:                  r.Name,
@@ -51,7 +51,7 @@ type updateCarePlanItemRequest struct {
 	SortOrder             *int     `json:"sort_order"`
 }
 
-func (r updateCarePlanItemRequest) toServiceInput() *service.UpdateCarePlanItemInput {
+func (r *updateCarePlanItemRequest) toServiceInput() *service.UpdateCarePlanItemInput {
 	return &service.UpdateCarePlanItemInput{
 		Type:                  r.Type,
 		Name:                  r.Name,

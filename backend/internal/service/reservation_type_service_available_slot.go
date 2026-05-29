@@ -137,7 +137,7 @@ func hasActiveAvailableSlots(slots []model.ReservationTypeAvailableSlot) bool {
 func filterApplicableAvailableSlots(slots []model.ReservationTypeAvailableSlot, date time.Time) []model.ReservationTypeAvailableSlot {
 	dateJST := date.In(jstLocation)
 	dateStr := dateJST.Format("2006-01-02")
-	dayOfWeek := int8(dateJST.Weekday())
+	dayOfWeek := int8(dateJST.Weekday()) //nolint:gosec // Weekday() は 0-6 を返すため int8 に安全に収まる
 	result := make([]model.ReservationTypeAvailableSlot, 0, len(slots))
 	for i := range slots {
 		if !slots[i].IsActive {

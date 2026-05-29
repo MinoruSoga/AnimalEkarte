@@ -23,11 +23,11 @@ type createStaffRequest struct {
 	ReservationImageURL    string `json:"reservation_image_url"`
 }
 
-func (r createStaffRequest) hasAccountEmail() bool {
+func (r *createStaffRequest) hasAccountEmail() bool {
 	return strings.TrimSpace(r.Email) != ""
 }
 
-func (r createStaffRequest) toCreateServiceInput(clinicID uint64) *service.CreateStaffInput {
+func (r *createStaffRequest) toCreateServiceInput(clinicID uint64) *service.CreateStaffInput {
 	return &service.CreateStaffInput{
 		ClinicID:               clinicID,
 		Name:                   r.Name,
@@ -42,7 +42,7 @@ func (r createStaffRequest) toCreateServiceInput(clinicID uint64) *service.Creat
 	}
 }
 
-func (r createStaffRequest) toCreateWithAccountServiceInput(clinicID uint64) *service.CreateStaffWithAccountInput {
+func (r *createStaffRequest) toCreateWithAccountServiceInput(clinicID uint64) *service.CreateStaffWithAccountInput {
 	return &service.CreateStaffWithAccountInput{
 		ClinicID:               clinicID,
 		Name:                   r.Name,
@@ -76,7 +76,7 @@ type updateStaffRequest struct {
 	ReservationImageURL    *string `json:"reservation_image_url"`
 }
 
-func (r updateStaffRequest) toServiceInput() *service.UpdateStaffInput {
+func (r *updateStaffRequest) toServiceInput() *service.UpdateStaffInput {
 	return &service.UpdateStaffInput{
 		Name:                   r.Name,
 		LicenseNumber:          r.LicenseNumber,

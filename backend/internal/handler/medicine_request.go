@@ -19,7 +19,7 @@ type createMedicineRequest struct {
 	IsNonInsurance  bool     `json:"is_non_insurance"`
 }
 
-func (r createMedicineRequest) toServiceInput() *service.CreateMedicineInput {
+func (r *createMedicineRequest) toServiceInput() *service.CreateMedicineInput {
 	return &service.CreateMedicineInput{
 		Name:            r.Name,
 		ParentID:        r.ParentID,
@@ -58,7 +58,7 @@ type updateMedicineRequest struct {
 	IsNonInsurance  *bool    `json:"is_non_insurance"`
 }
 
-func (r updateMedicineRequest) toServiceInput() *service.UpdateMedicineInput {
+func (r *updateMedicineRequest) toServiceInput() *service.UpdateMedicineInput {
 	return &service.UpdateMedicineInput{
 		Name:            r.Name,
 		ParentID:        r.ParentID,

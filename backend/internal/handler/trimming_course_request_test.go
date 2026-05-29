@@ -86,7 +86,7 @@ func TestUpdateTrimmingCourseRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateTrimmingCourseRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateTrimmingCourseRequest{}.toServiceInput()
+	input := (&updateTrimmingCourseRequest{}).toServiceInput()
 
 	if input.Name != nil {
 		t.Fatalf("Name = %v, want nil", input.Name)

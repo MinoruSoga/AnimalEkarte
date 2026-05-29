@@ -9,7 +9,7 @@ import (
 )
 
 func TestListMedicalRecordQuery_ToServiceFilters(t *testing.T) {
-	filters, err := (listMedicalRecordQuery{
+	filters, err := (&listMedicalRecordQuery{
 		PetID:     "10",
 		OwnerID:   "20",
 		StartDate: "2026-05-01",

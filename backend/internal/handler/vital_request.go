@@ -19,7 +19,7 @@ type createVitalRequest struct {
 	Notes           string    `json:"notes"`
 }
 
-func (r createVitalRequest) toServiceInput(clinicID, petID uint64) *service.CreateVitalInput {
+func (r *createVitalRequest) toServiceInput(clinicID, petID uint64) *service.CreateVitalInput {
 	return &service.CreateVitalInput{
 		ClinicID:        clinicID,
 		PetID:           petID,

@@ -85,7 +85,7 @@ func TestUpdateVitalRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateVitalRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateVitalRequest{}.toServiceInput(9)
+	input := (&updateVitalRequest{}).toServiceInput(9)
 
 	if input.RecordedAt != nil || input.StaffID != nil || input.Temperature != nil || input.HeartRate != nil ||
 		input.RespirationRate != nil || input.Weight != nil || input.WeightUnit != nil || input.Notes != nil {

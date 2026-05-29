@@ -100,7 +100,7 @@ type liffCreateReservationRequest struct {
 	TrimmingStyleRequest string          `json:"trimming_style_request"` // BE-120
 }
 
-func (r liffCreateReservationRequest) toServiceInput() (*service.CreateReservationInput, error) {
+func (r *liffCreateReservationRequest) toServiceInput() (*service.CreateReservationInput, error) {
 	date, err := time.ParseInLocation("2006-01-02", r.Date, time.Local)
 	if err != nil {
 		return nil, fmt.Errorf("invalid date: must be YYYY-MM-DD")

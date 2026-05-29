@@ -38,7 +38,7 @@ type createMedicalRecordImageRequest struct {
 	SortOrder    int        `json:"sort_order"`
 }
 
-func (r createMedicalRecordImageRequest) toServiceInput() *service.CreateMedicalRecordImageInput {
+func (r *createMedicalRecordImageRequest) toServiceInput() *service.CreateMedicalRecordImageInput {
 	imageType := model.MedicalImageType(r.ImageType)
 	if imageType == "" {
 		imageType = model.MedicalImageTypeOther

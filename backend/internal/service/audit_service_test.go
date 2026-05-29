@@ -33,7 +33,7 @@ func TestAuditService_LogEntry(t *testing.T) {
 	actorID := uint64(2)
 	resourceID := uint64(3)
 
-	err := svc.LogEntry(context.Background(), AuditLogInput{
+	err := svc.LogEntry(context.Background(), &AuditLogInput{
 		ClinicID:   &clinicID,
 		ActorID:    &actorID,
 		ActorType:  "staff",

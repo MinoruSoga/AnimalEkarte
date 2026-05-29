@@ -12,7 +12,7 @@ type createTrimmingCourseRequest struct {
 	SortOrder   int    `json:"sort_order"`
 }
 
-func (r createTrimmingCourseRequest) toServiceInput() *service.CreateTrimmingCourseInput {
+func (r *createTrimmingCourseRequest) toServiceInput() *service.CreateTrimmingCourseInput {
 	return &service.CreateTrimmingCourseInput{
 		Name:        r.Name,
 		TargetSize:  r.TargetSize,

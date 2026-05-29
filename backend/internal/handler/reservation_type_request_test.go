@@ -139,7 +139,7 @@ func TestCreateUnavailableTimeRequest_ToServiceInput_SpecificDate(t *testing.T) 
 }
 
 func TestUpdateReservationTypeRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateReservationTypeRequest{}.toServiceInput()
+	input := (&updateReservationTypeRequest{}).toServiceInput()
 
 	if input.Name != nil || input.Color != nil || input.IsActive != nil || input.Description != nil ||
 		input.SortOrder != nil || input.GroupID != nil || input.ClearGroupID || input.Category != nil ||

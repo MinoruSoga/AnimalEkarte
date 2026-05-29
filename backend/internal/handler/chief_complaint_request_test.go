@@ -56,7 +56,7 @@ func TestUpdateChiefComplaintRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateChiefComplaintRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateChiefComplaintRequest{}.toServiceInput()
+	input := (&updateChiefComplaintRequest{}).toServiceInput()
 
 	if input.Name != nil {
 		t.Fatalf("Name = %v, want nil", input.Name)

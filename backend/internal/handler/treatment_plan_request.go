@@ -14,7 +14,7 @@ type createTreatmentPlanRequest struct {
 	SortOrder        int     `json:"sort_order"`
 }
 
-func (r createTreatmentPlanRequest) toServiceInput() *service.CreateTreatmentPlanInput {
+func (r *createTreatmentPlanRequest) toServiceInput() *service.CreateTreatmentPlanInput {
 	return &service.CreateTreatmentPlanInput{
 		TreatmentContent: r.TreatmentContent,
 		Memo:             r.Memo,

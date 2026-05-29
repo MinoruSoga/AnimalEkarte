@@ -46,7 +46,7 @@ type createInventoryRequest struct {
 	Status        string  `json:"status"          binding:"omitempty,oneof=sufficient low out_of_stock"`
 }
 
-func (r createInventoryRequest) toServiceInput() (*service.CreateInventoryInput, error) {
+func (r *createInventoryRequest) toServiceInput() (*service.CreateInventoryInput, error) {
 	expiryDate, err := parseDate(r.ExpiryDate)
 	if err != nil {
 		return nil, fmt.Errorf("invalid expiry_date: %w", err)
@@ -83,7 +83,7 @@ type updateInventoryRequest struct {
 	Status        *string `json:"status"          binding:"omitempty,oneof=sufficient low out_of_stock"`
 }
 
-func (r updateInventoryRequest) toServiceInput() (*service.UpdateInventoryInput, error) {
+func (r *updateInventoryRequest) toServiceInput() (*service.UpdateInventoryInput, error) {
 	var category *model.InventoryCategory
 	if r.Category != nil {
 		cat := model.InventoryCategory(*r.Category)

@@ -272,7 +272,7 @@ func (m *mockLstepTagSyncService) SyncHealthPreventionTagsForClinic(_ context.Co
 type mockAuditService struct{}
 
 func (m *mockAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *mockAuditService) LogEntry(_ context.Context, _ AuditLogInput) error {
+func (m *mockAuditService) LogEntry(_ context.Context, _ *AuditLogInput) error {
 	return nil
 }
 func (m *mockAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {

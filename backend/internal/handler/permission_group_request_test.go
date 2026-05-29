@@ -3,13 +3,13 @@ package handler
 import "testing"
 
 func TestCreatePermissionGroupRequest_ToServiceInput(t *testing.T) {
-	input := createPermissionGroupRequest{
+	input := (&createPermissionGroupRequest{
 		Name:        "Admin",
 		Description: "full access",
 		Color:       "#ff0000",
 		IsActive:    true,
 		SortOrder:   1,
-	}.toServiceInput()
+	}).toServiceInput()
 
 	if input.Name != "Admin" {
 		t.Fatalf("Name = %q, want Admin", input.Name)
@@ -26,13 +26,13 @@ func TestUpdatePermissionGroupRequest_ToServiceInput(t *testing.T) {
 	sortOrder := 0
 	isActive := false
 
-	input := updatePermissionGroupRequest{
+	input := (&updatePermissionGroupRequest{
 		Name:        &name,
 		Description: &description,
 		Color:       &color,
 		SortOrder:   &sortOrder,
 		IsActive:    &isActive,
-	}.toServiceInput()
+	}).toServiceInput()
 
 	if input.Name != &name {
 		t.Fatalf("Name pointer was not preserved")
@@ -43,12 +43,12 @@ func TestUpdatePermissionGroupRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestSetPermissionGroupRulesRequest_ToServiceInput(t *testing.T) {
-	input := setPermissionGroupRulesRequest{
+	input := (&setPermissionGroupRulesRequest{
 		Rules: []permissionGroupRuleInput{
 			{Resource: "owners", CanView: true, CanCreate: true},
 			{Resource: "pets", CanEdit: true, CanDelete: true},
 		},
-	}.toServiceInput()
+	}).toServiceInput()
 
 	if len(input) != 2 {
 		t.Fatalf("len(input) = %d, want 2", len(input))

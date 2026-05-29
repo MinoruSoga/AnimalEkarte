@@ -39,7 +39,7 @@ type updateLstepSettingsRequest struct {
 	VaccineDeadlineDays          *int `json:"vaccine_deadline_days"`
 }
 
-func (r updateLstepSettingsRequest) toServiceInput() *service.UpdateLstepSettingsInput {
+func (r *updateLstepSettingsRequest) toServiceInput() *service.UpdateLstepSettingsInput {
 	return &service.UpdateLstepSettingsInput{
 		LstepAPIKey:                  r.LstepAPIKey,
 		LstepBaseURL:                 r.LstepBaseURL,

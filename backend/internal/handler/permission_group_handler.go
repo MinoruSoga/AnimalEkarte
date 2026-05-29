@@ -77,7 +77,7 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 
 	// 監査ログ: 権限グループ作成
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.LogEntry(c.Request.Context(), service.AuditLogInput{
+		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
@@ -119,7 +119,7 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 
 	// 監査ログ: 権限グループ更新
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.LogEntry(c.Request.Context(), service.AuditLogInput{
+		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
@@ -168,7 +168,7 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 			auditInput.ClinicID = &oldPG.ClinicID
 			auditInput.OldValue = oldPG
 		}
-		_ = h.svc.Audit.LogEntry(c.Request.Context(), auditInput)
+		_ = h.svc.Audit.LogEntry(c.Request.Context(), &auditInput)
 	}
 
 	c.Status(http.StatusNoContent)
@@ -211,7 +211,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	}
 
 	// 監査ログ: 権限ルール更新
-	_ = h.svc.Audit.LogEntry(c.Request.Context(), service.AuditLogInput{
+	_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 		ActorID:    &staffID,
 		ActorType:  "staff",
 		Action:     model.AuditActionPermissionRulesUpdate,

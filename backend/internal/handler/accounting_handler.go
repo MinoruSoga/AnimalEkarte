@@ -23,7 +23,8 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 		return
 	}
 
-	filters, err := newListAccountingQuery(c.Request.URL.Query()).toServiceFilters()
+	q := newListAccountingQuery(c.Request.URL.Query())
+	filters, err := q.toServiceFilters()
 	if err != nil {
 		RespondError(c, err)
 		return

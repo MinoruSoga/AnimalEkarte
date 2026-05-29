@@ -34,7 +34,7 @@ type createShiftTemplateRequest struct {
 	Breaks    []shiftTemplateBreakRequest `json:"breaks"`
 }
 
-func (r createShiftTemplateRequest) toServiceInput() *service.CreateShiftTemplateInput {
+func (r *createShiftTemplateRequest) toServiceInput() *service.CreateShiftTemplateInput {
 	return &service.CreateShiftTemplateInput{
 		Name:      r.Name,
 		ShiftType: r.ShiftType,

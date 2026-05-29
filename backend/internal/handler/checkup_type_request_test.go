@@ -99,7 +99,7 @@ func TestUpdateCheckupTypeRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateCheckupTypeRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateCheckupTypeRequest{}.toServiceInput()
+	input := (&updateCheckupTypeRequest{}).toServiceInput()
 
 	if input.Name != nil {
 		t.Fatalf("Name = %v, want nil", input.Name)

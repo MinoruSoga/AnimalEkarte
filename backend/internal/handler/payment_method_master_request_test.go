@@ -43,7 +43,7 @@ func TestUpdatePaymentMethodRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdatePaymentMethodRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updatePaymentMethodRequest{}.toServiceInput()
+	input := (&updatePaymentMethodRequest{}).toServiceInput()
 
 	if input.Name != nil || input.DisplayOrder != nil || input.IsActive != nil {
 		t.Fatalf("input = %+v, want all nil fields", input)

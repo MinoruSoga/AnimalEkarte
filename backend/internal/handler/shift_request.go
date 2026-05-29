@@ -85,7 +85,7 @@ type createShiftRequest struct {
 	Breaks    []shiftBreakRequest `json:"breaks"`
 }
 
-func (r createShiftRequest) toServiceInput() (*service.CreateShiftEntryInput, error) {
+func (r *createShiftRequest) toServiceInput() (*service.CreateShiftEntryInput, error) {
 	date, err := time.Parse(shiftDateLayout, r.Date)
 	if err != nil {
 		return nil, fmt.Errorf("invalid date: use YYYY-MM-DD")

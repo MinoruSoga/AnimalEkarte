@@ -59,7 +59,7 @@ func TestCreateInventoryRequest_ToServiceInput(t *testing.T) {
 func TestCreateInventoryRequest_ToServiceInput_InvalidDate(t *testing.T) {
 	expiryDate := "not-a-date"
 
-	_, err := createInventoryRequest{ExpiryDate: &expiryDate}.toServiceInput()
+	_, err := (&createInventoryRequest{ExpiryDate: &expiryDate}).toServiceInput()
 	if err == nil {
 		t.Fatalf("error = nil, want invalid expiry_date error")
 	}
@@ -128,7 +128,7 @@ func TestUpdateInventoryRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateInventoryRequest_ToServiceInput_NilFields(t *testing.T) {
-	input, err := updateInventoryRequest{}.toServiceInput()
+	input, err := (&updateInventoryRequest{}).toServiceInput()
 	if err != nil {
 		t.Fatalf("toServiceInput returned error: %v", err)
 	}

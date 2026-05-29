@@ -47,7 +47,7 @@ type addCareLogRequest struct {
 	Notes   string  `json:"notes"`
 }
 
-func (r addCareLogRequest) toServiceInput() (*service.CreateCareLogInput, error) {
+func (r *addCareLogRequest) toServiceInput() (*service.CreateCareLogInput, error) {
 	recordedAt, err := time.Parse(dailyRecordTimeLayout, r.Time)
 	if err != nil {
 		return nil, fmt.Errorf("invalid time format, expected HH:MM:SS")

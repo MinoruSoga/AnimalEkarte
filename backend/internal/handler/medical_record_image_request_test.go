@@ -15,7 +15,7 @@ func TestCreateMedicalRecordImageRequest_ToServiceInput(t *testing.T) {
 	examID := uint64(10)
 	staffID := uint64(20)
 
-	input := createMedicalRecordImageRequest{
+	input := (&createMedicalRecordImageRequest{
 		ImageURL:     "https://example.test/image.png",
 		ThumbnailURL: "https://example.test/thumb.png",
 		FileName:     "image.png",
@@ -27,7 +27,7 @@ func TestCreateMedicalRecordImageRequest_ToServiceInput(t *testing.T) {
 		ExamID:       &examID,
 		StaffID:      &staffID,
 		SortOrder:    2,
-	}.toServiceInput()
+	}).toServiceInput()
 
 	if input.ImageURL != "https://example.test/image.png" {
 		t.Fatalf("ImageURL = %q", input.ImageURL)
@@ -47,7 +47,7 @@ func TestCreateMedicalRecordImageRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestCreateMedicalRecordImageRequest_ToServiceInput_DefaultImageType(t *testing.T) {
-	input := createMedicalRecordImageRequest{ImageURL: "https://example.test/image.png"}.toServiceInput()
+	input := (&createMedicalRecordImageRequest{ImageURL: "https://example.test/image.png"}).toServiceInput()
 
 	if input.ImageType != model.MedicalImageTypeOther {
 		t.Fatalf("ImageType = %s, want %s", input.ImageType, model.MedicalImageTypeOther)
@@ -57,13 +57,13 @@ func TestCreateMedicalRecordImageRequest_ToServiceInput_DefaultImageType(t *test
 func TestUploadedMedicalRecordImageInput_ToServiceInput(t *testing.T) {
 	takenAt := time.Date(2026, 5, 28, 9, 0, 0, 0, time.UTC)
 
-	input := uploadedMedicalRecordImageInput{
+	input := (&uploadedMedicalRecordImageInput{
 		ImageURL: "/uploads/image.png",
 		FileName: "image.png",
 		FileSize: 2048,
 		MimeType: "image/png",
 		TakenAt:  &takenAt,
-	}.toServiceInput()
+	}).toServiceInput()
 
 	if input.ImageURL != "/uploads/image.png" {
 		t.Fatalf("ImageURL = %q", input.ImageURL)

@@ -11,7 +11,7 @@ type createReservationStaffRequest struct {
 	ExcludedTypeIDs    []uint64 `json:"excluded_type_ids"`
 }
 
-func (r createReservationStaffRequest) toServiceInput() *service.CreateReservationStaffInput {
+func (r *createReservationStaffRequest) toServiceInput() *service.CreateReservationStaffInput {
 	return &service.CreateReservationStaffInput{
 		Name:               r.Name,
 		StaffType:          r.StaffType,

@@ -85,7 +85,7 @@ func TestUpdateCageRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateCageRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateCageRequest{}.toServiceInput()
+	input := (&updateCageRequest{}).toServiceInput()
 
 	if input.Name != nil {
 		t.Fatalf("Name = %v, want nil", input.Name)

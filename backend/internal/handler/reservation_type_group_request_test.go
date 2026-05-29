@@ -56,7 +56,7 @@ func TestUpdateReservationTypeGroupRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateReservationTypeGroupRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateReservationTypeGroupRequest{}.toServiceInput()
+	input := (&updateReservationTypeGroupRequest{}).toServiceInput()
 
 	if input.Name != nil || input.Color != nil || input.SortOrder != nil || input.IsActive != nil {
 		t.Fatalf("input = %+v, want all nil fields", input)

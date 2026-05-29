@@ -106,7 +106,7 @@ func (m *mockAuditServiceForPG) Log(ctx context.Context, log *model.AuditLog) er
 	return nil
 }
 
-func (m *mockAuditServiceForPG) LogEntry(ctx context.Context, input service.AuditLogInput) error {
+func (m *mockAuditServiceForPG) LogEntry(ctx context.Context, input *service.AuditLogInput) error {
 	if m.logFn != nil {
 		return m.logFn(ctx, &model.AuditLog{
 			ClinicID:   input.ClinicID,

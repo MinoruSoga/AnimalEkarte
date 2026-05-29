@@ -25,7 +25,7 @@ type createMerchandiseItemRequest struct {
 	SortOrder int      `json:"sort_order"`
 }
 
-func (r createMerchandiseItemRequest) toServiceInput() *service.CreateMerchandiseItemInput {
+func (r *createMerchandiseItemRequest) toServiceInput() *service.CreateMerchandiseItemInput {
 	return &service.CreateMerchandiseItemInput{
 		Name:      r.Name,
 		Category:  r.Category,

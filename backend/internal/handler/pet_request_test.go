@@ -4,13 +4,14 @@ import (
 	"testing"
 	"time"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 func TestListPetQuery_ToServiceFilters(t *testing.T) {
-	filters, err := (listPetQuery{
+	filters, err := (&listPetQuery{
 		OwnerID: "10",
 		Search:  "momo",
 	}).toServiceFilters()
@@ -24,7 +25,7 @@ func TestListPetQuery_ToServiceFilters(t *testing.T) {
 }
 
 func TestListPetQuery_ToServiceFilters_InvalidOwnerID(t *testing.T) {
-	filters, err := (listPetQuery{OwnerID: "abc"}).toServiceFilters()
+	filters, err := (&listPetQuery{OwnerID: "abc"}).toServiceFilters()
 	require.Error(t, err)
 	assert.Equal(t, listPetFilters{}, filters)
 	assert.True(t, apperrors.IsInvalidInput(err))
@@ -36,7 +37,7 @@ func TestCreatePetRequest_ToServiceInput(t *testing.T) {
 	weight := 4.2
 	insuranceID := uint64(9)
 
-	input := createPetRequest{
+	input := (&createPetRequest{
 		OwnerID:         5,
 		AnimalSpeciesID: 1,
 		Name:            "ポチ",
@@ -55,7 +56,7 @@ func TestCreatePetRequest_ToServiceInput(t *testing.T) {
 		Phone:           "090-1234-5678",
 		InsuranceID:     &insuranceID,
 		Remarks:         "備考",
-	}.toServiceInput()
+	}).toServiceInput()
 
 	assert.Equal(t, uint64(5), input.OwnerID)
 	assert.Equal(t, uint64(1), input.AnimalSpeciesID)
@@ -81,14 +82,14 @@ func TestUpdatePetRequest_ToServiceInput(t *testing.T) {
 	insuranceID := uint64(12)
 	insuranceIDField := &insuranceID
 
-	input := updatePetRequest{
+	input := (&updatePetRequest{
 		OwnerID:         &ownerID,
 		AnimalSpeciesID: &animalSpeciesID,
 		Name:            &name,
 		Status:          &status,
 		LastVisit:       lastVisit,
 		InsuranceID:     &insuranceIDField,
-	}.toServiceInput()
+	}).toServiceInput()
 
 	assert.Same(t, &ownerID, input.OwnerID)
 	assert.Same(t, &animalSpeciesID, input.AnimalSpeciesID)
@@ -104,9 +105,9 @@ func TestUpdatePetRequest_ToServiceInput(t *testing.T) {
 func TestUpdatePetRequest_ToServiceInput_InsuranceIDClear(t *testing.T) {
 	var insuranceID *uint64
 
-	input := updatePetRequest{
+	input := (&updatePetRequest{
 		InsuranceID: &insuranceID,
-	}.toServiceInput()
+	}).toServiceInput()
 
 	require.NotNil(t, input.InsuranceID)
 	assert.Nil(t, *input.InsuranceID)

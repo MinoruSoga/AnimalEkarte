@@ -65,7 +65,7 @@ func TestUpdateInquiryTemplateRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateInquiryTemplateRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateInquiryTemplateRequest{}.toServiceInput()
+	input := (&updateInquiryTemplateRequest{}).toServiceInput()
 
 	if input.Category != nil || input.Title != nil || input.Content != nil || input.IsActive != nil || input.SortOrder != nil {
 		t.Fatalf("input = %+v, want all nil fields", input)

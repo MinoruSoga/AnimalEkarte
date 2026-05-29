@@ -8,7 +8,7 @@ import (
 )
 
 func TestListVaccinationQuery_ToServiceFilters(t *testing.T) {
-	filters, err := (listVaccinationQuery{
+	filters, err := (&listVaccinationQuery{
 		PetID:     "10",
 		OwnerID:   "20",
 		StartDate: "2026-05-01",

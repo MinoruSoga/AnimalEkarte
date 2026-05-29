@@ -29,7 +29,7 @@ type createVaccineRequest struct {
 	SortOrder   int     `json:"sort_order"`
 }
 
-func (r createVaccineRequest) toServiceInput() *service.CreateVaccineInput {
+func (r *createVaccineRequest) toServiceInput() *service.CreateVaccineInput {
 	return &service.CreateVaccineInput{
 		Name:        r.Name,
 		Price:       r.Price,

@@ -104,7 +104,7 @@ func TestUpdateHospitalizationPlanRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateHospitalizationPlanRequest_ToServiceInput_NilFields(t *testing.T) {
-	input := updateHospitalizationPlanRequest{}.toServiceInput()
+	input := (&updateHospitalizationPlanRequest{}).toServiceInput()
 
 	if input.Name != nil {
 		t.Fatalf("Name = %v, want nil", input.Name)

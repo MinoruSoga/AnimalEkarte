@@ -3,25 +3,11 @@ package handler
 import (
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
-
-// parseDateQuery はクエリパラメータから YYYY-MM-DD 形式の日付を安全にパースする。
-// 空文字列の場合は nil を返す。不正な形式の場合はエラーを返す。
-func parseDateQuery(c *gin.Context, key string) (*string, error) {
-	s := c.Query(key)
-	if s == "" {
-		return nil, nil
-	}
-	if _, err := time.Parse("2006-01-02", s); err != nil {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s は YYYY-MM-DD 形式で入力してください", key))
-	}
-	return &s, nil
-}
 
 // parsePagination はページネーションパラメータを安全にパースする。
 // page: 1以上の整数, limit: 1〜100の整数

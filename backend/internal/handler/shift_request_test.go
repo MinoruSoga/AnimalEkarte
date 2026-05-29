@@ -7,7 +7,7 @@ import (
 )
 
 func TestListShiftEntriesQuery_ToServiceFilters(t *testing.T) {
-	filters, err := (listShiftEntriesQuery{
+	filters, err := (&listShiftEntriesQuery{
 		Date:    "2026-05",
 		StaffID: "10",
 	}).toServiceFilters()
@@ -24,7 +24,7 @@ func TestListShiftEntriesQuery_ToServiceFilters(t *testing.T) {
 }
 
 func TestListShiftEntriesQuery_ToServiceFilters_InvalidStaffID(t *testing.T) {
-	filters, err := (listShiftEntriesQuery{StaffID: "abc"}).toServiceFilters()
+	filters, err := (&listShiftEntriesQuery{StaffID: "abc"}).toServiceFilters()
 	if err == nil {
 		t.Fatal("toServiceFilters returned nil error")
 	}

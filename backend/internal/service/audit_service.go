@@ -10,7 +10,7 @@ import (
 
 type AuditService interface {
 	Log(ctx context.Context, log *model.AuditLog) error
-	LogEntry(ctx context.Context, input AuditLogInput) error
+	LogEntry(ctx context.Context, input *AuditLogInput) error
 	LogAuthLogin(ctx context.Context, clinicID *uint64, staffID *uint64, action string, ipAddress string, userAgent string) error
 	// LogLstepOperation はLステップ / LINE連携操作を監査ログに記録する。
 	// actorID: 操作スタッフID（nil = システム自動実行）, resource: 対象リソース種別, resourceID: 対象ID
@@ -66,7 +66,7 @@ func (s *auditService) Log(ctx context.Context, log *model.AuditLog) error {
 	return nil
 }
 
-func (s *auditService) LogEntry(ctx context.Context, input AuditLogInput) error {
+func (s *auditService) LogEntry(ctx context.Context, input *AuditLogInput) error {
 	log := &model.AuditLog{
 		ClinicID:   input.ClinicID,
 		ActorID:    input.ActorID,
