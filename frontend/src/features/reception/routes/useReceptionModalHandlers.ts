@@ -32,6 +32,12 @@ function buildAppointmentDateTime(visitDate: string, time: string): Date {
   return new Date(`${visitDate}T${time}:00+09:00`);
 }
 
+function optionalNumericID(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export function useReceptionModalHandlers({
   advanceStatus,
   cancelAppointment,
@@ -126,8 +132,8 @@ export function useReceptionModalHandlers({
             start_time: data.start.toISOString(),
             end_time: (data.end ?? addHours(data.start, 1)).toISOString(),
             visit_type: data.visitType || "first",
-            reservation_type_id: data.type ? Number(data.type) : undefined,
-            doctor_id: data.doctor ? Number(data.doctor) : undefined,
+            reservation_type_id: optionalNumericID(data.type),
+            doctor_id: optionalNumericID(data.doctor),
             is_designated: data.isDesignated ?? false,
             status: data.status || "confirmed",
             notes: data.notes,

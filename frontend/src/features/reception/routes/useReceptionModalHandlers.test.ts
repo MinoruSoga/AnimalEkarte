@@ -110,4 +110,34 @@ describe("useReceptionModalHandlers", () => {
       }),
     );
   });
+
+  it("編集保存では予約区分IDと担当者IDが不正値なら undefined にする", () => {
+    const { result } = renderHandlers();
+
+    act(() => {
+      result.current.handleEditAppointment(baseAppointment);
+    });
+    act(() => {
+      result.current.handleEditSave(
+        {
+          start: new Date("2026-06-01T09:45:00+09:00"),
+          visitType: "revisit",
+          type: "一般診察",
+          doctor: "担当者A",
+        },
+        [],
+      );
+    });
+
+    expect(updateReservationMock).toHaveBeenCalledWith(
+      {
+        id: "101",
+        req: expect.objectContaining({
+          reservation_type_id: undefined,
+          doctor_id: undefined,
+        }),
+      },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
 });
