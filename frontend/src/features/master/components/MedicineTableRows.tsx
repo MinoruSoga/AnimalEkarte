@@ -1,10 +1,12 @@
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
 import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
+import Plus from "lucide-react/dist/esm/icons/plus";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { TableCell } from "@/components/ui/table";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
 
@@ -21,6 +23,107 @@ interface SortableMedicineRowProps {
   onEdit: (medicine: Medicine) => void;
   grouped: boolean;
   canEdit: boolean;
+}
+
+interface MedicineCategoryHeaderRowProps {
+  parentId: string;
+  header: Medicine;
+  itemCount: number;
+  isCollapsed: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  onToggleGroup: (key: string) => void;
+  onEdit: (medicine: Medicine) => void;
+  onCreate: (parentId?: string) => void;
+}
+
+export function MedicineCategoryHeaderRow({
+  parentId,
+  header,
+  itemCount,
+  isCollapsed,
+  canCreate,
+  canEdit,
+  onToggleGroup,
+  onEdit,
+  onCreate,
+}: MedicineCategoryHeaderRowProps) {
+  return (
+    <TableRow
+      onClick={() => onEdit(header)}
+      className={`${STYLE.tableRow} border-b ${C.borderLight} ${C.bgPage30} group/header ${C.hoverBgPage60}`}
+    >
+      <TableCell className="w-8 px-0 py-0">
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={(event) => event.stopPropagation()}
+          className={`${STYLE.iconBtn32} ${C.text20} ${C.hoverBgMedium} ${C.hoverText60} cursor-grab`}
+        >
+          <GripVertical className={ICON.action} />
+        </button>
+      </TableCell>
+
+      <TableCell className="py-0 pl-0 pr-2">
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleGroup(parentId);
+            }}
+            className={`flex items-center gap-1.5 py-1.5 px-1 ${C.hoverBgLight} rounded-[3px] transition-colors`}
+          >
+            <ChevronRight
+              className={`${ICON.xs} ${C.text50} transition-transform duration-150 ${
+                isCollapsed ? "" : "rotate-90"
+              }`}
+            />
+            <span className={`text-base font-medium ${C.text65}`}>
+              {header.name}
+            </span>
+            <span className={`text-base ${C.text40} ml-0.5`}>{itemCount}</span>
+          </button>
+          <div className="flex-1" />
+          {canCreate ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onCreate(parentId);
+              }}
+              className={`${STYLE.iconBtn32} ${C.text40} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100`}
+            >
+              <Plus className={ICON.xs} />
+            </button>
+          ) : null}
+        </div>
+      </TableCell>
+
+      <TableCell className="w-[100px] py-0" />
+      <TableCell className="w-[130px] py-0" />
+      <TableCell className="w-[110px] py-0 text-center">
+        <NotionStatusPill isActive={true} />
+      </TableCell>
+      <TableCell className="w-[80px] py-0 text-center" onClick={(event) => event.stopPropagation()}>
+        {canEdit ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100`}
+              >
+                <MoreHorizontal className={ICON.action} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(header)}>編集</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export function SortableMedicineRow({
