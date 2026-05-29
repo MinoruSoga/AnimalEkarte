@@ -59,6 +59,20 @@ describe("AppointmentCard", () => {
     );
   });
 
+  it("petId 未確定の通常予約は appointmentId を保持してペット選択へ遷移する", () => {
+    renderCard({
+      ...baseAppointment,
+      petId: "",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /ポチのカルテ/ }));
+
+    expect(navigateMock).toHaveBeenCalledWith(
+      "/medical-records/select-pet?appointmentId=101",
+      { state: { from: "/", appointmentId: "101" } },
+    );
+  });
+
   it("トリミング予約はカテゴリで判定し、施術遷移に appointmentId を渡す", () => {
     renderCard({
       ...baseAppointment,
@@ -71,6 +85,23 @@ describe("AppointmentCard", () => {
 
     expect(navigateMock).toHaveBeenCalledWith(
       "/trimming/new?petId=10&appointmentId=202",
+      { state: { from: "/", appointmentId: "202" } },
+    );
+  });
+
+  it("petId 未確定のトリミング予約は appointmentId を保持してペット選択へ遷移する", () => {
+    renderCard({
+      ...baseAppointment,
+      id: "202",
+      petId: "",
+      reservationType: "シャンプーコース",
+      reservationCategory: "trimming",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /ポチのトリミング記録/ }));
+
+    expect(navigateMock).toHaveBeenCalledWith(
+      "/trimming/select-pet?appointmentId=202",
       { state: { from: "/", appointmentId: "202" } },
     );
   });

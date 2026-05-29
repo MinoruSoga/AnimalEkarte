@@ -59,9 +59,11 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
     if (petId) params.set("petId", petId);
     if (appointmentId) params.set("appointmentId", appointmentId);
     if (tab) params.set("tab", tab);
-    const base = petId
-      ? `${paths.medicalRecords.new.getHref()}?${params.toString()}`
+    const query = params.toString();
+    const basePath = petId
+      ? paths.medicalRecords.new.getHref()
       : paths.medicalRecords.selectPet.getHref();
+    const base = query ? `${basePath}?${query}` : basePath;
     navigateAndClose(base, { appointmentId });
   }, [petId, appointmentId, navigateAndClose]);
 
@@ -70,9 +72,10 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
     if (petId) params.set("petId", petId);
     if (appointmentId) params.set("appointmentId", appointmentId);
     const query = params.toString();
-    const path = query
-      ? `${paths.trimming.new.getHref()}?${query}`
-      : paths.trimming.new.getHref();
+    const basePath = petId
+      ? paths.trimming.new.getHref()
+      : paths.trimming.selectPet.getHref();
+    const path = query ? `${basePath}?${query}` : basePath;
     navigateAndClose(path, {
       appointmentId,
     });
@@ -105,7 +108,6 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        aria-describedby="reception-detail-description"
         className={`${LAYOUT.modal.sm} p-0 gap-0 overflow-hidden ${C.bgWhite}`}
       >
         <ReceptionDialogHeader appointment={appointment} currentStatus={currentStatus} />

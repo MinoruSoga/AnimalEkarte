@@ -83,22 +83,18 @@ export const AppointmentCard = memo(function AppointmentCard({
     if (appointment.petId) params.set("petId", appointment.petId);
     if (appointment.id) params.set("appointmentId", appointment.id);
     const query = params.toString();
+    const basePath = isTrimming
+      ? appointment.petId
+        ? paths.trimming.new.getHref()
+        : paths.trimming.selectPet.getHref()
+      : appointment.petId
+        ? paths.medicalRecords.new.getHref()
+        : paths.medicalRecords.selectPet.getHref();
 
-    if (isTrimming) {
-      navigate(
-        query
-          ? `${paths.trimming.new.getHref()}?${query}`
-          : paths.trimming.new.getHref(),
-        { state: { from: "/", appointmentId: appointment.id } },
-      );
-    } else {
-      navigate(
-        query
-          ? `${paths.medicalRecords.new.getHref()}?${query}`
-          : paths.medicalRecords.selectPet.getHref(),
-        { state: { from: "/", appointmentId: appointment.id } },
-      );
-    }
+    navigate(
+      query ? `${basePath}?${query}` : basePath,
+      { state: { from: "/", appointmentId: appointment.id } },
+    );
   }, [navigate, isTrimming, appointment.petId, appointment.id]);
 
   const handleAccountingClick = useCallback((e: React.MouseEvent) => {

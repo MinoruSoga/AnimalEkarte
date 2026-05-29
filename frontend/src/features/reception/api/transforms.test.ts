@@ -107,6 +107,20 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.petType).toBe("柴犬");
   });
 
+  it("pet_id / owner_id が未確定の場合は 0 ではなく空文字にする", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      pet_id: undefined,
+      owner_id: undefined,
+      pet: undefined,
+      owner: undefined,
+      customer_fields: { owner_name: "山田太郎", pets: [{ name: "ハナ", type: "柴犬" }] },
+    });
+
+    expect(result.petId).toBe("");
+    expect(result.ownerId).toBe("");
+  });
+
   it("reservation_type.name を reservationType にマップする", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,

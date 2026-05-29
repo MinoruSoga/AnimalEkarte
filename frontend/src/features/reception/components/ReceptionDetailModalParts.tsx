@@ -69,7 +69,7 @@ export function ReceptionDialogHeader({
           </Badge>
         ) : null}
       </div>
-      <DialogDescription id="reception-detail-description" className="sr-only">
+      <DialogDescription className="sr-only">
         予約の詳細情報
       </DialogDescription>
     </DialogHeader>

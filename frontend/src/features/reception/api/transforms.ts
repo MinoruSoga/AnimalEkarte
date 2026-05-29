@@ -65,6 +65,10 @@ const ANIMAL_SPECIES_MAP: Record<number, string> = {
   9: "その他",
 };
 
+function optionalID(value: number | undefined): string {
+  return value ? String(value) : "";
+}
+
 /** BackendReceptionReservation → ReceptionAppointment 変換 */
 export function transformReservationToReceptionAppointment(
   reservation: BackendReceptionReservation
@@ -94,8 +98,8 @@ export function transformReservationToReceptionAppointment(
     reservationCategory: reservation.reservation_type?.category ?? "general",
     isDesignated: reservation.is_designated,
     doctor: reservation.doctor?.name ?? (reservation.doctor_id ? String(reservation.doctor_id) : undefined),
-    petId: String(reservation.pet_id ?? 0),
-    ownerId: String(reservation.owner_id ?? 0),
+    petId: optionalID(reservation.pet_id),
+    ownerId: optionalID(reservation.owner_id),
     status,
     notes: reservation.notes || undefined,
     source: (reservation.source as "manual" | "line") ?? "manual",
