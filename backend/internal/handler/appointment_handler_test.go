@@ -67,6 +67,14 @@ func newHandlerWithReservationSvc(svc service.ReservationService) *Handler {
 	}}
 }
 
+func newHandlerWithReservationAndMedicalRecordSvc(reservationSvc service.ReservationService, medicalRecordSvc service.MedicalRecordService) *Handler {
+	return &Handler{svc: &service.Services{
+		Reservation:           reservationSvc,
+		MedicalRecord:         medicalRecordSvc,
+		StaffClinicAssignment: &mockStaffClinicAssignmentService{},
+	}}
+}
+
 // mockStaffClinicAssignmentService はテスト用モック。テストで使われるクリニックID（1, 3）すべてに所属を返す。
 type mockStaffClinicAssignmentService struct{}
 
@@ -445,6 +453,79 @@ func TestUpdateReservation(t *testing.T) {
 			tt.setupCtx(c)
 			h.UpdateReservation(c)
 			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+func TestUpdateReservation_AutoCreateMedicalRecord(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name           string
+		reservation    *model.Reservation
+		wantAutoCreate bool
+	}{
+		{
+			name: "creates medical record for general checked-in reservation",
+			reservation: &model.Reservation{
+				ID:              1,
+				ReservationType: &model.ReservationType{Category: model.ReservationTypeCategoryGeneral},
+			},
+			wantAutoCreate: true,
+		},
+		{
+			name: "skips medical record for trimming checked-in reservation",
+			reservation: &model.Reservation{
+				ID:              2,
+				ReservationType: &model.ReservationType{Category: model.ReservationTypeCategoryTrimming},
+			},
+			wantAutoCreate: false,
+		},
+		{
+			name:           "keeps legacy behavior when reservation type is not loaded",
+			reservation:    &model.Reservation{ID: 3},
+			wantAutoCreate: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			autoCreateCalls := 0
+			reservationSvc := &mockReservationService{
+				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.Reservation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, tt.reservation.ID, id)
+					require.NotNil(t, input.Status)
+					assert.Equal(t, model.ReservationStatusCheckedIn, *input.Status)
+					return tt.reservation, nil
+				},
+			}
+			medicalRecordSvc := &mockMedicalRecordService{
+				autoCreateFromReservationFn: func(_ context.Context, clinicID uint64, reservation *model.Reservation) {
+					autoCreateCalls++
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, tt.reservation.ID, reservation.ID)
+				},
+			}
+			h := newHandlerWithReservationAndMedicalRecordSvc(reservationSvc, medicalRecordSvc)
+
+			bodyBytes, err := json.Marshal(map[string]any{"status": string(model.ReservationStatusCheckedIn)})
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: fmt.Sprintf("%d", tt.reservation.ID)}}
+			setClinicID(c)
+
+			h.UpdateReservation(c)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			if tt.wantAutoCreate {
+				assert.Equal(t, 1, autoCreateCalls)
+			} else {
+				assert.Zero(t, autoCreateCalls)
+			}
 		})
 	}
 }

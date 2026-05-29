@@ -8,6 +8,16 @@ import (
 )
 
 func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation) {
+	if reservation == nil {
+		slog.WarnContext(ctx, "autoCreateFromReservation: skipped — reservation is nil")
+		return
+	}
+	if reservation.ReservationType != nil && reservation.ReservationType.Category == model.ReservationTypeCategoryTrimming {
+		slog.InfoContext(ctx, "autoCreateFromReservation: skipped — trimming reservation",
+			slog.Uint64("reservation_id", reservation.ID))
+		return
+	}
+
 	// BUG-386: LINE予約で owner_id / pet_id が未設定の場合、line_customer から補完する
 	if (reservation.PetID == nil || reservation.OwnerID == nil) &&
 		reservation.LineCustomerID != nil &&

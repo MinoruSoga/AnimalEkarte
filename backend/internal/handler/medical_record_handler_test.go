@@ -30,6 +30,7 @@ type mockMedicalRecordService struct {
 	updateFn                     func(ctx context.Context, clinicID, id uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error)
 	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
 	updateRecommendationReasonFn func(ctx context.Context, clinicID, id uint64, input service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error)
+	autoCreateFromReservationFn  func(ctx context.Context, clinicID uint64, reservation *model.Reservation)
 }
 
 func (m *mockMedicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -84,7 +85,10 @@ func (m *mockMedicalRecordService) Delete(ctx context.Context, clinicID, id uint
 func (m *mockMedicalRecordService) CreateSubRecords(_ context.Context, _, _ uint64, _ service.CreateSubRecordsInput) {
 }
 
-func (m *mockMedicalRecordService) AutoCreateFromReservation(_ context.Context, _ uint64, _ *model.Reservation) {
+func (m *mockMedicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation) {
+	if m.autoCreateFromReservationFn != nil {
+		m.autoCreateFromReservationFn(ctx, clinicID, reservation)
+	}
 }
 
 func (m *mockMedicalRecordService) UpdateRecommendationReason(ctx context.Context, clinicID, id uint64, input service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error) {

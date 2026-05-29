@@ -133,12 +133,22 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		return
 	}
 
-	// 受付済みに変更された場合はカルテを best-effort で自動作成する（BE-reception-auto-create-medical-record）
-	if svcInput.Status != nil && *svcInput.Status == model.ReservationStatusCheckedIn {
+	// 受付済みに変更された場合は通常カルテを best-effort で自動作成する（BE-reception-auto-create-medical-record）
+	if shouldAutoCreateMedicalRecordForReservation(svcInput.Status, reservation) && h.svc.MedicalRecord != nil {
 		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
 	}
 
 	c.JSON(http.StatusOK, toReservationResponse(reservation))
+}
+
+func shouldAutoCreateMedicalRecordForReservation(status *model.ReservationStatus, reservation *model.Reservation) bool {
+	if status == nil || *status != model.ReservationStatusCheckedIn || reservation == nil {
+		return false
+	}
+	if reservation.ReservationType != nil && reservation.ReservationType.Category == model.ReservationTypeCategoryTrimming {
+		return false
+	}
+	return true
 }
 
 // DeleteReservation godoc
