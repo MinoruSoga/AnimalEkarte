@@ -555,7 +555,7 @@ erDiagram
 
 - 予約区分カテゴリが `trimming`
 - 既存 appointment に紐付ける場合、同じ appointment に trimming detail が重複しない
-- 新規 appointment を作る場合、予約可能枠・スタッフ対応可能コースを検証する
+- 新規 appointment を作る場合、予約可能枠・スタッフ対応可能コースを検証する（完了）
 
 ## 9. 実装単位
 
@@ -587,6 +587,7 @@ erDiagram
 - 日別例外を設定可能にする（完了: 特定日 `reservation_type_available_slots`）
 - トリミング予約区分で available-times に反映する（完了）
 - `POST /v1/trimmings` で新規 appointment を同時作成する場合も、予約区分カテゴリ `trimming` を必須にする（完了）
+- `POST /v1/trimmings` で新規 appointment を同時作成する場合も、予約可能枠・スタッフ対応可能コースを検証する（完了）
 
 ## 10. 未決事項
 

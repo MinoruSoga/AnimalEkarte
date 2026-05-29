@@ -211,7 +211,18 @@ func newTrimmingTestServiceWithReservationType(
 	detail *mockTrimmingDetailRepository,
 	reservationType *mockTrimmingReservationTypeRepository,
 ) TrimmingService {
-	return NewTrimmingService(reserv, reservationType, detail, &mockTransactor{})
+	return NewTrimmingService(reserv, reservationType, nil, nil, nil, detail, &mockTransactor{})
+}
+
+func newTrimmingTestServiceWithAvailability(
+	reserv *mockTrimmingReservationRepository,
+	detail *mockTrimmingDetailRepository,
+	reservationType *mockTrimmingReservationTypeRepository,
+	reservationStaff repository.ReservationStaffRepository,
+	unavailableTime repository.ReservationTypeUnavailableTimeRepository,
+	availableSlot repository.ReservationTypeAvailableSlotRepository,
+) TrimmingService {
+	return NewTrimmingService(reserv, reservationType, reservationStaff, unavailableTime, availableSlot, detail, &mockTransactor{})
 }
 
 // --- tests ---
@@ -464,6 +475,86 @@ func TestTrimmingService_Create_RejectsNonTrimmingReservationType(t *testing.T) 
 	assert.True(t, apperrors.IsInvalidInput(err))
 	assert.Nil(t, appt)
 	assert.False(t, createCalled)
+}
+
+func TestTrimmingService_Create_RejectsExcludedStaff(t *testing.T) {
+	staffID := uint64(33)
+	reserv := &mockTrimmingReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			t.Fatal("trimming appointment must not be created when staff cannot handle reservation type")
+			return nil
+		},
+	}
+	staffRepo := &mockReservationStaffRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, staffID, id)
+			return &model.Staff{ID: id, IsActive: true}, nil
+		},
+		findExcludedReservationTypesFn: func(_ context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+			assert.Equal(t, uint64(33), staffID)
+			return []model.StaffReservationExclusion{{StaffID: staffID, ReservationTypeID: 9}}, nil
+		},
+	}
+	svc := newTrimmingTestServiceWithAvailability(
+		reserv,
+		&mockTrimmingDetailRepository{},
+		&mockTrimmingReservationTypeRepository{},
+		staffRepo,
+		nil,
+		nil,
+	)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		ReservationTypeID: 9,
+		StartTime:         time.Now(),
+		EndTime:           time.Now().Add(time.Hour),
+		StaffID:           &staffID,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, appt)
+}
+
+func TestTrimmingService_Create_RejectsUnavailableStartSlot(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
+	end := start.Add(time.Hour)
+	reserv := &mockTrimmingReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			t.Fatal("trimming appointment must not be created outside available slots")
+			return nil
+		},
+	}
+	availableSlotRepo := &mockAvailableSlotRepository{
+		findAllFn: func(_ context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(9), reservationTypeID)
+			dayOfWeek := int8(1)
+			return []model.ReservationTypeAvailableSlot{
+				{ReservationTypeID: 9, AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &dayOfWeek, StartTime: "09:45", IsActive: true},
+				{ReservationTypeID: 9, AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &dayOfWeek, StartTime: "12:30", IsActive: true},
+			}, nil
+		},
+	}
+	svc := newTrimmingTestServiceWithAvailability(
+		reserv,
+		&mockTrimmingDetailRepository{},
+		&mockTrimmingReservationTypeRepository{},
+		nil,
+		nil,
+		availableSlotRepo,
+	)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		ReservationTypeID: 9,
+		StartTime:         start,
+		EndTime:           end,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, appt)
 }
 
 func TestTrimmingService_Create_ExistingAppointment(t *testing.T) {

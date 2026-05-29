@@ -65,23 +65,32 @@ type TrimmingService interface {
 }
 
 type trimmingService struct {
-	reservation     repository.ReservationRepository
-	reservationType repository.ReservationTypeRepository
-	trimmingDetail  repository.AppointmentTrimmingDetailRepository
-	transactor      repository.Transactor
+	reservation      repository.ReservationRepository
+	reservationType  repository.ReservationTypeRepository
+	reservationStaff repository.ReservationStaffRepository
+	unavailableTime  repository.ReservationTypeUnavailableTimeRepository
+	availableSlot    repository.ReservationTypeAvailableSlotRepository
+	trimmingDetail   repository.AppointmentTrimmingDetailRepository
+	transactor       repository.Transactor
 }
 
 func NewTrimmingService(
 	reservation repository.ReservationRepository,
 	reservationType repository.ReservationTypeRepository,
+	reservationStaff repository.ReservationStaffRepository,
+	unavailableTime repository.ReservationTypeUnavailableTimeRepository,
+	availableSlot repository.ReservationTypeAvailableSlotRepository,
 	trimmingDetail repository.AppointmentTrimmingDetailRepository,
 	transactor repository.Transactor,
 ) TrimmingService {
 	return &trimmingService{
-		reservation:     reservation,
-		reservationType: reservationType,
-		trimmingDetail:  trimmingDetail,
-		transactor:      transactor,
+		reservation:      reservation,
+		reservationType:  reservationType,
+		reservationStaff: reservationStaff,
+		unavailableTime:  unavailableTime,
+		availableSlot:    availableSlot,
+		trimmingDetail:   trimmingDetail,
+		transactor:       transactor,
 	}
 }
 
@@ -130,6 +139,12 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, apperrors.WrapInvalidInput("start_time and end_time are required")
 	}
 	if err := s.validateTrimmingReservationType(ctx, clinicID, input.ReservationTypeID); err != nil {
+		return nil, err
+	}
+	if err := validateReservationStaffCapability(ctx, s.reservationStaff, clinicID, input.StaffID, input.ReservationTypeID); err != nil {
+		return nil, err
+	}
+	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, s.availableSlot, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
 
@@ -222,6 +237,25 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		return s.GetByID(ctx, clinicID, appointmentID)
 	} else if !apperrors.IsNotFound(err) {
 		return nil, apperrors.Wrap(err, "failed to check existing trimming detail")
+	}
+
+	if input.StaffID != nil {
+		if err := validateReservationStaffCapability(ctx, s.reservationStaff, clinicID, input.StaffID, appt.ReservationTypeID); err != nil {
+			return nil, err
+		}
+	}
+	if !input.StartTime.IsZero() || !input.EndTime.IsZero() {
+		resolvedStart := input.StartTime
+		if resolvedStart.IsZero() {
+			resolvedStart = appt.StartTime
+		}
+		resolvedEnd := input.EndTime
+		if resolvedEnd.IsZero() {
+			resolvedEnd = appt.EndTime
+		}
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, s.availableSlot, clinicID, appt.ReservationTypeID, resolvedStart, resolvedEnd); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
