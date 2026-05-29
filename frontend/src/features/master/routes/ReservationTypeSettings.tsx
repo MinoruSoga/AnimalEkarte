@@ -28,12 +28,18 @@ import {
 } from "../api/reservation-type-groups";
 import type { ReservationTypeGroup } from "../api/reservation-type-groups";
 import type { CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest } from "../api/reservation-type-groups";
-import type { CreateReservationTypeRequest, UpdateReservationTypeRequest } from "@/types/reservation-type";
-import { GroupSidePanel } from "./ReservationTypeGroupSidePanel";
-import type { GroupFormData } from "./ReservationTypeGroupSidePanel";
-import { CategorySidePanel } from "./ReservationTypeSidePanel";
-import type { CategoryFormData } from "./ReservationTypeSidePanel";
+import type { CreateReservationTypeRequest, UpdateReservationTypeRequest } from "../api/reservation-types";
+import { GroupSidePanel } from "../components/ReservationTypeGroupSidePanel";
+import type { GroupFormData } from "../components/ReservationTypeGroupSidePanel";
+import { CategorySidePanel } from "../components/ReservationTypeSidePanel";
+import type { CategoryFormData } from "../components/ReservationTypeSidePanel";
 import { ReservationTypeGroupedTable } from "../components/ReservationTypeGroupedTable";
+import {
+  buildReservationTypeCreateRequest,
+  buildReservationTypeGroupCreateRequest,
+  buildReservationTypeGroupUpdateRequest,
+  buildReservationTypeUpdateRequest,
+} from "./ReservationTypeSettingsModel";
 
 // ─────────────────────────────────────────────────────────────────
 // ReservationTypeSettings
@@ -102,16 +108,8 @@ export function ReservationTypeSettings() {
     createMutation: createGroupMutation,
     updateMutation: updateGroupMutation,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data) => ({
-      name: data.name,
-      color: data.color || undefined,
-      is_active: data.isActive,
-    }),
-    toUpdateRequest: (data) => ({
-      name: data.name,
-      color: data.color || undefined,
-      is_active: data.isActive,
-    }),
+    toCreateRequest: buildReservationTypeGroupCreateRequest,
+    toUpdateRequest: buildReservationTypeGroupUpdateRequest,
   });
 
   const categorySave = useMasterSave<ReservationType, CategoryFormData, CreateReservationTypeRequest, UpdateReservationTypeRequest>({
@@ -119,36 +117,8 @@ export function ReservationTypeSettings() {
     createMutation: createCategoryMutation,
     updateMutation: updateCategoryMutation,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data) => ({
-      name: data.name,
-      description: data.description || undefined,
-      is_active: true,
-      group_id: data.groupId ? Number(data.groupId) : undefined,
-      reservation_display_name: data.reservationDisplayName || undefined,
-      duration_minutes: data.durationMinutes,
-      short_name: data.shortName || undefined,
-      reservation_visible: data.reservationVisible,
-      reservation_comment: data.reservationComment || undefined,
-      reservation_image_url: data.reservationImageUrl || undefined,
-      show_short_name: data.showShortName,
-      reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
-      is_internal: data.isInternal,
-    }),
-    toUpdateRequest: (data) => ({
-      name: data.name,
-      description: data.description || undefined,
-      is_active: data.isActive,
-      group_id: data.groupId ? Number(data.groupId) : undefined,
-      reservation_display_name: data.reservationDisplayName || undefined,
-      duration_minutes: data.durationMinutes,
-      short_name: data.shortName || undefined,
-      reservation_visible: data.reservationVisible,
-      reservation_comment: data.reservationComment || undefined,
-      reservation_image_url: data.reservationImageUrl || undefined,
-      show_short_name: data.showShortName,
-      reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
-      is_internal: data.isInternal,
-    }),
+    toCreateRequest: buildReservationTypeCreateRequest,
+    toUpdateRequest: buildReservationTypeUpdateRequest,
   });
 
   // ── Handler wrappers ───────────────────────────────────────────
