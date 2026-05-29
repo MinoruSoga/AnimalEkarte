@@ -1,8 +1,80 @@
+import UserRound from "lucide-react/dist/esm/icons/user-round";
+import {
+  CONDITIONS_NO_EMPTY,
+  type ActiveFilter,
+  type FilterProperty,
+} from "@/components/shared/NotionFilter/types";
+import { MASTER_STATUS_FILTER } from "../constants/styles";
+import type { Occupation } from "../api/occupations";
+import type { PermissionGroup } from "../api/permission-groups";
 import type {
   CreateStaffRequest,
+  Staff,
   UpdateStaffRequest,
 } from "../api/staffs";
 import type { StaffFormData } from "../components/StaffSidePanelModel";
+
+export function buildStaffIds(staffs: Staff[] | undefined): string[] {
+  return (staffs ?? []).map((staff) => staff.id);
+}
+
+export function buildGroupsByStaffId({
+  staffGroupMap,
+  groups,
+}: {
+  staffGroupMap: Map<string, string[]> | undefined;
+  groups: PermissionGroup[];
+}): Map<string, PermissionGroup[]> {
+  const map = new Map<string, PermissionGroup[]>();
+  if (!staffGroupMap) return map;
+
+  for (const [staffId, groupIds] of staffGroupMap.entries()) {
+    map.set(staffId, groups.filter((group) => groupIds.includes(group.id)));
+  }
+  return map;
+}
+
+export function buildStaffFilterProperties(occupations: Occupation[]): FilterProperty[] {
+  return [
+    MASTER_STATUS_FILTER,
+    {
+      key: "occupationId",
+      label: "職種",
+      type: "select",
+      icon: UserRound,
+      conditions: CONDITIONS_NO_EMPTY,
+      options: occupations
+        .filter((occupation) => occupation.isActive)
+        .map((occupation) => ({ value: occupation.id, label: occupation.name })),
+    },
+  ];
+}
+
+export function searchStaff(staff: Staff, lowerSearchTerm: string): boolean {
+  return (
+    staff.name.toLowerCase().includes(lowerSearchTerm) ||
+    (staff.occupationName?.toLowerCase().includes(lowerSearchTerm) ?? false)
+  );
+}
+
+export function filterStaffByMasterFilters(
+  staff: Staff,
+  filters: ActiveFilter[],
+): boolean {
+  for (const filter of filters) {
+    if (filter.key === "status" && typeof filter.value === "string") {
+      const want = filter.value === "active";
+      if (filter.condition === "is" && staff.isActive !== want) return false;
+      if (filter.condition === "is_not" && staff.isActive === want) return false;
+    }
+
+    if (filter.key === "occupationId" && typeof filter.value === "string") {
+      if (filter.condition === "is" && staff.occupationId !== filter.value) return false;
+      if (filter.condition === "is_not" && staff.occupationId === filter.value) return false;
+    }
+  }
+  return true;
+}
 
 export function buildStaffCreateRequest(data: StaffFormData): CreateStaffRequest {
   return {

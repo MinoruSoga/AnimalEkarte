@@ -6,8 +6,6 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
-import { MASTER_STATUS_FILTER } from "../constants/styles";
-import type { FilterProperty } from "@/components/shared/NotionFilter/types";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { usePermission } from "@/hooks/use-permission";
@@ -26,13 +24,17 @@ import {
   useUpdateStaffPermissionGroups,
 } from "../api/staffs";
 import type { Staff, CreateStaffRequest, UpdateStaffRequest } from "../api/staffs";
-import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
 import { useGetPermissionGroups } from "../api/permission-groups";
 import { useGetAllOccupations } from "../api/occupations";
 import { useGetReservationTypes } from "../api/reservation-types";
 import {
+  buildGroupsByStaffId,
+  buildStaffFilterProperties,
   buildStaffCreateRequest,
+  buildStaffIds,
   buildStaffUpdateRequest,
+  filterStaffByMasterFilters,
+  searchStaff,
 } from "./StaffSettingsModel";
 import { ResourceMasterStaff } from "@/types/generated/models";
 
@@ -85,34 +87,18 @@ export function StaffSettings() {
   const { mutate: setExcludedFn } = setExcludedMutation;
 
   // スタッフ全員の権限グループIDマップ（テーブル表示用）
-  const staffIds = useMemo(() => (data ?? []).map((s) => s.id), [data]);
+  const staffIds = useMemo(() => buildStaffIds(data), [data]);
   const { data: staffGroupMap } = useGetAllStaffPermissionGroupMap(staffIds);
 
   // staffId → PermissionGroup[] のルックアップ
-  const groupsByStaffId = useMemo(() => {
-    const map = new Map<string, typeof allGroups>();
-    if (!staffGroupMap) return map;
-    for (const [staffId, groupIds] of staffGroupMap.entries()) {
-      map.set(staffId, allGroups.filter((g) => groupIds.includes(g.id)));
-    }
-    return map;
-  }, [staffGroupMap, allGroups]);
+  const groupsByStaffId = useMemo(
+    () => buildGroupsByStaffId({ staffGroupMap, groups: allGroups }),
+    [staffGroupMap, allGroups],
+  );
 
   // フィルタの職種選択肢を occupations マスタから動的生成
-  const staffFilterProperties = useMemo<FilterProperty[]>(
-    () => [
-      MASTER_STATUS_FILTER,
-      {
-        key: "occupationId",
-        label: "職種",
-        type: "select",
-        icon: UserRound,
-        conditions: CONDITIONS_NO_EMPTY,
-        options: allOccupations
-          .filter((oc) => oc.isActive)
-          .map((oc) => ({ value: oc.id, label: oc.name })),
-      },
-    ],
+  const staffFilterProperties = useMemo(
+    () => buildStaffFilterProperties(allOccupations),
     [allOccupations],
   );
 
@@ -121,23 +107,8 @@ export function StaffSettings() {
     data,
     deleteMutation,
     entityLabel: "スタッフ",
-    searchFilter: (s, lower) =>
-      s.name.toLowerCase().includes(lower) ||
-      (s.occupationName?.toLowerCase().includes(lower) ?? false),
-    activeFilterApply: (item, filters) => {
-      for (const f of filters) {
-        if (f.key === "status" && typeof f.value === "string") {
-          const want = f.value === "active";
-          if (f.condition === "is" && item.isActive !== want) return false;
-          if (f.condition === "is_not" && item.isActive === want) return false;
-        }
-        if (f.key === "occupationId" && typeof f.value === "string") {
-          if (f.condition === "is" && item.occupationId !== f.value) return false;
-          if (f.condition === "is_not" && item.occupationId === f.value) return false;
-        }
-      }
-      return true;
-    },
+    searchFilter: searchStaff,
+    activeFilterApply: filterStaffByMasterFilters,
     dirtyGuard: dirty,
   });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
