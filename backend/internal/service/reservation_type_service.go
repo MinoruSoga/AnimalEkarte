@@ -68,6 +68,15 @@ type CreateUnavailableTimeInput struct {
 	EndTime         string
 }
 
+// CreateAvailableSlotInput は予約可能開始時刻の作成入力DTO
+type CreateAvailableSlotInput struct {
+	AvailableType string
+	DayOfWeek     *int8
+	SpecificDate  *time.Time
+	StartTime     string
+	IsActive      *bool
+}
+
 // ReservationTypeCoreService は予約種別の CRUD・Reorder を担う。
 type ReservationTypeCoreService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
 	List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
@@ -85,6 +94,13 @@ type ReservationTypeUnavailableTimeService interface { //nolint:revive // Reserv
 	DeleteUnavailableTime(ctx context.Context, clinicID, reservationTypeID, id uint64) error
 }
 
+// ReservationTypeAvailableSlotService は予約可能開始時刻の管理を担う。
+type ReservationTypeAvailableSlotService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
+	ListAvailableSlots(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error)
+	CreateAvailableSlot(ctx context.Context, clinicID, reservationTypeID uint64, input CreateAvailableSlotInput) (*model.ReservationTypeAvailableSlot, error)
+	DeleteAvailableSlot(ctx context.Context, clinicID, reservationTypeID, id uint64) error
+}
+
 // ReservationTypeOccupationService は診療科目ひもづけを担う。
 type ReservationTypeOccupationService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
 	ListOccupations(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
@@ -97,12 +113,14 @@ type ReservationTypeOccupationService interface { //nolint:revive // Reservation
 type ReservationTypeService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
 	ReservationTypeCoreService
 	ReservationTypeUnavailableTimeService
+	ReservationTypeAvailableSlotService
 	ReservationTypeOccupationService
 }
 
 type reservationTypeService struct {
 	repo                repository.ReservationTypeRepository
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository
+	availableSlotRepo   repository.ReservationTypeAvailableSlotRepository
 	occupationRepo      repository.ReservationTypeOccupationRepository
 	baseOccupationRepo  repository.OccupationRepository
 }
@@ -112,10 +130,16 @@ func NewReservationTypeService(
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
 	occupationRepo repository.ReservationTypeOccupationRepository,
 	baseOccupationRepo repository.OccupationRepository,
+	availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository,
 ) ReservationTypeService {
+	var slotRepo repository.ReservationTypeAvailableSlotRepository
+	if len(availableSlotRepo) > 0 {
+		slotRepo = availableSlotRepo[0]
+	}
 	return &reservationTypeService{
 		repo:                repo,
 		unavailableTimeRepo: unavailableTimeRepo,
+		availableSlotRepo:   slotRepo,
 		occupationRepo:      occupationRepo,
 		baseOccupationRepo:  baseOccupationRepo,
 	}

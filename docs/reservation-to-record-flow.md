@@ -385,6 +385,7 @@ UI と仕様上は「対応可能コース」として扱う。
 | `staff_reservation_exclusions` | 現状の対応不可コース | `staff_id`, `reservation_type_id` |
 | `line_reservation_settings` | LINE予約・空き枠設定 | `status`, 営業時間、曜日別営業時間、休診日、日次/月次上限、予約ウィンドウ、時間枠生成設定、指名なし設定、追加入力項目 |
 | `reservation_type_unavailable_times` | 予約区分ごとの予約不可時間 | `reservation_type_id`, `unavailable_type`, `day_of_week`, `specific_date`, `start_time`, `end_time` |
+| `reservation_type_available_slots` | 予約区分ごとの予約可能な開始時刻 | `reservation_type_id`, `available_type`, `day_of_week`, `specific_date`, `start_time`, `is_active` |
 | カルテ配下データ | 通常カルテ入力内容 | `inquiries`, `treatments`, `vitals`, `exams`, `vaccinations`, `checkups`, `estimates`, `billing_confirmations`, `billings` などが `medical_record_id` にぶら下がる |
 
 ### 7.2 現状のリレーション
@@ -408,6 +409,7 @@ erDiagram
   reservation_types ||--o{ reservation_type_occupations : "reservation_type_id"
   occupations ||--o{ reservation_type_occupations : "occupation_id"
   reservation_types ||--o{ reservation_type_unavailable_times : "reservation_type_id"
+  reservation_types ||--o{ reservation_type_available_slots : "reservation_type_id"
   medical_records ||--o{ inquiries : "medical_record_id"
   medical_records ||--o{ treatments : "medical_record_id"
   medical_records ||--o{ vitals : "medical_record_id"
@@ -477,14 +479,14 @@ erDiagram
 
 現状の空き枠は `line_reservation_settings` と `reservation_type_unavailable_times`、スタッフシフト、既存予約で計算している。
 
-トリミング固有の基本枠を持つ場合は、以下のいずれかを選ぶ。
+トリミング固有の基本枠は `reservation_type_available_slots` に許可開始時刻として保存する。
 
 | 方針 | 内容 | 注意点 |
 |---|---|---|
 | 既存モデル拡張 | `reservation_type_unavailable_times` と `duration_minutes` で表現する | 「9:45, 12:30, 日により14:00」のような許可枠は表現しづらい |
-| availability テーブル追加 | 予約区分ごとの許可時間枠を明示的に持つ | API・UI の追加が必要だが仕様は明確 |
+| availability テーブル追加 | 予約区分ごとの許可時間枠を明示的に持つ | 採用済み。予約区分マスタ UI、available-times、予約作成/更新バリデーションに反映する |
 
-候補テーブル:
+採用テーブル:
 
 | テーブル | 役割 | 主なカラム |
 |---|---|---|
@@ -579,22 +581,18 @@ erDiagram
 
 ### Phase 4: トリミング予約枠
 
-- トリミング基本予約時間を設定可能にする
-- 日別例外を設定可能にする
-- トリミング予約区分で available-times に反映する
+- トリミング基本予約時間を設定可能にする（完了: 予約区分ごとの週次 `reservation_type_available_slots`）
+- 日別例外を設定可能にする（完了: 特定日 `reservation_type_available_slots`）
+- トリミング予約区分で available-times に反映する（完了）
 
 ## 10. 未決事項
 
 1. カルテ一覧から直接作成した appointment の初期ステータスを `checked_in` にするか `in_consultation` にするか
-2. 対応可能コースを新テーブルで持つか、既存の対応不可テーブルを読み替えて段階移行するか
-3. トリミング予約枠を `reservation_type_unavailable_times` の拡張で表現するか、新しい availability テーブルを作るか
-4. 通常診療とトリミングの同時予約を、1 appointment で扱うか複数 appointment で扱うか
-5. LINE予約と院内予約で available-times API を共通化するか、院内用に別 API を切るか
-6. `staff_reservation_capabilities` を追加する場合、既存の対応不可データをどう移行するか
-7. `reservation_type_available_slots` を追加する場合、LINE予約と院内予約で同じ枠を使うか
-8. LINE予約で `owner_id` / `pet_id` が未確定の appointment を、受付でどのタイミングで確定必須にするか
-9. 一覧ショートカットで自動作成した appointment の `reservation_route` を `reception` にするか、別値を追加するか
-10. 通常カルテ配下データの保存完了と appointment status 遷移をどこまで連動させるか
+2. 対応可能コースを将来的に `staff_reservation_capabilities` へ移行するか、既存の対応不可テーブル読み替えを継続するか
+3. 通常診療とトリミングの同時予約を、1 appointment で扱うか複数 appointment で扱うか
+4. LINE予約で `owner_id` / `pet_id` が未確定の appointment を、受付でどのタイミングで確定必須にするか
+5. 一覧ショートカットで自動作成した appointment の `reservation_route` を `reception` にするか、別値を追加するか
+6. 通常カルテ配下データの保存完了と appointment status 遷移をどこまで連動させるか
 
 ## 11. 判断メモ
 

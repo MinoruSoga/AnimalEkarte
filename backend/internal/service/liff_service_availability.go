@@ -9,6 +9,7 @@ import (
 	holiday "github.com/holiday-jp/holiday_jp-go"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // GetAvailableDates は予約可能な日付一覧を返す。
@@ -44,6 +45,19 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 			MinCourseDuration: course.DurationMinutes,
 		}
 	}
+	var slotFilterFn func(date time.Time, slots []TimeSlot) []TimeSlot
+	if s.availableSlotRepo != nil {
+		availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
+			return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get available slots")
+		}
+		if hasActiveAvailableSlots(availableSlots) {
+			slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
+				return filterTimeSlotsByAvailableSlots(slots, availableSlots, date)
+			}
+		}
+	}
 
 	datesSettings, err := ParseAvailableDatesSettings(
 		setting.ClosedWeekdays,
@@ -64,6 +78,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		StaffID:        staffID,
 		StaffInputsFn:  staffInputsFn,
 		SlotSettingsFn: slotSettingsFn,
+		SlotFilterFn:   slotFilterFn,
 	})
 	if err != nil {
 		return nil, window, err
@@ -189,5 +204,31 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		slog.ErrorContext(ctx, "failed to generate time slots", "error", err)
 		return nil, apperrors.Wrap(err, "failed to generate time slots")
 	}
-	return result, nil
+	if s.availableSlotRepo == nil {
+		return result, nil
+	}
+	availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get available slots", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get available slots")
+	}
+	if !hasActiveAvailableSlots(availableSlots) {
+		return result, nil
+	}
+	return filterTimeSlotsByAvailableSlots(result, availableSlots, date), nil
+}
+
+func filterTimeSlotsByAvailableSlots(slots []TimeSlot, availableSlots []model.ReservationTypeAvailableSlot, date time.Time) []TimeSlot {
+	applicableSlots := filterApplicableAvailableSlots(availableSlots, date)
+	allowedStarts := make(map[string]struct{}, len(applicableSlots))
+	for i := range applicableSlots {
+		allowedStarts[strings.ReplaceAll(applicableSlots[i].StartTime, ":", "")] = struct{}{}
+	}
+	filtered := make([]TimeSlot, 0, len(slots))
+	for i := range slots {
+		if _, ok := allowedStarts[slots[i].StartTime]; ok {
+			filtered = append(filtered, slots[i])
+		}
+	}
+	return filtered
 }

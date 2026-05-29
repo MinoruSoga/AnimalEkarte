@@ -114,6 +114,32 @@ func (r createUnavailableTimeRequest) toServiceInput() (service.CreateUnavailabl
 	return input, nil
 }
 
+// CreateAvailableSlotRequest は予約可能開始時刻の作成リクエスト
+type createAvailableSlotRequest struct {
+	AvailableType string  `json:"available_type" binding:"required,oneof=weekly specific"`
+	DayOfWeek     *int8   `json:"day_of_week"`
+	SpecificDate  *string `json:"specific_date"` // "YYYY-MM-DD"
+	StartTime     string  `json:"start_time"     binding:"required"`
+	IsActive      *bool   `json:"is_active"`
+}
+
+func (r createAvailableSlotRequest) toServiceInput() (service.CreateAvailableSlotInput, error) {
+	input := service.CreateAvailableSlotInput{
+		AvailableType: r.AvailableType,
+		DayOfWeek:     r.DayOfWeek,
+		StartTime:     r.StartTime,
+		IsActive:      r.IsActive,
+	}
+	if r.SpecificDate != nil {
+		specificDate, err := parseDate(r.SpecificDate)
+		if err != nil {
+			return service.CreateAvailableSlotInput{}, err
+		}
+		input.SpecificDate = specificDate
+	}
+	return input, nil
+}
+
 // LinkOccupationRequest は職種紐付けリクエスト
 type linkOccupationRequest struct {
 	OccupationID uint64 `json:"occupation_id" binding:"required"`

@@ -29,6 +29,7 @@ type Services struct {
 	Insurance                      InsuranceService
 	ReservationType                ReservationTypeCoreService
 	ReservationTypeUnavailableTime ReservationTypeUnavailableTimeService
+	ReservationTypeAvailableSlot   ReservationTypeAvailableSlotService
 	ReservationTypeOccupation      ReservationTypeOccupationService
 	ReservationTypeGroup           ReservationTypeGroupService
 	Consultation                   ConsultationService
@@ -140,9 +141,15 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	// ClosingSettings は CashRegister より先に初期化する（依存関係のため）
 	closingSettingsSvc := NewClosingSettingsService(repos.ClinicSettings, repos.ClosingSpecialPeriod, repos.ClinicHoliday)
 
-	// ReservationTypeService は3サブインターフェースを実装する単一インスタンス。
-	// 同一インスタンスを3フィールドに割り当てることで余分な初期化を避ける。
-	reservationTypeSvc := NewReservationTypeService(repos.ReservationType, repos.ReservationTypeUnavailableTime, repos.ReservationTypeOccupation, repos.Occupation)
+	// ReservationTypeService はサブインターフェースを実装する単一インスタンス。
+	// 同一インスタンスを複数フィールドに割り当てることで余分な初期化を避ける。
+	reservationTypeSvc := NewReservationTypeService(
+		repos.ReservationType,
+		repos.ReservationTypeUnavailableTime,
+		repos.ReservationTypeOccupation,
+		repos.Occupation,
+		repos.ReservationTypeAvailableSlot,
+	)
 
 	// permissionGroupSvc は PermissionGroupService と EffectivePermissionService の両方を実装する。
 	// 同一インスタンスを2フィールドに割り当てることで余分な初期化を避ける。
@@ -167,7 +174,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		AnimalSpecies:                  NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
 		Owner:                          NewOwnerService(repos.Owner, lstepTagSyncSvc, auditSvc),
 		Pet:                            NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepTagSyncSvc),
-		Reservation:                    NewReservationServiceWithAvailability(repos.Reservation, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime),
+		Reservation:                    NewReservationServiceWithAvailability(repos.Reservation, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
 		MedicalRecord:                  NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, nil, auditSvc, lstepTagSyncSvc),
 		MedicalRecordAddendum:          NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, auditSvc),
 		Hospitalization:                NewHospitalizationService(repos),
@@ -184,6 +191,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Insurance:                      NewInsuranceService(repos.Insurance),
 		ReservationType:                reservationTypeSvc,
 		ReservationTypeUnavailableTime: reservationTypeSvc,
+		ReservationTypeAvailableSlot:   reservationTypeSvc,
 		ReservationTypeOccupation:      reservationTypeSvc,
 		ReservationTypeGroup:           NewReservationTypeGroupService(repos.ReservationTypeGroup),
 		Consultation:                   NewConsultationService(repos.Consultation),
@@ -234,7 +242,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ReservationStaffCore:      resStaffSvc,
 		ReservationStaffExclusion: resStaffSvc,
 		ReservationSchedule:       NewReservationScheduleService(repos.ReservationSchedule),
-		ReservationAdmin:          NewReservationAdminServiceWithAvailability(repos.ReservationAdmin, repos.Reservation, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime),
+		ReservationAdmin:          NewReservationAdminServiceWithAvailability(repos.ReservationAdmin, repos.Reservation, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
 		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr),
 		Prescription:              NewPrescriptionService(repos.Prescription, repos.MedicalRecord, lstepTagSyncSvc),
 		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache, repos.LstepTagConfig, lstepSettingsSvc),
@@ -256,6 +264,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			repos.Reservation,
 			notifier,
 			repos.ReservationTypeUnavailableTime,
+			repos.ReservationTypeAvailableSlot,
 			repos.ReservationTypeOccupation,
 			repos.TrimmingCourse,
 			repos.TrimmingOption,

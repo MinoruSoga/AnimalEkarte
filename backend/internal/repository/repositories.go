@@ -77,6 +77,7 @@ type Repositories struct {
 	ReservationAdmin               ReservationAdminRepository
 	LineCustomerMgr                LineCustomerRepository
 	ReservationTypeUnavailableTime ReservationTypeUnavailableTimeRepository
+	ReservationTypeAvailableSlot   ReservationTypeAvailableSlotRepository
 	ReservationTypeOccupation      ReservationTypeOccupationRepository
 	PasswordResetToken             PasswordResetTokenRepository
 	// FEAT-368: 集計・締め機能
@@ -182,6 +183,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		ReservationAdmin:               NewReservationAdminRepository(db),
 		LineCustomerMgr:                NewLineCustomerRepository(db),
 		ReservationTypeUnavailableTime: NewReservationTypeUnavailableTimeRepository(db),
+		ReservationTypeAvailableSlot:   NewReservationTypeAvailableSlotRepository(db),
 		ReservationTypeOccupation:      NewReservationTypeOccupationRepository(db),
 		PasswordResetToken:             NewPasswordResetTokenRepository(db),
 		// FEAT-368: 集計・締め機能

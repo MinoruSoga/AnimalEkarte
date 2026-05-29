@@ -37,6 +37,36 @@ func toUnavailableTimeResponse(t *model.ReservationTypeUnavailableTime) unavaila
 	return resp
 }
 
+// ---- 予約可能開始時刻レスポンス ----
+
+type availableSlotResponse struct {
+	ID                uint64  `json:"id"`
+	ClinicID          uint64  `json:"clinic_id"`
+	ReservationTypeID uint64  `json:"reservation_type_id"`
+	AvailableType     string  `json:"available_type"`
+	DayOfWeek         *int8   `json:"day_of_week,omitempty"`
+	SpecificDate      *string `json:"specific_date,omitempty"` // "YYYY-MM-DD"
+	StartTime         string  `json:"start_time"`
+	IsActive          bool    `json:"is_active"`
+}
+
+func toAvailableSlotResponse(slot *model.ReservationTypeAvailableSlot) availableSlotResponse {
+	resp := availableSlotResponse{
+		ID:                slot.ID,
+		ClinicID:          slot.ClinicID,
+		ReservationTypeID: slot.ReservationTypeID,
+		AvailableType:     string(slot.AvailableType),
+		DayOfWeek:         slot.DayOfWeek,
+		StartTime:         slot.StartTime,
+		IsActive:          slot.IsActive,
+	}
+	if slot.SpecificDate != nil {
+		s := slot.SpecificDate.UTC().Format("2006-01-02")
+		resp.SpecificDate = &s
+	}
+	return resp
+}
+
 // ---- 職種紐付けレスポンス ----
 
 type occupationSummary struct {

@@ -64,10 +64,11 @@ async function getUnavailableTimes(
   clinicId: string,
   reservationTypeId: string,
 ): Promise<ReservationTypeUnavailableTime[]> {
-  const { data } = await axios.get<{ data: ReservationTypeUnavailableTimeRaw[] }>(
+  const { data } = await axios.get<ReservationTypeUnavailableTimeRaw[] | { data: ReservationTypeUnavailableTimeRaw[] }>(
     `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/unavailable-times`,
   );
-  return data.data.map(transformUnavailableTime);
+  const items = Array.isArray(data) ? data : data.data;
+  return items.map(transformUnavailableTime);
 }
 
 async function createUnavailableTime(

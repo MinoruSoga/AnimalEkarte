@@ -35,10 +35,11 @@ type liffService struct {
 	validators          ReservationValidators
 	notifier            ReservationNotifier
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository // BE-117
-	occupationRepo      repository.ReservationTypeOccupationRepository      // BE-117
-	trimmingCourseRepo  repository.TrimmingCourseRepository                 // BE-120
-	trimmingOptionRepo  repository.TrimmingOptionRepository                 // BE-120
-	trimmingDetailRepo  repository.AppointmentTrimmingDetailRepository      // BE-120
+	availableSlotRepo   repository.ReservationTypeAvailableSlotRepository
+	occupationRepo      repository.ReservationTypeOccupationRepository // BE-117
+	trimmingCourseRepo  repository.TrimmingCourseRepository            // BE-120
+	trimmingOptionRepo  repository.TrimmingOptionRepository            // BE-120
+	trimmingDetailRepo  repository.AppointmentTrimmingDetailRepository // BE-120
 }
 
 // NewLiffService はLIFFサービスを初期化して返す。
@@ -54,6 +55,7 @@ func NewLiffService(
 	reservationRepo repository.ReservationRepository,
 	notifier ReservationNotifier,
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo repository.ReservationTypeAvailableSlotRepository,
 	occupationRepo repository.ReservationTypeOccupationRepository,
 	trimmingCourseRepo repository.TrimmingCourseRepository,
 	trimmingOptionRepo repository.TrimmingOptionRepository,
@@ -71,6 +73,7 @@ func NewLiffService(
 		validators:          NewReservationValidators(tx, reservationRepo),
 		notifier:            notifier,
 		unavailableTimeRepo: unavailableTimeRepo,
+		availableSlotRepo:   availableSlotRepo,
 		occupationRepo:      occupationRepo,
 		trimmingCourseRepo:  trimmingCourseRepo,
 		trimmingOptionRepo:  trimmingOptionRepo,

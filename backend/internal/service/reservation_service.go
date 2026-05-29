@@ -104,6 +104,7 @@ type reservationService struct {
 	tx                   repository.Transactor
 	reservationStaffRepo repository.ReservationStaffRepository
 	unavailableTimeRepo  repository.ReservationTypeUnavailableTimeRepository
+	availableSlotRepo    repository.ReservationTypeAvailableSlotRepository
 }
 
 func NewReservationService(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo ...repository.ReservationStaffRepository) ReservationService {
@@ -114,12 +115,17 @@ func NewReservationService(repo repository.ReservationRepository, tx repository.
 	return &reservationService{repo: repo, tx: tx, reservationStaffRepo: staffRepo}
 }
 
-func NewReservationServiceWithAvailability(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository) ReservationService {
+func NewReservationServiceWithAvailability(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationService {
+	var slotRepo repository.ReservationTypeAvailableSlotRepository
+	if len(availableSlotRepo) > 0 {
+		slotRepo = availableSlotRepo[0]
+	}
 	return &reservationService{
 		repo:                 repo,
 		tx:                   tx,
 		reservationStaffRepo: reservationStaffRepo,
 		unavailableTimeRepo:  unavailableTimeRepo,
+		availableSlotRepo:    slotRepo,
 	}
 }
 
@@ -148,7 +154,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
-	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
 	reservation := &model.Reservation{
@@ -341,7 +347,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		if input.ReservationTypeID != nil {
 			resolvedReservationTypeID = *input.ReservationTypeID
 		}
-		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
 			return nil, err
 		}
 	}

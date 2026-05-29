@@ -88,6 +88,10 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.GET("/reservation-types/:id/unavailable-times", perm(model.ResourceMasterReservationType, "view"), h.ListUnavailableTimes)
 	masters.POST("/reservation-types/:id/unavailable-times", perm(model.ResourceMasterReservationType, "edit"), h.CreateUnavailableTime)
 	masters.DELETE("/reservation-types/:id/unavailable-times/:unavailable_time_id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteUnavailableTime)
+	// 予約可能開始時刻
+	masters.GET("/reservation-types/:id/available-slots", perm(model.ResourceMasterReservationType, "view"), h.ListAvailableSlots)
+	masters.POST("/reservation-types/:id/available-slots", perm(model.ResourceMasterReservationType, "edit"), h.CreateAvailableSlot)
+	masters.DELETE("/reservation-types/:id/available-slots/:available_slot_id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteAvailableSlot)
 	// 職種紐付け
 	masters.GET("/reservation-types/:id/occupations", perm(model.ResourceMasterReservationType, "view"), h.ListReservationTypeOccupations)
 	masters.POST("/reservation-types/:id/occupations", perm(model.ResourceMasterReservationType, "edit"), h.LinkReservationTypeOccupation)

@@ -2248,6 +2248,12 @@ export type UnavailableType = string;
 export const UnavailableTypeWeekly: UnavailableType = "weekly";
 export const UnavailableTypeSpecific: UnavailableType = "specific";
 /**
+ * AvailableSlotType は予約可能枠の種別
+ */
+export type AvailableSlotType = string;
+export const AvailableSlotTypeWeekly: AvailableSlotType = "weekly";
+export const AvailableSlotTypeSpecific: AvailableSlotType = "specific";
+/**
  * ReservationType はサービス種別（予約区分）マスタ
  */
 export interface ReservationType {
@@ -2285,6 +2291,7 @@ export interface ReservationType {
    * Relations（BE-115）
    */
   unavailable_times?: ReservationTypeUnavailableTime[];
+  available_slots?: ReservationTypeAvailableSlot[];
   occupations?: ReservationTypeOccupation[];
 }
 /**
@@ -2299,6 +2306,21 @@ export interface ReservationTypeUnavailableTime {
   specific_date?: string; // specific のみ
   start_time: string; // "HH:MM"
   end_time: string; // "HH:MM"
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * ReservationTypeAvailableSlot は予約区分の予約可能な開始時刻
+ */
+export interface ReservationTypeAvailableSlot {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  reservation_type_id: number /* uint64 */;
+  available_type: AvailableSlotType;
+  day_of_week?: number /* int8 */; // 0=Sun..6=Sat（weekly のみ）
+  specific_date?: string; // specific のみ
+  start_time: string; // "HH:MM"
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
