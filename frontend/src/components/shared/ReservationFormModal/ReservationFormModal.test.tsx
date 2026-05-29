@@ -332,6 +332,9 @@ describe("ReservationFormModal — 担当者候補", () => {
           },
         ])
       ),
+      http.get("/api/v1/clinics/1/reservation-types/5/unavailable-times", () =>
+        HttpResponse.json({ data: [] })
+      ),
       http.get("/api/v1/masters/reservation-types", () =>
         HttpResponse.json([
           {
@@ -375,5 +378,91 @@ describe("ReservationFormModal — 担当者候補", () => {
       expect(screen.getByRole("option", { name: "対応スタッフ" })).toBeInTheDocument();
     });
     expect(screen.queryByRole("option", { name: "非対応スタッフ" })).not.toBeInTheDocument();
+  }, 15000);
+});
+
+describe("ReservationFormModal — 予約不可時間", () => {
+  it("選択した予約区分の予約不可時間を開始時刻候補から除外する", async () => {
+    localStorage.setItem("auth_current_clinic:v1", "1");
+    server.use(
+      http.get("/api/v1/clinic-holidays", () => HttpResponse.json([])),
+      http.get("/api/v1/pets", () => HttpResponse.json({ data: [] })),
+      http.get("/api/v1/masters/animal-species", () => HttpResponse.json([])),
+      http.get("/api/v1/masters/staffs", () => HttpResponse.json([])),
+      http.get("/api/v1/shifts/on-duty-staffs", () => HttpResponse.json([])),
+      http.get("/api/v1/clinics/1/reservation-staffs", () => HttpResponse.json([])),
+      http.get("/api/v1/clinics/1/reservation-types/5/unavailable-times", () =>
+        HttpResponse.json({
+          data: [
+            {
+              id: 1,
+              clinic_id: 1,
+              reservation_type_id: 5,
+              unavailable_type: "specific",
+              specific_date: "2026-06-01",
+              start_time: "10:00",
+              end_time: "11:00",
+              created_at: "2026-05-29T00:00:00Z",
+              updated_at: "2026-05-29T00:00:00Z",
+            },
+          ],
+        })
+      ),
+      http.get("/api/v1/masters/reservation-types", () =>
+        HttpResponse.json([
+          {
+            id: 5,
+            name: "トリミング",
+            color: "#111111",
+            is_active: true,
+            duration_minutes: 60,
+            sort_order: 1,
+            is_internal: false,
+            category: "trimming",
+            group_id: null,
+            group: null,
+          },
+        ])
+      )
+    );
+
+    const user = userEvent.setup({ delay: null });
+    const initialData: Partial<Reservation> = {
+      start: new Date(2026, 5, 1, 9, 0, 0),
+      end: new Date(2026, 5, 1, 9, 30, 0),
+      visitType: "revisit",
+      doctor: "",
+      isDesignated: false,
+      status: "confirmed",
+    };
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={initialData}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    await user.click(screen.getByTestId("res-type-trigger"));
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "トリミング" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("option", { name: "トリミング" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("res-start-time-trigger")).toHaveTextContent("9:00");
+    });
+    await user.click(screen.getByTestId("res-start-time-trigger"));
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "9:45" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("option", { name: "10:00" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "10:45" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "11:00" })).toBeInTheDocument();
   }, 15000);
 });

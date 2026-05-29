@@ -61,7 +61,7 @@ const fetchOnDutyStaffs = async (date: string): Promise<OnDutyStaff[]> => {
   return data;
 };
 
-const getCurrentClinicId = (): string => {
+export const getCurrentClinicId = (): string => {
   try {
     return localStorage.getItem("auth_current_clinic:v1") ?? "";
   } catch {

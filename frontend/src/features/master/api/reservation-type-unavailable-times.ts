@@ -47,8 +47,10 @@ export type CreateUnavailableTimeRequest = {
 // Query keys
 // ─────────────────────────────────────────────────
 
-const unavailableTimesKey = (reservationTypeId: string) => [
+const unavailableTimesKey = (clinicId: string, reservationTypeId: string) => [
   "masters",
+  "clinics",
+  clinicId,
   "reservation-types",
   reservationTypeId,
   "unavailable-times",
@@ -95,8 +97,9 @@ async function deleteUnavailableTime(
 
 export function useGetUnavailableTimes(clinicId: string, reservationTypeId: string) {
   return useQuery({
-    queryKey: unavailableTimesKey(reservationTypeId),
+    queryKey: unavailableTimesKey(clinicId, reservationTypeId),
     queryFn: () => getUnavailableTimes(clinicId, reservationTypeId),
+    enabled: clinicId !== "" && reservationTypeId !== "",
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });
@@ -108,7 +111,7 @@ export function useCreateUnavailableTime(clinicId: string, reservationTypeId: st
     mutationFn: (req: CreateUnavailableTimeRequest) =>
       createUnavailableTime(clinicId, reservationTypeId, req),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: unavailableTimesKey(reservationTypeId) }),
+      queryClient.invalidateQueries({ queryKey: unavailableTimesKey(clinicId, reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "予約不可時間の作成"),
   });
 }
@@ -118,7 +121,7 @@ export function useDeleteUnavailableTime(clinicId: string, reservationTypeId: st
   return useMutation({
     mutationFn: (id: number) => deleteUnavailableTime(clinicId, reservationTypeId, id),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: unavailableTimesKey(reservationTypeId) }),
+      queryClient.invalidateQueries({ queryKey: unavailableTimesKey(clinicId, reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "予約不可時間の削除"),
   });
 }

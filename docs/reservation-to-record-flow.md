@@ -66,6 +66,7 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 
 - 予約フォームは時刻を 15 分刻みで直接選択する
 - LINE予約向けの空き枠計算 API は使っていない
+- 予約区分が選択されている場合、開始時刻候補は `reservation_type_unavailable_times` の週次／特定日設定を除外して表示する
 - 担当者候補は選択日の出勤スタッフに絞る
 - 予約区分を選択している場合、`staff_reservation_exclusions` にその予約区分が登録されているスタッフは院内予約フォームの担当者候補から除外する
 - 院内予約作成・更新 API 側でも、担当者が選択されている場合は `staff_reservation_exclusions` を最終検証する

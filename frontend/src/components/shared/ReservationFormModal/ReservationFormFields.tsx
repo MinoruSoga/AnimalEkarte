@@ -12,7 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/hooks/use-master-items";
-import { useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs } from "@/hooks/use-reservation-types";
+import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs } from "@/hooks/use-reservation-types";
+import { useGetUnavailableTimes, type ReservationTypeUnavailableTime } from "@/features/master/api/reservation-type-unavailable-times";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { isOneOf } from "@/lib/type-utils";
 import type { Reservation } from "@/types";
@@ -34,6 +35,36 @@ function generateTimeOptions(): string[] {
 }
 
 const TIME_OPTIONS = generateTimeOptions();
+
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function getApplicableUnavailableTimes(
+  times: ReservationTypeUnavailableTime[],
+  date: Date | undefined,
+): ReservationTypeUnavailableTime[] {
+  if (!date) return [];
+  const dateStr = format(date, "yyyy-MM-dd");
+  const specific = times.filter(
+    (time) => time.unavailableType === "specific" && time.specificDate === dateStr,
+  );
+  if (specific.length > 0) return specific;
+  const dayOfWeek = date.getDay();
+  return times.filter(
+    (time) => time.unavailableType === "weekly" && time.dayOfWeek === dayOfWeek,
+  );
+}
+
+function isStartTimeUnavailable(time: string, unavailableTimes: ReservationTypeUnavailableTime[]): boolean {
+  const minutes = timeToMinutes(time);
+  return unavailableTimes.some(
+    (unavailableTime) =>
+      minutes >= timeToMinutes(unavailableTime.startTime) &&
+      minutes < timeToMinutes(unavailableTime.endTime),
+  );
+}
 
 interface FieldLabelProps {
   children: React.ReactNode;
@@ -96,6 +127,19 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   const selectedReservationTypeId = formData.type ? String(formData.type) : null;
   const { data: onDutyStaffs } = useGetOnDutyStaffs(selectedDateStr);
   const { data: reservationStaffs } = useGetReservationStaffs();
+  const currentClinicId = getCurrentClinicId();
+  const { data: unavailableTimes = [] } = useGetUnavailableTimes(
+    currentClinicId,
+    selectedReservationTypeId ?? "",
+  );
+  const applicableUnavailableTimes = useMemo(
+    () => getApplicableUnavailableTimes(unavailableTimes, formData.start),
+    [unavailableTimes, formData.start],
+  );
+  const startTimeOptions = useMemo(
+    () => TIME_OPTIONS.filter((time) => !isStartTimeUnavailable(time, applicableUnavailableTimes)),
+    [applicableUnavailableTimes],
+  );
   const reservationStaffMap = useMemo(() => {
     if (reservationStaffs === undefined) return undefined;
     return new Map(reservationStaffs.map((staff) => [String(staff.id), staff]));
@@ -190,11 +234,11 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                 onChange({ ...formData, start: newStart });
               }}
             >
-              <SelectTrigger className={TRIGGER_CLASS}>
+              <SelectTrigger data-testid="res-start-time-trigger" className={TRIGGER_CLASS}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="max-h-[200px]">
-                {TIME_OPTIONS.map((time) => (
+                {startTimeOptions.map((time) => (
                   <SelectItem key={time} value={time}>
                     {time}
                   </SelectItem>
@@ -212,7 +256,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                 onChange({ ...formData, end: newEnd });
               }}
             >
-              <SelectTrigger className={TRIGGER_CLASS}>
+              <SelectTrigger data-testid="res-end-time-trigger" className={TRIGGER_CLASS}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="max-h-[200px]">
