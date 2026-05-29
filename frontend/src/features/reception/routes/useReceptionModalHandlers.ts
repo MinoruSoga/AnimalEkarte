@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { addHours, format } from "date-fns";
+import { addHours } from "date-fns";
 import { toast } from "sonner";
 
 import type { Pet, Reservation } from "@/types";
@@ -11,6 +11,24 @@ interface UseReceptionModalHandlersParams {
   advanceStatus: (appointment: ReceptionAppointment) => unknown;
   cancelAppointment: (appointmentId: string) => unknown;
   updateAppointment: (appointment: ReceptionAppointment) => unknown;
+}
+
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function formatJSTDate(date: Date): string {
+  const jstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}`;
+}
+
+function formatJSTTime(date: Date): string {
+  const jstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  return `${padDatePart(jstDate.getUTCHours())}:${padDatePart(jstDate.getUTCMinutes())}`;
+}
+
+function buildAppointmentDateTime(visitDate: string, time: string): Date {
+  return new Date(`${visitDate}T${time}:00+09:00`);
 }
 
 export function useReceptionModalHandlers({
@@ -52,9 +70,7 @@ export function useReceptionModalHandlers({
   }, [selectedAppointmentId, advanceStatus]);
 
   const handleEditAppointment = useCallback((appointment: ReceptionAppointment) => {
-    const now = new Date();
-    const [hours, minutes] = appointment.time.split(":").map(Number);
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+    const start = buildAppointmentDateTime(appointment.visitDate, appointment.time);
 
     const reservationFormData: Partial<Reservation> = {
       id: appointment.id,
@@ -82,8 +98,8 @@ export function useReceptionModalHandlers({
 
       const updatedAppointment: ReceptionAppointment = {
         id: editingAppointmentId,
-        time: format(data.start, "HH:mm"),
-        visitDate: format(data.start, "yyyy-MM-dd"),
+        time: formatJSTTime(data.start),
+        visitDate: formatJSTDate(data.start),
         ownerName: selectedPets[0]?.ownerName || data.ownerName || "",
         petName: selectedPets[0]?.name || data.petName || "",
         petType: selectedPets[0]?.species || "犬",
