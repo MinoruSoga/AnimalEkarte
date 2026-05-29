@@ -132,6 +132,21 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     idSet: excludedIdSet,
     handleToggle: handleExcludedToggle,
   } = useEditableIdSelection({ serverIds: serverExcludedIds, markDirty });
+  const capableReservationTypeIdSet = useMemo(
+    () =>
+      new Set(
+        activeReservationTypes
+          .filter((type) => !excludedIdSet.has(type.id))
+          .map((type) => type.id),
+      ),
+    [activeReservationTypes, excludedIdSet],
+  );
+  const handleCapabilityToggle = useCallback(
+    (reservationTypeId: string, checked: boolean) => {
+      handleExcludedToggle(reservationTypeId, !checked);
+    },
+    [handleExcludedToggle],
+  );
 
   const handleSave = useCallback(() => {
     if (!formData.name.trim()) {
@@ -265,9 +280,9 @@ export const StaffSidePanel = memo(function StaffSidePanel({
       <StaffExcludedReservationTypesSection
         activeReservationTypes={activeReservationTypes}
         allReservationTypes={allReservationTypes}
-        excludedIdSet={excludedIdSet}
+        capableIdSet={capableReservationTypeIdSet}
         isNew={isNew}
-        onToggle={handleExcludedToggle}
+        onToggle={handleCapabilityToggle}
       />
 
       <StaffClinicsSection

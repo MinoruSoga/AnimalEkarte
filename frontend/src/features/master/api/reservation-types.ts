@@ -35,6 +35,7 @@ function transformReservationType(data: ModelReservationType) {
     reservationImageUrl: data.reservation_image_url ?? "",
     reservationDayOption: data.reservation_day_option ?? "none",
     isInternal: data.is_internal ?? false,
+    category: data.category ?? "general",
   };
 }
 

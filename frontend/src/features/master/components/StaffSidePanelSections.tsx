@@ -1,5 +1,5 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { Ban, Building2, MessageCircle, Shield } from "lucide-react";
+import { Building2, CheckCircle2, MessageCircle, Shield } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -88,7 +88,7 @@ export function StaffLineReservationSection({ formData, setFormDataDirty }: Staf
 interface StaffExcludedReservationTypesSectionProps {
   activeReservationTypes: ReservationType[];
   allReservationTypes: ReservationType[];
-  excludedIdSet: Set<string>;
+  capableIdSet: Set<string>;
   isNew: boolean;
   onToggle: (reservationTypeId: string, checked: boolean) => void;
 }
@@ -161,25 +161,83 @@ function StaffCheckboxSection<T extends StaffCheckboxItem>({
   );
 }
 
-export function StaffExcludedReservationTypesSection({ activeReservationTypes, allReservationTypes, excludedIdSet, isNew, onToggle }: StaffExcludedReservationTypesSectionProps) {
+function reservationCategoryLabel(category: string): string {
+  switch (category) {
+    case "trimming":
+      return "トリミング";
+    case "hospitalization":
+      return "入院・ホテル";
+    case "general":
+    case "medical":
+      return "診療";
+    default:
+      return "その他";
+  }
+}
+
+export function StaffExcludedReservationTypesSection({
+  activeReservationTypes,
+  allReservationTypes,
+  capableIdSet,
+  isNew,
+  onToggle,
+}: StaffExcludedReservationTypesSectionProps) {
+  const grouped = activeReservationTypes.reduce<Map<string, ReservationType[]>>(
+    (acc, reservationType) => {
+      const label = reservationCategoryLabel(reservationType.category);
+      const group = acc.get(label) ?? [];
+      group.push(reservationType);
+      acc.set(label, group);
+      return acc;
+    },
+    new Map(),
+  );
+
   return (
-    <StaffCheckboxSection
-      title="対応不可コース"
-      icon={<Ban className={`${ICON.xs} ${C.text50}`} />}
-      items={activeReservationTypes}
-      selectedIdSet={excludedIdSet}
-      isNew={isNew}
-      newMessage="スタッフ登録後に設定できます"
-      isEmpty={allReservationTypes.length === 0}
-      emptyMessage="予約区分が登録されていません"
-      onToggle={onToggle}
-      renderLeading={(reservationType) => (
-        <span
-          className={`${ICON.dotMd} rounded-full shrink-0`}
-          style={{ backgroundColor: reservationType.color }}
-        />
+    <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
+      <div className="flex items-center gap-1.5 mb-2">
+        <CheckCircle2 className={`${ICON.xs} ${C.text50}`} />
+        <p className={`text-xs font-medium ${C.text50}`}>対応可能コース</p>
+      </div>
+
+      {isNew ? (
+        <p className={`text-xs ${C.text50} pl-0.5`}>
+          スタッフ登録後に設定できます
+        </p>
+      ) : allReservationTypes.length === 0 ? (
+        <p className={`text-xs ${C.text50} pl-0.5`}>
+          予約区分が登録されていません
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {Array.from(grouped.entries()).map(([label, reservationTypes]) => (
+            <div key={label} className="space-y-0.5">
+              <p className={`text-[11px] font-medium ${C.text40} px-0.5`}>
+                {label}
+              </p>
+              {reservationTypes.map((reservationType) => (
+                <label
+                  key={reservationType.id}
+                  className={`flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer ${C.hoverBgLight} transition-colors`}
+                >
+                  <Checkbox
+                    checked={capableIdSet.has(reservationType.id)}
+                    onCheckedChange={(checked) =>
+                      onToggle(reservationType.id, checked === true)
+                    }
+                  />
+                  <span
+                    className={`${ICON.dotMd} rounded-full shrink-0`}
+                    style={{ backgroundColor: reservationType.color }}
+                  />
+                  <span className="text-sm">{reservationType.name}</span>
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
       )}
-    />
+    </div>
   );
 }
 
