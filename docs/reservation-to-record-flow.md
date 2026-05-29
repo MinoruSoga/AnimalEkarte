@@ -79,12 +79,12 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 
 現状の仕様として、受付カンバンは当日 `appointments` を表示し、既存 appointment の status を進める。
 
-現状の課題:
+解消済みの課題:
 
 - 予約あり来院は既存 `appointments` の status を進める
-- 予約なし来院や飛び込みを受付から作る場合の仕様が弱い
-- 通常診療かトリミングかの判定が予約区分名の文字列に寄りやすい
-- トリミングカードからのカルテ遷移ステータスが通常カルテと揃っていない
+- 予約なし来院や飛び込みを受付から作る場合は、当日 `appointments` を `checked_in` / `reservation_route = reception` として作成する
+- 通常診療かトリミングかの判定は `reservation_types.category` に寄せる
+- トリミングカードからのカルテ遷移は通常カルテと同じく `checked_in` の受付済カードから行う
 
 ### 3.4 受付カンバン表示
 
@@ -148,11 +148,11 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 - `reservation_types.category = trimming` の予約区分として扱われる
 - 受付では通常カルテではなくトリミングカルテ作成／入力へ誘導する
 
-現状の課題:
+解消済みの課題:
 
 - 作成後に受付カンバン側のキャッシュが更新されないと、即時反映されない
 - デフォルト日付が UTC ベースになると、JST 早朝に前日扱いになる
-- 既存の当日 trimming appointment を再利用する仕様が弱い
+- 既存の当日 trimming appointment を再利用する
 
 ### 3.8 空き枠計算
 
@@ -324,7 +324,7 @@ UI と仕様上は「対応可能コース」として扱う。
 | `GET /v1/reservations/available-times?reservation_type_id=&date=&staff_id=` | 院内予約フォーム用の空き時間取得 |
 | `GET /v1/reservations/available-staffs?reservation_type_id=&date=&start_time=&end_time=` | 選択枠に対応可能なスタッフ取得 |
 
-既存の LIFF API をそのまま使うか、院内用 API として切り出すかは要検討。
+院内予約フォームでは、院内用の空き枠 API として切り出した `GET /v1/reservations/available-times` を使う。
 
 ## 6. 画面別の改善仕様
 
@@ -522,6 +522,8 @@ erDiagram
 - 競合予約がない
 - LINE予約の場合、`line_customer_id` / `customer_fields` / `is_staff_delegated` を保持する
 - 院内予約の場合、`reservation_route` / `actual_reservation_at` を必要に応じて保持する
+
+ただし、当日の受付・診察室・カルテ一覧・トリミング一覧から作る実来院中の appointment は、予約枠を確保する操作ではなく業務状態を表すレコード作成である。そのため `checked_in` / `in_consultation` などの実来院ステータスでは、予約可能枠・予約競合の制約を予約作成時に適用しない。スタッフ対応可能コースの検証は引き続き適用する。
 
 ### カルテ作成
 

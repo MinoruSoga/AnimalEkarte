@@ -152,7 +152,7 @@ export function useTrimmingForm(id?: string) {
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
   const existingLookupDate = visitDateFromState ?? formatJSTDate(new Date());
   const lookupPetId = petId ?? selectedPets[0]?.id ?? "";
-  const { data: sameDayTrimmings = [] } = useGetTrimmings({
+  const { data: sameDayTrimmings = [], isLoading: isSameDayTrimmingsLoading } = useGetTrimmings({
     startDate: existingLookupDate,
     endDate: existingLookupDate,
     petId: lookupPetId,
@@ -334,6 +334,9 @@ export function useTrimmingForm(id?: string) {
             endDate,
             Number.isFinite(appointmentIdFromState) ? appointmentIdFromState : reusableAppointmentId,
           );
+          if (!hasExistingAppointment) {
+            req.status = "in_consultation";
+          }
           await createMutation.mutateAsync(req);
           localStorage.removeItem(DRAFT_KEY);
           toast.success("トリミング情報を登録しました");
@@ -422,7 +425,7 @@ export function useTrimmingForm(id?: string) {
   const isDeleting = deleteMutation.isPending;
   const mode = isEdit ? ("edit" as const) : ("new" as const);
 
-  const isLoading = isEdit ? isTrimmingLoading : isPetLoading || isAppointmentLoading;
+  const isLoading = isEdit ? isTrimmingLoading : isPetLoading || isAppointmentLoading || isSameDayTrimmingsLoading;
   const notFound = isEdit && !isTrimmingLoading && !existingTrimming && !!id;
 
   return {

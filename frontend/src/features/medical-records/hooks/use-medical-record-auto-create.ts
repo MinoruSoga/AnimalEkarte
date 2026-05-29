@@ -27,6 +27,7 @@ interface UseMedicalRecordAutoCreateParams {
   hasAutoCreatedRef: MutableRefObject<boolean>;
   appointmentIdFromState: string | undefined;
   reusableAppointment: ReservationUI | undefined;
+  isReusableAppointmentLoading: boolean;
   visitDateFromState: string | undefined;
   generalReservationType: MedicalRecordReservationType | undefined;
   createReservationMutation: AsyncMutation<CreateReservationRequest, Reservation>;
@@ -43,6 +44,7 @@ export function useMedicalRecordAutoCreate({
   hasAutoCreatedRef,
   appointmentIdFromState,
   reusableAppointment,
+  isReusableAppointmentLoading,
   visitDateFromState,
   generalReservationType,
   createReservationMutation,
@@ -55,6 +57,7 @@ export function useMedicalRecordAutoCreate({
   useEffect(() => {
     if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;
     if (!appointmentIdFromState && !generalReservationType) return;
+    if (!appointmentIdFromState && isReusableAppointmentLoading) return;
     hasAutoCreatedRef.current = true;
 
     startCreateTransition(async () => {
@@ -96,5 +99,5 @@ export function useMedicalRecordAutoCreate({
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run only when isNewRecord or petId changes; createMutation/navigate/visitType are stable references
-  }, [isNewRecord, selectedPet?.id, appointmentIdFromState, reusableAppointment?.id, visitDateFromState, generalReservationType?.id]);
+  }, [isNewRecord, selectedPet?.id, appointmentIdFromState, reusableAppointment?.id, isReusableAppointmentLoading, visitDateFromState, generalReservationType?.id]);
 }

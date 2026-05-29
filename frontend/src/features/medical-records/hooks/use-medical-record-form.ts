@@ -126,7 +126,7 @@ export function useMedicalRecordForm(recordId?: string) {
   const { data: reservationTypeGroups } = useGetReservationTypesGrouped();
   const generalReservationType = findGeneralReservationType(reservationTypeGroups, visitType);
   const appointmentLookupDate = visitDateFromState ?? formatJSTDate(new Date());
-  const { data: sameDayAppointments = [] } = useGetReservations({
+  const { data: sameDayAppointments = [], isLoading: isSameDayAppointmentsLoading } = useGetReservations({
     date: appointmentLookupDate,
     petId: resolvedPetId,
     enabled: isNewRecord && !appointmentIdFromState && resolvedPetId !== "",
@@ -270,6 +270,7 @@ export function useMedicalRecordForm(recordId?: string) {
     hasAutoCreatedRef,
     appointmentIdFromState,
     reusableAppointment,
+    isReusableAppointmentLoading: isSameDayAppointmentsLoading,
     visitDateFromState,
     generalReservationType,
     createReservationMutation,

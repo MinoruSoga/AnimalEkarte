@@ -655,6 +655,37 @@ describe("useMedicalRecordForm", () => {
       });
     });
 
+    it("一覧新規作成では当日 appointment 検索中に自動作成しない", async () => {
+      mockSearchParams = new URLSearchParams({ petId: "5", visitDate: "2026-06-01" });
+      vi.mocked(useGetPet).mockReturnValue({
+        data: mockPet,
+        isLoading: false,
+        isError: false,
+      });
+      vi.mocked(useGetReservations).mockReturnValue({
+        data: [],
+        isLoading: true,
+      } as ReturnType<typeof useGetReservations>);
+
+      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+      vi.mocked(useCreateMedicalRecord).mockReturnValue({
+        mutateAsync: mockCreateRecord,
+        isPending: false,
+      } as ReturnType<typeof useCreateMedicalRecord>);
+      const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
+      vi.mocked(useCreateReservation).mockReturnValue({
+        mutateAsync: mockCreateReservation,
+        isPending: false,
+      } as ReturnType<typeof useCreateReservation>);
+
+      await act(async () => {
+        renderHook(() => useMedicalRecordForm());
+      });
+
+      expect(mockCreateReservation).not.toHaveBeenCalled();
+      expect(mockCreateRecord).not.toHaveBeenCalled();
+    });
+
     it("isNewRecord && selectedPet あり → 作成後に detail ページへナビゲート", async () => {
       mockSearchParams = new URLSearchParams({ petId: "5" });
       vi.mocked(useGetPet).mockReturnValue({

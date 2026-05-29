@@ -160,7 +160,13 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
-	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+	enforceBookingConstraints := shouldEnforceReservationBookingConstraints(input.Status, input.ReservationRoute)
+	if enforceBookingConstraints {
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+			return nil, err
+		}
+	}
+	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
 	reservation := &model.Reservation{
@@ -180,17 +186,14 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 		ReservationRoute:  input.ReservationRoute,
 	}
 
-	// BUG-034: end_time <= start_time の場合は 400 Bad Request
-	if err := validateTimeRange(reservation.StartTime, reservation.EndTime); err != nil {
-		return nil, err
-	}
-
 	// SELECT FOR UPDATE + トランザクションで競合を防止
 	// LINE予約・電子カルテ予約・管理者手動予約すべてで同一テーブルを使用するため、
 	// アプリケーションレベルでの排他制御が必要
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
-		if err := checkSlotConflict(ctx, s.repo, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime, nil); err != nil {
-			return err
+		if enforceBookingConstraints {
+			if err := checkSlotConflict(ctx, s.repo, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime, nil); err != nil {
+				return err
+			}
 		}
 		return s.repo.Create(ctx, reservation)
 	}); err != nil {
@@ -201,6 +204,24 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 		slog.Uint64("reservation_id", reservation.ID),
 		slog.Uint64("clinic_id", reservation.ClinicID))
 	return reservation, nil
+}
+
+func shouldEnforceReservationBookingConstraints(status model.ReservationStatus, route *string) bool {
+	if route != nil {
+		switch *route {
+		case "reception", "exam_room":
+			return false
+		}
+	}
+	switch status {
+	case model.ReservationStatusCheckedIn,
+		model.ReservationStatusInConsultation,
+		model.ReservationStatusAccounting,
+		model.ReservationStatusCompleted:
+		return false
+	default:
+		return true
+	}
 }
 
 // validateTimeRange は end_time > start_time を確認する共通バリデーション。

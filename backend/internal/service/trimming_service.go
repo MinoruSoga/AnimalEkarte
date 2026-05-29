@@ -144,7 +144,11 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if err := validateReservationStaffCapability(ctx, s.reservationStaff, clinicID, input.StaffID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
-	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, s.availableSlot, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+	if shouldEnforceReservationBookingConstraints(status, nil) {
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, s.availableSlot, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+			return nil, err
+		}
+	} else if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
 

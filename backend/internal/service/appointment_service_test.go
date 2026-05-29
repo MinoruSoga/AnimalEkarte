@@ -491,6 +491,50 @@ func TestReservationService_Create_RejectsUnavailableTime(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
 }
 
+func TestReservationService_Create_SkipsBookingConstraintsForInConsultation(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	end := start.Add(30 * time.Minute)
+	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	created := false
+	repo := &mockReservationRepository{
+		createFn: func(_ context.Context, appt *model.Reservation) error {
+			created = true
+			appt.ID = 10
+			return nil
+		},
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			t.Fatal("in_consultation appointment must not run booking capacity checks")
+			return 0, nil
+		},
+	}
+	unavailableRepo := &mockUnavailableTimeRepository{
+		findAllFn: func(_ context.Context, _, _ uint64) ([]model.ReservationTypeUnavailableTime, error) {
+			return []model.ReservationTypeUnavailableTime{
+				{
+					ReservationTypeID: 5,
+					UnavailableType:   model.UnavailableTypeSpecific,
+					SpecificDate:      &specificDate,
+					StartTime:         "10:00",
+					EndTime:           "11:00",
+				},
+			}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailability(repo, &mockTransactor{}, nil, unavailableRepo)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           end,
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusInConsultation,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, created)
+}
+
 func TestReservationService_Update(t *testing.T) {
 	_ = time.Now() // StartTime/EndTime/DoctorID を含むケースは統合テストで検証（s.db 必須）
 	statusConfirmed := model.ReservationStatusConfirmed
