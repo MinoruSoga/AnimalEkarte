@@ -100,12 +100,17 @@ type ReservationService interface {
 }
 
 type reservationService struct {
-	repo repository.ReservationRepository
-	tx   repository.Transactor
+	repo                 repository.ReservationRepository
+	tx                   repository.Transactor
+	reservationStaffRepo repository.ReservationStaffRepository
 }
 
-func NewReservationService(repo repository.ReservationRepository, tx repository.Transactor) ReservationService {
-	return &reservationService{repo: repo, tx: tx}
+func NewReservationService(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo ...repository.ReservationStaffRepository) ReservationService {
+	var staffRepo repository.ReservationStaffRepository
+	if len(reservationStaffRepo) > 0 {
+		staffRepo = reservationStaffRepo[0]
+	}
+	return &reservationService{repo: repo, tx: tx, reservationStaffRepo: staffRepo}
 }
 
 func (s *reservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -129,6 +134,9 @@ func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (
 func (s *reservationService) Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
+	}
+	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+		return nil, err
 	}
 	reservation := &model.Reservation{
 		ClinicID:          input.ClinicID,
@@ -292,9 +300,27 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	current, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to find reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find reservation")
+	}
+	if input.DoctorID != nil || input.ReservationTypeID != nil {
+		resolvedDoctorID := current.DoctorID
+		if input.DoctorID != nil {
+			if *input.DoctorID == 0 {
+				resolvedDoctorID = nil
+			} else {
+				resolvedDoctorID = input.DoctorID
+			}
+		}
+		resolvedReservationTypeID := current.ReservationTypeID
+		if input.ReservationTypeID != nil {
+			resolvedReservationTypeID = *input.ReservationTypeID
+		}
+		if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, resolvedDoctorID, resolvedReservationTypeID); err != nil {
+			return nil, err
+		}
 	}
 	fields := buildReservationUpdate(input)
 	if len(fields) == 0 {

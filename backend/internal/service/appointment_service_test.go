@@ -405,6 +405,41 @@ func TestReservationService_Create(t *testing.T) {
 	}
 }
 
+func TestReservationService_Create_RejectsExcludedStaff(t *testing.T) {
+	now := time.Now()
+	doctorID := uint64(10)
+	repo := &mockReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			t.Fatal("reservation must not be created when staff is excluded")
+			return nil
+		},
+	}
+	staffRepo := &mockReservationStaffRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, doctorID, id)
+			return &model.Staff{ID: id, IsActive: true}, nil
+		},
+		findExcludedReservationTypesFn: func(_ context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+			assert.Equal(t, doctorID, staffID)
+			return []model.StaffReservationExclusion{{StaffID: doctorID, ReservationTypeID: 5}}, nil
+		},
+	}
+	svc := NewReservationService(repo, nil, staffRepo)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         now,
+		EndTime:           now.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		DoctorID:          &doctorID,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
+}
+
 func TestReservationService_Update(t *testing.T) {
 	_ = time.Now() // StartTime/EndTime/DoctorID を含むケースは統合テストで検証（s.db 必須）
 	statusConfirmed := model.ReservationStatusConfirmed
@@ -478,6 +513,47 @@ func TestReservationService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReservationService_Update_RejectsExcludedStaffWhenTypeChanges(t *testing.T) {
+	doctorID := uint64(10)
+	nextTypeID := uint64(5)
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(1), id)
+			return &model.Reservation{
+				ID:                id,
+				ClinicID:          clinicID,
+				ReservationTypeID: 4,
+				DoctorID:          &doctorID,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			t.Fatal("reservation must not be updated when staff is excluded")
+			return nil, nil
+		},
+	}
+	staffRepo := &mockReservationStaffRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, doctorID, id)
+			return &model.Staff{ID: id, IsActive: true}, nil
+		},
+		findExcludedReservationTypesFn: func(_ context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+			assert.Equal(t, doctorID, staffID)
+			return []model.StaffReservationExclusion{{StaffID: doctorID, ReservationTypeID: nextTypeID}}, nil
+		},
+	}
+	svc := NewReservationService(repo, nil, staffRepo)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
+		ReservationTypeID: &nextTypeID,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
 }
 
 func TestReservationService_Delete(t *testing.T) {

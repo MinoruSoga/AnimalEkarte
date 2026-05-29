@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -235,6 +236,40 @@ func TestReservationAdminService_Create(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReservationAdminService_Create_RejectsExcludedStaff(t *testing.T) {
+	now := time.Now()
+	doctorID := uint64(10)
+	resRepo := &mockReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			t.Fatal("reservation must not be created when staff is excluded")
+			return nil
+		},
+	}
+	staffRepo := &mockReservationStaffRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, doctorID, id)
+			return &model.Staff{ID: id, IsActive: true}, nil
+		},
+		findExcludedReservationTypesFn: func(_ context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+			assert.Equal(t, doctorID, staffID)
+			return []model.StaffReservationExclusion{{StaffID: doctorID, ReservationTypeID: 5}}, nil
+		},
+	}
+	svc := NewReservationAdminService(&mockReservationAdminRepository{}, resRepo, &mockTransactor{}, staffRepo)
+
+	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
+		StartTime:         now,
+		EndTime:           now.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		DoctorID:          &doctorID,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
 }
 
 func TestReservationAdminService_Delete(t *testing.T) {
