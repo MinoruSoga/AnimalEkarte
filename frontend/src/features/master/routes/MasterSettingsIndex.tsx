@@ -4,9 +4,15 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
-import { Building2, Calendar, ChevronRight, ClipboardList, Clock, CreditCard, FolderTree, Scissors, Settings, Stethoscope } from "lucide-react";
+import { ChevronRight, Settings } from "lucide-react";
 import { CATEGORY_CONFIG } from "../constants/category-config";
-import type { MasterSettingsCategory } from "../constants/category-config";
+import {
+  getResourceForCardKey,
+  GROUP_CARD_CONFIG,
+  isGroupCardKey,
+  MASTER_SECTIONS,
+} from "./MasterSettingsIndexModel";
+import type { MasterCardKey, SectionDef } from "./MasterSettingsIndexModel";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -15,120 +21,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 import type { ResourceAction } from "@/hooks/use-permission";
 import type { Resource } from "@/types/generated/models";
-import { ResourceCashRegisterClose, ResourceHospitalSettings, ResourceMasterMedical, ResourceMasterTrimming, ResourcePaymentMethod, ResourceShifts } from "@/types/generated/models";
-
-// ─────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────
-
-/** Group keys that are NOT individual MasterSettingsCategory */
-type GroupKey = "clinic" | "treatmentItems" | "diagnosisGroup" | "trimmingGroup" | "inquiry_template" | "shift_template" | "paymentMethods" | "closingTime";
-
-/** All possible card keys in the settings index */
-type MasterCardKey = MasterSettingsCategory | GroupKey;
-
-interface SectionDef {
-  title: string;
-  keys: MasterCardKey[];
-}
-
-// ─────────────────────────────────────────────────
-// Group card definitions (hardcoded)
-// ─────────────────────────────────────────────────
-interface GroupCardConfig {
-  label: string;
-  description: string;
-  IconComponent: (props: { className?: string }) => ReactNode;
-  path: string;
-  /** 権限チェック用リソース定数 */
-  resource: Resource;
-  /** Which individual categories to sum for the count */
-  countCategories: MasterSettingsCategory[];
-}
-
-const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
-  clinic: {
-    label: "医院マスタ",
-    description: "院名、住所、電話番号などの医院基本情報を管理します",
-    IconComponent: Building2,
-    path: "/settings/clinic",
-    resource: ResourceHospitalSettings,
-    countCategories: [],
-  },
-  treatmentItems: {
-    label: "診療項目マスタ",
-    description: "診察・検査・処置・予防接種・定期健診の項目と単価(税込)を管理します",
-    IconComponent: Stethoscope,
-    path: "/settings/treatment-items",
-    resource: ResourceMasterMedical,
-    countCategories: ["consultation", "examination", "procedure", "vaccine", "checkup"],
-  },
-  diagnosisGroup: {
-    label: "診断マスタ",
-    description: "診断カテゴリと診断名を管理します",
-    IconComponent: FolderTree,
-    path: "/settings/diagnosis",
-    resource: ResourceMasterMedical,
-    countCategories: ["diagnosis_type", "diagnosis_name"],
-  },
-  trimmingGroup: {
-    label: "トリミングマスタ",
-    description: "トリミングコースとオプションを管理します",
-    IconComponent: Scissors,
-    path: "/settings/trimming",
-    resource: ResourceMasterTrimming,
-    countCategories: ["trimming_course", "trimming_option"],
-  },
-  inquiry_template: {
-    label: "問診テンプレート",
-    description: "問診票のテンプレートを管理します",
-    IconComponent: ClipboardList,
-    path: "/settings/inquiry-templates",
-    resource: ResourceMasterMedical,
-    countCategories: [],
-  },
-  shift_template: {
-    label: "シフトテンプレートマスタ",
-    description: "シフト登録で使用するテンプレートを管理します",
-    IconComponent: Calendar,
-    path: "/settings/shift-templates",
-    resource: ResourceShifts,
-    countCategories: [],
-  },
-  paymentMethods: {
-    label: "支払方法マスタ",
-    description: "現金・クレジットカードなど支払方法の種別を管理します",
-    IconComponent: CreditCard,
-    path: "/settings/payment-methods",
-    resource: ResourcePaymentMethod,
-    countCategories: [],
-  },
-  closingTime: {
-    label: "締め時間設定",
-    description: "レジ締めのAM/PM境界・終了時刻・特別期間・休診日を設定します",
-    IconComponent: Clock,
-    path: "/settings/closing-time",
-    resource: ResourceCashRegisterClose,
-    countCategories: [],
-  },
-};
-
-// ─────────────────────────────────────────────────
-// Section definitions
-// ─────────────────────────────────────────────────
-const MASTER_SECTIONS: SectionDef[] = [
-  { title: "基本設定", keys: ["clinic", "animal_species"] },
-  {
-    title: "カルテ",
-    keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "medicine"],
-  },
-  { title: "予約管理マスタ", keys: ["reservationType"] },
-  { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
-  { title: "トリミング関連", keys: ["trimmingGroup"] },
-  { title: "会計・商品", keys: ["merchandise_item", "insurance", "paymentMethods", "closingTime"] },
-  { title: "スタッフ・権限", keys: ["staff", "occupations", "permission_group"] },
-  { title: "シフト管理", keys: ["shift_template"] },
-];
 
 // ─────────────────────────────────────────────────
 // CardRow
@@ -164,13 +56,6 @@ function CardRow({ label, description, icon, count, onClick }: CardRowProps) {
 // Hook のルール: usePermission はコンポーネントトップレベルでのみ呼べるため、
 // カード単位のラッパーコンポーネントで権限チェックを行う。
 // ─────────────────────────────────────────────────
-function getResourceForKey(key: MasterCardKey): Resource {
-  if (key in GROUP_CARD_CONFIG) {
-    return GROUP_CARD_CONFIG[key as GroupKey].resource;
-  }
-  return CATEGORY_CONFIG[key as MasterSettingsCategory].resource;
-}
-
 function PermissionFilteredCard({
   cardKey,
   navigate,
@@ -178,13 +63,13 @@ function PermissionFilteredCard({
   cardKey: MasterCardKey;
   navigate: (path: string) => void;
 }) {
-  const resource = getResourceForKey(cardKey);
+  const resource = getResourceForCardKey(cardKey);
   const { canView } = usePermission(resource);
 
   if (!canView) return null;
 
-  if (cardKey in GROUP_CARD_CONFIG) {
-    const cfg = GROUP_CARD_CONFIG[cardKey as GroupKey];
+  if (isGroupCardKey(cardKey)) {
+    const cfg = GROUP_CARD_CONFIG[cardKey];
     const Icon = cfg.IconComponent;
     return (
       <CardRow
@@ -197,8 +82,7 @@ function PermissionFilteredCard({
     );
   }
 
-  const cat = cardKey as MasterSettingsCategory;
-  const cfg = CATEGORY_CONFIG[cat];
+  const cfg = CATEGORY_CONFIG[cardKey];
   const Icon = cfg.IconComponent;
   return (
     <CardRow
@@ -223,7 +107,7 @@ function PermissionFilteredSection({
   hasPermission: (resource: Resource, action: ResourceAction) => boolean;
 }) {
   const hasVisibleCards = section.keys.some((key) =>
-    hasPermission(getResourceForKey(key), "view"),
+    hasPermission(getResourceForCardKey(key), "view"),
   );
   if (!hasVisibleCards) return null;
 
