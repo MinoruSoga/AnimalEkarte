@@ -143,4 +143,16 @@ describe("AppointmentCard", () => {
 
     expect(screen.queryByRole("button", { name: /ポチのトリミング記録/ })).not.toBeInTheDocument();
   });
+
+  it("入院予約では通常カルテボタンを表示しない", () => {
+    renderCard({
+      ...baseAppointment,
+      id: "303",
+      reservationType: "入院",
+      reservationCategory: "general",
+    });
+
+    expect(screen.queryByRole("button", { name: /ポチのカルテ/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ポチの入院登録/ })).toBeInTheDocument();
+  });
 });
