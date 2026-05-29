@@ -36,12 +36,12 @@ const baseAppointment: ReceptionAppointment = {
   source: "manual",
 };
 
-function renderCard(appointment: ReceptionAppointment = baseAppointment) {
+function renderCard(appointment: ReceptionAppointment = baseAppointment, columnTitle = "受付済") {
   return render(
     <DndContext>
       <AppointmentCard
         appointment={appointment}
-        columnTitle="受付済"
+        columnTitle={columnTitle}
         onCardClick={vi.fn()}
       />
     </DndContext>,
@@ -105,5 +105,16 @@ describe("AppointmentCard", () => {
       "/trimming/select-pet?appointmentId=202&visitDate=2026-05-29",
       { state: { from: "/", appointmentId: "202", visitDate: "2026-05-29" } },
     );
+  });
+
+  it("トリミング予約の施術ボタンは受付済カラム以外では表示しない", () => {
+    renderCard({
+      ...baseAppointment,
+      id: "202",
+      reservationType: "シャンプーコース",
+      reservationCategory: "trimming",
+    }, "診療中");
+
+    expect(screen.queryByRole("button", { name: /ポチのトリミング記録/ })).not.toBeInTheDocument();
   });
 });

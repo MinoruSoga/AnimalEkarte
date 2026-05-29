@@ -76,6 +76,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   const isTrimming = appointment.reservationCategory === "trimming";
   const isHospitalization = appointment.reservationType.includes("入院");
   const visitColor = getVisitTypeColor(appointment.visitType);
+  const canOpenRecordFromCard = !isTrimming || columnTitle === "受付済";
 
   const handleKarteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -166,15 +167,17 @@ export const AppointmentCard = memo(function AppointmentCard({
 
           {/* ミニアクションボタン */}
           <div className={`flex items-center gap-1 pt-0.5 border-t ${C.borderDivider}`}>
-            <button
-              type="button"
-              aria-label={isTrimming ? `${appointment.petName}のトリミング記録` : `${appointment.petName}のカルテ`}
-              className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] ${C.accent} ${C.bgAccentLight30} border ${C.borderAccentBadge} rounded px-1.5 py-0.5 ${C.hoverBgAccentLight60} transition-colors`}
-              onClick={handleKarteClick}
-            >
-              {isTrimming ? <Scissors className={`${ICON.xs} shrink-0`} /> : <FileText className={`${ICON.xs} shrink-0`} />}
-              <span>{isTrimming ? "施術" : "カルテ"}</span>
-            </button>
+            {canOpenRecordFromCard ? (
+              <button
+                type="button"
+                aria-label={isTrimming ? `${appointment.petName}のトリミング記録` : `${appointment.petName}のカルテ`}
+                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] ${C.accent} ${C.bgAccentLight30} border ${C.borderAccentBadge} rounded px-1.5 py-0.5 ${C.hoverBgAccentLight60} transition-colors`}
+                onClick={handleKarteClick}
+              >
+                {isTrimming ? <Scissors className={`${ICON.xs} shrink-0`} /> : <FileText className={`${ICON.xs} shrink-0`} />}
+                <span>{isTrimming ? "施術" : "カルテ"}</span>
+              </button>
+            ) : null}
             {columnTitle !== "診療中" ? (
               <button
                 type="button"
