@@ -585,15 +585,15 @@ erDiagram
 - トリミング基本予約時間を設定可能にする（完了: 予約区分ごとの週次 `reservation_type_available_slots`）
 - 日別例外を設定可能にする（完了: 特定日 `reservation_type_available_slots`）
 - トリミング予約区分で available-times に反映する（完了）
+- `POST /v1/trimmings` で新規 appointment を同時作成する場合も、予約区分カテゴリ `trimming` を必須にする（完了）
 
 ## 10. 未決事項
 
-1. カルテ一覧から直接作成した appointment の初期ステータスを `checked_in` にするか `in_consultation` にするか
-2. 対応可能コースを将来的に `staff_reservation_capabilities` へ移行するか、既存の対応不可テーブル読み替えを継続するか
-3. 通常診療とトリミングの同時予約を、1 appointment で扱うか複数 appointment で扱うか
-4. LINE予約で `owner_id` / `pet_id` が未確定の appointment を、受付でどのタイミングで確定必須にするか
-5. 一覧ショートカットで自動作成した appointment の `reservation_route` を `reception` にするか、別値を追加するか
-6. 通常カルテ配下データの保存完了と appointment status 遷移をどこまで連動させるか
+1. 対応可能コースを将来的に `staff_reservation_capabilities` へ移行するか、既存の対応不可テーブル読み替えを継続するか
+2. 通常診療とトリミングの同時予約を、1 appointment で扱うか複数 appointment で扱うか
+3. LINE予約で `owner_id` / `pet_id` が未確定の appointment を、受付でどのタイミングで確定必須にするか
+4. 一覧ショートカットで自動作成した appointment の `reservation_route` を `reception` にするか、別値を追加するか
+5. 通常カルテ配下データの保存完了と appointment status 遷移をどこまで連動させるか
 
 補足:
 

@@ -179,7 +179,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		MedicalRecordAddendum:          NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, auditSvc),
 		Hospitalization:                NewHospitalizationService(repos),
 		Accounting:                     NewAccountingService(repos.Accounting, lstepTagSyncSvc),
-		Trimming:                       NewTrimmingService(repos.Reservation, repos.AppointmentTrimmingDetail, tx),
+		Trimming:                       NewTrimmingService(repos.Reservation, repos.ReservationType, repos.AppointmentTrimmingDetail, tx),
 		Inventory:                      NewInventoryService(repos.Inventory),
 		Staff:                          staffSvc,
 		StaffCore:                      staffSvc,

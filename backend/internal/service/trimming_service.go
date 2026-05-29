@@ -65,20 +65,23 @@ type TrimmingService interface {
 }
 
 type trimmingService struct {
-	reservation    repository.ReservationRepository
-	trimmingDetail repository.AppointmentTrimmingDetailRepository
-	transactor     repository.Transactor
+	reservation     repository.ReservationRepository
+	reservationType repository.ReservationTypeRepository
+	trimmingDetail  repository.AppointmentTrimmingDetailRepository
+	transactor      repository.Transactor
 }
 
 func NewTrimmingService(
 	reservation repository.ReservationRepository,
+	reservationType repository.ReservationTypeRepository,
 	trimmingDetail repository.AppointmentTrimmingDetailRepository,
 	transactor repository.Transactor,
 ) TrimmingService {
 	return &trimmingService{
-		reservation:    reservation,
-		trimmingDetail: trimmingDetail,
-		transactor:     transactor,
+		reservation:     reservation,
+		reservationType: reservationType,
+		trimmingDetail:  trimmingDetail,
+		transactor:      transactor,
 	}
 }
 
@@ -125,6 +128,9 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 	if input.StartTime.IsZero() || input.EndTime.IsZero() {
 		return nil, apperrors.WrapInvalidInput("start_time and end_time are required")
+	}
+	if err := s.validateTrimmingReservationType(ctx, clinicID, input.ReservationTypeID); err != nil {
+		return nil, err
 	}
 
 	var apptID uint64
@@ -180,6 +186,21 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		slog.Uint64("appointment_id", apptID))
 
 	return s.GetByID(ctx, clinicID, apptID)
+}
+
+func (s *trimmingService) validateTrimmingReservationType(ctx context.Context, clinicID, reservationTypeID uint64) error {
+	if s.reservationType == nil {
+		return apperrors.WrapInvalidInput("reservation type repository is required")
+	}
+
+	reservationType, err := s.reservationType.FindByID(ctx, clinicID, reservationTypeID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to get trimming reservation type")
+	}
+	if reservationType.Category != model.ReservationTypeCategoryTrimming {
+		return apperrors.WrapInvalidInput("reservation_type_id must be a trimming reservation type")
+	}
+	return nil
 }
 
 func (s *trimmingService) createDetailForExistingAppointment(
