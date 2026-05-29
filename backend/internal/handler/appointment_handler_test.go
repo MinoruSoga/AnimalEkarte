@@ -75,6 +75,12 @@ func newHandlerWithReservationAndMedicalRecordSvc(reservationSvc service.Reserva
 	}}
 }
 
+func newHandlerWithLiffSvc(liffSvc service.LiffService) *Handler {
+	return &Handler{svc: &service.Services{
+		Liff: liffSvc,
+	}}
+}
+
 // mockStaffClinicAssignmentService はテスト用モック。テストで使われるクリニックID（1, 3）すべてに所属を返す。
 type mockStaffClinicAssignmentService struct{}
 
@@ -252,6 +258,84 @@ func TestGetReservation(t *testing.T) {
 			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
 			tt.setupCtx(c)
 			h.GetReservation(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+func TestGetReservationAvailableTimes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        service.LiffService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns available time slots",
+			query:    "reservation_type_id=5&staff_id=10&date=2026-06-01",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockLiffService{
+				getAvailableTimesFn: func(_ context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]service.TimeSlot, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(5), typeID)
+					assert.Equal(t, uint64(10), staffID)
+					assert.Equal(t, 2026, date.Year())
+					assert.Equal(t, time.June, date.Month())
+					assert.Equal(t, 1, date.Day())
+					return []service.TimeSlot{
+						{StartTime: "0945", EndTime: "1045"},
+						{StartTime: "1230", EndTime: "1330"},
+					}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"start_time":"0945"`,
+		},
+		{
+			name:       "returns 400 when reservation_type_id is missing",
+			query:      "date=2026-06-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockLiffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when date is invalid",
+			query:      "reservation_type_id=5&date=20260601",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockLiffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 401 when clinic id is missing",
+			query:      "reservation_type_id=5&date=2026-06-01",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockLiffService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 501 when availability service is not configured",
+			query:      "reservation_type_id=5&date=2026-06-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        nil,
+			wantStatus: http.StatusNotImplemented,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithLiffSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
+			tt.setupCtx(c)
+			h.GetReservationAvailableTimes(c)
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)

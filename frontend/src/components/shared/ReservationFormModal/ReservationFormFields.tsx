@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/hooks/use-master-items";
-import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs } from "@/hooks/use-reservation-types";
+import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs, useGetReservationAvailableTimes } from "@/hooks/use-reservation-types";
 import { useGetUnavailableTimes, type ReservationTypeUnavailableTime } from "@/features/master/api/reservation-type-unavailable-times";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { isOneOf } from "@/lib/type-utils";
@@ -39,6 +39,13 @@ const TIME_OPTIONS = generateTimeOptions();
 function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;
+}
+
+function slotTimeToSelectValue(time: string): string {
+  if (time.includes(":")) return time.replace(/^0/, "");
+  const hour = Number(time.slice(0, 2));
+  const minute = time.slice(2, 4);
+  return `${hour}:${minute}`;
 }
 
 function getApplicableUnavailableTimes(
@@ -127,6 +134,11 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   const selectedReservationTypeId = formData.type ? String(formData.type) : null;
   const { data: onDutyStaffs } = useGetOnDutyStaffs(selectedDateStr);
   const { data: reservationStaffs } = useGetReservationStaffs();
+  const { data: availableTimeSlots } = useGetReservationAvailableTimes(
+    selectedReservationTypeId,
+    selectedDateStr,
+    formData.doctor || null,
+  );
   const currentClinicId = getCurrentClinicId();
   const { data: unavailableTimes = [] } = useGetUnavailableTimes(
     currentClinicId,
@@ -136,9 +148,23 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     () => getApplicableUnavailableTimes(unavailableTimes, formData.start),
     [unavailableTimes, formData.start],
   );
+  const availableTimeSlotMap = useMemo(() => {
+    if (availableTimeSlots === undefined) return undefined;
+    return new Map(
+      availableTimeSlots.map((slot) => [
+        slotTimeToSelectValue(slot.start_time),
+        slotTimeToSelectValue(slot.end_time),
+      ]),
+    );
+  }, [availableTimeSlots]);
   const startTimeOptions = useMemo(
-    () => TIME_OPTIONS.filter((time) => !isStartTimeUnavailable(time, applicableUnavailableTimes)),
-    [applicableUnavailableTimes],
+    () => {
+      if (availableTimeSlotMap !== undefined && selectedReservationTypeId !== null && selectedDateStr !== null) {
+        return [...availableTimeSlotMap.keys()];
+      }
+      return TIME_OPTIONS.filter((time) => !isStartTimeUnavailable(time, applicableUnavailableTimes));
+    },
+    [availableTimeSlotMap, selectedReservationTypeId, selectedDateStr, applicableUnavailableTimes],
   );
   const reservationStaffMap = useMemo(() => {
     if (reservationStaffs === undefined) return undefined;
@@ -231,7 +257,15 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                 const [h, m] = v.split(":").map(Number);
                 const newStart = new Date(formData.start);
                 newStart.setHours(h, m);
-                onChange({ ...formData, start: newStart });
+                const nextData: Partial<Reservation> = { ...formData, start: newStart };
+                const slotEnd = availableTimeSlotMap?.get(v);
+                if (slotEnd && formData.end) {
+                  const [endHour, endMinute] = slotEnd.split(":").map(Number);
+                  const newEnd = new Date(formData.end);
+                  newEnd.setHours(endHour, endMinute);
+                  nextData.end = newEnd;
+                }
+                onChange(nextData);
               }}
             >
               <SelectTrigger data-testid="res-start-time-trigger" className={TRIGGER_CLASS}>

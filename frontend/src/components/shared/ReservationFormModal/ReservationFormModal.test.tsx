@@ -218,6 +218,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
       http.get("/api/v1/pets", () => HttpResponse.json({ data: [] })),
       http.get("/api/v1/masters/staffs", () => HttpResponse.json([])),
       http.get("/api/v1/shifts/on-duty-staffs", () => HttpResponse.json([])),
+      http.get("/api/v1/reservations/available-times", () => HttpResponse.json([])),
       // 動物種: 犬 1件
       http.get("/api/v1/masters/animal-species", () =>
         HttpResponse.json([{ id: 1, name: "犬", is_active: true }])
@@ -335,6 +336,12 @@ describe("ReservationFormModal — 担当者候補", () => {
       http.get("/api/v1/clinics/1/reservation-types/5/unavailable-times", () =>
         HttpResponse.json({ data: [] })
       ),
+      http.get("/api/v1/reservations/available-times", () =>
+        HttpResponse.json([
+          { start_time: "0945", end_time: "1045" },
+          { start_time: "1230", end_time: "1330" },
+        ])
+      ),
       http.get("/api/v1/masters/reservation-types", () =>
         HttpResponse.json([
           {
@@ -408,6 +415,13 @@ describe("ReservationFormModal — 予約不可時間", () => {
           ],
         })
       ),
+      http.get("/api/v1/reservations/available-times", () =>
+        HttpResponse.json([
+          { start_time: "0900", end_time: "0930" },
+          { start_time: "0945", end_time: "1045" },
+          { start_time: "1100", end_time: "1200" },
+        ])
+      ),
       http.get("/api/v1/masters/reservation-types", () =>
         HttpResponse.json([
           {
@@ -464,5 +478,79 @@ describe("ReservationFormModal — 予約不可時間", () => {
     expect(screen.queryByRole("option", { name: "10:00" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "10:45" })).not.toBeInTheDocument();
     expect(screen.getByRole("option", { name: "11:00" })).toBeInTheDocument();
+  }, 15000);
+
+  it("空き枠の開始時刻を選ぶと終了時刻も同じ枠に合わせる", async () => {
+    localStorage.setItem("auth_current_clinic:v1", "1");
+    server.use(
+      http.get("/api/v1/clinic-holidays", () => HttpResponse.json([])),
+      http.get("/api/v1/pets", () => HttpResponse.json({ data: [] })),
+      http.get("/api/v1/masters/animal-species", () => HttpResponse.json([])),
+      http.get("/api/v1/masters/staffs", () => HttpResponse.json([])),
+      http.get("/api/v1/shifts/on-duty-staffs", () => HttpResponse.json([])),
+      http.get("/api/v1/clinics/1/reservation-staffs", () => HttpResponse.json([])),
+      http.get("/api/v1/clinics/1/reservation-types/5/unavailable-times", () =>
+        HttpResponse.json({ data: [] })
+      ),
+      http.get("/api/v1/reservations/available-times", () =>
+        HttpResponse.json([
+          { start_time: "0945", end_time: "1045" },
+          { start_time: "1230", end_time: "1330" },
+        ])
+      ),
+      http.get("/api/v1/masters/reservation-types", () =>
+        HttpResponse.json([
+          {
+            id: 5,
+            name: "トリミング",
+            color: "#111111",
+            is_active: true,
+            duration_minutes: 60,
+            sort_order: 1,
+            is_internal: false,
+            category: "trimming",
+            group_id: null,
+            group: null,
+          },
+        ])
+      )
+    );
+
+    const user = userEvent.setup({ delay: null });
+    const initialData: Partial<Reservation> = {
+      start: new Date(2026, 5, 1, 9, 0, 0),
+      end: new Date(2026, 5, 1, 9, 30, 0),
+      visitType: "revisit",
+      doctor: "",
+      isDesignated: false,
+      status: "confirmed",
+    };
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={initialData}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    await user.click(screen.getByTestId("res-type-trigger"));
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "トリミング" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("option", { name: "トリミング" }));
+
+    await user.click(screen.getByTestId("res-start-time-trigger"));
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "12:30" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("option", { name: "12:30" }));
+
+    expect(screen.getByTestId("res-start-time-trigger")).toHaveTextContent("12:30");
+    expect(screen.getByTestId("res-end-time-trigger")).toHaveTextContent("13:30");
   }, 15000);
 });

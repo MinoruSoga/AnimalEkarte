@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -68,6 +69,42 @@ func (q listReservationQuery) toServiceFilters() (listReservationFilters, error)
 	}
 
 	return filters, nil
+}
+
+type reservationAvailableTimesQuery struct {
+	ReservationTypeID string
+	StaffID           string
+	Date              string
+}
+
+func newReservationAvailableTimesQuery(values url.Values) reservationAvailableTimesQuery {
+	return reservationAvailableTimesQuery{
+		ReservationTypeID: values.Get("reservation_type_id"),
+		StaffID:           values.Get("staff_id"),
+		Date:              values.Get("date"),
+	}
+}
+
+type reservationAvailableTimesFilters struct {
+	ReservationTypeID uint64
+	StaffID           uint64
+	Date              time.Time
+}
+
+func (q reservationAvailableTimesQuery) toServiceFilters() (reservationAvailableTimesFilters, error) {
+	reservationTypeID, err := parseRequiredUintQueryFilter(q.ReservationTypeID, "reservation_type_id")
+	if err != nil {
+		return reservationAvailableTimesFilters{}, err
+	}
+	date, err := time.ParseInLocation("2006-01-02", q.Date, time.Local)
+	if err != nil {
+		return reservationAvailableTimesFilters{}, apperrors.WrapInvalidInput("invalid date: must be YYYY-MM-DD")
+	}
+	return reservationAvailableTimesFilters{
+		ReservationTypeID: reservationTypeID,
+		StaffID:           parseOptionalUintQueryValue(q.StaffID),
+		Date:              date,
+	}, nil
 }
 
 // createReservationRequest は予約作成のバインド struct

@@ -65,7 +65,7 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 現状の制約:
 
 - 予約フォームは時刻を 15 分刻みで直接選択する
-- LINE予約向けの空き枠計算 API は使っていない
+- 院内用 `GET /v1/reservations/available-times` で LIFF と同じ空き枠計算を使う
 - 予約区分が選択されている場合、開始時刻候補は `reservation_type_unavailable_times` の週次／特定日設定を除外して表示する
 - 院内予約作成・更新 API 側でも、予約時間が `reservation_type_unavailable_times` と重なる場合は拒否する
 - 担当者候補は選択日の出勤スタッフに絞る
@@ -165,7 +165,7 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 
 現状の不足:
 
-- 院内の予約管理フォームはこの空き枠計算を使っていない
+- 院内の予約管理フォームは `GET /v1/reservations/available-times` 経由でこの空き枠計算を使う
 - トリミング専用の基本予約時間や予約可能枠設定を、院内 UI で統一的に扱えていない
 
 ## 4. 現状の問題
@@ -565,9 +565,10 @@ erDiagram
 
 ### Phase 2: 院内予約フォームの空き枠対応
 
-- 院内用 available-times API を定義する
-- 予約フォームで予約区分選択後に空き枠を取得する
-- 予約フォームの時刻選択を空き枠ベースに変更する
+- 院内用 available-times API を定義する（完了）
+- 予約フォームで予約区分選択後に空き枠を取得する（完了）
+- 予約フォームの開始時刻選択を空き枠ベースに変更する（完了）
+- 終了時刻を選択枠に合わせて自動更新する（完了）
 
 ### Phase 3: スタッフ対応可能コース
 

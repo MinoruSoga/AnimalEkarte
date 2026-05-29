@@ -55,6 +55,34 @@ func (h *Handler) GetReservation(c *gin.Context) {
 	c.JSON(http.StatusOK, toReservationResponse(reservation))
 }
 
+// GetReservationAvailableTimes godoc
+// GET /reservations/available-times?reservation_type_id=:id&staff_id=:id&date=YYYY-MM-DD
+func (h *Handler) GetReservationAvailableTimes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	filters, err := newReservationAvailableTimesQuery(c.Request.URL.Query()).toServiceFilters()
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	if h.svc.Liff == nil {
+		RespondError(c, apperrors.WrapNotImplemented("予約可能時間の取得は未設定です"))
+		return
+	}
+	slots, err := h.svc.Liff.GetAvailableTimes(c.Request.Context(), clinicID, filters.ReservationTypeID, filters.StaffID, filters.Date)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	resp := make([]liffTimeSlotResponse, 0, len(slots))
+	for _, slot := range slots {
+		resp = append(resp, liffTimeSlotResponse{StartTime: slot.StartTime, EndTime: slot.EndTime})
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
 // CreateReservation godoc
 func (h *Handler) CreateReservation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -205,6 +233,7 @@ func (h *Handler) PatchReservationReservationRoute(c *gin.Context) {
 func (h *Handler) RegisterReservationRoutes(rg *gin.RouterGroup) {
 	reservations := rg.Group("/reservations")
 	reservations.GET("", h.RequirePermission(string(model.ResourceReservations), "view"), h.ListReservations)
+	reservations.GET("/available-times", h.RequirePermission(string(model.ResourceReservations), "view"), h.GetReservationAvailableTimes)
 	reservations.GET("/:id", h.RequirePermission(string(model.ResourceReservations), "view"), h.GetReservation)
 	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "create"), h.CreateReservation)
 	reservations.PATCH("/:id", h.RequirePermission(string(model.ResourceReservations), "edit"), h.UpdateReservation)
