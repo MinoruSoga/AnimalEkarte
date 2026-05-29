@@ -29,10 +29,16 @@ import type { ReceptionAppointment } from "../api/types";
 
 interface ServiceIconProps {
   service: string;
+  category?: string;
 }
 
-function ServiceIcon({ service }: ServiceIconProps) {
-  if (service.includes("トリミング")) return <Scissors className={ICON.xs} />;
+function isHospitalizationService(service: string): boolean {
+  return service.includes("入院") || service.includes("ホテル");
+}
+
+function ServiceIcon({ service, category }: ServiceIconProps) {
+  if (category === "trimming" || service.includes("トリミング")) return <Scissors className={ICON.xs} />;
+  if (isHospitalizationService(service)) return <BedDouble className={ICON.xs} />;
   if (service.includes("ワクチン")) return <Syringe className={ICON.xs} />;
   if (service.includes("手術")) return <Activity className={ICON.xs} />;
   if (service.includes("診療")) return <Stethoscope className={ICON.xs} />;
@@ -76,7 +82,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   };
 
   const isTrimming = appointment.reservationCategory === "trimming";
-  const isHospitalization = appointment.reservationType.includes("入院");
+  const isHospitalization = isHospitalizationService(appointment.reservationType);
   const isMedical = !isTrimming && !isHospitalization;
   const visitColor = getVisitTypeColor(appointment.visitType);
   const canOpenRecordFromCard = isTrimming
@@ -159,7 +165,7 @@ export const AppointmentCard = memo(function AppointmentCard({
               {appointment.visitType}
             </Badge>
             <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] ${C.bgWhite} tracking-[var(--tracking-notion-sm)]`}>
-              <ServiceIcon service={appointment.reservationType} />
+              <ServiceIcon service={appointment.reservationType} category={appointment.reservationCategory} />
               <span className="truncate max-w-[80px]">{appointment.reservationType}</span>
             </Badge>
 

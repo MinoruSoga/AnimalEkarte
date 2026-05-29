@@ -155,4 +155,16 @@ describe("AppointmentCard", () => {
     expect(screen.queryByRole("button", { name: /ポチのカルテ/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチの入院登録/ })).toBeInTheDocument();
   });
+
+  it("ホテル予約では通常カルテボタンを表示せず入院登録導線を表示する", () => {
+    renderCard({
+      ...baseAppointment,
+      id: "404",
+      reservationType: "ホテル",
+      reservationCategory: "general",
+    });
+
+    expect(screen.queryByRole("button", { name: /ポチのカルテ/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ポチの入院登録/ })).toBeInTheDocument();
+  });
 });

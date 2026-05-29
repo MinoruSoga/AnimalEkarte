@@ -30,6 +30,10 @@ interface ReceptionDetailModalProps {
   canCreateHospitalization?: boolean;
 }
 
+function isHospitalizationReservationType(reservationType: string): boolean {
+  return reservationType.includes("入院") || reservationType.includes("ホテル");
+}
+
 export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   isOpen,
   onClose,
@@ -106,10 +110,10 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   if (!appointment) return null;
 
   const isTrimming = appointment.reservationCategory === "trimming";
-  const isHospitalization = appointment.reservationType.includes("入院");
-  const isMedical = appointment.reservationCategory === "general" || (!isTrimming && !isHospitalization);
+  const isHospitalization = isHospitalizationReservationType(appointment.reservationType);
+  const isMedical = !isTrimming && !isHospitalization;
   const canOpenMedicalRecordFromRelatedPages =
-    !isTrimming && canCreateMedicalRecord === true && currentStatus === "診療中";
+    isMedical && canCreateMedicalRecord === true && currentStatus === "診療中";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

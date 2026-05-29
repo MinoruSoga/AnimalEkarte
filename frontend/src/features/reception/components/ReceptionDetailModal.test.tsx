@@ -112,4 +112,20 @@ describe("ReceptionDetailModal", () => {
       { state: { from: "/", appointmentId: "101", visitDate: "2026-05-29" } },
     );
   });
+
+  it("診療中のホテル予約では関連ページのカルテ導線を表示しない", () => {
+    renderModal({
+      currentStatus: "診療中",
+      appointment: {
+        ...baseAppointment,
+        id: "404",
+        reservationType: "ホテル",
+        reservationCategory: "general",
+        petId: "10",
+      },
+    });
+
+    expect(screen.queryByRole("button", { name: /^カルテ$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^入院$/ })).toBeInTheDocument();
+  });
 });
