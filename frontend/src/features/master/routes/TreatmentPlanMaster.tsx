@@ -28,6 +28,18 @@ import {
   TreatmentItemSidePanel,
   type TreatmentFormData,
 } from "../components/TreatmentItemSidePanel";
+import {
+  buildCheckupCreateRequest,
+  buildCheckupUpdateRequest,
+  buildConsultationCreateRequest,
+  buildConsultationUpdateRequest,
+  buildExaminationCreateRequest,
+  buildExaminationUpdateRequest,
+  buildProcedureCreateRequest,
+  buildProcedureUpdateRequest,
+  buildVaccineCreateRequest,
+  buildVaccineUpdateRequest,
+} from "./TreatmentPlanMasterModel";
 
 // API hooks
 import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useReorderConsultations } from "../api/consultations";
@@ -193,22 +205,8 @@ export function TreatmentPlanMaster() {
     createMutation: createConsultation,
     updateMutation: updateConsultation,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data) => ({
-      name: data.name,
-      price: data.price,
-      description: data.description || undefined,
-      is_active: data.isActive,
-      tax_type: data.taxType,
-      tax_rate: data.taxRate,
-    }),
-    toUpdateRequest: (data) => ({
-      name: data.name,
-      price: data.price,
-      description: data.description || undefined,
-      is_active: data.isActive,
-      tax_type: data.taxType,
-      tax_rate: data.taxRate,
-    }),
+    toCreateRequest: buildConsultationCreateRequest,
+    toUpdateRequest: buildConsultationUpdateRequest,
   });
 
   const examinationSave = useMasterSave<TreatmentItem, TreatmentFormData, CreateExaminationRequest, UpdateExaminationRequest>({
@@ -216,20 +214,8 @@ export function TreatmentPlanMaster() {
     createMutation: createExamination,
     updateMutation: updateExamination,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data) => ({
-      name: data.name,
-      price: data.price,
-      description: data.description || undefined,
-      is_active: data.isActive,
-      is_non_insurance: data.isNonInsurance,
-    }),
-    toUpdateRequest: (data) => ({
-      name: data.name,
-      price: data.price,
-      description: data.description || undefined,
-      is_active: data.isActive,
-      is_non_insurance: data.isNonInsurance,
-    }),
+    toCreateRequest: buildExaminationCreateRequest,
+    toUpdateRequest: buildExaminationUpdateRequest,
   });
 
   const procedureSave = useMasterSave<TreatmentItem, TreatmentFormData, CreateProcedureRequest, UpdateProcedureRequest>({
@@ -237,22 +223,8 @@ export function TreatmentPlanMaster() {
     createMutation: createProcedure,
     updateMutation: updateProcedure,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data) => ({
-      name: data.name,
-      price: data.price,
-      description: data.description || undefined,
-      is_active: data.isActive,
-      tax_type: data.taxType,
-      tax_rate: data.taxRate,
-    }),
-    toUpdateRequest: (data) => ({
-      name: data.name,
-      price: data.price,
-      description: data.description || undefined,
-      is_active: data.isActive,
-      tax_type: data.taxType,
-      tax_rate: data.taxRate,
-    }),
+    toCreateRequest: buildProcedureCreateRequest,
+    toUpdateRequest: buildProcedureUpdateRequest,
   });
 
   const vaccineSave = useMasterSave<TreatmentItem, TreatmentFormData, CreateVaccineMasterRequest, UpdateVaccineMasterRequest>({
@@ -260,18 +232,8 @@ export function TreatmentPlanMaster() {
     createMutation: createVaccine,
     updateMutation: updateVaccine,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data) => ({
-      name: data.name,
-      price: data.price,
-      description: data.description || undefined,
-      is_active: data.isActive,
-    }),
-    toUpdateRequest: (data) => ({
-      name: data.name,
-      price: data.price,
-      description: data.description || undefined,
-      is_active: data.isActive,
-    }),
+    toCreateRequest: buildVaccineCreateRequest,
+    toUpdateRequest: buildVaccineUpdateRequest,
   });
 
   const checkupSave = useMasterSave<TreatmentItem, TreatmentFormData, CreateCheckupTypeRequest, UpdateCheckupTypeRequest>({
@@ -279,18 +241,8 @@ export function TreatmentPlanMaster() {
     createMutation: createCheckup,
     updateMutation: updateCheckup,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data) => ({
-      name: data.name,
-      price: data.price,
-      description: data.description || undefined,
-      is_active: data.isActive,
-    }),
-    toUpdateRequest: (data) => ({
-      name: data.name,
-      price: data.price,
-      description: data.description || undefined,
-      is_active: data.isActive,
-    }),
+    toCreateRequest: buildCheckupCreateRequest,
+    toUpdateRequest: buildCheckupUpdateRequest,
   });
 
   // Map tab values to save hooks
