@@ -19,6 +19,12 @@ import type {
 import { DiagnosisTypeSidePanel } from "../components/DiagnosisTypeSidePanel";
 import { DiagnosisNameTab, DiagnosisTypeTab } from "../components/DiagnosisTabs";
 import {
+  buildDiagnosisNameCreateRequest,
+  buildDiagnosisNameUpdateRequest,
+  buildDiagnosisTypeCreateRequest,
+  buildDiagnosisTypeUpdateRequest,
+} from "./DiagnosisSettingsModel";
+import {
   useCreateDiagnosisName,
   useCreateDiagnosisType,
   useDeleteDiagnosisName,
@@ -32,12 +38,6 @@ import {
 } from "../api/diagnosis";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
-import type {
-  CreateDiagnosisNameRequest,
-  CreateDiagnosisTypeRequest,
-  UpdateDiagnosisNameRequest,
-  UpdateDiagnosisTypeRequest,
-} from "@/types/diagnosis";
 
 const TABS = [
   { value: "diagnosis_type", label: "診断病名カテゴリ" },
@@ -94,16 +94,8 @@ export function DiagnosisSettings() {
     createMutation: createCategoryMutation,
     updateMutation: updateCategoryMutation,
     validate: (data: DiagnosisTypeFormData) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data: DiagnosisTypeFormData): CreateDiagnosisTypeRequest => ({
-      name: data.name,
-      description: data.description || undefined,
-      is_active: true,
-    }),
-    toUpdateRequest: (data: DiagnosisTypeFormData): UpdateDiagnosisTypeRequest => ({
-      name: data.name,
-      description: data.description || undefined,
-      is_active: data.isActive,
-    }),
+    toCreateRequest: buildDiagnosisTypeCreateRequest,
+    toUpdateRequest: buildDiagnosisTypeUpdateRequest,
   });
 
   const nameSave = useMasterSave({
@@ -115,18 +107,8 @@ export function DiagnosisSettings() {
       if (!data.diagnosisTypeId) return "カテゴリを選択してください";
       return null;
     },
-    toCreateRequest: (data: DiagnosisNameFormData): CreateDiagnosisNameRequest => ({
-      name: data.name,
-      diagnosis_type_id: Number(data.diagnosisTypeId),
-      description: data.description || undefined,
-      is_active: true,
-    }),
-    toUpdateRequest: (data: DiagnosisNameFormData): UpdateDiagnosisNameRequest => ({
-      name: data.name,
-      diagnosis_type_id: Number(data.diagnosisTypeId),
-      description: data.description || undefined,
-      is_active: data.isActive,
-    }),
+    toCreateRequest: buildDiagnosisNameCreateRequest,
+    toUpdateRequest: buildDiagnosisNameUpdateRequest,
   });
 
   return (
