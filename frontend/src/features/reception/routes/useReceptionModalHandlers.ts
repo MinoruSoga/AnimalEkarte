@@ -38,6 +38,10 @@ function optionalNumericID(value: string | undefined): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function preserveEditableStatus(appointment: ReceptionAppointment): Reservation["status"] {
+  return appointment.status === "pending" ? "confirmed" : appointment.status;
+}
+
 export function useReceptionModalHandlers({
   advanceStatus,
   cancelAppointment,
@@ -78,17 +82,18 @@ export function useReceptionModalHandlers({
   }, [selectedAppointmentId, advanceStatus]);
 
   const handleEditAppointment = useCallback((appointment: ReceptionAppointment) => {
+    selectedAppointmentRef.current = appointment;
     const start = buildAppointmentDateTime(appointment.visitDate, appointment.time);
 
     const reservationFormData: Partial<Reservation> = {
       id: appointment.id,
       start,
       end: addHours(start, 1),
-      status: "confirmed",
       visitType: appointment.visitType === "初診" ? "first" : "revisit",
       type: appointment.reservationTypeId,
       doctor: appointment.doctorId || "",
       isDesignated: appointment.isDesignated || false,
+      status: preserveEditableStatus(appointment),
       petId: appointment.petId,
       ownerName: appointment.ownerName,
       petName: appointment.petName,
@@ -120,7 +125,7 @@ export function useReceptionModalHandlers({
         isDesignated: data.isDesignated ?? false,
         petId: selectedPets[0]?.id || data.petId || "",
         ownerId: selectedPets[0]?.ownerId || selectedAppointmentRef.current?.ownerId || "",
-        status: "confirmed",
+        status: data.status || (selectedAppointmentRef.current ? preserveEditableStatus(selectedAppointmentRef.current) : "confirmed"),
         notes: data.notes,
         source: selectedAppointmentRef.current?.source || "manual",
       };
@@ -135,7 +140,7 @@ export function useReceptionModalHandlers({
             reservation_type_id: optionalNumericID(data.type),
             doctor_id: optionalNumericID(data.doctor),
             is_designated: data.isDesignated ?? false,
-            status: data.status || "confirmed",
+            status: data.status || (selectedAppointmentRef.current ? preserveEditableStatus(selectedAppointmentRef.current) : "confirmed"),
             notes: data.notes,
           },
         },

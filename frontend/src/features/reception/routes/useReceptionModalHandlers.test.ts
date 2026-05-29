@@ -66,6 +66,7 @@ describe("useReceptionModalHandlers", () => {
     expect(result.current.editingAppointment?.end?.toISOString()).toBe("2026-06-01T01:45:00.000Z");
     expect(result.current.editingAppointment?.type).toBe("1");
     expect(result.current.editingAppointment?.doctor).toBe("33");
+    expect(result.current.editingAppointment?.status).toBe("checked_in");
   });
 
   it("編集保存では予約更新 API を呼び、成功後にローカル appointment も更新する", () => {
@@ -97,7 +98,7 @@ describe("useReceptionModalHandlers", () => {
           reservation_type_id: 1,
           doctor_id: 33,
           is_designated: false,
-          status: "confirmed",
+          status: "checked_in",
         }),
       },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
@@ -135,6 +136,35 @@ describe("useReceptionModalHandlers", () => {
         req: expect.objectContaining({
           reservation_type_id: undefined,
           doctor_id: undefined,
+        }),
+      },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it("受付予約カラムの編集では pending 表示を confirmed として保存する", () => {
+    const { result } = renderHandlers();
+
+    act(() => {
+      result.current.handleEditAppointment({ ...baseAppointment, status: "pending" });
+    });
+    act(() => {
+      result.current.handleEditSave(
+        {
+          start: new Date("2026-06-01T09:45:00+09:00"),
+          visitType: "revisit",
+          type: "1",
+          doctor: "33",
+        },
+        [],
+      );
+    });
+
+    expect(updateReservationMock).toHaveBeenCalledWith(
+      {
+        id: "101",
+        req: expect.objectContaining({
+          status: "confirmed",
         }),
       },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
