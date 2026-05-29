@@ -10,6 +10,16 @@ export interface MedicineGroups {
   totalCount: number;
 }
 
+export type MedicineDragResolution =
+  | { type: "none" }
+  | { type: "same-category" }
+  | {
+      type: "move-category";
+      activeItemId: string;
+      overParentId: string | null;
+      updateRequest: UpdateMedicineRequest;
+    };
+
 export function isCategoryMedicine(medicine: Medicine | null): boolean {
   return medicine !== null && !medicine.parentId && medicine.price === 0;
 }
@@ -82,6 +92,34 @@ export function groupFilteredMedicines({
   }
 
   return { groupedMedicines, ungroupedMedicines, totalCount: filtered.length };
+}
+
+export function resolveMedicineDrag({
+  activeItemId,
+  overItemId,
+  orderedMedicinesById,
+}: {
+  activeItemId: string;
+  overItemId: string;
+  orderedMedicinesById: ReadonlyMap<string, Medicine>;
+}): MedicineDragResolution {
+  const activeMedicine = orderedMedicinesById.get(activeItemId);
+  const overMedicine = orderedMedicinesById.get(overItemId);
+  if (!activeMedicine || !overMedicine) return { type: "none" };
+
+  const activeParentId = activeMedicine.parentId ?? null;
+  const overParentId = overMedicine.parentId ?? null;
+
+  if (activeParentId === overParentId) return { type: "same-category" };
+
+  return {
+    type: "move-category",
+    activeItemId,
+    overParentId,
+    updateRequest: overParentId
+      ? { parent_id: Number(overParentId) }
+      : { clear_parent_id: true },
+  };
 }
 
 export function buildMedicineCreateRequest(

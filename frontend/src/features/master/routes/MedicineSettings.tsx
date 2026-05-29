@@ -35,6 +35,7 @@ import {
   getCategoryMedicines,
   groupFilteredMedicines,
   isCategoryMedicine,
+  resolveMedicineDrag,
 } from "./MedicineSettingsModel";
 
 // Internal – feature API (direct import, no barrel)
@@ -163,35 +164,32 @@ export function MedicineSettings() {
       const activeItemId = String(active.id);
       const overItemId = String(over.id);
 
-      // js-index-maps: orderedMedicinesById Map で O(1) 検索（orderedMedicines.find は O(n)）
-      const activeMedicine = orderedMedicinesById.get(activeItemId);
-      const overMedicine = orderedMedicinesById.get(overItemId);
-      if (!activeMedicine || !overMedicine) return;
+      const dragResolution = resolveMedicineDrag({
+        activeItemId,
+        overItemId,
+        orderedMedicinesById,
+      });
 
-      const activeCat = activeMedicine.parentId ?? null;
-      const overCat = overMedicine.parentId ?? null;
+      if (dragResolution.type === "none") return;
 
-      if (activeCat !== overCat) {
+      if (dragResolution.type === "move-category") {
         // クロスグループ: parent_id を変更
         flushSync(() => {
           setOverrideCategories((prev) => {
             const next = new Map(prev);
-            next.set(activeItemId, overCat ?? undefined);
+            next.set(dragResolution.activeItemId, dragResolution.overParentId ?? undefined);
             return next;
           });
         });
-        const req: UpdateMedicineRequest = overCat
-          ? { parent_id: Number(overCat) }
-          : { clear_parent_id: true };
         const clearOptimistic = () => {
           setOverrideCategories((prev) => {
             const next = new Map(prev);
-            next.delete(activeItemId);
+            next.delete(dragResolution.activeItemId);
             return next;
           });
         };
         updateMutation.mutate(
-          { id: activeItemId, req },
+          { id: dragResolution.activeItemId, req: dragResolution.updateRequest },
           {
             onSuccess: clearOptimistic,
             onError: (error: unknown) => {
@@ -200,10 +198,11 @@ export function MedicineSettings() {
             },
           },
         );
-      } else {
-        // 同カテゴリ: 並び替え — useSortableList に委譲
-        handleFlatSortDragEnd(event);
+        return;
       }
+
+      // 同カテゴリ: 並び替え — useSortableList に委譲
+      handleFlatSortDragEnd(event);
     },
     [orderedMedicinesById, updateMutation, handleFlatSortDragEnd],
   );
