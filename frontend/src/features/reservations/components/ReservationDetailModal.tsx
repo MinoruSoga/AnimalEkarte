@@ -34,21 +34,23 @@ interface ActionConfig {
   Icon: React.ComponentType<{ className?: string }>;
 }
 
-const ACTION_CONFIG_MAP: Record<string, ActionConfig> = {
-  "入院": { label: "入院・ホテル登録", Icon: Building2 },
-  "ホテル": { label: "入院・ホテル登録", Icon: Building2 },
-};
-
 const DEFAULT_ACTION_CONFIG: ActionConfig = {
   label: "カルテ作成",
   Icon: FilePlus2,
 };
 
+function isHospitalizationReservation(type: string): boolean {
+  return type.includes("入院") || type.includes("ホテル");
+}
+
 function getActionConfig(reservation: Reservation): ActionConfig {
   if (reservation.category === "trimming") {
     return { label: "トリミング記録作成", Icon: Scissors };
   }
-  return ACTION_CONFIG_MAP[reservation.type] ?? DEFAULT_ACTION_CONFIG;
+  if (isHospitalizationReservation(reservation.type)) {
+    return { label: "入院・ホテル登録", Icon: Building2 };
+  }
+  return DEFAULT_ACTION_CONFIG;
 }
 
 // rendering-hoist-jsx: 静的な定数から生成する JSX はモジュールレベルで巻き上げ

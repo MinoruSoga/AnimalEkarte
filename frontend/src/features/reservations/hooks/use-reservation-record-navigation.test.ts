@@ -68,4 +68,29 @@ describe("useReservationRecordNavigation", () => {
       },
     );
   });
+
+  it("ペットホテル予約はマスタ名の部分一致で入院登録へ遷移する", () => {
+    const navigate = vi.fn();
+    const { result } = renderHook(() => useReservationRecordNavigation({ navigate }));
+
+    act(() => {
+      result.current.handleCreateRecord({
+        ...baseReservation,
+        type: "ペットホテル",
+        category: "general",
+        petId: "10",
+      });
+    });
+
+    expect(navigate).toHaveBeenCalledWith(
+      "/hospitalization/new?petId=10&appointmentId=88&visitDate=2026-05-29",
+      {
+        state: {
+          from: "/reservations",
+          appointmentId: "88",
+          visitDate: "2026-05-29",
+        },
+      },
+    );
+  });
 });

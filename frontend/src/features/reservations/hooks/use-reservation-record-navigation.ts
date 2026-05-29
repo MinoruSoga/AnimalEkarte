@@ -5,18 +5,6 @@ import { paths } from "@/config/paths";
 
 import type { Reservation } from "../types";
 
-const RECORD_PATH: Record<string, string> = {
-  "トリミング": "/trimming/new",
-  "入院": "/hospitalization/new",
-  "ホテル": "/hospitalization/new",
-};
-
-const SELECT_PATH: Record<string, string> = {
-  "トリミング": "/trimming/select-pet",
-  "入院": "/hospitalization/select-pet",
-  "ホテル": "/hospitalization/select-pet",
-};
-
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function formatJSTDate(date: Date): string {
@@ -27,14 +15,20 @@ function formatJSTDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function isHospitalizationReservation(type: string): boolean {
+  return type.includes("入院") || type.includes("ホテル");
+}
+
 function resolveRecordPath(reservation: Reservation): string {
   if (reservation.category === "trimming") return "/trimming/new";
-  return RECORD_PATH[reservation.type] || "/medical-records/new";
+  if (isHospitalizationReservation(reservation.type)) return "/hospitalization/new";
+  return "/medical-records/new";
 }
 
 function resolveSelectPath(reservation: Reservation): string {
   if (reservation.category === "trimming") return "/trimming/select-pet";
-  return SELECT_PATH[reservation.type] || "/medical-records/select-pet";
+  if (isHospitalizationReservation(reservation.type)) return "/hospitalization/select-pet";
+  return "/medical-records/select-pet";
 }
 
 interface UseReservationRecordNavigationArgs {

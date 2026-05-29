@@ -68,4 +68,23 @@ describe("ReservationDetailModal", () => {
     expect(screen.getByRole("button", { name: /トリミング記録作成/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /カルテ作成/ })).not.toBeInTheDocument();
   });
+
+  it("ペットホテル予約ではマスタ名の部分一致で入院・ホテル登録ボタンを表示する", () => {
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={{
+          ...baseReservation,
+          type: "ペットホテル",
+          category: "general",
+          reservationTypeId: "12",
+        }}
+        onCreateRecord={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /入院・ホテル登録/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /カルテ作成/ })).not.toBeInTheDocument();
+  });
 });
