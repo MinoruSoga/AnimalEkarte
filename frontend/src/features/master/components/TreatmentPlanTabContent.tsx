@@ -19,8 +19,11 @@ import { useSortableList } from "@/hooks/use-sortable-list";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import type { TreatmentFormData } from "./TreatmentItemSidePanel";
-
-type TreeItem = TreatmentItem & { children: TreatmentItem[] };
+import {
+  buildTreatmentRows,
+  buildTreatmentTree,
+  filterTreatmentRoots,
+} from "./TreatmentPlanTabContentModel";
 
 export type MutateCallbacks = {
   onSuccess: () => void;
@@ -38,10 +41,6 @@ export interface TreatmentTabConfig {
   onReorder: (ids: number[]) => void;
 }
 
-type VirtualRow =
-  | { type: "root"; item: TreeItem; isExpanded: boolean }
-  | { type: "child"; item: TreatmentItem };
-
 const TREATMENT_COLUMNS = [
   { header: "", className: "w-[32px]" },
   { header: "名称" },
@@ -49,21 +48,6 @@ const TREATMENT_COLUMNS = [
   { header: "ステータス", className: "w-[100px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
-
-function buildTree(items: TreatmentItem[]): TreeItem[] {
-  const map = new Map<string, TreeItem>(
-    items.map((item) => [item.id, { ...item, children: [] }]),
-  );
-  const roots: TreeItem[] = [];
-  for (const item of map.values()) {
-    if (item.parentId) {
-      map.get(item.parentId)?.children.push(item);
-    } else {
-      roots.push(item);
-    }
-  }
-  return roots;
-}
 
 interface ChildTreatmentRowProps {
   item: TreatmentItem;
@@ -120,7 +104,7 @@ export function TreatmentPlanTabContent({
   const deferredSearch = useDeferredValue(searchTerm);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  const treeItems = useMemo(() => buildTree(rawData ?? []), [rawData]);
+  const treeItems = useMemo(() => buildTreatmentTree(rawData ?? []), [rawData]);
 
   const { orderedItems: orderedRoots, sensors, handleDragEnd } = useSortableList({
     items: treeItems,
@@ -129,26 +113,15 @@ export function TreatmentPlanTabContent({
     },
   });
 
-  const filteredRoots = useMemo(() => {
-    let items = orderedRoots;
-    for (const filter of activeFilters) {
-      if (filter.key === "status" && typeof filter.value === "string") {
-        const want = filter.value === "active";
-        items = items.filter((root) =>
-          filter.condition === "is" ? root.isActive === want : root.isActive !== want,
-        );
-      }
-    }
-    if (deferredSearch) {
-      const lower = deferredSearch.toLowerCase();
-      items = items.filter(
-        (root) =>
-          root.name.toLowerCase().includes(lower) ||
-          root.children.some((child) => child.name.toLowerCase().includes(lower)),
-      );
-    }
-    return items;
-  }, [orderedRoots, activeFilters, deferredSearch]);
+  const filteredRoots = useMemo(
+    () =>
+      filterTreatmentRoots({
+        roots: orderedRoots,
+        activeFilters,
+        searchTerm: deferredSearch,
+      }),
+    [orderedRoots, activeFilters, deferredSearch],
+  );
 
   const toggleExpanded = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -159,18 +132,8 @@ export function TreatmentPlanTabContent({
     });
   }, []);
 
-  const flatRows = useMemo<VirtualRow[]>(
-    () =>
-      filteredRoots.flatMap((root) => {
-        const isExpanded = expandedIds.has(root.id);
-        const rows: VirtualRow[] = [{ type: "root", item: root, isExpanded }];
-        if (isExpanded && root.children.length > 0) {
-          for (const child of root.children) {
-            rows.push({ type: "child", item: child });
-          }
-        }
-        return rows;
-      }),
+  const flatRows = useMemo(
+    () => buildTreatmentRows({ roots: filteredRoots, expandedIds }),
     [filteredRoots, expandedIds],
   );
 
