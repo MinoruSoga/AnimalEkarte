@@ -35,6 +35,7 @@ type CreateManualReservationInput struct {
 	Notes             string
 	Source            model.ReservationSource
 	CreatedBy         *uint64
+	ReservationRoute  *string
 }
 
 // UpdateReservationInput は予約更新のサービス入力 DTO
@@ -151,6 +152,11 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
+	if input.ReservationRoute != nil {
+		if _, ok := allowedReservationRoutes[*input.ReservationRoute]; !ok {
+			return nil, apperrors.WrapInvalidInput("reservation_route must be one of: line, phone, reception, exam_room")
+		}
+	}
 	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
@@ -171,6 +177,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 		Notes:             input.Notes,
 		Source:            input.Source,
 		CreatedBy:         input.CreatedBy,
+		ReservationRoute:  input.ReservationRoute,
 	}
 
 	// BUG-034: end_time <= start_time の場合は 400 Bad Request

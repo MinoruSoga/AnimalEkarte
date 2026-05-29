@@ -142,6 +142,7 @@ func TestCreateReservationRequest_ToServiceInput(t *testing.T) {
 		Status:            string(model.ReservationStatusConfirmed),
 		Notes:             "manual reservation",
 		Source:            string(model.ReservationSourceLine),
+		ReservationRoute:  "reception",
 	}).toServiceInput(9, 8)
 	if err != nil {
 		t.Fatalf("toServiceInput() error = %v", err)
@@ -164,6 +165,9 @@ func TestCreateReservationRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.DoctorID != &doctorID {
 		t.Fatalf("DoctorID pointer was not preserved")
+	}
+	if input.ReservationRoute == nil || *input.ReservationRoute != "reception" {
+		t.Fatalf("ReservationRoute = %v, want reception", input.ReservationRoute)
 	}
 }
 

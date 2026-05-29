@@ -72,7 +72,9 @@ export const transformToCreateRequest = (
     reservation_type_id: Number(data.type ?? 0),
     doctor_id: data.doctor ? Number(data.doctor) : undefined,
     is_designated: data.isDesignated ?? false,
+    status: data.status,
     notes: data.notes,
     source: data.source,
+    reservation_route: data.reservationRoute ?? undefined,
   };
 };

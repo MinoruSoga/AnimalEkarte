@@ -3,6 +3,7 @@
  * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
 import type { Reservation as ApiReservation } from "@/types/generated/models";
+import type { ReservationRoute } from "../constants/reservation-route";
 
 export type BackendReservation = ApiReservation;
 
@@ -22,6 +23,7 @@ export interface CreateReservationRequest {
   status?: string;
   notes?: string;
   source?: "manual" | "line";
+  reservation_route?: ReservationRoute;
 }
 
 /**

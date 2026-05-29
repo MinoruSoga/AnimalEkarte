@@ -120,6 +120,7 @@ type createReservationRequest struct {
 	Status            string    `json:"status"              binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
 	Notes             string    `json:"notes"`
 	Source            string    `json:"source"              binding:"omitempty,oneof=manual line"`
+	ReservationRoute  string    `json:"reservation_route"   binding:"omitempty,oneof=line phone reception exam_room"`
 }
 
 func (r createReservationRequest) toServiceInput(clinicID, staffID uint64) (*service.CreateManualReservationInput, error) {
@@ -140,6 +141,9 @@ func (r createReservationRequest) toServiceInput(clinicID, staffID uint64) (*ser
 		Notes:             r.Notes,
 		Source:            source,
 		CreatedBy:         &staffID,
+	}
+	if r.ReservationRoute != "" {
+		input.ReservationRoute = &r.ReservationRoute
 	}
 	if r.VisitType != "" {
 		vt, err := validateEnum(r.VisitType,

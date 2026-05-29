@@ -104,7 +104,7 @@ export function Reception() {
                 description: "新規予約・受付画面へ移動します。",
                 duration: 2000
             });
-            navigate(paths.reservations.getHref());
+            navigate(`${paths.reservations.getHref()}?reception=1`, { state: { from: paths.home.getHref() } });
         }
     }, [navigate]);
 
@@ -172,7 +172,7 @@ export function Reception() {
                         {canCreateReservation ? (
                             <Button
                                 className={`${STYLE.confirmPrimary} h-11 text-base tracking-[var(--tracking-notion)]`}
-                                onClick={() => navigate(paths.reservations.getHref())}
+                                onClick={() => navigate(`${paths.reservations.getHref()}?reception=1`, { state: { from: paths.home.getHref() } })}
                             >
                                 新規予約登録
                             </Button>

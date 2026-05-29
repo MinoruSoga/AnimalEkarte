@@ -381,6 +381,25 @@ func TestCreateReservation(t *testing.T) {
 			wantStatus: http.StatusCreated,
 		},
 		{
+			name: "accepts reception route on create",
+			body: func() map[string]any {
+				b := validBody()
+				b["status"] = "checked_in"
+				b["reservation_route"] = "reception"
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			svc: &mockReservationService{
+				createFn: func(_ context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error) {
+					require.NotNil(t, input.ReservationRoute)
+					assert.Equal(t, "reception", *input.ReservationRoute)
+					assert.Equal(t, model.ReservationStatusCheckedIn, input.Status)
+					return &model.Reservation{ID: 1, ReservationRoute: input.ReservationRoute, Status: input.Status}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
 			name:       "returns 401 when clinic_id is missing",
 			body:       validBody(),
 			setupCtx:   func(_ *gin.Context) {},

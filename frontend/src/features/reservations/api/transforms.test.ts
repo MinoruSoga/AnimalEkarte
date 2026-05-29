@@ -254,4 +254,21 @@ describe("transformToCreateRequest", () => {
     const result = transformToCreateRequest({ ...baseData, notes: undefined }, "1", "1");
     expect(result.notes).toBeUndefined();
   });
+
+  it("status と reservation_route を作成 payload に含める", () => {
+    const result = transformToCreateRequest({
+      ...baseData,
+      status: "checked_in",
+      reservationRoute: "reception",
+      source: "manual",
+    }, "10", "20");
+
+    expect(result).toEqual(expect.objectContaining({
+      pet_id: 10,
+      owner_id: 20,
+      status: "checked_in",
+      reservation_route: "reception",
+      source: "manual",
+    }));
+  });
 });

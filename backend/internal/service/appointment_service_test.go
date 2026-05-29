@@ -384,6 +384,18 @@ func TestReservationService_Create(t *testing.T) {
 			wantErr:          true,
 			wantInvalidInput: true,
 		},
+		{
+			name: "returns invalid input when reservation_route is invalid",
+			input: &CreateManualReservationInput{
+				ClinicID:          1,
+				StartTime:         now,
+				EndTime:           now.Add(time.Hour),
+				ReservationTypeID: 1,
+				ReservationRoute:  ptrString("fax"),
+			},
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
 	}
 
 	for _, tt := range tests {

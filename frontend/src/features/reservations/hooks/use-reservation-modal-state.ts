@@ -7,6 +7,17 @@ interface UseReservationModalStateArgs {
   locationSearch: string;
 }
 
+function roundUpToNextQuarterHour(date: Date): Date {
+  const rounded = new Date(date);
+  rounded.setSeconds(0, 0);
+  const minutes = rounded.getMinutes();
+  const remainder = minutes % 15;
+  if (remainder !== 0) {
+    rounded.setMinutes(minutes + (15 - remainder));
+  }
+  return rounded;
+}
+
 export function useReservationModalState({
   locationSearch,
 }: UseReservationModalStateArgs) {
@@ -49,6 +60,24 @@ export function useReservationModalState({
   useEffect(() => {
     const searchParams = new URLSearchParams(locationSearch);
     const petId = searchParams.get("petId");
+    const isReceptionEntry = searchParams.get("reception") === "1";
+
+    if (isReceptionEntry && !isFormOpenRef.current) {
+      const start = roundUpToNextQuarterHour(new Date());
+
+      const stub: ReservationFormData = {
+        start,
+        end: addHours(start, 1),
+        status: "checked_in",
+        visitType: "first",
+        doctor: "",
+        isDesignated: false,
+        reservationRoute: "reception",
+        source: "manual",
+      };
+      handleOpenForm(stub);
+      return;
+    }
 
     if (petId && !isFormOpenRef.current) {
       const now = new Date();

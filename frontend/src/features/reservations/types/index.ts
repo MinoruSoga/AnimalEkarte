@@ -1,4 +1,5 @@
 import type { VisitType, ReservationStatus } from "@/types";
+import type { ReservationRoute } from "../constants/reservation-route";
 export type {
   Reservation,
   ReservationStatus,
@@ -34,6 +35,7 @@ export interface ReservationFormData {
   notes?: string;
   petId?: string;
   source?: "manual" | "line";
+  reservationRoute?: ReservationRoute | null;
 }
 
 export interface NewOwnerFormData {
@@ -43,4 +45,3 @@ export interface NewOwnerFormData {
   chiefComplaint: string;
   animalSpeciesId: number;
 }
-
