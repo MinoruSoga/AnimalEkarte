@@ -41,6 +41,7 @@ type reservationAdminService struct {
 	resRepo              repository.ReservationRepository
 	tx                   repository.Transactor
 	reservationStaffRepo repository.ReservationStaffRepository
+	unavailableTimeRepo  repository.ReservationTypeUnavailableTimeRepository
 }
 
 func NewReservationAdminService(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo ...repository.ReservationStaffRepository) ReservationAdminService {
@@ -49,6 +50,16 @@ func NewReservationAdminService(repo repository.ReservationAdminRepository, resR
 		staffRepo = reservationStaffRepo[0]
 	}
 	return &reservationAdminService{repo: repo, resRepo: resRepo, tx: tx, reservationStaffRepo: staffRepo}
+}
+
+func NewReservationAdminServiceWithAvailability(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository) ReservationAdminService {
+	return &reservationAdminService{
+		repo:                 repo,
+		resRepo:              resRepo,
+		tx:                   tx,
+		reservationStaffRepo: reservationStaffRepo,
+		unavailableTimeRepo:  unavailableTimeRepo,
+	}
 }
 
 func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Reservation, error) {
@@ -78,6 +89,9 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 		return nil, apperrors.Wrap(err, "failed to validate time range")
 	}
 	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+		return nil, err
+	}
+	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
 

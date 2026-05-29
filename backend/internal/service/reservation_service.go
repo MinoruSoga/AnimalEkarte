@@ -103,6 +103,7 @@ type reservationService struct {
 	repo                 repository.ReservationRepository
 	tx                   repository.Transactor
 	reservationStaffRepo repository.ReservationStaffRepository
+	unavailableTimeRepo  repository.ReservationTypeUnavailableTimeRepository
 }
 
 func NewReservationService(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo ...repository.ReservationStaffRepository) ReservationService {
@@ -111,6 +112,15 @@ func NewReservationService(repo repository.ReservationRepository, tx repository.
 		staffRepo = reservationStaffRepo[0]
 	}
 	return &reservationService{repo: repo, tx: tx, reservationStaffRepo: staffRepo}
+}
+
+func NewReservationServiceWithAvailability(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository) ReservationService {
+	return &reservationService{
+		repo:                 repo,
+		tx:                   tx,
+		reservationStaffRepo: reservationStaffRepo,
+		unavailableTimeRepo:  unavailableTimeRepo,
+	}
 }
 
 func (s *reservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -136,6 +146,9 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
 	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+		return nil, err
+	}
+	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
 	reservation := &model.Reservation{
@@ -319,6 +332,16 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 			resolvedReservationTypeID = *input.ReservationTypeID
 		}
 		if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, resolvedDoctorID, resolvedReservationTypeID); err != nil {
+			return nil, err
+		}
+	}
+	if input.StartTime != nil || input.EndTime != nil || input.ReservationTypeID != nil {
+		resolvedStart, resolvedEnd, _ := resolveUpdateParams(current, input)
+		resolvedReservationTypeID := current.ReservationTypeID
+		if input.ReservationTypeID != nil {
+			resolvedReservationTypeID = *input.ReservationTypeID
+		}
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
 			return nil, err
 		}
 	}

@@ -440,6 +440,45 @@ func TestReservationService_Create_RejectsExcludedStaff(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
 }
 
+func TestReservationService_Create_RejectsUnavailableTime(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	end := start.Add(30 * time.Minute)
+	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	repo := &mockReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			t.Fatal("reservation must not be created during unavailable time")
+			return nil
+		},
+	}
+	unavailableRepo := &mockUnavailableTimeRepository{
+		findAllFn: func(_ context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(5), reservationTypeID)
+			return []model.ReservationTypeUnavailableTime{
+				{
+					ReservationTypeID: 5,
+					UnavailableType:   model.UnavailableTypeSpecific,
+					SpecificDate:      &specificDate,
+					StartTime:         "10:00",
+					EndTime:           "11:00",
+				},
+			}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailability(repo, nil, nil, unavailableRepo)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           end,
+		ReservationTypeID: 5,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
+}
+
 func TestReservationService_Update(t *testing.T) {
 	_ = time.Now() // StartTime/EndTime/DoctorID を含むケースは統合テストで検証（s.db 必須）
 	statusConfirmed := model.ReservationStatusConfirmed
@@ -549,6 +588,54 @@ func TestReservationService_Update_RejectsExcludedStaffWhenTypeChanges(t *testin
 
 	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
 		ReservationTypeID: &nextTypeID,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
+}
+
+func TestReservationService_Update_RejectsUnavailableTimeWhenTimeChanges(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	end := start.Add(30 * time.Minute)
+	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(1), id)
+			return &model.Reservation{
+				ID:                id,
+				ClinicID:          clinicID,
+				ReservationTypeID: 5,
+				StartTime:         time.Date(2026, 6, 1, 9, 0, 0, 0, jstLocation),
+				EndTime:           time.Date(2026, 6, 1, 9, 30, 0, 0, jstLocation),
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			t.Fatal("reservation must not be updated during unavailable time")
+			return nil, nil
+		},
+	}
+	unavailableRepo := &mockUnavailableTimeRepository{
+		findAllFn: func(_ context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(5), reservationTypeID)
+			return []model.ReservationTypeUnavailableTime{
+				{
+					ReservationTypeID: 5,
+					UnavailableType:   model.UnavailableTypeSpecific,
+					SpecificDate:      &specificDate,
+					StartTime:         "10:00",
+					EndTime:           "11:00",
+				},
+			}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailability(repo, nil, nil, unavailableRepo)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
+		StartTime: &start,
+		EndTime:   &end,
 	})
 
 	assert.Error(t, err)
