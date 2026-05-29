@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
+import { startTransition } from "react";
 import { useMedicalRecordForm } from "./use-medical-record-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
@@ -34,6 +35,14 @@ vi.mock("@/hooks/use-permission", () => ({
 // API フック群をすべてスタブ化（デフォルト: データなし・ローディングなし）
 const noData = { data: undefined, isLoading: false, isError: false };
 const noMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
+
+function runFormAction(action: (payload: FormData) => void) {
+  act(() => {
+    startTransition(() => {
+      action(new FormData());
+    });
+  });
+}
 
 vi.mock("@/hooks/use-pet", () => ({ useGetPet: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })) }));
 vi.mock("@/hooks/use-owner", () => ({ useGetOwner: vi.fn(() => noData) }));
@@ -356,9 +365,14 @@ describe("useMedicalRecordForm", () => {
         // transition をフラッシュ
         await Promise.resolve();
       });
-      // handleChangeDoctor は startSaveTransition 内で実行される
-      // mutateAsync が呼ばれることを確認（またはエラーなく完了）
-      expect(() => result.current.handleChangeDoctor("3", "山田医師")).not.toThrow();
+      await waitFor(() => {
+        expect(noMutation.mutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: "10",
+            req: expect.objectContaining({ doctor_id: 3 }),
+          }),
+        );
+      });
     });
   });
 
@@ -633,10 +647,10 @@ describe("useMedicalRecordForm", () => {
   describe("formAction（useActionState）", () => {
     it("recordId なし → 即 success: false を返す（line 166）", async () => {
       const { result } = renderHook(() => useMedicalRecordForm()); // no recordId
-      await act(async () => {
-        await result.current.formAction(new FormData());
+      runFormAction(result.current.formAction);
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(false);
       });
-      expect(result.current.formState.success).toBe(false);
     });
 
     it("recordId あり & 問診タブ → updateInquiryMutation.mutateAsync を呼ぶ", async () => {
@@ -649,14 +663,14 @@ describe("useMedicalRecordForm", () => {
       const { result } = renderHook(() => useMedicalRecordForm("10"));
       // activeTab = "問診" (デフォルト)
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
+      runFormAction(result.current.formAction);
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(true);
       });
 
       // 問診タブ保存 → toast.success
       const { toast } = await import("sonner");
       expect(toast.success).toHaveBeenCalledWith("保存しました");
-      expect(result.current.formState.success).toBe(true);
     });
 
     it("recordId あり & 診察/治療プランタブ & diagnosis1CategoryId あり & diagnosis1NameId なし → バリデーションエラー（line 183-188）", async () => {
@@ -664,16 +678,22 @@ describe("useMedicalRecordForm", () => {
 
       // タブを診察/治療プランに切り替え
       act(() => { result.current.setActiveTab("診察/治療プラン"); });
+      await waitFor(() => {
+        expect(result.current.activeTab).toBe("診察/治療プラン");
+      });
       // 診断1カテゴリを設定、名前は未設定
       act(() => { result.current.setDiagnosis1CategoryId(3); });
+      await waitFor(() => {
+        expect(result.current.diagnosis1CategoryId).toBe(3);
+      });
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
+      runFormAction(result.current.formAction);
+      await waitFor(() => {
+        expect(result.current.formState.fieldErrors?.diagnosis1_name_id).toBe("診断名を選択してください");
       });
 
       // toast.error は使わず fieldErrors でインライン表示する
       expect(result.current.formState.success).toBe(false);
-      expect(result.current.formState.fieldErrors?.diagnosis1_name_id).toBe("診断名を選択してください");
     });
   });
 });
