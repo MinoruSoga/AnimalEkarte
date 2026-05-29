@@ -43,6 +43,7 @@ interface AppointmentCardProps {
   appointment: ReceptionAppointment;
   columnTitle: string;
   onCardClick: (appointment: ReceptionAppointment) => void;
+  onRecordOpen?: (appointment: ReceptionAppointment, columnTitle: string) => void;
   isDragOverlay?: boolean;
 }
 
@@ -50,6 +51,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   appointment,
   columnTitle,
   onCardClick,
+  onRecordOpen,
   isDragOverlay = false,
 }: AppointmentCardProps) {
   const navigate = useNavigate();
@@ -82,6 +84,7 @@ export const AppointmentCard = memo(function AppointmentCard({
 
   const handleKarteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    onRecordOpen?.(appointment, columnTitle);
     const params = new URLSearchParams();
     if (appointment.petId) params.set("petId", appointment.petId);
     if (appointment.id) params.set("appointmentId", appointment.id);
@@ -99,7 +102,7 @@ export const AppointmentCard = memo(function AppointmentCard({
       query ? `${basePath}?${query}` : basePath,
       { state: { from: "/", appointmentId: appointment.id, visitDate: appointment.visitDate } },
     );
-  }, [navigate, isTrimming, appointment.petId, appointment.id, appointment.visitDate]);
+  }, [navigate, isTrimming, appointment, appointment.petId, appointment.id, appointment.visitDate, columnTitle, onRecordOpen]);
 
   const handleAccountingClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

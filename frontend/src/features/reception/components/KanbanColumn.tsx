@@ -20,12 +20,14 @@ interface KanbanColumnProps {
   data: ColumnData;
   onAddClick?: () => void;
   onCardClick: (appointment: ReceptionAppointment) => void;
+  onRecordOpen?: (appointment: ReceptionAppointment, columnTitle: string) => void;
 }
 
 export const KanbanColumn = memo(function KanbanColumn({
   data,
   onAddClick,
-  onCardClick
+  onCardClick,
+  onRecordOpen,
 }: KanbanColumnProps) {
   const colors = getReceptionColumnColor(data.title);
 
@@ -46,9 +48,10 @@ export const KanbanColumn = memo(function KanbanColumn({
         appointment={appointment}
         columnTitle={data.title}
         onCardClick={onCardClick}
+        onRecordOpen={onRecordOpen}
       />
     )),
-    [data.appointments, data.title, onCardClick]
+    [data.appointments, data.title, onCardClick, onRecordOpen]
   );
 
   return (

@@ -38,13 +38,18 @@ const baseAppointment: ReceptionAppointment = {
   source: "manual",
 };
 
-function renderCard(appointment: ReceptionAppointment = baseAppointment, columnTitle = "受付済") {
+function renderCard(
+  appointment: ReceptionAppointment = baseAppointment,
+  columnTitle = "受付済",
+  onRecordOpen = vi.fn(),
+) {
   return render(
     <DndContext>
       <AppointmentCard
         appointment={appointment}
         columnTitle={columnTitle}
         onCardClick={vi.fn()}
+        onRecordOpen={onRecordOpen}
       />
     </DndContext>,
   );
@@ -52,10 +57,12 @@ function renderCard(appointment: ReceptionAppointment = baseAppointment, columnT
 
 describe("AppointmentCard", () => {
   it("通常カルテ遷移に appointmentId を query と state の両方で渡す", () => {
-    renderCard();
+    const onRecordOpen = vi.fn();
+    renderCard(baseAppointment, "受付済", onRecordOpen);
 
     fireEvent.click(screen.getByRole("button", { name: /ポチのカルテ/ }));
 
+    expect(onRecordOpen).toHaveBeenCalledWith(baseAppointment, "受付済");
     expect(navigateMock).toHaveBeenCalledWith(
       "/medical-records/new?petId=10&appointmentId=101&visitDate=2026-05-29",
       { state: { from: "/", appointmentId: "101", visitDate: "2026-05-29" } },
@@ -83,9 +90,14 @@ describe("AppointmentCard", () => {
   });
 
   it("通常予約のカルテボタンは診療中カラムでは表示する", () => {
-    renderCard(baseAppointment, "診療中");
+    const onRecordOpen = vi.fn();
+    renderCard(baseAppointment, "診療中", onRecordOpen);
 
     expect(screen.getByRole("button", { name: /ポチのカルテ/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /ポチのカルテ/ }));
+
+    expect(onRecordOpen).toHaveBeenCalledWith(baseAppointment, "診療中");
   });
 
   it("トリミング予約はカテゴリで判定し、施術遷移に appointmentId を渡す", () => {

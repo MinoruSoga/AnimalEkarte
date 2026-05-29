@@ -24,6 +24,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 import { KanbanColumn } from "../components/KanbanColumn";
 import { ReceptionFilterPanel } from "../components/ReceptionFilterPanel";
+import type { ReceptionAppointment } from "../api/types";
 import { useReceptionKanban } from "../hooks/use-reception-kanban";
 import { ReceptionDetailModal, ReservationFormModal } from "./ReceptionLazyModals";
 import { NO_ADD_BUTTON_COLUMNS } from "./ReceptionModel";
@@ -89,6 +90,12 @@ export function Reception() {
 
     const todayLabel = format(new Date(), "yyyy年M月d日 (E)", { locale: ja });
 
+    const handleRecordOpen = useCallback((appointment: ReceptionAppointment, columnTitle: string) => {
+        if (columnTitle === "受付済" && canEditReservation) {
+            advanceStatus(appointment);
+        }
+    }, [advanceStatus, canEditReservation]);
+
     const handleAddClick = useCallback((columnTitle: string) => {
         if (columnTitle === "受付予約") {
             navigate(paths.reservations.getHref());
@@ -121,9 +128,10 @@ export function Reception() {
                 data={column}
                 onAddClick={addClickHandlers.get(column.title)}
                 onCardClick={handleCardClick}
+                onRecordOpen={handleRecordOpen}
             />
         )),
-        [filteredColumns, addClickHandlers, handleCardClick]
+        [filteredColumns, addClickHandlers, handleCardClick, handleRecordOpen]
     );
 
     // js-set-map-lookups: レンダーパスの O(n²) find+some を O(1) Map ルックアップへ変換
