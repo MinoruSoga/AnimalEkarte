@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { addHours } from "date-fns";
 import { toast } from "sonner";
 
+import { useUpdateReservation } from "@/features/reservations";
 import type { Pet, Reservation } from "@/types";
 
 import type { ReceptionAppointment } from "../api/types";
@@ -36,6 +37,7 @@ export function useReceptionModalHandlers({
   cancelAppointment,
   updateAppointment,
 }: UseReceptionModalHandlersParams) {
+  const updateReservationMutation = useUpdateReservation();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<ReceptionAppointment | null>(null);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
@@ -78,8 +80,8 @@ export function useReceptionModalHandlers({
       end: addHours(start, 1),
       status: "confirmed",
       visitType: appointment.visitType === "初診" ? "first" : "revisit",
-      type: appointment.reservationType,
-      doctor: appointment.doctor || "医師A",
+      type: appointment.reservationTypeId,
+      doctor: appointment.doctorId || "",
       isDesignated: appointment.isDesignated || false,
       petId: appointment.petId,
       ownerName: appointment.ownerName,
@@ -104,22 +106,44 @@ export function useReceptionModalHandlers({
         petName: selectedPets[0]?.name || data.petName || "",
         petType: selectedPets[0]?.species || "犬",
         visitType: data.visitType === "first" ? "初診" : "再診",
-        reservationType: data.type || "診療",
-        doctor: data.doctor,
+        reservationType: selectedAppointmentRef.current?.reservationType || "診療",
+        reservationTypeId: data.type || "",
+        reservationCategory: selectedAppointmentRef.current?.reservationCategory || "general",
+        doctor: selectedAppointmentRef.current?.doctor,
+        doctorId: data.doctor || "",
         isDesignated: data.isDesignated ?? false,
         petId: selectedPets[0]?.id || data.petId || "",
-        ownerId: "",
+        ownerId: selectedPets[0]?.ownerId || selectedAppointmentRef.current?.ownerId || "",
         status: "confirmed",
-        notes: undefined,
-        source: "manual" as const,
+        notes: data.notes,
+        source: selectedAppointmentRef.current?.source || "manual",
       };
 
-      updateAppointment(updatedAppointment);
-      setIsEditModalOpen(false);
-      setEditingAppointment(null);
-      setEditingAppointmentId(null);
+      updateReservationMutation.mutate(
+        {
+          id: editingAppointmentId,
+          req: {
+            start_time: data.start.toISOString(),
+            end_time: (data.end ?? addHours(data.start, 1)).toISOString(),
+            visit_type: data.visitType || "first",
+            reservation_type_id: data.type ? Number(data.type) : undefined,
+            doctor_id: data.doctor ? Number(data.doctor) : undefined,
+            is_designated: data.isDesignated ?? false,
+            status: data.status || "confirmed",
+            notes: data.notes,
+          },
+        },
+        {
+          onSuccess: () => {
+            updateAppointment(updatedAppointment);
+            setIsEditModalOpen(false);
+            setEditingAppointment(null);
+            setEditingAppointmentId(null);
+          },
+        },
+      );
     },
-    [editingAppointmentId, updateAppointment],
+    [editingAppointmentId, updateAppointment, updateReservationMutation],
   );
 
   const handleCancelAppointment = useCallback((appointment: ReceptionAppointment) => {

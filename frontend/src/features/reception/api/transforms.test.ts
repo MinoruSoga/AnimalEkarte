@@ -157,6 +157,17 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.reservationCategory).toBe("trimming");
   });
 
+  it("reservation_type_id / doctor_id を編集フォーム用IDとして保持する", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      reservation_type_id: 9,
+      doctor_id: 33,
+    });
+
+    expect(result.reservationTypeId).toBe("9");
+    expect(result.doctorId).toBe("33");
+  });
+
   it("is_designated をそのまま返す", () => {
     expect(transformReservationToReceptionAppointment({ ...minimal, is_designated: true }).isDesignated).toBe(true);
   });

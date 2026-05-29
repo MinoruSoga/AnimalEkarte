@@ -24,6 +24,7 @@ export const useUpdateReservation = () => {
       updateReservation(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["reception"] });
     },
     onError: (error) => handleApiError(error, "予約更新"),
   });

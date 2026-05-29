@@ -15,6 +15,7 @@ function toAppointment(appt: ReceptionAppointment, staffMap: Map<string, string>
     ...appt,
     // doctor_id（UUID）をスタッフ名に変換。未登録IDの場合はUUIDをそのまま表示
     doctor: appt.doctor ? (staffMap.get(appt.doctor) ?? appt.doctor) : undefined,
+    doctorId: appt.doctorId || appt.doctor,
   };
 }
 
