@@ -4,6 +4,7 @@
  * NOTE: BackendTrimming はハンドラの trimmingResponse DTO であり、
  * models.ts の Go モデルとは別物。make codegen では更新されない。
  */
+import type { ReservationRoute } from "@/features/reservations";
 
 // -------------------------------------------------------
 // Backend Response DTO (trimming_response.go に対応)
@@ -89,6 +90,7 @@ export interface CreateTrimmingRequest {
   pet_id?: number | null;
   staff_id?: number | null;
   status?: string;
+  reservation_route?: ReservationRoute;
   course_id?: number | null;
   style_request?: string;
   bw?: number | null;

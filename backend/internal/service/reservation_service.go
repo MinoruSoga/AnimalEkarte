@@ -12,10 +12,11 @@ import (
 
 // allowedReservationRoutes は予約経路の許可値ホワイトリスト（FEAT-381-2 Commit 3）。
 var allowedReservationRoutes = map[string]struct{}{
-	"line": {}, "phone": {}, "reception": {}, "exam_room": {},
+	"line": {}, "phone": {}, "reception": {}, "exam_room": {}, "record_shortcut": {},
 }
 
 const colReservationRoute = "reservation_route"
+const allowedReservationRoutesMessage = "reservation_route must be one of: line, phone, reception, exam_room, record_shortcut"
 
 // UpdateReservationRouteInput は予約経路更新の入力DTO（FEAT-381-2 Commit 3）。
 type UpdateReservationRouteInput struct{ Route string }
@@ -154,7 +155,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	}
 	if input.ReservationRoute != nil {
 		if _, ok := allowedReservationRoutes[*input.ReservationRoute]; !ok {
-			return nil, apperrors.WrapInvalidInput("reservation_route must be one of: line, phone, reception, exam_room")
+			return nil, apperrors.WrapInvalidInput(allowedReservationRoutesMessage)
 		}
 	}
 	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
@@ -209,7 +210,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 func shouldEnforceReservationBookingConstraints(status model.ReservationStatus, route *string) bool {
 	if route != nil {
 		switch *route {
-		case "reception", "exam_room":
+		case "reception", "exam_room", "record_shortcut":
 			return false
 		}
 	}
@@ -414,7 +415,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error) {
 	if input.Route != "" {
 		if _, ok := allowedReservationRoutes[input.Route]; !ok {
-			return nil, apperrors.WrapInvalidInput("reservation_route must be one of: line, phone, reception, exam_room")
+			return nil, apperrors.WrapInvalidInput(allowedReservationRoutesMessage)
 		}
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {

@@ -783,7 +783,7 @@ func TestReservationService_Delete(t *testing.T) {
 }
 
 func TestReservationService_UpdateReservationRoute(t *testing.T) {
-	validRoutes := []string{"line", "phone", "reception", "exam_room"}
+	validRoutes := []string{"line", "phone", "reception", "exam_room", "record_shortcut"}
 
 	t.Run("success: valid routes update reservation_route", func(t *testing.T) {
 		for _, route := range validRoutes {

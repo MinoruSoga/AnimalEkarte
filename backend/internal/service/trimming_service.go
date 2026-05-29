@@ -20,6 +20,7 @@ type CreateTrimmingInput struct {
 	PetID             *uint64
 	StaffID           *uint64 // appointments.doctor_id にマップ
 	Status            model.ReservationStatus
+	ReservationRoute  *string
 	// トリミング詳細（appointment_trimming_details）
 	CourseID        *uint64
 	StyleRequest    string
@@ -138,13 +139,18 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if input.StartTime.IsZero() || input.EndTime.IsZero() {
 		return nil, apperrors.WrapInvalidInput("start_time and end_time are required")
 	}
+	if input.ReservationRoute != nil {
+		if _, ok := allowedReservationRoutes[*input.ReservationRoute]; !ok {
+			return nil, apperrors.WrapInvalidInput(allowedReservationRoutesMessage)
+		}
+	}
 	if err := s.validateTrimmingReservationType(ctx, clinicID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
 	if err := validateReservationStaffCapability(ctx, s.reservationStaff, clinicID, input.StaffID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
-	if shouldEnforceReservationBookingConstraints(status, nil) {
+	if shouldEnforceReservationBookingConstraints(status, input.ReservationRoute) {
 		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, s.availableSlot, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 			return nil, err
 		}
@@ -165,6 +171,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 			DoctorID:          input.StaffID,
 			Status:            status,
 			Source:            model.ReservationSourceManual,
+			ReservationRoute:  input.ReservationRoute,
 		}
 		if err := s.reservation.Create(txCtx, appt); err != nil {
 			return apperrors.Wrap(err, "failed to create trimming appointment")

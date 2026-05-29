@@ -78,6 +78,7 @@ export function useMedicalRecordAutoCreate({
             reservation_type_id: generalReservationType?.id ?? 0,
             status: "in_consultation",
             source: "manual",
+            reservation_route: "record_shortcut",
           });
           appointmentId = appointment.id;
         }

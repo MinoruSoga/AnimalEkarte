@@ -120,7 +120,7 @@ type createReservationRequest struct {
 	Status            string    `json:"status"              binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
 	Notes             string    `json:"notes"`
 	Source            string    `json:"source"              binding:"omitempty,oneof=manual line"`
-	ReservationRoute  string    `json:"reservation_route"   binding:"omitempty,oneof=line phone reception exam_room"`
+	ReservationRoute  string    `json:"reservation_route"   binding:"omitempty,oneof=line phone reception exam_room record_shortcut"`
 }
 
 func (r createReservationRequest) toServiceInput(clinicID, staffID uint64) (*service.CreateManualReservationInput, error) {

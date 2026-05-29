@@ -81,7 +81,7 @@ describe("ReservationRouteSelect — A: 初期表示", () => {
 // ─────────────────────────────────────────────────────────────
 
 describe("ReservationRouteSelect — B: 選択肢の表示", () => {
-  it("トリガークリック → 4選択肢（LINE/電話/受付/診察室）がすべて表示される", async () => {
+  it("トリガークリック → 5選択肢（LINE/電話/受付/診察室/記録入力）がすべて表示される", async () => {
     renderSelect(null);
     const user = userEvent.setup();
     await user.click(screen.getByTestId("reservation-route-trigger"));
@@ -90,6 +90,7 @@ describe("ReservationRouteSelect — B: 選択肢の表示", () => {
       expect(screen.getByRole("option", { name: "電話" })).toBeInTheDocument();
       expect(screen.getByRole("option", { name: "受付" })).toBeInTheDocument();
       expect(screen.getByRole("option", { name: "診察室" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "記録入力" })).toBeInTheDocument();
     });
   });
 

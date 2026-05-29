@@ -65,6 +65,7 @@ type createTrimmingRequest struct {
 	PetID             *uint64    `json:"pet_id"               binding:"required"`
 	StaffID           *uint64    `json:"staff_id"`
 	Status            string     `json:"status"              binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
+	ReservationRoute  string     `json:"reservation_route"   binding:"omitempty,oneof=line phone reception exam_room record_shortcut"`
 	// トリミング詳細
 	CourseID       *uint64  `json:"course_id"`
 	StyleRequest   string   `json:"style_request"`
@@ -104,6 +105,9 @@ func (r createTrimmingRequest) toServiceInput() *service.CreateTrimmingInput {
 	}
 	if r.Status != "" {
 		input.Status = model.ReservationStatus(r.Status)
+	}
+	if r.ReservationRoute != "" {
+		input.ReservationRoute = &r.ReservationRoute
 	}
 	if r.BWUnit != "" {
 		input.BWUnit = model.BodyWeightUnit(r.BWUnit)

@@ -72,6 +72,7 @@ func TestCreateTrimmingRequest_ToServiceInput(t *testing.T) {
 		PetID:             &petID,
 		StaffID:           &staffID,
 		Status:            "confirmed",
+		ReservationRoute:  "record_shortcut",
 		StyleRequest:      "short",
 		BW:                &bw,
 		BWUnit:            "kg",
@@ -89,6 +90,9 @@ func TestCreateTrimmingRequest_ToServiceInput(t *testing.T) {
 	}
 	if string(input.Status) != req.Status {
 		t.Errorf("Status = %q, want %q", input.Status, req.Status)
+	}
+	if input.ReservationRoute == nil || *input.ReservationRoute != req.ReservationRoute {
+		t.Errorf("ReservationRoute = %v, want %q", input.ReservationRoute, req.ReservationRoute)
 	}
 	if input.BodyWeight == nil || *input.BodyWeight != bw {
 		t.Errorf("BodyWeight = %v, want %v", input.BodyWeight, bw)

@@ -390,6 +390,17 @@ func TestTrimmingService_Create(t *testing.T) {
 			},
 		},
 		{
+			name:     "creates record shortcut trimming appointment",
+			clinicID: 1,
+			input: CreateTrimmingInput{
+				ReservationTypeID: 1,
+				StartTime:         time.Now(),
+				EndTime:           time.Now().Add(time.Hour),
+				Status:            model.ReservationStatusInConsultation,
+				ReservationRoute:  ptrString("record_shortcut"),
+			},
+		},
+		{
 			name:      "returns error when appointment creation fails",
 			clinicID:  1,
 			input:     CreateTrimmingInput{ReservationTypeID: 1, StartTime: time.Now(), EndTime: time.Now().Add(time.Hour)},
@@ -417,6 +428,9 @@ func TestTrimmingService_Create(t *testing.T) {
 			reserv := &mockTrimmingReservationRepository{
 				createFn: func(_ context.Context, a *model.Reservation) error {
 					a.ID = 1
+					if tt.input.ReservationRoute != nil {
+						assert.Equal(t, tt.input.ReservationRoute, a.ReservationRoute)
+					}
 					return tt.createErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {

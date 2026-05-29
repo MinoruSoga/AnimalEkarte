@@ -336,6 +336,7 @@ export function useTrimmingForm(id?: string) {
           );
           if (!hasExistingAppointment) {
             req.status = "in_consultation";
+            req.reservation_route = "record_shortcut";
           }
           await createMutation.mutateAsync(req);
           localStorage.removeItem(DRAFT_KEY);

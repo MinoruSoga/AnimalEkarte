@@ -524,6 +524,7 @@ describe("useMedicalRecordForm", () => {
             owner_id: Number(mockPet.ownerId),
             reservation_type_id: 1,
             status: "in_consultation",
+            reservation_route: "record_shortcut",
           })
         );
         expect(mockMutateAsync).toHaveBeenCalledWith(
