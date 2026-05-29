@@ -36,6 +36,35 @@ interface StaffSidePanelProps {
   onSaveExcludedReservationTypes: (staffId: string, reservationTypeIds: string[]) => void;
 }
 
+function useEditableIdSelection({
+  serverIds,
+  markDirty,
+}: {
+  serverIds: string[] | undefined;
+  markDirty: () => void;
+}) {
+  const [userEditedIds, setUserEditedIds] = useState<string[] | null>(null);
+
+  const ids = useMemo(
+    () => userEditedIds ?? serverIds ?? [],
+    [userEditedIds, serverIds],
+  );
+  const idSet = useMemo(() => new Set(ids), [ids]);
+
+  const handleToggle = useCallback(
+    (id: string, checked: boolean) => {
+      setUserEditedIds((prev) => {
+        const current = prev ?? serverIds ?? [];
+        return checked ? [...current, id] : current.filter((currentId) => currentId !== id);
+      });
+      markDirty();
+    },
+    [serverIds, markDirty],
+  );
+
+  return { ids, idSet, handleToggle };
+}
+
 export const StaffSidePanel = memo(function StaffSidePanel({
   item,
   onClose,
@@ -84,64 +113,25 @@ export const StaffSidePanel = memo(function StaffSidePanel({
   );
 
   const { data: serverGroupIds } = useGetStaffPermissionGroups(staffId);
-  const [userEditedGroupIds, setUserEditedGroupIds] = useState<string[] | null>(null);
-
-  const groupIds = useMemo(
-    () => userEditedGroupIds ?? serverGroupIds ?? [],
-    [userEditedGroupIds, serverGroupIds],
-  );
-  const groupIdSet = useMemo(() => new Set(groupIds), [groupIds]);
+  const {
+    ids: groupIds,
+    idSet: groupIdSet,
+    handleToggle: handleGroupToggle,
+  } = useEditableIdSelection({ serverIds: serverGroupIds, markDirty });
 
   const { data: serverClinicIds } = useGetStaffClinics(staffId);
-  const [userEditedClinicIds, setUserEditedClinicIds] = useState<string[] | null>(null);
-
-  const clinicIds = useMemo(
-    () => userEditedClinicIds ?? serverClinicIds ?? [],
-    [userEditedClinicIds, serverClinicIds],
-  );
-  const clinicIdSet = useMemo(() => new Set(clinicIds), [clinicIds]);
+  const {
+    ids: clinicIds,
+    idSet: clinicIdSet,
+    handleToggle: handleClinicToggle,
+  } = useEditableIdSelection({ serverIds: serverClinicIds, markDirty });
 
   const { data: serverExcludedIds } = useGetStaffExcludedReservationTypes(staffId);
-  const [userEditedExcludedIds, setUserEditedExcludedIds] = useState<string[] | null>(null);
-
-  const excludedIds = useMemo(
-    () => userEditedExcludedIds ?? serverExcludedIds ?? [],
-    [userEditedExcludedIds, serverExcludedIds],
-  );
-  const excludedIdSet = useMemo(() => new Set(excludedIds), [excludedIds]);
-
-  const handleExcludedToggle = useCallback(
-    (reservationTypeId: string, checked: boolean) => {
-      setUserEditedExcludedIds((prev) => {
-        const current = prev ?? serverExcludedIds ?? [];
-        return checked ? [...current, reservationTypeId] : current.filter((id) => id !== reservationTypeId);
-      });
-      markDirty();
-    },
-    [serverExcludedIds, markDirty],
-  );
-
-  const handleClinicToggle = useCallback(
-    (clinicId: string, checked: boolean) => {
-      setUserEditedClinicIds((prev) => {
-        const current = prev ?? serverClinicIds ?? [];
-        return checked ? [...current, clinicId] : current.filter((id) => id !== clinicId);
-      });
-      markDirty();
-    },
-    [serverClinicIds, markDirty],
-  );
-
-  const handleGroupToggle = useCallback(
-    (groupId: string, checked: boolean) => {
-      setUserEditedGroupIds((prev) => {
-        const current = prev ?? serverGroupIds ?? [];
-        return checked ? [...current, groupId] : current.filter((id) => id !== groupId);
-      });
-      markDirty();
-    },
-    [serverGroupIds, markDirty],
-  );
+  const {
+    ids: excludedIds,
+    idSet: excludedIdSet,
+    handleToggle: handleExcludedToggle,
+  } = useEditableIdSelection({ serverIds: serverExcludedIds, markDirty });
 
   const handleSave = useCallback(() => {
     if (!formData.name.trim()) {
