@@ -25,6 +25,7 @@ interface UseMedicalRecordAutoCreateParams {
   selectedPet: Pet | undefined;
   hasAutoCreatedRef: MutableRefObject<boolean>;
   appointmentIdFromState: string | undefined;
+  visitDateFromState: string | undefined;
   generalReservationType: MedicalRecordReservationType | undefined;
   createReservationMutation: AsyncMutation<CreateReservationRequest, Reservation>;
   createMutation: AsyncMutation<CreateMedicalRecordRequest, MedicalRecord>;
@@ -39,6 +40,7 @@ export function useMedicalRecordAutoCreate({
   selectedPet,
   hasAutoCreatedRef,
   appointmentIdFromState,
+  visitDateFromState,
   generalReservationType,
   createReservationMutation,
   createMutation,
@@ -71,7 +73,7 @@ export function useMedicalRecordAutoCreate({
           appointmentId = appointment.id;
         }
 
-        const today = formatJSTDate(new Date());
+        const today = visitDateFromState ?? formatJSTDate(new Date());
         const record = await createMutation.mutateAsync({
           pet_id: selectedPet.id,
           owner_id: selectedPet.ownerId,
@@ -88,5 +90,5 @@ export function useMedicalRecordAutoCreate({
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run only when isNewRecord or petId changes; createMutation/navigate/visitType are stable references
-  }, [isNewRecord, selectedPet?.id, appointmentIdFromState, generalReservationType?.id]);
+  }, [isNewRecord, selectedPet?.id, appointmentIdFromState, visitDateFromState, generalReservationType?.id]);
 }

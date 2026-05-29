@@ -48,22 +48,41 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
     setManualExpanded(!isExpanded);
   };
 
+  const contentBaseClassName = [
+    "w-full flex items-center gap-3 px-3 h-12 rounded-[3px] text-base transition-colors",
+    isActive ? STYLE.sidebarItemActive : STYLE.sidebarItemIdle,
+    collapsed ? "justify-center" : "",
+    level === 1 ? "pl-8" : level > 1 ? "pl-14" : "",
+  ].join(" ");
+
   const content = (
     <div
-      className={[
-        "w-full flex items-center gap-3 px-3 h-12 rounded-[3px] text-base transition-colors",
-        isActive ? STYLE.sidebarItemActive : STYLE.sidebarItemIdle,
-        collapsed ? "justify-center" : "",
-        level === 1 ? "pl-8" : level > 1 ? "pl-14" : "",
-      ].join(" ")}
+      className={contentBaseClassName}
     >
       <div className={`size-[18px] flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>
         {item.icon}
       </div>
-      {!collapsed ? (
-        <>
-          <span className="truncate flex-1 text-left">{item.label}</span>
-          {hasSubItems ? (
+      {!collapsed ? <span className="truncate flex-1 text-left">{item.label}</span> : null}
+    </div>
+  );
+
+  return (
+    <div className="w-full">
+      {hasSubItems ? (
+        <div className={contentBaseClassName}>
+          <button
+            type="button"
+            onClick={handleClick}
+            className="min-w-0 flex-1 h-full flex items-center gap-3 text-left"
+            title={collapsed ? item.label : undefined}
+            aria-expanded={isExpanded}
+          >
+            <div className={`size-[18px] flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>
+              {item.icon}
+            </div>
+            {!collapsed ? <span className="truncate flex-1">{item.label}</span> : null}
+          </button>
+          {!collapsed ? (
             <button
               type="button"
               onClick={handleChevronClick}
@@ -73,23 +92,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
               <ChevronDown className={`${ICON.xs} transition-transform${isExpanded ? " rotate-180" : ""}`} />
             </button>
           ) : null}
-        </>
-      ) : null}
-    </div>
-  );
-
-  return (
-    <div className="w-full">
-      {hasSubItems ? (
-        <button
-          type="button"
-          onClick={handleClick}
-          className="w-full block"
-          title={collapsed ? item.label : undefined}
-          aria-expanded={isExpanded}
-        >
-          {content}
-        </button>
+        </div>
       ) : (
         <Link
           to={item.path || "#"}

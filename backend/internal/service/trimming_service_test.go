@@ -384,6 +384,150 @@ func TestTrimmingService_Create(t *testing.T) {
 	}
 }
 
+func TestTrimmingService_Create_ExistingAppointment(t *testing.T) {
+	appointmentID := uint64(77)
+	petID := uint64(10)
+	courseID := uint64(4)
+	category := model.ReservationTypeCategoryTrimming
+	detailCreated := false
+	appointmentUpdated := false
+
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:                id,
+				ClinicID:          1,
+				PetID:             &petID,
+				Status:            model.ReservationStatusCheckedIn,
+				ReservationTypeID: 9,
+				ReservationType:   &model.ReservationType{ID: 9, Category: category},
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _ uint64, id uint64, fields map[string]any) (*model.Reservation, error) {
+			appointmentUpdated = true
+			assert.Equal(t, appointmentID, id)
+			assert.NotContains(t, fields, "start_time")
+			assert.NotContains(t, fields, "end_time")
+			assert.NotContains(t, fields, "status")
+			return &model.Reservation{ID: id, ClinicID: 1}, nil
+		},
+	}
+	detailCalls := 0
+	detail := &mockTrimmingDetailRepository{
+		findByAppointmentIDFn: func(_ context.Context, _ uint64, id uint64) (*model.AppointmentTrimmingDetail, error) {
+			detailCalls++
+			if detailCalls == 1 {
+				return nil, apperrors.WrapNotFound("appointment_trimming_detail", "missing")
+			}
+			return &model.AppointmentTrimmingDetail{AppointmentID: id}, nil
+		},
+		createFn: func(_ context.Context, detail *model.AppointmentTrimmingDetail) error {
+			detailCreated = true
+			assert.Equal(t, appointmentID, detail.AppointmentID)
+			assert.Equal(t, &courseID, detail.CourseID)
+			return nil
+		},
+	}
+	svc := newTrimmingTestService(reserv, detail)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		AppointmentID:     &appointmentID,
+		ReservationTypeID: 9,
+		PetID:             &petID,
+		CourseID:          &courseID,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, appt)
+	assert.True(t, detailCreated)
+	assert.False(t, appointmentUpdated)
+}
+
+func TestTrimmingService_Create_ExistingAppointmentRejectsPetMismatch(t *testing.T) {
+	appointmentID := uint64(77)
+	appointmentPetID := uint64(10)
+	requestPetID := uint64(99)
+	category := model.ReservationTypeCategoryTrimming
+
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:              id,
+				ClinicID:        1,
+				PetID:           &appointmentPetID,
+				ReservationType: &model.ReservationType{ID: 9, Category: category},
+			}, nil
+		},
+	}
+	detailCalls := 0
+	detail := &mockTrimmingDetailRepository{
+		findByAppointmentIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.AppointmentTrimmingDetail, error) {
+			detailCalls++
+			return nil, apperrors.WrapNotFound("appointment_trimming_detail", "missing")
+		},
+		createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+			t.Fatal("detail should not be created when pet_id mismatches appointment")
+			return nil
+		},
+	}
+	svc := newTrimmingTestService(reserv, detail)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		AppointmentID: &appointmentID,
+		PetID:         &requestPetID,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, appt)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Equal(t, 1, detailCalls)
+}
+
+func TestTrimmingService_Create_ExistingAppointmentFillsMissingPet(t *testing.T) {
+	appointmentID := uint64(77)
+	requestPetID := uint64(10)
+	category := model.ReservationTypeCategoryTrimming
+	var updatedFields map[string]any
+
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:              id,
+				ClinicID:        1,
+				ReservationType: &model.ReservationType{ID: 9, Category: category},
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _ uint64, id uint64, fields map[string]any) (*model.Reservation, error) {
+			assert.Equal(t, appointmentID, id)
+			updatedFields = fields
+			return &model.Reservation{ID: id, ClinicID: 1}, nil
+		},
+	}
+	detailCalls := 0
+	detail := &mockTrimmingDetailRepository{
+		findByAppointmentIDFn: func(_ context.Context, _ uint64, id uint64) (*model.AppointmentTrimmingDetail, error) {
+			detailCalls++
+			if detailCalls == 1 {
+				return nil, apperrors.WrapNotFound("appointment_trimming_detail", "missing")
+			}
+			return &model.AppointmentTrimmingDetail{AppointmentID: id}, nil
+		},
+		createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+			return nil
+		},
+	}
+	svc := newTrimmingTestService(reserv, detail)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		AppointmentID: &appointmentID,
+		PetID:         &requestPetID,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, appt)
+	assert.Equal(t, map[string]any{"pet_id": requestPetID}, updatedFields)
+}
+
 func TestTrimmingService_Update(t *testing.T) {
 	ptrStr := func(s string) *string { return &s }
 	optionIDs := []uint64{10, 20}

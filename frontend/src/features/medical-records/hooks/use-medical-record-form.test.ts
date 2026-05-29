@@ -520,7 +520,7 @@ describe("useMedicalRecordForm", () => {
 
     it("受付から遷移した新規作成では既存 appointment_id をカルテに紐付ける", async () => {
       mockSearchParams = new URLSearchParams({ petId: "5" });
-      mockLocationState = { appointmentId: "77" };
+      mockLocationState = { appointmentId: "77", visitDate: "2026-05-29" };
       vi.mocked(useGetPet).mockReturnValue({
         data: mockPet,
         isLoading: false,
@@ -547,6 +547,7 @@ describe("useMedicalRecordForm", () => {
         expect(mockCreateRecord).toHaveBeenCalledWith(
           expect.objectContaining({
             appointment_id: "77",
+            visit_date: "2026-05-29",
           })
         );
       });

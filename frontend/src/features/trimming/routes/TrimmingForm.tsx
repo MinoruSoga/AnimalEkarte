@@ -23,7 +23,7 @@ import {
   TrimmingLeftColumn,
   TrimmingMiddleColumn,
   TrimmingRightColumn,
-} from "../components/TrimmingFormColumns";
+} from "../components/TrimmingFormColumns.ts";
 import { useTrimmingForm } from "../hooks/use-trimming-form";
 import type { TrimmingFormData } from "@/types/trimming";
 import { ResourceTrimming } from "@/types/generated/models";

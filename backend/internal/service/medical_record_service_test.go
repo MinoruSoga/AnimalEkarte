@@ -28,6 +28,9 @@ type mockMedicalRecordRepository struct {
 }
 
 func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+	if m.findAllFn == nil {
+		return []model.MedicalRecord{}, 0, nil
+	}
 	return m.findAllFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 }
 
@@ -527,6 +530,114 @@ func TestMedicalRecordService_Create(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, record)
 	})
+
+	t.Run("returns existing record when appointment already has one", func(t *testing.T) {
+		appointmentID := uint64(77)
+		petID := uint64(10)
+		createCalled := false
+		repo := &mockMedicalRecordRepository{
+			findAllFn: func(_ context.Context, _ uint64, gotPetID, _ *uint64, startDate, endDate *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				assert.Equal(t, petID, *gotPetID)
+				assert.Equal(t, "2026-05-29", *startDate)
+				assert.Equal(t, "2026-05-29", *endDate)
+				return []model.MedicalRecord{{
+					ID:            123,
+					ClinicID:      1,
+					Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
+					PetID:         &petID,
+					AppointmentID: &appointmentID,
+				}}, 1, nil
+			},
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				createCalled = true
+				return nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+
+		record, err := svc.Create(context.Background(), 1, CreateMedicalRecordInput{
+			Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
+			PetID:         &petID,
+			AppointmentID: &appointmentID,
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, record)
+		assert.Equal(t, uint64(123), record.ID)
+		assert.False(t, createCalled)
+	})
+
+	t.Run("rejects pet mismatch when appointment already has pet", func(t *testing.T) {
+		appointmentID := uint64(77)
+		appointmentPetID := uint64(10)
+		requestPetID := uint64(99)
+		createCalled := false
+		repo := &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				createCalled = true
+				return nil
+			},
+		}
+		resRepo := &mockReservationRepoForMedicalRecord{
+			findByIDFn: func(_ context.Context, _ uint64, id uint64) (*model.Reservation, error) {
+				assert.Equal(t, appointmentID, id)
+				return &model.Reservation{ID: id, PetID: &appointmentPetID}, nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, nil, nil)
+
+		record, err := svc.Create(context.Background(), 1, CreateMedicalRecordInput{
+			Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
+			PetID:         &requestPetID,
+			AppointmentID: &appointmentID,
+		})
+
+		assert.Error(t, err)
+		assert.Nil(t, record)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.False(t, createCalled)
+	})
+
+	t.Run("fills missing appointment owner and pet before creating record", func(t *testing.T) {
+		appointmentID := uint64(77)
+		petID := uint64(10)
+		ownerID := uint64(20)
+		createCalled := false
+		var updatedFields map[string]any
+		repo := &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, record *model.MedicalRecord) error {
+				createCalled = true
+				record.ID = 555
+				assert.Equal(t, petID, *record.PetID)
+				assert.Equal(t, ownerID, *record.OwnerID)
+				return nil
+			},
+		}
+		resRepo := &mockReservationRepoForMedicalRecord{
+			findByIDFn: func(_ context.Context, _ uint64, id uint64) (*model.Reservation, error) {
+				assert.Equal(t, appointmentID, id)
+				return &model.Reservation{ID: id}, nil
+			},
+			updateFn: func(_ context.Context, _ uint64, id uint64, fields map[string]any) (*model.Reservation, error) {
+				assert.Equal(t, appointmentID, id)
+				updatedFields = fields
+				return &model.Reservation{ID: id}, nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, nil, nil)
+
+		record, err := svc.Create(context.Background(), 1, CreateMedicalRecordInput{
+			Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
+			OwnerID:       &ownerID,
+			PetID:         &petID,
+			AppointmentID: &appointmentID,
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, record)
+		assert.True(t, createCalled)
+		assert.Equal(t, map[string]any{"owner_id": ownerID, "pet_id": petID}, updatedFields)
+	})
 }
 
 func TestMedicalRecordService_Create_SyncsNextVisitTagBestEffort(t *testing.T) {
@@ -929,6 +1040,48 @@ func TestMedicalRecordService_Delete_SyncsVisitCompletionAndNextVisitTagsAfterDe
 	assert.True(t, nextVisitAfterDelete)
 }
 
+func TestMedicalRecordService_CreateSubRecords_SkipsEmptyInquiryInput(t *testing.T) {
+	inquiryRepo := &spyInquiryRepo{}
+	svc := NewMedicalRecordService(
+		nil,
+		nil,
+		nil,
+		inquiryRepo,
+		&noopClinicalPlanRepo{},
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+
+	svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{})
+
+	assert.False(t, inquiryRepo.called)
+}
+
+func TestMedicalRecordService_CreateSubRecords_SavesInquiryWhenInputProvided(t *testing.T) {
+	inquiryRepo := &spyInquiryRepo{}
+	svc := NewMedicalRecordService(
+		nil,
+		nil,
+		nil,
+		inquiryRepo,
+		&noopClinicalPlanRepo{},
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	chiefComplaint := "食欲不振"
+
+	svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
+		ChiefComplaint: &chiefComplaint,
+	})
+
+	assert.True(t, inquiryRepo.called)
+	assert.Equal(t, "食欲不振", inquiryRepo.saved.ChiefComplaint)
+}
+
 // noopInquiryRepo は CreateSubRecords テスト用の no-op InquiryRepository
 type noopInquiryRepo struct{}
 
@@ -936,6 +1089,20 @@ func (n *noopInquiryRepo) SaveByMedicalRecordID(_ context.Context, _ uint64, inq
 	return inquiry, nil
 }
 func (n *noopInquiryRepo) CountByChiefComplaintTypeID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+type spyInquiryRepo struct {
+	called bool
+	saved  model.Inquiry
+}
+
+func (s *spyInquiryRepo) SaveByMedicalRecordID(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+	s.called = true
+	s.saved = *inquiry
+	return inquiry, nil
+}
+func (s *spyInquiryRepo) CountByChiefComplaintTypeID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -1081,6 +1248,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 // FindByID のみカスタマイズ可能。他の 16 メソッドは noop スタブ。
 type mockReservationRepoForMedicalRecord struct {
 	findByIDFn        func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	updateFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	findByIDCallCount int
 }
 
@@ -1097,7 +1265,10 @@ func (m *mockReservationRepoForMedicalRecord) FindAll(_ context.Context, _ uint6
 func (m *mockReservationRepoForMedicalRecord) Create(_ context.Context, _ *model.Reservation) error {
 	return nil
 }
-func (m *mockReservationRepoForMedicalRecord) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+func (m *mockReservationRepoForMedicalRecord) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, fields)
+	}
 	return nil, nil
 }
 func (m *mockReservationRepoForMedicalRecord) Delete(_ context.Context, _, _ uint64) error {

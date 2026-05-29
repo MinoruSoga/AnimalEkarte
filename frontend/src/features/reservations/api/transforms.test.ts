@@ -167,6 +167,14 @@ describe("transformReservation", () => {
     expect(result.type).toBe("診療");
   });
 
+  it("reservation_type.category を category にマップする", () => {
+    const result = transformReservation({
+      ...minimalBackend,
+      reservation_type: { id: 1, clinic_id: 1, name: "シャンプー", category: "trimming" } as BackendReservation["reservation_type"],
+    });
+    expect(result.category).toBe("trimming");
+  });
+
   it("doctor.name を doctor にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,

@@ -101,7 +101,7 @@ export function useReceptionKanban() {
 
         // 3. Trimming Filter
         if (isTrimmingOnly) {
-          if (!app.reservationType.includes("トリミング")) return false;
+          if (app.reservationCategory !== "trimming") return false;
         }
 
         return true;

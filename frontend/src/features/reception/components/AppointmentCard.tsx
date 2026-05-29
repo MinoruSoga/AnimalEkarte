@@ -73,23 +73,28 @@ export const AppointmentCard = memo(function AppointmentCard({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const isTrimming = appointment.reservationType.includes("トリミング");
+  const isTrimming = appointment.reservationCategory === "trimming";
   const isHospitalization = appointment.reservationType.includes("入院");
   const visitColor = getVisitTypeColor(appointment.visitType);
 
   const handleKarteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    const params = new URLSearchParams();
+    if (appointment.petId) params.set("petId", appointment.petId);
+    if (appointment.id) params.set("appointmentId", appointment.id);
+    const query = params.toString();
+
     if (isTrimming) {
       navigate(
-        appointment.petId
-          ? `${paths.trimming.new.getHref()}?petId=${appointment.petId}`
+        query
+          ? `${paths.trimming.new.getHref()}?${query}`
           : paths.trimming.new.getHref(),
-        { state: { from: "/" } },
+        { state: { from: "/", appointmentId: appointment.id } },
       );
     } else {
       navigate(
-        appointment.petId
-          ? `${paths.medicalRecords.new.getHref()}?petId=${appointment.petId}`
+        query
+          ? `${paths.medicalRecords.new.getHref()}?${query}`
           : paths.medicalRecords.selectPet.getHref(),
         { state: { from: "/", appointmentId: appointment.id } },
       );

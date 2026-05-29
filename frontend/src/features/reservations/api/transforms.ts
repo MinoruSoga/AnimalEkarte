@@ -42,6 +42,7 @@ export const transformReservation = (
     petType,
     visitType: (reservation.visit_type as "first" | "revisit") ?? "first",
     type: reservation.reservation_type?.name ?? "",
+    category: reservation.reservation_type?.category ?? "general",
     reservationTypeId: reservation.reservation_type_id ? String(reservation.reservation_type_id) : undefined,
     doctor: reservation.doctor?.name ?? "",
     doctorId: reservation.doctor_id ? String(reservation.doctor_id) : undefined,

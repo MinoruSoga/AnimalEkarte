@@ -91,6 +91,7 @@ export function transformReservationToReceptionAppointment(
     petName,
     visitType: visitTypeToJapanese(reservation.visit_type),
     reservationType: reservation.reservation_type?.name ?? "",
+    reservationCategory: reservation.reservation_type?.category ?? "general",
     isDesignated: reservation.is_designated,
     doctor: reservation.doctor?.name ?? (reservation.doctor_id ? String(reservation.doctor_id) : undefined),
     petId: String(reservation.pet_id ?? 0),
@@ -108,7 +109,7 @@ export function transformReservationToReceptionAppointment(
 export function transformReservationsToReceptionColumns(
   reservations: BackendReceptionReservation[]
 ): ReceptionColumn[] {
-  const activeReservations = reservations.filter((r) => r.status !== "cancelled");
+  const activeReservations = reservations.filter((r) => r.status !== "cancelled" && r.status !== "no_show");
   const appointments = activeReservations.map(transformReservationToReceptionAppointment);
 
   return RECEPTION_COLUMNS.map((col) => ({

@@ -9,23 +9,26 @@ import (
 )
 
 func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput) {
-	// 1. inquiry: フィールドの有無に関わらず常に upsert（空でも OK）
-	inquiry := &model.Inquiry{
-		MedicalRecordID: recordID,
-	}
-	if input.ChiefComplaintTypeID != nil {
-		inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
-	}
-	if input.ChiefComplaint != nil {
-		inquiry.ChiefComplaint = *input.ChiefComplaint
-	}
-	if input.Notes != nil {
-		inquiry.Notes = *input.Notes
-	}
-	if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
-		slog.WarnContext(ctx, "createSubRecords: failed to upsert inquiry",
-			slog.Uint64("medical_record_id", recordID),
-			slog.String("error", err.Error()))
+	// 1. inquiry: 入力がある場合のみ upsert する。
+	// 既存 appointment の再オープン時に空入力で既存問診を上書きしない。
+	if hasInquirySubRecordInput(input) {
+		inquiry := &model.Inquiry{
+			MedicalRecordID: recordID,
+		}
+		if input.ChiefComplaintTypeID != nil {
+			inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
+		}
+		if input.ChiefComplaint != nil {
+			inquiry.ChiefComplaint = *input.ChiefComplaint
+		}
+		if input.Notes != nil {
+			inquiry.Notes = *input.Notes
+		}
+		if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
+			slog.WarnContext(ctx, "createSubRecords: failed to upsert inquiry",
+				slog.Uint64("medical_record_id", recordID),
+				slog.String("error", err.Error()))
+		}
 	}
 
 	// 2. clinical_plan: 常に GetOrCreate で空レコードを確保し、フィールドがあれば更新
@@ -71,6 +74,12 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 				slog.String("error", err.Error()))
 		}
 	}
+}
+
+func hasInquirySubRecordInput(input CreateSubRecordsInput) bool {
+	return input.ChiefComplaintTypeID != nil ||
+		input.ChiefComplaint != nil ||
+		input.Notes != nil
 }
 
 // AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。

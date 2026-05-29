@@ -31,6 +31,7 @@ import {
   DEFAULT_TREATMENT_POLICY,
   findGeneralReservationType,
   normalizeAppointmentId,
+  normalizeVisitDate,
 } from "./use-medical-record-form-model";
 
 export function useMedicalRecordForm(recordId?: string) {
@@ -116,7 +117,10 @@ export function useMedicalRecordForm(recordId?: string) {
   const resolvedOwnerId = selectedPet?.ownerId ?? "";
   const { data: owner } = useGetOwner(resolvedOwnerId);
   const ownerDiscountRate = owner?.discountRate ?? 0;
-  const appointmentIdFromState = normalizeAppointmentId(location.state?.appointmentId);
+  const appointmentIdFromState = normalizeAppointmentId(location.state?.appointmentId)
+    ?? normalizeAppointmentId(searchParams.get("appointmentId"));
+  const visitDateFromState = normalizeVisitDate(location.state?.visitDate)
+    ?? normalizeVisitDate(searchParams.get("visitDate"));
   const { data: reservationTypeGroups } = useGetReservationTypesGrouped();
   const generalReservationType = findGeneralReservationType(reservationTypeGroups, visitType);
 
@@ -253,6 +257,7 @@ export function useMedicalRecordForm(recordId?: string) {
     selectedPet,
     hasAutoCreatedRef,
     appointmentIdFromState,
+    visitDateFromState,
     generalReservationType,
     createReservationMutation,
     createMutation,

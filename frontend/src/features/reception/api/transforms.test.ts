@@ -115,6 +115,14 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.reservationType).toBe("診療");
   });
 
+  it("reservation_type.category を reservationCategory にマップする", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      reservation_type: { id: 1, clinic_id: 1, name: "シャンプー", category: "trimming" } as BackendReservation["reservation_type"],
+    });
+    expect(result.reservationCategory).toBe("trimming");
+  });
+
   it("is_designated をそのまま返す", () => {
     expect(transformReservationToReceptionAppointment({ ...minimal, is_designated: true }).isDesignated).toBe(true);
   });
@@ -125,6 +133,16 @@ describe("transformReservationsToReceptionColumns", () => {
     const reservations: BackendReservation[] = [
       { ...minimal, id: 1, status: "confirmed" },
       { ...minimal, id: 2, status: "cancelled" },
+    ];
+    const columns = transformReservationsToReceptionColumns(reservations);
+    const allAppointments = columns.flatMap((c) => c.appointments);
+    expect(allAppointments.every((a) => a.id !== "2")).toBe(true);
+  });
+
+  it("no_show の予約はカンバンに含まれない", () => {
+    const reservations: BackendReservation[] = [
+      { ...minimal, id: 1, status: "confirmed" },
+      { ...minimal, id: 2, status: "no_show" },
     ];
     const columns = transformReservationsToReceptionColumns(reservations);
     const allAppointments = columns.flatMap((c) => c.appointments);
@@ -154,4 +172,3 @@ describe("transformReservationsToReceptionColumns", () => {
     expect(col?.appointments.some((a) => a.id === "3")).toBe(true);
   });
 });
-

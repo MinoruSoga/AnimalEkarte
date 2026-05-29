@@ -55,15 +55,28 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   }, [navigate, onClose]);
 
   const handleCreateMedicalRecord = useCallback((tab?: string) => {
+    const params = new URLSearchParams();
+    if (petId) params.set("petId", petId);
+    if (appointmentId) params.set("appointmentId", appointmentId);
+    if (tab) params.set("tab", tab);
     const base = petId
-      ? `${paths.medicalRecords.new.getHref()}?petId=${petId}${tab ? `&tab=${tab}` : ""}`
+      ? `${paths.medicalRecords.new.getHref()}?${params.toString()}`
       : paths.medicalRecords.selectPet.getHref();
     navigateAndClose(base, { appointmentId });
   }, [petId, appointmentId, navigateAndClose]);
 
-  const handleCreateTrimming = useCallback(() =>
-    navigateAndClose(petId ? `${paths.trimming.new.getHref()}?petId=${petId}` : paths.trimming.new.getHref()),
-  [petId, navigateAndClose]);
+  const handleCreateTrimming = useCallback(() => {
+    const params = new URLSearchParams();
+    if (petId) params.set("petId", petId);
+    if (appointmentId) params.set("appointmentId", appointmentId);
+    const query = params.toString();
+    const path = query
+      ? `${paths.trimming.new.getHref()}?${query}`
+      : paths.trimming.new.getHref();
+    navigateAndClose(path, {
+      appointmentId,
+    });
+  }, [petId, appointmentId, navigateAndClose]);
 
   const handleCreateHospitalization = useCallback(() =>
     navigateAndClose(petId ? `${paths.hospitalization.new.getHref()}?petId=${petId}` : paths.hospitalization.new.getHref()),
@@ -85,9 +98,9 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
 
   if (!appointment) return null;
 
-  const isTrimming = appointment.reservationType.includes("トリミング");
+  const isTrimming = appointment.reservationCategory === "trimming";
   const isHospitalization = appointment.reservationType.includes("入院");
-  const isMedical = appointment.reservationType.includes("診療") || (!isTrimming && !isHospitalization);
+  const isMedical = appointment.reservationCategory === "general" || (!isTrimming && !isHospitalization);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

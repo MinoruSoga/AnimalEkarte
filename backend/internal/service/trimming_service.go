@@ -13,6 +13,7 @@ import (
 
 // CreateTrimmingInput はトリミング予約作成の入力DTO（appointments ベース, BE-119）
 type CreateTrimmingInput struct {
+	AppointmentID     *uint64
 	ReservationTypeID uint64
 	StartTime         time.Time
 	EndTime           time.Time
@@ -119,6 +120,13 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		bwUnit = input.BWUnit
 	}
 
+	if input.AppointmentID != nil {
+		return s.createDetailForExistingAppointment(ctx, clinicID, *input.AppointmentID, input, bwUnit, status)
+	}
+	if input.StartTime.IsZero() || input.EndTime.IsZero() {
+		return nil, apperrors.WrapInvalidInput("start_time and end_time are required")
+	}
+
 	var apptID uint64
 	// appointment → trimming_detail → options の3書き込みを単一トランザクションで実行する。
 	// 中間でエラーが発生した場合はロールバックされ、孤立レコードは残らない。
@@ -172,6 +180,89 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		slog.Uint64("appointment_id", apptID))
 
 	return s.GetByID(ctx, clinicID, apptID)
+}
+
+func (s *trimmingService) createDetailForExistingAppointment(
+	ctx context.Context,
+	clinicID uint64,
+	appointmentID uint64,
+	input *CreateTrimmingInput,
+	bwUnit model.BodyWeightUnit,
+	status model.ReservationStatus,
+) (*model.Reservation, error) {
+	appt, err := s.reservation.FindByID(ctx, clinicID, appointmentID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get existing trimming appointment")
+	}
+	if appt.ReservationType == nil || appt.ReservationType.Category != model.ReservationTypeCategoryTrimming {
+		return nil, apperrors.WrapInvalidInput("appointment is not a trimming reservation")
+	}
+	if existing, err := s.trimmingDetail.FindByAppointmentID(ctx, clinicID, appointmentID); err == nil && existing != nil {
+		return s.GetByID(ctx, clinicID, appointmentID)
+	} else if !apperrors.IsNotFound(err) {
+		return nil, apperrors.Wrap(err, "failed to check existing trimming detail")
+	}
+
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		apptFields := map[string]any{}
+		if input.PetID != nil && appt.PetID != nil && *appt.PetID != *input.PetID {
+			return apperrors.WrapInvalidInput("pet_id does not match appointment")
+		}
+		if input.PetID != nil && appt.PetID == nil {
+			apptFields["pet_id"] = *input.PetID
+		}
+		if input.StaffID != nil {
+			apptFields["doctor_id"] = *input.StaffID
+		}
+		if input.StartTime.IsZero() {
+			input.StartTime = appt.StartTime
+		}
+		if input.EndTime.IsZero() {
+			input.EndTime = appt.EndTime
+		}
+		if !input.StartTime.Equal(appt.StartTime) {
+			apptFields["start_time"] = input.StartTime
+		}
+		if !input.EndTime.Equal(appt.EndTime) {
+			apptFields["end_time"] = input.EndTime
+		}
+		if input.Status != "" && status != appt.Status {
+			apptFields["status"] = status
+		}
+		if len(apptFields) > 0 {
+			if _, err := s.reservation.Update(txCtx, clinicID, appointmentID, apptFields); err != nil {
+				return apperrors.Wrap(err, "failed to update existing trimming appointment")
+			}
+		}
+
+		detail := &model.AppointmentTrimmingDetail{
+			ClinicID:        clinicID,
+			AppointmentID:   appointmentID,
+			CourseID:        input.CourseID,
+			StyleRequest:    input.StyleRequest,
+			BodyWeight:      input.BodyWeight,
+			BWUnit:          bwUnit,
+			BodyTemperature: input.BodyTemperature,
+			UsedShampoo:     input.UsedShampoo,
+			UsedRibbon:      input.UsedRibbon,
+			Remarks:         input.Remarks,
+			StyleImage:      input.StyleImage,
+			CompletedImage:  input.CompletedImage,
+		}
+		if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
+			return apperrors.Wrap(err, "failed to create trimming detail")
+		}
+		if len(input.OptionIDs) > 0 {
+			if err := s.trimmingDetail.SetOptions(txCtx, appointmentID, input.OptionIDs); err != nil {
+				return apperrors.Wrap(err, "failed to set trimming options")
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create trimming detail for existing appointment")
+	}
+
+	return s.GetByID(ctx, clinicID, appointmentID)
 }
 
 func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {

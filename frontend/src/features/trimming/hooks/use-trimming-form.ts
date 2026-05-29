@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useActionState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { usePetSelection } from "@/hooks/use-pet-selection";
@@ -66,7 +66,7 @@ function buildUpdateTrimmingRequest(formData: TrimmingFormData): UpdateTrimmingR
     used_shampoo: formData.usedShampoo,
     used_ribbon: formData.usedRibbon,
     remarks: formData.remarks,
-    option_ids: formData.optionIds.map(Number),
+    option_ids: (formData.optionIds ?? []).map(Number),
   };
 }
 
@@ -74,10 +74,12 @@ function buildCreateTrimmingRequest(
   formData: TrimmingFormData,
   petID: number,
   reservationTypeID: number,
-  startTime: string,
-  endTime: string,
+  startTime: string | undefined,
+  endTime: string | undefined,
+  appointmentID?: number,
 ): CreateTrimmingRequest {
   return {
+    appointment_id: appointmentID,
     reservation_type_id: reservationTypeID,
     start_time: startTime,
     end_time: endTime,
@@ -91,24 +93,37 @@ function buildCreateTrimmingRequest(
     used_shampoo: formData.usedShampoo,
     used_ribbon: formData.usedRibbon,
     remarks: formData.remarks,
-    option_ids: formData.optionIds.map(Number),
+    option_ids: (formData.optionIds ?? []).map(Number),
   };
 }
 
 export function useTrimmingForm(id?: string) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const isEdit = !!id;
+  const appointmentIdFromState = typeof location.state?.appointmentId === "string"
+    ? Number(location.state.appointmentId)
+    : typeof location.state?.appointmentId === "number"
+      ? location.state.appointmentId
+      : Number(searchParams.get("appointmentId") ?? NaN);
+  const existingAppointmentId = Number.isFinite(appointmentIdFromState)
+    ? String(appointmentIdFromState)
+    : "";
 
   const petSelection = usePetSelection();
   const { setSelectedPets, selectedPets } = petSelection;
 
   const { data: existingTrimming, isLoading: isTrimmingLoading } = useGetTrimming(id ?? "");
+  const { data: existingAppointmentTrimming, isLoading: isAppointmentLoading } = useGetTrimming(
+    !isEdit ? existingAppointmentId : "",
+  );
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
   const createMutation = useCreateTrimming();
   const updateMutation = useUpdateTrimming();
   const deleteMutation = useDeleteTrimming();
+  const existingAppointmentHasDetail = existingAppointmentTrimming?.hasDetail ?? false;
 
   // BUG-027: inline field validation errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -117,7 +132,14 @@ export function useTrimmingForm(id?: string) {
   const [localOverrides, setLocalOverrides] = useState<Partial<TrimmingFormData>>({});
 
   // --- Draft Persistence (Local Storage) ---
-  const DRAFT_KEY = `trimming-draft-${id || "new"}`;
+  const draftScope = id
+    ? id
+    : existingAppointmentId
+      ? `appointment-${existingAppointmentId}`
+      : petId
+        ? `pet-${petId}`
+        : "new";
+  const DRAFT_KEY = `trimming-draft-${draftScope}`;
 
   // Load draft on mount
   useEffect(() => {
@@ -178,6 +200,35 @@ export function useTrimmingForm(id?: string) {
     }
   }, [isEdit, existingTrimming]);
 
+  const appointmentDataLoadedRef = useRef(false);
+  useEffect(() => {
+    if (isEdit || !existingAppointmentTrimming || appointmentDataLoadedRef.current) return;
+    appointmentDataLoadedRef.current = true;
+    setLocalOverrides((prev) => ({
+      ...prev,
+      reservationTypeId: existingAppointmentTrimming.reservationTypeId || prev.reservationTypeId || "",
+      styleRequest: existingAppointmentTrimming.styleRequest || prev.styleRequest || "",
+      courseId: existingAppointmentTrimming.courseId || prev.courseId || "",
+      optionIds: (existingAppointmentTrimming.optionIds?.length ?? 0) > 0
+        ? existingAppointmentTrimming.optionIds
+        : (prev.optionIds ?? []),
+      bw: existingAppointmentTrimming.bw || prev.bw || "",
+      bwUnit: existingAppointmentTrimming.bwUnit || prev.bwUnit || "Kg",
+      bt: existingAppointmentTrimming.bt || prev.bt || "",
+      usedShampoo: existingAppointmentTrimming.usedShampoo || prev.usedShampoo || "",
+      usedRibbon: existingAppointmentTrimming.usedRibbon || prev.usedRibbon || "",
+      remarks: existingAppointmentTrimming.remarks || prev.remarks || "",
+      staffId: existingAppointmentTrimming.staffId || prev.staffId || "",
+      staffName: existingAppointmentTrimming.staff || prev.staffName || "",
+    }));
+    if (existingAppointmentTrimming.styleImage) {
+      setStyleImagePreview(existingAppointmentTrimming.styleImage);
+    }
+    if (existingAppointmentTrimming.completedImage) {
+      setCompletedImagePreview(existingAppointmentTrimming.completedImage);
+    }
+  }, [isEdit, existingAppointmentTrimming]);
+
   // useMemo: formData の参照を安定化して handleSave 等の deps を最小化 (rerender-dependencies)
   const formData = useMemo<TrimmingFormData>(
     () => ({ ...defaultFormData, ...localOverrides }),
@@ -197,6 +248,11 @@ export function useTrimmingForm(id?: string) {
         if (isEdit && id) {
           const req = buildUpdateTrimmingRequest(formData);
           await updateMutation.mutateAsync({ id, req });
+          localStorage.removeItem(DRAFT_KEY);
+          toast.success("トリミング情報を更新しました");
+        } else if (existingAppointmentHasDetail && existingAppointmentId) {
+          const req = buildUpdateTrimmingRequest(formData);
+          await updateMutation.mutateAsync({ id: existingAppointmentId, req });
           localStorage.removeItem(DRAFT_KEY);
           toast.success("トリミング情報を更新しました");
         } else {
@@ -224,14 +280,16 @@ export function useTrimmingForm(id?: string) {
             : FALLBACK_TRIMMING_RESERVATION_TYPE_ID;
           // 日時: フォームから選択していない場合は当日 10:00〜11:30
           const today = formatJSTDate(new Date());
-          const startDate = formData.startTime || `${today}T10:00:00+09:00`;
-          const endDate = formData.endTime || `${today}T11:30:00+09:00`;
+          const hasExistingAppointment = Number.isFinite(appointmentIdFromState);
+          const startDate = formData.startTime || (hasExistingAppointment ? undefined : `${today}T10:00:00+09:00`);
+          const endDate = formData.endTime || (hasExistingAppointment ? undefined : `${today}T11:30:00+09:00`);
           const req = buildCreateTrimmingRequest(
             formData,
             Number(pet.id),
             reservationTypeId,
             startDate,
             endDate,
+            Number.isFinite(appointmentIdFromState) ? appointmentIdFromState : undefined,
           );
           await createMutation.mutateAsync(req);
           localStorage.removeItem(DRAFT_KEY);
@@ -321,7 +379,7 @@ export function useTrimmingForm(id?: string) {
   const isDeleting = deleteMutation.isPending;
   const mode = isEdit ? ("edit" as const) : ("new" as const);
 
-  const isLoading = isEdit ? isTrimmingLoading : isPetLoading;
+  const isLoading = isEdit ? isTrimmingLoading : isPetLoading || isAppointmentLoading;
   const notFound = isEdit && !isTrimmingLoading && !existingTrimming && !!id;
 
   return {

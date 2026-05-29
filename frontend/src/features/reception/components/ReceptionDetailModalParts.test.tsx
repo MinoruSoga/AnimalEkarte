@@ -12,6 +12,7 @@ const trimmingAppointment: ReceptionAppointment = {
   petName: "ポチ",
   visitType: "再診",
   reservationType: "トリミング",
+  reservationCategory: "trimming",
   isDesignated: false,
   doctor: "担当者A",
   petId: "10",

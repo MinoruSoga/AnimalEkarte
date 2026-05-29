@@ -58,9 +58,10 @@ func (q listTrimmingQuery) toServiceFilters() (listTrimmingFilters, error) {
 
 // createTrimmingRequest はトリミング予約作成のバインド struct（BE-119: appointments ベース）
 type createTrimmingRequest struct {
+	AppointmentID     *uint64    `json:"appointment_id"`
 	ReservationTypeID uint64     `json:"reservation_type_id" binding:"required"`
-	StartTime         *time.Time `json:"start_time"          binding:"required"`
-	EndTime           *time.Time `json:"end_time"            binding:"required"`
+	StartTime         *time.Time `json:"start_time"`
+	EndTime           *time.Time `json:"end_time"`
 	PetID             *uint64    `json:"pet_id"               binding:"required"`
 	StaffID           *uint64    `json:"staff_id"`
 	Status            string     `json:"status"              binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
@@ -80,6 +81,7 @@ type createTrimmingRequest struct {
 
 func (r createTrimmingRequest) toServiceInput() *service.CreateTrimmingInput {
 	input := &service.CreateTrimmingInput{
+		AppointmentID:     r.AppointmentID,
 		ReservationTypeID: r.ReservationTypeID,
 		PetID:             r.PetID,
 		StaffID:           r.StaffID,

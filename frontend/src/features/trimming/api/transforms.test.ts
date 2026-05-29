@@ -11,6 +11,7 @@ const minimalBackend: BackendTrimming = {
   end_time: "2026-03-25T11:30:00+09:00",
   status: "confirmed",
   source: "staff",
+  has_detail: false,
   style_request: "",
   bw_unit: "Kg",
   used_shampoo: "",
@@ -27,6 +28,11 @@ describe("transformTrimming", () => {
   it("id を string に変換する", () => {
     const result = transformTrimming({ ...minimalBackend, id: 42 });
     expect(result.id).toBe("42");
+  });
+
+  it("has_detail を hasDetail に変換する", () => {
+    const result = transformTrimming({ ...minimalBackend, has_detail: true });
+    expect(result.hasDetail).toBe(true);
   });
 
   it("id が null/undefined のとき '0' を返す", () => {

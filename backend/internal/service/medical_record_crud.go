@@ -36,7 +36,15 @@ func (s *medicalRecordService) CountByPetID(ctx context.Context, clinicID, petID
 }
 
 func (s *medicalRecordService) Create(ctx context.Context, clinicID uint64, input CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+	if err := s.applyAppointmentContextForCreate(ctx, clinicID, &input); err != nil {
+		return nil, err
+	}
+
 	record := buildMedicalRecordForCreate(clinicID, input)
+
+	if existing := s.findExistingRecordByAppointment(ctx, clinicID, record); existing != nil {
+		return existing, nil
+	}
 
 	// RecordNo が未設定の場合は service 層で自動生成する（handler 層に生成ロジックを置かない）
 	if record.RecordNo == "" {
@@ -92,6 +100,101 @@ func (s *medicalRecordService) Create(ctx context.Context, clinicID uint64, inpu
 	s.syncNextVisitTag(ctx, record.ClinicID, record)
 
 	return record, nil
+}
+
+func (s *medicalRecordService) applyAppointmentContextForCreate(
+	ctx context.Context,
+	clinicID uint64,
+	input *CreateMedicalRecordInput,
+) error {
+	if input == nil || input.AppointmentID == nil || s.reservationRepo == nil {
+		return nil
+	}
+	if input.PetID == nil {
+		return nil
+	}
+	appt, err := s.reservationRepo.FindByID(ctx, clinicID, *input.AppointmentID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to get appointment for medical record")
+	}
+	if appt == nil {
+		return apperrors.WrapNotFound("appointment", "")
+	}
+
+	fields := map[string]any{}
+	if err := resolveAppointmentUint64("pet_id", appt.PetID, &input.PetID, fields); err != nil {
+		return err
+	}
+	if err := resolveAppointmentUint64("owner_id", appt.OwnerID, &input.OwnerID, fields); err != nil {
+		return err
+	}
+	if input.DoctorID == nil && appt.DoctorID != nil {
+		input.DoctorID = appt.DoctorID
+	} else if input.DoctorID != nil && appt.DoctorID == nil {
+		fields["doctor_id"] = *input.DoctorID
+	}
+	if input.Date.IsZero() {
+		input.Date = appt.StartTime
+	}
+	if input.VisitType == "" {
+		input.VisitType = appt.VisitType
+	}
+
+	if len(fields) == 0 {
+		return nil
+	}
+	if _, err := s.reservationRepo.Update(ctx, clinicID, *input.AppointmentID, fields); err != nil {
+		return apperrors.Wrap(err, "failed to update appointment for medical record")
+	}
+	return nil
+}
+
+func resolveAppointmentUint64(
+	field string,
+	appointmentValue *uint64,
+	inputValue **uint64,
+	fields map[string]any,
+) error {
+	if appointmentValue != nil {
+		if *inputValue != nil && **inputValue != *appointmentValue {
+			return apperrors.WrapInvalidInput(field + " does not match appointment")
+		}
+		if *inputValue == nil {
+			*inputValue = appointmentValue
+		}
+		return nil
+	}
+	if *inputValue != nil {
+		fields[field] = **inputValue
+	}
+	return nil
+}
+
+func (s *medicalRecordService) findExistingRecordByAppointment(
+	ctx context.Context,
+	clinicID uint64,
+	record *model.MedicalRecord,
+) *model.MedicalRecord {
+	if record == nil || record.AppointmentID == nil || record.PetID == nil {
+		return nil
+	}
+	dateStr := record.Date.Format("2006-01-02")
+	records, _, err := s.repo.FindAll(ctx, clinicID, record.PetID, nil, &dateStr, &dateStr, 1, 50)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to check existing medical record by appointment",
+			slog.Uint64("appointment_id", *record.AppointmentID),
+			slog.String("error", err.Error()))
+		return nil
+	}
+	for i := range records {
+		if records[i].AppointmentID != nil && *records[i].AppointmentID == *record.AppointmentID {
+			slog.InfoContext(ctx, "medical record create skipped because appointment already has a record",
+				slog.Uint64("appointment_id", *record.AppointmentID),
+				slog.Uint64("record_id", records[i].ID))
+			return &records[i]
+		}
+	}
+	return nil
 }
 
 func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput) (*model.MedicalRecord, error) {

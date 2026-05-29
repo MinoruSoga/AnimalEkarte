@@ -55,6 +55,11 @@ export function normalizeAppointmentId(value: unknown): string | undefined {
   return undefined;
 }
 
+export function normalizeVisitDate(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+}
+
 export function findGeneralReservationType(
   groups: readonly MedicalRecordReservationTypeGroup[] | undefined,
   visitType: string
