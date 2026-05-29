@@ -210,6 +210,8 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 4. 予約区分の種別判定は `reservation_types.category` を使う
 5. 院内予約フォームも空き枠計算を使う
 6. スタッフ候補は、出勤状況と対応可能コースの両方で絞る
+7. 通常診療とトリミングを併用する場合は `appointments` を2件作成する
+8. 会計は appointment 単位に固定せず、同日同一飼主・ペットの来院会計として集約できるようにする
 
 ### 5.2 To-Be フロー
 
@@ -220,6 +222,7 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 3. 必要に応じてスタッフを選択する
 4. `POST /api/liff/:clinicId/reservations` で `appointments` を作成する
 5. 当日予約であれば受付カンバンの「受付予約」に表示される
+6. LINE顧客と電子カルテの飼主・ペットが未紐付けの場合、受付済みに進めるタイミングで紐付けを必須にする
 
 #### B. 予約管理から通常診療予約を作成
 
@@ -276,6 +279,15 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 6. 当日分は受付カンバンに表示される
 7. 受付カードからは通常カルテではなくトリミングカルテへ遷移する
 
+#### G. 通常診療とトリミングを同日に併用する
+
+1. 通常診療 appointment とトリミング appointment を別々に作成する
+2. 通常診療 appointment は `reservation_types.category = general` として通常カルテへ遷移する
+3. トリミング appointment は `reservation_types.category = trimming` としてトリミングカルテへ遷移する
+4. 受付カンバンには2つの業務カードとして表示する
+5. 会計では同日同一飼主・ペットの未会計項目をまとめて1会計にできる
+6. 診療だけ先に会計、トリミングだけ後で会計する分割会計も運用上必要な場合は許可する
+
 ### 5.3 スタッフ対応可能コース
 
 現状:
@@ -286,11 +298,11 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 
 UI と仕様上は「対応可能コース」として扱う。
 
-推奨方針:
+採用方針:
 
-- DB は段階移行する
-- 第1段階では既存テーブルを読み替えるか、新テーブルを追加して移行するかを決める
-- 最終的には `staff_reservation_capabilities` のような肯定形テーブルにするのが望ましい
+- 未リリース段階のため DB 変更を許容する
+- `staff_reservation_exclusions` の読み替えをやめ、`staff_reservation_capabilities` を追加する
+- 対応可能コースは肯定形テーブルを source of truth とする
 
 候補テーブル:
 
@@ -474,7 +486,7 @@ erDiagram
 | 既存テーブル読み替え | `staff_reservation_exclusions` を維持し、UI だけ対応可能表示にする | 意味が反転しており保守しづらい |
 | 新テーブル追加 | `staff_reservation_capabilities` を追加し、対応可能を正で保存する | 既存データの移行ルールが必要 |
 
-推奨は新テーブル追加。予約時のスタッフ候補絞り込み、空き枠計算、スタッフ管理 UI の意味が揃う。
+採用方針は新テーブル追加。未リリース段階のため DB 変更を許容し、予約時のスタッフ候補絞り込み、空き枠計算、スタッフ管理 UI の意味を肯定形で揃える。
 
 #### トリミング予約可能枠
 
@@ -501,10 +513,12 @@ erDiagram
 
 | フィールド | 用途 |
 |---|---|
-| `reservation_route` | `line`, `phone`, `reception`, `exam_room` など、予約が入った経路 |
+| `reservation_route` | `line`, `phone`, `reception`, `exam_room`, `record_shortcut` など、予約または業務レコードが作られた経路 |
 | `actual_reservation_at` | 実際に予約を受け付けた日時。予約日時 `start_time` とは別 |
 
 改善後も、一覧ショートカットや当日受付から appointment を自動作成する場合は、どの入口から作られたかを失わないようにする。
+
+カルテ一覧・トリミング一覧から自動作成した appointment は、予約入口ではなく記録入力ショートカットで作られたことを明示するため `reservation_route = record_shortcut` とする。
 
 ## 8. バックエンドの改善仕様
 
@@ -538,6 +552,8 @@ erDiagram
 
 `pet_id` が未確定の予約からカルテ作成へ進む場合は、先にペット選択ページへ遷移する。この場合も選択ページの URL query と navigation state に `appointment_id` / `visit_date` を保持し、ペット選択後の作成画面へ引き継ぐ。
 
+LINE予約で `owner_id` / `pet_id` が未確定の場合、受付済みにする前に LINE 顧客と電子カルテの飼主・ペットを紐付ける。LINE予約時点では未紐付けのユーザーが存在するため、LIFF 上での紐付けは必須にしない。
+
 既存 appointment に `pet_id` / `owner_id` が設定済みの場合、カルテ作成 payload の `pet_id` / `owner_id` と一致していることを検証する。appointment 側が未設定の場合に限り、カルテ作成 payload の値で appointment を補完する。
 
 カルテ作成 payload には、少なくとも以下を含める。
@@ -550,6 +566,16 @@ erDiagram
 | `appointment_id` | 当日業務では必須 | 受付・予約との紐付け |
 | `visit_type` | 必須 | `first` / `revisit` |
 | `status` | 必須 | 作成時は `draft` |
+
+### ステータス連動
+
+カルテ作成と appointment status は以下の粒度で連動する。
+
+- 通常カルテまたはトリミングカルテの初回作成時は appointment を `in_consultation` として扱う
+- 下書き保存だけでは `accounting` に進めない
+- 明示的な診療完了・トリミング完了操作で `accounting` に進める
+- 会計完了で appointment を `completed` に進める
+- 併用予約では通常診療 appointment とトリミング appointment がそれぞれ status を持つ
 
 ### トリミング作成
 
@@ -579,7 +605,7 @@ erDiagram
 ### Phase 3: スタッフ対応可能コース
 
 - 対応不可から対応可能への仕様変更（完了: UI は「対応可能コース」として表示し、保存時は既存 `staff_reservation_exclusions` に反転して保存）
-- DB 移行方針を決める（段階対応: 既存テーブル読み替えを採用。肯定形テーブルへの移行は別途判断）
+- DB 移行方針を決める（決定: `staff_reservation_capabilities` を追加し、肯定形で保存する）
 - スタッフ管理 UI を予約区分カテゴリごとに表示する（完了）
 - 予約作成時に対応可能コースを検証する（完了）
 
@@ -591,18 +617,19 @@ erDiagram
 - `POST /v1/trimmings` で新規 appointment を同時作成する場合も、予約区分カテゴリ `trimming` を必須にする（完了）
 - `POST /v1/trimmings` で新規 appointment を同時作成する場合も、予約可能枠・スタッフ対応可能コースを検証する（完了）
 
-## 10. 未決事項
+## 10. 確定した仕様判断
 
-1. 対応可能コースを将来的に `staff_reservation_capabilities` へ移行するか、既存の対応不可テーブル読み替えを継続するか
-2. 通常診療とトリミングの同時予約を、1 appointment で扱うか複数 appointment で扱うか
-3. LINE予約で `owner_id` / `pet_id` が未確定の appointment を、受付でどのタイミングで確定必須にするか
-4. 一覧ショートカットで自動作成した appointment の `reservation_route` を `reception` にするか、別値を追加するか
-5. 通常カルテ配下データの保存完了と appointment status 遷移をどこまで連動させるか
+1. 対応可能コースは `staff_reservation_capabilities` を追加し、肯定形で保存する
+2. 通常診療とトリミングの同時予約は appointment を2件作成する
+3. LINE予約で `owner_id` / `pet_id` が未確定の場合、受付済みにするタイミングで紐付けを必須にする
+4. 一覧ショートカットで自動作成した appointment の `reservation_route` は `record_shortcut` とする
+5. 通常カルテ・トリミングカルテ作成時は `in_consultation`、明示的な完了操作で `accounting`、会計完了で `completed` に進める
+6. 併用予約でも会計は appointment 単位に固定せず、同日同一飼主・ペットの未会計項目を1会計に集約できる
 
 補足:
 
 - 当日の受付ページの新規作成導線は `reservation_route = reception` として実装済み。
-- カルテ一覧／トリミング一覧の記録入力ショートカットは、現時点では予約入口ではなく記録入力入口として扱うため、`reservation_route` の最終値は未決のままとする。
+- カルテ一覧／トリミング一覧の記録入力ショートカットは、予約入口ではなく記録入力入口として扱うため、`reservation_route = record_shortcut` とする。
 
 ## 11. 判断メモ
 
