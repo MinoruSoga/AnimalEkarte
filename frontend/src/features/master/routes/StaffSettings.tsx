@@ -12,7 +12,8 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { usePermission } from "@/hooks/use-permission";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
-import { StaffSidePanel, type StaffFormData } from "../components/StaffSidePanel";
+import { StaffSidePanel } from "../components/StaffSidePanel";
+import type { StaffFormData } from "../components/StaffSidePanelModel";
 import {
   useGetStaffs,
   useCreateStaff,
@@ -29,6 +30,10 @@ import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
 import { useGetPermissionGroups } from "../api/permission-groups";
 import { useGetAllOccupations } from "../api/occupations";
 import { useGetReservationTypes } from "../api/reservation-types";
+import {
+  buildStaffCreateRequest,
+  buildStaffUpdateRequest,
+} from "./StaffSettingsModel";
 import { ResourceMasterStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -149,30 +154,8 @@ export function StaffSettings() {
       }
       return null;
     },
-    toCreateRequest: (d) => ({
-      name: d.name,
-      email: d.email,
-      password: d.password,
-      license_number: d.licenseNumber || undefined,
-      occupation_id: d.jobTitleId ?? undefined,
-      staff_type: d.staffType,
-      reservation_display_name: d.reservationDisplayName || undefined,
-      reservation_visible: d.reservationVisible,
-      reservation_comment: d.reservationComment || undefined,
-      reservation_image_url: d.reservationImageUrl || undefined,
-    }),
-    toUpdateRequest: (d) => ({
-      name: d.name,
-      license_number: d.licenseNumber || undefined,
-      is_active: d.isActive,
-      occupation_id: d.jobTitleId ?? undefined,
-      password: d.password || undefined,
-      staff_type: d.staffType,
-      reservation_display_name: d.reservationDisplayName || undefined,
-      reservation_visible: d.reservationVisible,
-      reservation_comment: d.reservationComment || undefined,
-      reservation_image_url: d.reservationImageUrl || undefined,
-    }),
+    toCreateRequest: buildStaffCreateRequest,
+    toUpdateRequest: buildStaffUpdateRequest,
   });
 
   const handleSaveGroups = useCallback(

@@ -10,7 +10,7 @@ import { MASTER_INPUT_CLASS } from "../constants/styles";
 import type { ClinicSummary } from "../api/staffs";
 import type { PermissionGroup } from "../api/permission-groups";
 import type { ReservationType } from "../api/reservation-types";
-import type { StaffFormData } from "./StaffSidePanel";
+import type { StaffFormData } from "./StaffSidePanelModel";
 
 const STAFF_TYPE_SELECT_ITEMS = (
   <>

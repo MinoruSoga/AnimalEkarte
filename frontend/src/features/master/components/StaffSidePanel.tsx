@@ -15,20 +15,10 @@ import type { Occupation } from "../api/occupations";
 import type { PermissionGroup } from "../api/permission-groups";
 import type { ReservationType } from "../api/reservation-types";
 import { StaffClinicsSection, StaffExcludedReservationTypesSection, StaffLineReservationSection, StaffPermissionGroupsSection } from "./StaffSidePanelSections";
-
-export interface StaffFormData {
-  name: string;
-  jobTitleId: string | null;
-  licenseNumber: string;
-  isActive: boolean;
-  email: string;
-  password: string;
-  staffType: string;
-  reservationDisplayName: string;
-  reservationVisible: boolean;
-  reservationComment: string;
-  reservationImageUrl: string;
-}
+import {
+  staffToFormData,
+  type StaffFormData,
+} from "./StaffSidePanelModel";
 
 interface StaffSidePanelProps {
   item: Staff | null;
@@ -64,19 +54,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
   const isNew = item === null;
   const staffId = item?.id ?? null;
 
-  const [formData, setFormData] = useState<StaffFormData>(() => ({
-    name: item?.name ?? "",
-    jobTitleId: item?.occupationId ?? null,
-    licenseNumber: item?.licenseNumber ?? "",
-    isActive: item?.isActive ?? true,
-    email: item?.email ?? "",
-    password: "",
-    staffType: item?.staffType ?? "doctor",
-    reservationDisplayName: item?.reservationDisplayName ?? "",
-    reservationVisible: item?.reservationVisible ?? true,
-    reservationComment: item?.reservationComment ?? "",
-    reservationImageUrl: item?.reservationImageUrl ?? "",
-  }));
+  const [formData, setFormData] = useState<StaffFormData>(() => staffToFormData(item));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
