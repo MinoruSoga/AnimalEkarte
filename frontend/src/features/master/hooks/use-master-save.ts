@@ -1,8 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type TransitionStartFunction } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { UseMutationResult } from "@tanstack/react-query";
-import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -12,8 +11,14 @@ interface MasterEntity {
   id: string;
 }
 
+interface MasterSaveCrud<T extends MasterEntity> {
+  editTarget: T | "new" | null;
+  setEditTarget: (target: T | "new" | null) => void;
+  startSaveTransition: TransitionStartFunction;
+}
+
 interface UseMasterSaveOptions<T extends MasterEntity, TForm, TCreate, TUpdate> {
-  crud: UseMasterCRUDReturn<T>;
+  crud: MasterSaveCrud<T>;
   createMutation: UseMutationResult<unknown, Error, TCreate>;
   updateMutation: UseMutationResult<unknown, Error, { id: string; req: TUpdate }>;
   /** Return error message string to show via toast.error. Return null if valid. */

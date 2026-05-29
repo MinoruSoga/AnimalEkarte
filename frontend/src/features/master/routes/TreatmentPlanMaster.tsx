@@ -6,7 +6,6 @@ import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 
 // Shared hooks
 import { useMasterSave } from "../hooks/use-master-save";
-import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
 
 // External
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
@@ -191,13 +190,11 @@ export function TreatmentPlanMaster() {
 
   const tabItems = TABS;
 
-  // Minimal CRUD object for useMasterSave (FR2 only, skip editTarget management)
-  // useMasterSave only accesses editTarget, handleClose, startSaveTransition — cast is safe
   const minimalCrud = useMemo(() => ({
     editTarget,
-    handleClose,
+    setEditTarget,
     startSaveTransition,
-  }) as UseMasterCRUDReturn<TreatmentItem>, [editTarget, handleClose, startSaveTransition]);
+  }), [editTarget, startSaveTransition]);
 
   // ── FR2: useMasterSave hooks (5 tabs) ──────────────────────
   const consultationSave = useMasterSave<TreatmentItem, TreatmentFormData, CreateConsultationRequest, UpdateConsultationRequest>({

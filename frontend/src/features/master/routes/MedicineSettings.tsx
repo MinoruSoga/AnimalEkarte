@@ -25,7 +25,6 @@ import { C, ICON } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useMasterCRUD } from "../hooks/use-master-crud";
-import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MedicineTable } from "../components/MedicineTable";
 import { MedicineSidePanel, type MedicineFormData } from "../components/MedicineSidePanel";
@@ -230,13 +229,18 @@ export function MedicineSettings() {
     startSaveTransition(cb);
   }, []);
 
+  const setEditTargetAfterSave = useCallback((target: Medicine | "new" | null) => {
+    medicineCrud.setEditTarget(target);
+    if (target === null) setDefaultParentId(undefined);
+  }, [medicineCrud]);
+
   // ── FR2: useMasterSave (with complex price/parent logic) ──
   const medicineSave = useMasterSave<Medicine, MedicineFormData, CreateMedicineRequest, UpdateMedicineRequest>({
     crud: {
       editTarget,
-      handleClose: handleCloseEdit,
+      setEditTarget: setEditTargetAfterSave,
       startSaveTransition: startSaveTransitionWrapper,
-    } as UseMasterCRUDReturn<Medicine>,
+    },
     createMutation,
     updateMutation,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
