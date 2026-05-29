@@ -76,6 +76,18 @@ describe("AppointmentCard", () => {
     );
   });
 
+  it("通常予約のカルテボタンは受付予約カラムでは表示しない", () => {
+    renderCard(baseAppointment, "受付予約");
+
+    expect(screen.queryByRole("button", { name: /ポチのカルテ/ })).not.toBeInTheDocument();
+  });
+
+  it("通常予約のカルテボタンは診療中カラムでは表示する", () => {
+    renderCard(baseAppointment, "診療中");
+
+    expect(screen.getByRole("button", { name: /ポチのカルテ/ })).toBeInTheDocument();
+  });
+
   it("トリミング予約はカテゴリで判定し、施術遷移に appointmentId を渡す", () => {
     renderCard({
       ...baseAppointment,

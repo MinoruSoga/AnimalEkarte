@@ -76,7 +76,9 @@ export const AppointmentCard = memo(function AppointmentCard({
   const isTrimming = appointment.reservationCategory === "trimming";
   const isHospitalization = appointment.reservationType.includes("入院");
   const visitColor = getVisitTypeColor(appointment.visitType);
-  const canOpenRecordFromCard = !isTrimming || columnTitle === "受付済";
+  const canOpenRecordFromCard = isTrimming
+    ? columnTitle === "受付済"
+    : columnTitle === "受付済" || columnTitle === "診療中";
 
   const handleKarteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
