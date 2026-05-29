@@ -1195,6 +1195,38 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 		assert.False(t, created, "トリミング予約では通常カルテを作成しない")
 	})
 
+	t.Run("skips hotel reservation", func(t *testing.T) {
+		created := false
+		findAllCalled := false
+		repo := &mockMedicalRecordRepository{
+			findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				findAllCalled = true
+				return nil, 0, nil
+			},
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				created = true
+				return nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		appt := &model.Reservation{
+			ID:        1,
+			ClinicID:  1,
+			StartTime: now,
+			OwnerID:   &ownerID,
+			PetID:     &petID,
+			ReservationType: &model.ReservationType{
+				Category: model.ReservationTypeCategoryGeneral,
+				Name:     "ペットホテル",
+			},
+		}
+
+		svc.AutoCreateFromReservation(context.Background(), 1, appt)
+
+		assert.False(t, findAllCalled, "ホテル予約では通常カルテ重複チェックに進まない")
+		assert.False(t, created, "ホテル予約では通常カルテを作成しない")
+	})
+
 	t.Run("resolves owner_id from line_customer and creates medical record (BUG-386)", func(t *testing.T) {
 		var createdRecord *model.MedicalRecord
 		repo := &mockMedicalRecordRepository{

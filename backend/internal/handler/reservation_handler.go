@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -146,6 +147,11 @@ func shouldAutoCreateMedicalRecordForReservation(status *model.ReservationStatus
 		return false
 	}
 	if reservation.ReservationType != nil && reservation.ReservationType.Category == model.ReservationTypeCategoryTrimming {
+		return false
+	}
+	if reservation.ReservationType != nil &&
+		(strings.Contains(reservation.ReservationType.Name, "入院") ||
+			strings.Contains(reservation.ReservationType.Name, "ホテル")) {
 		return false
 	}
 	return true

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"strings"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -14,6 +15,13 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 	}
 	if reservation.ReservationType != nil && reservation.ReservationType.Category == model.ReservationTypeCategoryTrimming {
 		slog.InfoContext(ctx, "autoCreateFromReservation: skipped — trimming reservation",
+			slog.Uint64("reservation_id", reservation.ID))
+		return
+	}
+	if reservation.ReservationType != nil &&
+		(strings.Contains(reservation.ReservationType.Name, "入院") ||
+			strings.Contains(reservation.ReservationType.Name, "ホテル")) {
+		slog.InfoContext(ctx, "autoCreateFromReservation: skipped — hospitalization reservation",
 			slog.Uint64("reservation_id", reservation.ID))
 		return
 	}

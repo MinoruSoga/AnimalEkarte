@@ -482,6 +482,14 @@ func TestUpdateReservation_AutoCreateMedicalRecord(t *testing.T) {
 			wantAutoCreate: false,
 		},
 		{
+			name: "skips medical record for hotel checked-in reservation",
+			reservation: &model.Reservation{
+				ID:              4,
+				ReservationType: &model.ReservationType{Category: model.ReservationTypeCategoryGeneral, Name: "ペットホテル"},
+			},
+			wantAutoCreate: false,
+		},
+		{
 			name:           "keeps legacy behavior when reservation type is not loaded",
 			reservation:    &model.Reservation{ID: 3},
 			wantAutoCreate: true,
