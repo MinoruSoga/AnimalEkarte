@@ -1,22 +1,20 @@
 import { useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Plus, Scissors } from "lucide-react";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceMasterTrimming } from "@/types/generated/models";
-import { TrimmingCourseSidePanel } from "../components/TrimmingCourseSidePanel";
-import { TrimmingOptionSidePanel } from "../components/TrimmingOptionSidePanel";
+import { TrimmingDeleteDialogs } from "../components/TrimmingDeleteDialogs";
+import { TrimmingSettingsSidePanels } from "../components/TrimmingSettingsSidePanels";
+import { TrimmingSettingsTabs } from "../components/TrimmingSettingsTabs";
 import type {
   CourseFormData,
   OptionFormData,
 } from "../components/TrimmingSidePanelModel";
-import { TrimmingCourseTab, TrimmingOptionTab } from "../components/TrimmingTabs";
 import {
   useCreateTrimmingCourse,
   useCreateTrimmingOption,
@@ -34,18 +32,14 @@ import {
   buildTrimmingCourseUpdateRequest,
   buildTrimmingOptionCreateRequest,
   buildTrimmingOptionUpdateRequest,
+  toTrimmingTabValue,
 } from "./TrimmingSettingsModel";
-
-const TABS = [
-  { value: "course", label: "コース" },
-  { value: "option", label: "オプション" },
-] as const;
 
 export function TrimmingSettings() {
   const navigate = useNavigate();
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterTrimming);
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") ?? "course";
+  const activeTab = toTrimmingTabValue(searchParams.get("tab"));
 
   const createCourseMutation = useCreateTrimmingCourse();
   const updateCourseMutation = useUpdateTrimmingCourse();
@@ -128,71 +122,41 @@ export function TrimmingSettings() {
               ) : null
             }
           >
-            <div className="flex flex-col gap-4">
-              <UnifiedTabs
-                items={TABS}
-                value={activeTab}
-                onValueChange={handleTabChange}
-                className="flex flex-col gap-4"
-              >
-                <UnifiedTabsContent value="course" className="mt-4">
-                  <TrimmingCourseTab
-                    onEditTargetChange={courseCrud.setEditTarget}
-                    canEdit={canEdit}
-                  />
-                </UnifiedTabsContent>
-                <UnifiedTabsContent value="option" className="mt-4">
-                  <TrimmingOptionTab
-                    onEditTargetChange={optionCrud.setEditTarget}
-                    canEdit={canEdit}
-                  />
-                </UnifiedTabsContent>
-              </UnifiedTabs>
-            </div>
+            <TrimmingSettingsTabs
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              onCourseEditTargetChange={courseCrud.setEditTarget}
+              onOptionEditTargetChange={optionCrud.setEditTarget}
+              canEdit={canEdit}
+            />
           </PageLayout>
         </div>
 
-        {activeTab === "course" && courseCrud.isEditing === true ? (
-          <TrimmingCourseSidePanel
-            key={courseCrud.panelItem ? String(courseCrud.panelItem.id) : "new-trimming-course"}
-            item={courseCrud.panelItem}
-            onClose={courseCrud.handleClose}
-            onSave={courseSave.handleSave}
-            onDeleteRequest={canDelete ? courseCrud.setPendingDelete : undefined}
-            readOnly={!canEdit}
-            onDirtyChange={handleDirtyChange}
-          />
-        ) : null}
-        {activeTab === "option" && optionCrud.isEditing === true ? (
-          <TrimmingOptionSidePanel
-            key={optionCrud.panelItem ? String(optionCrud.panelItem.id) : "new-trimming-option"}
-            item={optionCrud.panelItem}
-            onClose={optionCrud.handleClose}
-            onSave={optionSave.handleSave}
-            onDeleteRequest={canDelete ? optionCrud.setPendingDelete : undefined}
-            readOnly={!canEdit}
-            onDirtyChange={handleDirtyChange}
-          />
-        ) : null}
+        <TrimmingSettingsSidePanels
+          activeTab={activeTab}
+          courseEditTarget={courseCrud.editTarget}
+          coursePanelItem={courseCrud.panelItem}
+          optionEditTarget={optionCrud.editTarget}
+          optionPanelItem={optionCrud.panelItem}
+          canDelete={canDelete}
+          canEdit={canEdit}
+          onCourseClose={courseCrud.handleClose}
+          onCourseSave={courseSave.handleSave}
+          onCourseDeleteRequest={courseCrud.setPendingDelete}
+          onOptionClose={optionCrud.handleClose}
+          onOptionSave={optionSave.handleSave}
+          onOptionDeleteRequest={optionCrud.setPendingDelete}
+          onDirtyChange={handleDirtyChange}
+        />
       </div>
 
-      <ConfirmDialog
-        open={courseCrud.pendingDelete !== null}
-        onClose={courseCrud.handleDeleteCancel}
-        title="トリミングコースを削除しますか？"
-        description={`「${courseCrud.pendingDelete?.name}」を削除します。この操作は取り消せません。`}
-        confirmLabel="削除"
-        variant="destructive"
-        onConfirm={courseCrud.handleDeleteConfirm}
-      />
-      <ConfirmDialog
-        open={optionCrud.pendingDelete !== null}
-        onClose={optionCrud.handleDeleteCancel}
-        title="トリミングオプションを削除しますか？"
-        description={`「${optionCrud.pendingDelete?.name}」を削除します。この操作は取り消せません。`}
-        confirmLabel="削除"
-        variant="destructive"
-        onConfirm={optionCrud.handleDeleteConfirm}
+      <TrimmingDeleteDialogs
+        pendingCourseDelete={courseCrud.pendingDelete}
+        pendingOptionDelete={optionCrud.pendingDelete}
+        onCourseDeleteCancel={courseCrud.handleDeleteCancel}
+        onCourseDeleteConfirm={courseCrud.handleDeleteConfirm}
+        onOptionDeleteCancel={optionCrud.handleDeleteCancel}
+        onOptionDeleteConfirm={optionCrud.handleDeleteConfirm}
       />
     </>
   );

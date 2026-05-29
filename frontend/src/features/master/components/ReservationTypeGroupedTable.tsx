@@ -1,19 +1,13 @@
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { C, STYLE } from "@/lib/design-tokens";
 import { useReorderReservationTypes } from "../api/reservation-types";
 import type { ReservationType } from "../api/reservation-types";
 import type { ReservationTypeGroup } from "../api/reservation-type-groups";
-import {
-  ReservationTypeEmptyGroupRow,
-  ReservationTypeGroupHeader,
-  ReservationTypeRow,
-  ReservationTypeUncategorizedHeader,
-} from "./ReservationTypeGroupedTableRows";
-
-const UNCATEGORIZED_ID = "__uncategorized__";
+import { ReservationTypeGroupedTableBody } from "./ReservationTypeGroupedTableBody";
+import { groupReservationTypesByGroupId } from "./ReservationTypeGroupedTableModel";
 
 interface ReservationTypeGroupedTableProps {
   groups: ReservationTypeGroup[];
@@ -65,23 +59,10 @@ export function ReservationTypeGroupedTable({
     resetOrderRef.current = resetOrder;
   }, [resetOrder]);
 
-  const categoriesByGroupId = useMemo(() => {
-    const map = new Map<string, ReservationType[]>();
-    const uncategorized: ReservationType[] = [];
-    for (const category of orderedItems) {
-      if (category.groupId) {
-        const groupCategories = map.get(category.groupId) ?? [];
-        groupCategories.push(category);
-        map.set(category.groupId, groupCategories);
-      } else {
-        uncategorized.push(category);
-      }
-    }
-    return { map, uncategorized };
-  }, [orderedItems]);
-
-  const uncategorizedCategories = categoriesByGroupId.uncategorized;
-  const uncategorizedCollapsed = collapsed.has(UNCATEGORIZED_ID);
+  const groupedCategories = useMemo(
+    () => groupReservationTypesByGroupId(orderedItems),
+    [orderedItems],
+  );
 
   return (
     <DndContext
@@ -103,61 +84,16 @@ export function ReservationTypeGroupedTable({
                 <th className="w-20" />
               </tr>
             </thead>
-            <tbody>
-              {groups.map((group) => {
-                const groupCategories = categoriesByGroupId.map.get(group.id) ?? [];
-                const isCollapsed = collapsed.has(group.id);
-                return (
-                  <Fragment key={group.id}>
-                    <ReservationTypeGroupHeader
-                      group={group}
-                      count={groupCategories.length}
-                      isCollapsed={isCollapsed}
-                      canEdit={canEdit}
-                      onToggle={() => toggleCollapse(group.id)}
-                      onGroupEdit={() => onGroupEdit(group)}
-                      onCategoryAdd={() => onCategoryAddInGroup(group.id)}
-                    />
-                    {!isCollapsed ? (
-                      groupCategories.length > 0 ? (
-                        groupCategories.map((category) => (
-                          <ReservationTypeRow
-                            key={category.id}
-                            category={category}
-                            canEdit={canEdit}
-                            onEdit={() => onCategoryEdit(category)}
-                          />
-                        ))
-                      ) : (
-                        <ReservationTypeEmptyGroupRow />
-                      )
-                    ) : null}
-                  </Fragment>
-                );
-              })}
-
-              {uncategorizedCategories.length > 0 || groups.length === 0 ? (
-                <Fragment key={UNCATEGORIZED_ID}>
-                  <ReservationTypeUncategorizedHeader
-                    count={uncategorizedCategories.length}
-                    isCollapsed={uncategorizedCollapsed}
-                    canEdit={canEdit}
-                    onToggle={() => toggleCollapse(UNCATEGORIZED_ID)}
-                    onCategoryAdd={() => onCategoryAddInGroup(undefined)}
-                  />
-                  {!uncategorizedCollapsed
-                    ? uncategorizedCategories.map((category) => (
-                        <ReservationTypeRow
-                          key={category.id}
-                          category={category}
-                          canEdit={canEdit}
-                          onEdit={() => onCategoryEdit(category)}
-                        />
-                      ))
-                    : null}
-                </Fragment>
-              ) : null}
-            </tbody>
+            <ReservationTypeGroupedTableBody
+              groups={groups}
+              groupedCategories={groupedCategories}
+              collapsed={collapsed}
+              canEdit={canEdit}
+              onToggleCollapse={toggleCollapse}
+              onCategoryEdit={onCategoryEdit}
+              onGroupEdit={onGroupEdit}
+              onCategoryAddInGroup={onCategoryAddInGroup}
+            />
           </table>
         </div>
       </SortableContext>

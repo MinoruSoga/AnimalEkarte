@@ -1,11 +1,27 @@
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 
+export interface TreatmentTabConfig {
+  data: TreatmentItem[] | undefined;
+  entityLabel: string;
+  emptyMessage: string;
+  searchPlaceholder: string;
+  onReorder: (ids: number[]) => void;
+}
+
 export type TreatmentTreeItem = TreatmentItem & { children: TreatmentItem[] };
 
 export type TreatmentVirtualRow =
   | { type: "root"; item: TreatmentTreeItem; isExpanded: boolean }
   | { type: "child"; item: TreatmentItem };
+
+export const TREATMENT_COLUMNS = [
+  { header: "", className: "w-[32px]" },
+  { header: "名称" },
+  { header: "単価(税込)", className: "w-[120px]", align: "right" as const },
+  { header: "ステータス", className: "w-[100px]", align: "center" as const },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
+];
 
 export function buildTreatmentTree(items: TreatmentItem[]): TreatmentTreeItem[] {
   const map = new Map<string, TreatmentTreeItem>(

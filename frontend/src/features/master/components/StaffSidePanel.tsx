@@ -1,12 +1,10 @@
-import { memo, useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { UserRound } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
-import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
-import { MASTER_INPUT_CLASS } from "../constants/styles";
+import { MasterSidePanel } from "@/components/shared/SidePeek";
+import { LAYOUT } from "@/lib/design-tokens";
 import {
+  useGetStaffCapableReservationTypes,
   useGetStaffClinics,
-  useGetStaffExcludedReservationTypes,
   useGetStaffPermissionGroups,
   type ClinicSummary,
   type Staff,
@@ -14,11 +12,14 @@ import {
 import type { Occupation } from "../api/occupations";
 import type { PermissionGroup } from "../api/permission-groups";
 import type { ReservationType } from "../api/reservation-types";
-import { StaffClinicsSection, StaffExcludedReservationTypesSection, StaffLineReservationSection, StaffPermissionGroupsSection } from "./StaffSidePanelSections";
+import { StaffBasicInfoSection } from "./StaffBasicInfoSection";
+import { StaffLineReservationSection } from "./StaffLineReservationSection";
+import { StaffClinicsSection, StaffExcludedReservationTypesSection, StaffPermissionGroupsSection } from "./StaffSidePanelSections";
 import {
   staffToFormData,
   type StaffFormData,
 } from "./StaffSidePanelModel";
+import { useEditableIdSelection } from "./StaffSidePanelSelection";
 
 interface StaffSidePanelProps {
   item: Staff | null;
@@ -33,36 +34,7 @@ interface StaffSidePanelProps {
   allClinics: ClinicSummary[];
   onSaveClinics: (staffId: string, clinicIds: string[]) => void;
   allReservationTypes: ReservationType[];
-  onSaveExcludedReservationTypes: (staffId: string, reservationTypeIds: string[]) => void;
-}
-
-function useEditableIdSelection({
-  serverIds,
-  markDirty,
-}: {
-  serverIds: string[] | undefined;
-  markDirty: () => void;
-}) {
-  const [userEditedIds, setUserEditedIds] = useState<string[] | null>(null);
-
-  const ids = useMemo(
-    () => userEditedIds ?? serverIds ?? [],
-    [userEditedIds, serverIds],
-  );
-  const idSet = useMemo(() => new Set(ids), [ids]);
-
-  const handleToggle = useCallback(
-    (id: string, checked: boolean) => {
-      setUserEditedIds((prev) => {
-        const current = prev ?? serverIds ?? [];
-        return checked ? [...current, id] : current.filter((currentId) => currentId !== id);
-      });
-      markDirty();
-    },
-    [serverIds, markDirty],
-  );
-
-  return { ids, idSet, handleToggle };
+  onSaveCapableReservationTypes: (staffId: string, reservationTypeIds: string[]) => void;
 }
 
 export const StaffSidePanel = memo(function StaffSidePanel({
@@ -78,7 +50,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
   allClinics,
   onSaveClinics,
   allReservationTypes,
-  onSaveExcludedReservationTypes,
+  onSaveCapableReservationTypes,
 }: StaffSidePanelProps) {
   const isNew = item === null;
   const staffId = item?.id ?? null;
@@ -96,16 +68,6 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     setFormData(updater);
     markDirty();
   }, [markDirty]);
-
-  const occupationSelectItems = useMemo(
-    () =>
-      allOccupations
-        .filter((occupation) => occupation.isActive)
-        .map((occupation) => (
-          <SelectItem key={occupation.id} value={occupation.id}>{occupation.name}</SelectItem>
-        )),
-    [allOccupations],
-  );
 
   const activeReservationTypes = useMemo(
     () => allReservationTypes.filter((reservationType) => reservationType.isActive),
@@ -126,27 +88,12 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     handleToggle: handleClinicToggle,
   } = useEditableIdSelection({ serverIds: serverClinicIds, markDirty });
 
-  const { data: serverExcludedIds } = useGetStaffExcludedReservationTypes(staffId);
+  const { data: serverCapableIds } = useGetStaffCapableReservationTypes(staffId);
   const {
-    ids: excludedIds,
-    idSet: excludedIdSet,
-    handleToggle: handleExcludedToggle,
-  } = useEditableIdSelection({ serverIds: serverExcludedIds, markDirty });
-  const capableReservationTypeIdSet = useMemo(
-    () =>
-      new Set(
-        activeReservationTypes
-          .filter((type) => !excludedIdSet.has(type.id))
-          .map((type) => type.id),
-      ),
-    [activeReservationTypes, excludedIdSet],
-  );
-  const handleCapabilityToggle = useCallback(
-    (reservationTypeId: string, checked: boolean) => {
-      handleExcludedToggle(reservationTypeId, !checked);
-    },
-    [handleExcludedToggle],
-  );
+    ids: capableIds,
+    idSet: capableIdSet,
+    handleToggle: handleCapabilityToggle,
+  } = useEditableIdSelection({ serverIds: serverCapableIds, markDirty });
 
   const handleSave = useCallback(() => {
     if (!formData.name.trim()) {
@@ -158,34 +105,14 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     if (!isNew && staffId) {
       onSaveGroups(staffId, groupIds);
       onSaveClinics(staffId, clinicIds);
-      onSaveExcludedReservationTypes(staffId, excludedIds);
+      onSaveCapableReservationTypes(staffId, capableIds);
     }
     setIsDirty(false);
-  }, [formData, isNew, staffId, groupIds, clinicIds, excludedIds, onSave, onSaveGroups, onSaveClinics, onSaveExcludedReservationTypes]);
+  }, [formData, isNew, staffId, groupIds, clinicIds, capableIds, onSave, onSaveGroups, onSaveClinics, onSaveCapableReservationTypes]);
 
   const handleTitleChange = useCallback((value: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: value }));
     if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
-
-  const handleToggleActive = useCallback(() => {
-    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
-  }, [setFormDataDirty]);
-
-  const handleOccupationChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, jobTitleId: value }));
-  }, [setFormDataDirty]);
-
-  const handleLicenseNumberChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, licenseNumber: event.target.value }));
-  }, [setFormDataDirty]);
-
-  const handleEmailChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, email: event.target.value }));
-  }, [setFormDataDirty]);
-
-  const handlePasswordChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, password: event.target.value }));
   }, [setFormDataDirty]);
 
   const handleClose = useCallback(() => {
@@ -207,70 +134,13 @@ export const StaffSidePanel = memo(function StaffSidePanel({
       titleMaxLength={100}
       readOnly={readOnly}
     >
-      <StatusToggleButton
-        isActive={formData.isActive}
-        onToggle={handleToggleActive}
+      <StaffBasicInfoSection
+        item={item}
+        isNew={isNew}
+        formData={formData}
+        setFormDataDirty={setFormDataDirty}
+        allOccupations={allOccupations}
       />
-
-      <PropertyRow label="職種">
-        <Select
-          value={formData.jobTitleId ?? undefined}
-          onValueChange={handleOccupationChange}
-        >
-          <SelectTrigger className={STYLE.selectCompact}>
-            <SelectValue placeholder="選択" />
-          </SelectTrigger>
-          <SelectContent>{occupationSelectItems}</SelectContent>
-        </Select>
-      </PropertyRow>
-
-      <PropertyRow label="資格番号">
-        <input
-          type="text"
-          className={MASTER_INPUT_CLASS}
-          value={formData.licenseNumber}
-          onChange={handleLicenseNumberChange}
-          placeholder="空"
-        />
-      </PropertyRow>
-
-      {isNew ? (
-        <>
-          <PropertyRow label="メールアドレス">
-            <input
-              type="email"
-              className={MASTER_INPUT_CLASS}
-              value={formData.email}
-              onChange={handleEmailChange}
-              placeholder="例: staff@clinic.com"
-            />
-          </PropertyRow>
-          <PropertyRow label="パスワード">
-            <input
-              type="password"
-              className={MASTER_INPUT_CLASS}
-              value={formData.password}
-              onChange={handlePasswordChange}
-              placeholder="8文字以上"
-            />
-          </PropertyRow>
-        </>
-      ) : (
-        <>
-          <PropertyRow label="メールアドレス">
-            <span className={`text-sm ${C.text65}`}>{item?.email || "未設定"}</span>
-          </PropertyRow>
-          <PropertyRow label="パスワード">
-            <input
-              type="password"
-              className={MASTER_INPUT_CLASS}
-              value={formData.password}
-              onChange={handlePasswordChange}
-              placeholder="変更する場合のみ入力"
-            />
-          </PropertyRow>
-        </>
-      )}
 
       <StaffLineReservationSection
         formData={formData}
@@ -280,7 +150,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
       <StaffExcludedReservationTypesSection
         activeReservationTypes={activeReservationTypes}
         allReservationTypes={allReservationTypes}
-        capableIdSet={capableReservationTypeIdSet}
+        capableIdSet={capableIdSet}
         isNew={isNew}
         onToggle={handleCapabilityToggle}
       />

@@ -5,9 +5,21 @@ import type {
 import type {
   CreateReservationTypeRequest,
   UpdateReservationTypeRequest,
+  ReservationType,
 } from "../api/reservation-types";
+import type { ReservationTypeGroup } from "../api/reservation-type-groups";
 import type { GroupFormData } from "../components/ReservationTypeGroupSidePanel";
 import type { CategoryFormData } from "../components/ReservationTypeSidePanel";
+
+export function getActiveReservationTypeGroupOptions(groups: ReservationTypeGroup[]) {
+  return groups
+    .filter((group) => group.isActive)
+    .map((group) => ({ id: group.id, name: group.name, color: group.color }));
+}
+
+export function matchesReservationTypeSearch(item: ReservationType, term: string): boolean {
+  return item.name.toLowerCase().includes(term.toLowerCase());
+}
 
 export function buildReservationTypeGroupCreateRequest(
   data: GroupFormData,

@@ -1,7 +1,7 @@
 import { PALETTE } from "@/lib/design-tokens";
 
 import type { PermissionGroup } from "../api/permission-groups";
-import type { PermissionRule } from "./PermissionRuleTable";
+import type { PermissionRule, PermissionRuleField } from "./PermissionRuleTableModel";
 
 export interface PermissionGroupFormData {
   name: string;
@@ -32,7 +32,7 @@ export function permissionGroupToFormData(
 export function updatePermissionRule(
   rules: PermissionRule[],
   resource: string,
-  field: keyof Omit<PermissionRule, "resource">,
+  field: PermissionRuleField,
   value: boolean,
 ): PermissionRule[] {
   const existingRule = rules.find((rule) => rule.resource === resource);

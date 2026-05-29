@@ -1,15 +1,8 @@
 import { useCallback } from "react";
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Lock } from "lucide-react";
-import { TableCell } from "@/components/ui/table";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
-import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { RowActionButton } from "@/components/shared/RowActionButton";
 import { usePermission } from "@/hooks/use-permission";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
@@ -18,6 +11,10 @@ import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { PermissionGroupSidePanel } from "../components/PermissionGroupSidePanel";
 import type { PermissionGroupFormData } from "../components/PermissionGroupSidePanelModel";
+import {
+  PERMISSION_GROUP_COLUMNS,
+  PermissionGroupSortableTable,
+} from "../components/PermissionGroupSortableTable";
 import {
   useGetPermissionGroups,
   useCreatePermissionGroup,
@@ -39,13 +36,6 @@ import { ResourceMasterPermission } from "@/types/generated/models";
 // ─────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────
-
-const COLUMNS = [
-  { header: "", className: "w-[32px]" },
-  { header: "グループ名", className: "flex-1" },
-  { header: "ステータス", className: "w-[90px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
-];
 
 const PERMISSION_GROUP_FILTER_PROPERTIES: FilterProperty[] = [
   MASTER_STATUS_FILTER,
@@ -125,7 +115,7 @@ export function PermissionGroupSettings() {
       emptyMessage="権限グループが登録されていません"
       crud={crud}
       handleSave={handleSave}
-      columns={COLUMNS}
+      columns={PERMISSION_GROUP_COLUMNS}
       filterProperties={PERMISSION_GROUP_FILTER_PROPERTIES}
       renderRow={() => null}
       renderSidePanel={({ item, onClose, onSave, onDeleteRequest, readOnly }) => (
@@ -140,23 +130,13 @@ export function PermissionGroupSettings() {
         />
       )}
     >
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-          <DataTable columns={COLUMNS} data={orderedItems} emptyMessage="権限グループが登録されていません"
-            renderRow={(item) => (
-              <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
-                <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-                <TableCell className="text-center">
-                  <NotionStatusPill isActive={item.isActive} />
-                </TableCell>
-                <TableCell className="p-0 text-right">
-                  {canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}
-                </TableCell>
-              </SortableDataTableRow>
-            )}
-          />
-        </SortableContext>
-      </DndContext>
+      <PermissionGroupSortableTable
+        items={orderedItems}
+        sensors={sensors}
+        onDragEnd={handleDragEnd}
+        canEdit={canEdit}
+        onEdit={crud.handleEdit}
+      />
     </MasterCRUDPage>
   );
 }

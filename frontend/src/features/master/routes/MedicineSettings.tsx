@@ -1,12 +1,8 @@
 // React/Framework
-import { useState, useMemo, useCallback, useDeferredValue, useTransition } from "react";
-import { flushSync } from "react-dom";
+import { useState, useMemo, useCallback, useTransition } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
-
-// DnD
-import type { DragEndEvent } from "@dnd-kit/core";
 
 // External
 import { toast } from "sonner";
@@ -16,26 +12,20 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 
 // Internal – shared
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { MASTER_STATUS_FILTER } from "../constants/styles";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, ICON } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
-import { useSortableList } from "@/hooks/use-sortable-list";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
-import { MedicineTable } from "../components/MedicineTable";
+import { MedicineDeleteDialog } from "../components/MedicineDeleteDialog";
 import { MedicineSidePanel, type MedicineFormData } from "../components/MedicineSidePanel";
+import { MedicineTableSection } from "../components/MedicineTableSection";
+import { useMedicineTableState } from "../components/useMedicineTableState";
 import {
-  applyMedicineCategoryOverrides,
   buildMedicineCreateRequest,
   buildMedicineUpdateRequest,
   getCategoryMedicines,
-  groupFilteredMedicines,
   isCategoryMedicine,
-  resolveMedicineDrag,
 } from "./MedicineSettingsModel";
 
 // Internal – feature API (direct import, no barrel)
@@ -53,15 +43,9 @@ export function MedicineSettings() {
   const reduced = useReducedMotion();
   const panelDuration = reduced ? 0 : 0.2;
 
-  // ── UI state (non-CRUD: kept external per Option A) ──
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   // BUG-380 統一: formData は SidePanel が所有。新規作成時の親カテゴリ起点だけ親で保持。
   const [defaultParentId, setDefaultParentId] = useState<string | undefined>(undefined);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  // 値は parentId 文字列、undefined = 親なし
-  const [overrideCategories, setOverrideCategories] = useState<Map<string, string | undefined>>(new Map());
 
   // ── API ──
   const { data: medicines = [] } = useGetAllMedicines();
@@ -88,41 +72,11 @@ export function MedicineSettings() {
   const isEditing = editTarget !== null;
   const isCategory = isCategoryMedicine(selectedMedicine);
 
-  // DnD (flat sort 担当) ──
-  const {
-    orderedItems: sortedMedicines,
-    sensors,
-    activeId,
-    handleDragStart,
-    handleDragCancel,
-    handleDragEnd: handleFlatSortDragEnd,
-    resetOrder,
-  } = useSortableList({
-    items: medicines,
-    onReorder: (newIds) => {
-      reorderMutation.mutate(
-        { ids: newIds.map(Number) },
-        { onSuccess: resetOrder },
-      );
-    },
+  const tableState = useMedicineTableState({
+    medicines,
+    reorderMutation,
+    updateMutation,
   });
-
-  // ── Derived: overrideCategories 適用済みリスト ──
-  const orderedMedicines = useMemo(() => {
-    return applyMedicineCategoryOverrides(sortedMedicines, overrideCategories);
-  }, [sortedMedicines, overrideCategories]);
-
-  // ── Derived: medicines ID → Medicine マップ (js-cache-function-results) ──
-  const medicinesById = useMemo(
-    () => new Map(medicines.map((m) => [m.id, m])),
-    [medicines],
-  );
-
-  // ── Derived: orderedMedicines ID → Medicine マップ（DnD handleDragEnd 用 O(1) 検索） ──
-  const orderedMedicinesById = useMemo(
-    () => new Map(orderedMedicines.map((m) => [m.id, m])),
-    [orderedMedicines],
-  );
 
   // ── Derived: カテゴリ medicine（parentId なし、price === 0）(js-cache-function-results) ──
   const categoryMedicines = useMemo(
@@ -130,83 +84,7 @@ export function MedicineSettings() {
     [medicines],
   );
 
-  // ── Derived: filtered + grouped + ungrouped (js-cache-function-results) ──
-  const deferredSearch = useDeferredValue(searchTerm);
-
-  const { groupedMedicines, ungroupedMedicines, totalCount } = useMemo(() => {
-    return groupFilteredMedicines({
-      orderedMedicines,
-      activeFilters,
-      searchTerm: deferredSearch,
-      medicinesById,
-    });
-  }, [orderedMedicines, activeFilters, deferredSearch, medicinesById]);
-
   // ── Handlers ──
-
-  const toggleGroup = useCallback((key: string) => {
-    setCollapsedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-
-      const activeItemId = String(active.id);
-      const overItemId = String(over.id);
-
-      const dragResolution = resolveMedicineDrag({
-        activeItemId,
-        overItemId,
-        orderedMedicinesById,
-      });
-
-      if (dragResolution.type === "none") return;
-
-      if (dragResolution.type === "move-category") {
-        // クロスグループ: parent_id を変更
-        flushSync(() => {
-          setOverrideCategories((prev) => {
-            const next = new Map(prev);
-            next.set(dragResolution.activeItemId, dragResolution.overParentId ?? undefined);
-            return next;
-          });
-        });
-        const clearOptimistic = () => {
-          setOverrideCategories((prev) => {
-            const next = new Map(prev);
-            next.delete(dragResolution.activeItemId);
-            return next;
-          });
-        };
-        updateMutation.mutate(
-          { id: dragResolution.activeItemId, req: dragResolution.updateRequest },
-          {
-            onSuccess: clearOptimistic,
-            onError: (error: unknown) => {
-              handleApiError(error, "カテゴリの変更");
-              clearOptimistic();
-            },
-          },
-        );
-        return;
-      }
-
-      // 同カテゴリ: 並び替え — useSortableList に委譲
-      handleFlatSortDragEnd(event);
-    },
-    [orderedMedicinesById, updateMutation, handleFlatSortDragEnd],
-  );
-
   const handleCloseEdit = useCallback(() => {
     medicineCrud.handleClose();
     setDefaultParentId(undefined);
@@ -269,25 +147,6 @@ export function MedicineSettings() {
     });
   }, [selectedMedicine, deleteMutation, handleCloseEdit]);
 
-  const tableContent = (
-    <MedicineTable
-      sensors={sensors}
-      activeId={activeId}
-      groupedMedicines={groupedMedicines}
-      ungroupedMedicines={ungroupedMedicines}
-      collapsedGroups={collapsedGroups}
-      orderedMedicinesById={orderedMedicinesById}
-      canCreate={canCreate}
-      canEdit={canEdit}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-      onToggleGroup={toggleGroup}
-      onEdit={handleEdit}
-      onCreate={handleCreate}
-    />
-  );
-
   return (
     <>
       <div className="flex h-full">
@@ -307,18 +166,29 @@ export function MedicineSettings() {
               ) : null
             }
           >
-            <div className="flex flex-col gap-4">
-              <NotionFilter
-                properties={[MASTER_STATUS_FILTER]}
-                activeFilters={activeFilters}
-                onFilterChange={setActiveFilters}
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                searchPlaceholder="薬品名で検索..."
-                count={totalCount}
-              />
-              {tableContent}
-            </div>
+            <MedicineTableSection
+              searchTerm={tableState.searchTerm}
+              onSearchChange={tableState.setSearchTerm}
+              activeFilters={tableState.activeFilters}
+              onFilterChange={tableState.setActiveFilters}
+              totalCount={tableState.totalCount}
+              tableProps={{
+                sensors: tableState.sensors,
+                activeId: tableState.activeId,
+                groupedMedicines: tableState.groupedMedicines,
+                ungroupedMedicines: tableState.ungroupedMedicines,
+                collapsedGroups: tableState.collapsedGroups,
+                orderedMedicinesById: tableState.orderedMedicinesById,
+                canCreate,
+                canEdit,
+                onDragStart: tableState.handleDragStart,
+                onDragEnd: tableState.handleDragEnd,
+                onDragCancel: tableState.handleDragCancel,
+                onToggleGroup: tableState.toggleGroup,
+                onEdit: handleEdit,
+                onCreate: handleCreate,
+              }}
+            />
           </PageLayout>
         </div>
         <MedicineSidePanel
@@ -337,15 +207,11 @@ export function MedicineSettings() {
         />
       </div>
 
-      <ConfirmDialog
+      <MedicineDeleteDialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={executeDelete}
-        title="削除しますか？"
-        description={`「${selectedMedicine?.name ?? ""}」を削除します。この操作は取り消せません。`}
-        confirmLabel="削除する"
-        cancelLabel="キャンセル"
-        variant="destructive"
+        medicine={selectedMedicine}
       />
     </>
   );

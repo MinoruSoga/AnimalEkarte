@@ -1,6 +1,7 @@
 // React/Framework
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { toast } from "sonner";
 import { paths } from "@/config/paths";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 
@@ -18,18 +19,16 @@ import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, ICON } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
-import {
-  TreatmentPlanTabContent,
-  type TreatmentTabConfig,
-} from "../components/TreatmentPlanTabContent";
-import {
-  TreatmentItemSidePanel,
-  type TreatmentFormData,
-} from "../components/TreatmentItemSidePanel";
+import { TreatmentPlanDeleteDialog } from "../components/TreatmentPlanDeleteDialog";
+import { TreatmentPlanSidePanelHost } from "../components/TreatmentPlanSidePanelHost";
+import { TreatmentPlanTabContent } from "../components/TreatmentPlanTabContent";
+import type { TreatmentFormData } from "../components/TreatmentItemSidePanel";
 import {
   buildCheckupCreateRequest,
   buildCheckupUpdateRequest,
+  buildTreatmentTabConfigs,
   buildConsultationCreateRequest,
   buildConsultationUpdateRequest,
   buildExaminationCreateRequest,
@@ -38,14 +37,16 @@ import {
   buildProcedureUpdateRequest,
   buildVaccineCreateRequest,
   buildVaccineUpdateRequest,
+  TREATMENT_PLAN_TABS,
+  toTreatmentPlanTabValue,
 } from "./TreatmentPlanMasterModel";
 
 // API hooks
-import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useReorderConsultations } from "../api/consultations";
-import { useGetAllExaminationTypes, useCreateExaminationType, useUpdateExaminationType, useReorderExaminationTypes } from "../api/exam-types-master";
-import { useGetAllProcedures, useCreateProcedure, useUpdateProcedure, useReorderProcedures } from "../api/procedures";
-import { useGetAllVaccinesMaster, useCreateVaccineMaster, useUpdateVaccineMaster, useReorderVaccinesMaster } from "../api/vaccines-master";
-import { useGetAllCheckupTypes, useCreateCheckupType, useUpdateCheckupType, useReorderCheckupTypes } from "../api/checkup-types";
+import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useDeleteConsultation, useReorderConsultations } from "../api/consultations";
+import { useGetAllExaminationTypes, useCreateExaminationType, useUpdateExaminationType, useDeleteExaminationType, useReorderExaminationTypes } from "../api/exam-types-master";
+import { useGetAllProcedures, useCreateProcedure, useUpdateProcedure, useDeleteProcedure, useReorderProcedures } from "../api/procedures";
+import { useGetAllVaccinesMaster, useCreateVaccineMaster, useUpdateVaccineMaster, useDeleteVaccineMaster, useReorderVaccinesMaster } from "../api/vaccines-master";
+import { useGetAllCheckupTypes, useCreateCheckupType, useUpdateCheckupType, useDeleteCheckupType, useReorderCheckupTypes } from "../api/checkup-types";
 import type { CreateConsultationRequest, UpdateConsultationRequest } from "@/types/treatment";
 import type { CreateExaminationTypeRequest as CreateExaminationRequest, UpdateExaminationTypeRequest as UpdateExaminationRequest } from "@/types/treatment";
 import type { CreateProcedureRequest, UpdateProcedureRequest } from "@/types/treatment";
@@ -57,22 +58,6 @@ import type { TreatmentItem } from "@/lib/transforms/treatment";
 import { ResourceMasterMedical } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────
-
-const TABS = [
-  { value: "consultation", label: "診察" },
-  { value: "examination", label: "検査" },
-  { value: "procedure", label: "処置" },
-  { value: "vaccine", label: "予防接種" },
-  { value: "checkup", label: "定期健診" },
-] as const;
-
-// ─────────────────────────────────────────────────
 // TreatmentPlanMaster (main page)
 // ─────────────────────────────────────────────────
 
@@ -80,7 +65,7 @@ export function TreatmentPlanMaster() {
   const navigate = useNavigate();
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") ?? "consultation";
+  const activeTab = toTreatmentPlanTabValue(searchParams.get("tab"));
   const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
   const [pendingDelete, setPendingDelete] = useState<TreatmentItem | null>(null);
 
@@ -99,70 +84,50 @@ export function TreatmentPlanMaster() {
   const { data: consultationData } = useGetAllConsultations();
   const createConsultation = useCreateConsultation();
   const updateConsultation = useUpdateConsultation();
+  const deleteConsultation = useDeleteConsultation();
   const reorderConsultations = useReorderConsultations();
 
   // ── Examination Types ──────────────────────────────
   const { data: examinationData } = useGetAllExaminationTypes();
   const createExamination = useCreateExaminationType();
   const updateExamination = useUpdateExaminationType();
+  const deleteExamination = useDeleteExaminationType();
   const reorderExaminations = useReorderExaminationTypes();
 
   // ── Procedures ─────────────────────────────────────
   const { data: procedureData } = useGetAllProcedures();
   const createProcedure = useCreateProcedure();
   const updateProcedure = useUpdateProcedure();
+  const deleteProcedure = useDeleteProcedure();
   const reorderProcedures = useReorderProcedures();
 
   // ── Vaccines ───────────────────────────────────────
   const { data: vaccineData } = useGetAllVaccinesMaster();
   const createVaccine = useCreateVaccineMaster();
   const updateVaccine = useUpdateVaccineMaster();
+  const deleteVaccine = useDeleteVaccineMaster();
   const reorderVaccines = useReorderVaccinesMaster();
 
   // ── Checkup Types ──────────────────────────────────
   const { data: checkupData } = useGetAllCheckupTypes();
   const createCheckup = useCreateCheckupType();
   const updateCheckup = useUpdateCheckupType();
+  const deleteCheckup = useDeleteCheckupType();
   const reorderCheckups = useReorderCheckupTypes();
 
   // ── Tab configs (simplified — data & metadata only) ────────────
 
-  const tabConfigs = useMemo<Record<string, Omit<TreatmentTabConfig, 'onCreate' | 'onUpdate' | 'onDelete'>>>(() => ({
-    consultation: {
-      data: consultationData,
-      entityLabel: "診察",
-      emptyMessage: "診察が登録されていません",
-      searchPlaceholder: "診察名で検索...",
-      onReorder: (ids) => reorderConsultations.mutate({ ids }),
-    },
-    examination: {
-      data: examinationData,
-      entityLabel: "検査",
-      emptyMessage: "検査が登録されていません",
-      searchPlaceholder: "検査名で検索...",
-      onReorder: (ids) => reorderExaminations.mutate({ ids }),
-    },
-    procedure: {
-      data: procedureData,
-      entityLabel: "処置",
-      emptyMessage: "処置が登録されていません",
-      searchPlaceholder: "処置名で検索...",
-      onReorder: (ids) => reorderProcedures.mutate({ ids }),
-    },
-    vaccine: {
-      data: vaccineData,
-      entityLabel: "予防接種",
-      emptyMessage: "予防接種が登録されていません",
-      searchPlaceholder: "予防接種名で検索...",
-      onReorder: (ids) => reorderVaccines.mutate({ ids }),
-    },
-    checkup: {
-      data: checkupData,
-      entityLabel: "定期健診",
-      emptyMessage: "定期健診が登録されていません",
-      searchPlaceholder: "定期健診名で検索...",
-      onReorder: (ids) => reorderCheckups.mutate({ ids }),
-    },
+  const tabConfigs = useMemo(() => buildTreatmentTabConfigs({
+    consultationData,
+    examinationData,
+    procedureData,
+    vaccineData,
+    checkupData,
+    onReorderConsultations: (ids) => reorderConsultations.mutate({ ids }),
+    onReorderExaminations: (ids) => reorderExaminations.mutate({ ids }),
+    onReorderProcedures: (ids) => reorderProcedures.mutate({ ids }),
+    onReorderVaccines: (ids) => reorderVaccines.mutate({ ids }),
+    onReorderCheckups: (ids) => reorderCheckups.mutate({ ids }),
   }), [
     consultationData, reorderConsultations,
     examinationData, reorderExaminations,
@@ -188,7 +153,7 @@ export function TreatmentPlanMaster() {
     setEditTarget(target);
   }, [dirty]);
 
-  const tabItems = TABS;
+  const tabItems = TREATMENT_PLAN_TABS;
 
   const minimalCrud = useMemo(() => ({
     editTarget,
@@ -252,15 +217,37 @@ export function TreatmentPlanMaster() {
   }), [consultationSave, examinationSave, procedureSave, vaccineSave, checkupSave]);
 
   const handleSave = useCallback((data: TreatmentFormData) => {
-    const hook = saveHooksByTab[activeTab as keyof typeof saveHooksByTab];
-    if (hook) {
-      hook.handleSave(data);
-    }
+    saveHooksByTab[activeTab].handleSave(data);
   }, [activeTab, saveHooksByTab]);
 
   const handleDeleteRequest = useCallback(() => {
     setPendingDelete(selectedItem);
   }, [selectedItem]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setPendingDelete(null);
+  }, []);
+
+  const deleteMutationByTab = useMemo(() => ({
+    consultation: deleteConsultation,
+    examination: deleteExamination,
+    procedure: deleteProcedure,
+    vaccine: deleteVaccine,
+    checkup: deleteCheckup,
+  }), [deleteConsultation, deleteExamination, deleteProcedure, deleteVaccine, deleteCheckup]);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (!pendingDelete) return;
+    const config = tabConfigs[activeTab];
+    deleteMutationByTab[activeTab].mutate(pendingDelete.id, {
+      onSuccess: () => {
+        setPendingDelete(null);
+        setEditTarget(null);
+        toast.success(`${config.entityLabel}を削除しました`);
+      },
+      onError: (error) => handleApiError(error, `${config.entityLabel}の削除`),
+    });
+  }, [activeTab, deleteMutationByTab, pendingDelete, tabConfigs]);
 
   return (
     <>
@@ -290,15 +277,13 @@ export function TreatmentPlanMaster() {
               onValueChange={handleTabChange}
               className="flex flex-col gap-4"
             >
-              {TABS.map((tab) => {
+              {TREATMENT_PLAN_TABS.map((tab) => {
                 const config = tabConfigs[tab.value];
                 return (
                   <UnifiedTabsContent key={tab.value} value={tab.value} className="mt-4">
                     <TreatmentPlanTabContent
                       {...config}
                       onEditTargetChange={setEditTargetGuarded}
-                      pendingDelete={pendingDelete}
-                      onPendingDeleteChange={setPendingDelete}
                       canEdit={canEdit}
                     />
                   </UnifiedTabsContent>
@@ -308,18 +293,24 @@ export function TreatmentPlanMaster() {
           </PageLayout>
         </div>
 
-        {editTarget !== null ? (
-          <TreatmentItemSidePanel
-            key={selectedItem ? String(selectedItem.id) : "new-item"}
-            item={selectedItem}
-            onClose={handleClose}
-            onSave={handleSave}
-            onDeleteRequest={canDelete ? handleDeleteRequest : undefined}
-            readOnly={!canEdit}
-            onDirtyChange={handleDirtyChange}
-          />
-        ) : null}
+        <TreatmentPlanSidePanelHost
+          editTarget={editTarget}
+          selectedItem={selectedItem}
+          canDelete={canDelete}
+          canEdit={canEdit}
+          onClose={handleClose}
+          onSave={handleSave}
+          onDeleteRequest={handleDeleteRequest}
+          onDirtyChange={handleDirtyChange}
+        />
       </div>
+
+      <TreatmentPlanDeleteDialog
+        entityLabel={tabConfigs[activeTab].entityLabel}
+        pendingDelete={pendingDelete}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   );
 }

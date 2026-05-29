@@ -2,27 +2,26 @@ import { useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceMasterMedical } from "@/types/generated/models";
-import { DiagnosisNameSidePanel } from "../components/DiagnosisNameSidePanel";
 import type {
   DiagnosisNameFormData,
   DiagnosisTypeFormData,
 } from "../components/DiagnosisSidePanelModel";
-import { DiagnosisTypeSidePanel } from "../components/DiagnosisTypeSidePanel";
-import { DiagnosisNameTab, DiagnosisTypeTab } from "../components/DiagnosisTabs";
+import { DiagnosisDeleteDialogs } from "../components/DiagnosisDeleteDialogs";
+import { DiagnosisSettingsSidePanels } from "../components/DiagnosisSettingsSidePanels";
+import { DiagnosisSettingsTabs } from "../components/DiagnosisSettingsTabs";
 import {
   buildDiagnosisNameCreateRequest,
   buildDiagnosisNameUpdateRequest,
   buildDiagnosisTypeCreateRequest,
   buildDiagnosisTypeUpdateRequest,
+  toDiagnosisTabValue,
 } from "./DiagnosisSettingsModel";
 import {
   useCreateDiagnosisName,
@@ -39,16 +38,11 @@ import {
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 
-const TABS = [
-  { value: "diagnosis_type", label: "診断病名カテゴリ" },
-  { value: "diagnosis_name", label: "診断病名" },
-] as const;
-
 export function DiagnosisSettings() {
   const navigate = useNavigate();
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") ?? "diagnosis_type";
+  const activeTab = toDiagnosisTabValue(searchParams.get("tab"));
 
   const { data: rawCategories } = useGetDiagnosisTypes();
   const { data: rawNames } = useGetDiagnosisNames();
@@ -133,70 +127,42 @@ export function DiagnosisSettings() {
               ) : null
             }
           >
-            <UnifiedTabs
-              items={TABS}
-              value={activeTab}
-              onValueChange={handleTabChange}
-              className="flex flex-col gap-4"
-            >
-              <UnifiedTabsContent value="diagnosis_type" className="mt-4">
-                <DiagnosisTypeTab
-                  onEditTargetChange={catCrud.setEditTarget}
-                  canEdit={canEdit}
-                />
-              </UnifiedTabsContent>
-              <UnifiedTabsContent value="diagnosis_name" className="mt-4">
-                <DiagnosisNameTab
-                  onEditTargetChange={nameCrud.setEditTarget}
-                  canEdit={canEdit}
-                />
-              </UnifiedTabsContent>
-            </UnifiedTabs>
+            <DiagnosisSettingsTabs
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              onTypeEditTargetChange={catCrud.setEditTarget}
+              onNameEditTargetChange={nameCrud.setEditTarget}
+              canEdit={canEdit}
+            />
           </PageLayout>
         </div>
 
-        {activeTab === "diagnosis_type" && catCrud.isEditing ? (
-          <DiagnosisTypeSidePanel
-            key={catCrud.panelItem ? String(catCrud.panelItem.id) : "new-category"}
-            item={catCrud.panelItem}
-            onClose={catCrud.handleClose}
-            onSave={catSave.handleSave}
-            onDeleteRequest={canDelete ? catCrud.setPendingDelete : undefined}
-            readOnly={!canEdit}
-            onDirtyChange={handleDirtyChange}
-          />
-        ) : null}
-        {activeTab === "diagnosis_name" && nameCrud.isEditing ? (
-          <DiagnosisNameSidePanel
-            key={nameCrud.panelItem ? String(nameCrud.panelItem.id) : "new-name"}
-            item={nameCrud.panelItem}
-            categories={rawCategories ?? []}
-            onClose={nameCrud.handleClose}
-            onSave={nameSave.handleSave}
-            onDeleteRequest={canDelete ? nameCrud.setPendingDelete : undefined}
-            readOnly={!canEdit}
-            onDirtyChange={handleDirtyChange}
-          />
-        ) : null}
+        <DiagnosisSettingsSidePanels
+          activeTab={activeTab}
+          typeEditTarget={catCrud.editTarget}
+          typePanelItem={catCrud.panelItem}
+          nameEditTarget={nameCrud.editTarget}
+          namePanelItem={nameCrud.panelItem}
+          categories={rawCategories ?? []}
+          canDelete={canDelete}
+          canEdit={canEdit}
+          onTypeClose={catCrud.handleClose}
+          onTypeSave={catSave.handleSave}
+          onTypeDeleteRequest={catCrud.setPendingDelete}
+          onNameClose={nameCrud.handleClose}
+          onNameSave={nameSave.handleSave}
+          onNameDeleteRequest={nameCrud.setPendingDelete}
+          onDirtyChange={handleDirtyChange}
+        />
       </div>
 
-      <ConfirmDialog
-        open={catCrud.pendingDelete !== null}
-        onClose={catCrud.handleDeleteCancel}
-        title="診断カテゴリを削除しますか？"
-        description={`「${catCrud.pendingDelete?.name}」を削除します。このカテゴリに属する診断名も影響を受けます。この操作は取り消せません。`}
-        confirmLabel="削除"
-        variant="destructive"
-        onConfirm={catCrud.handleDeleteConfirm}
-      />
-      <ConfirmDialog
-        open={nameCrud.pendingDelete !== null}
-        onClose={nameCrud.handleDeleteCancel}
-        title="診断病名を削除しますか？"
-        description={`「${nameCrud.pendingDelete?.name}」を削除します。この操作は取り消せません。`}
-        confirmLabel="削除"
-        variant="destructive"
-        onConfirm={nameCrud.handleDeleteConfirm}
+      <DiagnosisDeleteDialogs
+        pendingTypeDelete={catCrud.pendingDelete}
+        pendingNameDelete={nameCrud.pendingDelete}
+        onTypeDeleteCancel={catCrud.handleDeleteCancel}
+        onTypeDeleteConfirm={catCrud.handleDeleteConfirm}
+        onNameDeleteCancel={nameCrud.handleDeleteCancel}
+        onNameDeleteConfirm={nameCrud.handleDeleteConfirm}
       />
     </>
   );

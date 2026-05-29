@@ -1,14 +1,7 @@
 import { useCallback } from "react";
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import PawPrint from "lucide-react/dist/esm/icons/paw-print";
-import { TableCell } from "@/components/ui/table";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
-import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
@@ -16,6 +9,10 @@ import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { AnimalSpeciesSidePanel } from "../components/AnimalSpeciesSidePanel";
 import type { AnimalSpeciesFormData } from "../components/AnimalSpeciesSidePanelModel";
+import {
+  ANIMAL_SPECIES_COLUMNS,
+  AnimalSpeciesSortableTable,
+} from "../components/AnimalSpeciesSortableTable";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetAnimalSpecies, useCreateAnimalSpecies, useUpdateAnimalSpecies, useDeleteAnimalSpecies, useReorderAnimalSpecies } from "../api/animal-species";
 import type { AnimalSpecies, CreateAnimalSpeciesRequest, UpdateAnimalSpeciesRequest } from "../api/animal-species";
@@ -24,13 +21,6 @@ import {
   buildAnimalSpeciesUpdateRequest,
 } from "./AnimalSpeciesSettingsModel";
 import { ResourceMasterAnimalSpecies } from "@/types/generated/models";
-
-const COLUMNS = [
-  { header: "", className: "w-[32px]" },
-  { header: "動物種類名" },
-  { header: "ステータス", className: "w-[100px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
-];
 
 export function AnimalSpeciesSettings() {
   const { canEdit } = usePermission(ResourceMasterAnimalSpecies);
@@ -68,25 +58,19 @@ export function AnimalSpeciesSettings() {
   return (
     <MasterCRUDPage title="動物種類マスタ" icon={<PawPrint className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterAnimalSpecies}
       entityLabel="動物種類" searchPlaceholder="動物種類名で検索..." emptyMessage="動物種類が登録されていません"
-      crud={crud} handleSave={handleSave} columns={COLUMNS}
+      crud={crud} handleSave={handleSave} columns={ANIMAL_SPECIES_COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       deleteDescription={`「${crud.pendingDelete?.name}」を削除します。ペットで使用中の場合は削除できません。この操作は取り消せません。`}
       renderRow={() => null}
       renderSidePanel={({ readOnly, ...props }) => <AnimalSpeciesSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} onDirtyChange={handleDirtyChange} />}
     >
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-          <DataTable columns={COLUMNS} data={orderedItems} emptyMessage="動物種類が登録されていません"
-            renderRow={(item) => (
-              <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
-                <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-                <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-                <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}</TableCell>
-              </SortableDataTableRow>
-            )}
-          />
-        </SortableContext>
-      </DndContext>
+      <AnimalSpeciesSortableTable
+        items={orderedItems}
+        sensors={sensors}
+        onDragEnd={handleDragEnd}
+        canEdit={canEdit}
+        onEdit={crud.handleEdit}
+      />
     </MasterCRUDPage>
   );
 }

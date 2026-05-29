@@ -1,13 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
-import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { TableCell } from "@/components/ui/table";
-import { C } from "@/lib/design-tokens";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import {
   useGetDiagnosisNames,
@@ -17,22 +9,15 @@ import {
   type DiagnosisName,
   type DiagnosisType,
 } from "../api/diagnosis";
-
-const CATEGORY_COLUMNS = [
-  { header: "", className: "w-[32px]" },
-  { header: "カテゴリ名" },
-  { header: "備考", className: "w-[240px]" },
-  { header: "ステータス", className: "w-[100px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
-];
-
-const NAME_COLUMNS = [
-  { header: "", className: "w-[32px]" },
-  { header: "所属カテゴリ", className: "w-[160px]" },
-  { header: "診断病名" },
-  { header: "ステータス", className: "w-[100px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
-];
+import { DiagnosisNameRow, DiagnosisTypeRow } from "./DiagnosisTabRows";
+import {
+  DIAGNOSIS_NAME_COLUMNS,
+  DIAGNOSIS_TYPE_COLUMNS,
+  buildDiagnosisTypeNameMap,
+  filterDiagnosisNamesBySearch,
+  filterDiagnosisTypesBySearch,
+} from "./DiagnosisTabsModel";
+import { DiagnosisSortableTable } from "./DiagnosisSortableTable";
 
 interface DiagnosisTypeTabProps {
   onEditTargetChange: (value: DiagnosisType | "new" | null) => void;
@@ -56,9 +41,7 @@ export function DiagnosisTypeTab({ onEditTargetChange, canEdit }: DiagnosisTypeT
   const deferredSearch = useDeferredValue(searchTerm);
 
   const filteredItems = useMemo(() => {
-    if (!deferredSearch) return orderedCategories;
-    const lower = deferredSearch.toLowerCase();
-    return orderedCategories.filter((category) => category.name.toLowerCase().includes(lower));
+    return filterDiagnosisTypesBySearch(orderedCategories, deferredSearch);
   }, [orderedCategories, deferredSearch]);
 
   return (
@@ -73,42 +56,21 @@ export function DiagnosisTypeTab({ onEditTargetChange, canEdit }: DiagnosisTypeT
         count={filteredItems.length}
       />
 
-      <DndContext
+      <DiagnosisSortableTable
+        items={filteredItems}
+        columns={DIAGNOSIS_TYPE_COLUMNS}
+        emptyMessage="診断カテゴリが登録されていません"
         sensors={sensors}
-        collisionDetection={closestCenter}
         onDragEnd={handleCategoryDragEnd}
-      >
-        <SortableContext
-          items={filteredItems.map((item) => item.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <DataTable
-            columns={CATEGORY_COLUMNS}
-            data={filteredItems}
-            emptyMessage="診断カテゴリが登録されていません"
-            renderRow={(item) => (
-              <SortableDataTableRow
-                key={item.id}
-                id={item.id}
-                onClick={canEdit ? () => onEditTargetChange(item) : undefined}
-              >
-                <TableCell className={`font-medium text-base ${C.text}`}>
-                  {item.name}
-                </TableCell>
-                <TableCell className={`text-base ${C.text70} truncate max-w-[240px]`}>
-                  {item.description || "-"}
-                </TableCell>
-                <TableCell className="text-center">
-                  <NotionStatusPill isActive={item.isActive} />
-                </TableCell>
-                <TableCell className="p-0 text-right">
-                  {canEdit ? <RowActionButton onClick={() => onEditTargetChange(item)} /> : null}
-                </TableCell>
-              </SortableDataTableRow>
-            )}
+        renderRow={(item) => (
+          <DiagnosisTypeRow
+            key={item.id}
+            item={item}
+            canEdit={canEdit}
+            onEdit={onEditTargetChange}
           />
-        </SortableContext>
-      </DndContext>
+        )}
+      />
     </div>
   );
 }
@@ -136,13 +98,11 @@ export function DiagnosisNameTab({ onEditTargetChange, canEdit }: DiagnosisNameT
   const deferredSearch = useDeferredValue(searchTerm);
 
   const filteredItems = useMemo(() => {
-    if (!deferredSearch) return orderedNames;
-    const lower = deferredSearch.toLowerCase();
-    return orderedNames.filter((name) => name.name.toLowerCase().includes(lower));
+    return filterDiagnosisNamesBySearch(orderedNames, deferredSearch);
   }, [orderedNames, deferredSearch]);
 
   const categoryMap = useMemo(
-    () => new Map<string, string>((rawCategories ?? []).map((category) => [category.id, category.name])),
+    () => buildDiagnosisTypeNameMap(rawCategories),
     [rawCategories],
   );
 
@@ -158,42 +118,22 @@ export function DiagnosisNameTab({ onEditTargetChange, canEdit }: DiagnosisNameT
         count={filteredItems.length}
       />
 
-      <DndContext
+      <DiagnosisSortableTable
+        items={filteredItems}
+        columns={DIAGNOSIS_NAME_COLUMNS}
+        emptyMessage="診断病名が登録されていません"
         sensors={sensors}
-        collisionDetection={closestCenter}
         onDragEnd={handleNameDragEnd}
-      >
-        <SortableContext
-          items={filteredItems.map((item) => item.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <DataTable
-            columns={NAME_COLUMNS}
-            data={filteredItems}
-            emptyMessage="診断病名が登録されていません"
-            renderRow={(item) => (
-              <SortableDataTableRow
-                key={item.id}
-                id={item.id}
-                onClick={canEdit ? () => onEditTargetChange(item) : undefined}
-              >
-                <TableCell className={`text-base ${C.text70}`}>
-                  {categoryMap.get(item.diagnosisTypeId) ?? "-"}
-                </TableCell>
-                <TableCell className={`font-medium text-base ${C.text}`}>
-                  {item.name}
-                </TableCell>
-                <TableCell className="text-center">
-                  <NotionStatusPill isActive={item.isActive} />
-                </TableCell>
-                <TableCell className="p-0 text-right">
-                  {canEdit ? <RowActionButton onClick={() => onEditTargetChange(item)} /> : null}
-                </TableCell>
-              </SortableDataTableRow>
-            )}
+        renderRow={(item) => (
+          <DiagnosisNameRow
+            key={item.id}
+            item={item}
+            categoryMap={categoryMap}
+            canEdit={canEdit}
+            onEdit={onEditTargetChange}
           />
-        </SortableContext>
-      </DndContext>
+        )}
+      />
     </div>
   );
 }

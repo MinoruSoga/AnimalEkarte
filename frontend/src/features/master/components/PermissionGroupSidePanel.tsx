@@ -11,7 +11,8 @@ import { C, LAYOUT } from "@/lib/design-tokens";
 
 import type { PermissionGroup } from "../api/permission-groups";
 import { MASTER_INPUT_CLASS } from "../constants/styles";
-import { PermissionRuleTable, type PermissionRule } from "./PermissionRuleTable";
+import { PermissionRuleTable } from "./PermissionRuleTable";
+import type { PermissionRuleField } from "./PermissionRuleTableModel";
 import {
   permissionGroupToFormData,
   type PermissionGroupFormData,
@@ -81,7 +82,7 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
 
   const handleRuleChange = useCallback((
     resource: string,
-    field: keyof Omit<PermissionRule, "resource">,
+    field: PermissionRuleField,
     value: boolean,
   ) => {
     setFormDataDirty((prev) => ({
@@ -137,7 +138,6 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
       </PropertyRow>
 
       <PermissionRuleTable
-        group={item}
         rules={formData.rules}
         onRuleChange={handleRuleChange}
         disabled={readOnly}

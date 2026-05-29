@@ -9,6 +9,23 @@ import type {
   UpdateTrimmingOptionRequest,
 } from "../api/trimming";
 
+export const TRIMMING_TABS = [
+  { value: "course", label: "コース" },
+  { value: "option", label: "オプション" },
+] as const;
+
+export type TrimmingTabValue = (typeof TRIMMING_TABS)[number]["value"];
+
+const TRIMMING_TAB_VALUES = new Set<string>(
+  TRIMMING_TABS.map((tab) => tab.value),
+);
+
+export function toTrimmingTabValue(value: string | null): TrimmingTabValue {
+  return TRIMMING_TAB_VALUES.has(value ?? "")
+    ? (value as TrimmingTabValue)
+    : "course";
+}
+
 function toNullableNumber(value: string): number | null {
   return value !== "" ? Number(value) : null;
 }
