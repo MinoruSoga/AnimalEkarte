@@ -108,6 +108,8 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   const isTrimming = appointment.reservationCategory === "trimming";
   const isHospitalization = appointment.reservationType.includes("入院");
   const isMedical = appointment.reservationCategory === "general" || (!isTrimming && !isHospitalization);
+  const canOpenMedicalRecordFromRelatedPages =
+    !isTrimming && canCreateMedicalRecord === true && currentStatus === "診療中";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -122,7 +124,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
           onCreateTrimming={handleCreateTrimming}
           onCreateAccounting={handleCreateAccounting}
           onCreateHospitalization={handleCreateHospitalization}
-          canCreateMedicalRecord={isTrimming ? false : canCreateMedicalRecord}
+          canCreateMedicalRecord={canOpenMedicalRecordFromRelatedPages}
           canCreateAccounting={canCreateAccounting}
           canCreateHospitalization={canCreateHospitalization}
         />

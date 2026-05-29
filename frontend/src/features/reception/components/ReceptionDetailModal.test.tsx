@@ -37,13 +37,21 @@ const baseAppointment: ReceptionAppointment = {
   source: "manual",
 };
 
-function renderModal(appointment: ReceptionAppointment = baseAppointment) {
+interface RenderModalOptions {
+  appointment?: ReceptionAppointment;
+  currentStatus?: string;
+}
+
+function renderModal({
+  appointment = baseAppointment,
+  currentStatus = "受付済",
+}: RenderModalOptions = {}) {
   return render(
     <ReceptionDetailModal
       isOpen={true}
       onClose={vi.fn()}
       appointment={appointment}
-      currentStatus="受付済"
+      currentStatus={currentStatus}
       canCreateMedicalRecord={true}
       canCreateAccounting={true}
       canCreateHospitalization={true}
@@ -65,10 +73,12 @@ describe("ReceptionDetailModal", () => {
 
   it("petId 未確定のトリミング予約では appointmentId を保持してペット選択へ遷移する", () => {
     renderModal({
-      ...baseAppointment,
-      id: "202",
-      reservationType: "シャンプーコース",
-      reservationCategory: "trimming",
+      appointment: {
+        ...baseAppointment,
+        id: "202",
+        reservationType: "シャンプーコース",
+        reservationCategory: "trimming",
+      },
     });
 
     fireEvent.click(screen.getByRole("button", { name: /トリミングカルテ作成/ }));
@@ -76,6 +86,30 @@ describe("ReceptionDetailModal", () => {
     expect(navigateMock).toHaveBeenCalledWith(
       "/trimming/select-pet?appointmentId=202&visitDate=2026-05-29",
       { state: { from: "/", appointmentId: "202", visitDate: "2026-05-29" } },
+    );
+  });
+
+  it("受付済の通常予約では関連ページのカルテ導線を表示しない", () => {
+    renderModal();
+
+    expect(screen.queryByRole("button", { name: /^カルテ$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /カルテ作成/ })).toBeInTheDocument();
+  });
+
+  it("診療中の通常予約では関連ページのカルテ導線から appointmentId と visitDate を保持して遷移する", () => {
+    renderModal({
+      currentStatus: "診療中",
+      appointment: {
+        ...baseAppointment,
+        petId: "10",
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^カルテ$/ }));
+
+    expect(navigateMock).toHaveBeenCalledWith(
+      "/medical-records/new?petId=10&appointmentId=101&visitDate=2026-05-29",
+      { state: { from: "/", appointmentId: "101", visitDate: "2026-05-29" } },
     );
   });
 });
