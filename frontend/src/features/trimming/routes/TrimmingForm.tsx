@@ -251,6 +251,9 @@ export function TrimmingForm() {
           {fieldErrors.staffId ? (
             <FormFieldError message={fieldErrors.staffId} />
           ) : null}
+          {fieldErrors.reservationTypeId ? (
+            <FormFieldError message={fieldErrors.reservationTypeId} />
+          ) : null}
 
           {/* Main Content - 3 column layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

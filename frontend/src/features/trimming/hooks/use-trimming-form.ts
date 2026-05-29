@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
+import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useGetTrimming } from "../api/get-trimming";
 import { useCreateTrimming } from "../api/create-trimming";
 import { useUpdateTrimming } from "../api/update-trimming";
@@ -34,6 +35,17 @@ const defaultFormData: TrimmingFormData = {
 };
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
+interface TrimmingReservationType {
+  id: number;
+  category: string;
+  is_internal: boolean;
+  sort_order: number;
+}
+
+interface TrimmingReservationTypeGroup {
+  types: TrimmingReservationType[];
+}
+
 function optionalNumber(value: string): number | undefined {
   if (value === "") return undefined;
   const parsed = Number(value);
@@ -56,6 +68,15 @@ function formatJSTDate(date: Date): string {
 function normalizeVisitDate(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+}
+
+function findDefaultTrimmingReservationTypeId(
+  groups: readonly TrimmingReservationTypeGroup[] | undefined,
+): number | undefined {
+  return groups
+    ?.flatMap((group) => group.types)
+    .filter((type) => type.category === "trimming" && !type.is_internal)
+    .sort((a, b) => a.sort_order - b.sort_order)[0]?.id;
 }
 
 function buildUpdateTrimmingRequest(formData: TrimmingFormData): UpdateTrimmingRequest {
@@ -126,11 +147,13 @@ export function useTrimmingForm(id?: string) {
   const { data: existingAppointmentTrimming, isLoading: isAppointmentLoading } = useGetTrimming(
     !isEdit ? existingAppointmentId : "",
   );
+  const { data: reservationTypeGroups } = useGetReservationTypesGrouped();
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
   const createMutation = useCreateTrimming();
   const updateMutation = useUpdateTrimming();
   const deleteMutation = useDeleteTrimming();
   const existingAppointmentHasDetail = existingAppointmentTrimming?.hasDetail ?? false;
+  const defaultTrimmingReservationTypeId = findDefaultTrimmingReservationTypeId(reservationTypeGroups);
 
   // BUG-027: inline field validation errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -273,18 +296,18 @@ export function useTrimmingForm(id?: string) {
           if (!formData.courseId) {
             errors.courseId = "コースを選択してください";
           }
+          const reservationTypeId = formData.reservationTypeId
+            ? Number(formData.reservationTypeId)
+            : defaultTrimmingReservationTypeId;
+          if (!reservationTypeId || !Number.isFinite(reservationTypeId)) {
+            errors.reservationTypeId = "トリミング予約区分が設定されていません";
+          }
           if (Object.keys(errors).length > 0) {
             setFieldErrors(errors);
             return { success: false, fieldErrors: errors, timestamp: Date.now() };
           }
           setFieldErrors({});
-          // reservation_type_id: trimming 種別（フォームから選択）。
-          // 未選択時は seed データの id=9（トリミングコース）にフォールバックする。
-          // ⚠️ この値はシードに依存するため、選択必須バリデーション追加が望ましい。
-          const FALLBACK_TRIMMING_RESERVATION_TYPE_ID = 9;
-          const reservationTypeId = formData.reservationTypeId
-            ? Number(formData.reservationTypeId)
-            : FALLBACK_TRIMMING_RESERVATION_TYPE_ID;
+          const resolvedReservationTypeId = Number(reservationTypeId);
           // 日時: フォームから選択していない場合は指定日（未指定なら当日）10:00〜11:30
           const fallbackDate = visitDateFromState ?? formatJSTDate(new Date());
           const hasExistingAppointment = Number.isFinite(appointmentIdFromState);
@@ -293,7 +316,7 @@ export function useTrimmingForm(id?: string) {
           const req = buildCreateTrimmingRequest(
             formData,
             Number(pet.id),
-            reservationTypeId,
+            resolvedReservationTypeId,
             startDate,
             endDate,
             Number.isFinite(appointmentIdFromState) ? appointmentIdFromState : undefined,

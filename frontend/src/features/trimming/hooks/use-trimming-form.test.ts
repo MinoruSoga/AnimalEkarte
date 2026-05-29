@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { startTransition } from "react";
 import { useTrimmingForm } from "./use-trimming-form";
+import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 
 const {
   mockNavigate,
@@ -48,6 +49,25 @@ vi.mock("@/hooks/use-pet-selection", () => ({
 
 vi.mock("@/hooks/use-pet", () => ({
   useGetPet: vi.fn(() => ({ data: undefined, isLoading: false })),
+}));
+
+vi.mock("@/hooks/use-reservation-types", () => ({
+  useGetReservationTypesGrouped: vi.fn(() => ({
+    data: [
+      {
+        label: "トリミング",
+        types: [
+          {
+            id: 9,
+            name: "シャンプーコース",
+            category: "trimming",
+            is_internal: false,
+            sort_order: 1,
+          },
+        ],
+      },
+    ],
+  })),
 }));
 
 vi.mock("../api/get-trimming", () => ({
@@ -99,6 +119,22 @@ describe("useTrimmingForm", () => {
     mockSelectedPets.length = 0;
     mockCreateMutateAsync.mockResolvedValue({});
     mockUpdateMutateAsync.mockResolvedValue({});
+    vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
+      data: [
+        {
+          label: "トリミング",
+          types: [
+            {
+              id: 9,
+              name: "シャンプーコース",
+              category: "trimming",
+              is_internal: false,
+              sort_order: 1,
+            },
+          ],
+        },
+      ],
+    } as ReturnType<typeof useGetReservationTypesGrouped>);
   });
 
   it("新規保存時に画面入力項目を create payload に含める", async () => {
@@ -126,6 +162,7 @@ describe("useTrimmingForm", () => {
     expect(mockCreateMutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         pet_id: 10,
+        reservation_type_id: 9,
         staff_id: 3,
         course_id: 4,
         style_request: "短め",
@@ -159,6 +196,7 @@ describe("useTrimmingForm", () => {
       expect.objectContaining({
         appointment_id: undefined,
         pet_id: 10,
+        reservation_type_id: 9,
         staff_id: 3,
         course_id: 4,
         start_time: "2026-06-01T10:00:00+09:00",
@@ -210,6 +248,40 @@ describe("useTrimmingForm", () => {
     expect(result.current.fieldErrors.courseId).toBe("コースを選択してください");
   });
 
+  it("active な trimming 予約区分がない新規保存では API を呼ばない", async () => {
+    vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
+      data: [
+        {
+          label: "一般診療",
+          types: [
+            {
+              id: 1,
+              name: "一般診察",
+              category: "general",
+              is_internal: false,
+              sort_order: 1,
+            },
+          ],
+        },
+      ],
+    } as ReturnType<typeof useGetReservationTypesGrouped>);
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
+
+    const { result } = renderHook(() => useTrimmingForm());
+
+    act(() => {
+      result.current.setFormData({
+        staffId: "3",
+        courseId: "4",
+      });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(result.current.fieldErrors.reservationTypeId).toBe("トリミング予約区分が設定されていません");
+  });
+
   it("受付から遷移した新規保存では既存 appointment_id を使い日時を上書きしない", async () => {
     mockLocationStateHolder.value = { appointmentId: "77" };
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
@@ -229,6 +301,7 @@ describe("useTrimmingForm", () => {
       expect.objectContaining({
         appointment_id: 77,
         pet_id: 10,
+        reservation_type_id: 9,
         staff_id: 3,
         course_id: 4,
         start_time: undefined,

@@ -563,7 +563,8 @@ erDiagram
 
 - 受付カードの category 判定を `reservation_types.category` に変更
 - 通常カルテ一覧からの作成で appointment を作る／既存 appointment に紐付ける
-- トリミング一覧からの作成で appointment が受付に反映されることを保証する
+- トリミング一覧からの作成で appointment が受付に反映されることを保証する（完了）
+- トリミング一覧からの作成では seed ID に依存せず、active な `trimming` 予約区分を使う（完了）
 - 作成後に `reception` query を無効化する
 
 ### Phase 2: 院内予約フォームの空き枠対応
