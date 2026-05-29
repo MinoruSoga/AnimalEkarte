@@ -567,6 +567,45 @@ describe("useMedicalRecordForm", () => {
       });
     });
 
+    it("visitDate 指定の一覧新規作成では appointment も同じ日付で作成する", async () => {
+      mockSearchParams = new URLSearchParams({ petId: "5", visitDate: "2026-06-01" });
+      vi.mocked(useGetPet).mockReturnValue({
+        data: mockPet,
+        isLoading: false,
+        isError: false,
+      });
+
+      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+      vi.mocked(useCreateMedicalRecord).mockReturnValue({
+        mutateAsync: mockCreateRecord,
+        isPending: false,
+      } as ReturnType<typeof useCreateMedicalRecord>);
+      const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
+      vi.mocked(useCreateReservation).mockReturnValue({
+        mutateAsync: mockCreateReservation,
+        isPending: false,
+      } as ReturnType<typeof useCreateReservation>);
+
+      await act(async () => {
+        renderHook(() => useMedicalRecordForm());
+      });
+
+      await waitFor(() => {
+        expect(mockCreateReservation).toHaveBeenCalledWith(
+          expect.objectContaining({
+            start_time: expect.stringMatching(/^2026-06-01T/),
+            end_time: expect.stringMatching(/^2026-06-01T/),
+          })
+        );
+        expect(mockCreateRecord).toHaveBeenCalledWith(
+          expect.objectContaining({
+            appointment_id: "appointment-1",
+            visit_date: "2026-06-01",
+          })
+        );
+      });
+    });
+
     it("isNewRecord && selectedPet あり → 作成後に detail ページへナビゲート", async () => {
       mockSearchParams = new URLSearchParams({ petId: "5" });
       vi.mocked(useGetPet).mockReturnValue({

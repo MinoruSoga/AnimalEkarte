@@ -38,8 +38,16 @@ function formatJSTDateTime(date: Date): string {
   return `${formatJSTDate(date)}T${padDatePart(jstDate.getUTCHours())}:${padDatePart(jstDate.getUTCMinutes())}:00+09:00`;
 }
 
-export function createReceptionAppointmentTimeRange(durationMinutes: number) {
-  const start = new Date();
+function createDateAtCurrentJSTTime(visitDate: string, timeSource: Date): Date {
+  const jstTime = new Date(timeSource.getTime() + JST_OFFSET_MS);
+  return new Date(
+    `${visitDate}T${padDatePart(jstTime.getUTCHours())}:${padDatePart(jstTime.getUTCMinutes())}:00+09:00`
+  );
+}
+
+export function createReceptionAppointmentTimeRange(durationMinutes: number, visitDate?: string) {
+  const now = new Date();
+  const start = visitDate ? createDateAtCurrentJSTTime(visitDate, now) : now;
   start.setSeconds(0, 0);
   const end = new Date(start);
   end.setMinutes(end.getMinutes() + durationMinutes);

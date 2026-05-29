@@ -59,7 +59,7 @@ export function useMedicalRecordAutoCreate({
         let appointmentId = appointmentIdFromState;
         if (!appointmentId) {
           const duration = generalReservationType?.duration_minutes || DEFAULT_RECEPTION_APPOINTMENT_MINUTES;
-          const { startTime, endTime } = createReceptionAppointmentTimeRange(duration);
+          const { startTime, endTime } = createReceptionAppointmentTimeRange(duration, visitDateFromState);
           const appointment = await createReservationMutation.mutateAsync({
             pet_id: Number(selectedPet.id),
             owner_id: Number(selectedPet.ownerId),
