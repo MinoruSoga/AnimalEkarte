@@ -24,15 +24,17 @@ import {
   useDeleteTrimmingOption,
   useUpdateTrimmingCourse,
   useUpdateTrimmingOption,
-  type CreateTrimmingCourseRequest,
-  type CreateTrimmingOptionRequest,
   type TrimmingCourse,
   type TrimmingOption,
-  type UpdateTrimmingCourseRequest,
-  type UpdateTrimmingOptionRequest,
 } from "../api/trimming";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
+import {
+  buildTrimmingCourseCreateRequest,
+  buildTrimmingCourseUpdateRequest,
+  buildTrimmingOptionCreateRequest,
+  buildTrimmingOptionUpdateRequest,
+} from "./TrimmingSettingsModel";
 
 const TABS = [
   { value: "course", label: "コース" },
@@ -91,22 +93,8 @@ export function TrimmingSettings() {
     createMutation: createCourseMutation,
     updateMutation: updateCourseMutation,
     validate: (data: CourseFormData) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data: CourseFormData): CreateTrimmingCourseRequest => ({
-      name: data.name,
-      price: data.price !== "" ? Number(data.price) : null,
-      target_size: data.targetSize !== "" ? data.targetSize : null,
-      duration: data.duration !== "" ? Number(data.duration) : null,
-      description: data.description || undefined,
-      is_active: true,
-    }),
-    toUpdateRequest: (data: CourseFormData): UpdateTrimmingCourseRequest => ({
-      name: data.name,
-      price: data.price !== "" ? Number(data.price) : null,
-      target_size: data.targetSize !== "" ? data.targetSize : null,
-      duration: data.duration !== "" ? Number(data.duration) : null,
-      description: data.description || undefined,
-      is_active: data.isActive,
-    }),
+    toCreateRequest: buildTrimmingCourseCreateRequest,
+    toUpdateRequest: buildTrimmingCourseUpdateRequest,
   });
 
   const optionSave = useMasterSave({
@@ -114,22 +102,8 @@ export function TrimmingSettings() {
     createMutation: createOptionMutation,
     updateMutation: updateOptionMutation,
     validate: (data: OptionFormData) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: (data: OptionFormData): CreateTrimmingOptionRequest => ({
-      name: data.name,
-      price: data.price !== "" ? Number(data.price) : null,
-      duration: data.duration !== "" ? Number(data.duration) : null,
-      is_combinable: data.combinable,
-      description: data.description || undefined,
-      is_active: true,
-    }),
-    toUpdateRequest: (data: OptionFormData): UpdateTrimmingOptionRequest => ({
-      name: data.name,
-      price: data.price !== "" ? Number(data.price) : null,
-      duration: data.duration !== "" ? Number(data.duration) : null,
-      is_combinable: data.combinable,
-      description: data.description || undefined,
-      is_active: data.isActive,
-    }),
+    toCreateRequest: buildTrimmingOptionCreateRequest,
+    toUpdateRequest: buildTrimmingOptionUpdateRequest,
   });
 
   return (
