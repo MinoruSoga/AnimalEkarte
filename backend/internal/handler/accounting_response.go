@@ -142,6 +142,10 @@ type billingItemResponse struct {
 	TaxAmount             int64     `json:"tax_amount"`
 	IsInsuranceApplicable bool      `json:"is_insurance_applicable"`
 	Source                string    `json:"source"`
+	TreatmentID           *uint64   `json:"treatment_id,omitempty"`
+	AppointmentID         *uint64   `json:"appointment_id,omitempty"`
+	TrimmingCourseID      *uint64   `json:"trimming_course_id,omitempty"`
+	TrimmingOptionID      *uint64   `json:"trimming_option_id,omitempty"`
 	SortOrder             int       `json:"sort_order"`
 	CreatedAt             time.Time `json:"created_at"`
 }
@@ -235,6 +239,10 @@ func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
 		TaxAmount:             taxAmount,
 		IsInsuranceApplicable: item.IsInsuranceApplicable,
 		Source:                string(item.Source),
+		TreatmentID:           item.TreatmentID,
+		AppointmentID:         item.AppointmentID,
+		TrimmingCourseID:      item.TrimmingCourseID,
+		TrimmingOptionID:      item.TrimmingOptionID,
 		SortOrder:             item.SortOrder,
 		CreatedAt:             item.CreatedAt,
 	}

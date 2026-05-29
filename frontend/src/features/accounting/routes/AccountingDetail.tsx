@@ -46,6 +46,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const queryClient = useQueryClient();
   const [, startTaxUpdateTransition] = useTransition();
   const [, startAddItemTransition] = useTransition();
+  const [, startDeleteItemTransition] = useTransition();
 
   const locationState = location.state as { accountingItems?: AccountingItem[] } | null;
 
@@ -123,6 +124,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     setLocalItems,
     setNewItemOpen,
     startAddItemTransition,
+    startDeleteItemTransition,
     startTaxUpdateTransition,
   });
 

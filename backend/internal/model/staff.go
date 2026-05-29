@@ -36,9 +36,10 @@ type Staff struct {
 	ReservationImageURL    string    `gorm:"not null;default:''"                            json:"reservation_image_url"`
 
 	// Relations
-	Account           *Account                `gorm:"foreignKey:AccountID" json:"account,omitempty"`
-	Occupation        *Occupation             `gorm:"foreignKey:OccupationID" json:"occupation,omitempty"`
-	ClinicAssignments []StaffClinicAssignment `gorm:"foreignKey:StaffID" json:"clinic_assignments,omitempty"`
+	Account           *Account                     `gorm:"foreignKey:AccountID" json:"account,omitempty"`
+	Occupation        *Occupation                  `gorm:"foreignKey:OccupationID" json:"occupation,omitempty"`
+	ClinicAssignments []StaffClinicAssignment      `gorm:"foreignKey:StaffID" json:"clinic_assignments,omitempty"`
+	Capabilities      []StaffReservationCapability `gorm:"foreignKey:StaffID" json:"capabilities,omitempty"`
 }
 
 func (Staff) TableName() string { return "staffs" }

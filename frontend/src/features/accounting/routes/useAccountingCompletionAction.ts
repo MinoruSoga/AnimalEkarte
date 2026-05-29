@@ -121,6 +121,10 @@ export function useAccountingCompletionAction({
               tax_rate: item.taxRate,
               is_insurance_applicable: item.isInsuranceApplicable,
               source: item.source,
+              treatment_id: item.treatmentId ? Number(item.treatmentId) : undefined,
+              appointment_id: item.appointmentId ? Number(item.appointmentId) : undefined,
+              trimming_course_id: item.trimmingCourseId ? Number(item.trimmingCourseId) : undefined,
+              trimming_option_id: item.trimmingOptionId ? Number(item.trimmingOptionId) : undefined,
             });
           }
 

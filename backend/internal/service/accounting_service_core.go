@@ -60,6 +60,9 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		slog.Uint64("billing_id", billing.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
 	if billing.Status == model.BillingStatusCompleted {
+		if err := s.completeAccountingAppointments(ctx, input.ClinicID, billing); err != nil {
+			return nil, err
+		}
 		s.syncCPMStageTag(ctx, input.ClinicID, billing)
 	}
 	return billing, nil
@@ -120,9 +123,30 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		slog.Uint64("billing_id", accounting.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
 	if input.Status != nil && *input.Status == model.BillingStatusCompleted {
+		if err := s.completeAccountingAppointments(ctx, input.ClinicID, accounting); err != nil {
+			return nil, err
+		}
 		s.syncCPMStageTag(ctx, input.ClinicID, accounting)
 	}
 	return accounting, nil
+}
+
+func (s *accountingService) completeAccountingAppointments(ctx context.Context, clinicID uint64, billing *model.Billing) error {
+	updated, err := s.repo.CompleteAccountingAppointments(ctx, clinicID, billing.OwnerID, billing.PetID, billing.ScheduledDate)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to complete accounting appointments",
+			slog.Uint64("clinic_id", clinicID),
+			slog.Uint64("billing_id", billing.ID),
+			slog.String("error", err.Error()))
+		return apperrors.Wrap(err, "failed to complete accounting appointments")
+	}
+	if updated > 0 {
+		slog.InfoContext(ctx, "accounting appointments completed",
+			slog.Uint64("clinic_id", clinicID),
+			slog.Uint64("billing_id", billing.ID),
+			slog.Int64("updated_count", updated))
+	}
+	return nil
 }
 
 func (s *accountingService) syncCPMStageTag(ctx context.Context, clinicID uint64, billing *model.Billing) {

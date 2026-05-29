@@ -215,9 +215,10 @@ func TestLiffService_GetStaffs(t *testing.T) {
 						{ID: 2, Name: "スタッフ山田", ReservationVisible: false}, // 非公開 → 除外
 					}, nil
 				},
-				// visible スタッフ(ID=1)のみバルク取得: 除外なし
-				findExcludedReservationTypesByStaffIDsFn: func(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
-					return nil, nil
+				findCapabilitiesByStaffIDsFn: func(_ context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error) {
+					assert.Equal(t, uint64(3), clinicID)
+					assert.Equal(t, []uint64{1}, staffIDs)
+					return []model.StaffReservationCapability{{ClinicID: 3, StaffID: 1, ReservationTypeID: 1}}, nil
 				},
 			},
 			&mockLiffScheduleRepository{},
@@ -233,7 +234,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 		assert.Equal(t, uint64(1), got[0].ID)
 	})
 
-	t.Run("指定コースが除外リストにあるスタッフは除外", func(t *testing.T) {
+	t.Run("指定コースが対応可能リストにないスタッフは除外", func(t *testing.T) {
 		const typeID = uint64(5) // 手術コース
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
@@ -245,10 +246,11 @@ func TestLiffService_GetStaffs(t *testing.T) {
 						{ID: 2, Name: "トリマー田中", ReservationVisible: true},
 					}, nil
 				},
-				// バルク取得: ID=2 が typeID=5 を除外している
-				findExcludedReservationTypesByStaffIDsFn: func(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
-					return []model.StaffReservationExclusion{
-						{StaffID: 2, ReservationTypeID: typeID},
+				findCapabilitiesByStaffIDsFn: func(_ context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error) {
+					assert.Equal(t, uint64(3), clinicID)
+					assert.Equal(t, []uint64{1, 2}, staffIDs)
+					return []model.StaffReservationCapability{
+						{ClinicID: 3, StaffID: 1, ReservationTypeID: typeID},
 					}, nil
 				},
 			},
@@ -265,7 +267,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 		assert.Equal(t, uint64(1), got[0].ID)
 	})
 
-	t.Run("FindAllExcludedReservationTypesByStaffIDs がエラーを返す → エラー伝播", func(t *testing.T) {
+	t.Run("FindAllReservationCapabilitiesByStaffIDs がエラーを返す → エラー伝播", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{},
@@ -273,7 +275,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
 				},
-				findExcludedReservationTypesByStaffIDsFn: func(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
+				findCapabilitiesByStaffIDsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationCapability, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -356,8 +358,11 @@ func TestLiffService_CreateReservation(t *testing.T) {
 						{ID: 6, Name: "三井先生", ReservationVisible: true},
 					}, nil
 				},
-				findExcludedReservationTypesByStaffIDsFn: func(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
-					return nil, nil
+				findCapabilitiesByStaffIDsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationCapability, error) {
+					return []model.StaffReservationCapability{
+						{ClinicID: 3, StaffID: 5, ReservationTypeID: 1},
+						{ClinicID: 3, StaffID: 6, ReservationTypeID: 1},
+					}, nil
 				},
 			},
 			&mockLiffScheduleRepository{},
@@ -404,8 +409,11 @@ func TestLiffService_CreateReservation(t *testing.T) {
 						{ID: 6, Name: "三井先生", ReservationVisible: true},
 					}, nil
 				},
-				findExcludedReservationTypesByStaffIDsFn: func(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
-					return nil, nil
+				findCapabilitiesByStaffIDsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationCapability, error) {
+					return []model.StaffReservationCapability{
+						{ClinicID: 3, StaffID: 5, ReservationTypeID: 1},
+						{ClinicID: 3, StaffID: 6, ReservationTypeID: 1},
+					}, nil
 				},
 			},
 			&mockLiffScheduleRepository{},
@@ -883,27 +891,27 @@ func TestIsStaffAvailable(t *testing.T) {
 }
 
 // ================================================================
-// isExcluded ヘルパーテスト
+// isCapable ヘルパーテスト
 // ================================================================
 
-func TestIsExcluded(t *testing.T) {
-	excluded := []model.StaffReservationExclusion{
+func TestIsCapable(t *testing.T) {
+	capabilities := []model.StaffReservationCapability{
 		{StaffID: 1, ReservationTypeID: 5},
 		{StaffID: 1, ReservationTypeID: 8},
 	}
 
-	t.Run("除外リストにあるコースIDはtrue", func(t *testing.T) {
-		assert.True(t, isExcluded(excluded, 5))
-		assert.True(t, isExcluded(excluded, 8))
+	t.Run("対応可能リストにあるコースIDはtrue", func(t *testing.T) {
+		assert.True(t, isCapable(capabilities, 5))
+		assert.True(t, isCapable(capabilities, 8))
 	})
 
-	t.Run("除外リストにないコースIDはfalse", func(t *testing.T) {
-		assert.False(t, isExcluded(excluded, 1))
-		assert.False(t, isExcluded(excluded, 99))
+	t.Run("対応可能リストにないコースIDはfalse", func(t *testing.T) {
+		assert.False(t, isCapable(capabilities, 1))
+		assert.False(t, isCapable(capabilities, 99))
 	})
 
-	t.Run("除外リストが空のときは常にfalse", func(t *testing.T) {
-		assert.False(t, isExcluded(nil, 5))
-		assert.False(t, isExcluded([]model.StaffReservationExclusion{}, 5))
+	t.Run("対応可能リストが空のときは常にfalse", func(t *testing.T) {
+		assert.False(t, isCapable(nil, 5))
+		assert.False(t, isCapable([]model.StaffReservationCapability{}, 5))
 	})
 }

@@ -106,3 +106,8 @@ type setStaffClinicAssignmentsRequest struct {
 type setStaffExcludedReservationTypesRequest struct {
 	ReservationTypeIDs []uint64 `json:"reservation_type_ids"`
 }
+
+// setStaffCapableReservationTypesRequest は対応可能予約種別リクエスト。
+type setStaffCapableReservationTypesRequest struct {
+	ReservationTypeIDs []uint64 `json:"reservation_type_ids"`
+}

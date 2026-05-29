@@ -33,6 +33,8 @@ export interface CreateReservationRequest {
 export interface UpdateReservationRequest {
   start_time?: string;
   end_time?: string;
+  pet_id?: number;
+  owner_id?: number;
   visit_type?: string;
   reservation_type_id?: number;
   doctor_id?: number;

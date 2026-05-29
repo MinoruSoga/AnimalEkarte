@@ -55,6 +55,7 @@ const (
 	ItemSourceMedicalRecord   ItemSource = "medical_record"
 	ItemSourceManual          ItemSource = "manual"
 	ItemSourceHospitalization ItemSource = "hospitalization"
+	ItemSourceTrimming        ItemSource = "trimming"
 )
 
 type Billing struct {
@@ -103,6 +104,10 @@ type BillingItem struct {
 	IsInsuranceApplicable bool           `gorm:"default:false"                                  json:"is_insurance_applicable"`
 	Source                ItemSource     `gorm:"type:item_source;default:'manual'"              json:"source"`
 	MerchandiseItemID     *uint64        `                                                      json:"merchandise_item_id,omitempty"`
+	TreatmentID           *uint64        `                                                      json:"treatment_id,omitempty"`
+	AppointmentID         *uint64        `                                                      json:"appointment_id,omitempty"`
+	TrimmingCourseID      *uint64        `                                                      json:"trimming_course_id,omitempty"`
+	TrimmingOptionID      *uint64        `                                                      json:"trimming_option_id,omitempty"`
 	SortOrder             int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt             time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt             time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`

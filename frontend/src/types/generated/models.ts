@@ -64,6 +64,7 @@ export type ItemSource = string;
 export const ItemSourceMedicalRecord: ItemSource = "medical_record";
 export const ItemSourceManual: ItemSource = "manual";
 export const ItemSourceHospitalization: ItemSource = "hospitalization";
+export const ItemSourceTrimming: ItemSource = "trimming";
 export interface Billing {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -108,6 +109,10 @@ export interface BillingItem {
   is_insurance_applicable: boolean;
   source: ItemSource;
   merchandise_item_id?: number /* uint64 */;
+  treatment_id?: number /* uint64 */;
+  appointment_id?: number /* uint64 */;
+  trimming_course_id?: number /* uint64 */;
+  trimming_option_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -2293,6 +2298,7 @@ export interface ReservationType {
   unavailable_times?: ReservationTypeUnavailableTime[];
   available_slots?: ReservationTypeAvailableSlot[];
   occupations?: ReservationTypeOccupation[];
+  staff_capabilities?: StaffReservationCapability[];
 }
 /**
  * ReservationTypeUnavailableTime は予約区分の予約不可時間帯（BE-115）
@@ -2450,6 +2456,7 @@ export interface Staff {
   account?: Account;
   occupation?: Occupation;
   clinic_assignments?: StaffClinicAssignment[];
+  capabilities?: StaffReservationCapability[];
 }
 export type ShiftType = string;
 export const ShiftTypeFull: ShiftType = "full";
@@ -2514,6 +2521,22 @@ export interface StaffReservationExclusion {
   /**
    * Relations
    */
+  staff?: Staff;
+  reservation_type?: ReservationType;
+}
+/**
+ * StaffReservationCapability records which reservation types a staff member can handle.
+ */
+export interface StaffReservationCapability {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  staff_id: number /* uint64 */;
+  reservation_type_id: number /* uint64 */;
+  created_at: string;
+  /**
+   * Relations
+   */
+  clinic?: Clinic;
   staff?: Staff;
   reservation_type?: ReservationType;
 }

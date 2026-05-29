@@ -14,14 +14,12 @@ func validateReservationStaffCapability(ctx context.Context, repo repository.Res
 	if _, err := repo.FindByID(ctx, clinicID, *doctorID); err != nil {
 		return apperrors.Wrap(err, "failed to verify reservation staff")
 	}
-	excluded, err := repo.FindAllExcludedReservationTypes(ctx, *doctorID)
+	supports, err := repo.SupportsReservationType(ctx, clinicID, *doctorID, reservationTypeID)
 	if err != nil {
-		return apperrors.Wrap(err, "failed to get excluded reservation types")
+		return apperrors.Wrap(err, "failed to get staff reservation capabilities")
 	}
-	for i := range excluded {
-		if excluded[i].ReservationTypeID == reservationTypeID {
-			return apperrors.WrapInvalidInput("選択した担当者はこの予約区分に対応していません")
-		}
+	if !supports {
+		return apperrors.WrapInvalidInput("選択した担当者はこの予約区分に対応していません")
 	}
 	return nil
 }

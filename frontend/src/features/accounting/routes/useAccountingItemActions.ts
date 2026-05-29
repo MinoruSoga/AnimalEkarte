@@ -8,6 +8,7 @@ import { queryKeys } from "@/lib/query-keys";
 import type { TaxType } from "@/types/generated/models";
 
 import { createBillingItem } from "../api/create-billing-item";
+import { deleteBillingItem } from "../api/delete-billing-item";
 import { updateBillingItem } from "../api/update-billing-item";
 import type { AccountingItem, ItemCategory } from "../types";
 
@@ -18,6 +19,7 @@ interface UseAccountingItemActionsParams {
   setLocalItems: Dispatch<SetStateAction<AccountingItem[] | null>>;
   setNewItemOpen: Dispatch<SetStateAction<boolean>>;
   startAddItemTransition: (callback: () => void) => void;
+  startDeleteItemTransition: (callback: () => void) => void;
   startTaxUpdateTransition: (callback: () => void) => void;
 }
 
@@ -28,6 +30,7 @@ export function useAccountingItemActions({
   setLocalItems,
   setNewItemOpen,
   startAddItemTransition,
+  startDeleteItemTransition,
   startTaxUpdateTransition,
 }: UseAccountingItemActionsParams) {
   const handleAddItem = useCallback(
@@ -84,9 +87,26 @@ export function useAccountingItemActions({
 
   const handleDeleteItem = useCallback(
     (itemId: string) => {
+      if (!accountingId || itemId.startsWith("manual_")) {
+        setLocalItems((prev) => (prev ?? baseItems).filter((i) => i.id !== itemId));
+        return;
+      }
+
+      const rollbackItems = baseItems;
       setLocalItems((prev) => (prev ?? baseItems).filter((i) => i.id !== itemId));
+      startDeleteItemTransition(async () => {
+        try {
+          await deleteBillingItem(itemId);
+          await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
+          setLocalItems(null);
+          toast.success("明細を削除しました");
+        } catch (error) {
+          setLocalItems(rollbackItems);
+          handleApiError(error, "明細の削除");
+        }
+      });
     },
-    [baseItems, setLocalItems],
+    [accountingId, baseItems, queryClient, setLocalItems, startDeleteItemTransition],
   );
 
   const handleUpdateItemTax = useCallback(

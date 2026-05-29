@@ -18,6 +18,7 @@ import {
   ItemCategoryFood,
   ItemCategoryGoods,
   ItemCategoryOther,
+  ItemCategoryTrimming,
 } from "@/types/generated/models";
 import type { TaxType } from "@/types/generated/models";
 
@@ -43,7 +44,8 @@ export type ItemCategory =
   | typeof ItemCategoryMedicine
   | typeof ItemCategoryFood
   | typeof ItemCategoryGoods
-  | typeof ItemCategoryOther;
+  | typeof ItemCategoryOther
+  | typeof ItemCategoryTrimming;
 
 /** @see {@link import("@/types/generated/models").BillingItem} */
 export interface AccountingItem {
@@ -58,7 +60,11 @@ export interface AccountingItem {
   taxAmount: number; // BE が計算して返す
   subtotal: number;  // unit_price × quantity（税抜）
   isInsuranceApplicable: boolean;
-  source: "medical_record" | "manual"; // カルテ連携か手動追加か
+  source: "medical_record" | "manual" | "hospitalization" | "trimming";
+  treatmentId?: string;
+  appointmentId?: string;
+  trimmingCourseId?: string;
+  trimmingOptionId?: string;
 }
 
 /** @see {@link import("@/types/generated/models").Payment} */

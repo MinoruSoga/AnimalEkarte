@@ -76,12 +76,12 @@ func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.
 	return result, nil
 }
 
-// GetStaffs は予約区分対応スタッフ一覧を返す（reservation_visible=true && typeIDを除外していない）。
+// GetStaffs は予約区分対応スタッフ一覧を返す（reservation_visible=true && typeIDに対応可能）。
 func (s *liffService) GetStaffs(ctx context.Context, clinicID, typeID uint64) ([]model.Staff, error) {
 	all, err := s.staffRepo.FindAll(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get staffs", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get staffs")
 	}
-	return s.filterVisibleStaffsByTypeID(ctx, typeID, all)
+	return s.filterVisibleStaffsByTypeID(ctx, clinicID, typeID, all)
 }

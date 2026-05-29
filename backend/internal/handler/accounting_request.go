@@ -249,14 +249,18 @@ func paymentMethodPtr(s *string) *model.PaymentMethod {
 // createBillingItemRequest は明細作成リクエスト。
 type createBillingItemRequest struct {
 	BillingID             uint64  `json:"billing_id" binding:"required"`
-	Category              string  `json:"category"  binding:"omitempty,oneof=examination test procedure surgery medicine food goods other"`
+	Category              string  `json:"category"  binding:"omitempty,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training"`
 	Name                  string  `json:"name"      binding:"required"`
 	UnitPrice             int64   `json:"unit_price" binding:"min=0"`
 	Quantity              float64 `json:"quantity"   binding:"min=0"`
 	TaxType               string  `json:"tax_type"  binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate               float64 `json:"tax_rate"`
 	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
-	Source                string  `json:"source"    binding:"omitempty,oneof=medical_record manual hospitalization"`
+	Source                string  `json:"source"    binding:"omitempty,oneof=medical_record manual hospitalization trimming"`
+	TreatmentID           *uint64 `json:"treatment_id"`
+	AppointmentID         *uint64 `json:"appointment_id"`
+	TrimmingCourseID      *uint64 `json:"trimming_course_id"`
+	TrimmingOptionID      *uint64 `json:"trimming_option_id"`
 	SortOrder             int     `json:"sort_order"`
 }
 
@@ -272,6 +276,10 @@ func (r createBillingItemRequest) toServiceInput(clinicID uint64) *service.Creat
 		TaxRate:               r.TaxRate,
 		IsInsuranceApplicable: r.IsInsuranceApplicable,
 		Source:                r.Source,
+		TreatmentID:           r.TreatmentID,
+		AppointmentID:         r.AppointmentID,
+		TrimmingCourseID:      r.TrimmingCourseID,
+		TrimmingOptionID:      r.TrimmingOptionID,
 		SortOrder:             r.SortOrder,
 	}
 }

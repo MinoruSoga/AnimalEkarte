@@ -82,6 +82,10 @@ func (m *mockAccountingRepositoryForClose) SavePaymentSplits(_ context.Context, 
 	return nil
 }
 
+func (m *mockAccountingRepositoryForClose) CompleteAccountingAppointments(_ context.Context, _ uint64, _, _ *uint64, _ time.Time) (int64, error) {
+	return 0, nil
+}
+
 func (m *mockAccountingRepositoryForClose) FindUnpaidByBilling(_ context.Context, _ uint64, _ string, _, _ int) ([]model.Billing, int64, error) {
 	return nil, 0, nil
 }

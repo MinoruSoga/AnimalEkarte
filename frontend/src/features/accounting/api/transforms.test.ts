@@ -76,6 +76,23 @@ describe("transformToAccounting", () => {
     expect(result.items[0].taxRate).toBe(0.1);
   });
 
+  it("明細の発生元 ID を string に変換する", () => {
+    const result = transformToAccounting({
+      ...minimal,
+      items: [{
+        ...item,
+        treatment_id: 10,
+        appointment_id: 20,
+        trimming_course_id: 30,
+        trimming_option_id: 40,
+      }],
+    });
+    expect(result.items[0].treatmentId).toBe("10");
+    expect(result.items[0].appointmentId).toBe("20");
+    expect(result.items[0].trimmingCourseId).toBe("30");
+    expect(result.items[0].trimmingOptionId).toBe("40");
+  });
+
   it("tax_rate 0.08 は 0.08 として保持する", () => {
     const result = transformToAccounting({
       ...minimal,

@@ -20,6 +20,7 @@ type mockAccountingRepository struct {
 	createFn            func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	updateFieldsFn      func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	savePaymentSplitsFn func(ctx context.Context, splits []model.PaymentSplit) error
+	completeApptsFn     func(ctx context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 	getDailySummaryFn   func(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error)
 }
 
@@ -51,6 +52,13 @@ func (m *mockAccountingRepository) SavePaymentSplits(ctx context.Context, splits
 		return m.savePaymentSplitsFn(ctx, splits)
 	}
 	return nil
+}
+
+func (m *mockAccountingRepository) CompleteAccountingAppointments(ctx context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+	if m.completeApptsFn != nil {
+		return m.completeApptsFn(ctx, clinicID, ownerID, petID, scheduledDate)
+	}
+	return 0, nil
 }
 
 // BUG-370: 月末未納者一覧 repository メソッドの mock
@@ -391,6 +399,46 @@ func TestAccountingService_Create_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 	assert.Equal(t, ownerID, syncedOwnerID)
 }
 
+func TestAccountingService_Create_CompletesSameDayAccountingAppointments(t *testing.T) {
+	ownerID := uint64(10)
+	petID := uint64(20)
+	scheduledDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
+	var completedClinicID uint64
+	var completedOwnerID uint64
+	var completedPetID uint64
+	var completedDate time.Time
+
+	repo := &mockAccountingRepository{
+		createFn: func(_ context.Context, _ uint64, accounting *model.Billing) error {
+			accounting.ID = 30
+			return nil
+		},
+		completeApptsFn: func(_ context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+			completedClinicID = clinicID
+			completedOwnerID = *ownerID
+			completedPetID = *petID
+			completedDate = scheduledDate
+			return 2, nil
+		},
+	}
+	svc := NewAccountingService(repo, nil)
+
+	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
+		ClinicID:      1,
+		OwnerID:       &ownerID,
+		PetID:         &petID,
+		Status:        model.BillingStatusCompleted,
+		ScheduledDate: scheduledDate,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, billing)
+	assert.Equal(t, uint64(1), completedClinicID)
+	assert.Equal(t, ownerID, completedOwnerID)
+	assert.Equal(t, petID, completedPetID)
+	assert.Equal(t, scheduledDate, completedDate)
+}
+
 func TestAccountingService_Update(t *testing.T) {
 	now := time.Now()
 	status := model.BillingStatusCompleted
@@ -513,6 +561,61 @@ func TestAccountingService_Update_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 	assert.NotNil(t, billing)
 	assert.Equal(t, uint64(1), syncedClinicID)
 	assert.Equal(t, ownerID, syncedOwnerID)
+}
+
+func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *testing.T) {
+	ownerID := uint64(10)
+	petID := uint64(20)
+	scheduledDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
+	status := model.BillingStatusCompleted
+	var completedClinicID uint64
+	var completedOwnerID uint64
+	var completedPetID uint64
+	var completedDate time.Time
+
+	repo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
+			return &model.Billing{
+				ID:            id,
+				ClinicID:      clinicID,
+				OwnerID:       &ownerID,
+				PetID:         &petID,
+				ScheduledDate: scheduledDate,
+				Status:        status,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+			return &model.Billing{
+				ID:            id,
+				ClinicID:      clinicID,
+				OwnerID:       &ownerID,
+				PetID:         &petID,
+				ScheduledDate: scheduledDate,
+				Status:        status,
+			}, nil
+		},
+		completeApptsFn: func(_ context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+			completedClinicID = clinicID
+			completedOwnerID = *ownerID
+			completedPetID = *petID
+			completedDate = scheduledDate
+			return 2, nil
+		},
+	}
+	svc := NewAccountingService(repo, nil)
+
+	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:       30,
+		ClinicID: 1,
+		Status:   &status,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, billing)
+	assert.Equal(t, uint64(1), completedClinicID)
+	assert.Equal(t, ownerID, completedOwnerID)
+	assert.Equal(t, petID, completedPetID)
+	assert.Equal(t, scheduledDate, completedDate)
 }
 
 // TestAccountingService_Cancel は BUG-371: 論理削除 (status=cancelled) の挙動を検証する。

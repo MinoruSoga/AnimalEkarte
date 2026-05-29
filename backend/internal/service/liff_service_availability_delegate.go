@@ -65,10 +65,10 @@ func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.Rese
 	return true
 }
 
-// isExcluded は指定コースIDがスタッフの除外リストに含まれるか確認する。
-func isExcluded(excluded []model.StaffReservationExclusion, typeID uint64) bool {
-	for _, ex := range excluded {
-		if ex.ReservationTypeID == typeID {
+// isCapable は指定コースIDがスタッフの対応可能リストに含まれるか確認する。
+func isCapable(capabilities []model.StaffReservationCapability, typeID uint64) bool {
+	for _, capability := range capabilities {
+		if capability.ReservationTypeID == typeID {
 			return true
 		}
 	}

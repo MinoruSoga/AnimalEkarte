@@ -36,6 +36,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PUT("/staffs/:id/clinics", perm(model.ResourceMasterStaff, "edit"), h.SetStaffClinicAssignments)
 	masters.GET("/staffs/:id/excluded-reservation-types", perm(model.ResourceMasterStaff, "view"), h.GetStaffExcludedReservationTypes)
 	masters.PUT("/staffs/:id/excluded-reservation-types", perm(model.ResourceMasterStaff, "edit"), h.SetStaffExcludedReservationTypes)
+	masters.GET("/staffs/:id/capable-reservation-types", perm(model.ResourceMasterStaff, "view"), h.GetStaffCapableReservationTypes)
+	masters.PUT("/staffs/:id/capable-reservation-types", perm(model.ResourceMasterStaff, "edit"), h.SetStaffCapableReservationTypes)
 
 	// Cages
 	masters.GET("/cages", perm(model.ResourceMasterHospitalization, "view"), h.ListCages)

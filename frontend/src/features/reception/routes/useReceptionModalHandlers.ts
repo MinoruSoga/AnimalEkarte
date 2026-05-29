@@ -108,6 +108,8 @@ export function useReceptionModalHandlers({
   const handleEditSave = useCallback(
     (data: Partial<Reservation>, selectedPets: Pet[]) => {
       if (!editingAppointmentId || !data.start) return;
+      const resolvedPetId = selectedPets[0]?.id || data.petId || selectedAppointmentRef.current?.petId;
+      const resolvedOwnerId = selectedPets[0]?.ownerId || data.ownerId || selectedAppointmentRef.current?.ownerId;
 
       const updatedAppointment: ReceptionAppointment = {
         id: editingAppointmentId,
@@ -136,6 +138,8 @@ export function useReceptionModalHandlers({
           req: {
             start_time: data.start.toISOString(),
             end_time: (data.end ?? addHours(data.start, 1)).toISOString(),
+            pet_id: optionalNumericID(resolvedPetId),
+            owner_id: optionalNumericID(resolvedOwnerId),
             visit_type: data.visitType || "first",
             reservation_type_id: optionalNumericID(data.type),
             doctor_id: optionalNumericID(data.doctor),

@@ -370,4 +370,49 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
       ],
     });
   });
+
+  it("保存済みの手動明細を削除すると DELETE /billing-items/:id が送信される", async () => {
+    let deleteCalled = false;
+    let currentItems = waitingAccounting.items;
+
+    server.use(
+      http.get(`/api/v1/accountings/${WAITING_ID}`, () =>
+        HttpResponse.json({ ...waitingAccounting, items: currentItems })
+      ),
+      http.get(`/api/v1/accountings/${WAITING_ID}/refunds`, () =>
+        HttpResponse.json([])
+      ),
+      http.get("/api/v1/masters/merchandise-items", () =>
+        HttpResponse.json([])
+      ),
+      http.delete("/api/v1/billing-items/1", () => {
+        deleteCalled = true;
+        currentItems = [];
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <AuthContext.Provider value={makeAuthCtx(true)}>
+        <QueryClientProvider client={qc}>
+          <MemoryRouter initialEntries={[`/accounting/${WAITING_ID}`]}>
+            <Routes>
+              <Route path="/accounting/:id" element={<AccountingDetail />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      </AuthContext.Provider>
+    );
+
+    await screen.findByText("テスト商品");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTitle("削除"));
+
+    await waitFor(() => {
+      expect(deleteCalled).toBe(true);
+      expect(screen.queryByText("テスト商品")).not.toBeInTheDocument();
+    });
+  });
 });

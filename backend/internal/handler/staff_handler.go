@@ -298,6 +298,57 @@ func (h *Handler) SetStaffExcludedReservationTypes(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"reservation_type_ids": req.ReservationTypeIDs})
 }
 
+// GetStaffCapableReservationTypes godoc
+// GET /v1/masters/staffs/:id/capable-reservation-types
+func (h *Handler) GetStaffCapableReservationTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	if !h.verifyStaffClinicMembership(c, clinicID, id) {
+		return
+	}
+	ids, err := h.svc.Staff.GetCapableReservationTypeIDs(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"reservation_type_ids": ids})
+}
+
+// SetStaffCapableReservationTypes godoc
+// PUT /v1/masters/staffs/:id/capable-reservation-types
+func (h *Handler) SetStaffCapableReservationTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	if !h.verifyStaffClinicMembership(c, clinicID, id) {
+		return
+	}
+	var req setStaffCapableReservationTypesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if req.ReservationTypeIDs == nil {
+		req.ReservationTypeIDs = []uint64{}
+	}
+	if err := h.svc.Staff.SetCapableReservationTypeIDs(c.Request.Context(), clinicID, id, req.ReservationTypeIDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"reservation_type_ids": req.ReservationTypeIDs})
+}
+
 // ReorderStaffs godoc
 func (h *Handler) ReorderStaffs(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)

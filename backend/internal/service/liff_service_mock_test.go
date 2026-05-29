@@ -77,6 +77,8 @@ type mockLiffStaffRepository struct {
 	findByIDFn                               func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	findExcludedReservationTypesFn           func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	findExcludedReservationTypesByStaffIDsFn func(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
+	findCapabilitiesByStaffIDsFn             func(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error)
+	supportsReservationTypeFn                func(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error)
 }
 
 func (m *mockLiffStaffRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
@@ -126,6 +128,28 @@ func (m *mockLiffStaffRepository) FindAllExcludedReservationTypesByStaffIDs(ctx 
 
 func (m *mockLiffStaffRepository) UpdateExcludedReservationTypes(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
+}
+
+func (m *mockLiffStaffRepository) FindAllReservationCapabilities(_ context.Context, _, _ uint64) ([]model.StaffReservationCapability, error) {
+	return nil, nil
+}
+
+func (m *mockLiffStaffRepository) FindAllReservationCapabilitiesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error) {
+	if m.findCapabilitiesByStaffIDsFn != nil {
+		return m.findCapabilitiesByStaffIDsFn(ctx, clinicID, staffIDs)
+	}
+	return nil, nil
+}
+
+func (m *mockLiffStaffRepository) UpdateReservationCapabilities(_ context.Context, _, _ uint64, _ []uint64) error {
+	return nil
+}
+
+func (m *mockLiffStaffRepository) SupportsReservationType(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error) {
+	if m.supportsReservationTypeFn != nil {
+		return m.supportsReservationTypeFn(ctx, clinicID, staffID, reservationTypeID)
+	}
+	return true, nil
 }
 
 // --- mockLiffScheduleRepository ---

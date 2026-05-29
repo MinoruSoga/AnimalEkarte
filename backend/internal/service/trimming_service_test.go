@@ -505,9 +505,11 @@ func TestTrimmingService_Create_RejectsExcludedStaff(t *testing.T) {
 			assert.Equal(t, staffID, id)
 			return &model.Staff{ID: id, IsActive: true}, nil
 		},
-		findExcludedReservationTypesFn: func(_ context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
-			assert.Equal(t, uint64(33), staffID)
-			return []model.StaffReservationExclusion{{StaffID: staffID, ReservationTypeID: 9}}, nil
+		supportsReservationTypeFn: func(_ context.Context, clinicID, actualStaffID, reservationTypeID uint64) (bool, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, staffID, actualStaffID)
+			assert.Equal(t, uint64(9), reservationTypeID)
+			return false, nil
 		},
 	}
 	svc := newTrimmingTestServiceWithAvailability(

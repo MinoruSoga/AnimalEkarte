@@ -23,6 +23,10 @@ type mockReservationStaffRepository struct {
 	findExcludedReservationTypesFn         func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	findExcludedReservationTypesByStaffIDs func(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
 	replaceExcludedReservationTypesFn      func(ctx context.Context, staffID uint64, courseIDs []uint64) error
+	findCapabilitiesFn                     func(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error)
+	findCapabilitiesByStaffIDsFn           func(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error)
+	replaceCapabilitiesFn                  func(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error
+	supportsReservationTypeFn              func(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error)
 }
 
 func (m *mockReservationStaffRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
@@ -81,6 +85,34 @@ func (m *mockReservationStaffRepository) UpdateExcludedReservationTypes(ctx cont
 		return m.replaceExcludedReservationTypesFn(ctx, staffID, courseIDs)
 	}
 	return nil
+}
+
+func (m *mockReservationStaffRepository) FindAllReservationCapabilities(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error) {
+	if m.findCapabilitiesFn != nil {
+		return m.findCapabilitiesFn(ctx, clinicID, staffID)
+	}
+	return []model.StaffReservationCapability{}, nil
+}
+
+func (m *mockReservationStaffRepository) FindAllReservationCapabilitiesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error) {
+	if m.findCapabilitiesByStaffIDsFn != nil {
+		return m.findCapabilitiesByStaffIDsFn(ctx, clinicID, staffIDs)
+	}
+	return []model.StaffReservationCapability{}, nil
+}
+
+func (m *mockReservationStaffRepository) UpdateReservationCapabilities(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error {
+	if m.replaceCapabilitiesFn != nil {
+		return m.replaceCapabilitiesFn(ctx, clinicID, staffID, typeIDs)
+	}
+	return nil
+}
+
+func (m *mockReservationStaffRepository) SupportsReservationType(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error) {
+	if m.supportsReservationTypeFn != nil {
+		return m.supportsReservationTypeFn(ctx, clinicID, staffID, reservationTypeID)
+	}
+	return true, nil
 }
 
 // mockTransactor は trimming_service_test.go で定義済み

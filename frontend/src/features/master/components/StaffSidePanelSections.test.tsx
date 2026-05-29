@@ -31,7 +31,7 @@ function reservationType(overrides: Partial<ReservationType>): ReservationType {
 }
 
 describe("StaffExcludedReservationTypesSection", () => {
-  it("対応可能コースとしてカテゴリ別に表示し、未チェックを除外として扱える", async () => {
+  it("対応可能コースとしてカテゴリ別に表示し、チェック状態を更新できる", async () => {
     const onToggle = vi.fn();
     const user = userEvent.setup({ delay: null });
     const medical = reservationType({ id: "1", name: "一般診療", category: "general" });

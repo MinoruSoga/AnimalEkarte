@@ -48,5 +48,28 @@ func (s *staffService) SetExcludedReservationTypeIDs(ctx context.Context, staffI
 	return nil
 }
 
+// GetCapableReservationTypeIDs はスタッフの対応可能サービス種別IDリストを返す
+func (s *staffService) GetCapableReservationTypeIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error) {
+	items, err := s.resStaffRepo.FindAllReservationCapabilities(ctx, clinicID, staffID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get capable service type ids", "error", err, "id", staffID, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to get capable service type ids")
+	}
+	ids := make([]uint64, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ReservationTypeID)
+	}
+	return ids, nil
+}
+
+// SetCapableReservationTypeIDs はスタッフの対応可能サービス種別を全置換する
+func (s *staffService) SetCapableReservationTypeIDs(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error {
+	if err := s.resStaffRepo.UpdateReservationCapabilities(ctx, clinicID, staffID, typeIDs); err != nil {
+		slog.ErrorContext(ctx, "failed to set capable service type ids", "error", err, "id", staffID, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to set capable service type ids")
+	}
+	return nil
+}
+
 // VerifyClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
 // 所属していない場合は ErrNotFound を返す。

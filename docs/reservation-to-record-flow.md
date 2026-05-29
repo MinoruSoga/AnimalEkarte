@@ -69,8 +69,8 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 - 予約区分が選択されている場合、開始時刻候補は `reservation_type_unavailable_times` の週次／特定日設定を除外して表示する
 - 院内予約作成・更新 API 側でも、予約時間が `reservation_type_unavailable_times` と重なる場合は拒否する
 - 担当者候補は選択日の出勤スタッフに絞る
-- 予約区分を選択している場合、`staff_reservation_exclusions` にその予約区分が登録されているスタッフは院内予約フォームの担当者候補から除外する
-- 院内予約作成・更新 API 側でも、担当者が選択されている場合は `staff_reservation_exclusions` を最終検証する
+- 予約区分を選択している場合、`staff_reservation_capabilities` にその予約区分が登録されているスタッフだけを候補にする
+- 院内予約作成・更新 API 側でも、担当者が選択されている場合は `staff_reservation_capabilities` を最終検証する
 - フロント側でも簡易重複チェックをしているが、最終的な競合判定はバックエンドが担う
 
 ### 3.3 当日の受付から予約を作る
@@ -292,7 +292,7 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 
 現状:
 
-現在は `staff_reservation_exclusions` に「対応不可コース」を保存している。
+旧実装では `staff_reservation_exclusions` に「対応不可コース」を保存していた。
 
 改善後:
 
@@ -301,18 +301,18 @@ UI と仕様上は「対応可能コース」として扱う。
 採用方針:
 
 - 未リリース段階のため DB 変更を許容する
-- `staff_reservation_exclusions` の読み替えをやめ、`staff_reservation_capabilities` を追加する
+- `staff_reservation_exclusions` の読み替えをやめ、`staff_reservation_capabilities` を追加済み
 - 対応可能コースは肯定形テーブルを source of truth とする
 
 候補テーブル:
 
 | テーブル | カラム |
 |---|---|
-| `staff_reservation_capabilities` | `staff_id`, `reservation_type_id` |
+| `staff_reservation_capabilities` | `clinic_id`, `staff_id`, `reservation_type_id` |
 
 制約:
 
-- `UNIQUE(staff_id, reservation_type_id)`
+- `UNIQUE(clinic_id, staff_id, reservation_type_id)`
 - スタッフと予約区分の clinic 整合性を service 層で検証
 
 ### 5.4 予約可能枠
@@ -395,7 +395,8 @@ UI と仕様上は「対応可能コース」として扱う。
 | `line_customers` | LINE顧客 | `id`, `clinic_id`, `owner_id`, LINEプロフィール情報 |
 | `shift_entries` | スタッフの当日勤務 | `staff_id`, `date`, `shift_type`, `start_time`, `end_time` |
 | `shift_entry_breaks` | スタッフの休憩 | `shift_entry_id`, `break_start`, `break_end` |
-| `staff_reservation_exclusions` | 現状の対応不可コース | `staff_id`, `reservation_type_id` |
+| `staff_reservation_capabilities` | スタッフが対応可能な予約区分 | `clinic_id`, `staff_id`, `reservation_type_id` |
+| `staff_reservation_exclusions` | 旧実装の対応不可コース | `staff_id`, `reservation_type_id` |
 | `line_reservation_settings` | LINE予約・空き枠設定 | `status`, 営業時間、曜日別営業時間、休診日、日次/月次上限、予約ウィンドウ、時間枠生成設定、指名なし設定、追加入力項目 |
 | `reservation_type_unavailable_times` | 予約区分ごとの予約不可時間 | `reservation_type_id`, `unavailable_type`, `day_of_week`, `specific_date`, `start_time`, `end_time` |
 | `reservation_type_available_slots` | 予約区分ごとの予約可能な開始時刻 | `reservation_type_id`, `available_type`, `day_of_week`, `specific_date`, `start_time`, `is_active` |
@@ -417,8 +418,8 @@ erDiagram
   appointment_trimming_options }o--|| trimming_options : "trimming_option_id"
   staffs ||--o{ shift_entries : "staff_id"
   shift_entries ||--o{ shift_entry_breaks : "shift_entry_id"
-  staffs ||--o{ staff_reservation_exclusions : "staff_id"
-  reservation_types ||--o{ staff_reservation_exclusions : "reservation_type_id"
+  staffs ||--o{ staff_reservation_capabilities : "staff_id"
+  reservation_types ||--o{ staff_reservation_capabilities : "reservation_type_id"
   reservation_types ||--o{ reservation_type_occupations : "reservation_type_id"
   occupations ||--o{ reservation_type_occupations : "occupation_id"
   reservation_types ||--o{ reservation_type_unavailable_times : "reservation_type_id"
@@ -574,7 +575,7 @@ LINE予約で `owner_id` / `pet_id` が未確定の場合、受付済みにす�
 - 通常カルテまたはトリミングカルテの初回作成時は appointment を `in_consultation` として扱う
 - 下書き保存だけでは `accounting` に進めない
 - 明示的な診療完了・トリミング完了操作で `accounting` に進める
-- 会計完了で appointment を `completed` に進める
+- 会計完了で、同日・同一飼主・同一ペット・`accounting` の appointment を `completed` に進める
 - 併用予約では通常診療 appointment とトリミング appointment がそれぞれ status を持つ
 
 ### トリミング作成
@@ -604,8 +605,8 @@ LINE予約で `owner_id` / `pet_id` が未確定の場合、受付済みにす�
 
 ### Phase 3: スタッフ対応可能コース
 
-- 対応不可から対応可能への仕様変更（完了: UI は「対応可能コース」として表示し、保存時は既存 `staff_reservation_exclusions` に反転して保存）
-- DB 移行方針を決める（決定: `staff_reservation_capabilities` を追加し、肯定形で保存する）
+- 対応不可から対応可能への仕様変更（完了: UI/API/DB は `staff_reservation_capabilities` を肯定形で保存）
+- DB 移行方針を決める（完了: `staff_reservation_capabilities` を追加し、既存 `staff_reservation_exclusions` から移行）
 - スタッフ管理 UI を予約区分カテゴリごとに表示する（完了）
 - 予約作成時に対応可能コースを検証する（完了）
 
@@ -630,6 +631,8 @@ LINE予約で `owner_id` / `pet_id` が未確定の場合、受付済みにす�
 
 - 当日の受付ページの新規作成導線は `reservation_route = reception` として実装済み。
 - カルテ一覧／トリミング一覧の記録入力ショートカットは、予約入口ではなく記録入力入口として扱うため、`reservation_route = record_shortcut` とする。
+- 会計確定時は `billings.scheduled_date` と同じ JST 日付の `accounting` appointment を、同一飼主・同一ペット単位でまとめて `completed` に進める。
+- 未請求明細 API は通常カルテの処置明細に加えて、`accounting` 状態のトリミング appointment からコース・オプション価格も返す。通常カルテ明細は `billing_items.treatment_id`、トリミング明細は `billing_items.appointment_id` + `billing_items.trimming_course_id` / `billing_items.trimming_option_id` で紐付け、コース・オプション単位で会計済み候補の再表示を防ぐ。
 
 ## 11. 判断メモ
 

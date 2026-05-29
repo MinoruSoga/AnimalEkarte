@@ -20,7 +20,7 @@ import {
   useUpdateStaffClinics,
   useGetClinicsList,
   useGetAllStaffPermissionGroupMap,
-  useUpdateStaffExcludedReservationTypes,
+  useUpdateStaffCapableReservationTypes,
   useUpdateStaffPermissionGroups,
 } from "../api/staffs";
 import type { Staff, CreateStaffRequest, UpdateStaffRequest } from "../api/staffs";
@@ -70,7 +70,7 @@ export function StaffSettings() {
   const { data: allGroupsData } = useGetPermissionGroups();
   const allGroups = useMemo(() => allGroupsData ?? [], [allGroupsData]);
 
-  // Service Types — shown as checkboxes in excluded courses panel
+  // Service Types — shown as capability checkboxes in the panel
   const { data: allReservationTypesData } = useGetReservationTypes();
   const allReservationTypes = useMemo(() => allReservationTypesData ?? [], [allReservationTypesData]);
 
@@ -78,13 +78,13 @@ export function StaffSettings() {
   const { data: allClinicsData } = useGetClinicsList("all");
   const allClinics = useMemo(() => allClinicsData ?? [], [allClinicsData]);
 
-  // Group / Clinic / Excluded mutation
+  // Group / Clinic / Capability mutation
   const setGroupsMutation = useUpdateStaffPermissionGroups();
   const { mutate: setGroupsFn } = setGroupsMutation;
   const setClinicsMutation = useUpdateStaffClinics();
   const { mutate: setClinicsFn } = setClinicsMutation;
-  const setExcludedMutation = useUpdateStaffExcludedReservationTypes();
-  const { mutate: setExcludedFn } = setExcludedMutation;
+  const setCapableMutation = useUpdateStaffCapableReservationTypes();
+  const { mutate: setCapableFn } = setCapableMutation;
 
   // スタッフ全員の権限グループIDマップ（テーブル表示用）
   const staffIds = useMemo(() => buildStaffIds(data), [data]);
@@ -143,11 +143,11 @@ export function StaffSettings() {
     [setClinicsFn],
   );
 
-  const handleSaveExcludedReservationTypes = useCallback(
+  const handleSaveCapableReservationTypes = useCallback(
     (staffId: string, reservationTypeIds: string[]) => {
-      setExcludedFn({ staffId, reservationTypeIds });
+      setCapableFn({ staffId, reservationTypeIds });
     },
-    [setExcludedFn],
+    [setCapableFn],
   );
 
   return (
@@ -223,7 +223,7 @@ export function StaffSettings() {
           allClinics={allClinics}
           onSaveClinics={handleSaveClinics}
           allReservationTypes={allReservationTypes}
-          onSaveExcludedReservationTypes={handleSaveExcludedReservationTypes}
+          onSaveCapableReservationTypes={handleSaveCapableReservationTypes}
         />
       )}
     />

@@ -168,3 +168,101 @@ func (r *billingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Context,
 	}
 	return count > 0, nil
 }
+
+func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error) {
+	type row struct {
+		AppointmentID    uint64
+		OriginID         uint64
+		Name             string
+		UnitPrice        int64
+		SortOrder        int
+		TrimmingCourseID *uint64
+		TrimmingOptionID *uint64
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT
+			a.id AS appointment_id,
+			tc.id AS origin_id,
+			tc.name AS name,
+			COALESCE(tc.price, 0)::bigint AS unit_price,
+			0 AS sort_order,
+			tc.id AS trimming_course_id,
+			NULL::bigint AS trimming_option_id
+		FROM appointment_trimming_details atd
+		JOIN appointments a ON a.id = atd.appointment_id AND a.deleted_at IS NULL
+		JOIN reservation_types rt ON rt.id = a.reservation_type_id AND rt.deleted_at IS NULL
+		JOIN trimming_courses tc ON tc.id = atd.course_id AND tc.deleted_at IS NULL
+		WHERE a.clinic_id = ?
+		  AND a.pet_id = ?
+		  AND a.status = ?
+		  AND rt.category = ?
+		  AND COALESCE(tc.price, 0) > 0
+		  AND NOT EXISTS (
+		      SELECT 1
+		      FROM billing_items bi
+		      JOIN billings b ON b.id = bi.billing_id AND b.deleted_at IS NULL
+		      WHERE bi.appointment_id = a.id
+		        AND bi.trimming_course_id = tc.id
+		        AND bi.deleted_at IS NULL
+		        AND b.status != ?
+		  )
+		UNION ALL
+		SELECT
+			a.id AS appointment_id,
+			topt.id AS origin_id,
+			topt.name AS name,
+			COALESCE(topt.price, 0)::bigint AS unit_price,
+			100 + COALESCE(ato.sort_order, 0) AS sort_order,
+			NULL::bigint AS trimming_course_id,
+			topt.id AS trimming_option_id
+		FROM appointment_trimming_details atd
+		JOIN appointments a ON a.id = atd.appointment_id AND a.deleted_at IS NULL
+		JOIN reservation_types rt ON rt.id = a.reservation_type_id AND rt.deleted_at IS NULL
+		JOIN appointment_trimming_options ato ON ato.appointment_id = a.id
+		JOIN trimming_options topt ON topt.id = ato.option_id AND topt.deleted_at IS NULL
+		WHERE a.clinic_id = ?
+		  AND a.pet_id = ?
+		  AND a.status = ?
+		  AND rt.category = ?
+		  AND COALESCE(topt.price, 0) > 0
+		  AND NOT EXISTS (
+		      SELECT 1
+		      FROM billing_items bi
+		      JOIN billings b ON b.id = bi.billing_id AND b.deleted_at IS NULL
+		      WHERE bi.appointment_id = a.id
+		        AND bi.trimming_option_id = topt.id
+		        AND bi.deleted_at IS NULL
+		        AND b.status != ?
+		  )
+		ORDER BY appointment_id ASC, sort_order ASC, origin_id ASC
+	`,
+		clinicID, petID, model.ReservationStatusAccounting, model.ReservationTypeCategoryTrimming, model.BillingStatusCancelled,
+		clinicID, petID, model.ReservationStatusAccounting, model.ReservationTypeCategoryTrimming, model.BillingStatusCancelled,
+	).Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("clinic=%d pet=%d trimming", clinicID, petID))
+	}
+
+	items := make([]model.BillingItem, 0, len(rows))
+	for i, row := range rows {
+		appointmentID := row.AppointmentID
+		items = append(items, model.BillingItem{
+			ID:                    uint64(i + 1),
+			BillingID:             0,
+			Category:              model.ItemCategoryTrimming,
+			Name:                  row.Name,
+			UnitPrice:             row.UnitPrice,
+			Quantity:              1,
+			TaxType:               model.TaxTypeExcluded,
+			TaxRate:               0.10,
+			IsInsuranceApplicable: false,
+			Source:                model.ItemSourceTrimming,
+			AppointmentID:         &appointmentID,
+			TrimmingCourseID:      row.TrimmingCourseID,
+			TrimmingOptionID:      row.TrimmingOptionID,
+			SortOrder:             row.SortOrder,
+		})
+	}
+	return items, nil
+}

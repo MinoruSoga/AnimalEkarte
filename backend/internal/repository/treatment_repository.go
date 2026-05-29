@@ -70,6 +70,7 @@ func (r *treatmentRepository) FindUnbilledByPetID(ctx context.Context, clinicID,
 		Joins("JOIN medical_records mr ON mr.id = treatments.medical_record_id AND mr.deleted_at IS NULL").
 		Joins("JOIN billing_confirmations bc ON bc.medical_record_id = mr.id").
 		Where("mr.pet_id = ? AND mr.clinic_id = ? AND bc.status = 'confirmed' AND treatments.deleted_at IS NULL", petID, clinicID).
+		Where("NOT EXISTS (SELECT 1 FROM billing_items bi JOIN billings b ON b.id = bi.billing_id AND b.deleted_at IS NULL WHERE bi.treatment_id = treatments.id AND bi.deleted_at IS NULL AND b.status != 'cancelled')").
 		Where("NOT EXISTS (SELECT 1 FROM billings b WHERE b.medical_record_id = mr.id AND b.status != 'cancelled' AND b.deleted_at IS NULL)").
 		Order("treatments.sort_order ASC, treatments.id ASC").
 		Find(&treatments).Error

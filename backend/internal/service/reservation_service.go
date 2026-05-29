@@ -308,6 +308,27 @@ func resolveUpdateParams(current *model.Reservation, input *UpdateReservationInp
 	return start, end, doctorID
 }
 
+func validateLineReservationCheckedInLink(current *model.Reservation, input *UpdateReservationInput) error {
+	if input.Status == nil || *input.Status != model.ReservationStatusCheckedIn {
+		return nil
+	}
+	if current.Source != model.ReservationSourceLine || current.LineCustomerID == nil {
+		return nil
+	}
+	ownerID := current.OwnerID
+	if input.OwnerID != nil {
+		ownerID = input.OwnerID
+	}
+	petID := current.PetID
+	if input.PetID != nil {
+		petID = input.PetID
+	}
+	if ownerID == nil || petID == nil {
+		return apperrors.WrapInvalidInput("LINE予約を受付済みにする前に飼主とペットの紐付けが必要です")
+	}
+	return nil
+}
+
 // updateWithConflictCheck は SELECT FOR UPDATE + トランザクション内で競合チェック + 予約更新を実行する。
 // 時刻・医師変更がある場合にのみ呼び出す。
 func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput) (*model.Reservation, error) {
@@ -352,6 +373,9 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find reservation")
+	}
+	if err := validateLineReservationCheckedInLink(current, input); err != nil {
+		return nil, err
 	}
 	if input.DoctorID != nil || input.ReservationTypeID != nil {
 		resolvedDoctorID := current.DoctorID

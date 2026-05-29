@@ -1,20 +1,20 @@
 # データベース設計書 (Entity Relationship Diagram)
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.18 | **最新更新**: 2026-05-27 | **状態**: Production Ready (96 Tables Verified)
+> **バージョン**: v31.19 | **最新更新**: 2026-05-29 | **状態**: Production Ready (97 Tables Verified)
 
 ---
 
-## 1. データモデルの全体像 (全 96 テーブル)
+## 1. データモデルの全体像 (全 97 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 96 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 97 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
 | 区分 | 管理対象（物理テーブル名抜粋） |
 |:---|:---|
 | **システム基盤 (12)** | `accounts`, `clinics`, `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `staffs`, `permission_groups`, `permission_group_rules`, `audit_logs`, `companies`, `password_reset_tokens`, `occupations` |
-| **入院・稼働 (10)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions` |
+| **入院・稼働 (11)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions`, `staff_reservation_capabilities` |
 | **臨床・診察 (21)** | `owners`, `pets`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `clinical_plans`, `treatment_plans`, `treatments`, `prescriptions`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `vaccines` |
 | **検査・予防 (8)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `vaccinations`, `checkups`, `checkup_types`, `shared_files` |
 | **予約・シフト (11)** | `appointments`, `reservation_types`, `reservation_type_groups`, `reservation_type_occupations`, `reservation_type_unavailable_times`, `appointment_trimming_details`, `appointment_trimming_options`, `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks` |
@@ -36,6 +36,10 @@ erDiagram
     pets ||--o{ pet_chronic_conditions : "pet_id"
     medical_records ||--o| billings : "medical_record_id"
     billings ||--o{ billing_items : "billing_id"
+    treatments ||--o{ billing_items : "treatment_id"
+    appointments ||--o{ billing_items : "appointment_id"
+    trimming_courses ||--o{ billing_items : "trimming_course_id"
+    trimming_options ||--o{ billing_items : "trimming_option_id"
     billings ||--o{ payments : "billing_id"
     billings ||--o{ payment_splits : "billing_id"
 

@@ -19,6 +19,14 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, typeID,
 		if !staff.ReservationVisible {
 			return nil, nil
 		}
+		supports, err := s.staffRepo.SupportsReservationType(ctx, clinicID, staffID, typeID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get staff reservation capabilities", "error", err)
+			return nil, apperrors.Wrap(err, "failed to get staff reservation capabilities")
+		}
+		if !supports {
+			return nil, nil
+		}
 		return []model.Staff{*staff}, nil
 	}
 
@@ -27,12 +35,12 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, typeID,
 		slog.ErrorContext(ctx, "failed to get staffs", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get staffs")
 	}
-	return s.filterVisibleStaffsByTypeID(ctx, typeID, all)
+	return s.filterVisibleStaffsByTypeID(ctx, clinicID, typeID, all)
 }
 
-// filterVisibleStaffsByTypeID は reservation_visible=true かつ typeID を除外していないスタッフを返す。
-// FindAllExcludedReservationTypesByStaffIDs で一括取得して N+1 クエリを回避する。
-func (s *liffService) filterVisibleStaffsByTypeID(ctx context.Context, typeID uint64, all []model.Staff) ([]model.Staff, error) {
+// filterVisibleStaffsByTypeID は reservation_visible=true かつ typeID に対応可能なスタッフを返す。
+// FindAllReservationCapabilitiesByStaffIDs で一括取得して N+1 クエリを回避する。
+func (s *liffService) filterVisibleStaffsByTypeID(ctx context.Context, clinicID, typeID uint64, all []model.Staff) ([]model.Staff, error) {
 	visibleIDs := make([]uint64, 0, len(all))
 	for i := range all {
 		if all[i].ReservationVisible {
@@ -43,16 +51,15 @@ func (s *liffService) filterVisibleStaffsByTypeID(ctx context.Context, typeID ui
 		return nil, nil
 	}
 
-	allExclusions, err := s.staffRepo.FindAllExcludedReservationTypesByStaffIDs(ctx, visibleIDs)
+	allCapabilities, err := s.staffRepo.FindAllReservationCapabilitiesByStaffIDs(ctx, clinicID, visibleIDs)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get excluded service types", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get excluded service types")
+		slog.ErrorContext(ctx, "failed to get staff reservation capabilities", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get staff reservation capabilities")
 	}
 
-	// staffID → 除外予約区分 のマップを構築（O(N) で済む）
-	excludeMap := make(map[uint64][]model.StaffReservationExclusion, len(allExclusions))
-	for _, ex := range allExclusions {
-		excludeMap[ex.StaffID] = append(excludeMap[ex.StaffID], ex)
+	capabilityMap := make(map[uint64][]model.StaffReservationCapability, len(allCapabilities))
+	for _, capability := range allCapabilities {
+		capabilityMap[capability.StaffID] = append(capabilityMap[capability.StaffID], capability)
 	}
 
 	result := make([]model.Staff, 0, len(visibleIDs))
@@ -60,7 +67,7 @@ func (s *liffService) filterVisibleStaffsByTypeID(ctx context.Context, typeID ui
 		if !all[i].ReservationVisible {
 			continue
 		}
-		if !isExcluded(excludeMap[all[i].ID], typeID) {
+		if isCapable(capabilityMap[all[i].ID], typeID) {
 			result = append(result, all[i])
 		}
 	}

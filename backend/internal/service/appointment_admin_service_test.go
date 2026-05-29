@@ -243,7 +243,7 @@ func TestReservationAdminService_Create_RejectsExcludedStaff(t *testing.T) {
 	doctorID := uint64(10)
 	resRepo := &mockReservationRepository{
 		createFn: func(_ context.Context, _ *model.Reservation) error {
-			t.Fatal("reservation must not be created when staff is excluded")
+			t.Fatal("reservation must not be created when staff cannot handle reservation type")
 			return nil
 		},
 	}
@@ -253,9 +253,11 @@ func TestReservationAdminService_Create_RejectsExcludedStaff(t *testing.T) {
 			assert.Equal(t, doctorID, id)
 			return &model.Staff{ID: id, IsActive: true}, nil
 		},
-		findExcludedReservationTypesFn: func(_ context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+		supportsReservationTypeFn: func(_ context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error) {
+			assert.Equal(t, uint64(1), clinicID)
 			assert.Equal(t, doctorID, staffID)
-			return []model.StaffReservationExclusion{{StaffID: doctorID, ReservationTypeID: 5}}, nil
+			assert.Equal(t, uint64(5), reservationTypeID)
+			return false, nil
 		},
 	}
 	svc := NewReservationAdminService(&mockReservationAdminRepository{}, resRepo, &mockTransactor{}, staffRepo)

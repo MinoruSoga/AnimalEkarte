@@ -20,6 +20,8 @@ type AccountingRepository interface {
 	SavePayment(ctx context.Context, payment *model.Payment) error
 	// SavePaymentSplits は billing の payment_splits を delete-then-recreate で保存する。
 	SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error
+	// CompleteAccountingAppointments は会計完了に伴い、同日同一ペットの会計待ち予約を完了へ進める。
+	CompleteAccountingAppointments(ctx context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 	// BUG-370: 月末未納者一覧
 	FindUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
 	FindUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
@@ -228,4 +230,20 @@ func (r *accountingRepository) SavePaymentSplits(ctx context.Context, splits []m
 		return apperrors.Wrap(err, "failed to save payment splits")
 	}
 	return nil
+}
+
+func (r *accountingRepository) CompleteAccountingAppointments(ctx context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+	if ownerID == nil || petID == nil || scheduledDate.IsZero() {
+		return 0, nil
+	}
+	result := r.db.WithContext(ctx).
+		Model(&model.Reservation{}).
+		Where("clinic_id = ? AND owner_id = ? AND pet_id = ? AND status = ? AND deleted_at IS NULL",
+			clinicID, *ownerID, *petID, model.ReservationStatusAccounting).
+		Where("DATE(start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", scheduledDate).
+		Update("status", model.ReservationStatusCompleted)
+	if result.Error != nil {
+		return 0, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("clinic=%d owner=%d pet=%d scheduled_date=%s", clinicID, *ownerID, *petID, scheduledDate.Format("2006-01-02")))
+	}
+	return result.RowsAffected, nil
 }

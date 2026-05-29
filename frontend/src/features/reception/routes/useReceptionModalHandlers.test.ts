@@ -95,6 +95,8 @@ describe("useReceptionModalHandlers", () => {
           start_time: "2026-06-01T00:45:00.000Z",
           end_time: "2026-06-01T01:45:00.000Z",
           visit_type: "revisit",
+          pet_id: 10,
+          owner_id: 20,
           reservation_type_id: 1,
           doctor_id: 33,
           is_designated: false,

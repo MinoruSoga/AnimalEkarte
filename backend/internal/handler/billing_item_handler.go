@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"math"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -97,51 +96,12 @@ func (h *Handler) GetUnbilledItems(c *gin.Context) {
 		return
 	}
 
-	treatments, err := h.svc.BillingItem.GetUnbilledItems(c.Request.Context(), clinicID, petID)
+	items, err := h.svc.BillingItem.GetUnbilledItems(c.Request.Context(), clinicID, petID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toUnbilledItemsResponse(treatments))
-}
-
-func toUnbilledItemsResponse(treatments []model.Treatment) []billingItemResponse {
-	const defaultTaxRate = 0.10
-	items := make([]billingItemResponse, 0, len(treatments))
-	for i := range treatments {
-		t := &treatments[i]
-		subtotal := int64(float64(t.UnitPrice) * t.Quantity)
-		taxAmount := int64(math.Round(float64(subtotal) * defaultTaxRate))
-		items = append(items, billingItemResponse{
-			ID:                    t.ID,
-			BillingID:             0,
-			Category:              string(treatmentTypeToItemCategory(t.ItemType)),
-			Name:                  t.Content,
-			UnitPrice:             t.UnitPrice,
-			Quantity:              t.Quantity,
-			Subtotal:              subtotal,
-			TaxType:               string(model.TaxTypeExcluded),
-			TaxRate:               defaultTaxRate,
-			TaxAmount:             taxAmount,
-			IsInsuranceApplicable: t.IsInsurance,
-			Source:                string(model.ItemSourceMedicalRecord),
-			SortOrder:             t.SortOrder,
-		})
-	}
-	return items
-}
-
-func treatmentTypeToItemCategory(t model.TreatmentItemType) model.ItemCategory {
-	switch t {
-	case model.TreatmentItemTypeConsultation:
-		return model.ItemCategoryExamination
-	case model.TreatmentItemTypeProcedure:
-		return model.ItemCategoryProcedure
-	case model.TreatmentItemTypeMedicine:
-		return model.ItemCategoryMedicine
-	default:
-		return model.ItemCategoryOther
-	}
+	c.JSON(http.StatusOK, mapSlice(items, toBillingItemResponse))
 }
 
 // RegisterBillingItemRoutes は明細関連のルートを登録する

@@ -101,6 +101,10 @@ type StaffPermissionService interface {
 	GetExcludedReservationTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error)
 	// SetExcludedReservationTypeIDs はスタッフの除外サービス種別を全置換する
 	SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error
+	// GetCapableReservationTypeIDs はスタッフの対応可能サービス種別IDリストを返す
+	GetCapableReservationTypeIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
+	// SetCapableReservationTypeIDs はスタッフの対応可能サービス種別を全置換する
+	SetCapableReservationTypeIDs(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error
 }
 
 // StaffService は StaffCoreService / StaffAccountService / StaffPermissionService を統合したインターフェース。

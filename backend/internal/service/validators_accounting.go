@@ -34,7 +34,7 @@ func validateItemCategory(v string) error {
 // validateItemSource は明細ソース文字列がドメイン上有効かを検証する
 func validateItemSource(v string) error {
 	switch model.ItemSource(v) {
-	case model.ItemSourceMedicalRecord, model.ItemSourceManual, model.ItemSourceHospitalization:
+	case model.ItemSourceMedicalRecord, model.ItemSourceManual, model.ItemSourceHospitalization, model.ItemSourceTrimming:
 		return nil
 	default:
 		return apperrors.WrapInvalidInput(fmt.Sprintf("明細ソースの値が不正です: %s", v))

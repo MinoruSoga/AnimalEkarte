@@ -72,9 +72,10 @@ type ReservationType struct {
 	Group   *ReservationTypeGroup `gorm:"foreignKey:GroupID" json:"group,omitempty"`
 
 	// Relations（BE-115）
-	UnavailableTimes []ReservationTypeUnavailableTime `gorm:"foreignKey:ReservationTypeID" json:"unavailable_times,omitempty"`
-	AvailableSlots   []ReservationTypeAvailableSlot   `gorm:"foreignKey:ReservationTypeID" json:"available_slots,omitempty"`
-	Occupations      []ReservationTypeOccupation      `gorm:"foreignKey:ReservationTypeID" json:"occupations,omitempty"`
+	UnavailableTimes  []ReservationTypeUnavailableTime `gorm:"foreignKey:ReservationTypeID" json:"unavailable_times,omitempty"`
+	AvailableSlots    []ReservationTypeAvailableSlot   `gorm:"foreignKey:ReservationTypeID" json:"available_slots,omitempty"`
+	Occupations       []ReservationTypeOccupation      `gorm:"foreignKey:ReservationTypeID" json:"occupations,omitempty"`
+	StaffCapabilities []StaffReservationCapability     `gorm:"foreignKey:ReservationTypeID" json:"staff_capabilities,omitempty"`
 }
 
 func (ReservationType) TableName() string { return "reservation_types" }

@@ -41,6 +41,8 @@ type mockStaffService struct {
 	setPermissionGroupIDsFn       func(ctx context.Context, staffID uint64, groupIDs []uint64) error
 	getExcludedReservationTypesFn func(ctx context.Context, staffID uint64) ([]uint64, error)
 	setExcludedReservationTypesFn func(ctx context.Context, staffID uint64, typeIDs []uint64) error
+	getCapableReservationTypesFn  func(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
+	setCapableReservationTypesFn  func(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error
 	verifyClinicMembershipFn      func(ctx context.Context, staffID, clinicID uint64) error
 }
 
@@ -138,6 +140,20 @@ func (m *mockStaffService) GetExcludedReservationTypeIDs(ctx context.Context, st
 func (m *mockStaffService) SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error {
 	if m.setExcludedReservationTypesFn != nil {
 		return m.setExcludedReservationTypesFn(ctx, staffID, typeIDs)
+	}
+	return nil
+}
+
+func (m *mockStaffService) GetCapableReservationTypeIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error) {
+	if m.getCapableReservationTypesFn != nil {
+		return m.getCapableReservationTypesFn(ctx, clinicID, staffID)
+	}
+	return nil, nil
+}
+
+func (m *mockStaffService) SetCapableReservationTypeIDs(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error {
+	if m.setCapableReservationTypesFn != nil {
+		return m.setCapableReservationTypesFn(ctx, clinicID, staffID, typeIDs)
 	}
 	return nil
 }

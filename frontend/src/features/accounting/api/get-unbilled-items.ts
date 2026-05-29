@@ -9,6 +9,6 @@ export const getUnbilledItems = async (petId: string): Promise<AccountingItem[]>
   });
   return (data ?? []).map((item) => ({
     ...transformAccountingItem(item),
-    id: `treatment_${item.id}`,
+    id: `${item.source ?? "medical_record"}_${item.id}`,
   }));
 };

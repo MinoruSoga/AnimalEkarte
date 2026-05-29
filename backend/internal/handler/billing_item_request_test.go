@@ -36,6 +36,10 @@ func TestUnbilledItemsQuery_ToPetID_InvalidInput(t *testing.T) {
 }
 
 func TestCreateBillingItemRequest_ToServiceInput(t *testing.T) {
+	treatmentID := uint64(100)
+	appointmentID := uint64(200)
+	trimmingCourseID := uint64(300)
+	trimmingOptionID := uint64(400)
 	req := createBillingItemRequest{
 		BillingID:             10,
 		Category:              string(model.ItemCategoryMedicine),
@@ -46,6 +50,10 @@ func TestCreateBillingItemRequest_ToServiceInput(t *testing.T) {
 		TaxRate:               0.1,
 		IsInsuranceApplicable: true,
 		Source:                string(model.ItemSourceManual),
+		TreatmentID:           &treatmentID,
+		AppointmentID:         &appointmentID,
+		TrimmingCourseID:      &trimmingCourseID,
+		TrimmingOptionID:      &trimmingOptionID,
 		SortOrder:             3,
 	}
 
@@ -77,6 +85,18 @@ func TestCreateBillingItemRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.Source != req.Source || input.SortOrder != req.SortOrder {
 		t.Fatalf("source/order = (%q, %d), want (%q, %d)", input.Source, input.SortOrder, req.Source, req.SortOrder)
+	}
+	if input.TreatmentID == nil || *input.TreatmentID != treatmentID {
+		t.Fatalf("TreatmentID = %v, want %d", input.TreatmentID, treatmentID)
+	}
+	if input.AppointmentID == nil || *input.AppointmentID != appointmentID {
+		t.Fatalf("AppointmentID = %v, want %d", input.AppointmentID, appointmentID)
+	}
+	if input.TrimmingCourseID == nil || *input.TrimmingCourseID != trimmingCourseID {
+		t.Fatalf("TrimmingCourseID = %v, want %d", input.TrimmingCourseID, trimmingCourseID)
+	}
+	if input.TrimmingOptionID == nil || *input.TrimmingOptionID != trimmingOptionID {
+		t.Fatalf("TrimmingOptionID = %v, want %d", input.TrimmingOptionID, trimmingOptionID)
 	}
 }
 

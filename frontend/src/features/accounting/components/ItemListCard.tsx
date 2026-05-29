@@ -28,6 +28,7 @@ const CATEGORY_LABELS: Record<ItemCategory, string> = {
   medicine: "処方",
   food: "フード",
   goods: "物販",
+  trimming: "トリミング",
   other: "その他",
 };
 
@@ -116,6 +117,11 @@ export const ItemListCard = memo(function ItemListCard({
                 カルテ連携
               </span>
             ) : null}
+            {item.source === "trimming" ? (
+              <span className={`ml-2 text-[10px] ${C.accent} ${C.bgAccent5} px-1.5 py-0.5 rounded`}>
+                トリミング
+              </span>
+            ) : null}
           </TableCell>
           <TableCell className="text-right">
             ¥{item.unitPrice.toLocaleString()}
@@ -161,7 +167,7 @@ export const ItemListCard = memo(function ItemListCard({
             ¥{(item.subtotal + item.taxAmount).toLocaleString()}
           </TableCell>
           <TableCell>
-            {item.source === "manual" && canDelete ? (
+            {accountingId === undefined || (item.source === "manual" && canDelete) ? (
               <DeleteIconButton onClick={() => onDeleteItem(item.id)} />
             ) : null}
           </TableCell>

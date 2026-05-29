@@ -24,6 +24,11 @@ type ReservationStaffRepository interface {
 	FindAllExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
 	UpdateExcludedReservationTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error
+	// ReservationCapabilities
+	FindAllReservationCapabilities(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error)
+	FindAllReservationCapabilitiesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error)
+	UpdateReservationCapabilities(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error
+	SupportsReservationType(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error)
 }
 
 type reservationStaffRepository struct{ db *gorm.DB }
@@ -220,4 +225,84 @@ func (r *reservationStaffRepository) UpdateExcludedReservationTypes(ctx context.
 		return apperrors.Wrap(err, "failed to replace excluded reservation types")
 	}
 	return nil
+}
+
+func (r *reservationStaffRepository) FindAllReservationCapabilities(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error) {
+	var items []model.StaffReservationCapability
+	err := r.db.WithContext(ctx).
+		Preload("ReservationType", "deleted_at IS NULL").
+		Where("clinic_id = ? AND staff_id = ?", clinicID, staffID).
+		Find(&items).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "staff_reservation_capability", "")
+	}
+	return items, nil
+}
+
+func (r *reservationStaffRepository) FindAllReservationCapabilitiesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error) {
+	if len(staffIDs) == 0 {
+		return nil, nil
+	}
+	var items []model.StaffReservationCapability
+	err := r.db.WithContext(ctx).
+		Preload("ReservationType", "deleted_at IS NULL").
+		Where("clinic_id = ? AND staff_id IN ?", clinicID, staffIDs).
+		Find(&items).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "staff_reservation_capability", "")
+	}
+	return items, nil
+}
+
+func (r *reservationStaffRepository) UpdateReservationCapabilities(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, staffID); err != nil {
+		return err
+	}
+	if len(typeIDs) > 0 {
+		var count int64
+		if err := r.db.WithContext(ctx).
+			Model(&model.ReservationType{}).
+			Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, typeIDs).
+			Count(&count).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_type", "")
+		}
+		if count != int64(len(typeIDs)) {
+			return apperrors.WrapInvalidInput("reservation_type_ids contains invalid reservation type")
+		}
+	}
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("clinic_id = ? AND staff_id = ?", clinicID, staffID).Delete(&model.StaffReservationCapability{}).Error; err != nil {
+			return apperrors.FromGORM(err, "staff_reservation_capability", fmt.Sprintf("%d", staffID))
+		}
+		if len(typeIDs) == 0 {
+			return nil
+		}
+		items := make([]model.StaffReservationCapability, 0, len(typeIDs))
+		for _, typeID := range typeIDs {
+			items = append(items, model.StaffReservationCapability{
+				ClinicID:          clinicID,
+				StaffID:           staffID,
+				ReservationTypeID: typeID,
+			})
+		}
+		if err := tx.Create(&items).Error; err != nil {
+			return apperrors.FromGORM(err, "staff_reservation_capability", "")
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to replace capable reservation types")
+	}
+	return nil
+}
+
+func (r *reservationStaffRepository) SupportsReservationType(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.StaffReservationCapability{}).
+		Where("clinic_id = ? AND staff_id = ? AND reservation_type_id = ?", clinicID, staffID, reservationTypeID).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.FromGORM(err, "staff_reservation_capability", "")
+	}
+	return count > 0, nil
 }
