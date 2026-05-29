@@ -12,6 +12,7 @@ const {
   mockUpdateMutateAsync,
   mockDeleteMutate,
   mockLocationStateHolder,
+  mockSearchParamsHolder,
   mockExistingTrimmingHolder,
 } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
@@ -22,12 +23,13 @@ const {
   mockUpdateMutateAsync: vi.fn().mockResolvedValue({}),
   mockDeleteMutate: vi.fn(),
   mockLocationStateHolder: { value: null as Record<string, unknown> | null },
+  mockSearchParamsHolder: { value: new URLSearchParams() },
   mockExistingTrimmingHolder: { value: undefined as Record<string, unknown> | undefined },
 }));
 
 vi.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+  useSearchParams: () => [mockSearchParamsHolder.value, vi.fn()],
   useLocation: () => ({ state: mockLocationStateHolder.value }),
 }));
 
@@ -92,6 +94,7 @@ describe("useTrimmingForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLocationStateHolder.value = null;
+    mockSearchParamsHolder.value = new URLSearchParams();
     mockExistingTrimmingHolder.value = undefined;
     mockSelectedPets.length = 0;
     mockCreateMutateAsync.mockResolvedValue({});
@@ -133,6 +136,33 @@ describe("useTrimmingForm", () => {
         used_ribbon: "赤",
         remarks: "皮膚注意",
         option_ids: [7, 8],
+      }),
+    );
+  });
+
+  it("visitDate 指定の一覧新規作成では appointment も同じ日付で作成する", async () => {
+    mockSearchParamsHolder.value = new URLSearchParams({ visitDate: "2026-06-01" });
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
+
+    const { result } = renderHook(() => useTrimmingForm());
+
+    act(() => {
+      result.current.setFormData({
+        staffId: "3",
+        courseId: "4",
+      });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appointment_id: undefined,
+        pet_id: 10,
+        staff_id: 3,
+        course_id: 4,
+        start_time: "2026-06-01T10:00:00+09:00",
+        end_time: "2026-06-01T11:30:00+09:00",
       }),
     );
   });

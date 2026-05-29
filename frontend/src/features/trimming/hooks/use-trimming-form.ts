@@ -53,6 +53,11 @@ function formatJSTDate(date: Date): string {
   return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}`;
 }
 
+function normalizeVisitDate(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+}
+
 function buildUpdateTrimmingRequest(formData: TrimmingFormData): UpdateTrimmingRequest {
   return {
     start_time: optionalDateTime(formData.startTime),
@@ -111,6 +116,8 @@ export function useTrimmingForm(id?: string) {
   const existingAppointmentId = Number.isFinite(appointmentIdFromState)
     ? String(appointmentIdFromState)
     : "";
+  const visitDateFromState = normalizeVisitDate(location.state?.visitDate)
+    ?? normalizeVisitDate(searchParams.get("visitDate"));
 
   const petSelection = usePetSelection();
   const { setSelectedPets, selectedPets } = petSelection;
@@ -278,11 +285,11 @@ export function useTrimmingForm(id?: string) {
           const reservationTypeId = formData.reservationTypeId
             ? Number(formData.reservationTypeId)
             : FALLBACK_TRIMMING_RESERVATION_TYPE_ID;
-          // 日時: フォームから選択していない場合は当日 10:00〜11:30
-          const today = formatJSTDate(new Date());
+          // 日時: フォームから選択していない場合は指定日（未指定なら当日）10:00〜11:30
+          const fallbackDate = visitDateFromState ?? formatJSTDate(new Date());
           const hasExistingAppointment = Number.isFinite(appointmentIdFromState);
-          const startDate = formData.startTime || (hasExistingAppointment ? undefined : `${today}T10:00:00+09:00`);
-          const endDate = formData.endTime || (hasExistingAppointment ? undefined : `${today}T11:30:00+09:00`);
+          const startDate = formData.startTime || (hasExistingAppointment ? undefined : `${fallbackDate}T10:00:00+09:00`);
+          const endDate = formData.endTime || (hasExistingAppointment ? undefined : `${fallbackDate}T11:30:00+09:00`);
           const req = buildCreateTrimmingRequest(
             formData,
             Number(pet.id),
