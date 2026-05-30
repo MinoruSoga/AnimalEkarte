@@ -21,7 +21,7 @@ afterEach(() => {
 describe("ReservationTypeAvailableSlotsSection", () => {
   it("予約可能枠を表示する", async () => {
     server.use(
-      http.get("/api/v1/clinics/1/reservation-types/5/available-slots", () =>
+      http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
         HttpResponse.json([
           {
             id: 1,

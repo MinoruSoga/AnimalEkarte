@@ -333,7 +333,7 @@ describe("ReservationFormModal — 担当者候補", () => {
           },
         ])
       ),
-      http.get("/api/v1/clinics/1/reservation-types/5/unavailable-times", () =>
+      http.get("/api/v1/masters/reservation-types/5/unavailable-times", () =>
         HttpResponse.json({ data: [] })
       ),
       http.get("/api/v1/reservations/available-times", () =>
@@ -398,7 +398,7 @@ describe("ReservationFormModal — 予約不可時間", () => {
       http.get("/api/v1/masters/staffs", () => HttpResponse.json([])),
       http.get("/api/v1/shifts/on-duty-staffs", () => HttpResponse.json([])),
       http.get("/api/v1/clinics/1/reservation-staffs", () => HttpResponse.json([])),
-      http.get("/api/v1/clinics/1/reservation-types/5/unavailable-times", () =>
+      http.get("/api/v1/masters/reservation-types/5/unavailable-times", () =>
         HttpResponse.json({
           data: [
             {
@@ -489,7 +489,7 @@ describe("ReservationFormModal — 予約不可時間", () => {
       http.get("/api/v1/masters/staffs", () => HttpResponse.json([])),
       http.get("/api/v1/shifts/on-duty-staffs", () => HttpResponse.json([])),
       http.get("/api/v1/clinics/1/reservation-staffs", () => HttpResponse.json([])),
-      http.get("/api/v1/clinics/1/reservation-types/5/unavailable-times", () =>
+      http.get("/api/v1/masters/reservation-types/5/unavailable-times", () =>
         HttpResponse.json({ data: [] })
       ),
       http.get("/api/v1/reservations/available-times", () =>

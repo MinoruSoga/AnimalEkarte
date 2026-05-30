@@ -39,41 +39,38 @@ const availableSlotsKey = (clinicId: string, reservationTypeId: string) => [
 ] as const;
 
 async function getAvailableSlots(
-  clinicId: string,
   reservationTypeId: string,
 ): Promise<ReservationTypeAvailableSlot[]> {
   const { data } = await axios.get<ReservationTypeAvailableSlotRaw[] | { data: ReservationTypeAvailableSlotRaw[] }>(
-    `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/available-slots`,
+    `/v1/masters/reservation-types/${reservationTypeId}/available-slots`,
   );
   const items = Array.isArray(data) ? data : data.data;
   return items.map(transformAvailableSlot);
 }
 
 async function createAvailableSlot(
-  clinicId: string,
   reservationTypeId: string,
   req: CreateAvailableSlotRequest,
 ): Promise<void> {
   await axios.post(
-    `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/available-slots`,
+    `/v1/masters/reservation-types/${reservationTypeId}/available-slots`,
     req,
   );
 }
 
 async function deleteAvailableSlot(
-  clinicId: string,
   reservationTypeId: string,
   id: number,
 ): Promise<void> {
   await axios.delete(
-    `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/available-slots/${id}`,
+    `/v1/masters/reservation-types/${reservationTypeId}/available-slots/${id}`,
   );
 }
 
 export function useGetAvailableSlots(clinicId: string, reservationTypeId: string) {
   return useQuery({
     queryKey: availableSlotsKey(clinicId, reservationTypeId),
-    queryFn: () => getAvailableSlots(clinicId, reservationTypeId),
+    queryFn: () => getAvailableSlots(reservationTypeId),
     enabled: clinicId !== "" && reservationTypeId !== "",
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -84,7 +81,7 @@ export function useCreateAvailableSlot(clinicId: string, reservationTypeId: stri
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (req: CreateAvailableSlotRequest) =>
-      createAvailableSlot(clinicId, reservationTypeId, req),
+      createAvailableSlot(reservationTypeId, req),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: availableSlotsKey(clinicId, reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "予約可能枠の作成"),
@@ -94,7 +91,7 @@ export function useCreateAvailableSlot(clinicId: string, reservationTypeId: stri
 export function useDeleteAvailableSlot(clinicId: string, reservationTypeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => deleteAvailableSlot(clinicId, reservationTypeId, id),
+    mutationFn: (id: number) => deleteAvailableSlot(reservationTypeId, id),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: availableSlotsKey(clinicId, reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "予約可能枠の削除"),
