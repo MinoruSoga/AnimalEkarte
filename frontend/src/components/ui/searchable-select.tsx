@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { C } from "@/lib/design-tokens";
@@ -34,6 +34,11 @@ interface SearchableSelectProps {
   options?: SearchableSelectOption[];
   /** グループ階層の選択肢。options と排他。 */
   groups?: SearchableSelectGroup[];
+  /**
+   * groups 指定時のみ有効。ポップオーバー上部にカテゴリ(グループ)チップを表示し、
+   * クリックで該当グループのみに絞り込む。チップ表示時はポップオーバーを拡幅する。
+   */
+  groupFilter?: boolean;
   placeholder?: string;
   searchPlaceholder?: string;
   emptyMessage?: string;
@@ -69,6 +74,7 @@ export function SearchableSelect({
   onValueChange,
   options,
   groups,
+  groupFilter = false,
   placeholder = "選択してください",
   searchPlaceholder = "検索...",
   emptyMessage = "該当する候補が見つかりません。",
@@ -80,6 +86,8 @@ export function SearchableSelect({
   ariaInvalid = false,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
+  const showChips = groupFilter && groups !== undefined && groups.length > 0;
 
   const selectedLabel = useMemo(() => {
     const all = flattenOptions(options, groups);
@@ -109,7 +117,13 @@ export function SearchableSelect({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setActiveGroup(null);
+      }}
+    >
       <PopoverTrigger
         type="button"
         role="combobox"
@@ -134,7 +148,13 @@ export function SearchableSelect({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className={cn("z-[9999] w-[var(--radix-popover-trigger-width)] p-0", contentClassName)}
+        className={cn(
+          "z-[9999] p-0",
+          showChips
+            ? "w-[360px] max-w-[calc(100vw-2rem)]"
+            : "w-[var(--radix-popover-trigger-width)]",
+          contentClassName,
+        )}
       >
         <Command
           filter={(_value, search, keywords) => {
@@ -143,16 +163,65 @@ export function SearchableSelect({
           }}
         >
           <CommandInput placeholder={searchPlaceholder} />
+          {showChips ? (
+            <div
+              className={cn(
+                "flex items-center gap-1.5 overflow-x-auto border-b px-2 py-2 [&::-webkit-scrollbar]:hidden",
+                C.borderMedium,
+              )}
+              style={{ scrollbarWidth: "none" }}
+            >
+              {activeGroup ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveGroup(null)}
+                  className={cn(
+                    "flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs whitespace-nowrap",
+                    C.text60,
+                    "hover:bg-[rgba(242,241,238,0.5)]",
+                  )}
+                >
+                  <X className="size-3" />
+                  解除
+                </button>
+              ) : null}
+              {groups?.map((group) => {
+                const isActive = activeGroup === group.label;
+                return (
+                  <button
+                    key={group.label}
+                    type="button"
+                    onClick={() => setActiveGroup(isActive ? null : group.label)}
+                    className={cn(
+                      "h-7 shrink-0 rounded-md border px-2.5 text-xs whitespace-nowrap transition-colors",
+                      isActive
+                        ? cn(C.bgAccent, "border-transparent text-white")
+                        : cn("bg-white", C.text, C.borderMedium, "hover:bg-[rgba(242,241,238,0.5)]"),
+                    )}
+                  >
+                    {group.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
           <CommandList className="max-h-[280px]">
             <CommandEmpty className={cn("py-6 text-center text-sm", C.text60)}>
               {emptyMessage}
             </CommandEmpty>
             {groups
-              ? groups.map((group) => (
-                  <CommandGroup key={group.label} heading={group.label}>
-                    {group.options.map((opt) => renderItem(opt, "pl-4"))}
-                  </CommandGroup>
-                ))
+              ? groups
+                  .filter((group) => activeGroup === null || group.label === activeGroup)
+                  .map((group) => (
+                    <CommandGroup
+                      key={group.label}
+                      heading={activeGroup === null ? group.label : undefined}
+                    >
+                      {group.options.map((opt) =>
+                        renderItem(opt, activeGroup === null ? "pl-4" : undefined),
+                      )}
+                    </CommandGroup>
+                  ))
               : (options ?? []).map((opt) => renderItem(opt))}
           </CommandList>
         </Command>

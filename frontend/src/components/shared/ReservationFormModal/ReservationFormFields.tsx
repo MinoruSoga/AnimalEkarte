@@ -348,6 +348,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
             value={formData.type || ""}
             onValueChange={(v) => onChange({ ...formData, type: v })}
             groups={reservationTypeGroups}
+            groupFilter
             placeholder="選択してください"
             searchPlaceholder="予約区分を検索..."
             triggerTestId="res-type-trigger"
