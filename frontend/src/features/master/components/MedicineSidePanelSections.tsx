@@ -6,6 +6,7 @@ import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPil
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
 
@@ -52,25 +53,19 @@ export function MedicineParentCategorySection({
       {isCategory ? (
         <span className={`text-base ${C.text}`}>なし（ルート）</span>
       ) : (
-        <Select
+        <SearchableSelect
           value={formData.parentId || "__none__"}
           onValueChange={(value) => setFormDataDirty((prev) => ({
             ...prev,
             parentId: value === "__none__" ? "" : value,
           }))}
-        >
-          <SelectTrigger className={SELECT_TRIGGER_FULL}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">なし（未分類）</SelectItem>
-            {categoryMedicines.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={[
+            { value: "__none__", label: "なし（未分類）" },
+            ...categoryMedicines.map((category) => ({ value: category.id, label: category.name })),
+          ]}
+          searchPlaceholder="親カテゴリを検索..."
+          className={SELECT_TRIGGER_FULL}
+        />
       )}
     </PropertyRow>
   );

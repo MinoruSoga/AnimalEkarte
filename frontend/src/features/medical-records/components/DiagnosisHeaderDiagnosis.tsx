@@ -10,7 +10,7 @@ import { ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 
 // Relative
 import { useGetDiagnosisTypes, useGetDiagnosisNames } from "../api/get-diagnosis-options";
@@ -48,23 +48,17 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
   const { data: names1 = [], isLoading: isNames1Loading } = useGetDiagnosisNames(diagnosis1CategoryId);
   const { data: names2 = [], isLoading: isNames2Loading } = useGetDiagnosisNames(diagnosis2CategoryId);
 
-  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
-  const categorySelectItems = useMemo(
-    () => categories.map((cat) => (
-      <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
-    )),
+  // SearchableSelect 用に選択肢を {value,label} 形へ変換(参照安定のため memo 化)
+  const categoryOptions = useMemo<SearchableSelectOption[]>(
+    () => categories.map((cat) => ({ value: String(cat.id), label: cat.name })),
     [categories]
   );
-  const names1SelectItems = useMemo(
-    () => names1.map((name) => (
-      <SelectItem key={name.id} value={String(name.id)}>{name.name}</SelectItem>
-    )),
+  const names1Options = useMemo<SearchableSelectOption[]>(
+    () => names1.map((name) => ({ value: String(name.id), label: name.name })),
     [names1]
   );
-  const names2SelectItems = useMemo(
-    () => names2.map((name) => (
-      <SelectItem key={name.id} value={String(name.id)}>{name.name}</SelectItem>
-    )),
+  const names2Options = useMemo<SearchableSelectOption[]>(
+    () => names2.map((name) => ({ value: String(name.id), label: name.name })),
     [names2]
   );
 
@@ -84,33 +78,28 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                 <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60}`}>
                   診断1
                 </Label>
-                <Select
+                <SearchableSelect
                   value={diagnosis1CategoryId ? String(diagnosis1CategoryId) : ""}
                   onValueChange={(value) => {
                     setDiagnosis1CategoryId?.(value ? Number(value) : null);
                     setDiagnosis1NameId?.(null);
                   }}
+                  options={categoryOptions}
                   disabled={isTypesLoading || !canEdit}
-                >
-                  <SelectTrigger className={`flex-1 ${C.bgWhite} ${C.borderMedium} h-10 text-sm`}>
-                    <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
-                  </SelectTrigger>
-                  <SelectContent className="z-[9999]">
-                    {categorySelectItems}
-                  </SelectContent>
-                </Select>
-                <Select
+                  placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"}
+                  searchPlaceholder="カテゴリを検索..."
+                  className="flex-1"
+                />
+                <SearchableSelect
                   value={diagnosis1NameId ? String(diagnosis1NameId) : ""}
                   onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
+                  options={names1Options}
                   disabled={isNames1Loading || !diagnosis1CategoryId || !canEdit}
-                >
-                  <SelectTrigger className={`flex-1 ${C.bgWhite} ${diagnosis1NameIdError ? C.borderDanger : C.borderMedium} h-10 text-sm`}>
-                    <SelectValue placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"} />
-                  </SelectTrigger>
-                  <SelectContent className="z-[9999]">
-                    {names1SelectItems}
-                  </SelectContent>
-                </Select>
+                  placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"}
+                  searchPlaceholder="病名を検索..."
+                  className="flex-1"
+                  ariaInvalid={Boolean(diagnosis1NameIdError)}
+                />
               </div>
               <FormFieldError message={diagnosis1NameIdError} />
             </div>
@@ -119,33 +108,27 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
               <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60}`}>
                 診断2
               </Label>
-              <Select
+              <SearchableSelect
                 value={diagnosis2CategoryId ? String(diagnosis2CategoryId) : ""}
                 onValueChange={(value) => {
                   setDiagnosis2CategoryId?.(value ? Number(value) : null);
                   setDiagnosis2NameId?.(null);
                 }}
+                options={categoryOptions}
                 disabled={isTypesLoading || !canEdit}
-              >
-                <SelectTrigger className={`flex-1 ${C.bgWhite} ${C.borderMedium} h-10 text-sm`}>
-                  <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
-                </SelectTrigger>
-                <SelectContent className="z-[9999]">
-                  {categorySelectItems}
-                </SelectContent>
-              </Select>
-              <Select
+                placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"}
+                searchPlaceholder="カテゴリを検索..."
+                className="flex-1"
+              />
+              <SearchableSelect
                 value={diagnosis2NameId ? String(diagnosis2NameId) : ""}
                 onValueChange={(value) => setDiagnosis2NameId?.(value ? Number(value) : null)}
+                options={names2Options}
                 disabled={isNames2Loading || !diagnosis2CategoryId || !canEdit}
-              >
-                <SelectTrigger className={`flex-1 ${C.bgWhite} ${C.borderMedium} h-10 text-sm`}>
-                  <SelectValue placeholder={isNames2Loading ? "読み込み中..." : "病名を選択"} />
-                </SelectTrigger>
-                <SelectContent className="z-[9999]">
-                  {names2SelectItems}
-                </SelectContent>
-              </Select>
+                placeholder={isNames2Loading ? "読み込み中..." : "病名を選択"}
+                searchPlaceholder="病名を検索..."
+                className="flex-1"
+              />
             </div>
           </div>
 

@@ -5,6 +5,7 @@ import { ja } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import type { LegendEntry, ReservationTypeColor } from "@/hooks/use-reservation-type-color-map";
 import { C, ICON } from "@/lib/design-tokens";
 import { typedSetter } from "@/lib/type-utils";
@@ -81,10 +82,11 @@ export function ReservationManagementCalendar({
   onTimeSlotClick,
   onAppointmentUpdate,
 }: ReservationManagementCalendarProps) {
-  const doctorNameSelectItems = useMemo(
-    () => doctorNames.map((name) => (
-      <SelectItem key={name} value={name}>{name}</SelectItem>
-    )),
+  const doctorFilterOptions = useMemo<SearchableSelectOption[]>(
+    () => [
+      { value: "all", label: "すべての医師" },
+      ...doctorNames.map((name) => ({ value: name, label: name })),
+    ],
     [doctorNames],
   );
 
@@ -116,15 +118,14 @@ export function ReservationManagementCalendar({
             <SelectContent>{SOURCE_FILTER_SELECT_ITEMS}</SelectContent>
           </Select>
 
-          <Select value={doctorFilter} onValueChange={onDoctorFilterChange}>
-            <SelectTrigger className={`w-[160px] ${C.bgWhite} ${C.borderMedium} h-10 text-base`}>
-              <SelectValue placeholder="担当医で絞込" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">すべての医師</SelectItem>
-              {doctorNameSelectItems}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={doctorFilter}
+            onValueChange={onDoctorFilterChange}
+            options={doctorFilterOptions}
+            placeholder="担当医で絞込"
+            searchPlaceholder="担当医を検索..."
+            className="w-[160px]"
+          />
 
           <Select value={view} onValueChange={typedSetter(onViewChange, CALENDAR_VIEW_VALUES)}>
             <SelectTrigger className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-10 text-base`}>

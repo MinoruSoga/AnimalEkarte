@@ -7,6 +7,7 @@ import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 import { PetDeceasedRecordButton } from "@/features/pets";
 import { C, STYLE } from "@/lib/design-tokens";
@@ -108,7 +109,7 @@ interface PetFieldSectionProps {
 }
 
 interface PetIdentitySectionProps extends PetFieldSectionProps {
-  animalSpeciesSelectItems: ReactNode;
+  animalSpeciesOptions: SearchableSelectOption[];
   isLoadingSpecies: boolean;
   isEdit: boolean;
   onAnimalSpeciesChange: (value: string) => void;
@@ -119,7 +120,7 @@ export function PetIdentitySection({
   setFormData,
   fieldErrors,
   clearFieldError,
-  animalSpeciesSelectItems,
+  animalSpeciesOptions,
   isLoadingSpecies,
   isEdit,
   onAnimalSpeciesChange,
@@ -176,16 +177,17 @@ export function PetIdentitySection({
         <Label htmlFor="animalSpeciesId" className={LABEL_CLS}>
           動物種 <span className={C.textRequired}>*</span>
         </Label>
-        <Select
+        <SearchableSelect
+          id="animalSpeciesId"
           value={formData.animalSpeciesId || ""}
           onValueChange={onAnimalSpeciesChange}
+          options={animalSpeciesOptions}
           disabled={isLoadingSpecies}
-        >
-          <SelectTrigger className={`${INPUT_CLS} ${fieldErrors.animalSpeciesId ? STYLE.formInputError : ""}`}>
-            <SelectValue placeholder={isLoadingSpecies ? "読み込み中..." : "選択してください"} />
-          </SelectTrigger>
-          <SelectContent>{animalSpeciesSelectItems}</SelectContent>
-        </Select>
+          placeholder={isLoadingSpecies ? "読み込み中..." : "選択してください"}
+          searchPlaceholder="動物種を検索..."
+          ariaInvalid={Boolean(fieldErrors.animalSpeciesId)}
+          className={INPUT_CLS}
+        />
         <FormFieldError id="animalSpeciesId-error" message={fieldErrors.animalSpeciesId} />
       </div>
 

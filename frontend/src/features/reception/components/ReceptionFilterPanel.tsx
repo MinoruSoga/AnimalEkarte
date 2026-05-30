@@ -1,6 +1,6 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { C } from "@/lib/design-tokens";
 
 interface DoctorOption {
@@ -51,18 +51,14 @@ export function ReceptionFilterPanel({
 
         <div className="space-y-2">
           <h4 className={`font-bold text-base ${C.text}`}>指名</h4>
-          <Select value={selectedDoctor} onValueChange={onSelectedDoctorChange}>
-            <SelectTrigger className={`w-[200px] h-10 text-base ${C.bgWhite} border-input`}>
-              <SelectValue placeholder="指名を選択" />
-            </SelectTrigger>
-            <SelectContent>
-              {doctors.map((doctor) => (
-                <SelectItem key={doctor.id} value={doctor.id}>
-                  {doctor.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={selectedDoctor}
+            onValueChange={onSelectedDoctorChange}
+            options={doctors.map((doctor) => ({ value: doctor.id, label: doctor.name }))}
+            placeholder="指名を選択"
+            searchPlaceholder="指名を検索..."
+            className="w-[200px]"
+          />
         </div>
 
         <div className="space-y-2">

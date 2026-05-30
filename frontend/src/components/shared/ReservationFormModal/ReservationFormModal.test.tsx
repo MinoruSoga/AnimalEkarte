@@ -255,20 +255,19 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     fireEvent.change(screen.getByTestId("new-owner-pet-name"), { target: { value: "ポチ" } });
     fireEvent.change(screen.getByTestId("new-owner-chief-complaint"), { target: { value: "食欲不振" } });
 
-    // 動物種 Select: Radix は pointerdown でドロップダウンを開くため user.click を維持
-    // 選択肢は waitFor で DOM 確認済みのため fireEvent.click で十分
+    // 動物種 Select: Radix は pointerdown でドロップダウンを開くため user.click を維持。
+    // 選択肢クリックも user.click で行い Radix Select の close ライフサイクルを完走させる
+    // (fireEvent.click だと dialog content への pointer-events/inert 後始末が走らず、
+    //  後続で開く res-type の cmdk Popover が toggle されない不具合になる)。
     await user.click(screen.getByTestId("new-owner-species"));
     await waitFor(() => {
       expect(screen.getByRole("option", { name: "犬" })).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("option", { name: "犬" }));
+    await user.click(screen.getByRole("option", { name: "犬" }));
 
-    // 予約区分 Select: 同上
+    // 予約区分 SearchableSelect(cmdk Combobox): トリガーを開いて option を選択
     await user.click(screen.getByTestId("res-type-trigger"));
-    await waitFor(() => {
-      expect(screen.getByRole("option", { name: "一般診療" })).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByRole("option", { name: "一般診療" }));
+    fireEvent.click(await screen.findByRole("option", { name: "一般診療" }));
 
     // 保存を実行
     fireEvent.click(screen.getByRole("button", { name: "予約を確定" }));

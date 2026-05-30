@@ -5,7 +5,8 @@ import { C, ICON } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect, type SearchableSelectGroup, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -189,6 +190,26 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     return options;
   }, [selectedDateStr, onDutyStaffs, activeStaff, selectedReservationTypeId, reservationStaffMap]);
 
+  // SearchableSelect 用に選択肢を {value,label} 形へ変換(参照安定のため memo 化)
+  const reservationTypeGroups = useMemo<SearchableSelectGroup[]>(
+    () =>
+      groupedReservationTypes.map((group) => ({
+        label: group.label,
+        options: group.types.map((t) => ({ value: String(t.id), label: t.name })),
+      })),
+    [groupedReservationTypes],
+  );
+  const staffSelectOptions = useMemo<SearchableSelectOption[]>(
+    () => staffOptions.map((s) => ({ value: String(s.id), label: s.name })),
+    [staffOptions],
+  );
+  const staffEmptyMessage =
+    selectedReservationTypeId !== null
+      ? "この条件で対応可能なスタッフがいません"
+      : selectedDateStr !== null
+        ? "この日に出勤しているスタッフがいません"
+        : "スタッフが登録されていません";
+
   return (
     <div className="space-y-4">
       {/* Date + Time Group */}
@@ -322,30 +343,16 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           >
             予約区分
           </FieldLabel>
-          {/* BUG-341: グループ階層表示 — Select + SelectGroup で Dialog 内スクロール正常動作 */}
-          <Select
+          {/* BUG-341: グループ階層表示。SearchableSelect(Popover+Command)で検索・Dialog内スクロール対応 */}
+          <SearchableSelect
             value={formData.type || ""}
             onValueChange={(v) => onChange({ ...formData, type: v })}
-          >
-            <SelectTrigger data-testid="res-type-trigger" className={cn(TRIGGER_CLASS, !formData.type && C.text40)}>
-              <SelectValue placeholder="選択してください" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[280px]">
-              {groupedReservationTypes.map((group, idx) => (
-                <SelectGroup key={group.label}>
-                  {idx > 0 ? <SelectSeparator /> : null}
-                  <SelectLabel className={`text-xs font-semibold tracking-wider uppercase ${C.text40} px-2 pt-2 pb-1`}>
-                    {group.label}
-                  </SelectLabel>
-                  {group.types.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)} className="pl-4">
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
+            groups={reservationTypeGroups}
+            placeholder="選択してください"
+            searchPlaceholder="予約区分を検索..."
+            triggerTestId="res-type-trigger"
+            ariaInvalid={Boolean(validationErrors?.type)}
+          />
           {validationErrors?.type ? (
             <FormFieldError id="res-type-error" message={validationErrors.type} />
           ) : null}
@@ -405,31 +412,15 @@ export const ReservationFormFields = memo(function ReservationFormFields({
         >
           担当者
         </FieldLabel>
-        <Select
+        <SearchableSelect
           value={formData.doctor || ""}
           onValueChange={(v) => onChange({ ...formData, doctor: v })}
-        >
-          <SelectTrigger data-testid="res-staff-trigger" className={TRIGGER_CLASS}>
-            <SelectValue placeholder="選択してください" />
-          </SelectTrigger>
-          <SelectContent>
-            {staffOptions.length > 0 ? (
-              staffOptions.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>
-                  {s.name}
-                </SelectItem>
-              ))
-            ) : (
-              <div className={`px-3 py-2 text-sm ${C.text40}`}>
-                {selectedReservationTypeId !== null
-                  ? "この条件で対応可能なスタッフがいません"
-                  : selectedDateStr !== null
-                  ? "この日に出勤しているスタッフがいません"
-                  : "スタッフが登録されていません"}
-              </div>
-            )}
-          </SelectContent>
-        </Select>
+          options={staffSelectOptions}
+          placeholder="選択してください"
+          searchPlaceholder="スタッフ名で検索..."
+          emptyMessage={staffEmptyMessage}
+          triggerTestId="res-staff-trigger"
+        />
       </div>
 
       <div className="space-y-1.5">

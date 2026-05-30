@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { useMemo } from "react";
 
 import { SelectItem } from "@/components/ui/select";
+import { type SearchableSelectOption } from "@/components/ui/searchable-select";
 
 import {
   PetCareSection,
@@ -37,13 +38,13 @@ export function PetEditModalFields({
   canEdit,
   isEdit,
 }: PetEditModalFieldsProps) {
-  const animalSpeciesSelectItems = useMemo(
+  const animalSpeciesOptions = useMemo<SearchableSelectOption[]>(
     () =>
-      animalSpeciesList.map((s) => (
-        <SelectItem key={s.id} value={String(s.id)} disabled={s.isInactive}>
-          {s.label || s.name}
-        </SelectItem>
-      )),
+      animalSpeciesList.map((s) => ({
+        value: String(s.id),
+        label: s.label || s.name,
+        disabled: s.isInactive,
+      })),
     [animalSpeciesList],
   );
 
@@ -91,7 +92,7 @@ export function PetEditModalFields({
         setFormData={setFormData}
         fieldErrors={fieldErrors}
         clearFieldError={clearFieldError}
-        animalSpeciesSelectItems={animalSpeciesSelectItems}
+        animalSpeciesOptions={animalSpeciesOptions}
         isLoadingSpecies={isLoadingSpecies}
         isEdit={isEdit}
         onAnimalSpeciesChange={handleAnimalSpeciesChange}

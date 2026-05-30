@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
@@ -53,17 +54,13 @@ function ExaminationFormFieldsBase({
 }: ExaminationFormFieldsProps) {
   const canSubmit = isEdit ? canEdit : canCreate;
 
-  const examTypeSelectItems = useMemo(
-    () => examTypes.map((item) => (
-      <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
-    )),
+  const examTypeOptions = useMemo<SearchableSelectOption[]>(
+    () => examTypes.map((item) => ({ value: String(item.id), label: item.name })),
     [examTypes],
   );
 
-  const staffSelectItems = useMemo(
-    () => staffList.map((staff) => (
-      <SelectItem key={staff.id} value={String(staff.id)}>{staff.name}</SelectItem>
-    )),
+  const staffOptions = useMemo<SearchableSelectOption[]>(
+    () => staffList.map((staff) => ({ value: String(staff.id), label: staff.name })),
     [staffList],
   );
 
@@ -81,21 +78,18 @@ function ExaminationFormFieldsBase({
           {masterLoading ? (
             <div className={`h-10 ${C.bgGray100} rounded-md animate-pulse`} />
           ) : (
-            <Select
+            <SearchableSelect
               value={formData.testTypeId ?? ""}
               disabled={isConfirmed}
               onValueChange={(value) => {
                 const item = examTypes.find((examType) => examType.id === value);
                 onSetFormData({ testTypeId: value, testType: item?.name ?? value });
               }}
-            >
-              <SelectTrigger id="testTypeId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
-                <SelectValue placeholder="選択してください" />
-              </SelectTrigger>
-              <SelectContent>
-                {examTypeSelectItems}
-              </SelectContent>
-            </Select>
+              options={examTypeOptions}
+              placeholder="選択してください"
+              searchPlaceholder="検査種別を検索..."
+              id="testTypeId"
+            />
           )}
         </div>
         <div className="space-y-1.5">
@@ -106,21 +100,18 @@ function ExaminationFormFieldsBase({
           {masterLoading ? (
             <div className={`h-10 ${C.bgGray100} rounded-md animate-pulse`} />
           ) : (
-            <Select
+            <SearchableSelect
               value={formData.doctorId ?? ""}
               disabled={isConfirmed}
               onValueChange={(value) => {
                 const staff = staffList.find((item) => String(item.id) === value);
                 onSetFormData({ doctorId: value, doctor: staff?.name ?? value });
               }}
-            >
-              <SelectTrigger id="doctorId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
-                <SelectValue placeholder="選択してください" />
-              </SelectTrigger>
-              <SelectContent>
-                {staffSelectItems}
-              </SelectContent>
-            </Select>
+              options={staffOptions}
+              placeholder="選択してください"
+              searchPlaceholder="担当医を検索..."
+              id="doctorId"
+            />
           )}
         </div>
       </div>

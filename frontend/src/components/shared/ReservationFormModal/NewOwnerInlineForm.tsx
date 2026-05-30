@@ -3,7 +3,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useAnimalSpecies } from "@/features/owners";
 import type { NewOwnerFormData } from "@/features/reservations";
@@ -71,22 +71,15 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
         <Label className={`text-xs ${C.text60}`}>
           動物種 <span aria-hidden="true" className={C.textRequired}>*</span>
         </Label>
-        <Select
+        <SearchableSelect
           value={value.animalSpeciesId ? String(value.animalSpeciesId) : ""}
           onValueChange={(v) => onChange({ ...value, animalSpeciesId: Number(v) })}
+          options={activeSpecies.map((s) => ({ value: String(s.id), label: s.name }))}
           disabled={isLoadingSpecies}
-        >
-          <SelectTrigger data-testid="new-owner-species" className="h-9 text-sm">
-            <SelectValue placeholder={isLoadingSpecies ? "読み込み中..." : "選択してください"} />
-          </SelectTrigger>
-          <SelectContent>
-            {activeSpecies.map((s) => (
-              <SelectItem key={s.id} value={String(s.id)}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          placeholder={isLoadingSpecies ? "読み込み中..." : "選択してください"}
+          searchPlaceholder="動物種を検索..."
+          triggerTestId="new-owner-species"
+        />
         <FormFieldError message={errors.animalSpeciesId} />
       </div>
 
