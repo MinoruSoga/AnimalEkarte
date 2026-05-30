@@ -5,7 +5,6 @@ import { useNavigate } from "react-router";
 // External
 import { DndContext, PointerSensor, useSensor, useSensors, pointerWithin } from "@dnd-kit/core";
 import Filter from "lucide-react/dist/esm/icons/filter";
-import { toast } from "sonner";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 
@@ -96,17 +95,16 @@ export function Reception() {
         }
     }, [advanceStatus, canEditReservation]);
 
-    const handleAddClick = useCallback((columnTitle: string) => {
-        if (columnTitle === "受付予約") {
-            navigate(paths.reservations.getHref());
-        } else {
-            toast.info("新規登録", {
-                description: "新規予約・受付画面へ移動します。",
-                duration: 2000
-            });
-            navigate(`${paths.reservations.getHref()}?reception=1`, { state: { from: paths.home.getHref() } });
-        }
+    // 当日受付ページから新規予約作成モーダルを自動オープンする遷移ヘルパー。
+    const goToNewReservation = useCallback((query: string) => {
+        navigate(`${paths.reservations.getHref()}?${query}`, { state: { from: paths.home.getHref() } });
     }, [navigate]);
+
+    // 受付予約ボード → 通常の新規予約（confirmed → 受付予約カラム）。
+    // 受付済ボード → 受付 walk-in（checked_in → 受付済カラム、route=reception）。
+    const handleAddClick = useCallback((columnTitle: string) => {
+        goToNewReservation(columnTitle === "受付予約" ? "newReservation=1" : "reception=1");
+    }, [goToNewReservation]);
 
     const addClickHandlers = useMemo(() => {
         const handlers = new Map<string, (() => void) | undefined>();
@@ -172,7 +170,7 @@ export function Reception() {
                         {canCreateReservation ? (
                             <Button
                                 className={`${STYLE.confirmPrimary} h-11 text-base tracking-[var(--tracking-notion)]`}
-                                onClick={() => navigate(`${paths.reservations.getHref()}?reception=1`, { state: { from: paths.home.getHref() } })}
+                                onClick={() => goToNewReservation("reception=1")}
                             >
                                 新規予約登録
                             </Button>

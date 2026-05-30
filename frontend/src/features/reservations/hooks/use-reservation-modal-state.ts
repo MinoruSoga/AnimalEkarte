@@ -61,6 +61,7 @@ export function useReservationModalState({
     const searchParams = new URLSearchParams(locationSearch);
     const petId = searchParams.get("petId");
     const isReceptionEntry = searchParams.get("reception") === "1";
+    const isNewReservationEntry = searchParams.get("newReservation") === "1";
 
     if (isReceptionEntry && !isFormOpenRef.current) {
       const start = roundUpToNextQuarterHour(new Date());
@@ -74,6 +75,23 @@ export function useReservationModalState({
         isDesignated: false,
         reservationRoute: "reception",
         source: "manual",
+      };
+      handleOpenForm(stub);
+      return;
+    }
+
+    // 受付予約ボードの「新規追加」起点: 通常の新規予約（confirmed → 受付予約カラム）。
+    // 受付 walk-in と異なり reservationRoute は強制せずモーダルで選択させる。
+    if (isNewReservationEntry && !isFormOpenRef.current) {
+      const start = roundUpToNextQuarterHour(new Date());
+
+      const stub: ReservationFormData = {
+        start,
+        end: addHours(start, 1),
+        status: "confirmed",
+        visitType: "first",
+        doctor: "",
+        isDesignated: false,
       };
       handleOpenForm(stub);
       return;
