@@ -174,42 +174,6 @@ export function useTrimmingForm(id?: string) {
   // localOverrides・formData を useActionState の前に宣言: callback 内で formData を参照するため
   const [localOverrides, setLocalOverrides] = useState<Partial<TrimmingFormData>>({});
 
-  // --- Draft Persistence (Local Storage) ---
-  const draftScope = id
-    ? id
-    : existingAppointmentId
-      ? `appointment-${existingAppointmentId}`
-      : petId
-        ? `pet-${petId}`
-        : "new";
-  const DRAFT_KEY = `trimming-draft-${draftScope}`;
-
-  // Load draft on mount
-  useEffect(() => {
-    const saved = localStorage.getItem(DRAFT_KEY);
-    if (saved) {
-      try {
-        const draft = JSON.parse(saved);
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: one-time draft restore on mount
-        setLocalOverrides((prev) => ({ ...prev, ...draft }));
-        toast.info("未保存の下書きを復元しました", { duration: 2000 });
-      } catch {
-        // localStorage の下書きが破損している場合は静かにスキップ（復元失敗は非致命的）
-        localStorage.removeItem(DRAFT_KEY);
-      }
-    }
-  }, [DRAFT_KEY]);
-
-  // Save draft on changes
-  useEffect(() => {
-    const draft: Partial<TrimmingFormData> = { ...localOverrides };
-    delete draft.styleImage;
-    delete draft.completedImage;
-    if (Object.keys(draft).length > 0) {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-    }
-  }, [DRAFT_KEY, localOverrides]);
-
   const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
   const [completedImagePreview, setCompletedImagePreview] = useState<string | null>(null);
 
@@ -291,12 +255,10 @@ export function useTrimmingForm(id?: string) {
         if (isEdit && id) {
           const req = buildUpdateTrimmingRequest(formData);
           await updateMutation.mutateAsync({ id, req });
-          localStorage.removeItem(DRAFT_KEY);
           toast.success("トリミング情報を更新しました");
         } else if ((existingAppointmentHasDetail && existingAppointmentId) || reusableTrimming?.hasDetail) {
           const req = buildUpdateTrimmingRequest(formData);
           await updateMutation.mutateAsync({ id: existingAppointmentId || reusableTrimming?.id || "", req });
-          localStorage.removeItem(DRAFT_KEY);
           toast.success("トリミング情報を更新しました");
         } else {
           const pet = selectedPets[0];
@@ -339,7 +301,6 @@ export function useTrimmingForm(id?: string) {
             req.reservation_route = "record_shortcut";
           }
           await createMutation.mutateAsync(req);
-          localStorage.removeItem(DRAFT_KEY);
           toast.success("トリミング情報を登録しました");
         }
         return { success: true, timestamp: Date.now() };

@@ -21,7 +21,6 @@ import type { TreatmentItem } from "../components/TreatmentTable";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { useApplyMedicalRecord } from "./use-apply-medical-record";
-import { useMedicalRecordDraft } from "./use-medical-record-draft";
 import { useMedicalRecordManualErrors } from "./use-medical-record-manual-errors";
 import { useMedicalRecordOwnerChange } from "./use-medical-record-owner-change";
 import { useMedicalRecordAutoCreate } from "./use-medical-record-auto-create";
@@ -75,28 +74,6 @@ export function useMedicalRecordForm(recordId?: string) {
   const [diagnosis1NameId, setDiagnosis1NameId] = useState<number | null>(null);
   const [diagnosis2CategoryId, setDiagnosis2CategoryId] = useState<number | null>(null);
   const [diagnosis2NameId, setDiagnosis2NameId] = useState<number | null>(null);
-
-  const { draftKey } = useMedicalRecordDraft({
-    recordId,
-    chiefComplaint,
-    treatmentPolicy,
-    plan,
-    assessment,
-    visitType,
-    diagnosis1CategoryId,
-    diagnosis1NameId,
-    diagnosis2CategoryId,
-    diagnosis2NameId,
-    setChiefComplaint,
-    setTreatmentPolicy,
-    setPlan,
-    setAssessment,
-    setVisitType,
-    setDiagnosis1CategoryId,
-    setDiagnosis1NameId,
-    setDiagnosis2CategoryId,
-    setDiagnosis2NameId,
-  });
 
   // 編集モード: カルテからpetIdを取得
   const { data: existingRecord, isError: isRecordError, isLoading: isRecordLoading } = useGetMedicalRecord(recordId ?? "");
@@ -206,7 +183,6 @@ export function useMedicalRecordForm(recordId?: string) {
             break;
         }
 
-        localStorage.removeItem(draftKey);
         toast.success("保存しました");
         queryClient.invalidateQueries({ queryKey: ["reception"] });
         return { success: true, timestamp: Date.now() };

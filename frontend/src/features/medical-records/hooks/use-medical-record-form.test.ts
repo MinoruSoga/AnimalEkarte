@@ -89,7 +89,6 @@ describe("useMedicalRecordForm", () => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
     mockLocationState = null;
-    localStorage.clear();
     // デフォルト: pet データなし
     vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false, isError: false });
     // デフォルト: owner データなし
@@ -217,35 +216,6 @@ describe("useMedicalRecordForm", () => {
         result.current.setVisitType("初診");
       });
       expect(result.current.visitType).toBe("初診");
-    });
-  });
-
-  // ──────────────────────────
-  // 下書き永続化（localStorage）
-  // ──────────────────────────
-  describe("下書き永続化（localStorage）", () => {
-    it("recordId がある場合、下書きを localStorage に保存する", () => {
-      const { result } = renderHook(() => useMedicalRecordForm("42"));
-      act(() => {
-        result.current.setChiefComplaint("新しい主訴テキスト");
-      });
-      const key = "medical-record-draft-42";
-      const saved = JSON.parse(localStorage.getItem(key) ?? "{}");
-      expect(saved.chiefComplaint).toBe("新しい主訴テキスト");
-    });
-
-    it("recordId がない場合、localStorage への保存は行わない", () => {
-      renderHook(() => useMedicalRecordForm()); // isNewRecord = true
-      const allKeys = Object.keys(localStorage);
-      expect(allKeys.some(k => k.startsWith("medical-record-draft-"))).toBe(false);
-    });
-
-    it("既存の下書きがある場合、mount 時に chiefComplaint を復元する", () => {
-      const key = "medical-record-draft-99";
-      localStorage.setItem(key, JSON.stringify({ chiefComplaint: "復元テキスト" }));
-
-      const { result } = renderHook(() => useMedicalRecordForm("99"));
-      expect(result.current.chiefComplaint).toBe("復元テキスト");
     });
   });
 
