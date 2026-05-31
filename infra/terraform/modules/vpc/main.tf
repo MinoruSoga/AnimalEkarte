@@ -144,6 +144,33 @@ resource "aws_eip" "fck_nat" {
   depends_on = [aws_internet_gateway.main]
 }
 
+data "aws_region" "current" {}
+
+# fck-nat auto-recovery: システムステータスチェック失敗（ホスト障害）時に EC2 が
+# 同一インスタンスを自動回復する。同一 instance-id / ENI / private IP を保持するため
+# route table は据え置きで有効。夜間スケジュールの朝起動が fck-nat 依存になったための保険。
+resource "aws_cloudwatch_metric_alarm" "fck_nat_recover" {
+  count               = var.use_nat_instance ? 1 : 0
+  alarm_name          = "${var.name_prefix}-fck-nat-auto-recover"
+  alarm_description   = "Recover fck-nat instance on system status check failure"
+  namespace           = "AWS/EC2"
+  metric_name         = "StatusCheckFailed_System"
+  statistic           = "Maximum"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = 1
+  period              = 60
+  evaluation_periods  = 2
+  alarm_actions       = ["arn:aws:automate:${data.aws_region.current.name}:ec2:recover"]
+
+  dimensions = {
+    InstanceId = aws_instance.fck_nat[0].id
+  }
+
+  tags = {
+    Name = "${var.name_prefix}-fck-nat-auto-recover"
+  }
+}
+
 # Public Route Table
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
