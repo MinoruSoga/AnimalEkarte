@@ -247,10 +247,12 @@ resource "aws_ecs_service" "main" {
   # capacity provider はサービス作成前にクラスタへ関連付けが必要
   depends_on = [aws_lb_listener.http, aws_ecs_cluster_capacity_providers.main]
 
-  # 夜間スケジューラが desired_count を 0/1 に変更するため、terraform は管理しない
-  # （ignore しないと apply のたびに var.desired_count へ戻してしまう）
   lifecycle {
-    ignore_changes = [desired_count]
+    # desired_count: 夜間スケジューラが 0/1 を制御するため terraform は管理しない。
+    # task_definition: deploy パイプライン(.env.staging から env 注入)が管理する。
+    #   terraform の task def は env 空のスケルトンのため、terraform に管理させると
+    #   service が env 無しタスクで起動して STG が落ちる（2026-06-01 に実際に発生）。
+    ignore_changes = [desired_count, task_definition]
   }
 
   tags = {

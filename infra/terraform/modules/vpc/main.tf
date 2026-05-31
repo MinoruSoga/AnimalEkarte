@@ -164,22 +164,22 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# Private Route Table（0.0.0.0/0 は toggle 対応のため別 aws_route で定義）
+# Private Route Table
+# 0.0.0.0/0 は inline route で定義（既存 state と整合。standalone aws_route への移行は
+# 既存 inline route との RouteAlreadyExists 競合を起こすため避ける）。
+# toggle 互換: one() で NAT Gateway / fck-nat ENI の存在する方を指す（片方は null = 省略扱い）。
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block           = "0.0.0.0/0"
+    nat_gateway_id       = one(aws_nat_gateway.main[*].id)
+    network_interface_id = one(aws_instance.fck_nat[*].primary_network_interface_id)
+  }
 
   tags = {
     Name = "${var.name_prefix}-private-rt"
   }
-}
-
-# private → インターネット の egress ルート。NAT Gateway か fck-nat の ENI、存在する方へ。
-# one() は count-list が空なら null を返すため、片方だけが非 null になる。
-resource "aws_route" "private_egress" {
-  route_table_id         = aws_route_table.private.id
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = one(aws_nat_gateway.main[*].id)
-  network_interface_id   = one(aws_instance.fck_nat[*].primary_network_interface_id)
 }
 
 # Private Route Table Association
