@@ -85,7 +85,7 @@ export function Reception() {
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
     );
 
-    const { handleDragEnd, handleDragOver } = useReceptionDragHandlers(columns, moveCard);
+    const { handleDragEnd } = useReceptionDragHandlers(columns, moveCard);
 
     const todayLabel = format(new Date(), "yyyy年M月d日 (E)", { locale: ja });
 
@@ -192,7 +192,9 @@ export function Reception() {
             ) : null}
 
             <div className="flex-1 overflow-hidden p-5 pt-4">
-                <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+                {/* 確定はドロップ時のみ。onDragOver でのライブ移動は measureRects の再計測ループ
+                    と通過時の誤ステータス API 発火を招くため撤去（commit-on-drop） */}
+                <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
                     {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
                     <div className={`grid grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent transition-opacity${isUpdatingStatus ? " opacity-70 pointer-events-none" : ""}`}>
                         {columnElements}

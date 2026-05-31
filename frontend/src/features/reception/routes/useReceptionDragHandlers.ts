@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 
-import type { DragEndEvent, DragOverEvent } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
 
 import type { ColumnData } from "@/types";
 
@@ -12,7 +12,7 @@ type MoveCard = (
   draggedCardId?: string,
 ) => unknown;
 
-function resolveTargetTitle(event: DragOverEvent | DragEndEvent): string {
+function resolveTargetTitle(event: DragEndEvent): string {
   const { over } = event;
   return ((over?.data?.current as Record<string, unknown> | undefined)?.columnTitle as string) || (over?.id as string).replace("column-", "");
 }
@@ -32,7 +32,7 @@ export function useReceptionDragHandlers(columns: ColumnData[], moveCard: MoveCa
   }, [columns]);
 
   const moveActiveCard = useCallback(
-    (event: DragOverEvent | DragEndEvent) => {
+    (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over) return;
 
@@ -58,6 +58,5 @@ export function useReceptionDragHandlers(columns: ColumnData[], moveCard: MoveCa
 
   return {
     handleDragEnd: moveActiveCard,
-    handleDragOver: moveActiveCard,
   };
 }

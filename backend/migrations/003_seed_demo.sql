@@ -3863,64 +3863,175 @@ DECLARE
     h_end DATE;
     h_status VARCHAR;
     current_time_threshold TIMESTAMP := '2026-05-31 12:40:00+09'::TIMESTAMP;
+    
+    -- 飼主重複防止用
+    used_owner_ids INT[];
+    
+    -- 1日1組限定の同日2予定（トリミング＋診察）用変数
+    special_owner_id INT;
+    special_pet_id INT;
+    special_assigned BOOLEAN;
+    
+    -- 予定数の決定（最低20件〜最大23件）
+    daily_limit INT;
+    
+    -- 医師・トリマー関連
+    doctor_ids INT[];
+    trimmer_ids INT[];
+    doctor_booking_counts INT[];
+    doctor_idx INT;
+    doctor_count INT;
+    n INT;
 BEGIN
+    -- 医師とトリマーのIDリストを取得
+    SELECT array_agg(id) INTO doctor_ids FROM staffs WHERE staff_type = 'doctor';
+    SELECT array_agg(id) INTO trimmer_ids FROM staffs WHERE staff_type = 'trimmer';
+    
+    -- フォールバック（データが無い場合の安全弁）
+    IF doctor_ids IS NULL OR array_length(doctor_ids, 1) = 0 THEN
+        doctor_ids := ARRAY[1, 2, 3];
+    END IF;
+    IF trimmer_ids IS NULL OR array_length(trimmer_ids, 1) = 0 THEN
+        trimmer_ids := ARRAY[12];
+    END IF;
+    
+    doctor_count := array_length(doctor_ids, 1);
+
     -- 2026-05-30 から 2026-06-30 までの32日間ループ
     FOR target_date IN SELECT generate_series('2026-05-30'::date, '2026-06-30'::date, '1 day'::interval) LOOP
+        
+        -- その日の状態を初期化
+        used_owner_ids := '{}'::INT[];
+        special_assigned := false;
+        special_owner_id := NULL;
+        special_pet_id := NULL;
+        
+        -- 医師ごとの予約カウンタを0で初期化
+        doctor_booking_counts := array_fill(0, ARRAY[doctor_count]);
         
         -- トリミング予約の件数を 1〜2件に設定 (Max 2)
         trimming_count := floor(random() * 2) + 1; -- 1 or 2
         
-        -- 1日あたりの総予約件数を最低20件にするため、20〜23件のループを回す
-        FOR i IN 1..(20 + floor(random() * 4)) LOOP
-            -- 存在する pets からランダムに1頭取得し、その pet_id と owner_id を使用する（外部キー違反防止）
-            SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets ORDER BY random() LIMIT 1;
-
-            -- 存在する staffs からランダムに医師を取得
-            SELECT id INTO rand_doctor_id FROM staffs ORDER BY random() LIMIT 1;
-
-            -- 最初の trimming_count 件はトリミングにする
-            IF i <= trimming_count THEN
+        -- その日の総予約予定数を決定 (最低20件〜23件)
+        daily_limit := 20 + floor(random() * 4);
+        
+        FOR i IN 1..daily_limit LOOP
+            -- A. 1日1組限定の「同日にトリミングと一般診療を持つ飼主」の処理
+            -- i = 1 のトリミング枠でこの特別なペアのベース（トリミング予約）を登録する
+            IF i = 1 THEN
+                -- 存在する pets からランダムに1頭取得（この日の special とする）
+                SELECT id, owner_id INTO special_pet_id, special_owner_id FROM pets ORDER BY random() LIMIT 1;
+                rand_pet_id := special_pet_id;
+                rand_owner_id := special_owner_id;
+                -- 使用済み飼主リストに追加
+                used_owner_ids := array_append(used_owner_ids, rand_owner_id);
+                
                 is_trimming := true;
-                -- トリミングの reservation_type_id (9〜12)
+                rand_res_type_id := floor(random() * 4) + 9; -- トリミング(9〜12)
+                res_duration := 90;
+                
+                -- 午前 09:00 〜 10:30
+                start_ts := target_date::timestamp + '09:00:00'::interval;
+                
+                -- トリマーをランダムに割り当て
+                rand_doctor_id := trimmer_ids[floor(random() * array_length(trimmer_ids, 1)) + 1];
+                
+            -- i = 2 のトリミング枠（もしあれば）
+            ELSIF i <= trimming_count THEN
+                -- 重複しない別の飼主・ペットを取得
+                SELECT id, owner_id INTO rand_pet_id, rand_owner_id 
+                FROM pets 
+                WHERE owner_id IS NOT NULL AND NOT (owner_id = ANY(used_owner_ids))
+                ORDER BY random() LIMIT 1;
+                
+                -- 万が一ペットが取れなかった場合は、重複を許容してフォールバック
+                IF rand_pet_id IS NULL THEN
+                    SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets ORDER BY random() LIMIT 1;
+                END IF;
+                
+                used_owner_ids := array_append(used_owner_ids, rand_owner_id);
+                
+                is_trimming := true;
                 rand_res_type_id := floor(random() * 4) + 9;
-                res_duration := 90; -- トリミングは90分
+                res_duration := 90;
+                
+                -- 午後 14:00 〜 15:30
+                start_ts := target_date::timestamp + '14:00:00'::interval;
+                
+                -- トリマーをランダムに割り当て
+                rand_doctor_id := trimmer_ids[floor(random() * array_length(trimmer_ids, 1)) + 1];
+
+            -- B. 診療枠（一般診療など）
             ELSE
                 is_trimming := false;
-                -- 診察の reservation_type_id (1〜8)
-                rand_res_type_id := floor(random() * 8) + 1;
-                res_duration := 15; -- 診察は15分
-            END IF;
-
-            -- 予約時間の設定
-            -- 午前は 09:00 から順次配置
-            -- 午後は 14:00 から順次配置
-            IF i % 2 = 1 THEN
-                -- 奇数: 午前枠
-                start_ts := target_date::timestamp + '9 hours'::interval + ((i - 1) * 10 * '1 minute'::interval);
-            ELSE
-                -- 偶数: 午後枠
-                start_ts := target_date::timestamp + '14 hours'::interval + ((i - 2) * 10 * '1 minute'::interval);
-            END IF;
-            
-            -- トリミング予約の場合は重なりを防ぐために少し時間を調整
-            IF is_trimming THEN
-                IF i = 1 THEN
-                    start_ts := target_date::timestamp + '09:00:00'::interval;
+                res_duration := 15;
+                
+                -- 医師をラウンドロビンで選択して重複を避ける
+                -- i = 3以降の診察枠に対して、各医師を均等に割り当てる
+                doctor_idx := ((i - trimming_count - 1) % doctor_count) + 1;
+                rand_doctor_id := doctor_ids[doctor_idx];
+                
+                -- 特別な飼主の一般診療予約をまだ登録しておらず、かつ一定確率またはループの後半（例: i = 3）で挿入する
+                IF special_owner_id IS NOT NULL AND NOT special_assigned AND (i = 3 OR random() < 0.3 OR i = daily_limit) THEN
+                    -- 同一飼主の2つ目の予定（一般診療 = ID 1）を登録
+                    rand_pet_id := special_pet_id;
+                    rand_owner_id := special_owner_id;
+                    rand_res_type_id := 1; -- 一般診察
+                    special_assigned := true;
+                    
+                    -- この医師の予約件数をインクリメントして、時間枠スロットを取得
+                    doctor_booking_counts[doctor_idx] := doctor_booking_counts[doctor_idx] + 1;
+                    n := doctor_booking_counts[doctor_idx];
+                    
+                    -- 特別な一般診療はトリミング（09:00〜10:30）と被らないように、午後枠（16:00以降など）に固定配置
+                    -- 医師の重複を避けるために16:00 + (医師インデックス * 15分) にする
+                    start_ts := target_date::timestamp + '16:00:00'::interval + ((doctor_idx - 1) * 15 * '1 minute'::interval);
                 ELSE
-                    start_ts := target_date::timestamp + '14:00:00'::interval;
+                    -- 通常の新規飼主の診療予約
+                    SELECT id, owner_id INTO rand_pet_id, rand_owner_id 
+                    FROM pets 
+                    WHERE owner_id IS NOT NULL AND NOT (owner_id = ANY(used_owner_ids))
+                    ORDER BY random() LIMIT 1;
+                    
+                    IF rand_pet_id IS NULL THEN
+                        SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets ORDER BY random() LIMIT 1;
+                    END IF;
+                    
+                    used_owner_ids := array_append(used_owner_ids, rand_owner_id);
+                    rand_res_type_id := floor(random() * 8) + 1; -- 診療(1〜8)
+                    
+                    -- この医師の予約件数をインクリメント
+                    doctor_booking_counts[doctor_idx] := doctor_booking_counts[doctor_idx] + 1;
+                    n := doctor_booking_counts[doctor_idx];
+                    
+                    -- 営業時間内に完全に収める時間計算（医師ごとに異なる時間枠を順番に割り当て）
+                    IF n % 2 = 1 THEN
+                        -- 奇数回目：午前スロット
+                        start_ts := target_date::timestamp + '09:00:00'::interval + (((n - 1) / 2) * 15 * '1 minute'::interval);
+                        -- 最大でも 11:45 に丸める（12:00終了）
+                        IF start_ts >= target_date::timestamp + '12 hours'::interval THEN
+                            start_ts := target_date::timestamp + '11 hours 45 minutes'::interval;
+                        END IF;
+                    ELSE
+                        -- 偶数回目：午後スロット
+                        start_ts := target_date::timestamp + '14:00:00'::interval + (((n - 2) / 2) * 15 * '1 minute'::interval);
+                        -- 最大でも 17:45 に丸める（18:00終了）
+                        IF start_ts >= target_date::timestamp + '18 hours'::interval THEN
+                            start_ts := target_date::timestamp + '17 hours 45 minutes'::interval;
+                        END IF;
+                    END IF;
                 END IF;
             END IF;
 
             end_ts := start_ts + (res_duration * '1 minute'::interval);
 
-            -- visit_type, status などを設定
+            -- visit_type, status
             IF random() < 0.25 THEN
                 v_visit_type := 'first';
             ELSE
                 v_visit_type := 'revisit';
             END IF;
 
-            -- 現在時刻しきい値(2026-05-31 12:40:00)を基準にステータス決定
             IF start_ts < current_time_threshold THEN
                 v_status := 'completed';
             ELSE
@@ -3945,22 +4056,28 @@ BEGIN
             END IF;
 
             appointment_id := appointment_id + 1;
-
         END LOOP;
 
         -- 2. ホテル予約の生成 (1日最大2件)
         hotel_count := floor(random() * 2) + 1; -- 1 or 2件
         FOR i IN 1..hotel_count LOOP
-            -- 存在する pets からランダムに取得して使用（外部キー違反防止）
-            SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets ORDER BY random() LIMIT 1;
+            SELECT id, owner_id INTO rand_pet_id, rand_owner_id 
+            FROM pets 
+            WHERE owner_id IS NOT NULL AND NOT (owner_id = ANY(used_owner_ids))
+            ORDER BY random() LIMIT 1;
             
-            SELECT id INTO rand_doctor_id FROM staffs ORDER BY random() LIMIT 1;
+            IF rand_pet_id IS NULL THEN
+                SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets ORDER BY random() LIMIT 1;
+            END IF;
+            
+            used_owner_ids := array_append(used_owner_ids, rand_owner_id);
+            
+            -- ホテル担当者も医師などから適当に取得
+            rand_doctor_id := doctor_ids[floor(random() * doctor_count) + 1];
 
             h_start := target_date;
-            -- 滞在期間 2〜3日間
             h_end := target_date + (floor(random() * 2) + 2) * '1 day'::interval;
 
-            -- 現在時刻との比較でステータス決定
             IF h_end::timestamp < current_time_threshold THEN
                 h_status := 'discharged';
             ELSIF h_start::timestamp <= current_time_threshold AND h_end::timestamp >= current_time_threshold THEN
