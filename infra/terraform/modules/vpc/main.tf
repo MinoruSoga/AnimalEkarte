@@ -82,7 +82,9 @@ data "aws_ami" "fck_nat" {
 
   filter {
     name   = "name"
-    values = ["fck-nat-amzn2-*-arm64-ebs"]
+    # fck-nat 公式 AMI は Amazon Linux 2023 ベース（fck-nat-al2023-hvm-<ver>-<date>-arm64-ebs）。
+    # nat64 variant（fck-nat-nat64-*）はこのパターンに含まれない。most_recent で最新版を採用。
+    values = ["fck-nat-al2023-hvm-*-arm64-ebs"]
   }
 }
 
