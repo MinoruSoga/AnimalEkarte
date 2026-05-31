@@ -5,11 +5,10 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import type { ColumnData } from "@/types";
 
 type MoveCard = (
-  dragIndex: number,
   hoverIndex: number,
   sourceColumn: string,
   targetColumn: string,
-  draggedCardId?: string,
+  cardId: string,
 ) => unknown;
 
 function resolveTargetTitle(event: DragEndEvent): string {
@@ -36,22 +35,21 @@ export function useReceptionDragHandlers(columns: ColumnData[], moveCard: MoveCa
       const { active, over } = event;
       if (!over) return;
 
-      const activeId = active.id as string;
+      const cardId = active.id as string;
       const targetTitle = resolveTargetTitle(event);
       const cols = columnsRef.current;
-      const sourceColumn = cols.find((col) => col.appointments.some((appointment) => appointment.id === activeId));
+      const sourceColumn = cols.find((col) => col.appointments.some((appointment) => appointment.id === cardId));
       if (!sourceColumn) return;
 
       const targetCol = cols.find((col) => col.title === targetTitle);
       if (!targetCol) return;
 
-      const dragIndex = sourceColumn.appointments.findIndex((appointment) => appointment.id === activeId);
-      if (dragIndex === -1) return;
-
+      const dragIndex = sourceColumn.appointments.findIndex((appointment) => appointment.id === cardId);
       const hoverIndex = resolveHoverIndex(over.id as string, targetCol);
+      // 同一カラム・同一位置への drop は no-op なのでスキップ（余分な再レンダーを避ける）
       if (sourceColumn.title === targetTitle && dragIndex === hoverIndex) return;
 
-      moveCard(dragIndex, hoverIndex, sourceColumn.title, targetTitle, activeId);
+      moveCard(hoverIndex, sourceColumn.title, targetTitle, cardId);
     },
     [moveCard],
   );
