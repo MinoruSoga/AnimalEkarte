@@ -3893,17 +3893,30 @@ DECLARE
     v_pay_method VARCHAR;
     v_received INT;
     v_change INT;
+    
+    -- 【新規追加】整合性維持用の変数
+    v_pay_method_id INT;
+    v_trimming_price INT;
+    v_course_name VARCHAR;
+    v_hotel_days INT;
 BEGIN
-    -- 医師とトリマーのIDリストを取得
-    SELECT array_agg(id) INTO doctor_ids FROM staffs WHERE staff_type = 'doctor';
-    SELECT array_agg(id) INTO trimmer_ids FROM staffs WHERE staff_type = 'trimmer';
+    -- clinic_id = 1 (八王子病院) に所属する医師とトリマーのIDリストを取得 (店舗またぎの不整合を排除)
+    SELECT array_agg(s.id) INTO doctor_ids 
+    FROM staffs s
+    JOIN staff_clinic_assignments sca ON s.id = sca.staff_id
+    WHERE s.staff_type = 'doctor' AND sca.clinic_id = 1;
+
+    SELECT array_agg(s.id) INTO trimmer_ids 
+    FROM staffs s
+    JOIN staff_clinic_assignments sca ON s.id = sca.staff_id
+    WHERE s.staff_type = 'trimmer' AND sca.clinic_id = 1;
     
     -- フォールバック（データが無い場合の安全弁）
     IF doctor_ids IS NULL OR array_length(doctor_ids, 1) = 0 THEN
-        doctor_ids := ARRAY[1, 2, 3];
+        doctor_ids := ARRAY[1, 2, 3, 4];
     END IF;
     IF trimmer_ids IS NULL OR array_length(trimmer_ids, 1) = 0 THEN
-        trimmer_ids := ARRAY[12];
+        trimmer_ids := ARRAY[33];
     END IF;
     
     doctor_count := array_length(doctor_ids, 1);
@@ -4054,6 +4067,12 @@ BEGIN
             VALUES (appointment_id, 1, start_ts, end_ts, rand_owner_id, rand_pet_id, v_visit_type::visit_type, rand_res_type_id, rand_doctor_id, (random() < 0.2), v_status::reservation_status, '自動生成されたデモ予約')
             ON CONFLICT (id) DO NOTHING;
 
+            -- 【シフト自動補正】予約が入ったスタッフのシフトをその日は 'full'（09:00-18:00）として登録・上書き (データ整合性確保)
+            INSERT INTO shift_entries (clinic_id, staff_id, date, shift_type, start_time, end_time, notes)
+            VALUES (1, rand_doctor_id, target_date, 'full'::shift_type, '09:00'::time, '18:00'::time, '予約連動出勤（自動補正）')
+            ON CONFLICT (staff_id, date) DO UPDATE 
+            SET shift_type = 'full'::shift_type, start_time = '09:00'::time, end_time = '18:00'::time, notes = '予約連動出勤（自動補正）';
+
             -- トリミング詳細の追加
             IF is_trimming THEN
                 v_weight := round((random() * 15 + 2)::numeric, 1);
@@ -4063,14 +4082,56 @@ BEGIN
                 VALUES (trimming_id, appointment_id, 1, v_course_id, v_weight, 'Kg'::body_weight_unit, 'サマーカット希望')
                 ON CONFLICT (id) DO NOTHING;
                 
+                -- トリミング完了時の会計・支払自動生成 (30%確率)
+                IF v_status = 'completed' AND random() < 0.3 THEN
+                    -- マスタから金額・コース名を取得
+                    SELECT price, name INTO v_trimming_price, v_course_name FROM trimming_courses WHERE id = v_course_id;
+                    IF v_trimming_price IS NULL THEN
+                        v_trimming_price := 7000;
+                        v_course_name := 'フルコース（小型）';
+                    END IF;
+                    
+                    v_subtotal := v_trimming_price;
+                    v_tax := v_subtotal * 0.1;
+                    v_total := v_subtotal + v_tax;
+                    
+                    -- 会計作成
+                    INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo)
+                    VALUES (billing_id, 1, NULL, NULL, rand_owner_id, rand_pet_id, v_subtotal, v_tax, v_total, false, 'completed'::billing_status, target_date, start_ts + '90 minutes'::interval, 'トリミングデモ会計')
+                    ON CONFLICT (id) DO NOTHING;
+                    
+                    -- 会計明細作成
+                    INSERT INTO billing_items (billing_id, category, name, unit_price, quantity, tax_type, tax_rate, source)
+                    VALUES (billing_id, 'trimming'::item_category, v_course_name, v_subtotal, 1, 'excluded'::tax_type, 0.10, 'manual'::item_source)
+                    ON CONFLICT DO NOTHING;
+                    
+                    -- 支払作成 (payment_method_id もマスタから取得してセット)
+                    IF random() < 0.5 THEN
+                        v_pay_method := 'cash';
+                        v_received := ceil(v_total / 1000.0) * 1000;
+                        SELECT id INTO v_pay_method_id FROM payment_methods WHERE clinic_id = 1 AND name = '現金' AND deleted_at IS NULL LIMIT 1;
+                    ELSE
+                        v_pay_method := 'credit_card';
+                        v_received := v_total;
+                        SELECT id INTO v_pay_method_id FROM payment_methods WHERE clinic_id = 1 AND name = 'クレジットカード' AND deleted_at IS NULL LIMIT 1;
+                    END IF;
+                    v_change := v_received - v_total;
+
+                    INSERT INTO payments (billing_id, subtotal, tax_total, total_amount, billing_amount, received_amount, change_amount, method, payment_method_id, paid_by)
+                    VALUES (billing_id, v_subtotal, v_tax, v_total, v_total, v_received, v_change, v_pay_method::payment_method, v_pay_method_id, rand_doctor_id)
+                    ON CONFLICT DO NOTHING;
+                    
+                    billing_id := billing_id + 1;
+                END IF;
+
                 trimming_id := trimming_id + 1;
             END IF;
 
             -- C. 過去の一般診療であり、且つ約30%の確率でカルテ（medical_records）および会計（billings）を連動生成する
             IF NOT is_trimming AND v_status = 'completed' AND random() < 0.3 THEN
-                -- カルテ作成
-                INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, doctor_id, status)
-                VALUES (medical_record_id, 1, 'REC-' || (10000 + medical_record_id), target_date, rand_owner_id, rand_pet_id, rand_doctor_id, 'finalized'::medical_record_status)
+                -- カルテ作成 (appointment_id と visit_type の関連付け抜け漏れを修正)
+                INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, doctor_id, appointment_id, visit_type, status)
+                VALUES (medical_record_id, 1, 'REC-' || (10000 + medical_record_id), target_date, rand_owner_id, rand_pet_id, rand_doctor_id, appointment_id, v_visit_type::visit_type, 'finalized'::medical_record_status)
                 ON CONFLICT (id) DO NOTHING;
 
                 -- 会計作成（初診なら3000円、再診なら1000円程度にする）
@@ -4083,7 +4144,7 @@ BEGIN
                 v_total := v_subtotal + v_tax;
 
                 INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo)
-                VALUES (billing_id, 1, medical_record_id, NULL, rand_owner_id, rand_pet_id, v_subtotal, v_tax, v_total, false, 'completed', target_date, start_ts + '30 minutes'::interval, 'デモ自動生成会計')
+                VALUES (billing_id, 1, medical_record_id, NULL, rand_owner_id, rand_pet_id, v_subtotal, v_tax, v_total, false, 'completed'::billing_status, target_date, start_ts + '30 minutes'::interval, 'デモ自動生成会計')
                 ON CONFLICT (id) DO NOTHING;
 
                 -- 会計明細作成
@@ -4097,18 +4158,20 @@ BEGIN
                 VALUES (billing_id, 'examination'::item_category, v_item_name, v_subtotal, 1, 'excluded'::tax_type, 0.10, 'medical_record'::item_source)
                 ON CONFLICT DO NOTHING;
 
-                -- 支払情報作成
+                -- 支払情報作成 (payment_method_id の抜け漏れを修正)
                 IF random() < 0.5 THEN
                     v_pay_method := 'cash';
                     v_received := ceil(v_total / 1000.0) * 1000; -- おつりが発生するようにきりのいい札で支払う
+                    SELECT id INTO v_pay_method_id FROM payment_methods WHERE clinic_id = 1 AND name = '現金' AND deleted_at IS NULL LIMIT 1;
                 ELSE
                     v_pay_method := 'credit_card';
                     v_received := v_total;
+                    SELECT id INTO v_pay_method_id FROM payment_methods WHERE clinic_id = 1 AND name = 'クレジットカード' AND deleted_at IS NULL LIMIT 1;
                 END IF;
                 v_change := v_received - v_total;
 
-                INSERT INTO payments (billing_id, subtotal, tax_total, total_amount, billing_amount, received_amount, change_amount, method, paid_by)
-                VALUES (billing_id, v_subtotal, v_tax, v_total, v_total, v_received, v_change, v_pay_method::payment_method, rand_doctor_id)
+                INSERT INTO payments (billing_id, subtotal, tax_total, total_amount, billing_amount, received_amount, change_amount, method, payment_method_id, paid_by)
+                VALUES (billing_id, v_subtotal, v_tax, v_total, v_total, v_received, v_change, v_pay_method::payment_method, v_pay_method_id, rand_doctor_id)
                 ON CONFLICT DO NOTHING;
 
                 medical_record_id := medical_record_id + 1;
@@ -4132,7 +4195,7 @@ BEGIN
             
             used_owner_ids := array_append(used_owner_ids, rand_owner_id);
             
-            -- ホテル担当者も医師などから適当に取得
+            -- ホテル担当者も八王子の医師から適当に取得 (店舗またぎの不整合を排除)
             rand_doctor_id := doctor_ids[floor(random() * doctor_count) + 1];
 
             h_start := target_date;
@@ -4149,6 +4212,47 @@ BEGIN
             INSERT INTO hospitalizations (id, clinic_id, owner_id, pet_id, hospitalization_type, start_date, end_date, status, cage_id, doctor_id, memo, owner_request, staff_notes)
             VALUES (hospitalization_id, 1, rand_owner_id, rand_pet_id, 'hotel'::hospitalization_type, h_start, h_end, h_status::hospitalization_status, NULL, rand_doctor_id, 'ペットホテル預かりデモ', 'ご飯持ち込みあり', '自動生成データ')
             ON CONFLICT (id) DO NOTHING;
+
+            -- ホテル退院時の会計・支払自動生成 (30%確率)
+            IF h_status = 'discharged' AND random() < 0.3 THEN
+                v_hotel_days := h_end - h_start;
+                IF v_hotel_days <= 0 THEN
+                    v_hotel_days := 1;
+                END IF;
+                
+                -- ホテル宿泊料金 1日3,000円
+                v_subtotal := v_hotel_days * 3000;
+                v_tax := v_subtotal * 0.1;
+                v_total := v_subtotal + v_tax;
+                
+                -- 会計作成
+                INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo)
+                VALUES (billing_id, 1, NULL, hospitalization_id, rand_owner_id, rand_pet_id, v_subtotal, v_tax, v_total, false, 'completed'::billing_status, target_date, target_date::timestamp + '10:00:00'::interval, 'ホテル預かりデモ会計')
+                ON CONFLICT (id) DO NOTHING;
+                
+                -- 会計明細作成
+                INSERT INTO billing_items (billing_id, category, name, unit_price, quantity, tax_type, tax_rate, source)
+                VALUES (billing_id, 'hotel'::item_category, 'ペットホテル宿泊費 (' || v_hotel_days || '泊)', 3000, v_hotel_days, 'excluded'::tax_type, 0.10, 'manual'::item_source)
+                ON CONFLICT DO NOTHING;
+                
+                -- 支払作成 (payment_method_id をセット)
+                IF random() < 0.5 THEN
+                    v_pay_method := 'cash';
+                    v_received := ceil(v_total / 1000.0) * 1000;
+                    SELECT id INTO v_pay_method_id FROM payment_methods WHERE clinic_id = 1 AND name = '現金' AND deleted_at IS NULL LIMIT 1;
+                ELSE
+                    v_pay_method := 'credit_card';
+                    v_received := v_total;
+                    SELECT id INTO v_pay_method_id FROM payment_methods WHERE clinic_id = 1 AND name = 'クレジットカード' AND deleted_at IS NULL LIMIT 1;
+                END IF;
+                v_change := v_received - v_total;
+
+                INSERT INTO payments (billing_id, subtotal, tax_total, total_amount, billing_amount, received_amount, change_amount, method, payment_method_id, paid_by)
+                VALUES (billing_id, v_subtotal, v_tax, v_total, v_total, v_received, v_change, v_pay_method::payment_method, v_pay_method_id, rand_doctor_id)
+                ON CONFLICT DO NOTHING;
+                
+                billing_id := billing_id + 1;
+            END IF;
 
             hospitalization_id := hospitalization_id + 1;
         END LOOP;
