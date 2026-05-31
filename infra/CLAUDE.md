@@ -20,10 +20,15 @@ CloudFront (API Gateway, *.cloudfront.net)
     ↓ HTTP
 ALB (ヘルスチェック: /health)
     ↓
-ECS Fargate (Go/Gin API, CPU:256, Memory:512MB)
+ECS Fargate SPOT (Go/Gin API, CPU:256, Memory:512MB)
     ↓
-RDS PostgreSQL 16.4 (db.t4g.micro)
+RDS PostgreSQL 16.4 (db.t4g.micro, private only)
 ```
+
+> **コスト最適化（2026-06-01〜）**: ECS は Fargate Spot、外向きは NAT Gateway ではなく
+> fck-nat インスタンス（t4g.nano + auto-recovery）、RDS は public access 無効（SSM port-forward 経由）、
+> Container Insights 無効。毎日 22:00–8:00 JST に ECS=0 + RDS stop の夜間スケジュール（EventBridge）。
+> toggle: `use_nat_instance` / `enable_off_hours_schedule`（いずれも default true）。
 
 **CloudFront を使う理由**: ALB の `*.elb.amazonaws.com` ドメインには ACM 証明書を発行できないため、CloudFront の `*.cloudfront.net` で HTTPS を終端。
 
@@ -34,7 +39,7 @@ RDS PostgreSQL 16.4 (db.t4g.micro)
 ```
 VPC: 10.0.0.0/16 (us-east-1)
 ├── Public Subnets
-│   ├── 10.0.1.0/24 (us-east-1a) — ALB, NAT Gateway
+│   ├── 10.0.1.0/24 (us-east-1a) — ALB, fck-nat インスタンス（旧 NAT Gateway）
 │   └── 10.0.2.0/24 (us-east-1b)
 └── Private Subnets
     ├── 10.0.11.0/24 (us-east-1a) — ECS Fargate
@@ -202,12 +207,15 @@ make build-prod   # animal-ekarte-api:latest + animal-ekarte-front:latest
 
 ## テスト環境の制約（本番移行時の変更点）
 
-| 項目 | テスト環境 | 本番で必要 |
+| 項目 | テスト環境（現状） | 本番で必要 |
 |------|-----------|-----------|
-| NAT Gateway | 単一 AZ | マルチ AZ |
+| 外向き経路 | **fck-nat インスタンス（単一・auto-recovery）** | NAT Gateway マルチ AZ or fck-nat ASG |
+| ECS 起動 | **Fargate Spot** | Fargate（On-Demand）|
+| 稼働時間 | **夜間停止（22:00–8:00 JST、`enable_off_hours_schedule`）** | 24/7（false に上書き）|
 | RDS Multi-AZ | 無効 | 有効化 |
 | RDS 削除保護 | 無効 | 有効化 |
-| RDS Public Access | 有効 | 無効化 |
+| RDS Public Access | **無効（SSM port-forward 経由）** | 無効 |
+| Container Insights | **無効** | 有効化（監視必要なら）|
 | GitHub Terraform Role | AdministratorAccess | 最小権限ポリシー |
 | CloudFront | 手動作成 | Terraform 管理化 |
 | 独自ドメイン | なし | 取得 + ACM 証明書 |
