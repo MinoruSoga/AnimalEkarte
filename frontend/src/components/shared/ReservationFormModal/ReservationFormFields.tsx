@@ -1,4 +1,4 @@
-import { memo, useMemo, useCallback } from "react";
+import { memo, useMemo, useCallback, useState } from "react";
 import { isBefore, startOfDay, format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { C, ICON } from "@/lib/design-tokens";
@@ -6,11 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SearchableSelect, type SearchableSelectGroup, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import { ReservationTypePickerDialog, type ReservationTypePickerGroup } from "@/components/shared/ReservationFormModal/ReservationTypePickerDialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, ArrowRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs, useGetReservationAvailableTimes } from "@/hooks/use-reservation-types";
@@ -190,15 +191,31 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     return options;
   }, [selectedDateStr, onDutyStaffs, activeStaff, selectedReservationTypeId, reservationStaffMap]);
 
-  // SearchableSelect 用に選択肢を {value,label} 形へ変換(参照安定のため memo 化)
-  const reservationTypeGroups = useMemo<SearchableSelectGroup[]>(
+  const [typePickerOpen, setTypePickerOpen] = useState(false);
+
+  // 予約区分ピッカー(サブダイアログ)用: 色・所要時間付きでグループ化(参照安定のため memo 化)
+  const reservationTypePickerGroups = useMemo<ReservationTypePickerGroup[]>(
     () =>
       groupedReservationTypes.map((group) => ({
         label: group.label,
-        options: group.types.map((t) => ({ value: String(t.id), label: t.name })),
+        items: group.types.map((t) => ({
+          id: String(t.id),
+          name: t.name,
+          color: t.color,
+          durationMinutes: t.duration_minutes,
+        })),
       })),
     [groupedReservationTypes],
   );
+  // トリガー表示用: 選択中の予約区分(色ドット + 名前)
+  const selectedReservationType = useMemo(() => {
+    if (selectedReservationTypeId === null) return null;
+    for (const group of groupedReservationTypes) {
+      const found = group.types.find((t) => String(t.id) === selectedReservationTypeId);
+      if (found) return found;
+    }
+    return null;
+  }, [groupedReservationTypes, selectedReservationTypeId]);
   const staffSelectOptions = useMemo<SearchableSelectOption[]>(
     () => staffOptions.map((s) => ({ value: String(s.id), label: s.name })),
     [staffOptions],
@@ -343,16 +360,39 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           >
             予約区分
           </FieldLabel>
-          {/* BUG-341: グループ階層表示。SearchableSelect(Popover+Command)で検索・Dialog内スクロール対応 */}
-          <SearchableSelect
-            value={formData.type || ""}
-            onValueChange={(v) => onChange({ ...formData, type: v })}
-            groups={reservationTypeGroups}
-            groupFilter
-            placeholder="選択してください"
-            searchPlaceholder="予約区分を検索..."
-            triggerTestId="res-type-trigger"
-            ariaInvalid={Boolean(validationErrors?.type)}
+          {/* BUG-341/scroll: サブダイアログ選択(カテゴリチップ + カードリスト)。Dialog 自身の
+              scroll-lock で wheel スクロールが確実に動作する(popover-in-dialog の wheel ブロック回避) */}
+          <button
+            type="button"
+            data-testid="res-type-trigger"
+            onClick={() => setTypePickerOpen(true)}
+            aria-invalid={Boolean(validationErrors?.type)}
+            className={cn(
+              "flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-white px-3 text-sm transition-colors",
+              C.borderMediumLight,
+              C.hoverBgSubtle,
+              validationErrors?.type && C.borderDanger,
+            )}
+          >
+            {selectedReservationType ? (
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className="size-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: selectedReservationType.color }}
+                />
+                <span className={cn("line-clamp-1", C.text)}>{selectedReservationType.name}</span>
+              </span>
+            ) : (
+              <span className={C.text40}>選択してください</span>
+            )}
+            <ChevronDown className={cn("size-4 shrink-0 opacity-50", C.text)} />
+          </button>
+          <ReservationTypePickerDialog
+            open={typePickerOpen}
+            onOpenChange={setTypePickerOpen}
+            groups={reservationTypePickerGroups}
+            selectedId={formData.type || ""}
+            onSelect={(id) => onChange({ ...formData, type: id })}
           />
           {validationErrors?.type ? (
             <FormFieldError id="res-type-error" message={validationErrors.type} />

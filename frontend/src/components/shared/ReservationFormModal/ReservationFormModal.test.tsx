@@ -255,19 +255,16 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     fireEvent.change(screen.getByTestId("new-owner-pet-name"), { target: { value: "ポチ" } });
     fireEvent.change(screen.getByTestId("new-owner-chief-complaint"), { target: { value: "食欲不振" } });
 
-    // 動物種 Select: Radix は pointerdown でドロップダウンを開くため user.click を維持。
-    // 選択肢クリックも user.click で行い Radix Select の close ライフサイクルを完走させる
-    // (fireEvent.click だと dialog content への pointer-events/inert 後始末が走らず、
-    //  後続で開く res-type の cmdk Popover が toggle されない不具合になる)。
+    // 動物種 SearchableSelect(cmdk Combobox): トリガーを開いて option を選択
     await user.click(screen.getByTestId("new-owner-species"));
     await waitFor(() => {
       expect(screen.getByRole("option", { name: "犬" })).toBeInTheDocument();
     });
     await user.click(screen.getByRole("option", { name: "犬" }));
 
-    // 予約区分 SearchableSelect(cmdk Combobox): トリガーを開いて option を選択
+    // 予約区分: サブダイアログを開きカードで選択(id 5 = 一般診療)
     await user.click(screen.getByTestId("res-type-trigger"));
-    fireEvent.click(await screen.findByRole("option", { name: "一般診療" }));
+    fireEvent.click(await screen.findByTestId("res-type-card-5"));
 
     // 保存を実行
     fireEvent.click(screen.getByRole("button", { name: "予約を確定" }));
@@ -374,10 +371,8 @@ describe("ReservationFormModal — 担当者候補", () => {
     );
 
     await user.click(screen.getByTestId("res-type-trigger"));
-    await waitFor(() => {
-      expect(screen.getByRole("option", { name: "トリミング" })).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByRole("option", { name: "トリミング" }));
+    // 予約区分サブダイアログでカード選択(id 5 = トリミング)
+    fireEvent.click(await screen.findByTestId("res-type-card-5"));
 
     await user.click(screen.getByTestId("res-staff-trigger"));
     await waitFor(() => {
@@ -462,10 +457,8 @@ describe("ReservationFormModal — 予約不可時間", () => {
     );
 
     await user.click(screen.getByTestId("res-type-trigger"));
-    await waitFor(() => {
-      expect(screen.getByRole("option", { name: "トリミング" })).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByRole("option", { name: "トリミング" }));
+    // 予約区分サブダイアログでカード選択(id 5 = トリミング)
+    fireEvent.click(await screen.findByTestId("res-type-card-5"));
 
     await waitFor(() => {
       expect(screen.getByTestId("res-start-time-trigger")).toHaveTextContent("9:00");
@@ -538,10 +531,8 @@ describe("ReservationFormModal — 予約不可時間", () => {
     );
 
     await user.click(screen.getByTestId("res-type-trigger"));
-    await waitFor(() => {
-      expect(screen.getByRole("option", { name: "トリミング" })).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByRole("option", { name: "トリミング" }));
+    // 予約区分サブダイアログでカード選択(id 5 = トリミング)
+    fireEvent.click(await screen.findByTestId("res-type-card-5"));
 
     await user.click(screen.getByTestId("res-start-time-trigger"));
     await waitFor(() => {
