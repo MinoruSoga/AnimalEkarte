@@ -100,12 +100,7 @@ func (h *Handler) ListLstepCsvImports(c *gin.Context) {
 		return
 	}
 
-	limit := 20
-	if v := c.Query("limit"); v != "" {
-		if n, parseErr := strconv.Atoi(v); parseErr == nil && n > 0 && n <= 100 {
-			limit = n
-		}
-	}
+	limit := newListLstepCsvImportsQuery(c.Request.URL.Query()).toLimit()
 
 	imports, err := h.svc.LstepCsvImport.ListByClinic(c.Request.Context(), clinicID, limit)
 	if err != nil {

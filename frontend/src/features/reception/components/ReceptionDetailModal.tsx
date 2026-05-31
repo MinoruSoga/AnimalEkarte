@@ -2,296 +2,20 @@
 import { memo, useCallback } from "react";
 import { useNavigate } from "react-router";
 
-// External
-import Clock from "lucide-react/dist/esm/icons/clock";
-import User from "lucide-react/dist/esm/icons/user";
-import Dog from "lucide-react/dist/esm/icons/dog";
-import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import CreditCard from "lucide-react/dist/esm/icons/credit-card";
-import Scissors from "lucide-react/dist/esm/icons/scissors";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import Pencil from "lucide-react/dist/esm/icons/pencil";
-import TestTube from "lucide-react/dist/esm/icons/test-tube";
-import BedDouble from "lucide-react/dist/esm/icons/bed-double";
-import ExternalLink from "lucide-react/dist/esm/icons/external-link";
-
 // Internal
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
-import { RECEPTION_STATUS_COLORS, RECEPTION_STATUS_COLOR_FALLBACK } from "@/utils/constants/status-colors";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { C, LAYOUT } from "@/lib/design-tokens";
 
 // Internal
 import { paths } from "@/config/paths";
 
 // Types
 import type { ReceptionAppointment as Appointment } from "../api/types";
-
-// Module-level constants — avoid recreating compound class strings on every render
-const SECTION_LABEL = `text-sm font-semibold ${C.text60} uppercase tracking-wider`;
-const DIVIDER_ROW = `flex items-center justify-between border-b ${C.borderLight} pb-2`;
-const ROW_ICON = `flex items-center gap-2 ${C.text60}`;
-
-const RELATED_BTN_BASE = "flex items-center gap-1.5 text-sm border rounded-md px-3 py-1.5 transition-colors group";
-const RELATED_BTN_KARTE      = `${RELATED_BTN_BASE} ${C.accent} ${C.bgAccentLight40} ${C.hoverBgAccentLight} ${C.borderAccentLight}`;
-const RELATED_BTN_ACCOUNTING = `${RELATED_BTN_BASE} ${C.textStatusGreen} ${C.bgStatusGreen40} ${C.hoverBgStatusGreen} ${C.borderStatusGreen}`;
-const RELATED_BTN_HOSPITAL   = `${RELATED_BTN_BASE} ${C.textStatusPurple} ${C.bgStatusPurple40} ${C.hoverBgStatusPurple} ${C.borderStatusPurple}`;
-
-
-interface RelatedPagesProps {
-  isTrimming: boolean;
-  onCreateMedicalRecord: (tab?: string) => void;
-  onCreateTrimming: () => void;
-  onCreateAccounting: () => void;
-  onCreateHospitalization: () => void;
-  canCreateMedicalRecord?: boolean;
-  canCreateAccounting?: boolean;
-  canCreateHospitalization?: boolean;
-}
-
-// rerender-memo: 親(ReceptionDetailModal)が currentStatus 変化で再レンダーされても
-// RelatedPages は currentStatus を参照しないため memo() で不要再レンダーを防ぐ
-const RelatedPages = memo(function RelatedPages({
-  isTrimming,
-  onCreateMedicalRecord,
-  onCreateTrimming,
-  onCreateAccounting,
-  onCreateHospitalization,
-  canCreateMedicalRecord = false,
-  canCreateAccounting = false,
-  canCreateHospitalization = false,
-}: RelatedPagesProps) {
-  return (
-    <div className="space-y-2">
-      <h3 className={SECTION_LABEL}>関連ページ</h3>
-      <div className="flex flex-wrap gap-2">
-        {/* カルテ / 施術 */}
-        {canCreateMedicalRecord ? (
-          <button
-            type="button"
-            className={RELATED_BTN_KARTE}
-            onClick={() => {
-              if (isTrimming) onCreateTrimming();
-              else onCreateMedicalRecord();
-            }}
-          >
-            {isTrimming ? <Scissors className={`${ICON.xs}`} /> : <FileText className={`${ICON.xs}`} />}
-            <span>{isTrimming ? "施術" : "カルテ"}</span>
-            <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
-          </button>
-        ) : null}
-
-        {/* 会計 */}
-        {canCreateAccounting ? (
-          <button
-            type="button"
-            className={RELATED_BTN_ACCOUNTING}
-            onClick={onCreateAccounting}
-          >
-            <CreditCard className={`${ICON.xs}`} />
-            <span>会計</span>
-            <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
-          </button>
-        ) : null}
-
-        {/* 入院 */}
-        {canCreateHospitalization ? (
-          <button
-            type="button"
-            className={RELATED_BTN_HOSPITAL}
-            onClick={onCreateHospitalization}
-          >
-            <BedDouble className={`${ICON.xs}`} />
-            <span>入院</span>
-            <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-});
-
-interface ActionButtonsProps {
-  currentStatus?: string;
-  appointment: Appointment;
-  isTrimming: boolean;
-  isHospitalization: boolean;
-  isMedical: boolean;
-  onConfirm?: () => void;
-  onEdit?: (appointment: Appointment) => void;
-  onCancel?: (appointment: Appointment) => void;
-  onOpenOwnerDetail: () => void;
-  onCreateMedicalRecord: (tab?: string) => void;
-  onCreateTrimming: () => void;
-  onCreateAccounting: () => void;
-  onCreateHospitalization: () => void;
-}
-
-// rerender-memo: コールバックは親で useCallback 済み。memo() で不要再レンダーを防ぐ
-const ActionButtons = memo(function ActionButtons({
-  currentStatus,
-  appointment,
-  isTrimming,
-  isHospitalization,
-  isMedical,
-  onConfirm,
-  onEdit,
-  onCancel,
-  onOpenOwnerDetail,
-  onCreateMedicalRecord,
-  onCreateTrimming,
-  onCreateAccounting,
-  onCreateHospitalization,
-}: ActionButtonsProps) {
-  const ownerDetailBtn = (
-    <Button variant="ghost" onClick={onOpenOwnerDetail} className={`h-10 text-sm ${C.text}`}>
-      <User className={ICON.action} />
-      飼主詳細
-    </Button>
-  );
-
-  if (currentStatus === "受付予約") {
-    return (
-      <>
-        {onCancel ? (
-          <Button variant="ghost" onClick={() => onCancel(appointment)} className={`h-10 text-sm ${C.danger} ${C.hoverBgDanger5}`}>
-            <Trash2 className={ICON.action} />
-            取消
-          </Button>
-        ) : null}
-        {onEdit ? (
-          <Button variant="outline" onClick={() => onEdit(appointment)} className={`h-10 text-sm ${C.text} ${C.borderMedium}`}>
-            <Pencil className={ICON.action} />
-            編集
-          </Button>
-        ) : null}
-        {ownerDetailBtn}
-        {onConfirm ? (
-          <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
-            受付済にする
-          </Button>
-        ) : null}
-      </>
-    );
-  }
-
-  if (currentStatus === "受付済") {
-    return (
-      <>
-        {ownerDetailBtn}
-        {isMedical ? (
-          <div className="flex flex-col items-end gap-1">
-            <Button
-              onClick={() => { if (onConfirm) onConfirm(); onCreateMedicalRecord(); }}
-              className={STYLE.confirmPrimary}
-            >
-              <FileText className={ICON.action} />
-              カルテ作成
-            </Button>
-            <span className={`text-[10px] ${C.text40}`}>※カルテ作成と同時に「診療中」へ移動します</span>
-          </div>
-        ) : (
-          onConfirm ? (
-            <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
-              診察を開始する
-            </Button>
-          ) : null
-        )}
-      </>
-    );
-  }
-
-  if (currentStatus === "診療中") {
-    return (
-      <>
-        {ownerDetailBtn}
-        {onConfirm ? (
-          <Button variant="outline" onClick={onConfirm} className={`h-10 text-sm ${C.danger} ${C.borderDanger} ${C.hoverBgDanger5}`}>
-            診察を終了する
-          </Button>
-        ) : null}
-        {isMedical ? (
-          <>
-            <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
-              <FileText className={ICON.action} />
-              カルテ入力
-            </Button>
-            <Button variant="outline" onClick={() => onCreateMedicalRecord("test")} className={`h-10 text-sm ${C.text} ${C.borderMedium}`}>
-              <TestTube className={ICON.action} />
-              検査
-            </Button>
-          </>
-        ) : null}
-        {isTrimming ? (
-          <Button onClick={onCreateTrimming} className={`h-10 text-sm ${C.bgDiscount} ${C.bgDiscountHover} ${C.textWhite} rounded-[4px] transition-colors shadow-none border-transparent`}>
-            <Scissors className={ICON.action} />
-            施術記録
-          </Button>
-        ) : null}
-      </>
-    );
-  }
-
-  if (currentStatus === "会計待ち") {
-    return (
-      <>
-        {ownerDetailBtn}
-        <Button
-          onClick={onCreateAccounting}
-          className={STYLE.confirmPrimary}
-        >
-          <CreditCard className={ICON.action} />
-          会計へ進む
-        </Button>
-      </>
-    );
-  }
-
-  if (currentStatus === "会計済") {
-    return (
-      <>
-        {ownerDetailBtn}
-        {onConfirm ? (
-          <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
-            完了/リストから削除
-          </Button>
-        ) : null}
-      </>
-    );
-  }
-
-  // Default Fallback
-  return (
-    <>
-      {ownerDetailBtn}
-      {isMedical ? (
-        <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
-          <FileText className={ICON.action} />
-          カルテ確認
-        </Button>
-      ) : null}
-      {isTrimming ? (
-        <Button onClick={onCreateTrimming} className={STYLE.confirmPrimary}>
-          <Scissors className={ICON.action} />
-          トリミング
-        </Button>
-      ) : null}
-      {isHospitalization ? (
-        <Button onClick={onCreateHospitalization} className={STYLE.confirmPrimary}>
-          <BedDouble className={ICON.action} />
-          入院登録
-        </Button>
-      ) : null}
-      {onConfirm ? (
-        <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
-          ステータス変更
-        </Button>
-      ) : null}
-    </>
-  );
-});
+import {
+  ReceptionDialogBody,
+  ReceptionDialogFooter,
+  ReceptionDialogHeader,
+} from "./ReceptionDetailModalParts";
 
 interface ReceptionDetailModalProps {
   isOpen: boolean;
@@ -304,6 +28,10 @@ interface ReceptionDetailModalProps {
   canCreateMedicalRecord?: boolean;
   canCreateAccounting?: boolean;
   canCreateHospitalization?: boolean;
+}
+
+function isHospitalizationReservationType(reservationType: string): boolean {
+  return reservationType.includes("入院") || reservationType.includes("ホテル");
 }
 
 export const ReceptionDetailModal = memo(function ReceptionDetailModal({
@@ -324,6 +52,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   const petId = appointment?.petId;
   const appointmentId = appointment?.id;
   const ownerId = appointment?.ownerId;
+  const visitDate = appointment?.visitDate;
 
   const navigateAndClose = useCallback((path: string, extraState?: Record<string, unknown>) => {
     navigate(path, { state: { from: "/", ...extraState } });
@@ -331,15 +60,34 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   }, [navigate, onClose]);
 
   const handleCreateMedicalRecord = useCallback((tab?: string) => {
-    const base = petId
-      ? `${paths.medicalRecords.new.getHref()}?petId=${petId}${tab ? `&tab=${tab}` : ""}`
+    const params = new URLSearchParams();
+    if (petId) params.set("petId", petId);
+    if (appointmentId) params.set("appointmentId", appointmentId);
+    if (visitDate) params.set("visitDate", visitDate);
+    if (tab) params.set("tab", tab);
+    const query = params.toString();
+    const basePath = petId
+      ? paths.medicalRecords.new.getHref()
       : paths.medicalRecords.selectPet.getHref();
-    navigateAndClose(base, { appointmentId });
-  }, [petId, appointmentId, navigateAndClose]);
+    const base = query ? `${basePath}?${query}` : basePath;
+    navigateAndClose(base, { appointmentId, visitDate });
+  }, [petId, appointmentId, visitDate, navigateAndClose]);
 
-  const handleCreateTrimming = useCallback(() =>
-    navigateAndClose(petId ? `${paths.trimming.new.getHref()}?petId=${petId}` : paths.trimming.new.getHref()),
-  [petId, navigateAndClose]);
+  const handleCreateTrimming = useCallback(() => {
+    const params = new URLSearchParams();
+    if (petId) params.set("petId", petId);
+    if (appointmentId) params.set("appointmentId", appointmentId);
+    if (visitDate) params.set("visitDate", visitDate);
+    const query = params.toString();
+    const basePath = petId
+      ? paths.trimming.new.getHref()
+      : paths.trimming.selectPet.getHref();
+    const path = query ? `${basePath}?${query}` : basePath;
+    navigateAndClose(path, {
+      appointmentId,
+      visitDate,
+    });
+  }, [petId, appointmentId, visitDate, navigateAndClose]);
 
   const handleCreateHospitalization = useCallback(() =>
     navigateAndClose(petId ? `${paths.hospitalization.new.getHref()}?petId=${petId}` : paths.hospitalization.new.getHref()),
@@ -361,117 +109,44 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
 
   if (!appointment) return null;
 
-  const isTrimming = appointment.reservationType.includes("トリミング");
-  const isHospitalization = appointment.reservationType.includes("入院");
-  const isMedical = appointment.reservationType.includes("診療") || (!isTrimming && !isHospitalization);
+  const isTrimming = appointment.reservationCategory === "trimming";
+  const isHospitalization = isHospitalizationReservationType(appointment.reservationType);
+  const isMedical = !isTrimming && !isHospitalization;
+  const canOpenMedicalRecordFromRelatedPages =
+    isMedical && canCreateMedicalRecord === true && currentStatus === "診療中";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${LAYOUT.modal.sm} p-0 gap-0 overflow-hidden ${C.bgWhite}`}>
-        {/* Header */}
-        <DialogHeader className={`p-5 pb-4 border-b ${C.borderLight} pr-12`}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-                appointment.visitType === "初診"
-                  ? `${C.bgAccentLight} ${C.accent}`
-                  : `${C.bgActive} ${C.text60}`
-              }`}>
-                {appointment.visitType === "初診" ? "初" : "再"}
-              </span>
-              <DialogTitle className={`text-lg font-bold ${C.text}`}>
-                {appointment.reservationType}
-              </DialogTitle>
-            </div>
-            {currentStatus ? (
-              <Badge variant="outline" className={`${RECEPTION_STATUS_COLORS[currentStatus] ?? RECEPTION_STATUS_COLOR_FALLBACK} px-3 py-1 text-sm font-medium border shrink-0`}>
-                {currentStatus}
-              </Badge>
-            ) : null}
-          </div>
-          <DialogDescription className="sr-only">予約の詳細情報</DialogDescription>
-        </DialogHeader>
-
-        {/* Body */}
-        <div className="p-5 space-y-4 overflow-y-auto">
-          {/* Time */}
-          <div className={`flex items-center gap-3 p-3 ${C.bgPage} rounded-lg`}>
-            <Clock className={`${ICON.page} ${C.text60} shrink-0`} />
-            <span className={`font-mono text-xl font-medium ${C.text}`}>{appointment.time}</span>
-          </div>
-
-          {/* 患者情報 */}
-          <div className="space-y-3">
-            <h3 className={SECTION_LABEL}>患者情報</h3>
-            <div className={DIVIDER_ROW}>
-              <div className={ROW_ICON}>
-                <Dog className={ICON.action} />
-                <span className="text-sm">ペット</span>
-              </div>
-              <div className="text-right">
-                <div className="font-bold text-base">{appointment.petName}</div>
-                <div className={`text-sm ${C.text60}`}>{appointment.petType}</div>
-              </div>
-            </div>
-            <div className={DIVIDER_ROW}>
-              <div className={ROW_ICON}>
-                <User className={ICON.action} />
-                <span className="text-sm">飼い主</span>
-              </div>
-              <span className={`font-medium ${C.text}`}>{appointment.ownerName}</span>
-            </div>
-          </div>
-
-          {/* 診療詳細 */}
-          <div className="space-y-3">
-            <h3 className={SECTION_LABEL}>診療詳細</h3>
-            <div className={DIVIDER_ROW}>
-              <div className={ROW_ICON}>
-                <Stethoscope className={ICON.action} />
-                <span className="text-sm">担当医</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`font-medium ${C.text}`}>{appointment.doctor || "未定"}</span>
-                {appointment.isDesignated ? (
-                  <Badge variant="outline" className={`text-xs h-6 ${C.bgDiscountLight} ${C.textDiscount} ${C.borderDiscount20}`}>指名</Badge>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          {/* 関連ページ */}
-          <RelatedPages
-            isTrimming={isTrimming}
-            onCreateMedicalRecord={handleCreateMedicalRecord}
-            onCreateTrimming={handleCreateTrimming}
-            onCreateAccounting={handleCreateAccounting}
-            onCreateHospitalization={handleCreateHospitalization}
-            canCreateMedicalRecord={canCreateMedicalRecord}
-            canCreateAccounting={canCreateAccounting}
-            canCreateHospitalization={canCreateHospitalization}
-          />
-        </div>
-
-        {/* Footer */}
-        <DialogFooter className={`p-4 ${C.bgPage}`}>
-          <div className="flex flex-wrap gap-2 justify-end w-full">
-            <ActionButtons
-              currentStatus={currentStatus}
-              appointment={appointment}
-              isTrimming={isTrimming}
-              isHospitalization={isHospitalization}
-              isMedical={isMedical}
-              onConfirm={onConfirm}
-              onEdit={onEdit}
-              onCancel={onCancel}
-              onOpenOwnerDetail={handleOpenOwnerDetail}
-              onCreateMedicalRecord={handleCreateMedicalRecord}
-              onCreateTrimming={handleCreateTrimming}
-              onCreateAccounting={handleCreateAccounting}
-              onCreateHospitalization={handleCreateHospitalization}
-            />
-          </div>
-        </DialogFooter>
+      <DialogContent
+        className={`${LAYOUT.modal.sm} p-0 gap-0 overflow-hidden ${C.bgWhite}`}
+      >
+        <ReceptionDialogHeader appointment={appointment} currentStatus={currentStatus} />
+        <ReceptionDialogBody
+          appointment={appointment}
+          isTrimming={isTrimming}
+          onCreateMedicalRecord={handleCreateMedicalRecord}
+          onCreateTrimming={handleCreateTrimming}
+          onCreateAccounting={handleCreateAccounting}
+          onCreateHospitalization={handleCreateHospitalization}
+          canCreateMedicalRecord={canOpenMedicalRecordFromRelatedPages}
+          canCreateAccounting={canCreateAccounting}
+          canCreateHospitalization={canCreateHospitalization}
+        />
+        <ReceptionDialogFooter
+          currentStatus={currentStatus}
+          appointment={appointment}
+          isTrimming={isTrimming}
+          isHospitalization={isHospitalization}
+          isMedical={isMedical}
+          onConfirm={onConfirm}
+          onEdit={onEdit}
+          onCancel={onCancel}
+          onOpenOwnerDetail={handleOpenOwnerDetail}
+          onCreateMedicalRecord={handleCreateMedicalRecord}
+          onCreateTrimming={handleCreateTrimming}
+          onCreateAccounting={handleCreateAccounting}
+          onCreateHospitalization={handleCreateHospitalization}
+        />
       </DialogContent>
     </Dialog>
   );

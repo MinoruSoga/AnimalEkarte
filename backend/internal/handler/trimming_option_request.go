@@ -1,5 +1,7 @@
 package handler
 
+import "github.com/animal-ekarte/backend/internal/service"
+
 type createTrimmingOptionRequest struct {
 	Name         string `json:"name"        binding:"required"`
 	Price        *int64 `json:"price"`
@@ -10,6 +12,18 @@ type createTrimmingOptionRequest struct {
 	SortOrder    int    `json:"sort_order"`
 }
 
+func (r createTrimmingOptionRequest) toServiceInput() *service.CreateTrimmingOptionInput {
+	return &service.CreateTrimmingOptionInput{
+		Name:         r.Name,
+		Price:        r.Price,
+		IsActive:     r.IsActive,
+		Description:  r.Description,
+		Duration:     r.Duration,
+		IsCombinable: r.IsCombinable,
+		SortOrder:    r.SortOrder,
+	}
+}
+
 type updateTrimmingOptionRequest struct {
 	Name         *string `json:"name"`
 	Price        *int64  `json:"price"`
@@ -18,4 +32,16 @@ type updateTrimmingOptionRequest struct {
 	Duration     *int    `json:"duration"`
 	IsCombinable *bool   `json:"is_combinable"`
 	SortOrder    *int    `json:"sort_order"`
+}
+
+func (r updateTrimmingOptionRequest) toServiceInput() *service.UpdateTrimmingOptionInput {
+	return &service.UpdateTrimmingOptionInput{
+		Name:         r.Name,
+		Price:        r.Price,
+		IsActive:     r.IsActive,
+		Description:  r.Description,
+		Duration:     r.Duration,
+		IsCombinable: r.IsCombinable,
+		SortOrder:    r.SortOrder,
+	}
 }

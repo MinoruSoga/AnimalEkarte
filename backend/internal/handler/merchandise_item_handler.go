@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListMerchandiseItems godoc
@@ -20,9 +19,8 @@ func (h *Handler) ListMerchandiseItems(c *gin.Context) {
 		return
 	}
 
-	category := c.Query("category") // optional category filter
-
-	items, err := h.svc.MerchandiseItem.List(c.Request.Context(), clinicID, category)
+	query := newListMerchandiseItemsQuery(c.Request.URL.Query())
+	items, err := h.svc.MerchandiseItem.List(c.Request.Context(), clinicID, query.Category)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -62,17 +60,7 @@ func (h *Handler) CreateMerchandiseItem(c *gin.Context) {
 		return
 	}
 
-	input := &service.CreateMerchandiseItemInput{
-		Name:      req.Name,
-		Category:  req.Category,
-		UnitPrice: req.UnitPrice,
-		TaxType:   req.TaxType,
-		TaxRate:   req.TaxRate, // *float64: nil → service側でデフォルト 0.10 を適用
-		IsActive:  req.IsActive,
-		SortOrder: req.SortOrder,
-	}
-
-	item, err := h.svc.MerchandiseItem.Create(c.Request.Context(), clinicID, input)
+	item, err := h.svc.MerchandiseItem.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -98,17 +86,7 @@ func (h *Handler) UpdateMerchandiseItem(c *gin.Context) {
 		return
 	}
 
-	input := &service.UpdateMerchandiseItemInput{
-		Name:      req.Name,
-		Category:  req.Category,
-		UnitPrice: req.UnitPrice,
-		TaxType:   req.TaxType,
-		TaxRate:   req.TaxRate,
-		IsActive:  req.IsActive,
-		SortOrder: req.SortOrder,
-	}
-
-	item, err := h.svc.MerchandiseItem.Update(c.Request.Context(), clinicID, id, input)
+	item, err := h.svc.MerchandiseItem.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

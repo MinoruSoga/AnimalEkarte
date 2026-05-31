@@ -1,0 +1,234 @@
+import { memo, useCallback } from "react";
+import { Plus, Save } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { C, ICON } from "@/lib/design-tokens";
+
+import type { PaymentMethod } from "../types";
+
+export interface PaymentSplitDraft {
+  method: PaymentMethod;
+  amount: string;
+  receivedAmount: string;
+}
+
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: "現金",
+  credit_card: "カード",
+  electronic_money: "電子マネー",
+};
+
+const PAYMENT_METHODS: PaymentMethod[] = ["cash", "credit_card", "electronic_money"];
+
+interface PaymentCardProps {
+  billingAmount: number;
+  paymentSplits: PaymentSplitDraft[];
+  onSplitsChange: (splits: PaymentSplitDraft[]) => void;
+  isCompleted: boolean;
+  canEdit: boolean;
+  canCreate: boolean;
+  isEditMode: boolean;
+}
+
+export const PaymentCard = memo(function PaymentCard({
+  billingAmount,
+  paymentSplits,
+  onSplitsChange,
+  isCompleted,
+  canEdit,
+  canCreate,
+  isEditMode,
+}: PaymentCardProps) {
+  const canSubmit = isEditMode ? canEdit : canCreate;
+
+  const splitTotal = paymentSplits.reduce((sum, s) => sum + parseInt(s.amount || "0", 10), 0);
+  const remaining = billingAmount - splitTotal;
+
+  const isDisabled = remaining !== 0 || paymentSplits.some((s) => {
+    if (!s.amount || parseInt(s.amount, 10) <= 0) return true;
+    if (s.method === "cash") {
+      const received = parseInt(s.receivedAmount || "0", 10);
+      return received < parseInt(s.amount, 10);
+    }
+    return false;
+  });
+
+  const handleMethodChange = useCallback((idx: number, method: PaymentMethod) => {
+    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, method } : s));
+  }, [paymentSplits, onSplitsChange]);
+
+  const handleAmountChange = useCallback((idx: number, value: string) => {
+    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, amount: value } : s));
+  }, [paymentSplits, onSplitsChange]);
+
+  const handleReceivedChange = useCallback((idx: number, value: string) => {
+    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, receivedAmount: value } : s));
+  }, [paymentSplits, onSplitsChange]);
+
+  const handleRemoveSplit = useCallback((idx: number) => {
+    onSplitsChange(paymentSplits.filter((_, i) => i !== idx));
+  }, [paymentSplits, onSplitsChange]);
+
+  const handleAddSplit = useCallback(() => {
+    const rem = billingAmount - paymentSplits.reduce((sum, s) => sum + parseInt(s.amount || "0", 10), 0);
+    onSplitsChange([...paymentSplits, { method: "cash", amount: rem > 0 ? rem.toString() : "", receivedAmount: "" }]);
+  }, [paymentSplits, onSplitsChange, billingAmount]);
+
+  return (
+    <Card className="flex-1">
+      <CardHeader className="py-3 px-4 border-b">
+        <CardTitle className="text-base font-medium">決済情報</CardTitle>
+      </CardHeader>
+      <CardContent className="p-6 space-y-6">
+        <div className="text-center space-y-1">
+          <p className={`text-sm ${C.text50}`}>今回の請求金額</p>
+          <p className={`text-4xl font-bold ${C.text}`}>
+            ¥{billingAmount.toLocaleString()}
+          </p>
+        </div>
+
+        <Separator />
+
+        {canEdit ? (
+          <div className="space-y-4">
+            {paymentSplits.map((split, idx) => {
+              const parsedAmount = parseInt(split.amount || "0", 10);
+              const parsedReceived = parseInt(split.receivedAmount || "0", 10);
+              const splitChange = split.method === "cash" ? parsedReceived - parsedAmount : 0;
+
+              return (
+                <div key={idx} className="border rounded-lg p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium">支払方法</Label>
+                    {paymentSplits.length > 1 ? (
+                      <DeleteIconButton
+                        onClick={() => handleRemoveSplit(idx)}
+                        aria-label="この支払いを削除"
+                      />
+                    ) : null}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {PAYMENT_METHODS.map((m) => (
+                      <Button
+                        key={m}
+                        type="button"
+                        variant={split.method === m ? "default" : "outline"}
+                        onClick={() => handleMethodChange(idx, m)}
+                        className="h-10 text-sm"
+                      >
+                        {PAYMENT_METHOD_LABELS[m]}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">金額</Label>
+                    <NumberInput
+                      className="h-12 text-lg font-bold"
+                      value={split.amount}
+                      onChange={(v) => handleAmountChange(idx, v)}
+                      suffix="円"
+                      align="right"
+                    />
+                  </div>
+                  {split.method === "cash" ? (
+                    <>
+                      <div className="space-y-1">
+                        <Label className="text-xs">お預かり金額</Label>
+                        <NumberInput
+                          id={idx === 0 ? "receivedAmount" : undefined}
+                          className="h-12 text-lg font-bold"
+                          value={split.receivedAmount}
+                          onChange={(v) => handleReceivedChange(idx, v)}
+                          suffix="円"
+                          align="right"
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReceivedChange(idx, parsedAmount.toString())}
+                          >
+                            丁度
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / 1000) * 1000).toString())}
+                          >
+                            千円単位
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / 10000) * 10000).toString())}
+                          >
+                            一万単位
+                          </Button>
+                        </div>
+                      </div>
+                      <div className={`${C.bgPrimary5} p-3 rounded-lg flex justify-between items-center`}>
+                        <span className={`text-sm font-bold ${C.text60}`}>お釣り</span>
+                        <span className={`text-xl font-bold ${splitChange < 0 ? C.danger : C.text}`}>
+                          ¥{splitChange.toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              );
+            })}
+
+            {remaining !== 0 ? (
+              <p className={`text-xs text-right ${remaining < 0 ? C.danger : C.text50}`}>
+                {remaining > 0
+                  ? `残り ¥${remaining.toLocaleString()} 未入力`
+                  : `¥${Math.abs(remaining).toLocaleString()} 超過`}
+              </p>
+            ) : null}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAddSplit}
+              className="w-full"
+            >
+              <Plus className={`mr-1 ${ICON.action}`} />
+              支払方法を追加
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {paymentSplits.map((split, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm">
+                <span className={C.text50}>{PAYMENT_METHOD_LABELS[split.method] ?? split.method}</span>
+                <span className="font-medium">¥{parseInt(split.amount || "0", 10).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {canSubmit ? (
+          <SubmitButton
+            className="w-full h-14 text-lg font-bold mt-4"
+            size="lg"
+            disabled={isDisabled}
+            loadingText="処理中..."
+          >
+            <Save className={`mr-2 ${ICON.action}`} />
+            {isCompleted ? "修正を保存する" : "会計を確定する"}
+          </SubmitButton>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+});

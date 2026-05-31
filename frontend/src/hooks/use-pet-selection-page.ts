@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useGetPets } from "@/hooks/use-pet";
 import type { Pet } from "@/types";
 import type { PetSelectionSearchParams } from "@/components/shared/PetSelection/PetSelectionSearchForm";
@@ -24,6 +24,7 @@ const INITIAL_SEARCH_PARAMS: PetSelectionSearchParams = {
 
 export function usePetSelectionPage(config: PetSelectionPageConfig) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] =
     useState<PetSelectionSearchParams>(INITIAL_SEARCH_PARAMS);
 
@@ -59,8 +60,10 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
   }, []);
 
   const handleSelect = useCallback((pet: Pet) => {
-    navigate(`${config.selectPath}?petId=${pet.id}`);
-  }, [navigate, config.selectPath]);
+    const nextParams = new URLSearchParams(location.search);
+    nextParams.set("petId", pet.id);
+    navigate(`${config.selectPath}?${nextParams.toString()}`, { state: location.state });
+  }, [navigate, config.selectPath, location.search, location.state]);
 
   const handleBack = useCallback(() => {
     navigate(config.backPath);

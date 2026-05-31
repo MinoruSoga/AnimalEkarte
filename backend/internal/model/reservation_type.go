@@ -32,6 +32,14 @@ const (
 	UnavailableTypeSpecific UnavailableType = "specific"
 )
 
+// AvailableSlotType は予約可能枠の種別
+type AvailableSlotType string
+
+const (
+	AvailableSlotTypeWeekly   AvailableSlotType = "weekly"
+	AvailableSlotTypeSpecific AvailableSlotType = "specific"
+)
+
 // ReservationType はサービス種別（予約区分）マスタ
 type ReservationType struct {
 	ID          uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
@@ -64,8 +72,10 @@ type ReservationType struct {
 	Group   *ReservationTypeGroup `gorm:"foreignKey:GroupID" json:"group,omitempty"`
 
 	// Relations（BE-115）
-	UnavailableTimes []ReservationTypeUnavailableTime `gorm:"foreignKey:ReservationTypeID" json:"unavailable_times,omitempty"`
-	Occupations      []ReservationTypeOccupation      `gorm:"foreignKey:ReservationTypeID" json:"occupations,omitempty"`
+	UnavailableTimes  []ReservationTypeUnavailableTime `gorm:"foreignKey:ReservationTypeID" json:"unavailable_times,omitempty"`
+	AvailableSlots    []ReservationTypeAvailableSlot   `gorm:"foreignKey:ReservationTypeID" json:"available_slots,omitempty"`
+	Occupations       []ReservationTypeOccupation      `gorm:"foreignKey:ReservationTypeID" json:"occupations,omitempty"`
+	StaffCapabilities []StaffReservationCapability     `gorm:"foreignKey:ReservationTypeID" json:"staff_capabilities,omitempty"`
 }
 
 func (ReservationType) TableName() string { return "reservation_types" }
@@ -85,6 +95,22 @@ type ReservationTypeUnavailableTime struct {
 }
 
 func (ReservationTypeUnavailableTime) TableName() string { return "reservation_type_unavailable_times" }
+
+// ReservationTypeAvailableSlot は予約区分の予約可能な開始時刻
+type ReservationTypeAvailableSlot struct {
+	ID                uint64            `gorm:"primaryKey;autoIncrement"         json:"id"`
+	ClinicID          uint64            `gorm:"not null"                         json:"clinic_id"`
+	ReservationTypeID uint64            `gorm:"not null"                         json:"reservation_type_id"`
+	AvailableType     AvailableSlotType `gorm:"not null"                         json:"available_type"`
+	DayOfWeek         *int8             `                                        json:"day_of_week,omitempty"`   // 0=Sun..6=Sat（weekly のみ）
+	SpecificDate      *time.Time        `gorm:"type:date"                        json:"specific_date,omitempty"` // specific のみ
+	StartTime         string            `gorm:"type:varchar(5);not null"         json:"start_time"`              // "HH:MM"
+	IsActive          bool              `gorm:"not null;default:true"            json:"is_active"`
+	CreatedAt         time.Time         `gorm:"autoCreateTime"                   json:"created_at"`
+	UpdatedAt         time.Time         `gorm:"autoUpdateTime"                   json:"updated_at"`
+}
+
+func (ReservationTypeAvailableSlot) TableName() string { return "reservation_type_available_slots" }
 
 // ReservationTypeOccupation は予約区分と職種の紐付け（M:N）（BE-115）
 type ReservationTypeOccupation struct {

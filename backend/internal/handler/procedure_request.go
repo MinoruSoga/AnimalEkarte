@@ -1,5 +1,7 @@
 package handler
 
+import "github.com/animal-ekarte/backend/internal/service"
+
 type createProcedureRequest struct {
 	Name        string   `json:"name"        binding:"required"`
 	Price       *int64   `json:"price"`
@@ -11,6 +13,21 @@ type createProcedureRequest struct {
 	SortOrder   int      `json:"sort_order"`
 	TaxType     string   `json:"tax_type"    binding:"required,oneof=included excluded exempt"`
 	TaxRate     *float64 `json:"tax_rate" binding:"omitempty,min=0,max=1"`
+}
+
+func (r *createProcedureRequest) toServiceInput() *service.CreateProcedureInput {
+	return &service.CreateProcedureInput{
+		Name:        r.Name,
+		Price:       r.Price,
+		IsActive:    r.IsActive,
+		Description: r.Description,
+		Duration:    r.Duration,
+		Anesthesia:  r.Anesthesia,
+		ParentID:    r.ParentID,
+		SortOrder:   r.SortOrder,
+		TaxType:     r.TaxType,
+		TaxRate:     r.TaxRate,
+	}
 }
 
 type updateProcedureRequest struct {
@@ -25,4 +42,20 @@ type updateProcedureRequest struct {
 	SortOrder     *int     `json:"sort_order"`
 	TaxType       *string  `json:"tax_type"     binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate       *float64 `json:"tax_rate" binding:"omitempty,min=0,max=1"`
+}
+
+func (r *updateProcedureRequest) toServiceInput() *service.UpdateProcedureInput {
+	return &service.UpdateProcedureInput{
+		Name:          r.Name,
+		Price:         r.Price,
+		IsActive:      r.IsActive,
+		Description:   r.Description,
+		Duration:      r.Duration,
+		Anesthesia:    r.Anesthesia,
+		ParentID:      r.ParentID,
+		ClearParentID: r.ClearParentID,
+		SortOrder:     r.SortOrder,
+		TaxType:       r.TaxType,
+		TaxRate:       r.TaxRate,
+	}
 }

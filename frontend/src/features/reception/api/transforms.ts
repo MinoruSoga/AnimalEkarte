@@ -65,6 +65,19 @@ const ANIMAL_SPECIES_MAP: Record<number, string> = {
   9: "その他",
 };
 
+function optionalID(value: number | null | undefined): string {
+  return value ? String(value) : "";
+}
+
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function formatJSTDate(date: Date): string {
+  const jstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}`;
+}
+
 /** BackendReceptionReservation → ReceptionAppointment 変換 */
 export function transformReservationToReceptionAppointment(
   reservation: BackendReceptionReservation
@@ -86,15 +99,19 @@ export function transformReservationToReceptionAppointment(
   return {
     id: String(reservation.id ?? 0),
     time,
+    visitDate: formatJSTDate(startDate),
     ownerName,
     petType,
     petName,
     visitType: visitTypeToJapanese(reservation.visit_type),
     reservationType: reservation.reservation_type?.name ?? "",
+    reservationTypeId: optionalID(reservation.reservation_type_id),
+    reservationCategory: reservation.reservation_type?.category ?? "general",
     isDesignated: reservation.is_designated,
     doctor: reservation.doctor?.name ?? (reservation.doctor_id ? String(reservation.doctor_id) : undefined),
-    petId: String(reservation.pet_id ?? 0),
-    ownerId: String(reservation.owner_id ?? 0),
+    doctorId: optionalID(reservation.doctor_id),
+    petId: optionalID(reservation.pet_id),
+    ownerId: optionalID(reservation.owner_id),
     status,
     notes: reservation.notes || undefined,
     source: (reservation.source as "manual" | "line") ?? "manual",
@@ -108,7 +125,7 @@ export function transformReservationToReceptionAppointment(
 export function transformReservationsToReceptionColumns(
   reservations: BackendReceptionReservation[]
 ): ReceptionColumn[] {
-  const activeReservations = reservations.filter((r) => r.status !== "cancelled");
+  const activeReservations = reservations.filter((r) => r.status !== "cancelled" && r.status !== "no_show");
   const appointments = activeReservations.map(transformReservationToReceptionAppointment);
 
   return RECEPTION_COLUMNS.map((col) => ({

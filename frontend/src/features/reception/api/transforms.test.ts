@@ -35,6 +35,15 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.time).toMatch(/^\d{2}:\d{2}$/);
   });
 
+  it("start_time から JST 基準の visitDate を生成する", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      start_time: "2026-03-25T15:30:00Z",
+    });
+
+    expect(result.visitDate).toBe("2026-03-26");
+  });
+
   it("visit_type: first → '初診'", () => {
     expect(transformReservationToReceptionAppointment({ ...minimal, visit_type: "first" }).visitType).toBe("初診");
   });
@@ -107,12 +116,56 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.petType).toBe("柴犬");
   });
 
+  it("pet_id / owner_id が未確定の場合は 0 ではなく空文字にする", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      pet_id: undefined,
+      owner_id: undefined,
+      pet: undefined,
+      owner: undefined,
+      customer_fields: { owner_name: "山田太郎", pets: [{ name: "ハナ", type: "柴犬" }] },
+    });
+
+    expect(result.petId).toBe("");
+    expect(result.ownerId).toBe("");
+  });
+
+  it("pet_id / owner_id が null の場合も空文字にする", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      pet_id: null,
+      owner_id: null,
+    } as BackendReservation);
+
+    expect(result.petId).toBe("");
+    expect(result.ownerId).toBe("");
+  });
+
   it("reservation_type.name を reservationType にマップする", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
       reservation_type: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["reservation_type"],
     });
     expect(result.reservationType).toBe("診療");
+  });
+
+  it("reservation_type.category を reservationCategory にマップする", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      reservation_type: { id: 1, clinic_id: 1, name: "シャンプー", category: "trimming" } as BackendReservation["reservation_type"],
+    });
+    expect(result.reservationCategory).toBe("trimming");
+  });
+
+  it("reservation_type_id / doctor_id を編集フォーム用IDとして保持する", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      reservation_type_id: 9,
+      doctor_id: 33,
+    });
+
+    expect(result.reservationTypeId).toBe("9");
+    expect(result.doctorId).toBe("33");
   });
 
   it("is_designated をそのまま返す", () => {
@@ -125,6 +178,16 @@ describe("transformReservationsToReceptionColumns", () => {
     const reservations: BackendReservation[] = [
       { ...minimal, id: 1, status: "confirmed" },
       { ...minimal, id: 2, status: "cancelled" },
+    ];
+    const columns = transformReservationsToReceptionColumns(reservations);
+    const allAppointments = columns.flatMap((c) => c.appointments);
+    expect(allAppointments.every((a) => a.id !== "2")).toBe(true);
+  });
+
+  it("no_show の予約はカンバンに含まれない", () => {
+    const reservations: BackendReservation[] = [
+      { ...minimal, id: 1, status: "confirmed" },
+      { ...minimal, id: 2, status: "no_show" },
     ];
     const columns = transformReservationsToReceptionColumns(reservations);
     const allAppointments = columns.flatMap((c) => c.appointments);
@@ -154,4 +217,3 @@ describe("transformReservationsToReceptionColumns", () => {
     expect(col?.appointments.some((a) => a.id === "3")).toBe(true);
   });
 });
-

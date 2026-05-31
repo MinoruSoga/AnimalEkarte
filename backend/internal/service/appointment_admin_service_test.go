@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -235,6 +236,80 @@ func TestReservationAdminService_Create(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReservationAdminService_Create_RejectsExcludedStaff(t *testing.T) {
+	now := time.Now()
+	doctorID := uint64(10)
+	resRepo := &mockReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			t.Fatal("reservation must not be created when staff cannot handle reservation type")
+			return nil
+		},
+	}
+	staffRepo := &mockReservationStaffRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, doctorID, id)
+			return &model.Staff{ID: id, IsActive: true}, nil
+		},
+		supportsReservationTypeFn: func(_ context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, doctorID, staffID)
+			assert.Equal(t, uint64(5), reservationTypeID)
+			return false, nil
+		},
+	}
+	svc := NewReservationAdminService(&mockReservationAdminRepository{}, resRepo, &mockTransactor{}, staffRepo)
+
+	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
+		StartTime:         now,
+		EndTime:           now.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		DoctorID:          &doctorID,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
+}
+
+func TestReservationAdminService_Create_RejectsUnavailableTime(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	end := start.Add(30 * time.Minute)
+	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	resRepo := &mockReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			t.Fatal("reservation must not be created during unavailable time")
+			return nil
+		},
+	}
+	unavailableRepo := &mockUnavailableTimeRepository{
+		findAllFn: func(_ context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(5), reservationTypeID)
+			return []model.ReservationTypeUnavailableTime{
+				{
+					ReservationTypeID: 5,
+					UnavailableType:   model.UnavailableTypeSpecific,
+					SpecificDate:      &specificDate,
+					StartTime:         "10:00",
+					EndTime:           "11:00",
+				},
+			}, nil
+		},
+	}
+	svc := NewReservationAdminServiceWithAvailability(&mockReservationAdminRepository{}, resRepo, &mockTransactor{}, nil, unavailableRepo)
+
+	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
+		StartTime:         start,
+		EndTime:           end,
+		ReservationTypeID: 5,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
 }
 
 func TestReservationAdminService_Delete(t *testing.T) {

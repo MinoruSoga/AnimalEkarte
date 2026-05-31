@@ -21,10 +21,10 @@ docker compose down
 
 ### 2.2 ボリュームの削除
 ```bash
-# データベースの永続化ボリュームを特定して削除
-docker volume rm animalekarte_ekarte-postgres-data
+# データベースの永続化ボリュームを削除
+docker volume rm ekarte-postgres-data
 ```
-※ `animalekarte_` の部分はディレクトリ名により異なる場合があります。`docker volume ls` で確認してください。
+※ `docker-compose.yml` 内でボリュームの `name` が `ekarte-postgres-data` として明示的に指定されているため、プロジェクト名のプレフィックス（`animalekarte_` 等）は付加されません。
 
 ### 2.3 再起動と自動構築
 ```bash

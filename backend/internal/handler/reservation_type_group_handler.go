@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListReservationTypeGroups godoc
@@ -53,12 +52,7 @@ func (h *Handler) CreateReservationTypeGroup(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	g, err := h.svc.ReservationTypeGroup.Create(c.Request.Context(), clinicID, &service.CreateReservationTypeGroupInput{
-		Name:      req.Name,
-		Color:     req.Color,
-		SortOrder: req.SortOrder,
-		IsActive:  req.IsActive,
-	})
+	g, err := h.svc.ReservationTypeGroup.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -82,12 +76,7 @@ func (h *Handler) UpdateReservationTypeGroup(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	g, err := h.svc.ReservationTypeGroup.Update(c.Request.Context(), clinicID, id, &service.UpdateReservationTypeGroupInput{
-		Name:      req.Name,
-		Color:     req.Color,
-		SortOrder: req.SortOrder,
-		IsActive:  req.IsActive,
-	})
+	g, err := h.svc.ReservationTypeGroup.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

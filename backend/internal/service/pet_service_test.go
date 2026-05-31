@@ -109,7 +109,7 @@ func defaultMedicalRecordRepo() *mockMedicalRecordRepository {
 func ptrUint64(v uint64) *uint64 { return &v }
 
 func newPetSvc(repo *mockPetRepository, ownerRepo *mockOwnerRepository, insuranceRepo *mockInsuranceRepository, medicalRecordRepo *mockMedicalRecordRepository) PetService {
-	return NewPetService(repo, ownerRepo, insuranceRepo, medicalRecordRepo)
+	return NewPetService(repo, ownerRepo, insuranceRepo, medicalRecordRepo, nil)
 }
 
 func TestPetService_List(t *testing.T) {
@@ -426,6 +426,43 @@ func TestPetService_Create(t *testing.T) {
 	}
 }
 
+func TestPetService_Create_SyncLstepTagsBestEffort(t *testing.T) {
+	animalSyncCalled := false
+	basicSyncCalled := false
+	repo := &mockPetRepository{
+		createFn: func(_ context.Context, pet *model.Pet) error {
+			pet.ID = 10
+			return nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		syncOwnerAnimalClassificationTagFn: func(_ context.Context, clinicID, ownerID uint64) error {
+			animalSyncCalled = true
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(5), ownerID)
+			return errors.New("classification sync failed")
+		},
+		syncPetBasicInfoTagsFn: func(_ context.Context, clinicID, ownerID uint64) error {
+			basicSyncCalled = true
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(5), ownerID)
+			return errors.New("basic info sync failed")
+		},
+	}
+	svc := NewPetService(repo, defaultOwnerRepo(), defaultInsuranceRepo(1), defaultMedicalRecordRepo(), tagSync)
+
+	pet, err := svc.Create(context.Background(), 1, &CreatePetInput{
+		OwnerID:         5,
+		AnimalSpeciesID: 1,
+		Name:            "ポチ",
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, pet)
+	assert.True(t, animalSyncCalled)
+	assert.True(t, basicSyncCalled)
+}
+
 func TestPetService_Update(t *testing.T) {
 	updatedPet := &model.Pet{ID: 1, ClinicID: 1, Name: "更新後ペット名"}
 
@@ -544,6 +581,43 @@ func TestPetService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPetService_Update_SyncLstepTagsBestEffort(t *testing.T) {
+	animalSyncCalled := false
+	basicSyncCalled := false
+	repo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 10, ClinicID: 1, OwnerID: 5, Name: "ポチ"}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		syncOwnerAnimalClassificationTagFn: func(_ context.Context, clinicID, ownerID uint64) error {
+			animalSyncCalled = true
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(5), ownerID)
+			return errors.New("classification sync failed")
+		},
+		syncPetBasicInfoTagsFn: func(_ context.Context, clinicID, ownerID uint64) error {
+			basicSyncCalled = true
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(5), ownerID)
+			return errors.New("basic info sync failed")
+		},
+	}
+	svc := NewPetService(repo, defaultOwnerRepo(), defaultInsuranceRepo(1), defaultMedicalRecordRepo(), tagSync)
+
+	pet, err := svc.Update(context.Background(), 1, 10, &UpdatePetInput{
+		Name: ptrString("ポチ 更新"),
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, pet)
+	assert.True(t, animalSyncCalled)
+	assert.True(t, basicSyncCalled)
 }
 
 func TestPetService_Delete(t *testing.T) {

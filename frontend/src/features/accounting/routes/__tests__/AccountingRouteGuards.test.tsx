@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthContext } from "@/contexts/auth-context";
-import { appRoutes } from "@/app/router";
+import { appRoutes } from "@/app/routes/app-routes";
 import type { ResourceAction } from "@/types/auth";
 
 // 全 lazy モジュールを stub する。

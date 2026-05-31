@@ -15,13 +15,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { paths } from "@/config/paths";
 import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
 import { useGetStaffs } from "@/hooks/use-staffs";
@@ -103,18 +97,14 @@ export function CheckupForm() {
               <Label htmlFor="checkup-type-select">
                 健診種別<span className={`${C.textRequired} ml-1`}>*</span>
               </Label>
-              <Select value={form.checkupTypeId} onValueChange={setCheckupTypeId}>
-                <SelectTrigger id="checkup-type-select">
-                  <SelectValue placeholder="選択してください" />
-                </SelectTrigger>
-                <SelectContent>
-                  {checkupTypes.map((ct) => (
-                    <SelectItem key={ct.id} value={String(ct.id)}>
-                      {ct.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                id="checkup-type-select"
+                value={form.checkupTypeId}
+                onValueChange={setCheckupTypeId}
+                options={checkupTypes.map((ct) => ({ value: String(ct.id), label: ct.name }))}
+                placeholder="選択してください"
+                searchPlaceholder="健診種別を検索..."
+              />
               <FormFieldError message={fieldErrors.checkupTypeId} />
             </div>
           </div>
@@ -133,20 +123,16 @@ export function CheckupForm() {
             {/* 担当医 */}
             <div className="space-y-2">
               <Label htmlFor="checkup-doctor-select">担当医</Label>
-              <Select value={form.doctorId} onValueChange={setDoctorId}>
-                <SelectTrigger id="checkup-doctor-select">
-                  <SelectValue placeholder="選択してください" />
-                </SelectTrigger>
-                <SelectContent>
-                  {staffs
-                    .filter((s) => s.isActive)
-                    .map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                id="checkup-doctor-select"
+                value={form.doctorId}
+                onValueChange={setDoctorId}
+                options={staffs
+                  .filter((s) => s.isActive)
+                  .map((s) => ({ value: s.id, label: s.name }))}
+                placeholder="選択してください"
+                searchPlaceholder="担当医を検索..."
+              />
             </div>
           </div>
 

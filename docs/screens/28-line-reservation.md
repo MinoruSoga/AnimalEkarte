@@ -1,6 +1,6 @@
 # LINE予約設定 仕様書 (LINE Reservation Settings)
 
-![LINE予約設定画面](./images/28-line-reservation-settings.png)
+<!-- TODO: Add screenshot at docs/screens/images/28-line-reservation-settings.png -->
 
 ## 概要
 - **画面の目的**: 飼い主向け LINE 予約システムの稼働状態、受付ルール、および表示内容を一元管理する。

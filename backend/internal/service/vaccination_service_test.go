@@ -162,7 +162,7 @@ func TestVaccinationService_List(t *testing.T) {
 					return tt.repoVaccinations, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewVaccinationService(repo)
+			svc := NewVaccinationService(repo, nil)
 
 			vaccinations, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
 
@@ -226,7 +226,7 @@ func TestVaccinationService_GetByID(t *testing.T) {
 					return tt.repoVaccination, tt.repoErr
 				},
 			}
-			svc := NewVaccinationService(repo)
+			svc := NewVaccinationService(repo, nil)
 
 			vaccination, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -249,7 +249,7 @@ func TestVaccinationService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("vaccination", "999")
 		},
 	}
-	svc := NewVaccinationService(repo)
+	svc := NewVaccinationService(repo, nil)
 
 	vaccination, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -301,11 +301,15 @@ func TestVaccinationService_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccinationRepository{
-				createFn: func(_ context.Context, _ *model.Vaccination) error {
+				createFn: func(_ context.Context, vaccination *model.Vaccination) error {
+					vaccination.ID = 10
 					return tt.repoErr
 				},
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
+					return &model.Vaccination{ID: id, MedicalRecordID: tt.input.MedicalRecordID, VaccineID: tt.input.VaccineID, Date: tt.input.Date}, nil
+				},
 			}
-			svc := NewVaccinationService(repo)
+			svc := NewVaccinationService(repo, nil)
 
 			vaccination, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
@@ -318,6 +322,49 @@ func TestVaccinationService_Create(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVaccinationService_Create_SyncsVaccineTagBestEffort(t *testing.T) {
+	ownerID := uint64(10)
+	petID := uint64(20)
+	var syncedClinicID, syncedOwnerID, syncedVaccinationID uint64
+
+	repo := &mockVaccinationRepository{
+		createFn: func(_ context.Context, vaccination *model.Vaccination) error {
+			vaccination.ID = 30
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
+			return &model.Vaccination{
+				ID:        id,
+				PetID:     &petID,
+				VaccineID: 3,
+				Date:      time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC),
+				Pet:       &model.Pet{OwnerID: ownerID},
+			}, nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		syncVaccineTagFn: func(_ context.Context, clinicID, ownerID, vaccinationID uint64) error {
+			syncedClinicID = clinicID
+			syncedOwnerID = ownerID
+			syncedVaccinationID = vaccinationID
+			return errors.New("sync failed")
+		},
+	}
+	svc := NewVaccinationService(repo, tagSync)
+
+	vaccination, err := svc.Create(context.Background(), 1, &CreateVaccinationInput{
+		PetID:     &petID,
+		VaccineID: 3,
+		Date:      time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC),
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, vaccination)
+	assert.Equal(t, uint64(1), syncedClinicID)
+	assert.Equal(t, ownerID, syncedOwnerID)
+	assert.Equal(t, uint64(30), syncedVaccinationID)
 }
 
 func TestVaccinationService_Update(t *testing.T) {
@@ -377,7 +424,7 @@ func TestVaccinationService_Update(t *testing.T) {
 					return &model.Vaccination{ID: 1}, nil
 				},
 			}
-			svc := NewVaccinationService(repo)
+			svc := NewVaccinationService(repo, nil)
 
 			vaccination, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -437,7 +484,7 @@ func TestVaccinationService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewVaccinationService(repo)
+			svc := NewVaccinationService(repo, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -451,4 +498,67 @@ func TestVaccinationService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVaccinationService_Update_ResyncsOwnerVaccineTags(t *testing.T) {
+	ownerID := uint64(10)
+	var syncedOwnerID uint64
+	supplemental := "updated"
+
+	repo := &mockVaccinationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
+			return &model.Vaccination{ID: id}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Vaccination, error) {
+			return &model.Vaccination{
+				ID:  id,
+				Pet: &model.Pet{OwnerID: ownerID},
+			}, nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		resyncOwnerVaccineTagsFn: func(_ context.Context, _, ownerID uint64) error {
+			syncedOwnerID = ownerID
+			return errors.New("sync failed")
+		},
+	}
+	svc := NewVaccinationService(repo, tagSync)
+
+	vaccination, err := svc.Update(context.Background(), 1, 30, &UpdateVaccinationInput{Supplemental: &supplemental})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, vaccination)
+	assert.Equal(t, ownerID, syncedOwnerID)
+}
+
+func TestVaccinationService_Delete_ResyncsOwnerVaccineTagsAfterDelete(t *testing.T) {
+	ownerID := uint64(10)
+	deleted := false
+	syncedAfterDelete := false
+
+	repo := &mockVaccinationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
+			return &model.Vaccination{
+				ID:  id,
+				Pet: &model.Pet{OwnerID: ownerID},
+			}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleted = true
+			return nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		resyncOwnerVaccineTagsFn: func(_ context.Context, _, syncedOwnerID uint64) error {
+			syncedAfterDelete = deleted
+			assert.Equal(t, ownerID, syncedOwnerID)
+			return nil
+		},
+	}
+	svc := NewVaccinationService(repo, tagSync)
+
+	err := svc.Delete(context.Background(), 1, 30)
+
+	assert.NoError(t, err)
+	assert.True(t, syncedAfterDelete)
 }

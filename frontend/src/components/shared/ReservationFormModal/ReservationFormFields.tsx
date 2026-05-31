@@ -1,18 +1,21 @@
-import { memo, useMemo, useCallback } from "react";
+import { memo, useMemo, useCallback, useState } from "react";
 import { isBefore, startOfDay, format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { C, ICON } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import { ReservationTypePickerDialog, type ReservationTypePickerGroup } from "@/components/shared/ReservationFormModal/ReservationTypePickerDialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, ArrowRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/hooks/use-master-items";
-import { useGetReservationTypesGrouped, useGetOnDutyStaffs } from "@/hooks/use-reservation-types";
+import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs, useGetReservationAvailableTimes } from "@/hooks/use-reservation-types";
+import { useGetUnavailableTimes, type ReservationTypeUnavailableTime } from "@/features/master/api/reservation-type-unavailable-times";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { isOneOf } from "@/lib/type-utils";
 import type { Reservation } from "@/types";
@@ -34,6 +37,43 @@ function generateTimeOptions(): string[] {
 }
 
 const TIME_OPTIONS = generateTimeOptions();
+
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function slotTimeToSelectValue(time: string): string {
+  if (time.includes(":")) return time.replace(/^0/, "");
+  const hour = Number(time.slice(0, 2));
+  const minute = time.slice(2, 4);
+  return `${hour}:${minute}`;
+}
+
+function getApplicableUnavailableTimes(
+  times: ReservationTypeUnavailableTime[],
+  date: Date | undefined,
+): ReservationTypeUnavailableTime[] {
+  if (!date) return [];
+  const dateStr = format(date, "yyyy-MM-dd");
+  const specific = times.filter(
+    (time) => time.unavailableType === "specific" && time.specificDate === dateStr,
+  );
+  if (specific.length > 0) return specific;
+  const dayOfWeek = date.getDay();
+  return times.filter(
+    (time) => time.unavailableType === "weekly" && time.dayOfWeek === dayOfWeek,
+  );
+}
+
+function isStartTimeUnavailable(time: string, unavailableTimes: ReservationTypeUnavailableTime[]): boolean {
+  const minutes = timeToMinutes(time);
+  return unavailableTimes.some(
+    (unavailableTime) =>
+      minutes >= timeToMinutes(unavailableTime.startTime) &&
+      minutes < timeToMinutes(unavailableTime.endTime),
+  );
+}
 
 interface FieldLabelProps {
   children: React.ReactNode;
@@ -93,13 +133,99 @@ export const ReservationFormFields = memo(function ReservationFormFields({
 
   // BUG-344: 選択日に出勤しているスタッフのみに絞り込む
   const selectedDateStr = formData.start ? format(formData.start, "yyyy-MM-dd") : null;
+  const selectedReservationTypeId = formData.type ? String(formData.type) : null;
   const { data: onDutyStaffs } = useGetOnDutyStaffs(selectedDateStr);
+  const { data: reservationStaffs } = useGetReservationStaffs();
+  const { data: availableTimeSlots } = useGetReservationAvailableTimes(
+    selectedReservationTypeId,
+    selectedDateStr,
+    formData.doctor || null,
+  );
+  const currentClinicId = getCurrentClinicId();
+  const { data: unavailableTimes = [] } = useGetUnavailableTimes(
+    currentClinicId,
+    selectedReservationTypeId ?? "",
+  );
+  const applicableUnavailableTimes = useMemo(
+    () => getApplicableUnavailableTimes(unavailableTimes, formData.start),
+    [unavailableTimes, formData.start],
+  );
+  const availableTimeSlotMap = useMemo(() => {
+    if (availableTimeSlots === undefined) return undefined;
+    return new Map(
+      availableTimeSlots.map((slot) => [
+        slotTimeToSelectValue(slot.start_time),
+        slotTimeToSelectValue(slot.end_time),
+      ]),
+    );
+  }, [availableTimeSlots]);
+  const startTimeOptions = useMemo(
+    () => {
+      if (availableTimeSlotMap !== undefined && selectedReservationTypeId !== null && selectedDateStr !== null) {
+        return [...availableTimeSlotMap.keys()];
+      }
+      return TIME_OPTIONS.filter((time) => !isStartTimeUnavailable(time, applicableUnavailableTimes));
+    },
+    [availableTimeSlotMap, selectedReservationTypeId, selectedDateStr, applicableUnavailableTimes],
+  );
+  const reservationStaffMap = useMemo(() => {
+    if (reservationStaffs === undefined) return undefined;
+    return new Map(reservationStaffs.map((staff) => [String(staff.id), staff]));
+  }, [reservationStaffs]);
   const staffOptions = useMemo(() => {
-    if (selectedDateStr === null || onDutyStaffs === undefined) return activeStaff;
-    // 出勤スタッフの ID セットで絞り込む
-    const onDutyIdSet = new Set(onDutyStaffs.map((s) => String(s.id)));
-    return activeStaff.filter((s) => onDutyIdSet.has(String(s.id)));
-  }, [selectedDateStr, onDutyStaffs, activeStaff]);
+    let options = activeStaff;
+    if (selectedDateStr !== null && onDutyStaffs !== undefined) {
+      // 出勤スタッフの ID セットで絞り込む
+      const onDutyIdSet = new Set(onDutyStaffs.map((s) => String(s.id)));
+      options = options.filter((s) => onDutyIdSet.has(String(s.id)));
+    }
+    if (selectedReservationTypeId !== null && reservationStaffMap !== undefined) {
+      options = options.filter((s) => {
+        const reservationStaff = reservationStaffMap.get(String(s.id));
+        if (reservationStaff === undefined) return true;
+        return !reservationStaff.excluded_courses.some(
+          (course) => String(course.id) === selectedReservationTypeId,
+        );
+      });
+    }
+    return options;
+  }, [selectedDateStr, onDutyStaffs, activeStaff, selectedReservationTypeId, reservationStaffMap]);
+
+  const [typePickerOpen, setTypePickerOpen] = useState(false);
+
+  // 予約区分ピッカー(サブダイアログ)用: 色・所要時間付きでグループ化(参照安定のため memo 化)
+  const reservationTypePickerGroups = useMemo<ReservationTypePickerGroup[]>(
+    () =>
+      groupedReservationTypes.map((group) => ({
+        label: group.label,
+        items: group.types.map((t) => ({
+          id: String(t.id),
+          name: t.name,
+          color: t.color,
+          durationMinutes: t.duration_minutes,
+        })),
+      })),
+    [groupedReservationTypes],
+  );
+  // トリガー表示用: 選択中の予約区分(色ドット + 名前)
+  const selectedReservationType = useMemo(() => {
+    if (selectedReservationTypeId === null) return null;
+    for (const group of groupedReservationTypes) {
+      const found = group.types.find((t) => String(t.id) === selectedReservationTypeId);
+      if (found) return found;
+    }
+    return null;
+  }, [groupedReservationTypes, selectedReservationTypeId]);
+  const staffSelectOptions = useMemo<SearchableSelectOption[]>(
+    () => staffOptions.map((s) => ({ value: String(s.id), label: s.name })),
+    [staffOptions],
+  );
+  const staffEmptyMessage =
+    selectedReservationTypeId !== null
+      ? "この条件で対応可能なスタッフがいません"
+      : selectedDateStr !== null
+        ? "この日に出勤しているスタッフがいません"
+        : "スタッフが登録されていません";
 
   return (
     <div className="space-y-4">
@@ -169,14 +295,22 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                 const [h, m] = v.split(":").map(Number);
                 const newStart = new Date(formData.start);
                 newStart.setHours(h, m);
-                onChange({ ...formData, start: newStart });
+                const nextData: Partial<Reservation> = { ...formData, start: newStart };
+                const slotEnd = availableTimeSlotMap?.get(v);
+                if (slotEnd && formData.end) {
+                  const [endHour, endMinute] = slotEnd.split(":").map(Number);
+                  const newEnd = new Date(formData.end);
+                  newEnd.setHours(endHour, endMinute);
+                  nextData.end = newEnd;
+                }
+                onChange(nextData);
               }}
             >
-              <SelectTrigger className={TRIGGER_CLASS}>
+              <SelectTrigger data-testid="res-start-time-trigger" className={TRIGGER_CLASS}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="max-h-[200px]">
-                {TIME_OPTIONS.map((time) => (
+                {startTimeOptions.map((time) => (
                   <SelectItem key={time} value={time}>
                     {time}
                   </SelectItem>
@@ -194,7 +328,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                 onChange({ ...formData, end: newEnd });
               }}
             >
-              <SelectTrigger className={TRIGGER_CLASS}>
+              <SelectTrigger data-testid="res-end-time-trigger" className={TRIGGER_CLASS}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="max-h-[200px]">
@@ -226,30 +360,40 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           >
             予約区分
           </FieldLabel>
-          {/* BUG-341: グループ階層表示 — Select + SelectGroup で Dialog 内スクロール正常動作 */}
-          <Select
-            value={formData.type || ""}
-            onValueChange={(v) => onChange({ ...formData, type: v })}
+          {/* BUG-341/scroll: サブダイアログ選択(カテゴリチップ + カードリスト)。Dialog 自身の
+              scroll-lock で wheel スクロールが確実に動作する(popover-in-dialog の wheel ブロック回避) */}
+          <button
+            type="button"
+            data-testid="res-type-trigger"
+            onClick={() => setTypePickerOpen(true)}
+            aria-invalid={Boolean(validationErrors?.type)}
+            className={cn(
+              "flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-white px-3 text-sm transition-colors",
+              C.borderMediumLight,
+              C.hoverBgSubtle,
+              validationErrors?.type && C.borderDanger,
+            )}
           >
-            <SelectTrigger data-testid="res-type-trigger" className={cn(TRIGGER_CLASS, !formData.type && C.text40)}>
-              <SelectValue placeholder="選択してください" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[280px]">
-              {groupedReservationTypes.map((group, idx) => (
-                <SelectGroup key={group.label}>
-                  {idx > 0 ? <SelectSeparator /> : null}
-                  <SelectLabel className={`text-xs font-semibold tracking-wider uppercase ${C.text40} px-2 pt-2 pb-1`}>
-                    {group.label}
-                  </SelectLabel>
-                  {group.types.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)} className="pl-4">
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
+            {selectedReservationType ? (
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className="size-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: selectedReservationType.color }}
+                />
+                <span className={cn("line-clamp-1", C.text)}>{selectedReservationType.name}</span>
+              </span>
+            ) : (
+              <span className={C.text40}>選択してください</span>
+            )}
+            <ChevronDown className={cn("size-4 shrink-0 opacity-50", C.text)} />
+          </button>
+          <ReservationTypePickerDialog
+            open={typePickerOpen}
+            onOpenChange={setTypePickerOpen}
+            groups={reservationTypePickerGroups}
+            selectedId={formData.type || ""}
+            onSelect={(id) => onChange({ ...formData, type: id })}
+          />
           {validationErrors?.type ? (
             <FormFieldError id="res-type-error" message={validationErrors.type} />
           ) : null}
@@ -309,29 +453,15 @@ export const ReservationFormFields = memo(function ReservationFormFields({
         >
           担当者
         </FieldLabel>
-        <Select
+        <SearchableSelect
           value={formData.doctor || ""}
           onValueChange={(v) => onChange({ ...formData, doctor: v })}
-        >
-          <SelectTrigger className={TRIGGER_CLASS}>
-            <SelectValue placeholder="選択してください" />
-          </SelectTrigger>
-          <SelectContent>
-            {staffOptions.length > 0 ? (
-              staffOptions.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>
-                  {s.name}
-                </SelectItem>
-              ))
-            ) : (
-              <div className={`px-3 py-2 text-sm ${C.text40}`}>
-                {selectedDateStr !== null
-                  ? "この日に出勤しているスタッフがいません"
-                  : "スタッフが登録されていません"}
-              </div>
-            )}
-          </SelectContent>
-        </Select>
+          options={staffSelectOptions}
+          placeholder="選択してください"
+          searchPlaceholder="スタッフ名で検索..."
+          emptyMessage={staffEmptyMessage}
+          triggerTestId="res-staff-trigger"
+        />
       </div>
 
       <div className="space-y-1.5">

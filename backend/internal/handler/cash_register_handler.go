@@ -3,23 +3,12 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
-
-// ---- request types ----
-
-type closeCashRegisterRequest struct {
-	Date       string `json:"date"        binding:"required"` // YYYY-MM-DD
-	Period     string `json:"period"      binding:"required"` // "am" or "pm"
-	ActualCash int64  `json:"actual_cash"`
-	Memo       string `json:"memo"`
-}
 
 // ---- handlers ----
 
@@ -30,9 +19,8 @@ func (h *Handler) GetCashRegisterPreview(c *gin.Context) {
 	if !ok {
 		return
 	}
-	dateStr := c.Query("date")
-	period := c.Query("period")
-	preview, err := h.svc.CashRegister.GetPreview(c.Request.Context(), clinicID, dateStr, period)
+	query := newCashRegisterPreviewQuery(c.Request.URL.Query())
+	preview, err := h.svc.CashRegister.GetPreview(c.Request.Context(), clinicID, query.Date, query.Period)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -58,19 +46,13 @@ func (h *Handler) CloseCashRegister(c *gin.Context) {
 		return
 	}
 
-	date, err := time.Parse("2006-01-02", req.Date)
+	input, err := req.toServiceInput(staffID)
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("date は YYYY-MM-DD 形式で指定してください"))
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
 	}
 
-	record, err := h.svc.CashRegister.Close(c.Request.Context(), clinicID, service.CloseRegisterInput{
-		Date:       date,
-		Period:     req.Period,
-		ActualCash: req.ActualCash,
-		Memo:       req.Memo,
-		ClosedBy:   &staffID,
-	})
+	record, err := h.svc.CashRegister.Close(c.Request.Context(), clinicID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -87,12 +69,7 @@ func (h *Handler) ListCashRegisterCloses(c *gin.Context) {
 		return
 	}
 
-	startDateStr, err := parseDateQuery(c, "start_date")
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	endDateStr, err := parseDateQuery(c, "end_date")
+	filters, err := newListCashRegisterClosesQuery(c.Request.URL.Query()).toServiceFilters()
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -104,17 +81,7 @@ func (h *Handler) ListCashRegisterCloses(c *gin.Context) {
 		return
 	}
 
-	var startDate, endDate *time.Time
-	if startDateStr != nil {
-		t, _ := time.Parse("2006-01-02", *startDateStr)
-		startDate = &t
-	}
-	if endDateStr != nil {
-		t, _ := time.Parse("2006-01-02", *endDateStr)
-		endDate = &t
-	}
-
-	closes, total, err := h.svc.CashRegister.List(c.Request.Context(), clinicID, startDate, endDate, page, limit)
+	closes, total, err := h.svc.CashRegister.List(c.Request.Context(), clinicID, filters.StartDate, filters.EndDate, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return

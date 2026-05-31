@@ -1,18 +1,8 @@
-import { useState, memo, useCallback, useEffect } from "react";
-import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useCallback } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
-import { Plus, ShoppingBag, GripVertical } from "lucide-react";
-import { Table, TableBody, TableHeader, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow, StatusToggleButton, MoneyInput, MasterSidePanel } from "@/components/shared/SidePeek";
-import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { RowActionButton } from "@/components/shared/RowActionButton";
-import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
-import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
-import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
+import { ShoppingBag } from "lucide-react";
+import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -23,191 +13,15 @@ import type {
   CreateMerchandiseItemRequest,
   UpdateMerchandiseItemRequest,
 } from "../api/merchandise-items";
-import type { TaxType } from "@/types/generated/models";
+import { MerchandiseSidePanel } from "../components/MerchandiseSidePanel";
+import { MerchandiseSortableTable } from "../components/MerchandiseSortableTable";
+import type { MerchandiseFormData } from "../components/MerchandiseSidePanelModel";
+import {
+  buildMerchandiseCreateRequest,
+  buildMerchandiseUpdateRequest,
+} from "./MerchandiseItemSettingsModel";
 import { ResourceMasterMerchandise } from "@/types/generated/models";
 import { usePermission } from "@/hooks/use-permission";
-
-// ─── Constants ───
-
-const CATEGORY_LABELS: Record<string, string> = {
-  food: "フード",
-  goods: "物販",
-  other: "その他",
-};
-
-const CATEGORY_SELECT_ITEMS = [
-  { value: "food", label: "フード" },
-  { value: "goods", label: "物販" },
-  { value: "other", label: "その他" },
-].map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>);
-
-// ─── FormData ───
-
-interface MerchandiseFormData {
-  name: string;
-  category: string;
-  unitPrice: number;
-  taxType: TaxType;
-  taxRate: number;
-  isActive: boolean;
-}
-
-// ─── SidePanel ───
-
-const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
-  item,
-  onClose,
-  onSave,
-  onDeleteRequest,
-  readOnly,
-  onDirtyChange,
-}: {
-  item: FrontendMerchandiseItem | null;
-  onClose: () => void;
-  onSave: (d: MerchandiseFormData) => void;
-  onDeleteRequest?: (i: FrontendMerchandiseItem) => void;
-  readOnly?: boolean;
-  onDirtyChange?: (dirty: boolean) => void;
-}) {
-  const [formData, setFormData] = useState<MerchandiseFormData>(() => ({
-    name: item?.name ?? "",
-    category: item?.category ?? "goods",
-    unitPrice: item?.unitPrice ?? 0,
-    taxType: item?.taxType ?? "excluded",
-    taxRate: item?.taxRate ?? 0.1,
-    isActive: item?.isActive ?? true,
-  }));
-  const [isDirty, setIsDirty] = useState(false);
-  const [nameError, setNameError] = useState("");
-
-  // BUG-380
-  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
-
-  const handleTitleChange = useCallback((v: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: v }));
-    if (v.trim()) setNameError("");
-  }, [setFormDataDirty]);
-
-  const handleCategoryChange = useCallback((v: string) => {
-    setFormDataDirty((prev) => ({ ...prev, category: v }));
-  }, [setFormDataDirty]);
-
-  const handleUnitPriceChange = useCallback((v: number) => {
-    setFormDataDirty((prev) => ({ ...prev, unitPrice: v }));
-  }, [setFormDataDirty]);
-
-  const handleTaxTypeChange = useCallback((v: TaxType) => {
-    setFormDataDirty((prev) => ({ ...prev, taxType: v }));
-  }, [setFormDataDirty]);
-
-  const handleTaxRateChange = useCallback((v: number) => {
-    setFormDataDirty((prev) => ({ ...prev, taxRate: v }));
-  }, [setFormDataDirty]);
-
-  const handleToggleActive = useCallback(() => {
-    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
-  }, [setFormDataDirty]);
-
-  const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      return;
-    }
-    setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
-
-  const handleClose = useCallback(() => {
-    setIsDirty(false);
-    onClose();
-  }, [onClose]);
-
-  return (
-    <MasterSidePanel
-      isNew={item === null}
-      title={formData.name}
-      onTitleChange={handleTitleChange}
-      onClose={handleClose}
-      action={readOnly ? undefined : handleAction}
-      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
-      icon={<ShoppingBag className={LAYOUT.pageIcon.innerIcon} />}
-      titlePlaceholder="品目名"
-      isDirty={isDirty}
-      titleError={nameError}
-      titleMaxLength={100}
-      readOnly={readOnly}
-    >
-      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="カテゴリ">
-        <Select value={formData.category} onValueChange={handleCategoryChange}>
-          <SelectTrigger className={STYLE.selectCompact}>
-            <SelectValue placeholder="選択" />
-          </SelectTrigger>
-          <SelectContent>{CATEGORY_SELECT_ITEMS}</SelectContent>
-        </Select>
-      </PropertyRow>
-      <MoneyInput value={formData.unitPrice} onChange={handleUnitPriceChange} />
-      <PropertyRow label="課税区分">
-        <TaxTypeSelector
-          value={formData.taxType}
-          onChange={handleTaxTypeChange}
-        />
-      </PropertyRow>
-      <PropertyRow label="税率">
-        <TaxRateSelector
-          value={formData.taxRate}
-          onChange={handleTaxRateChange}
-        />
-      </PropertyRow>
-    </MasterSidePanel>
-  );
-});
-
-// ─── DragOverlay ───
-
-function MerchandiseRowOverlay({ item }: { item: FrontendMerchandiseItem }) {
-  return (
-    <div
-      className={`flex items-center h-12 ${C.bgWhite} border ${C.borderLight} rounded-[4px] ${STYLE.dragOverlayShadow} cursor-grabbing`}
-      style={{ width: "100%" }}
-    >
-      <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}>
-        <GripVertical className={ICON.action} />
-      </div>
-      <div className={`flex-1 min-w-0 text-base font-medium ${C.text} px-3`}>{item.name}</div>
-      <div className={`w-[90px] shrink-0 text-base ${C.text70} text-center`}>
-        {CATEGORY_LABELS[item.category] ?? item.category}
-      </div>
-      <div className={`w-[120px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>
-        ¥{item.unitPrice.toLocaleString()}
-      </div>
-      <div className={`w-[80px] shrink-0 text-base ${C.text70} text-center`}>
-        {item.taxRate === 0.1 ? "10%" : item.taxRate === 0.08 ? "8%" : `${item.taxRate * 100}%`}
-      </div>
-      <div className="w-[90px] shrink-0 flex justify-center">
-        <NotionStatusPill isActive={item.isActive} />
-      </div>
-      <div className="w-[80px] shrink-0" />
-    </div>
-  );
-}
-
-// ─── Columns ───
-
-const TABLE_COLUMNS = [
-  { key: "grip", className: "w-8 px-0" },
-  { key: "name", label: "品目名", className: "pl-3" },
-  { key: "category", label: "カテゴリ", className: "w-[90px] text-center" },
-  { key: "price", label: "単価(税込)", className: "w-[120px] text-right pr-4" },
-  { key: "taxRate", label: "税率", className: "w-[80px] text-center" },
-  { key: "status", label: "ステータス", className: "w-[90px] text-center" },
-  { key: "action", label: "操作", className: "w-[80px] text-right pr-2" },
-];
 
 // ─── Page ───
 
@@ -256,22 +70,8 @@ export function MerchandiseItemSettings() {
     createMutation,
     updateMutation,
     validate: (d) => (!d.name.trim() ? "品目名は必須です" : null),
-    toCreateRequest: (d) => ({
-      name: d.name,
-      category: d.category,
-      unit_price: d.unitPrice,
-      tax_type: d.taxType,
-      tax_rate: d.taxRate,
-      is_active: d.isActive,
-    }),
-    toUpdateRequest: (d) => ({
-      name: d.name,
-      category: d.category,
-      unit_price: d.unitPrice,
-      tax_type: d.taxType,
-      tax_rate: d.taxRate,
-      is_active: d.isActive,
-    }),
+    toCreateRequest: buildMerchandiseCreateRequest,
+    toUpdateRequest: buildMerchandiseUpdateRequest,
   });
 
   return (
@@ -291,78 +91,18 @@ export function MerchandiseItemSettings() {
         <MerchandiseSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} onDirtyChange={handleDirtyChange} />
       )}
     >
-      <div className={STYLE.tableContainer}>
-        <div className="flex-1 overflow-auto relative">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDragCancel={handleDragCancel}
-          >
-            <Table>
-              <TableHeader className="sticky top-0 z-10">
-                <TableRow className={STYLE.tableHeaderRow}>
-                  {TABLE_COLUMNS.map((col) => (
-                    <TableHead key={col.key} className={`${STYLE.tableHeaderCell} ${col.className}`}>
-                      {col.label ?? ""}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedItems.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className={STYLE.tableEmpty}>
-                      品目が登録されていません
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-                <SortableContext items={sortedItems.map((m) => m.id)} strategy={verticalListSortingStrategy}>
-                  {sortedItems.map((item) => (
-                    <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
-                      <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-                      <TableCell className={`text-base ${C.text70} text-center`}>
-                        {CATEGORY_LABELS[item.category] ?? item.category}
-                      </TableCell>
-                      <TableCell className={`text-right font-mono text-base ${C.text} pr-4`}>
-                        ¥{item.unitPrice.toLocaleString()}
-                      </TableCell>
-                      <TableCell className={`text-base ${C.text70} text-center`}>
-                        {item.taxRate === 0.1 ? "10%" : item.taxRate === 0.08 ? "8%" : `${item.taxRate * 100}%`}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <NotionStatusPill isActive={item.isActive} />
-                      </TableCell>
-                      <TableCell className="p-0 text-right pr-2">
-                        {canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}
-                      </TableCell>
-                    </SortableDataTableRow>
-                  ))}
-                </SortableContext>
-              </TableBody>
-            </Table>
-            <DragOverlay dropAnimation={null}>
-              {activeId
-                ? (() => {
-                    const m = sortedItems.find((x) => x.id === activeId);
-                    return m ? <MerchandiseRowOverlay item={m} /> : null;
-                  })()
-                : null}
-            </DragOverlay>
-          </DndContext>
-        </div>
-        {canCreate ? (
-          <button
-            type="button"
-            onClick={crud.handleNew}
-            className={STYLE.inlineAddBtn}
-          >
-            <Plus className={`${ICON.xs}`} />
-            新しい品目を追加...
-          </button>
-        ) : null}
-      </div>
+      <MerchandiseSortableTable
+        items={sortedItems}
+        sensors={sensors}
+        activeId={activeId}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+        canCreate={canCreate}
+        canEdit={canEdit}
+        onEdit={crud.handleEdit}
+        onNew={crud.handleNew}
+      />
     </MasterCRUDPage>
   );
 }

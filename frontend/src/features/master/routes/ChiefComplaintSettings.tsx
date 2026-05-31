@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { MessageSquareText } from "lucide-react";
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
@@ -6,18 +6,23 @@ import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow, StatusToggleButton, MasterSidePanel } from "@/components/shared/SidePeek";
-import { C, LAYOUT, ICON } from "@/lib/design-tokens";
-import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "../constants/styles";
+import { C, ICON } from "@/lib/design-tokens";
+import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
+import { ChiefComplaintSidePanel } from "../components/ChiefComplaintSidePanel";
+import type { ChiefComplaintFormData } from "../components/ChiefComplaintSidePanelModel";
 import { useGetChiefComplaintTypes, useCreateChiefComplaintType, useUpdateChiefComplaintType, useDeleteChiefComplaintType } from "../api/chief-complaint-types";
 import type {
   ChiefComplaintType,
   CreateChiefComplaintTypeRequest,
   UpdateChiefComplaintTypeRequest,
 } from "../api/chief-complaint-types";
+import {
+  buildChiefComplaintCreateRequest,
+  buildChiefComplaintUpdateRequest,
+} from "./ChiefComplaintSettingsModel";
 import { ResourceMasterMedical } from "@/types/generated/models";
 
 const COLUMNS = [
@@ -26,71 +31,6 @@ const COLUMNS = [
   { header: "ステータス", className: "w-[90px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
-
-interface FormData { name: string; description: string; isActive: boolean; }
-
-const SidePanel = memo(function SidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
-}: { item: ChiefComplaintType | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: ChiefComplaintType) => void; readOnly?: boolean; onDirtyChange?: (dirty: boolean) => void; }) {
-  const [formData, setFormData] = useState<FormData>(() => ({
-    name: item?.name ?? "", description: item?.description ?? "", isActive: item?.isActive ?? true,
-  }));
-  const [isDirty, setIsDirty] = useState(false);
-  const [nameError, setNameError] = useState("");
-
-  // BUG-380
-  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
-
-  const handleTitleChange = useCallback((v: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: v }));
-    if (v.trim()) setNameError("");
-  }, [setFormDataDirty]);
-
-  const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, description: e.target.value }));
-  }, [setFormDataDirty]);
-
-  const handleToggleActive = useCallback(() => {
-    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
-  }, [setFormDataDirty]);
-
-  const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      return;
-    }
-    setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
-
-  const handleClose = useCallback(() => {
-    setIsDirty(false);
-    onClose();
-  }, [onClose]);
-
-  return (
-    <MasterSidePanel isNew={item === null} title={formData.name}
-      onTitleChange={handleTitleChange}
-      onClose={handleClose} action={handleAction}
-      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
-      icon={<MessageSquareText className={LAYOUT.pageIcon.innerIcon} />}
-      isDirty={isDirty}
-      titleError={nameError}
-      titleMaxLength={100}
-      readOnly={readOnly}>
-      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="説明">
-        <textarea className={`${MASTER_INPUT_CLASS} min-h-[80px] resize-none`}
-          value={formData.description} onChange={handleDescriptionChange} placeholder="説明を入力" />
-      </PropertyRow>
-    </MasterSidePanel>
-  );
-});
 
 export function ChiefComplaintSettings() {
   usePermission(ResourceMasterMedical);
@@ -101,11 +41,11 @@ export function ChiefComplaintSettings() {
   const dirty = useSidePeekDirty();
   const crud = useMasterCRUD<ChiefComplaintType>({ data, deleteMutation, entityLabel: "主訴マスタ", dirtyGuard: dirty });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
-  const { handleSave } = useMasterSave<ChiefComplaintType, FormData, CreateChiefComplaintTypeRequest, UpdateChiefComplaintTypeRequest>({
+  const { handleSave } = useMasterSave<ChiefComplaintType, ChiefComplaintFormData, CreateChiefComplaintTypeRequest, UpdateChiefComplaintTypeRequest>({
     crud, createMutation, updateMutation,
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
-    toCreateRequest: (d) => ({ name: d.name, description: d.description || undefined }),
-    toUpdateRequest: (d) => ({ name: d.name, description: d.description || undefined, is_active: d.isActive }),
+    toCreateRequest: buildChiefComplaintCreateRequest,
+    toUpdateRequest: buildChiefComplaintUpdateRequest,
   });
 
   return (
@@ -121,7 +61,7 @@ export function ChiefComplaintSettings() {
           <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}
-      renderSidePanel={(props) => <SidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
+      renderSidePanel={(props) => <ChiefComplaintSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
     />
   );
 }

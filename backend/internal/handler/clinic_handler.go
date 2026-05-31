@@ -8,16 +8,15 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListClinics godoc
 // scope=all: 全クリニック一覧を返す（hospital-settings の can_view 権限が必要）
 // scope なし: staff_clinic_assignments に紐づくクリニック一覧を返す
 func (h *Handler) ListClinics(c *gin.Context) {
-	scope := c.Query("scope")
+	query := newListClinicQuery(c.Request.URL.Query())
 
-	if scope == "all" {
+	if query.Scope == "all" {
 		if !h.hasPermission(c, string(model.ResourceHospitalSettings), "view") {
 			RespondError(c, apperrors.WrapForbidden("医院マスタの閲覧権限が必要です"))
 			return
@@ -139,22 +138,7 @@ func (h *Handler) UpdateClinic(c *gin.Context) {
 		return
 	}
 
-	input := &service.UpdateClinicInput{
-		Name:               req.Name,
-		PostalCode:         req.PostalCode,
-		Address:            req.Address,
-		PhoneNumber:        req.PhoneNumber,
-		FaxNumber:          req.FaxNumber,
-		RegistrationNumber: req.RegistrationNumber,
-		DirectorName:       req.DirectorName,
-		Email:              req.Email,
-		Website:            req.Website,
-		LogoURL:            req.LogoURL,
-		IsActive:           req.IsActive,
-		StandardTaxRate:    req.StandardTaxRate,
-		ReducedTaxRate:     req.ReducedTaxRate,
-	}
-	result, err := h.svc.Clinic.UpdateClinic(c.Request.Context(), id, input)
+	result, err := h.svc.Clinic.UpdateClinic(c.Request.Context(), id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -170,17 +154,7 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	result, err := h.svc.Clinic.CreateClinic(c.Request.Context(), &service.CreateClinicInput{
-		Name:               req.Name,
-		PostalCode:         req.PostalCode,
-		Address:            req.Address,
-		PhoneNumber:        req.PhoneNumber,
-		FaxNumber:          req.FaxNumber,
-		RegistrationNumber: req.RegistrationNumber,
-		DirectorName:       req.DirectorName,
-		Email:              req.Email,
-		Website:            req.Website,
-	})
+	result, err := h.svc.Clinic.CreateClinic(c.Request.Context(), req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -1,23 +1,24 @@
-import { memo, useState, useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { Bed } from "lucide-react";
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell } from "@/components/ui/table";
-import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
-import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow, StatusToggleButton, MoneyInput, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
-import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
-import { useGetAllHospitalizationPlans, useCreateHospitalizationPlan, useUpdateHospitalizationPlan, useDeleteHospitalizationPlan, BODY_SIZE_OPTIONS, BODY_SIZE_LABELS, BILLING_UNIT_OPTIONS, BILLING_UNIT_LABELS } from "../api/hospitalization-plans";
+import { useGetAllHospitalizationPlans, useCreateHospitalizationPlan, useUpdateHospitalizationPlan, useDeleteHospitalizationPlan, BODY_SIZE_LABELS, BILLING_UNIT_LABELS } from "../api/hospitalization-plans";
 import type { HospitalizationPlan, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest } from "../api/hospitalization-plans";
-import type { BodySize, BillingUnit, TaxType } from "@/types/generated/models";
+import { HospitalizationSidePanel } from "../components/HospitalizationSidePanel";
+import type { HospitalizationFormData } from "../components/HospitalizationSidePanelModel";
+import {
+  buildHospitalizationCreateRequest,
+  buildHospitalizationUpdateRequest,
+} from "./HospitalizationSettingsModel";
 import { ResourceMasterHospitalization } from "@/types/generated/models";
 
 const COLUMNS = [
@@ -25,119 +26,6 @@ const COLUMNS = [
   { header: "料金単位", className: "w-[120px]" }, { header: "単価(税込)", className: "w-[120px]", align: "right" as const },
   { header: "ステータス", className: "w-[100px]", align: "center" as const }, { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
-
-const BODY_SIZE_SELECT_ITEMS = BODY_SIZE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>);
-const BILLING_UNIT_SELECT_ITEMS = BILLING_UNIT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>);
-
-interface HospitalizationFormData { name: string; price: number; description: string; isActive: boolean; bodySize: BodySize | ""; billingUnit: BillingUnit | ""; taxType: TaxType; taxRate: number; }
-
-const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
-}: { item: HospitalizationPlan | null; onClose: () => void; onSave: (d: HospitalizationFormData) => void; onDeleteRequest?: (i: HospitalizationPlan) => void; readOnly?: boolean; onDirtyChange?: (dirty: boolean) => void; }) {
-  const [formData, setFormData] = useState<HospitalizationFormData>(() => ({
-    name: item?.name ?? "", price: item?.price ?? 0, description: item?.description ?? "",
-    isActive: item?.isActive ?? true, bodySize: item?.bodySize ?? "", billingUnit: item?.billingUnit ?? "",
-    taxType: item?.taxType ?? "excluded", taxRate: item?.taxRate ?? 0.1,
-  }));
-  const [isDirty, setIsDirty] = useState(false);
-  const [nameError, setNameError] = useState("");
-
-  // BUG-380
-  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
-
-  const handleTitleChange = useCallback((v: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: v }));
-    if (v.trim()) setNameError("");
-  }, [setFormDataDirty]);
-
-  const handleBodySizeChange = useCallback((v: string) => {
-    setFormDataDirty((prev) => ({ ...prev, bodySize: v as BodySize }));
-  }, [setFormDataDirty]);
-
-  const handleBillingUnitChange = useCallback((v: string) => {
-    setFormDataDirty((prev) => ({ ...prev, billingUnit: v as BillingUnit }));
-  }, [setFormDataDirty]);
-
-  const handlePriceChange = useCallback((v: number) => {
-    setFormDataDirty((prev) => ({ ...prev, price: v }));
-  }, [setFormDataDirty]);
-
-  const handleTaxTypeChange = useCallback((v: TaxType) => {
-    setFormDataDirty((prev) => ({ ...prev, taxType: v }));
-  }, [setFormDataDirty]);
-
-  const handleTaxRateChange = useCallback((v: number) => {
-    setFormDataDirty((prev) => ({ ...prev, taxRate: v }));
-  }, [setFormDataDirty]);
-
-  const handleDescriptionChange = useCallback((v: string) => {
-    setFormDataDirty((prev) => ({ ...prev, description: v }));
-  }, [setFormDataDirty]);
-
-  const handleToggleActive = useCallback(() => {
-    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
-  }, [setFormDataDirty]);
-
-  const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      return;
-    }
-    setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
-
-  const handleClose = useCallback(() => {
-    setIsDirty(false);
-    onClose();
-  }, [onClose]);
-
-  return (
-    <MasterSidePanel isNew={item === null} title={formData.name}
-      onTitleChange={handleTitleChange}
-      onClose={handleClose} action={handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
-      icon={<Bed className={LAYOUT.pageIcon.innerIcon} />}
-      isDirty={isDirty}
-      titleError={nameError}
-      titleMaxLength={100}
-      readOnly={readOnly}>
-      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="対象体格">
-        <Select value={formData.bodySize} onValueChange={handleBodySizeChange}>
-          <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
-          <SelectContent>{BODY_SIZE_SELECT_ITEMS}</SelectContent>
-        </Select>
-      </PropertyRow>
-      <PropertyRow label="料金単位">
-        <Select value={formData.billingUnit} onValueChange={handleBillingUnitChange}>
-          <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
-          <SelectContent>{BILLING_UNIT_SELECT_ITEMS}</SelectContent>
-        </Select>
-      </PropertyRow>
-      <MoneyInput value={formData.price} onChange={handlePriceChange} />
-      <PropertyRow label="課税区分">
-        <TaxTypeSelector
-          value={formData.taxType}
-          onChange={handleTaxTypeChange}
-        />
-      </PropertyRow>
-      <PropertyRow label="税率">
-        <TaxRateSelector
-          value={formData.taxRate}
-          onChange={handleTaxRateChange}
-        />
-      </PropertyRow>
-      <PropertyRow label="備考">
-        <PropertyInput value={formData.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
-      </PropertyRow>
-    </MasterSidePanel>
-  );
-});
 
 export function HospitalizationSettings() {
   usePermission(ResourceMasterHospitalization);
@@ -151,16 +39,8 @@ export function HospitalizationSettings() {
   const { handleSave } = useMasterSave<HospitalizationPlan, HospitalizationFormData, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest>({
     crud, createMutation, updateMutation,
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
-    toCreateRequest: (d) => ({
-      name: d.name, price: d.price || undefined, description: d.description || undefined, is_active: d.isActive,
-      body_size: d.bodySize !== "" ? d.bodySize : undefined, billing_unit: d.billingUnit !== "" ? d.billingUnit : undefined,
-      tax_type: d.taxType, tax_rate: d.taxRate,
-    }),
-    toUpdateRequest: (d) => ({
-      name: d.name, price: d.price, description: d.description || undefined, is_active: d.isActive,
-      body_size: d.bodySize !== "" ? d.bodySize : null, billing_unit: d.billingUnit !== "" ? d.billingUnit : null,
-      tax_type: d.taxType, tax_rate: d.taxRate,
-    }),
+    toCreateRequest: buildHospitalizationCreateRequest,
+    toUpdateRequest: buildHospitalizationUpdateRequest,
   });
 
   return (

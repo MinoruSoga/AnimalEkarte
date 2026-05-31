@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListTrimmingCourses godoc
@@ -55,17 +54,7 @@ func (h *Handler) CreateTrimmingCourse(c *gin.Context) {
 		return
 	}
 
-	svcInput := &service.CreateTrimmingCourseInput{
-		Name:        req.Name,
-		TargetSize:  req.TargetSize,
-		Price:       req.Price,
-		IsActive:    req.IsActive,
-		Description: req.Description,
-		Duration:    req.Duration,
-		SortOrder:   req.SortOrder,
-	}
-
-	course, err := h.svc.TrimmingCourse.Create(c.Request.Context(), clinicID, svcInput)
+	course, err := h.svc.TrimmingCourse.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -90,17 +79,7 @@ func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
 		return
 	}
 
-	svcInput := &service.UpdateTrimmingCourseInput{
-		Name:        req.Name,
-		Price:       req.Price,
-		IsActive:    req.IsActive,
-		Description: req.Description,
-		TargetSize:  req.TargetSize,
-		Duration:    req.Duration,
-		SortOrder:   req.SortOrder,
-	}
-
-	course, err := h.svc.TrimmingCourse.Update(c.Request.Context(), clinicID, id, svcInput)
+	course, err := h.svc.TrimmingCourse.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

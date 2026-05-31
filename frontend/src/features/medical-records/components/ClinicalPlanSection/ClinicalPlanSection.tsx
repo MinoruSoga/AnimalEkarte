@@ -6,7 +6,7 @@ import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { C, STYLE } from "@/lib/design-tokens";
 import { LoadingFallback } from "@/components/shared/DataStates";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 
 // Relative
 import { useGetClinicalPlan, useUpdateClinicalPlan } from "../../api/clinical-plan";
@@ -37,17 +37,13 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
   const { data: diagnosisTypes = [], isLoading: isTypesLoading } = useGetDiagnosisTypes();
   const { data: diagnosisNames = [], isLoading: isNamesLoading } = useGetDiagnosisNames(diagnosisTypeId);
 
-  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
-  const typeSelectItems = useMemo(
-    () => diagnosisTypes.map((t) => (
-      <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
-    )),
+  // SearchableSelect 用に選択肢を {value,label} 形へ変換(参照安定のため memo 化)
+  const typeOptions = useMemo<SearchableSelectOption[]>(
+    () => diagnosisTypes.map((t) => ({ value: String(t.id), label: t.name })),
     [diagnosisTypes]
   );
-  const nameSelectItems = useMemo(
-    () => diagnosisNames.map((n) => (
-      <SelectItem key={n.id} value={String(n.id)}>{n.name}</SelectItem>
-    )),
+  const nameOptions = useMemo<SearchableSelectOption[]>(
+    () => diagnosisNames.map((n) => ({ value: String(n.id), label: n.name })),
     [diagnosisNames]
   );
 
@@ -102,51 +98,43 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
           />
         </div>
 
-        {/* 診断カテゴリ — Select で ID を安全に管理（旧: 自由入力 input で NaN 破損バグ） */}
+        {/* 診断カテゴリ — セレクトで ID を安全に管理（旧: 自由入力 input で NaN 破損バグ） */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <label className={STYLE.formLabel}>診断カテゴリ</label>
             <MasterLink category="diagnosis_type" label="編集" className="text-[11px]" />
           </div>
-          <Select
+          <SearchableSelect
             value={diagnosisTypeId ? String(diagnosisTypeId) : ""}
             onValueChange={(value) => {
               setDiagnosisTypeId(value ? Number(value) : null);
               setDiagnosisNameId(null); // カテゴリ変更時は病名をリセット
             }}
+            options={typeOptions}
             disabled={isTypesLoading || !canEdit}
-          >
-            <SelectTrigger className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm`}>
-              <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
-            </SelectTrigger>
-            <SelectContent className="z-[9999]">
-              {typeSelectItems}
-            </SelectContent>
-          </Select>
+            placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"}
+            searchPlaceholder="カテゴリを検索..."
+          />
         </div>
 
-        {/* 診断病名 — Select で ID を安全に管理（旧: 自由入力 input で NaN 破損バグ） */}
+        {/* 診断病名 — セレクトで ID を安全に管理（旧: 自由入力 input で NaN 破損バグ） */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <label className={STYLE.formLabel}>診断病名</label>
             <MasterLink category="diagnosis_name" label="編集" className="text-[11px]" />
           </div>
-          <Select
+          <SearchableSelect
             value={diagnosisNameId ? String(diagnosisNameId) : ""}
             onValueChange={(value) => setDiagnosisNameId(value ? Number(value) : null)}
+            options={nameOptions}
             disabled={isNamesLoading || !diagnosisTypeId || !canEdit}
-          >
-            <SelectTrigger className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm`}>
-              <SelectValue placeholder={
-                isNamesLoading ? "読み込み中..." :
-                !diagnosisTypeId ? "先にカテゴリを選択" :
-                "病名を選択"
-              } />
-            </SelectTrigger>
-            <SelectContent className="z-[9999]">
-              {nameSelectItems}
-            </SelectContent>
-          </Select>
+            placeholder={
+              isNamesLoading ? "読み込み中..." :
+              !diagnosisTypeId ? "先にカテゴリを選択" :
+              "病名を選択"
+            }
+            searchPlaceholder="病名を検索..."
+          />
         </div>
 
         {/* 診断詳細 */}

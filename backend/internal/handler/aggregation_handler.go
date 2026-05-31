@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -109,148 +108,12 @@ func (h *Handler) ListOwnerAggregation(c *gin.Context) {
 		return
 	}
 
-	page, pageErr := strconv.Atoi(c.DefaultQuery("page", "1"))
-	if pageErr != nil || page < 1 {
-		RespondError(c, apperrors.WrapInvalidInput("page は1以上の整数で指定してください"))
+	query, err := newOwnerAggregationQuery(c.Request.URL.Query())
+	if err != nil {
+		RespondError(c, err)
 		return
 	}
-	perPage, ppErr := strconv.Atoi(c.DefaultQuery("per_page", "50"))
-	if ppErr != nil || perPage < 1 || perPage > 200 {
-		RespondError(c, apperrors.WrapInvalidInput("per_page は1〜200の範囲で指定してください"))
-		return
-	}
-
-	// 金額フィルタの受付優先度（仕様書 §4.1 に準拠）:
-	//   1. min_amount / max_amount       — 仕様書の正規名
-	//   2. min_total_amount / max_total_amount — 既存 BE 別名（互換維持）
-	//   3. min_total_fee / max_total_fee  — FE 既存別名（互換維持）
-	// 上位キーが空の場合のみ下位キーをフォールバックする。
-	var minTotalAmount, maxTotalAmount *int64
-	minAmountKey := "min_amount"
-	if c.Query(minAmountKey) == "" && c.Query("min_total_amount") != "" {
-		minAmountKey = "min_total_amount"
-	}
-	if c.Query(minAmountKey) == "" && c.Query("min_total_fee") != "" {
-		minAmountKey = "min_total_fee"
-	}
-	if s := c.Query(minAmountKey); s != "" {
-		v, pErr := strconv.ParseInt(s, 10, 64)
-		if pErr != nil || v < 0 {
-			RespondError(c, apperrors.WrapInvalidInput("min_amount / min_total_amount / min_total_fee は0以上の整数で指定してください"))
-			return
-		}
-		minTotalAmount = &v
-	}
-	maxAmountKey := "max_amount"
-	if c.Query(maxAmountKey) == "" && c.Query("max_total_amount") != "" {
-		maxAmountKey = "max_total_amount"
-	}
-	if c.Query(maxAmountKey) == "" && c.Query("max_total_fee") != "" {
-		maxAmountKey = "max_total_fee"
-	}
-	if s := c.Query(maxAmountKey); s != "" {
-		v, pErr := strconv.ParseInt(s, 10, 64)
-		if pErr != nil || v < 0 {
-			RespondError(c, apperrors.WrapInvalidInput("max_amount / max_total_amount / max_total_fee は0以上の整数で指定してください"))
-			return
-		}
-		maxTotalAmount = &v
-	}
-
-	var minVisitCount *int64
-	if s := c.Query("min_visit_count"); s != "" {
-		v, pErr := strconv.ParseInt(s, 10, 64)
-		if pErr != nil || v < 0 {
-			RespondError(c, apperrors.WrapInvalidInput("min_visit_count は0以上の整数で指定してください"))
-			return
-		}
-		minVisitCount = &v
-	}
-
-	// has_line は FE エイリアス（line_linked 優先）
-	lineLinked := c.Query("line_linked") == "true" || c.Query("has_line") == "true"
-
-	// sort + order パラメータ（FE: sort=total_fee&order=desc）
-	sort := resolveAggregationSort(c.Query("sort"))
-	order := c.DefaultQuery("order", "desc")
-
-	// year パラメータ（AGG-BE-001）
-	var year *int
-	if s := c.Query("year"); s != "" {
-		v, pErr := strconv.Atoi(s)
-		if pErr != nil || v < 1900 || v > 2100 {
-			RespondError(c, apperrors.WrapInvalidInput("year は1900〜2100の整数で指定してください"))
-			return
-		}
-		year = &v
-	}
-
-	// from / to パラメータ（YYYY-MM-DD形式、AGG-BE-001）
-	var from, to *string
-	if s := c.Query("from"); s != "" {
-		from = &s
-	}
-	if s := c.Query("to"); s != "" {
-		to = &s
-	}
-
-	// amount_basis パラメータ（AGG-BE-001）
-	amountBasis := c.DefaultQuery("amount_basis", "gross_total_amount")
-
-	// include_zero パラメータ（AGG-BE-001）
-	includeZero := c.Query("include_zero") == "true"
-
-	// search パラメータ（飼い主名部分一致、AGG-BE-001）
-	search := c.Query("search")
-
-	// period_preset パラメータ（AGG-BE-002）
-	periodPreset := c.Query("period_preset")
-
-	// max_visit_count パラメータ（AGG-BE-002）
-	var maxVisitCount *int64
-	if s := c.Query("max_visit_count"); s != "" {
-		v, pErr := strconv.ParseInt(s, 10, 64)
-		if pErr != nil || v < 0 {
-			RespondError(c, apperrors.WrapInvalidInput("max_visit_count は0以上の整数で指定してください"))
-			return
-		}
-		maxVisitCount = &v
-	}
-
-	// last_visit_bucket パラメータ（AGG-BE-003）
-	lastVisitBucket := c.Query("last_visit_bucket")
-
-	// include_no_visit パラメータ（AGG-BE-003）
-	includeNoVisit := c.Query("include_no_visit") == "true"
-
-	// metric パラメータ（AGG-BE-004）— annual_sales | visit_count | last_visit
-	metric := c.DefaultQuery("metric", "annual_sales")
-
-	// cpm_stage パラメータ（ISSUE-006）— spot/cpm_spot/encounter/growing/core/noah/dormant
-	cpmStage := c.Query("cpm_stage")
-
-	result, err := h.svc.Aggregation.ListOwnerAggregation(c.Request.Context(), clinicID, &service.ListOwnerAggregationInput{
-		Sort:            sort,
-		MinTotalAmount:  minTotalAmount,
-		MaxTotalAmount:  maxTotalAmount,
-		MinVisitCount:   minVisitCount,
-		LineLinked:      lineLinked,
-		Page:            page,
-		PerPage:         perPage,
-		Year:            year,
-		From:            from,
-		To:              to,
-		AmountBasis:     amountBasis,
-		IncludeZero:     includeZero,
-		Search:          search,
-		PeriodPreset:    periodPreset,
-		MaxVisitCount:   maxVisitCount,
-		LastVisitBucket: lastVisitBucket,
-		IncludeNoVisit:  includeNoVisit,
-		Order:           order,
-		Metric:          metric,
-		CPMStage:        cpmStage,
-	})
+	result, err := h.svc.Aggregation.ListOwnerAggregation(c.Request.Context(), clinicID, query.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -13,19 +13,19 @@ interface RowActionButtonProps {
 
 export const RowActionButton = memo(function RowActionButton({ icon: Icon = Edit, onClick, className, "aria-label": ariaLabel = "操作" }: RowActionButtonProps) {
   return (
-    <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-        <Button
+    <div className="flex items-center justify-end gap-1">
+      <Button
         variant="ghost"
         size="icon"
         aria-label={ariaLabel}
         className={cn(TABLE_STYLES.actionButton, className)}
         onClick={(e) => {
-            e.stopPropagation();
-            onClick(e);
+          e.stopPropagation();
+          onClick(e);
         }}
-        >
+      >
         <Icon className={ICON.page} />
-        </Button>
+      </Button>
     </div>
   );
 });

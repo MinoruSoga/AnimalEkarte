@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Procedure ----
@@ -52,27 +51,13 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		return
 	}
 
-	var input createProcedureRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req createProcedureRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	// TaxType 変換はサービス層で行う (BUG-379)
-	svcInput := &service.CreateProcedureInput{
-		Name:        input.Name,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		Duration:    input.Duration,
-		Anesthesia:  input.Anesthesia,
-		ParentID:    input.ParentID,
-		SortOrder:   input.SortOrder,
-		TaxType:     input.TaxType,
-		TaxRate:     input.TaxRate,
-	}
-
-	procedure, err := h.svc.Procedure.Create(c.Request.Context(), clinicID, svcInput)
+	procedure, err := h.svc.Procedure.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -91,27 +76,13 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input updateProcedureRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req updateProcedureRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	svcInput := service.UpdateProcedureInput{
-		Name:          input.Name,
-		Price:         input.Price,
-		IsActive:      input.IsActive,
-		Description:   input.Description,
-		Duration:      input.Duration,
-		Anesthesia:    input.Anesthesia,
-		ParentID:      input.ParentID,
-		ClearParentID: input.ClearParentID,
-		SortOrder:     input.SortOrder,
-		TaxType:       input.TaxType,
-		TaxRate:       input.TaxRate,
-	}
-
-	procedure, err := h.svc.Procedure.Update(c.Request.Context(), clinicID, id, &svcInput)
+	procedure, err := h.svc.Procedure.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

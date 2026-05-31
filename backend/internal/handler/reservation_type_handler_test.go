@@ -31,6 +31,9 @@ type mockReservationTypeService struct {
 	listUnavailableFn   func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
 	createUnavailableFn func(ctx context.Context, clinicID, reservationTypeID uint64, input service.CreateUnavailableTimeInput) (*model.ReservationTypeUnavailableTime, error)
 	deleteUnavailableFn func(ctx context.Context, clinicID, reservationTypeID, id uint64) error
+	listAvailableFn     func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error)
+	createAvailableFn   func(ctx context.Context, clinicID, reservationTypeID uint64, input service.CreateAvailableSlotInput) (*model.ReservationTypeAvailableSlot, error)
+	deleteAvailableFn   func(ctx context.Context, clinicID, reservationTypeID, id uint64) error
 	listOccupationsFn   func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
 	linkOccupationFn    func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error)
 	unlinkOccupationFn  func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
@@ -99,6 +102,27 @@ func (m *mockReservationTypeService) DeleteUnavailableTime(ctx context.Context, 
 	return nil
 }
 
+func (m *mockReservationTypeService) ListAvailableSlots(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error) {
+	if m.listAvailableFn != nil {
+		return m.listAvailableFn(ctx, clinicID, reservationTypeID)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationTypeService) CreateAvailableSlot(ctx context.Context, clinicID, reservationTypeID uint64, input service.CreateAvailableSlotInput) (*model.ReservationTypeAvailableSlot, error) {
+	if m.createAvailableFn != nil {
+		return m.createAvailableFn(ctx, clinicID, reservationTypeID, input)
+	}
+	return &model.ReservationTypeAvailableSlot{ID: 1}, nil
+}
+
+func (m *mockReservationTypeService) DeleteAvailableSlot(ctx context.Context, clinicID, reservationTypeID, id uint64) error {
+	if m.deleteAvailableFn != nil {
+		return m.deleteAvailableFn(ctx, clinicID, reservationTypeID, id)
+	}
+	return nil
+}
+
 func (m *mockReservationTypeService) ListOccupations(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error) {
 	if m.listOccupationsFn != nil {
 		return m.listOccupationsFn(ctx, clinicID, reservationTypeID)
@@ -126,6 +150,7 @@ func newHandlerWithReservationTypeSvc(svc service.ReservationTypeService) *Handl
 	return &Handler{svc: &service.Services{
 		ReservationType:                svc,
 		ReservationTypeUnavailableTime: svc,
+		ReservationTypeAvailableSlot:   svc,
 		ReservationTypeOccupation:      svc,
 	}}
 }
@@ -714,6 +739,93 @@ func TestDeleteUnavailableTime(t *testing.T) {
 		router.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+}
+
+// ---- AvailableSlots ----
+
+func TestCreateAvailableSlot(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	dow := int8(1)
+	h := newHandlerWithReservationTypeSvc(&mockReservationTypeService{
+		createAvailableFn: func(_ context.Context, clinicID, reservationTypeID uint64, input service.CreateAvailableSlotInput) (*model.ReservationTypeAvailableSlot, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(1), reservationTypeID)
+			assert.Equal(t, "weekly", input.AvailableType)
+			assert.Equal(t, &dow, input.DayOfWeek)
+			assert.Equal(t, "09:45", input.StartTime)
+			return &model.ReservationTypeAvailableSlot{
+				ID:                1,
+				ReservationTypeID: reservationTypeID,
+				AvailableType:     model.AvailableSlotTypeWeekly,
+				DayOfWeek:         &dow,
+				StartTime:         "09:45",
+				IsActive:          true,
+			}, nil
+		},
+	})
+	body, err := json.Marshal(map[string]any{
+		"available_type": "weekly",
+		"day_of_week":    1,
+		"start_time":     "09:45",
+	})
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	setClinicID(c)
+
+	h.CreateAvailableSlot(c)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.Contains(t, w.Body.String(), `"start_time":"09:45"`)
+}
+
+func TestListAvailableSlots(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	dow := int8(1)
+	h := newHandlerWithReservationTypeSvc(&mockReservationTypeService{
+		listAvailableFn: func(_ context.Context, _, _ uint64) ([]model.ReservationTypeAvailableSlot, error) {
+			return []model.ReservationTypeAvailableSlot{
+				{ID: 1, AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &dow, StartTime: "12:30", IsActive: true},
+			}, nil
+		},
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	setClinicID(c)
+
+	h.ListAvailableSlots(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"start_time":"12:30"`)
+}
+
+func TestDeleteAvailableSlot(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockReservationTypeService{
+		deleteAvailableFn: func(_ context.Context, _, reservationTypeID, id uint64) error {
+			assert.Equal(t, uint64(1), reservationTypeID)
+			assert.Equal(t, uint64(5), id)
+			return nil
+		},
+	}
+	h := newHandlerWithReservationTypeSvc(svc)
+	router := gin.New()
+	router.DELETE("/reservation-types/:id/available-slots/:available_slot_id",
+		func(c *gin.Context) { setClinicID(c) },
+		h.DeleteAvailableSlot)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/reservation-types/1/available-slots/5", http.NoBody)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
 }
 
 // ---- LinkReservationTypeOccupation ----

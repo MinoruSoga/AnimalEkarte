@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- ExaminationType ----
@@ -58,17 +57,7 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 		return
 	}
 
-	svcInput := &service.CreateExamTypeInput{
-		Name:           req.Name,
-		Price:          req.Price,
-		IsActive:       req.IsActive,
-		Description:    req.Description,
-		ParentID:       req.ParentID,
-		SortOrder:      req.SortOrder,
-		IsNonInsurance: req.IsNonInsurance,
-	}
-
-	examType, err := h.svc.ExaminationType.Create(c.Request.Context(), clinicID, svcInput)
+	examType, err := h.svc.ExaminationType.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -93,18 +82,7 @@ func (h *Handler) UpdateExaminationType(c *gin.Context) {
 		return
 	}
 
-	svcInput := service.UpdateExamTypeInput{
-		Name:           req.Name,
-		Price:          req.Price,
-		IsActive:       req.IsActive,
-		Description:    req.Description,
-		ParentID:       req.ParentID,
-		ClearParentID:  req.ClearParentID,
-		SortOrder:      req.SortOrder,
-		IsNonInsurance: req.IsNonInsurance,
-	}
-
-	exType, err := h.svc.ExaminationType.Update(c.Request.Context(), clinicID, id, &svcInput)
+	exType, err := h.svc.ExaminationType.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -4,8 +4,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
-import { ReservationTypeUnavailableTimesSection } from "../components/ReservationTypeUnavailableTimesSection";
-import { ReservationTypeOccupationsSection } from "../components/ReservationTypeOccupationsSection";
+import { ReservationTypeAvailableSlotsSection } from "./ReservationTypeAvailableSlotsSection";
+import { ReservationTypeUnavailableTimesSection } from "./ReservationTypeUnavailableTimesSection";
+import { ReservationTypeOccupationsSection } from "./ReservationTypeOccupationsSection";
 import type { ReservationType } from "../api/reservation-types";
 
 // ── 静的 SelectItem JSX (rendering-hoist-jsx) ──────────────────
@@ -183,6 +184,10 @@ export const CategorySidePanel = memo(function CategorySidePanel({
 
       {item !== null ? (
         <>
+          <ReservationTypeAvailableSlotsSection
+            clinicId={item.clinicId}
+            reservationTypeId={item.id}
+          />
           <ReservationTypeUnavailableTimesSection
             clinicId={item.clinicId}
             reservationTypeId={item.id}

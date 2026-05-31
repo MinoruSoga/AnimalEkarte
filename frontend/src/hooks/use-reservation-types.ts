@@ -15,6 +15,10 @@ interface ReservationTypeRaw {
   name: string;
   color: string;
   is_active: boolean;
+  duration_minutes: number;
+  sort_order: number;
+  is_internal: boolean;
+  category: string;
   group_id: number | null;
   group: ReservationTypeGroupSummary | null;
 }
@@ -31,6 +35,23 @@ interface OnDutyStaff {
   name: string;
 }
 
+export interface ReservationAvailableTimeSlot {
+  start_time: string;
+  end_time: string;
+}
+
+interface ReservationStaffExcludedCourse {
+  id: number;
+  name?: string;
+}
+
+export interface ReservationStaff {
+  id: number;
+  name: string;
+  is_active: boolean;
+  excluded_courses: ReservationStaffExcludedCourse[];
+}
+
 // GET /v1/masters/reservation-types
 const fetchReservationTypesRaw = async (): Promise<ReservationTypeRaw[]> => {
   const { data } = await axios.get<ReservationTypeRaw[]>("/v1/masters/reservation-types");
@@ -42,6 +63,39 @@ const fetchOnDutyStaffs = async (date: string): Promise<OnDutyStaff[]> => {
   const { data } = await axios.get<OnDutyStaff[]>("/v1/shifts/on-duty-staffs", {
     params: { date },
   });
+  return data;
+};
+
+export const getCurrentClinicId = (): string => {
+  try {
+    return localStorage.getItem("auth_current_clinic:v1") ?? "";
+  } catch {
+    return "";
+  }
+};
+
+const fetchReservationStaffs = async (clinicId: string): Promise<ReservationStaff[]> => {
+  const { data } = await axios.get<ReservationStaff[]>(
+    `/v1/clinics/${clinicId}/reservation-staffs`,
+  );
+  return data;
+};
+
+const fetchReservationAvailableTimes = async (
+  reservationTypeId: string,
+  date: string,
+  staffId: string | null,
+): Promise<ReservationAvailableTimeSlot[]> => {
+  const { data } = await axios.get<ReservationAvailableTimeSlot[]>(
+    "/v1/reservations/available-times",
+    {
+      params: {
+        reservation_type_id: reservationTypeId,
+        date,
+        ...(staffId ? { staff_id: staffId } : {}),
+      },
+    },
+  );
   return data;
 };
 
@@ -80,6 +134,39 @@ export function useGetOnDutyStaffs(date: string | null) {
     queryFn: () => fetchOnDutyStaffs(date!),
     enabled: date !== null,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.SHORT,
+  });
+}
+
+/**
+ * 予約スタッフ一覧を取得する。
+ * excluded_courses は院内予約フォームの担当者候補から非対応コースを除外するために使う。
+ */
+export function useGetReservationStaffs() {
+  const clinicId = getCurrentClinicId();
+  return useQuery({
+    queryKey: ["clinics", clinicId, "reservation-staffs"],
+    queryFn: () => fetchReservationStaffs(clinicId),
+    enabled: clinicId !== "",
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
+  });
+}
+
+/**
+ * 院内予約フォーム用の空き枠一覧を取得する。
+ * LIFF と同じ空き枠計算を使い、営業時間・スタッフシフト・既存予約・予約不可時間を反映する。
+ */
+export function useGetReservationAvailableTimes(
+  reservationTypeId: string | null,
+  date: string | null,
+  staffId: string | null,
+) {
+  return useQuery({
+    queryKey: ["reservations", "available-times", reservationTypeId, date, staffId ?? ""],
+    queryFn: () => fetchReservationAvailableTimes(reservationTypeId!, date!, staffId),
+    enabled: reservationTypeId !== null && date !== null,
+    staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.SHORT,
   });
 }

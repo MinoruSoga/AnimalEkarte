@@ -11,7 +11,7 @@ import { MasterLink } from "@/components/shared/MasterLink";
 import { Textarea } from "@/components/ui/textarea";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 // Relative
 import { H_STYLES } from "../styles";
@@ -95,21 +95,17 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
             <Label className={`${H_STYLES.text.sm} ${C.text60}`}>ケージ・個室</Label>
             <MasterLink category="cage" label="編集" className="text-[11px]" />
           </div>
-          <Select 
-              value={formData.cageId} 
+          <SearchableSelect
+              id="cage_id"
+              value={formData.cageId}
               onValueChange={(val) => onChange({ cageId: val })}
-          >
-              <SelectTrigger id="cage_id" className={`h-10 ${H_STYLES.text.base} ${C.bgWhite} ${C.borderMedium}`}>
-                  <SelectValue placeholder="選択してください" />
-              </SelectTrigger>
-              <SelectContent>
-                  {cageItems.map((cage) => (
-                      <SelectItem key={cage.id} value={String(cage.id)}>
-                          {cage.name} <span className={`${H_STYLES.text.xs} ${C.text50} ml-1`}>({cage.description})</span>
-                      </SelectItem>
-                  ))}
-              </SelectContent>
-          </Select>
+              options={cageItems.map((cage) => ({
+                value: String(cage.id),
+                label: cage.description ? `${cage.name}（${cage.description}）` : cage.name,
+              }))}
+              placeholder="選択してください"
+              searchPlaceholder="ケージを検索..."
+          />
       </div>
 
       {/* 保険 */}

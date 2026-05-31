@@ -10,7 +10,7 @@ import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { C, LAYOUT, ICON, STYLE } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
 
@@ -40,11 +40,9 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   const { canEdit } = usePermission("medical-records");
   const { data: categories = [], isLoading } = useGetChiefComplaintTypes();
 
-  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
-  const categorySelectItems = useMemo(
-    () => categories.map((category) => (
-      <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
-    )),
+  // SearchableSelect 用に選択肢を {value,label} 形へ変換(参照安定のため memo 化)
+  const categoryOptions = useMemo<SearchableSelectOption[]>(
+    () => categories.map((category) => ({ value: String(category.id), label: category.name })),
     [categories]
   );
   const templateButtons = useMemo(
@@ -77,27 +75,24 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             <Label className={`text-sm ${C.text60}`}>主訴区分</Label>
             {canEdit ? (
               <button
+                type="button"
                 onClick={() => navigate(paths.settings.interview.chiefComplaint.getHref())}
                 className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
-                type="button"
               >
                 <Settings className={ICON.xs} />
                 マスタ編集
               </button>
             ) : null}
           </div>
-          <Select
+          <SearchableSelect
             value={chiefComplaintTypeId ? String(chiefComplaintTypeId) : ""}
             onValueChange={(value) => setChiefComplaintTypeId(value ? Number(value) : null)}
+            options={categoryOptions}
             disabled={isLoading || !canEdit}
-          >
-            <SelectTrigger className={`w-full ${LAYOUT.touch.md} ${C.bgWhite} ${C.borderMedium} text-sm ${C.text}`}>
-              <SelectValue placeholder={isLoading ? "読み込み中..." : "選択してください"} />
-            </SelectTrigger>
-            <SelectContent>
-              {categorySelectItems}
-            </SelectContent>
-          </Select>
+            placeholder={isLoading ? "読み込み中..." : "選択してください"}
+            searchPlaceholder="主訴区分を検索..."
+            className={LAYOUT.touch.md}
+          />
         </div>
 
         <div className="space-y-1.5">
@@ -105,9 +100,9 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             <Label className={`text-sm ${C.text60}`}>定型文挿入</Label>
             {canEdit ? (
               <button
+                type="button"
                 onClick={() => navigate(paths.settings.interview.interviewTemplate.getHref())}
                 className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
-                type="button"
               >
                 <Settings className={ICON.xs} />
                 マスタ編集

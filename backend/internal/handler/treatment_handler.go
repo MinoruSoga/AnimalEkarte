@@ -8,7 +8,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListTreatments godoc
@@ -64,26 +63,7 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 		return
 	}
 
-	input := &service.CreateTreatmentInput{
-		ItemType:       model.TreatmentItemType(req.ItemType),
-		ConsultationID: req.ConsultationID,
-		ProcedureID:    req.ProcedureID,
-		MedicineID:     req.MedicineID,
-		InventoryID:    req.InventoryID,
-		UnitPrice:      req.UnitPrice,
-		Quantity:       req.Quantity,
-		IsSelected:     req.IsSelected,
-		Status:         req.Status,
-		Content:        req.Content,
-		Memo:           req.Memo,
-		AdminRoute:     req.AdminRoute,
-		IsInsurance:    req.IsInsurance,
-		DiscountRate:   req.DiscountRate,
-		DiscountAmount: req.DiscountAmount,
-		SortOrder:      req.SortOrder,
-	}
-
-	treatment, err := h.svc.Treatment.Create(c.Request.Context(), clinicID, medicalRecordID, input)
+	treatment, err := h.svc.Treatment.Create(c.Request.Context(), clinicID, medicalRecordID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -131,29 +111,7 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 		}
 	}
 
-	input := &service.UpdateTreatmentInput{
-		ConsultationID: req.ConsultationID,
-		ProcedureID:    req.ProcedureID,
-		MedicineID:     req.MedicineID,
-		InventoryID:    req.InventoryID,
-		UnitPrice:      req.UnitPrice,
-		Quantity:       req.Quantity,
-		IsSelected:     req.IsSelected,
-		Status:         req.Status,
-		Content:        req.Content,
-		Memo:           req.Memo,
-		AdminRoute:     req.AdminRoute,
-		IsInsurance:    req.IsInsurance,
-		DiscountRate:   req.DiscountRate,
-		DiscountAmount: req.DiscountAmount,
-		SortOrder:      req.SortOrder,
-	}
-	if req.ItemType != nil {
-		itemType := model.TreatmentItemType(*req.ItemType)
-		input.ItemType = &itemType
-	}
-
-	treatment, err := h.svc.Treatment.Update(c.Request.Context(), clinicID, medicalRecordID, treatmentID, input)
+	treatment, err := h.svc.Treatment.Update(c.Request.Context(), clinicID, medicalRecordID, treatmentID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -201,16 +159,7 @@ func (h *Handler) BulkUpdateTreatments(c *gin.Context) {
 		return
 	}
 
-	items := make([]service.BulkTreatmentItem, 0, len(req.Treatments))
-	for _, t := range req.Treatments {
-		items = append(items, service.BulkTreatmentItem{
-			ID:        t.ID,
-			SortOrder: t.SortOrder,
-		})
-	}
-	input := &service.BulkUpdateTreatmentsInput{Treatments: items}
-
-	if err := h.svc.Treatment.BulkUpdateSortOrder(c.Request.Context(), clinicID, medicalRecordID, input); err != nil {
+	if err := h.svc.Treatment.BulkUpdateSortOrder(c.Request.Context(), clinicID, medicalRecordID, req.toServiceInput()); err != nil {
 		RespondError(c, err)
 		return
 	}

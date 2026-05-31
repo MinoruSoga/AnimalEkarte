@@ -13,15 +13,15 @@ export type { Owner, CreateOwnerRequest, UpdateOwnerRequest } from './owner';
 export type { Pet } from "@/lib/transforms/pet";
 export type { Medicine } from "@/lib/transforms/medicine";
 // ExamResult / ExaminationRecord は examination feature 固有の view model のため、
-// @/features/examinations から直接 import すること（@/types で二重管理しない）。
-export type { VaccinationRecord } from "@/features/vaccinations/api/transforms";
-export type { TrimmingUI } from "@/features/trimming/api/transforms";
-export type { InventoryItem } from "@/features/inventory/api/inventory";
+// examinations の feature index から直接 import すること（@/types で二重管理しない）。
+export type { VaccinationRecord } from "@/features/vaccinations";
+export type { TrimmingUI } from "@/features/trimming";
+export type { InventoryItem } from "@/features/inventory";
 // Feature domain types — sourced from transform ReturnType (FA9)
-export type { Reservation } from "@/features/reservations/api/transforms";
-export type { Hospitalization } from "@/features/hospitalization/api/transforms";
-export type { MedicalRecord } from "@/features/medical-records/api/transforms";
-import type { ReceptionAppointment } from "@/features/reception/api/transforms";
+export type { Reservation } from "@/features/reservations";
+export type { Hospitalization } from "@/features/hospitalization";
+export type { MedicalRecord } from "@/features/medical-records";
+import type { ReceptionAppointment } from "@/features/reception";
 export type { ReceptionAppointment };
 
 
@@ -34,7 +34,7 @@ export interface MenuItem {
 }
 
 // --- Reception（当日の受付）/ Calendar ---
-// ReceptionAppointment は @/features/reception/api/transforms から re-export 済み
+// ReceptionAppointment は @/features/reception から re-export 済み
 
 export interface ColumnData {
   title: string;
@@ -91,8 +91,8 @@ export interface NavigationState {
 }
 
 // --- Feature UI Types ---
-// Reservation は @/features/reservations/api/transforms から re-export 済み
-// Hospitalization は @/features/hospitalization/api/transforms から re-export 済み
+// Reservation は @/features/reservations から re-export 済み
+// Hospitalization は @/features/hospitalization から re-export 済み
 
 /**
  * フロントエンドケアプラン項目型（UI 表示用 - camelCase フィールド）
@@ -160,7 +160,7 @@ export interface DailyRecord {
   }>;
 }
 
-// MedicalRecord は @/features/medical-records/api/transforms から re-export 済み
+// MedicalRecord は @/features/medical-records から re-export 済み
 
 export interface MasterItem {
   id: string | number;
@@ -175,5 +175,3 @@ export interface MasterItem {
   timeCondition?: string;
   duration?: number | null;
 }
-
-

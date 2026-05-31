@@ -1,5 +1,7 @@
 package handler
 
+import "github.com/animal-ekarte/backend/internal/service"
+
 type createConsultationRequest struct {
 	Name          string   `json:"name"           binding:"required,min=1,max=255"`
 	Price         *int64   `json:"price"`
@@ -11,6 +13,21 @@ type createConsultationRequest struct {
 	SortOrder     int      `json:"sort_order"`
 	TaxType       string   `json:"tax_type"        binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate       *float64 `json:"tax_rate"`
+}
+
+func (r *createConsultationRequest) toServiceInput() *service.CreateConsultationInput {
+	return &service.CreateConsultationInput{
+		Name:          r.Name,
+		Price:         r.Price,
+		IsActive:      r.IsActive,
+		Description:   r.Description,
+		TimeCondition: r.TimeCondition,
+		Duration:      r.Duration,
+		ParentID:      r.ParentID,
+		SortOrder:     r.SortOrder,
+		TaxType:       nilIfEmpty(r.TaxType),
+		TaxRate:       r.TaxRate,
+	}
 }
 
 type updateConsultationRequest struct {
@@ -25,4 +42,20 @@ type updateConsultationRequest struct {
 	SortOrder     *int     `json:"sort_order"`
 	TaxType       *string  `json:"tax_type"        binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate       *float64 `json:"tax_rate"`
+}
+
+func (r *updateConsultationRequest) toServiceInput() *service.UpdateConsultationInput {
+	return &service.UpdateConsultationInput{
+		Name:          r.Name,
+		Price:         r.Price,
+		IsActive:      r.IsActive,
+		Description:   r.Description,
+		TimeCondition: r.TimeCondition,
+		Duration:      r.Duration,
+		ParentID:      r.ParentID,
+		ClearParentID: r.ClearParentID,
+		SortOrder:     r.SortOrder,
+		TaxType:       r.TaxType,
+		TaxRate:       r.TaxRate,
+	}
 }

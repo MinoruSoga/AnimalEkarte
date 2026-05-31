@@ -7,7 +7,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // GetBillingConfirmation は指定カルテIDの会計医師確認を取得または初期化して返す
@@ -50,12 +49,7 @@ func (h *Handler) ConfirmBillingConfirmation(c *gin.Context) {
 		return
 	}
 
-	input := &service.ConfirmBillingConfirmationInput{
-		ConfirmedBy: req.ConfirmedBy,
-		Memo:        req.Memo,
-	}
-
-	review, err := h.svc.BillingConfirmation.Confirm(c.Request.Context(), clinicID, medicalRecordID, input)
+	review, err := h.svc.BillingConfirmation.Confirm(c.Request.Context(), clinicID, medicalRecordID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -82,13 +76,7 @@ func (h *Handler) ReturnBillingConfirmation(c *gin.Context) {
 		return
 	}
 
-	input := &service.ReturnBillingConfirmationInput{
-		ReturnedBy:   req.ReturnedBy,
-		ReturnReason: req.ReturnReason,
-		Memo:         req.Memo,
-	}
-
-	review, err := h.svc.BillingConfirmation.Return(c.Request.Context(), clinicID, medicalRecordID, input)
+	review, err := h.svc.BillingConfirmation.Return(c.Request.Context(), clinicID, medicalRecordID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

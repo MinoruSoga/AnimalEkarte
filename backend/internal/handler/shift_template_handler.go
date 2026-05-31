@@ -8,7 +8,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // GetShiftTemplate GET /api/v1/shift-templates/:id
@@ -54,20 +53,7 @@ func (h *Handler) CreateShiftTemplate(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	breaks := make([]service.ShiftBreakTemplateInput, 0, len(req.Breaks))
-	for _, b := range req.Breaks {
-		breaks = append(breaks, service.ShiftBreakTemplateInput{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
-	}
-	tpl, err := h.svc.ShiftTemplate.Create(c.Request.Context(), clinicID, &service.CreateShiftTemplateInput{
-		Name:      req.Name,
-		ShiftType: req.ShiftType,
-		StartTime: req.StartTime,
-		EndTime:   req.EndTime,
-		Notes:     req.Notes,
-		SortOrder: req.SortOrder,
-		IsActive:  req.IsActive,
-		Breaks:    breaks,
-	})
+	tpl, err := h.svc.ShiftTemplate.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -91,26 +77,7 @@ func (h *Handler) UpdateShiftTemplate(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	input := &service.UpdateShiftTemplateInput{
-		Name:      req.Name,
-		Notes:     req.Notes,
-		SortOrder: req.SortOrder,
-		IsActive:  req.IsActive,
-		StartTime: req.StartTime,
-		EndTime:   req.EndTime,
-	}
-	if req.ShiftType != nil {
-		st := model.ShiftType(*req.ShiftType)
-		input.ShiftType = &st
-	}
-	if req.Breaks != nil {
-		breaks := make([]service.ShiftBreakTemplateInput, 0, len(*req.Breaks))
-		for _, b := range *req.Breaks {
-			breaks = append(breaks, service.ShiftBreakTemplateInput{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
-		}
-		input.Breaks = &breaks
-	}
-	tpl, err := h.svc.ShiftTemplate.Update(c.Request.Context(), clinicID, id, input)
+	tpl, err := h.svc.ShiftTemplate.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

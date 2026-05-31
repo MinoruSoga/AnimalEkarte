@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- ChiefComplaintType ----
@@ -58,14 +57,7 @@ func (h *Handler) CreateChiefComplaint(c *gin.Context) {
 		return
 	}
 
-	svcInput := &service.CreateChiefComplaintTypeInput{
-		Name:        req.Name,
-		Description: req.Description,
-		IsActive:    req.IsActive,
-		SortOrder:   req.SortOrder,
-	}
-
-	category, err := h.svc.ChiefComplaintType.Create(c.Request.Context(), clinicID, svcInput)
+	category, err := h.svc.ChiefComplaintType.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -91,14 +83,7 @@ func (h *Handler) UpdateChiefComplaint(c *gin.Context) {
 		return
 	}
 
-	input := &service.UpdateChiefComplaintTypeInput{
-		Name:        req.Name,
-		Description: req.Description,
-		SortOrder:   req.SortOrder,
-		IsActive:    req.IsActive,
-	}
-
-	updated, err := h.svc.ChiefComplaintType.Update(c.Request.Context(), clinicID, id, input)
+	updated, err := h.svc.ChiefComplaintType.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

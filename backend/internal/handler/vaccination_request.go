@@ -1,5 +1,62 @@
 package handler
 
+import (
+	"fmt"
+	"net/url"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
+)
+
+type listVaccinationQuery struct {
+	PetID     string
+	OwnerID   string
+	StartDate string
+	EndDate   string
+}
+
+func newListVaccinationQuery(values url.Values) listVaccinationQuery {
+	return listVaccinationQuery{
+		PetID:     values.Get("pet_id"),
+		OwnerID:   values.Get("owner_id"),
+		StartDate: values.Get("start_date"),
+		EndDate:   values.Get("end_date"),
+	}
+}
+
+type listVaccinationFilters struct {
+	PetID     *uint64
+	OwnerID   *uint64
+	StartDate *string
+	EndDate   *string
+}
+
+func (q listVaccinationQuery) toServiceFilters() (listVaccinationFilters, error) {
+	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
+	if err != nil {
+		return listVaccinationFilters{}, err
+	}
+	ownerID, err := parseOptionalUintQueryFilter(q.OwnerID, "owner_id")
+	if err != nil {
+		return listVaccinationFilters{}, err
+	}
+	startDate, err := parseOptionalDateQueryFilter(q.StartDate, "start_date")
+	if err != nil {
+		return listVaccinationFilters{}, err
+	}
+	endDate, err := parseOptionalDateQueryFilter(q.EndDate, "end_date")
+	if err != nil {
+		return listVaccinationFilters{}, err
+	}
+	return listVaccinationFilters{
+		PetID:     petID,
+		OwnerID:   ownerID,
+		StartDate: startDate,
+		EndDate:   endDate,
+	}, nil
+}
+
 // createVaccinationRequest はワクチン接種作成のバインド struct
 type createVaccinationRequest struct {
 	MedicalRecordID  *uint64 `json:"medical_record_id"`
@@ -15,6 +72,43 @@ type createVaccinationRequest struct {
 	Lot3             string  `json:"lot3"`
 	Lot4             string  `json:"lot4"`
 	Remarks          string  `json:"remarks"`
+}
+
+func (r *createVaccinationRequest) toServiceInput() (*service.CreateVaccinationInput, error) {
+	date, err := parseDate(r.Date)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid date: %v", err))
+	}
+	if date == nil {
+		return nil, apperrors.WrapInvalidInput("date is required")
+	}
+
+	nextDate, err := parseDate(r.NextDate)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid next_date: %v", err))
+	}
+
+	var nextScheduleType *model.NextScheduleType
+	if r.NextScheduleType != "" {
+		nst := model.NextScheduleType(r.NextScheduleType)
+		nextScheduleType = &nst
+	}
+
+	return &service.CreateVaccinationInput{
+		MedicalRecordID:  r.MedicalRecordID,
+		PetID:            r.PetID,
+		VaccineID:        r.VaccineID,
+		Date:             *date,
+		DoctorID:         r.DoctorID,
+		NextDate:         nextDate,
+		NextScheduleType: nextScheduleType,
+		Supplemental:     r.Supplemental,
+		Lot1:             r.Lot1,
+		Lot2:             r.Lot2,
+		Lot3:             r.Lot3,
+		Lot4:             r.Lot4,
+		Remarks:          r.Remarks,
+	}, nil
 }
 
 // updateVaccinationRequest はワクチン接種更新のバインド struct
@@ -33,4 +127,37 @@ type updateVaccinationRequest struct {
 	Lot3             *string `json:"lot3"`
 	Lot4             *string `json:"lot4"`
 	Remarks          *string `json:"remarks"`
+}
+
+func (r *updateVaccinationRequest) toServiceInput() (*service.UpdateVaccinationInput, error) {
+	date, err := parseDate(r.Date)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid date: %v", err))
+	}
+
+	nextDate, err := parseDate(r.NextDate)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid next_date: %v", err))
+	}
+
+	input := &service.UpdateVaccinationInput{
+		MedicalRecordID: r.MedicalRecordID,
+		PetID:           r.PetID,
+		VaccineID:       r.VaccineID,
+		Date:            date,
+		DoctorID:        r.DoctorID,
+		NextDate:        nextDate,
+		Supplemental:    r.Supplemental,
+		Lot1:            r.Lot1,
+		Lot2:            r.Lot2,
+		Lot3:            r.Lot3,
+		Lot4:            r.Lot4,
+		Remarks:         r.Remarks,
+	}
+	if r.NextScheduleType != nil {
+		nst := model.NextScheduleType(*r.NextScheduleType)
+		input.NextScheduleType = &nst
+	}
+
+	return input, nil
 }

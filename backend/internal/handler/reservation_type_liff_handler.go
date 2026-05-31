@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListReservationTypeLiffs godoc
@@ -35,19 +34,7 @@ func (h *Handler) CreateReservationTypeLiff(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	st, err := h.svc.ReservationTypeLiff.Create(c.Request.Context(), clinicID, &service.CreateReservationTypeLiffInput{
-		Name:                 req.Name,
-		Color:                req.Color,
-		Description:          req.Description,
-		SortOrder:            req.SortOrder,
-		DurationMinutes:      req.DurationMinutes,
-		ShortName:            req.ShortName,
-		ShowShortName:        req.ShowShortName,
-		ReservationVisible:   req.ReservationVisible,
-		ReservationComment:   req.ReservationComment,
-		ReservationDayOption: req.ReservationDayOption,
-		IsInternal:           req.IsInternal,
-	})
+	st, err := h.svc.ReservationTypeLiff.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -71,19 +58,7 @@ func (h *Handler) UpdateReservationTypeLiff(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	st, err := h.svc.ReservationTypeLiff.Update(c.Request.Context(), clinicID, id, &service.UpdateReservationTypeLiffInput{
-		Name:                 req.Name,
-		Color:                req.Color,
-		Description:          req.Description,
-		SortOrder:            req.SortOrder,
-		DurationMinutes:      req.DurationMinutes,
-		ShortName:            req.ShortName,
-		ShowShortName:        req.ShowShortName,
-		ReservationVisible:   req.ReservationVisible,
-		ReservationComment:   req.ReservationComment,
-		ReservationDayOption: req.ReservationDayOption,
-		IsInternal:           req.IsInternal,
-	})
+	st, err := h.svc.ReservationTypeLiff.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

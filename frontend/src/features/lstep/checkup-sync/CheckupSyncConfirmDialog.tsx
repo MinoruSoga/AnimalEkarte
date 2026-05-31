@@ -1,6 +1,7 @@
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -48,6 +49,9 @@ export function CheckupSyncConfirmDialog({
           <DialogTitle className={`text-base font-semibold ${C.text}`}>
             Lステップタグ一括付与の確認
           </DialogTitle>
+          <DialogDescription>
+            選択した対象者へ付与するLステップタグ名を確認します。
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-1">

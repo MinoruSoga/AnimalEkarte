@@ -26,6 +26,38 @@ func (m *mockAuditRepository) Create(ctx context.Context, log *model.AuditLog) e
 	return nil
 }
 
+func TestAuditService_LogEntry(t *testing.T) {
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+	clinicID := uint64(1)
+	actorID := uint64(2)
+	resourceID := uint64(3)
+
+	err := svc.LogEntry(context.Background(), &AuditLogInput{
+		ClinicID:   &clinicID,
+		ActorID:    &actorID,
+		ActorType:  "staff",
+		Action:     "update",
+		Resource:   "permission_group",
+		ResourceID: &resourceID,
+		OldValue:   map[string]any{"name": "old"},
+		NewValue:   map[string]any{"name": "new"},
+		IPAddress:  "127.0.0.1",
+		UserAgent:  "test-agent",
+	})
+	assert.NoError(t, err)
+
+	if !assert.NotNil(t, repo.lastLogged) {
+		return
+	}
+	assert.Equal(t, "staff", repo.lastLogged.ActorType)
+	assert.Equal(t, "update", repo.lastLogged.Action)
+	assert.Equal(t, "permission_group", repo.lastLogged.Resource)
+	assert.Equal(t, "127.0.0.1", repo.lastLogged.IPAddress)
+	assert.NotNil(t, repo.lastLogged.OldValue)
+	assert.NotNil(t, repo.lastLogged.NewValue)
+}
+
 // TestAuditService_LogLstepOperation_BackwardCompat は ISSUE-010 でメソッドを追加した後でも
 // 既存の LogLstepOperation 呼び出しが互換動作（actor_type / clinic_id / metadata=nil）を維持することを検証する。
 func TestAuditService_LogLstepOperation_BackwardCompat(t *testing.T) {

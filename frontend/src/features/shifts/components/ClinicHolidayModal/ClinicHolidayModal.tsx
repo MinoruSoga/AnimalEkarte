@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useState, useTransition } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,6 +75,9 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>定休日の設定</DialogTitle>
+          <DialogDescription>
+            {formattedDate} の定休日設定と理由を編集します。
+          </DialogDescription>
           <p className={`text-sm ${C.text50}`}>{formattedDate}</p>
         </DialogHeader>
 

@@ -1,5 +1,7 @@
 package handler
 
+import "github.com/animal-ekarte/backend/internal/service"
+
 // createCarePlanItemRequest はケアプランアイテム作成のバインド struct
 type createCarePlanItemRequest struct {
 	Type                  string   `json:"type"                    binding:"required,oneof=food medicine treatment instruction item"`
@@ -16,6 +18,23 @@ type createCarePlanItemRequest struct {
 	SortOrder             int      `json:"sort_order"`
 }
 
+func (r *createCarePlanItemRequest) toServiceInput() *service.CreateCarePlanItemInput {
+	return &service.CreateCarePlanItemInput{
+		Type:                  r.Type,
+		Name:                  r.Name,
+		Description:           r.Description,
+		Timing:                r.Timing,
+		Status:                r.Status,
+		Notes:                 r.Notes,
+		MedicineID:            r.MedicineID,
+		ProcedureID:           r.ProcedureID,
+		HospitalizationPlanID: r.HospitalizationPlanID,
+		UnitPrice:             r.UnitPrice,
+		Category:              r.Category,
+		SortOrder:             r.SortOrder,
+	}
+}
+
 // updateCarePlanItemRequest はケアプランアイテム更新のバインド struct
 type updateCarePlanItemRequest struct {
 	Type                  *string  `json:"type"                    binding:"omitempty,oneof=food medicine treatment instruction item"`
@@ -30,4 +49,21 @@ type updateCarePlanItemRequest struct {
 	UnitPrice             *int64   `json:"unit_price"`
 	Category              *string  `json:"category"`
 	SortOrder             *int     `json:"sort_order"`
+}
+
+func (r *updateCarePlanItemRequest) toServiceInput() *service.UpdateCarePlanItemInput {
+	return &service.UpdateCarePlanItemInput{
+		Type:                  r.Type,
+		Name:                  r.Name,
+		Description:           r.Description,
+		Timing:                r.Timing,
+		Status:                r.Status,
+		Notes:                 r.Notes,
+		MedicineID:            r.MedicineID,
+		ProcedureID:           r.ProcedureID,
+		HospitalizationPlanID: r.HospitalizationPlanID,
+		UnitPrice:             r.UnitPrice,
+		Category:              r.Category,
+		SortOrder:             r.SortOrder,
+	}
 }

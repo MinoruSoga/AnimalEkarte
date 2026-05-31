@@ -29,6 +29,7 @@ type trimmingResponse struct {
 	Status            string    `json:"status"`
 	Source            string    `json:"source"`
 	// トリミング詳細（appointment_trimming_details から flat 化）
+	HasDetail      bool      `json:"has_detail"`
 	CourseID       *uint64   `json:"course_id,omitempty"`
 	StyleRequest   string    `json:"style_request"`
 	BW             *float64  `json:"bw,omitempty"`
@@ -70,6 +71,7 @@ func toTrimmingResponse(appt *model.Reservation) trimmingResponse {
 
 	if appt.TrimmingDetail != nil {
 		d := appt.TrimmingDetail
+		resp.HasDetail = true
 		resp.CourseID = d.CourseID
 		resp.StyleRequest = d.StyleRequest
 		resp.BW = d.BodyWeight

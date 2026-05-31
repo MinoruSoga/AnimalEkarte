@@ -52,7 +52,10 @@ func (m *mockVaccinationService) Update(ctx context.Context, clinicID, id uint64
 }
 
 func (m *mockVaccinationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, id)
+	}
+	return nil
 }
 
 // mockPetService は Pet サービスの最小モック（ tag sync 経由でのみ使用）
@@ -339,10 +342,6 @@ func TestDeleteVaccination(t *testing.T) {
 			name:    "deletes vaccination successfully",
 			paramID: "1",
 			svc: &mockVaccinationService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
-					petID := uint64(10)
-					return &model.Vaccination{ID: 1, PetID: &petID}, nil
-				},
 				deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
 			},
 			wantStatus: http.StatusNoContent,
@@ -357,8 +356,8 @@ func TestDeleteVaccination(t *testing.T) {
 			name:    "returns 404 when not found",
 			paramID: "999",
 			svc: &mockVaccinationService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
-					return nil, apperrors.WrapNotFound("vaccination", "999")
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("vaccination", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,

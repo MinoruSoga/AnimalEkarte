@@ -38,8 +38,10 @@ export type UnlinkOccupationRequest = { id: number };
 // Query keys
 // ─────────────────────────────────────────────────
 
-const occupationsKey = (reservationTypeId: string) => [
+const occupationsKey = (clinicId: string, reservationTypeId: string) => [
   "masters",
+  "clinics",
+  clinicId,
   "reservation-types",
   reservationTypeId,
   "occupations",
@@ -50,33 +52,30 @@ const occupationsKey = (reservationTypeId: string) => [
 // ─────────────────────────────────────────────────
 
 async function getReservationTypeOccupations(
-  clinicId: string,
   reservationTypeId: string,
 ): Promise<ReservationTypeOccupation[]> {
   const { data } = await axios.get<{ data: ReservationTypeOccupationRaw[] }>(
-    `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/occupations`,
+    `/v1/masters/reservation-types/${reservationTypeId}/occupations`,
   );
   return data.data.map(transformReservationTypeOccupation);
 }
 
 async function linkOccupation(
-  clinicId: string,
   reservationTypeId: string,
   occupationId: number,
 ): Promise<void> {
   await axios.post(
-    `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/occupations`,
+    `/v1/masters/reservation-types/${reservationTypeId}/occupations`,
     { occupation_id: occupationId },
   );
 }
 
 async function unlinkOccupation(
-  clinicId: string,
   reservationTypeId: string,
   id: number,
 ): Promise<void> {
   await axios.delete(
-    `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/occupations/${id}`,
+    `/v1/masters/reservation-types/${reservationTypeId}/occupations/${id}`,
   );
 }
 
@@ -86,8 +85,8 @@ async function unlinkOccupation(
 
 export function useGetReservationTypeOccupations(clinicId: string, reservationTypeId: string) {
   return useQuery({
-    queryKey: occupationsKey(reservationTypeId),
-    queryFn: () => getReservationTypeOccupations(clinicId, reservationTypeId),
+    queryKey: occupationsKey(clinicId, reservationTypeId),
+    queryFn: () => getReservationTypeOccupations(reservationTypeId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });
@@ -96,9 +95,9 @@ export function useGetReservationTypeOccupations(clinicId: string, reservationTy
 export function useLinkOccupation(clinicId: string, reservationTypeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (occupationId: number) => linkOccupation(clinicId, reservationTypeId, occupationId),
+    mutationFn: (occupationId: number) => linkOccupation(reservationTypeId, occupationId),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: occupationsKey(reservationTypeId) }),
+      queryClient.invalidateQueries({ queryKey: occupationsKey(clinicId, reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "職種の紐付け"),
   });
 }
@@ -106,9 +105,9 @@ export function useLinkOccupation(clinicId: string, reservationTypeId: string) {
 export function useUnlinkOccupation(clinicId: string, reservationTypeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => unlinkOccupation(clinicId, reservationTypeId, id),
+    mutationFn: (id: number) => unlinkOccupation(reservationTypeId, id),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: occupationsKey(reservationTypeId) }),
+      queryClient.invalidateQueries({ queryKey: occupationsKey(clinicId, reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "職種の紐付け解除"),
   });
 }

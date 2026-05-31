@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -127,12 +126,12 @@ func (h *Handler) GetLstepMonthlyDeliveryStats(c *gin.Context) {
 	if !ok {
 		return
 	}
-	yearMonth := c.Query("year_month")
-	if yearMonth == "" {
-		RespondError(c, apperrors.WrapInvalidInput("year_month クエリパラメータは必須です"))
+	query, err := newLstepMonthlyDeliveryStatsQuery(c.Request.URL.Query())
+	if err != nil {
+		RespondError(c, err)
 		return
 	}
-	stats, err := h.svc.LstepAnalytics.GetMonthlyDeliveryStats(c.Request.Context(), clinicID, yearMonth)
+	stats, err := h.svc.LstepAnalytics.GetMonthlyDeliveryStats(c.Request.Context(), clinicID, query.YearMonth)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -147,21 +146,17 @@ func (h *Handler) GetLstepVisitConversionSummary(c *gin.Context) {
 	if !ok {
 		return
 	}
-	yearMonth := c.Query("year_month")
-	if yearMonth == "" {
-		RespondError(c, apperrors.WrapInvalidInput("year_month クエリパラメータは必須です"))
+	query, err := newLstepVisitConversionQuery(c.Request.URL.Query())
+	if err != nil {
+		RespondError(c, err)
 		return
 	}
-	days := 30
-	if rawDays := c.Query("days"); rawDays != "" {
-		parsedDays, err := strconv.Atoi(rawDays)
-		if err != nil || parsedDays < 1 {
-			RespondError(c, apperrors.WrapInvalidInput("days は 1 以上の整数で指定してください"))
-			return
-		}
-		days = parsedDays
+	days, err := query.toDays()
+	if err != nil {
+		RespondError(c, err)
+		return
 	}
-	stats, err := h.svc.LstepAnalytics.GetVisitConversionSummary(c.Request.Context(), clinicID, yearMonth, days)
+	stats, err := h.svc.LstepAnalytics.GetVisitConversionSummary(c.Request.Context(), clinicID, query.YearMonth, days)
 	if err != nil {
 		RespondError(c, err)
 		return

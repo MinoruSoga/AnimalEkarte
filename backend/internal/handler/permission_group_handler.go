@@ -2,7 +2,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -12,19 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
-
-// marshalAuditJSON は監査ログ用に値をJSONバイト列にシリアライズするヘルパー。
-// nil の場合は nil を返す。エラー時は nil を返す（監査ログはベストエフォート）。
-func marshalAuditJSON(v any) []byte {
-	if v == nil {
-		return nil
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil
-	}
-	return b
-}
 
 // ---- PermissionGroup ----
 
@@ -83,14 +69,7 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 		return
 	}
 
-	createInput := service.CreatePermissionGroupInput{
-		Name:        req.Name,
-		Description: req.Description,
-		Color:       req.Color,
-		IsActive:    req.IsActive,
-		SortOrder:   req.SortOrder,
-	}
-	pg, err := h.svc.PermissionGroup.Create(c.Request.Context(), clinicID, &createInput)
+	pg, err := h.svc.PermissionGroup.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -98,14 +77,14 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 
 	// 監査ログ: 権限グループ作成
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionPermissionGroupCreate,
 			Resource:   "permission_group",
 			ResourceID: &pg.ID,
-			NewValue:   marshalAuditJSON(pg),
+			NewValue:   pg,
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
 		})
@@ -132,15 +111,7 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 		return
 	}
 
-	input := &service.UpdatePermissionGroupInput{
-		Name:        req.Name,
-		Description: req.Description,
-		Color:       req.Color,
-		SortOrder:   req.SortOrder,
-		IsActive:    req.IsActive,
-	}
-
-	updated, err := h.svc.PermissionGroup.Update(c.Request.Context(), clinicID, id, input)
+	updated, err := h.svc.PermissionGroup.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -148,14 +119,14 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 
 	// 監査ログ: 権限グループ更新
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionPermissionGroupUpdate,
 			Resource:   "permission_group",
 			ResourceID: &id,
-			NewValue:   marshalAuditJSON(updated),
+			NewValue:   updated,
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
 		})
@@ -184,7 +155,7 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 
 	// 監査ログ: 権限グループ削除
 	if staffID, ok := extractStaffID(c); ok {
-		auditLog := &model.AuditLog{
+		auditInput := service.AuditLogInput{
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionPermissionGroupDelete,
@@ -194,10 +165,10 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 			UserAgent:  c.Request.Header.Get("User-Agent"),
 		}
 		if oldPG != nil {
-			auditLog.ClinicID = &oldPG.ClinicID
-			auditLog.OldValue = marshalAuditJSON(oldPG)
+			auditInput.ClinicID = &oldPG.ClinicID
+			auditInput.OldValue = oldPG
 		}
-		_ = h.svc.Audit.Log(c.Request.Context(), auditLog)
+		_ = h.svc.Audit.LogEntry(c.Request.Context(), &auditInput)
 	}
 
 	c.Status(http.StatusNoContent)
@@ -233,31 +204,20 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 		return
 	}
 
-	// Convert request rules to service Input DTO
-	inputRules := make([]service.SetPermissionGroupRulesInput, 0, len(req.Rules))
-	for _, r := range req.Rules {
-		inputRules = append(inputRules, service.SetPermissionGroupRulesInput{
-			Resource:  r.Resource,
-			CanView:   r.CanView,
-			CanCreate: r.CanCreate,
-			CanEdit:   r.CanEdit,
-			CanDelete: r.CanDelete,
-		})
-	}
-
+	inputRules := req.toServiceInput()
 	if err := h.svc.PermissionGroup.UpdateRules(c.Request.Context(), id, inputRules, staffID); err != nil {
 		RespondError(c, err)
 		return
 	}
 
 	// 監査ログ: 権限ルール更新
-	_ = h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+	_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 		ActorID:    &staffID,
 		ActorType:  "staff",
 		Action:     model.AuditActionPermissionRulesUpdate,
 		Resource:   "permission_group_rules",
 		ResourceID: &id,
-		NewValue:   marshalAuditJSON(inputRules),
+		NewValue:   inputRules,
 		IPAddress:  c.ClientIP(),
 		UserAgent:  c.Request.Header.Get("User-Agent"),
 	})

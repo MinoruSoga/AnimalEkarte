@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -169,6 +170,9 @@ function LinkSearchDialog({ unlinked, onLink, onClose, isPending }: LinkSearchDi
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>LINEアカウントを紐付け</DialogTitle>
+          <DialogDescription className="sr-only">
+            未紐付けのLINE顧客を検索して飼主に紐付けます。
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-2">

@@ -34,6 +34,10 @@ type CreateBillingItemInput struct {
 	TaxRate               float64
 	IsInsuranceApplicable bool
 	Source                string // "" = デフォルト "manual"
+	TreatmentID           *uint64
+	AppointmentID         *uint64
+	TrimmingCourseID      *uint64
+	TrimmingOptionID      *uint64
 	SortOrder             int
 }
 
@@ -73,13 +77,17 @@ type BillingItemService interface {
 	CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
 	UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
 	DeleteItem(ctx context.Context, clinicID, id uint64) error
-	GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error)
+	GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
 }
 
 type billingItemService struct {
 	repo          repository.BillingItemRepository
 	billingRepo   repository.AccountingRepository
 	treatmentRepo repository.TreatmentRepository
+}
+
+type unbilledTrimmingItemFinder interface {
+	FindUnbilledTrimmingItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
 }
 
 // NewBillingItemService は BillingItemService を初期化して返す
@@ -143,6 +151,10 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		TaxRate:               taxRate,
 		IsInsuranceApplicable: input.IsInsuranceApplicable,
 		Source:                source,
+		TreatmentID:           input.TreatmentID,
+		AppointmentID:         input.AppointmentID,
+		TrimmingCourseID:      input.TrimmingCourseID,
+		TrimmingOptionID:      input.TrimmingOptionID,
 		SortOrder:             input.SortOrder,
 	}
 
@@ -233,13 +245,57 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 	return nil
 }
 
-func (s *billingItemService) GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error) {
+func (s *billingItemService) GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error) {
 	treatments, err := s.treatmentRepo.FindUnbilledByPetID(ctx, clinicID, petID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find unbilled treatments", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find unbilled treatments")
 	}
-	return treatments, nil
+	items := make([]model.BillingItem, 0, len(treatments))
+	for i := range treatments {
+		items = append(items, treatmentToUnbilledBillingItem(&treatments[i]))
+	}
+
+	if trimmingFinder, ok := s.repo.(unbilledTrimmingItemFinder); ok {
+		trimmingItems, err := trimmingFinder.FindUnbilledTrimmingItemsByPetID(ctx, clinicID, petID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find unbilled trimming items", "error", err)
+			return nil, apperrors.Wrap(err, "failed to find unbilled trimming items")
+		}
+		items = append(items, trimmingItems...)
+	}
+	return items, nil
+}
+
+func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
+	treatmentID := t.ID
+	return model.BillingItem{
+		ID:                    t.ID,
+		BillingID:             0,
+		Category:              treatmentTypeToItemCategory(t.ItemType),
+		Name:                  t.Content,
+		UnitPrice:             t.UnitPrice,
+		Quantity:              t.Quantity,
+		TaxType:               model.TaxTypeExcluded,
+		TaxRate:               0.10,
+		IsInsuranceApplicable: t.IsInsurance,
+		Source:                model.ItemSourceMedicalRecord,
+		TreatmentID:           &treatmentID,
+		SortOrder:             t.SortOrder,
+	}
+}
+
+func treatmentTypeToItemCategory(t model.TreatmentItemType) model.ItemCategory {
+	switch t {
+	case model.TreatmentItemTypeConsultation:
+		return model.ItemCategoryExamination
+	case model.TreatmentItemTypeProcedure:
+		return model.ItemCategoryProcedure
+	case model.TreatmentItemTypeMedicine:
+		return model.ItemCategoryMedicine
+	default:
+		return model.ItemCategoryOther
+	}
 }
 
 // recalculateTotals は billing の全明細から subtotal/tax_total/total_amount を再計算して保存する

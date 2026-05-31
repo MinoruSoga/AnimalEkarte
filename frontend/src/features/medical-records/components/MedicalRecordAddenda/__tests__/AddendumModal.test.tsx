@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-vi.mock("@/features/medical-records/hooks/use-medical-record-addenda", () => ({
+vi.mock("../../../hooks/use-medical-record-addenda", () => ({
   useMedicalRecordAddenda: vi.fn(),
   useCreateMedicalRecordAddendum: vi.fn(),
 }));
 
 import { AddendumModal } from "../AddendumModal";
-import { useCreateMedicalRecordAddendum } from "@/features/medical-records/hooks/use-medical-record-addenda";
+import { useCreateMedicalRecordAddendum } from "../../../hooks/use-medical-record-addenda";
 
 function renderModal(
   mutateAsync: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue({}),

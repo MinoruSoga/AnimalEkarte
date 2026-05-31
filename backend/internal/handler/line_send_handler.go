@@ -2,22 +2,12 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
-
-type lineSendRequest struct {
-	MessageType string  `json:"message_type" binding:"required"`
-	Text        string  `json:"text"`
-	FileID      *uint64 `json:"file_id"`
-	FileName    string  `json:"file_name"`
-	Purpose     string  `json:"purpose"`
-}
 
 // normalizeMessageType は FE から送られる message_type エイリアスをサービス内部値に変換する（ISSUE-002）。
 func normalizeMessageType(t string) string {
@@ -75,9 +65,8 @@ func (h *Handler) PostLineSend(c *gin.Context) {
 	if !ok {
 		return
 	}
-	ownerIDRaw, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid owner id"))
+	ownerID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	staffID, ok := extractStaffID(c)
@@ -96,20 +85,7 @@ func (h *Handler) PostLineSend(c *gin.Context) {
 		return
 	}
 
-	purpose := req.Purpose
-	if purpose == "" {
-		purpose = "other"
-	}
-
-	result, err := h.svc.LineSend.Send(c.Request.Context(), clinicID, &service.SendLineMessageInput{
-		OwnerID:     ownerIDRaw,
-		StaffID:     staffID,
-		MessageType: normalizeMessageType(req.MessageType),
-		Text:        req.Text,
-		FileID:      req.FileID,
-		FileName:    req.FileName,
-		Purpose:     purpose,
-	})
+	result, err := h.svc.LineSend.Send(c.Request.Context(), clinicID, req.toServiceInput(ownerID, staffID))
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -128,13 +104,12 @@ func (h *Handler) GetLineSendLogs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	ownerIDRaw, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid owner id"))
+	ownerID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
-	logs, err := h.svc.LineSend.GetSendLogs(c.Request.Context(), clinicID, ownerIDRaw)
+	logs, err := h.svc.LineSend.GetSendLogs(c.Request.Context(), clinicID, ownerID)
 	if err != nil {
 		RespondError(c, err)
 		return

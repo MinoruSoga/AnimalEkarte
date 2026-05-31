@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListTrimmingOptions godoc
@@ -55,17 +54,7 @@ func (h *Handler) CreateTrimmingOption(c *gin.Context) {
 		return
 	}
 
-	svcInput := &service.CreateTrimmingOptionInput{
-		Name:         req.Name,
-		Price:        req.Price,
-		IsActive:     req.IsActive,
-		Description:  req.Description,
-		Duration:     req.Duration,
-		IsCombinable: req.IsCombinable,
-		SortOrder:    req.SortOrder,
-	}
-
-	option, err := h.svc.TrimmingOption.Create(c.Request.Context(), clinicID, svcInput)
+	option, err := h.svc.TrimmingOption.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -90,17 +79,7 @@ func (h *Handler) UpdateTrimmingOption(c *gin.Context) {
 		return
 	}
 
-	svcInput := &service.UpdateTrimmingOptionInput{
-		Name:         req.Name,
-		Price:        req.Price,
-		IsActive:     req.IsActive,
-		Description:  req.Description,
-		Duration:     req.Duration,
-		IsCombinable: req.IsCombinable,
-		SortOrder:    req.SortOrder,
-	}
-
-	option, err := h.svc.TrimmingOption.Update(c.Request.Context(), clinicID, id, svcInput)
+	option, err := h.svc.TrimmingOption.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

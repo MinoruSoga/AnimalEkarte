@@ -2,7 +2,7 @@ import { ICON, C, STYLE } from "@/lib/design-tokens";
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import type { Shift } from "../../types";
 import { ShiftCell } from "../../components/ShiftCell/ShiftCell";
 import type { ClinicHoliday } from "../../api/clinic-holidays";
@@ -103,14 +103,12 @@ export const ShiftCalendar = memo(function ShiftCalendar({
     return idx;
   }, [shifts]);
 
-  // API 由来 JSX リスト: js-cache-function-results
-  const staffSelectItems = useMemo(
-    () =>
-      staffs.map((s) => (
-        <SelectItem key={s.id} value={s.id}>
-          {s.name}
-        </SelectItem>
-      )),
+  // スタッフ選択肢({value,label}): js-cache-function-results
+  const staffFilterOptions = useMemo<SearchableSelectOption[]>(
+    () => [
+      { value: "all", label: "全スタッフ" },
+      ...staffs.map((s) => ({ value: s.id, label: s.name })),
+    ],
     [staffs],
   );
 
@@ -168,15 +166,14 @@ export const ShiftCalendar = memo(function ShiftCalendar({
         </div>
 
         <div className="flex items-center gap-2">
-          <Select value={selectedStaffId} onValueChange={onStaffChange}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="スタッフ選択" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全スタッフ</SelectItem>
-              {staffSelectItems}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={selectedStaffId}
+            onValueChange={onStaffChange}
+            options={staffFilterOptions}
+            placeholder="スタッフ選択"
+            searchPlaceholder="スタッフを検索..."
+            className="w-[160px]"
+          />
         </div>
       </div>
 

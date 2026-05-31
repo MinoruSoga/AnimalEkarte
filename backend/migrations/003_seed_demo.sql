@@ -3834,5 +3834,155 @@ SELECT setval(pg_get_serial_sequence('line_customers', 'id'), (SELECT MAX(id) FR
 SELECT setval(pg_get_serial_sequence('reservation_type_occupations', 'id'), (SELECT MAX(id) FROM reservation_type_occupations));
 SELECT setval(pg_get_serial_sequence('lstep_trigger_priorities', 'id'), (SELECT MAX(id) FROM lstep_trigger_priorities));
 
+-- -----------------------------------------------------------------------------
+-- 14. 自動生成：2026/5/30から1ヶ月間の高密度予約デモデータ (診察・トリミング・ホテル)
+-- -----------------------------------------------------------------------------
+DO $$
+DECLARE
+    target_date DATE;
+    i INT;
+    appointment_id INT := 1000;
+    trimming_id INT := 1000;
+    hospitalization_id INT := 1000;
+    rand_owner_id INT;
+    rand_pet_id INT;
+    rand_doctor_id INT;
+    rand_res_type_id INT;
+    start_ts TIMESTAMP;
+    end_ts TIMESTAMP;
+    trimming_count INT;
+    hotel_count INT;
+    is_trimming BOOLEAN;
+    res_duration INT;
+    v_visit_type VARCHAR;
+    v_status VARCHAR;
+    v_notes VARCHAR;
+    v_weight NUMERIC;
+    v_course_id INT;
+    h_start DATE;
+    h_end DATE;
+    h_status VARCHAR;
+    current_time_threshold TIMESTAMP := '2026-05-31 12:40:00+09'::TIMESTAMP;
+BEGIN
+    -- 2026-05-30 から 2026-06-30 までの32日間ループ
+    FOR target_date IN SELECT generate_series('2026-05-30'::date, '2026-06-30'::date, '1 day'::interval) LOOP
+        
+        -- トリミング予約の件数を 1〜2件に設定 (Max 2)
+        trimming_count := floor(random() * 2) + 1; -- 1 or 2
+        
+        -- 1日あたりの総予約件数を最低20件にするため、20〜23件のループを回す
+        FOR i IN 1..(20 + floor(random() * 4)) LOOP
+            -- 存在する pets からランダムに1頭取得し、その pet_id と owner_id を使用する（外部キー違反防止）
+            SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets ORDER BY random() LIMIT 1;
+
+            -- 存在する staffs からランダムに医師を取得
+            SELECT id INTO rand_doctor_id FROM staffs ORDER BY random() LIMIT 1;
+
+            -- 最初の trimming_count 件はトリミングにする
+            IF i <= trimming_count THEN
+                is_trimming := true;
+                -- トリミングの reservation_type_id (9〜12)
+                rand_res_type_id := floor(random() * 4) + 9;
+                res_duration := 90; -- トリミングは90分
+            ELSE
+                is_trimming := false;
+                -- 診察の reservation_type_id (1〜8)
+                rand_res_type_id := floor(random() * 8) + 1;
+                res_duration := 15; -- 診察は15分
+            END IF;
+
+            -- 予約時間の設定
+            -- 午前は 09:00 から順次配置
+            -- 午後は 14:00 から順次配置
+            IF i % 2 = 1 THEN
+                -- 奇数: 午前枠
+                start_ts := target_date::timestamp + '9 hours'::interval + ((i - 1) * 10 * '1 minute'::interval);
+            ELSE
+                -- 偶数: 午後枠
+                start_ts := target_date::timestamp + '14 hours'::interval + ((i - 2) * 10 * '1 minute'::interval);
+            END IF;
+            
+            -- トリミング予約の場合は重なりを防ぐために少し時間を調整
+            IF is_trimming THEN
+                IF i = 1 THEN
+                    start_ts := target_date::timestamp + '09:00:00'::interval;
+                ELSE
+                    start_ts := target_date::timestamp + '14:00:00'::interval;
+                END IF;
+            END IF;
+
+            end_ts := start_ts + (res_duration * '1 minute'::interval);
+
+            -- visit_type, status などを設定
+            IF random() < 0.25 THEN
+                v_visit_type := 'first';
+            ELSE
+                v_visit_type := 'revisit';
+            END IF;
+
+            -- 現在時刻しきい値(2026-05-31 12:40:00)を基準にステータス決定
+            IF start_ts < current_time_threshold THEN
+                v_status := 'completed';
+            ELSE
+                v_status := 'confirmed';
+            END IF;
+
+            -- 予約追加
+            INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_type_id, doctor_id, is_designated, status, notes)
+            VALUES (appointment_id, 1, start_ts, end_ts, rand_owner_id, rand_pet_id, v_visit_type::visit_type, rand_res_type_id, rand_doctor_id, (random() < 0.2), v_status::reservation_status, '自動生成されたデモ予約')
+            ON CONFLICT (id) DO NOTHING;
+
+            -- トリミング詳細の追加
+            IF is_trimming THEN
+                v_weight := round((random() * 15 + 2)::numeric, 1);
+                v_course_id := floor(random() * 5) + 1;
+                
+                INSERT INTO appointment_trimming_details (id, appointment_id, clinic_id, course_id, body_weight, bw_unit, style_request)
+                VALUES (trimming_id, appointment_id, 1, v_course_id, v_weight, 'Kg'::body_weight_unit, 'サマーカット希望')
+                ON CONFLICT (id) DO NOTHING;
+                
+                trimming_id := trimming_id + 1;
+            END IF;
+
+            appointment_id := appointment_id + 1;
+
+        END LOOP;
+
+        -- 2. ホテル予約の生成 (1日最大2件)
+        hotel_count := floor(random() * 2) + 1; -- 1 or 2件
+        FOR i IN 1..hotel_count LOOP
+            -- 存在する pets からランダムに取得して使用（外部キー違反防止）
+            SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets ORDER BY random() LIMIT 1;
+            
+            SELECT id INTO rand_doctor_id FROM staffs ORDER BY random() LIMIT 1;
+
+            h_start := target_date;
+            -- 滞在期間 2〜3日間
+            h_end := target_date + (floor(random() * 2) + 2) * '1 day'::interval;
+
+            -- 現在時刻との比較でステータス決定
+            IF h_end::timestamp < current_time_threshold THEN
+                h_status := 'discharged';
+            ELSIF h_start::timestamp <= current_time_threshold AND h_end::timestamp >= current_time_threshold THEN
+                h_status := 'admitted';
+            ELSE
+                h_status := 'reserved';
+            END IF;
+
+            INSERT INTO hospitalizations (id, clinic_id, owner_id, pet_id, hospitalization_type, start_date, end_date, status, cage_id, doctor_id, memo, owner_request, staff_notes)
+            VALUES (hospitalization_id, 1, rand_owner_id, rand_pet_id, 'hotel'::hospitalization_type, h_start, h_end, h_status::hospitalization_status, NULL, rand_doctor_id, 'ペットホテル預かりデモ', 'ご飯持ち込みあり', '自動生成データ')
+            ON CONFLICT (id) DO NOTHING;
+
+            hospitalization_id := hospitalization_id + 1;
+        END LOOP;
+
+    END LOOP;
+END $$;
+
+-- 最後にシーケンスの最終同期を行う
+SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
+SELECT setval(pg_get_serial_sequence('appointment_trimming_details', 'id'), (SELECT MAX(id) FROM appointment_trimming_details));
+SELECT setval(pg_get_serial_sequence('hospitalizations', 'id'), (SELECT MAX(id) FROM hospitalizations));
+
 -- END OF DEMO SEED --
 

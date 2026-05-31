@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Cage ----
@@ -19,10 +18,7 @@ func (h *Handler) ListCages(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var cageType *string
-	if t := c.Query("cage_type"); t != "" {
-		cageType = &t
-	}
+	cageType := newListCageQuery(c.Request.URL.Query()).toServiceFilter()
 	cages, err := h.svc.Cage.List(c.Request.Context(), clinicID, cageType)
 	if err != nil {
 		RespondError(c, err)
@@ -55,23 +51,13 @@ func (h *Handler) CreateCage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input createCageRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req createCageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	svcInput := &service.CreateCageInput{
-		Name:        input.Name,
-		CageType:    input.CageType,
-		CageSize:    input.CageSize,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		SortOrder:   input.SortOrder,
-	}
-
-	cage, err := h.svc.Cage.Create(c.Request.Context(), clinicID, svcInput)
+	cage, err := h.svc.Cage.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -90,23 +76,13 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input updateCageRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req updateCageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	svcInput := &service.UpdateCageInput{
-		Name:        input.Name,
-		CageType:    input.CageType,
-		CageSize:    input.CageSize,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		SortOrder:   input.SortOrder,
-	}
-
-	cage, err := h.svc.Cage.Update(c.Request.Context(), clinicID, id, svcInput)
+	cage, err := h.svc.Cage.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

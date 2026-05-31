@@ -258,6 +258,18 @@ func (m *mockResStaffForStaff) FindAllExcludedReservationTypesByStaffIDs(_ conte
 func (m *mockResStaffForStaff) UpdateExcludedReservationTypes(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
 }
+func (m *mockResStaffForStaff) FindAllReservationCapabilities(_ context.Context, _, _ uint64) ([]model.StaffReservationCapability, error) {
+	return nil, nil
+}
+func (m *mockResStaffForStaff) FindAllReservationCapabilitiesByStaffIDs(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationCapability, error) {
+	return nil, nil
+}
+func (m *mockResStaffForStaff) UpdateReservationCapabilities(_ context.Context, _, _ uint64, _ []uint64) error {
+	return nil
+}
+func (m *mockResStaffForStaff) SupportsReservationType(_ context.Context, _, _, _ uint64) (bool, error) {
+	return true, nil
+}
 
 // noopTransactor はテスト用のトランザクションモック。fn を直接実行するだけ。
 type noopTransactor struct{}

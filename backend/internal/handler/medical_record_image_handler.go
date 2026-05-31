@@ -1,32 +1,15 @@
 package handler
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
-	"log/slog"
 	"net/http"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
-
-const (
-	maxUploadSize = 10 * 1024 * 1024 // 10MB
-)
-
-var allowedMIMETypes = map[string]bool{
-	"image/jpeg":      true,
-	"image/png":       true,
-	"image/gif":       true,
-	"application/pdf": true,
-}
 
 // verifyMedicalRecordOwnership は clinicID + medicalRecordID の組み合わせを検証し、
 // テナント分離を保証するヘルパー。検証済みの MedicalRecord と成否を返す。
@@ -88,26 +71,7 @@ func (h *Handler) CreateMedicalRecordImage(c *gin.Context) {
 		return
 	}
 
-	imageType := model.MedicalImageType(req.ImageType)
-	if imageType == "" {
-		imageType = model.MedicalImageTypeOther
-	}
-
-	input := &service.CreateMedicalRecordImageInput{
-		ImageURL:     req.ImageURL,
-		ThumbnailURL: req.ThumbnailURL,
-		FileName:     req.FileName,
-		FileSize:     req.FileSize,
-		MimeType:     req.MimeType,
-		ImageType:    imageType,
-		Description:  req.Description,
-		TakenAt:      req.TakenAt,
-		ExamID:       req.ExamID,
-		StaffID:      req.StaffID,
-		SortOrder:    req.SortOrder,
-	}
-
-	image, err := h.svc.MedicalRecordImage.Create(c.Request.Context(), medicalRecordID, input)
+	image, err := h.svc.MedicalRecordImage.Create(c.Request.Context(), medicalRecordID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -166,68 +130,32 @@ func (h *Handler) UploadMedicalRecordImage(c *gin.Context) {
 	}
 	defer file.Close() //nolint:errcheck // multipart ファイルのクローズ失敗は復旧不可のため無視
 
-	// Validate file size
-	if fileHeader.Size > maxUploadSize {
-		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("file size exceeds limit of %dMB", maxUploadSize/1024/1024)))
+	uploadMeta, err := newMedicalRecordImageUploadRequest(fileHeader).validate()
+	if err != nil {
+		RespondError(c, err)
 		return
 	}
-
-	// Detect MIME type from Content-Type header or file extension
-	fileExt := strings.ToLower(filepath.Ext(fileHeader.Filename))
-	mimeType := fileHeader.Header.Get("Content-Type")
-	if mimeType == "" || !allowedMIMETypes[mimeType] {
-		// Fall back to extension-based detection
-		switch fileExt {
-		case ".jpg", ".jpeg":
-			mimeType = "image/jpeg"
-		case ".png":
-			mimeType = "image/png"
-		case ".gif":
-			mimeType = "image/gif"
-		case ".pdf":
-			mimeType = "application/pdf"
-		default:
-			RespondError(c, apperrors.WrapInvalidInput("unsupported file type; allowed: jpeg, png, gif, pdf"))
-			return
-		}
-	}
-	if !allowedMIMETypes[mimeType] {
-		RespondError(c, apperrors.WrapInvalidInput("unsupported MIME type: "+mimeType))
+	storedName, err := uploadMeta.newStoredName(time.Now())
+	if err != nil {
+		RespondError(c, err)
 		return
 	}
-
-	// Generate unique filename to avoid collisions
-	randomBytes := make([]byte, 16)
-	if _, err := rand.Read(randomBytes); err != nil {
-		RespondError(c, apperrors.Wrap(err, "failed to generate unique filename"))
-		return
-	}
-	storedName := fmt.Sprintf("%d_%s%s", time.Now().UnixNano(), hex.EncodeToString(randomBytes), fileExt)
 
 	// Upload via FileUploader (S3 or local)
-	key := fmt.Sprintf("medical-records/%d/%s", medicalRecordID, storedName)
-	imageURL, err := h.uploader.Upload(c.Request.Context(), key, file, mimeType)
+	key := uploadMeta.uploadKey(medicalRecordID, storedName)
+	imageURL, err := h.uploader.Upload(c.Request.Context(), key, file, uploadMeta.mimeType)
 	if err != nil {
 		RespondError(c, apperrors.Wrap(err, "failed to upload file"))
 		return
 	}
 
 	now := time.Now()
-	input := &service.CreateMedicalRecordImageInput{
-		ImageURL:  imageURL,
-		FileName:  fileHeader.Filename,
-		FileSize:  fileHeader.Size,
-		MimeType:  mimeType,
-		ImageType: model.MedicalImageTypeOther,
-		TakenAt:   &now,
-	}
+	input := uploadMeta.toUploadedInput(imageURL, now).toServiceInput()
 
 	image, err := h.svc.MedicalRecordImage.Create(c.Request.Context(), medicalRecordID, input)
 	if err != nil {
 		// Clean up uploaded file on service error (non-fatal)
-		if removeErr := h.uploader.Delete(c.Request.Context(), key); removeErr != nil {
-			slog.WarnContext(c.Request.Context(), "failed to clean up uploaded file", "key", key, "error", removeErr)
-		}
+		_ = h.uploader.Delete(c.Request.Context(), key)
 		RespondError(c, err)
 		return
 	}

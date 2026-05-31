@@ -1,23 +1,15 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { useSearchParams } from "react-router";
-import { format } from "date-fns";
-import { ja } from "date-fns/locale";
 import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarIcon, Plus } from "lucide-react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
 import { ResourceReservations } from "@/types/generated/models";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { getCalendarViewLabel } from "@/utils/status-helpers";
-import { typedSetter } from "@/lib/type-utils";
 import type { CalendarView, Reservation } from "../types";
-import { CALENDAR_VIEW_VALUES } from "../types";
-import { DaysRangeToggle } from "../components/DaysRangeToggle";
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
     default: m.ReservationFormModal,
@@ -26,33 +18,12 @@ const ReservationFormModal = lazy(() =>
 import { useReservationManagement } from "../hooks/use-reservation-management";
 import { useReservationTypeColorMap } from "@/hooks/use-reservation-type-color-map";
 import { usePermission } from "@/hooks/use-permission";
-
-const MonthView = lazy(() =>
-  import("../components/MonthView").then((m) => ({ default: m.MonthView })),
-);
-const WeekView = lazy(() =>
-  import("../components/WeekView").then((m) => ({ default: m.WeekView })),
-);
+import { ReservationManagementCalendar } from "../components/ReservationManagementCalendar";
 const ReservationDetailModal = lazy(() =>
   import("../components/ReservationDetailModal").then((m) => ({
     default: m.ReservationDetailModal,
   })),
 );
-
-// rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
-const SOURCE_FILTER_SELECT_ITEMS = (
-  <>
-    <SelectItem value="all">すべて</SelectItem>
-    <SelectItem value="manual">手動予約</SelectItem>
-    <SelectItem value="line">LINE予約</SelectItem>
-  </>
-);
-
-const CALENDAR_VIEW_SELECT_ITEMS = CALENDAR_VIEW_VALUES.map((v) => (
-  <SelectItem key={v} value={v}>
-    {getCalendarViewLabel(v)}
-  </SelectItem>
-));
 
 /** Navigation step per calendar view */
 const VIEW_NAV_PREV: Record<CalendarView, (d: Date) => Date> = {
@@ -142,14 +113,6 @@ export function ReservationManagement() {
     [appointments],
   );
 
-  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
-  const doctorNameSelectItems = useMemo(
-    () => doctorNames.map((name) => (
-      <SelectItem key={name} value={name}>{name}</SelectItem>
-    )),
-    [doctorNames]
-  );
-
   const filteredAppointments = useMemo(
     () => {
       let result = appointments;
@@ -199,129 +162,29 @@ export function ReservationManagement() {
         }
       />
 
-      <div className="flex-1 flex flex-col p-4 overflow-hidden w-full min-w-0">
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-4">
-            <div className={`flex items-center ${C.bgWhite} rounded-md border ${C.borderMedium} p-1 shadow-sm`}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10"
-                onClick={navigatePrevious}
-              >
-                <ChevronLeft className={ICON.page} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-10 px-4 text-base font-medium"
-                onClick={navigateToday}
-              >
-                今日
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10"
-                onClick={navigateNext}
-              >
-                <ChevronRight className={ICON.page} />
-              </Button>
-            </div>
-            <h2 className={`text-xl font-bold ${C.text} flex items-center gap-2`}>
-              {format(currentDate, "yyyy年 M月", { locale: ja })}
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Source Filter */}
-            <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-10 text-base`}>
-                <SelectValue placeholder="予約ソース" />
-              </SelectTrigger>
-              <SelectContent>{SOURCE_FILTER_SELECT_ITEMS}</SelectContent>
-            </Select>
-
-            {/* Doctor Filter */}
-            <Select value={doctorFilter} onValueChange={setDoctorFilter}>
-              <SelectTrigger className={`w-[160px] ${C.bgWhite} ${C.borderMedium} h-10 text-base`}>
-                <SelectValue placeholder="担当医で絞込" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべての医師</SelectItem>
-                {doctorNameSelectItems}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={view}
-              onValueChange={typedSetter(setView, CALENDAR_VIEW_VALUES)}
-            >
-              <SelectTrigger className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-10 text-base`}>
-                <SelectValue placeholder="表示切替" />
-              </SelectTrigger>
-              <SelectContent>
-                {CALENDAR_VIEW_SELECT_ITEMS}
-              </SelectContent>
-            </Select>
-
-            {view === "week" ? (
-              <DaysRangeToggle days={days} onChange={handleDaysChange} />
-            ) : null}
-          </div>
-        </div>
-
-        {/* Legend row */}
-        <div className="flex items-center gap-3 mb-3 flex-wrap">
-          {activeEntries.map((entry) => (
-            <div key={entry.name} className="flex items-center gap-1.5">
-              {/* BUG-323: Status Dot Icon Token 使用統一 */}
-              <span
-                className={`${ICON.dotMd} rounded-full`}
-                style={entry.color.dotStyle}
-              />
-              <span className={`text-base ${C.text60}`}>{entry.name}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Calendar View */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <Suspense
-            fallback={
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
-                  <p className={`mt-2 ${C.text60} text-base`}>
-                    読み込み中...
-                  </p>
-                </div>
-              </div>
-            }
-          >
-            {view === "month" ? (
-              <MonthView
-                currentDate={currentDate}
-                appointments={filteredAppointments}
-                onAppointmentClick={handleOpenDetail}
-                onDateClick={handleMonthDateClick}
-                dynamicColorMap={dynamicColorMap}
-              />
-            ) : (
-              <WeekView
-                currentDate={currentDate}
-                appointments={filteredAppointments}
-                onAppointmentClick={handleOpenDetail}
-                onTimeSlotClick={canCreate ? handleTimeSlotClick : undefined}
-                onAppointmentUpdate={handleReservationUpdate}
-                dynamicColorMap={dynamicColorMap}
-                days={days}
-              />
-            )}
-          </Suspense>
-        </div>
-      </div>
+      <ReservationManagementCalendar
+        currentDate={currentDate}
+        view={view}
+        days={days}
+        doctorFilter={doctorFilter}
+        sourceFilter={sourceFilter}
+        doctorNames={doctorNames}
+        appointments={filteredAppointments}
+        activeEntries={activeEntries}
+        dynamicColorMap={dynamicColorMap}
+        canCreate={canCreate}
+        onViewChange={setView}
+        onDoctorFilterChange={setDoctorFilter}
+        onSourceFilterChange={setSourceFilter}
+        onDaysChange={handleDaysChange}
+        onNavigatePrevious={navigatePrevious}
+        onNavigateToday={navigateToday}
+        onNavigateNext={navigateNext}
+        onAppointmentClick={handleOpenDetail}
+        onMonthDateClick={handleMonthDateClick}
+        onTimeSlotClick={handleTimeSlotClick}
+        onAppointmentUpdate={handleReservationUpdate}
+      />
 
       <Suspense fallback={null}>
         {/* Create/Edit Form */}

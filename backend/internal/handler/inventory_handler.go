@@ -7,8 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListInventory godoc
@@ -24,17 +22,9 @@ func (h *Handler) ListInventory(c *gin.Context) {
 		return
 	}
 
-	var category *string
-	if cat := c.Query("category"); cat != "" {
-		category = &cat
-	}
+	filters := newListInventoryQuery(c.Request.URL.Query()).toServiceFilters()
 
-	var status *string
-	if s := c.Query("status"); s != "" {
-		status = &s
-	}
-
-	items, total, err := h.svc.Inventory.List(c.Request.Context(), clinicID, category, status, page, limit)
+	items, total, err := h.svc.Inventory.List(c.Request.Context(), clinicID, filters.Category, filters.Status, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -68,36 +58,19 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 		return
 	}
 
-	var input createInventoryRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req createInventoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	// Parse dates with fallback: YYYY-MM-DD → RFC3339
-	expiryDate, err := parseDate(input.ExpiryDate)
+	input, err := req.toServiceInput()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid expiry_date: %v", err)))
-		return
-	}
-	lastRestocked, err := parseDate(input.LastRestocked)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid last_restocked: %v", err)))
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
 	}
 
-	created, err := h.svc.Inventory.Create(c.Request.Context(), clinicID, &service.CreateInventoryInput{
-		Name:          input.Name,
-		Category:      input.Category,
-		Quantity:      input.Quantity,
-		Unit:          input.Unit,
-		MinStockLevel: input.MinStockLevel,
-		Location:      input.Location,
-		ExpiryDate:    expiryDate,
-		Supplier:      input.Supplier,
-		LastRestocked: lastRestocked,
-		Status:        input.Status,
-	})
+	created, err := h.svc.Inventory.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -117,49 +90,19 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input updateInventoryRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req updateInventoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	var category *model.InventoryCategory
-	if input.Category != nil {
-		cat := model.InventoryCategory(*input.Category)
-		category = &cat
-	}
-	var status *model.InventoryStatus
-	if input.Status != nil {
-		s := model.InventoryStatus(*input.Status)
-		status = &s
-	}
-
-	// Parse dates with fallback: YYYY-MM-DD → RFC3339
-	expiryDate, err := parseDate(input.ExpiryDate)
+	input, err := req.toServiceInput()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid expiry_date: %v", err)))
-		return
-	}
-	lastRestocked, err := parseDate(input.LastRestocked)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid last_restocked: %v", err)))
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
 	}
 
-	svcInput := service.UpdateInventoryInput{
-		Name:          input.Name,
-		Category:      category,
-		Quantity:      input.Quantity,
-		Unit:          input.Unit,
-		MinStockLevel: input.MinStockLevel,
-		Location:      input.Location,
-		ExpiryDate:    expiryDate,
-		Supplier:      input.Supplier,
-		LastRestocked: lastRestocked,
-		Status:        status,
-	}
-
-	item, err := h.svc.Inventory.Update(c.Request.Context(), clinicID, id, &svcInput)
+	item, err := h.svc.Inventory.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -1,7 +1,7 @@
 # デプロイメント・リリース準備チェックリスト (Deployment Checklist)
 
 > **Animal Ekarte**: ステージングおよび本番環境への安全な移行手順
-> **最新更新**: 2026-05-21 | **ステータス**: Production Ready (82 Tables Sync)
+> **最新更新**: 2026-05-27 | **ステータス**: Production Ready (95 Tables Sync)
 
 ---
 
@@ -12,11 +12,11 @@
 - [ ] **コード品質の完遂**
   - [ ] `make lint`: バックエンド静的解析（golangci-lint）で指摘ゼロ。
   - [ ] `make lint-front`: フロントエンド ESlint/Prettier 検証完了。
-  - [ ] `make type-check`: TypeScript の型整合性（0 errors）。
+  - [ ] `docker compose exec frontend pnpm type-check`: TypeScript の型整合性（0 errors）。
 - [ ] **自動テストの PASS**
   - [ ] `make test`: バックエンド単体・結合テスト（PASS 100%）。
   - [ ] `make test-front`: フロントエンド Vitest（PASS 100%）。
-  - [ ] `pnpm test:e2e`: Playwright による、予約〜診察〜会計の完走。
+  - [ ] `docker compose exec frontend pnpm test:e2e`: Playwright による、予約〜診察〜会計の完走。
 
 ---
 
@@ -30,7 +30,7 @@
   - [ ] `INTEGRATION_ENCRYPTION_KEY`: 病院別 API キー保護用の AES-256 キー。
   - [ ] `S3_SHARED_BUCKET`: 共有ファイル（LINE連携用）のバケット準備。
 - [ ] **DB マイグレーションの整合性**
-  - [ ] 全 82 テーブルのスキーマが、ローカルの `001_init.sql` と完全一致しているか。
+  - [ ] 全 95 テーブルのスキーマが、ローカルの `001_init.sql` と完全一致しているか。
   - [ ] 初期マスタデータ（`002_seed_master.sql`）の投入準備完了。
 
 ---

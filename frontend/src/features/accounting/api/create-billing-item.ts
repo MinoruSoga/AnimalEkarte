@@ -13,6 +13,10 @@ export interface CreateBillingItemRequest {
   tax_rate: number;
   is_insurance_applicable: boolean;
   source: string;
+  treatment_id?: number;
+  appointment_id?: number;
+  trimming_course_id?: number;
+  trimming_option_id?: number;
 }
 
 export const createBillingItem = async (

@@ -46,11 +46,12 @@ type PrescriptionService interface {
 type prescriptionService struct {
 	repo          repository.PrescriptionRepository
 	medRecordRepo repository.MedicalRecordRepository
+	tagSyncSvc    LstepTagSyncService
 }
 
 // NewPrescriptionService は PrescriptionService の実装を返す
-func NewPrescriptionService(repo repository.PrescriptionRepository, medRecordRepo repository.MedicalRecordRepository) PrescriptionService {
-	return &prescriptionService{repo: repo, medRecordRepo: medRecordRepo}
+func NewPrescriptionService(repo repository.PrescriptionRepository, medRecordRepo repository.MedicalRecordRepository, tagSyncSvc LstepTagSyncService) PrescriptionService {
+	return &prescriptionService{repo: repo, medRecordRepo: medRecordRepo, tagSyncSvc: tagSyncSvc}
 }
 
 func (s *prescriptionService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Prescription, error) {
@@ -95,6 +96,7 @@ func (s *prescriptionService) Create(ctx context.Context, clinicID, medicalRecor
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("prescription_id", p.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
+	s.syncPrescriptionTag(ctx, clinicID, p.OwnerID)
 	return p, nil
 }
 
@@ -123,6 +125,7 @@ func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecor
 		slog.ErrorContext(ctx, "failed to get prescription after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get prescription after update")
 	}
+	s.syncPrescriptionTag(ctx, clinicID, updated.OwnerID)
 	return updated, nil
 }
 
@@ -140,5 +143,15 @@ func (s *prescriptionService) Delete(ctx context.Context, clinicID, medicalRecor
 	slog.InfoContext(ctx, "prescription deleted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("prescription_id", prescriptionID))
+	s.syncPrescriptionTag(ctx, clinicID, existing.OwnerID)
 	return nil
+}
+
+func (s *prescriptionService) syncPrescriptionTag(ctx context.Context, clinicID, ownerID uint64) {
+	if s.tagSyncSvc == nil {
+		return
+	}
+	if err := s.tagSyncSvc.SyncPrescriptionTag(ctx, clinicID, ownerID); err != nil {
+		slog.ErrorContext(ctx, "failed to sync prescription tag", "error", err, "clinic_id", clinicID, "owner_id", ownerID)
+	}
 }

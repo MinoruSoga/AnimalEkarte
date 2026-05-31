@@ -98,6 +98,7 @@ func allModels() []any {
 		&model.LineReservationSetting{},
 		&model.LineCustomer{},
 		&model.StaffReservationExclusion{},
+		&model.StaffReservationCapability{},
 		&model.ShiftEntryBreak{},
 		&model.ShiftTemplate{},
 		&model.ShiftTemplateBreak{},

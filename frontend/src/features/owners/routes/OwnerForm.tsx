@@ -1,38 +1,30 @@
 // React/Framework
-import { useState, lazy, Suspense, memo, useCallback, useEffect } from "react";
+import { useState, lazy, Suspense, useCallback, useEffect } from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
 
 // External
-import { Plus, Edit, User, PawPrint, MoreHorizontal, Calendar, FileText, Scissors, Bed, CreditCard, Trash2, Receipt } from "lucide-react";
+import { User, Receipt } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { FormFieldError } from "@/components/shared/FormFieldError";
-import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 
 // Relative
+import { OwnerInfoSection } from "../components/OwnerInfoSection";
+import { OwnerPetsSection } from "../components/OwnerPetsSection";
 import { useOwnerForm } from "../hooks/use-owner-form";
 import type { PetMutations } from "@/types/pet";
-import type { PetFormData, OwnerData } from "../types";
+import type { OwnerData } from "../types";
 // Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)
 const PetEditModal = lazy(() =>
   import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
@@ -41,424 +33,9 @@ const PetEditModal = lazy(() =>
 const OwnerAccountingHistory = lazy(() =>
   import("@/features/accounting").then(m => ({ default: m.OwnerAccountingHistory }))
 );
-import { MEMBERSHIP_TYPE_VALUES } from "../types";
 import type { MembershipType } from "../types";
 import type { OwnerLoaderData } from "../loaders";
 import { ResourceOwners } from "@/types/generated/models";
-
-// rerender-memo: 会員区分ボタンを memo 化して ownerData の他フィールド変更による
-// 不要な再レンダリングと inline onClick 生成を排除する
-interface MembershipTypeButtonsProps {
-  value: MembershipType;
-  onChange: (type: MembershipType) => void;
-}
-
-const MembershipTypeButtons = memo(function MembershipTypeButtons({
-  value,
-  onChange,
-}: MembershipTypeButtonsProps) {
-  return (
-    <div className="flex gap-1.5 flex-wrap">
-      {MEMBERSHIP_TYPE_VALUES.map((type) => (
-        <Button
-          key={type}
-          type="button"
-          variant={value === type ? "default" : "outline"}
-          size="sm"
-          className={
-            value === type
-              ? `${STYLE.confirmPrimary} text-sm px-3`
-              : `h-11 text-sm ${C.text} ${C.hoverBgMedium} ${C.borderMedium} px-3`
-          }
-          onClick={() => onChange(type)}
-        >
-          {type}
-        </Button>
-      ))}
-    </div>
-  );
-});
-
-// rerender-memo: ペット行を memo 化して pets.map 内の N×8 インライン関数生成を排除
-interface PetTableRowProps {
-  pet: PetFormData;
-  ownerId: string | undefined;
-  canEdit: boolean;
-  canCreate: boolean;
-  canDelete: boolean;
-  onEdit: (pet: PetFormData) => void;
-  onDeleteRequest: (id: string, name: string) => void;
-}
-
-const PetTableRow = memo(function PetTableRow({
-  pet,
-  ownerId,
-  canEdit,
-  canCreate,
-  canDelete,
-  onEdit,
-  onDeleteRequest,
-}: PetTableRowProps) {
-  const navigate = useNavigate();
-  const backFrom = ownerId
-    ? paths.owners.detail.getHref(ownerId)
-    : paths.owners.getHref();
-
-  return (
-    <TableRow
-      className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 ${canEdit ? "cursor-pointer" : "cursor-default"}`}
-      onClick={canEdit ? () => onEdit(pet) : undefined}
-    >
-      <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
-      <TableCell className={STYLE.tableCell}>{pet.petName}</TableCell>
-      <TableCell className={STYLE.tableCell}>{pet.status}</TableCell>
-      <TableCell className={STYLE.tableCell}>{pet.species}</TableCell>
-      <TableCell className={STYLE.tableCell}>{pet.gender}</TableCell>
-      <TableCell className={STYLE.tableCell}>
-        {pet.birthDate ? pet.birthDate.slice(0, 10) : ""}
-      </TableCell>
-      <TableCell className={STYLE.tableCell}>{pet.color}</TableCell>
-      <TableCell className={STYLE.tableCell}>
-        {pet.weight ? `${pet.weight} kg` : ""}
-      </TableCell>
-      <TableCell className={STYLE.tableCell}>{pet.environment}</TableCell>
-      <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>
-        {pet.remarks}
-      </TableCell>
-      <TableCell className="py-2">
-        <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={`inline-flex items-center justify-center rounded-[4px] cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
-              aria-label="操作メニューを開く"
-            >
-              <MoreHorizontal className={ICON.page} />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>操作</DropdownMenuLabel>
-              {canEdit ? (
-                <DropdownMenuItem onClick={() => onEdit(pet)}>
-                  <Edit className={`mr-2 ${ICON.action}`} />
-                  詳細・編集
-                </DropdownMenuItem>
-              ) : null}
-              {canCreate ? (
-                <>
-                  <DropdownMenuItem onClick={() => navigate(`${paths.reservations.getHref()}?petId=${pet.id}`)}>
-                    <Calendar className={`mr-2 ${ICON.action}`} />
-                    予約作成
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => navigate(`${paths.medicalRecords.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
-                  >
-                    <FileText className={`mr-2 ${ICON.action}`} />
-                    カルテ作成
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => navigate(`${paths.trimming.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
-                  >
-                    <Scissors className={`mr-2 ${ICON.action}`} />
-                    トリミング
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => navigate(`${paths.hospitalization.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
-                  >
-                    <Bed className={`mr-2 ${ICON.action}`} />
-                    入院登録
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => navigate(`${paths.accounting.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
-                  >
-                    <CreditCard className={`mr-2 ${ICON.action}`} />
-                    会計登録
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-              {canDelete ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => onDeleteRequest(pet.id, pet.petName)}
-                    className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
-                  >
-                    <Trash2 className={`mr-2 ${ICON.action}`} />
-                    削除
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-});
-
-// rendering-hoist-jsx: ペットテーブルの列ヘッダーは静的なので毎レンダーの再生成を排除
-const PET_TABLE_HEADER = (
-  <TableHeader>
-    <TableRow className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}>
-      <TableHead className={STYLE.tableCellMuted}>ペット番号</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>ペット名</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>生死</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>種別</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>性別</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>生年月日</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>毛色</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>体重</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>環境</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>備考</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>操作</TableHead>
-    </TableRow>
-  </TableHeader>
-);
-
-// rerender-memo: 飼主情報フィールド群を memo 化する
-// ペット追加/削除・モーダル開閉・deletePetTarget 変更では ownerData/fieldErrors が変わらないため
-// 17 フィールド全体の再レンダーを防ぐ（clearFieldError は useOwnerForm 内で useCallback 済み）
-interface OwnerInfoSectionProps {
-  ownerData: OwnerData;
-  fieldErrors: Record<string, string>;
-  isEdit: boolean;
-  canEditDiscount: boolean;
-  onChange: (field: string, value: string | boolean | number) => void;
-  onClearError: (field: string) => void;
-  onMembershipChange: (type: MembershipType) => void;
-  onPostalCodeLookup: (postalCodeField: string, addressField: string) => void;
-}
-
-const OwnerInfoSection = memo(function OwnerInfoSection({
-  ownerData,
-  fieldErrors,
-  isEdit,
-  canEditDiscount,
-  onChange,
-  onClearError,
-  onMembershipChange,
-  onPostalCodeLookup,
-}: OwnerInfoSectionProps) {
-  return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Row 1 */}
-      <div className="space-y-1.5">
-        <Label htmlFor="ownerId" className={`text-sm ${C.text60}`}>飼主No</Label>
-        {isEdit ? (
-          <Input
-            id="ownerId"
-            type="text"
-            value={ownerData.ownerId}
-            disabled
-            className={`${STYLE.formInput} disabled:opacity-50`}
-          />
-        ) : (
-          <p className={`flex h-9 items-center px-3 text-sm ${C.text40} italic`}>
-            登録時に自動採番されます
-          </p>
-        )}
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>郵便番号</Label>
-        <div className="flex gap-1.5">
-          <Input
-            id="postalCode"
-            placeholder="123-4567"
-            value={ownerData.postalCode}
-            aria-invalid={!!fieldErrors.postalCode}
-            aria-describedby={fieldErrors.postalCode ? "postalCode-error" : undefined}
-            onChange={(e) => { onChange("postalCode", e.target.value); onClearError("postalCode"); }}
-            className={`${STYLE.formInput} ${fieldErrors.postalCode ? STYLE.formInputError : ""}`}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="shrink-0 h-9 text-xs px-2"
-            onClick={() => onPostalCodeLookup("postalCode", "address1")}
-          >
-            検索
-          </Button>
-        </div>
-        <FormFieldError id="postalCode-error" message={fieldErrors.postalCode} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="company" className={`text-sm ${C.text60}`}>会社名</Label>
-        <Input
-          id="company"
-          value={ownerData.company}
-          onChange={(e) => onChange("company", e.target.value)}
-          className={STYLE.formInput}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label className={`text-sm ${C.text60}`}>会員区分</Label>
-        <MembershipTypeButtons value={ownerData.membershipType} onChange={onMembershipChange} />
-      </div>
-
-      {/* Row 2 */}
-      <div className="space-y-1.5">
-        <Label htmlFor="ownerName" className={`text-sm ${C.text60}`}>
-          飼主名 <span className={C.textRequired}>*</span>
-        </Label>
-        <Input
-          id="ownerName"
-          value={ownerData.ownerName}
-          maxLength={100}
-          aria-invalid={!!fieldErrors.ownerName}
-          aria-describedby={fieldErrors.ownerName ? "ownerName-error" : undefined}
-          onChange={(e) => { onChange("ownerName", e.target.value); onClearError("ownerName"); }}
-          className={`${STYLE.formInput} ${fieldErrors.ownerName ? STYLE.formInputError : ""}`}
-        />
-        <FormFieldError id="ownerName-error" message={fieldErrors.ownerName} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="address1" className={`text-sm ${C.text60}`}>住所1（会社）</Label>
-        <Input id="address1" value={ownerData.address1} onChange={(e) => onChange("address1", e.target.value)} maxLength={200} className={STYLE.formInput} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>郵便番号(自宅)</Label>
-        <div className="flex gap-1.5">
-          <Input
-            id="homePostalCode"
-            placeholder="123-4567"
-            value={ownerData.homePostalCode || ""}
-            aria-invalid={!!fieldErrors.homePostalCode}
-            aria-describedby={fieldErrors.homePostalCode ? "homePostalCode-error" : undefined}
-            onChange={(e) => { onChange("homePostalCode", e.target.value); onClearError("homePostalCode"); }}
-            className={`${STYLE.formInput} ${fieldErrors.homePostalCode ? STYLE.formInputError : ""}`}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="shrink-0 h-9 text-xs px-2"
-            onClick={() => onPostalCodeLookup("homePostalCode", "homeAddress1")}
-          >
-            検索
-          </Button>
-        </div>
-        <FormFieldError id="homePostalCode-error" message={fieldErrors.homePostalCode} />
-      </div>
-      <div className="space-y-1.5 col-span-2 lg:col-span-1 lg:row-span-3">
-        <Label className={`text-sm ${C.text60}`}>危険人物</Label>
-        <div className="flex items-center space-x-2 mb-2 h-10">
-          <Switch
-            id="dangerous"
-            checked={ownerData.isDangerous}
-            onCheckedChange={(checked) => onChange("isDangerous", checked)}
-            className="origin-left mr-2"
-          />
-          <label htmlFor="dangerous" className={`text-sm cursor-pointer ${C.text}`}>該当する</label>
-        </div>
-        <Label htmlFor="remarks" className={`text-sm ${C.text60}`}>備考・特記事項</Label>
-        <Textarea
-          id="remarks"
-          rows={6}
-          value={ownerData.remarks}
-          maxLength={1000}
-          onChange={(e) => onChange("remarks", e.target.value)}
-          className={`text-sm ${C.text} min-h-[140px] resize-none ${C.borderMedium} p-3`}
-        />
-      </div>
-
-      {/* Row 3 */}
-      <div className="space-y-1.5">
-        <Label htmlFor="ownerNameKana" className={`text-sm ${C.text60}`}>
-          飼主名よみ <span className={C.textRequired}>*</span>
-        </Label>
-        <Input
-          id="ownerNameKana"
-          placeholder="はやし ふみあき"
-          value={ownerData.ownerNameKana}
-          aria-invalid={!!fieldErrors.ownerNameKana}
-          aria-describedby={fieldErrors.ownerNameKana ? "ownerNameKana-error" : undefined}
-          onChange={(e) => { onChange("ownerNameKana", e.target.value); onClearError("ownerNameKana"); }}
-          className={`${STYLE.formInput} ${fieldErrors.ownerNameKana ? STYLE.formInputError : ""}`}
-        />
-        <FormFieldError id="ownerNameKana-error" message={fieldErrors.ownerNameKana} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="address2" className={`text-sm ${C.text60}`}>住所2（会社）</Label>
-        <Input id="address2" value={ownerData.address2} onChange={(e) => onChange("address2", e.target.value)} maxLength={200} className={STYLE.formInput} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>住所1(自宅)</Label>
-        <Input id="homeAddress1" value={ownerData.homeAddress1} onChange={(e) => onChange("homeAddress1", e.target.value)} maxLength={200} className={STYLE.formInput} />
-      </div>
-
-      {/* Row 4 */}
-      <div className="space-y-1.5">
-        <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>飼主生年月日</Label>
-        <NotionDatePicker id="birthDate" value={ownerData.birthDate} onChange={(val) => onChange("birthDate", val)} placeholder="生年月日を選択…" disabledDays={{ after: new Date() }} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="email" className={`text-sm ${C.text60}`}>メールアドレス</Label>
-        <Input
-          id="email"
-          type="email"
-          value={ownerData.email}
-          aria-invalid={!!fieldErrors.email}
-          aria-describedby={fieldErrors.email ? "email-error" : undefined}
-          onChange={(e) => { onChange("email", e.target.value); onClearError("email"); }}
-          className={`${STYLE.formInput} ${fieldErrors.email ? STYLE.formInputError : ""}`}
-        />
-        <FormFieldError id="email-error" message={fieldErrors.email} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>住所2(自宅)</Label>
-        <Input id="homeAddress2" value={ownerData.homeAddress2} onChange={(e) => onChange("homeAddress2", e.target.value)} maxLength={200} className={STYLE.formInput} />
-      </div>
-
-      {/* Row 5 */}
-      <div className="space-y-1.5">
-        <Label htmlFor="phone" className={`text-sm ${C.text60}`}>
-          電話番号 <span className={C.textRequired}>*</span>
-        </Label>
-        <Input
-          id="phone"
-          placeholder="090-1234-5678"
-          value={ownerData.phone}
-          aria-invalid={!!fieldErrors.phone}
-          aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
-          onChange={(e) => { onChange("phone", e.target.value); onClearError("phone"); }}
-          className={`${STYLE.formInput} ${fieldErrors.phone ? STYLE.formInputError : ""}`}
-        />
-        <FormFieldError id="phone-error" message={fieldErrors.phone} />
-      </div>
-      <div className="space-y-1.5 col-span-1 lg:col-span-2">
-        <Label htmlFor="companyPhone" className={`text-sm ${C.text60}`}>会社 電話番号</Label>
-        <Input id="companyPhone" value={ownerData.companyPhone} onChange={(e) => onChange("companyPhone", e.target.value)} className={STYLE.formInput} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="discountRate" className={`text-sm ${C.text60}`}>値引率 (%)</Label>
-        <NumberInput
-          id="discountRate"
-          min={0}
-          max={100}
-          step={1}
-          value={ownerData.discountRate || ""}
-          disabled={!canEditDiscount}
-          aria-invalid={!!fieldErrors.discountRate}
-          aria-describedby={
-            fieldErrors.discountRate
-              ? "discountRate-error"
-              : !canEditDiscount
-                ? "discountRate-permission"
-                : undefined
-          }
-          onChange={(v) => { onChange("discountRate", Number(v)); onClearError("discountRate"); }}
-          suffix="%"
-          className={`${STYLE.formInput} ${fieldErrors.discountRate ? STYLE.formInputError : ""}`}
-        />
-        <FormFieldError id="discountRate-error" message={fieldErrors.discountRate} />
-        {!canEditDiscount ? (
-          <p id="discountRate-permission" className={`text-xs ${C.text50}`}>
-            値引率の変更には権限が必要です
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-});
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
 const OWNER_FIELD_ID_MAP: Record<string, string> = {
@@ -671,58 +248,16 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
         />
       </div>
 
-      {/* Pet Information */}
-      <div className="mb-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
-            <PawPrint className={`${ICON.action} ${C.text60}`} />
-            ペット情報
-          </h2>
-          {canEdit ? (
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleAddPet}
-              className={`${STYLE.confirmPrimary} gap-1.5 text-sm px-4`}
-            >
-              <Plus className={ICON.action} />
-              ペット追加
-            </Button>
-          ) : null}
-        </div>
-
-        <div className={`rounded-lg ${C.bgWhite} overflow-hidden border ${C.borderMedium}`}>
-          <Table>
-            {PET_TABLE_HEADER}
-            <TableBody>
-              {pets.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={11}
-                    className={`text-center py-8 text-sm ${C.text60}`}
-                  >
-                    ペット情報がありません。「ペット追加」ボタンから追加してください。
-                  </TableCell>
-                </TableRow>
-              ) : (
-                // rerender-memo: PetTableRow で各行を memo 化 — N×8 インライン関数生成を排除
-                pets.map((pet) => (
-                  <PetTableRow
-                    key={pet.id}
-                    pet={pet}
-                    ownerId={ownerId}
-                    canEdit={canEdit}
-                    canCreate={canCreate}
-                    canDelete={canDelete}
-                    onEdit={handleEditPet}
-                    onDeleteRequest={handleDeletePetRequest}
-                  />
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      <OwnerPetsSection
+        pets={pets}
+        ownerId={ownerId}
+        canEdit={canEdit}
+        canCreate={canCreate}
+        canDelete={canDelete}
+        onAddPet={handleAddPet}
+        onEditPet={handleEditPet}
+        onDeleteRequest={handleDeletePetRequest}
+      />
 
         </fieldset>
 

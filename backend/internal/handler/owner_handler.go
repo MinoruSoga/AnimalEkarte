@@ -2,14 +2,11 @@ package handler
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListOwners godoc
@@ -23,9 +20,9 @@ func (h *Handler) ListOwners(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	search := c.Query("search")
+	query := newListOwnersQuery(c.Request.URL.Query())
 
-	owners, total, err := h.svc.Owner.List(c.Request.Context(), clinicID, page, limit, search)
+	owners, total, err := h.svc.Owner.List(c.Request.Context(), clinicID, page, limit, query.Search)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -74,56 +71,12 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 		return
 	}
 
-	pets := make([]service.CreatePetForOwnerInput, 0, len(req.Pets))
-	for i := range req.Pets {
-		p := &req.Pets[i]
-		pets = append(pets, service.CreatePetForOwnerInput{
-			Name:            p.Name,
-			AnimalSpeciesID: p.AnimalSpeciesID,
-			PetNameKana:     p.NameKana,
-			Breed:           p.Breed,
-			Color:           p.Color,
-			Gender:          p.Gender,
-			Status:          p.Status,
-			BirthDate:       jsonDatePtr(p.BirthDate),
-			Weight:          p.Weight,
-			NeuteredDate:    jsonDatePtr(p.NeuteredDate),
-			AcquisitionType: p.AcquisitionType,
-			DangerLevel:     p.DangerLevel,
-			Food:            p.Food,
-			Environment:     p.Environment,
-			InsuranceID:     p.InsuranceID,
-			Remarks:         p.Remarks,
-		})
-	}
-	input := service.CreateOwnerInput{
-		OwnerName:      req.OwnerName,
-		OwnerNameKana:  req.OwnerNameKana,
-		BirthDate:      jsonDatePtr(req.BirthDate),
-		Company:        req.Company,
-		PostalCode:     req.PostalCode,
-		Address1:       req.Address1,
-		Address2:       req.Address2,
-		HomePostalCode: req.HomePostalCode,
-		HomeAddress1:   req.HomeAddress1,
-		HomeAddress2:   req.HomeAddress2,
-		Phone:          req.Phone,
-		CompanyPhone:   req.CompanyPhone,
-		Email:          req.Email,
-		Remarks:        req.Remarks,
-		IsDangerous:    req.IsDangerous,
-		DiscountRate:   req.DiscountRate,
-		MembershipType: model.MembershipType(req.MembershipType),
-		Pets:           pets,
-	}
-
+	input := req.toServiceInput()
 	owner, err := h.svc.Owner.CreateWithPets(c.Request.Context(), clinicID, &input)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	// BE-005: 動物分類タグ同期（best-effort）
-	_ = h.svc.LstepTagSync.SyncOwnerAnimalClassificationTags(c.Request.Context(), clinicID, owner.ID)
 	c.Header("Location", fmt.Sprintf("/api/v1/owners/%d", owner.ID))
 	c.JSON(http.StatusCreated, toOwnerResponse(owner))
 }
@@ -157,32 +110,8 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 		}
 	}
 
-	var membershipType *model.MembershipType
-	if req.MembershipType != nil {
-		mt := model.MembershipType(*req.MembershipType)
-		membershipType = &mt
-	}
-	input := service.UpdateOwnerInput{
-		OwnerName:      req.OwnerName,
-		OwnerNameKana:  req.OwnerNameKana,
-		BirthDate:      jsonDatePtr(req.BirthDate),
-		Company:        req.Company,
-		PostalCode:     req.PostalCode,
-		Address1:       req.Address1,
-		Address2:       req.Address2,
-		HomePostalCode: req.HomePostalCode,
-		HomeAddress1:   req.HomeAddress1,
-		HomeAddress2:   req.HomeAddress2,
-		Phone:          req.Phone,
-		CompanyPhone:   req.CompanyPhone,
-		Email:          req.Email,
-		Remarks:        req.Remarks,
-		IsDangerous:    req.IsDangerous,
-		DiscountRate:   req.DiscountRate,
-		MembershipType: membershipType,
-	}
-
-	owner, err := h.svc.Owner.Update(c.Request.Context(), clinicID, id, &input)
+	input := req.toServiceInput()
+	owner, err := h.svc.Owner.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -230,10 +159,7 @@ func (h *Handler) PatchOwnerDeliveryExclusion(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	input := service.UpdateDeliveryExclusionInput{
-		Excluded: req.Excluded,
-		Reason:   req.Reason,
-	}
+	input := req.toServiceInput()
 	owner, err := h.svc.Owner.UpdateDeliveryExclusion(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
@@ -258,10 +184,7 @@ func (h *Handler) PatchOwnerDeliveryCaution(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	input := service.UpdateDeliveryCautionInput{
-		Caution: req.Caution,
-		Reason:  req.Reason,
-	}
+	input := req.toServiceInput()
 	owner, err := h.svc.Owner.UpdateDeliveryCaution(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
@@ -286,9 +209,7 @@ func (h *Handler) PatchOwnerTransferStatus(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	input := service.UpdateTransferStatusInput{
-		IsTransferred: req.IsTransferred,
-	}
+	input := req.toServiceInput()
 	owner, err := h.svc.Owner.UpdateTransferStatus(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
@@ -328,9 +249,7 @@ func (h *Handler) DeleteOwner(c *gin.Context) {
 		return
 	}
 	// BE-017: 削除前に Lステップタグを全解除（best-effort、失敗しても削除は続行）
-	if err := h.svc.LstepLifecycle.HandleOwnerDeletion(c.Request.Context(), clinicID, id); err != nil {
-		slog.WarnContext(c.Request.Context(), "lstep cleanup failed on owner deletion", "owner_id", id, "clinic_id", clinicID, "error", err)
-	}
+	_ = h.svc.LstepLifecycle.HandleOwnerDeletion(c.Request.Context(), clinicID, id)
 	if err := h.svc.Owner.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return

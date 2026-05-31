@@ -42,6 +42,7 @@ export const transformReservation = (
     petType,
     visitType: (reservation.visit_type as "first" | "revisit") ?? "first",
     type: reservation.reservation_type?.name ?? "",
+    category: reservation.reservation_type?.category ?? "general",
     reservationTypeId: reservation.reservation_type_id ? String(reservation.reservation_type_id) : undefined,
     doctor: reservation.doctor?.name ?? "",
     doctorId: reservation.doctor_id ? String(reservation.doctor_id) : undefined,
@@ -71,7 +72,9 @@ export const transformToCreateRequest = (
     reservation_type_id: Number(data.type ?? 0),
     doctor_id: data.doctor ? Number(data.doctor) : undefined,
     is_designated: data.isDesignated ?? false,
+    status: data.status,
     notes: data.notes,
     source: data.source,
+    reservation_route: data.reservationRoute ?? undefined,
   };
 };

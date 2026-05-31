@@ -1,218 +1,26 @@
 // React/Framework
-import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
-// External
-import { Trash2 } from "lucide-react";
-
 // Internal
-import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
-import { MasterLink } from "@/components/shared/MasterLink";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import type { SortOrder } from "@/types";
 
 // Relative
 import { useExaminationForm } from "../hooks/use-examination-form";
 import { useGetExaminations } from "../api/get-examinations";
-import { ExaminationCard } from "../components/ExaminationCard";
 import { ExamItemsTable } from "../components/ExamItemsTable";
+import { ExaminationFormFields } from "../components/ExaminationFormFields";
+import { ExaminationHistoryPanel } from "../components/ExaminationHistoryPanel";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
-import type { ExaminationRecord } from "../api/transforms";
 import { ResourceExaminations } from "@/types/generated/models";
-
-// rendering-hoist-jsx: ステータス選択肢は静的なのでモジュール定数に巻き上げ
-const EXAM_STATUS_ITEMS = (
-  <>
-    <SelectItem value="依頼中">依頼中</SelectItem>
-    <SelectItem value="検査中">検査中</SelectItem>
-    <SelectItem value="結果入力済み">結果入力済み</SelectItem>
-    <SelectItem value="完了">完了</SelectItem>
-    <SelectItem value="確定">確定</SelectItem>
-  </>
-);
-
-// rerender-memo: フォームフィールドセクションを独立 memo 化
-interface FormFieldsSectionProps {
-  formData: Partial<ExaminationRecord>;
-  examTypes: { id: string; name: string }[];
-  staffList: { id: string; name: string }[];
-  masterLoading: boolean;
-  isEdit: boolean;
-  isSaving: boolean;
-  isDeleting: boolean;
-  isConfirmed: boolean;
-  canEdit: boolean;
-  canCreate: boolean;
-  canDelete: boolean;
-  onSetFormData: (next: Partial<ExaminationRecord>) => void;
-  onBack: () => void;
-  onDeleteClick: () => void;
-}
-
-const FormFieldsSection = memo(function FormFieldsSection({
-  formData,
-  examTypes,
-  staffList,
-  masterLoading,
-  isEdit,
-  isDeleting,
-  isConfirmed,
-  canEdit,
-  canCreate,
-  canDelete,
-  onSetFormData,
-  onBack,
-  onDeleteClick,
-}: FormFieldsSectionProps) {
-  const canSubmit = isEdit ? canEdit : canCreate;
-
-  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
-  const examTypeSelectItems = useMemo(
-    () => examTypes.map((item) => (
-      <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
-    )),
-    [examTypes]
-  );
-  const staffSelectItems = useMemo(
-    () => staffList.map((staff) => (
-      <SelectItem key={staff.id} value={String(staff.id)}>{staff.name}</SelectItem>
-    )),
-    [staffList]
-  );
-  return (
-    <div className={`${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
-      {isConfirmed ? (
-        <p className={`text-sm font-medium ${C.text60}`}>確定済みのため編集できません。</p>
-      ) : null}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label className={`text-sm ${C.text60}`}>検査種別</Label>
-            <MasterLink category="examination" label="編集" className="text-[11px]" />
-          </div>
-          {masterLoading ? (
-            <div className={`h-10 ${C.bgGray100} rounded-md animate-pulse`} />
-          ) : (
-            <Select
-              value={formData.testTypeId ?? ""}
-              disabled={isConfirmed}
-              onValueChange={(v) => {
-                const item = examTypes.find((e) => e.id === v);
-                onSetFormData({ testTypeId: v, testType: item?.name ?? v });
-              }}
-            >
-              <SelectTrigger id="testTypeId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
-                <SelectValue placeholder="選択してください" />
-              </SelectTrigger>
-              <SelectContent>
-                {examTypeSelectItems}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label className={`text-sm ${C.text60}`}>担当医</Label>
-            <MasterLink category="staff" label="編集" className="text-[11px]" />
-          </div>
-          {masterLoading ? (
-            <div className={`h-10 ${C.bgGray100} rounded-md animate-pulse`} />
-          ) : (
-            <Select
-              value={formData.doctorId ?? ""}
-              disabled={isConfirmed}
-              onValueChange={(v) => {
-                const staff = staffList.find((s) => String(s.id) === v);
-                onSetFormData({ doctorId: v, doctor: staff?.name ?? v });
-              }}
-            >
-              <SelectTrigger id="doctorId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
-                <SelectValue placeholder="選択してください" />
-              </SelectTrigger>
-              <SelectContent>
-                {staffSelectItems}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className={`text-sm ${C.text60}`}>検査日</Label>
-        <NotionDatePicker
-          value={formData.date ? formData.date.split("T")[0] : ""}
-          onChange={(v) => onSetFormData({ date: v ? `${v}T00:00:00Z` : new Date().toISOString() })}
-          disabledDays={{ after: new Date() }}
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className={`text-sm ${C.text60}`}>ステータス</Label>
-        <Select
-          value={formData.status}
-          disabled={isConfirmed}
-          onValueChange={(v: "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定") => onSetFormData({ status: v })}
-        >
-          <SelectTrigger className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
-            <SelectValue placeholder="選択してください" />
-          </SelectTrigger>
-          <SelectContent>
-            {EXAM_STATUS_ITEMS}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className={`text-sm ${C.text60}`}>備考・所見</Label>
-        <Textarea
-          className={`h-24 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium} resize-none`}
-          placeholder="検査結果や備考を入力"
-          value={formData.resultSummary || ""}
-          disabled={isConfirmed}
-          onChange={(e) => onSetFormData({ resultSummary: e.target.value })}
-        />
-      </div>
-
-      {isConfirmed ? null : (
-        <div className="flex justify-end gap-2 pt-2">
-          {canDelete && isEdit ? (
-            <Button
-              variant="ghost"
-              type="button"
-              className={`h-10 text-sm ${STYLE.btnDangerGhost} mr-auto`}
-              onClick={onDeleteClick}
-              disabled={isDeleting}
-            >
-              <Trash2 className={`mr-1.5 ${ICON.action}`} />
-              {isDeleting ? "削除中..." : "削除"}
-            </Button>
-          ) : null}
-          <Button variant="outline" type="button" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
-          {canSubmit ? (
-            <SubmitButton
-              className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} h-10 text-sm`}
-            >
-              保存
-            </SubmitButton>
-          ) : null}
-        </div>
-      )}
-    </div>
-  );
-});
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
 const EXAMINATION_PRIORITY_FIELDS = ["testTypeId", "doctorId"] as const;
@@ -400,13 +208,12 @@ export function ExaminationForm() {
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
             {/* 左カラム: フォームフィールド + 検査項目テーブル */}
             <div className="lg:col-span-3 space-y-4">
-              <FormFieldsSection
+              <ExaminationFormFields
                 formData={formData}
                 examTypes={examTypes}
                 staffList={staffList}
                 masterLoading={masterLoading}
                 isEdit={isEdit}
-                isSaving={isSaving}
                 isDeleting={isDeleting}
                 isConfirmed={isConfirmed}
                 canEdit={canEdit}
@@ -427,34 +234,19 @@ export function ExaminationForm() {
               </div>
             </div>
 
-            {/* 右カラム: 過去の検査履歴 */}
-            <div className="lg:col-span-2 space-y-3">
-              <h3 className={`text-sm font-medium ${C.text60} px-1`}>過去の検査履歴</h3>
-              <HistoryFilterPanel
-                showDateRange={true}
-                filterStartDate={historyStartDate}
-                onFilterStartDateChange={setHistoryStartDate}
-                filterEndDate={historyEndDate}
-                onFilterEndDateChange={setHistoryEndDate}
-                searchTerm={historySearchTerm}
-                onSearchTermChange={setHistorySearchTerm}
-                searchPlaceholder="検査種別・所見で検索..."
-                sortOrder={historySortOrder}
-                onSortOrderChange={setHistorySortOrder}
-                onClear={handleHistoryClear}
-              />
-              <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                {filteredHistory.length > 0 ? (
-                  filteredHistory.map((exam) => (
-                    <ExaminationCard key={exam.id} examination={exam} />
-                  ))
-                ) : (
-                  <p className={`text-sm ${C.text45} text-center py-6`}>
-                    {currentPetId ? "検査記録がありません" : "ペットを選択してください"}
-                  </p>
-                )}
-              </div>
-            </div>
+            <ExaminationHistoryPanel
+              filteredHistory={filteredHistory}
+              currentPetId={currentPetId}
+              historyStartDate={historyStartDate}
+              historyEndDate={historyEndDate}
+              historySearchTerm={historySearchTerm}
+              historySortOrder={historySortOrder}
+              onHistoryStartDateChange={setHistoryStartDate}
+              onHistoryEndDateChange={setHistoryEndDate}
+              onHistorySearchTermChange={setHistorySearchTerm}
+              onHistorySortOrderChange={setHistorySortOrder}
+              onHistoryClear={handleHistoryClear}
+            />
           </div>
         </div>
         </fieldset>

@@ -8,8 +8,9 @@
 
 プロジェクトの最新規約、アーキテクチャ、および開発手順については、以下のファイルを**必ず**最優先で参照してください。
 
-- **[.claude/CLAUDE.md](../.claude/CLAUDE.md)**: 全エージェントおよび開発者向けの統合ルール。
-- **[GEMINI.md](../GEMINI.md)**: Gemini CLI 向けの最適化されたコンテキスト。
+- **[ANTIGRAVITY_CLI.md](ANTIGRAVITY_CLI.md)**: **【現在の標準】** Antigravity CLI (`agy`) 運用メモ（2026-06-18 に提供停止となる Gemini CLI からの移行手順）。
+- **[.claude/CLAUDE.md](../.claude/CLAUDE.md)**: 全エージェントおよび開発者向けの統合ルール（SSOT）。
+- **[GEMINI.md](../GEMINI.md)**: Gemini CLI 向け最適化コンテキスト（移行後もルール参照・互換用として保持）。
 - **[AI_DEVELOPMENT_WORKFLOW.md](AI_DEVELOPMENT_WORKFLOW.md)**: 仕様駆動・AI エージェント協働開発の標準手順。
 
 ---
@@ -19,7 +20,7 @@
 | カテゴリ | ドキュメント | 概要 |
 |:---|:---|:---|
 | **技術設計** | [architecture.md](architecture.md) | 軽量レイヤードアーキテクチャの定義。 |
-| **データ** | [ERD.md](ERD.md) | データベース設計（全 **95 テーブル**・リレーション）。 |
+| **データ** | [ERD.md](ERD.md) | データベース設計（全 **96 テーブル**・リレーション）。 |
 | **セキュリティ**| [AUTH.md](AUTH.md) | RBAC 権限モデル（全 **31 リソース**）、マルチテナント隔離。 |
 | **UI/UX** | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Notion ライクなデザイン規約とデザイントークン。 |
 | **API** | [API_SPEC.md](API_SPEC.md) | バックエンド Go API の詳細リファレンス (v2.3)。 |
@@ -30,7 +31,7 @@
 ## 📱 業務・画面仕様
 
 - **[SPECIFICATION.md](SPECIFICATION.md)**: システム全体の機能要件と主要ビジネスフロー。
-- **[screens/README.md](screens/README.md)**: **【全 39 画面インデックス】** 各機能の詳細操作ガイド。
+- **[screens/README.md](screens/README.md)**: **【全 38 画面インデックス】** 各機能の詳細操作ガイド。
 - **[CASH_REGISTER_SPEC.md](CASH_REGISTER_SPEC.md)**: レジ締め・日次/月次売上集計の業務仕様。
 - **[CUSTOMER_AGGREGATION_SPEC.md](CUSTOMER_AGGREGATION_SPEC.md)**: 累計売上・来院頻度に基づく顧客分析ダッシュボード。
 

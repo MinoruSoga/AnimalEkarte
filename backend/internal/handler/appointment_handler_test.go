@@ -24,7 +24,7 @@ import (
 type mockReservationService struct {
 	listFn                   func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	getByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	createFn                 func(ctx context.Context, r *model.Reservation) error
+	createFn                 func(ctx context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error)
 	updateFn                 func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.Reservation, error)
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
 	updateReservationRouteFn func(ctx context.Context, clinicID, id uint64, input service.UpdateReservationRouteInput) (*model.Reservation, error)
@@ -38,8 +38,8 @@ func (m *mockReservationService) GetByID(ctx context.Context, clinicID, id uint6
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockReservationService) Create(ctx context.Context, r *model.Reservation) error {
-	return m.createFn(ctx, r)
+func (m *mockReservationService) Create(ctx context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error) {
+	return m.createFn(ctx, input)
 }
 
 func (m *mockReservationService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.Reservation, error) {
@@ -64,6 +64,20 @@ func newHandlerWithReservationSvc(svc service.ReservationService) *Handler {
 	return &Handler{svc: &service.Services{
 		Reservation:           svc,
 		StaffClinicAssignment: &mockStaffClinicAssignmentService{},
+	}}
+}
+
+func newHandlerWithReservationAndMedicalRecordSvc(reservationSvc service.ReservationService, medicalRecordSvc service.MedicalRecordService) *Handler {
+	return &Handler{svc: &service.Services{
+		Reservation:           reservationSvc,
+		MedicalRecord:         medicalRecordSvc,
+		StaffClinicAssignment: &mockStaffClinicAssignmentService{},
+	}}
+}
+
+func newHandlerWithLiffSvc(liffSvc service.LiffService) *Handler {
+	return &Handler{svc: &service.Services{
+		Liff: liffSvc,
 	}}
 }
 
@@ -252,6 +266,84 @@ func TestGetReservation(t *testing.T) {
 	}
 }
 
+func TestGetReservationAvailableTimes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        service.LiffService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns available time slots",
+			query:    "reservation_type_id=5&staff_id=10&date=2026-06-01",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockLiffService{
+				getAvailableTimesFn: func(_ context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]service.TimeSlot, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(5), typeID)
+					assert.Equal(t, uint64(10), staffID)
+					assert.Equal(t, 2026, date.Year())
+					assert.Equal(t, time.June, date.Month())
+					assert.Equal(t, 1, date.Day())
+					return []service.TimeSlot{
+						{StartTime: "0945", EndTime: "1045"},
+						{StartTime: "1230", EndTime: "1330"},
+					}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"start_time":"0945"`,
+		},
+		{
+			name:       "returns 400 when reservation_type_id is missing",
+			query:      "date=2026-06-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockLiffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when date is invalid",
+			query:      "reservation_type_id=5&date=20260601",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockLiffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 401 when clinic id is missing",
+			query:      "reservation_type_id=5&date=2026-06-01",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockLiffService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 501 when availability service is not configured",
+			query:      "reservation_type_id=5&date=2026-06-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        nil,
+			wantStatus: http.StatusNotImplemented,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithLiffSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
+			tt.setupCtx(c)
+			h.GetReservationAvailableTimes(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
 // ---- CreateReservation ----
 
 func TestCreateReservation(t *testing.T) {
@@ -279,11 +371,30 @@ func TestCreateReservation(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockReservationService{
-				createFn: func(_ context.Context, r *model.Reservation) error {
-					assert.Equal(t, "健康診断", r.Notes)
-					require.NotNil(t, r.CreatedBy)
-					assert.Equal(t, uint64(1), *r.CreatedBy) // extractStaffID from user_id="1"
-					return nil
+				createFn: func(_ context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error) {
+					assert.Equal(t, "健康診断", input.Notes)
+					require.NotNil(t, input.CreatedBy)
+					assert.Equal(t, uint64(1), *input.CreatedBy) // extractStaffID from user_id="1"
+					return &model.Reservation{ID: 1, Notes: input.Notes}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "accepts record shortcut route on create",
+			body: func() map[string]any {
+				b := validBody()
+				b["status"] = "in_consultation"
+				b["reservation_route"] = "record_shortcut"
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			svc: &mockReservationService{
+				createFn: func(_ context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error) {
+					require.NotNil(t, input.ReservationRoute)
+					assert.Equal(t, "record_shortcut", *input.ReservationRoute)
+					assert.Equal(t, model.ReservationStatusInConsultation, input.Status)
+					return &model.Reservation{ID: 1, ReservationRoute: input.ReservationRoute, Status: input.Status}, nil
 				},
 			},
 			wantStatus: http.StatusCreated,
@@ -329,8 +440,8 @@ func TestCreateReservation(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockReservationService{
-				createFn: func(_ context.Context, _ *model.Reservation) error {
-					return fmt.Errorf("db error")
+				createFn: func(_ context.Context, _ *service.CreateManualReservationInput) (*model.Reservation, error) {
+					return nil, fmt.Errorf("db error")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -445,6 +556,87 @@ func TestUpdateReservation(t *testing.T) {
 			tt.setupCtx(c)
 			h.UpdateReservation(c)
 			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+func TestUpdateReservation_AutoCreateMedicalRecord(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name           string
+		reservation    *model.Reservation
+		wantAutoCreate bool
+	}{
+		{
+			name: "creates medical record for general checked-in reservation",
+			reservation: &model.Reservation{
+				ID:              1,
+				ReservationType: &model.ReservationType{Category: model.ReservationTypeCategoryGeneral},
+			},
+			wantAutoCreate: true,
+		},
+		{
+			name: "skips medical record for trimming checked-in reservation",
+			reservation: &model.Reservation{
+				ID:              2,
+				ReservationType: &model.ReservationType{Category: model.ReservationTypeCategoryTrimming},
+			},
+			wantAutoCreate: false,
+		},
+		{
+			name: "skips medical record for hotel checked-in reservation",
+			reservation: &model.Reservation{
+				ID:              4,
+				ReservationType: &model.ReservationType{Category: model.ReservationTypeCategoryGeneral, Name: "ペットホテル"},
+			},
+			wantAutoCreate: false,
+		},
+		{
+			name:           "keeps legacy behavior when reservation type is not loaded",
+			reservation:    &model.Reservation{ID: 3},
+			wantAutoCreate: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			autoCreateCalls := 0
+			reservationSvc := &mockReservationService{
+				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.Reservation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, tt.reservation.ID, id)
+					require.NotNil(t, input.Status)
+					assert.Equal(t, model.ReservationStatusCheckedIn, *input.Status)
+					return tt.reservation, nil
+				},
+			}
+			medicalRecordSvc := &mockMedicalRecordService{
+				autoCreateFromReservationFn: func(_ context.Context, clinicID uint64, reservation *model.Reservation) {
+					autoCreateCalls++
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, tt.reservation.ID, reservation.ID)
+				},
+			}
+			h := newHandlerWithReservationAndMedicalRecordSvc(reservationSvc, medicalRecordSvc)
+
+			bodyBytes, err := json.Marshal(map[string]any{"status": string(model.ReservationStatusCheckedIn)})
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: fmt.Sprintf("%d", tt.reservation.ID)}}
+			setClinicID(c)
+
+			h.UpdateReservation(c)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			if tt.wantAutoCreate {
+				assert.Equal(t, 1, autoCreateCalls)
+			} else {
+				assert.Zero(t, autoCreateCalls)
+			}
 		})
 	}
 }

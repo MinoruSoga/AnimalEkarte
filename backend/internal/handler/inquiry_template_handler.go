@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- InquiryTemplate ----
@@ -58,15 +57,7 @@ func (h *Handler) CreateInquiryTemplate(c *gin.Context) {
 		return
 	}
 
-	svcInput := &service.CreateInquiryTemplateInput{
-		Category:  req.Category,
-		Title:     req.Title,
-		Content:   req.Content,
-		IsActive:  req.IsActive,
-		SortOrder: req.SortOrder,
-	}
-
-	tmpl, err := h.svc.InquiryTemplate.Create(c.Request.Context(), clinicID, svcInput)
+	tmpl, err := h.svc.InquiryTemplate.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -92,15 +83,7 @@ func (h *Handler) UpdateInquiryTemplate(c *gin.Context) {
 		return
 	}
 
-	input := &service.UpdateInquiryTemplateInput{
-		Category:  req.Category,
-		Title:     req.Title,
-		Content:   req.Content,
-		IsActive:  req.IsActive,
-		SortOrder: req.SortOrder,
-	}
-
-	updated, err := h.svc.InquiryTemplate.Update(c.Request.Context(), clinicID, id, input)
+	updated, err := h.svc.InquiryTemplate.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

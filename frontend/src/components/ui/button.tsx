@@ -21,12 +21,17 @@ function Button({
   size,
   asChild = false,
   ref,
+  type,
   ...props
 }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
+  const typeProps: Pick<React.ComponentProps<"button">, "type"> = asChild
+    ? (type ? { type } : {})
+    : { type: type ?? "button" };
 
   return (
     <Comp
+      {...typeProps}
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}

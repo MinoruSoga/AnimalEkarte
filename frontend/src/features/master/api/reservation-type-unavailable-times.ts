@@ -47,8 +47,10 @@ export type CreateUnavailableTimeRequest = {
 // Query keys
 // ─────────────────────────────────────────────────
 
-const unavailableTimesKey = (reservationTypeId: string) => [
+const unavailableTimesKey = (clinicId: string, reservationTypeId: string) => [
   "masters",
+  "clinics",
+  clinicId,
   "reservation-types",
   reservationTypeId,
   "unavailable-times",
@@ -59,33 +61,31 @@ const unavailableTimesKey = (reservationTypeId: string) => [
 // ─────────────────────────────────────────────────
 
 async function getUnavailableTimes(
-  clinicId: string,
   reservationTypeId: string,
 ): Promise<ReservationTypeUnavailableTime[]> {
-  const { data } = await axios.get<{ data: ReservationTypeUnavailableTimeRaw[] }>(
-    `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/unavailable-times`,
+  const { data } = await axios.get<ReservationTypeUnavailableTimeRaw[] | { data: ReservationTypeUnavailableTimeRaw[] }>(
+    `/v1/masters/reservation-types/${reservationTypeId}/unavailable-times`,
   );
-  return data.data.map(transformUnavailableTime);
+  const items = Array.isArray(data) ? data : data.data;
+  return items.map(transformUnavailableTime);
 }
 
 async function createUnavailableTime(
-  clinicId: string,
   reservationTypeId: string,
   req: CreateUnavailableTimeRequest,
 ): Promise<void> {
   await axios.post(
-    `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/unavailable-times`,
+    `/v1/masters/reservation-types/${reservationTypeId}/unavailable-times`,
     req,
   );
 }
 
 async function deleteUnavailableTime(
-  clinicId: string,
   reservationTypeId: string,
   id: number,
 ): Promise<void> {
   await axios.delete(
-    `/v1/clinics/${clinicId}/reservation-types/${reservationTypeId}/unavailable-times/${id}`,
+    `/v1/masters/reservation-types/${reservationTypeId}/unavailable-times/${id}`,
   );
 }
 
@@ -95,8 +95,9 @@ async function deleteUnavailableTime(
 
 export function useGetUnavailableTimes(clinicId: string, reservationTypeId: string) {
   return useQuery({
-    queryKey: unavailableTimesKey(reservationTypeId),
-    queryFn: () => getUnavailableTimes(clinicId, reservationTypeId),
+    queryKey: unavailableTimesKey(clinicId, reservationTypeId),
+    queryFn: () => getUnavailableTimes(reservationTypeId),
+    enabled: clinicId !== "" && reservationTypeId !== "",
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });
@@ -106,9 +107,9 @@ export function useCreateUnavailableTime(clinicId: string, reservationTypeId: st
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (req: CreateUnavailableTimeRequest) =>
-      createUnavailableTime(clinicId, reservationTypeId, req),
+      createUnavailableTime(reservationTypeId, req),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: unavailableTimesKey(reservationTypeId) }),
+      queryClient.invalidateQueries({ queryKey: unavailableTimesKey(clinicId, reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "予約不可時間の作成"),
   });
 }
@@ -116,9 +117,9 @@ export function useCreateUnavailableTime(clinicId: string, reservationTypeId: st
 export function useDeleteUnavailableTime(clinicId: string, reservationTypeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => deleteUnavailableTime(clinicId, reservationTypeId, id),
+    mutationFn: (id: number) => deleteUnavailableTime(reservationTypeId, id),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: unavailableTimesKey(reservationTypeId) }),
+      queryClient.invalidateQueries({ queryKey: unavailableTimesKey(clinicId, reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "予約不可時間の削除"),
   });
 }

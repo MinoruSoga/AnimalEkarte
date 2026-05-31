@@ -8683,12 +8683,12 @@
 
 | # | チケットID | タイトル | 重要度 | 状態 | チケット |
 |---|-----------|---------|--------|------|---------|
-| 1 | OPEN-BUG-012 | 予約詳細ポップアップに飼主名が表示されない | 中 | **修正済み** ✅ transforms.ts に `pet?.owner?.owner_name` フォールバック追加 | [BUG-012](../docs/tasks/closed/BUG-012-reservation-detail-popup-missing-owner-name.md) |
-| 2 | OPEN-BUG-013 | 新規会計登録「会計を確定する」ボタンが機能しない | クリティカル | **修正済み** ✅ `!id` ガード除去・createAccounting→updateAccounting フロー実装・types.ts pet_id/owner_id を number に修正 | [BUG-013](../docs/tasks/closed/BUG-013-accounting-new-confirm-button-noop.md) |
-| 3 | OPEN-BUG-014 | ペット選択画面の日付フォーマット不統一（生年月日YYYY-MM-DD・前回来院YYYY/MM/DD） | 低 | **修正済み** ✅ `PetSelectionResultsTable.tsx` birthDate に `formatDate()` 適用 | [BUG-014](../docs/tasks/closed/BUG-014-pet-selection-date-format-inconsistency.md) |
-| 4 | OPEN-BUG-015 | 入院・ホテル管理リストビューで「入院No」「種」カラムが全件空欄 | 中 | **完全修正済み** ✅ 入院No: `String(hosp.id)` 変更済み・種: BE-055 `Preload("Pet.AnimalSpecies")` 追加済み（犬/猫 表示確認） | [BUG-015](../docs/tasks/closed/BUG-015-hospitalization-list-missing-columns.md) |
-| 5 | OPEN-BUG-016 | 予防接種編集画面の右パネル「予防接種履歴」でペット未選択状態 | 中 | **修正済み** ✅ `existingVaccination.petId` → `useGetPet` → `setSelectedPets` の editMode useEffect 追加 | [BUG-016](../docs/tasks/closed/BUG-016-vaccination-edit-history-panel-no-pet.md) |
-| 6 | OPEN-BUG-017 | 定期健診 `/checkups` ページが「ページが見つかりません」（ルート未実装） | クリティカル | **完全修正済み** ✅ `CheckupsList.tsx` 実装・router.tsx ルート追加・BE-054 `GET /v1/checkups` API実装済み | [BUG-017](../docs/tasks/closed/BUG-017-checkups-page-not-found.md) |
+| 1 | OPEN-BUG-012 | 予約詳細ポップアップに飼主名が表示されない | 中 | **修正済み** ✅ transforms.ts に `pet?.owner?.owner_name` フォールバック追加 | BUG-012 |
+| 2 | OPEN-BUG-013 | 新規会計登録「会計を確定する」ボタンが機能しない | クリティカル | **修正済み** ✅ `!id` ガード除去・createAccounting→updateAccounting フロー実装・types.ts pet_id/owner_id を number に修正 | BUG-013 |
+| 3 | OPEN-BUG-014 | ペット選択画面の日付フォーマット不統一（生年月日YYYY-MM-DD・前回来院YYYY/MM/DD） | 低 | **修正済み** ✅ `PetSelectionResultsTable.tsx` birthDate に `formatDate()` 適用 | BUG-014 |
+| 4 | OPEN-BUG-015 | 入院・ホテル管理リストビューで「入院No」「種」カラムが全件空欄 | 中 | **完全修正済み** ✅ 入院No: `String(hosp.id)` 変更済み・種: BE-055 `Preload("Pet.AnimalSpecies")` 追加済み（犬/猫 表示確認） | BUG-015 |
+| 5 | OPEN-BUG-016 | 予防接種編集画面の右パネル「予防接種履歴」でペット未選択状態 | 中 | **修正済み** ✅ `existingVaccination.petId` → `useGetPet` → `setSelectedPets` の editMode useEffect 追加 | BUG-016 |
+| 6 | OPEN-BUG-017 | 定期健診 `/checkups` ページが「ページが見つかりません」（ルート未実装） | クリティカル | **完全修正済み** ✅ `CheckupsList.tsx` 実装・router.tsx ルート追加・BE-054 `GET /v1/checkups` API実装済み | BUG-017 |
 
 ---
 
@@ -13219,4 +13219,3 @@
 | 症状 | 診察/治療プランタブで「保存」クリック時、全フィールドが DEFAULT 値（plan="# 治療方針"、assessment="# 診断詳細"）の場合に HTTP 400「at least one field must be provided」が返却される |
 | 根本原因 | `use-medical-record-form.ts` の switch "診察/治療プラン" ケースで plan/assessment が DEFAULT と一致する場合 `undefined` を送信。BE が空 body を拒否 |
 | 備考 | §45.2 Tab2 spec「DEFAULT のまま保存 → 成功」の期待に反する。ClinicalPlanSection の 2回目呼び出し（reqid=1361 [400]）も同様エラー |
-

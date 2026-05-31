@@ -12,13 +12,32 @@ import (
 
 // allowedReservationRoutes は予約経路の許可値ホワイトリスト（FEAT-381-2 Commit 3）。
 var allowedReservationRoutes = map[string]struct{}{
-	"line": {}, "phone": {}, "reception": {}, "exam_room": {},
+	"line": {}, "phone": {}, "reception": {}, "exam_room": {}, "record_shortcut": {},
 }
 
 const colReservationRoute = "reservation_route"
+const allowedReservationRoutesMessage = "reservation_route must be one of: line, phone, reception, exam_room, record_shortcut"
 
 // UpdateReservationRouteInput は予約経路更新の入力DTO（FEAT-381-2 Commit 3）。
 type UpdateReservationRouteInput struct{ Route string }
+
+// CreateManualReservationInput は管理画面からの予約作成入力 DTO。
+type CreateManualReservationInput struct {
+	ClinicID          uint64
+	StartTime         time.Time
+	EndTime           time.Time
+	OwnerID           *uint64
+	PetID             *uint64
+	VisitType         model.VisitType
+	ReservationTypeID uint64
+	DoctorID          *uint64
+	IsDesignated      bool
+	Status            model.ReservationStatus
+	Notes             string
+	Source            model.ReservationSource
+	CreatedBy         *uint64
+	ReservationRoute  *string
+}
 
 // UpdateReservationInput は予約更新のサービス入力 DTO
 type UpdateReservationInput struct {
@@ -76,19 +95,40 @@ func buildReservationUpdate(input *UpdateReservationInput) map[string]any {
 type ReservationService interface {
 	List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	Create(ctx context.Context, reservation *model.Reservation) error
+	Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error)
 }
 
 type reservationService struct {
-	repo repository.ReservationRepository
-	tx   repository.Transactor
+	repo                 repository.ReservationRepository
+	tx                   repository.Transactor
+	reservationStaffRepo repository.ReservationStaffRepository
+	unavailableTimeRepo  repository.ReservationTypeUnavailableTimeRepository
+	availableSlotRepo    repository.ReservationTypeAvailableSlotRepository
 }
 
-func NewReservationService(repo repository.ReservationRepository, tx repository.Transactor) ReservationService {
-	return &reservationService{repo: repo, tx: tx}
+func NewReservationService(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo ...repository.ReservationStaffRepository) ReservationService {
+	var staffRepo repository.ReservationStaffRepository
+	if len(reservationStaffRepo) > 0 {
+		staffRepo = reservationStaffRepo[0]
+	}
+	return &reservationService{repo: repo, tx: tx, reservationStaffRepo: staffRepo}
+}
+
+func NewReservationServiceWithAvailability(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationService {
+	var slotRepo repository.ReservationTypeAvailableSlotRepository
+	if len(availableSlotRepo) > 0 {
+		slotRepo = availableSlotRepo[0]
+	}
+	return &reservationService{
+		repo:                 repo,
+		tx:                   tx,
+		reservationStaffRepo: reservationStaffRepo,
+		unavailableTimeRepo:  unavailableTimeRepo,
+		availableSlotRepo:    slotRepo,
+	}
 }
 
 func (s *reservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -109,28 +149,80 @@ func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (
 	return result, nil
 }
 
-func (s *reservationService) Create(ctx context.Context, reservation *model.Reservation) error {
-	// BUG-034: end_time <= start_time の場合は 400 Bad Request
-	if err := validateTimeRange(reservation.StartTime, reservation.EndTime); err != nil {
-		return err
+func (s *reservationService) Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input must not be nil")
+	}
+	if input.ReservationRoute != nil {
+		if _, ok := allowedReservationRoutes[*input.ReservationRoute]; !ok {
+			return nil, apperrors.WrapInvalidInput(allowedReservationRoutesMessage)
+		}
+	}
+	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+		return nil, err
+	}
+	enforceBookingConstraints := shouldEnforceReservationBookingConstraints(input.Status, input.ReservationRoute)
+	if enforceBookingConstraints {
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+			return nil, err
+		}
+	}
+	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
+		return nil, err
+	}
+	reservation := &model.Reservation{
+		ClinicID:          input.ClinicID,
+		StartTime:         input.StartTime,
+		EndTime:           input.EndTime,
+		OwnerID:           input.OwnerID,
+		PetID:             input.PetID,
+		VisitType:         input.VisitType,
+		ReservationTypeID: input.ReservationTypeID,
+		DoctorID:          input.DoctorID,
+		IsDesignated:      input.IsDesignated,
+		Status:            input.Status,
+		Notes:             input.Notes,
+		Source:            input.Source,
+		CreatedBy:         input.CreatedBy,
+		ReservationRoute:  input.ReservationRoute,
 	}
 
 	// SELECT FOR UPDATE + トランザクションで競合を防止
 	// LINE予約・電子カルテ予約・管理者手動予約すべてで同一テーブルを使用するため、
 	// アプリケーションレベルでの排他制御が必要
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
-		if err := checkSlotConflict(ctx, s.repo, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime, nil); err != nil {
-			return err
+		if enforceBookingConstraints {
+			if err := checkSlotConflict(ctx, s.repo, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime, nil); err != nil {
+				return err
+			}
 		}
 		return s.repo.Create(ctx, reservation)
 	}); err != nil {
-		return apperrors.Wrap(err, "failed to create reservation")
+		return nil, apperrors.Wrap(err, "failed to create reservation")
 	}
 
 	slog.InfoContext(ctx, "reservation created",
 		slog.Uint64("reservation_id", reservation.ID),
 		slog.Uint64("clinic_id", reservation.ClinicID))
-	return nil
+	return reservation, nil
+}
+
+func shouldEnforceReservationBookingConstraints(status model.ReservationStatus, route *string) bool {
+	if route != nil {
+		switch *route {
+		case "reception", "exam_room", "record_shortcut":
+			return false
+		}
+	}
+	switch status {
+	case model.ReservationStatusCheckedIn,
+		model.ReservationStatusInConsultation,
+		model.ReservationStatusAccounting,
+		model.ReservationStatusCompleted:
+		return false
+	default:
+		return true
+	}
 }
 
 // validateTimeRange は end_time > start_time を確認する共通バリデーション。
@@ -216,6 +308,27 @@ func resolveUpdateParams(current *model.Reservation, input *UpdateReservationInp
 	return start, end, doctorID
 }
 
+func validateLineReservationCheckedInLink(current *model.Reservation, input *UpdateReservationInput) error {
+	if input.Status == nil || *input.Status != model.ReservationStatusCheckedIn {
+		return nil
+	}
+	if current.Source != model.ReservationSourceLine || current.LineCustomerID == nil {
+		return nil
+	}
+	ownerID := current.OwnerID
+	if input.OwnerID != nil {
+		ownerID = input.OwnerID
+	}
+	petID := current.PetID
+	if input.PetID != nil {
+		petID = input.PetID
+	}
+	if ownerID == nil || petID == nil {
+		return apperrors.WrapInvalidInput("LINE予約を受付済みにする前に飼主とペットの紐付けが必要です")
+	}
+	return nil
+}
+
 // updateWithConflictCheck は SELECT FOR UPDATE + トランザクション内で競合チェック + 予約更新を実行する。
 // 時刻・医師変更がある場合にのみ呼び出す。
 func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput) (*model.Reservation, error) {
@@ -256,9 +369,40 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	current, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to find reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find reservation")
+	}
+	if err := validateLineReservationCheckedInLink(current, input); err != nil {
+		return nil, err
+	}
+	if input.DoctorID != nil || input.ReservationTypeID != nil {
+		resolvedDoctorID := current.DoctorID
+		if input.DoctorID != nil {
+			if *input.DoctorID == 0 {
+				resolvedDoctorID = nil
+			} else {
+				resolvedDoctorID = input.DoctorID
+			}
+		}
+		resolvedReservationTypeID := current.ReservationTypeID
+		if input.ReservationTypeID != nil {
+			resolvedReservationTypeID = *input.ReservationTypeID
+		}
+		if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, resolvedDoctorID, resolvedReservationTypeID); err != nil {
+			return nil, err
+		}
+	}
+	if input.StartTime != nil || input.EndTime != nil || input.ReservationTypeID != nil {
+		resolvedStart, resolvedEnd, _ := resolveUpdateParams(current, input)
+		resolvedReservationTypeID := current.ReservationTypeID
+		if input.ReservationTypeID != nil {
+			resolvedReservationTypeID = *input.ReservationTypeID
+		}
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
+			return nil, err
+		}
 	}
 	fields := buildReservationUpdate(input)
 	if len(fields) == 0 {
@@ -295,7 +439,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error) {
 	if input.Route != "" {
 		if _, ok := allowedReservationRoutes[input.Route]; !ok {
-			return nil, apperrors.WrapInvalidInput("reservation_route must be one of: line, phone, reception, exam_room")
+			return nil, apperrors.WrapInvalidInput(allowedReservationRoutesMessage)
 		}
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {

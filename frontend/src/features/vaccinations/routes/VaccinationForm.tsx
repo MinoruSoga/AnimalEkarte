@@ -11,43 +11,17 @@ import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { MasterLink } from "@/components/shared/MasterLink";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { VaccinationCard } from "../components/VaccinationCard";
 import { useGetVaccinations } from "../api/get-vaccinations";
-import type { SortOrder } from "@/types";
 
 // Relative
+import { VaccinationFieldsPanel, VaccinationHistoryPanel } from "../components/VaccinationFormPanels";
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceVaccinations } from "@/types/generated/models";
-
-// rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ
-const VACCINE_TYPE_ITEMS = (
-  <>
-    <SelectItem value="1">混合ワクチン</SelectItem>
-    <SelectItem value="2">狂犬病ワクチン</SelectItem>
-  </>
-);
-
-const NEXT_SCHEDULE_ITEMS = (
-  <>
-    <SelectItem value="3weeks">3週後</SelectItem>
-    <SelectItem value="4weeks">4週後</SelectItem>
-    <SelectItem value="1year">1年後</SelectItem>
-    <SelectItem value="custom">以外（手動）</SelectItem>
-  </>
-);
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
 const VACCINATION_PRIORITY_FIELDS = ["date", "vaccineId"] as const;
@@ -214,157 +188,42 @@ export const VaccinationForm = memo(function VaccinationForm() {
         ) : null}
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* ===== 左カラム: 入力フォーム ===== */}
-          <div className="lg:col-span-3">
-            <div className={`${C.bgWhite} p-6 rounded-lg border ${C.borderLight} space-y-6`}>
-              {/* 接種日 / ワクチン */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="vaccination-date">
-                    接種日<span className={`${C.textRequired} ml-1`}>*</span>
-                  </Label>
-                  <NotionDatePicker
-                    id="vaccination-date"
-                    value={date}
-                    onChange={(v) => { markDirty(); setDate(v); }}
-                    disabledDays={{ after: new Date() }}
-                  />
-                  <FormFieldError message={fieldErrors.date} />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="vaccine-select">
-                      ワクチン<span className={`${C.textRequired} ml-1`}>*</span>
-                    </Label>
-                    <MasterLink category="vaccine" label="編集" className="text-[11px]" />
-                  </div>
-                  <Select value={vaccineId} onValueChange={(v) => { markDirty(); setVaccineId(v); }}>
-                    <SelectTrigger id="vaccine-select">
-                      <SelectValue placeholder="選択してください" />
-                    </SelectTrigger>
-                    <SelectContent>{VACCINE_TYPE_ITEMS}</SelectContent>
-                  </Select>
-                  <FormFieldError message={fieldErrors.vaccineId} />
-                </div>
-              </div>
-
-              {/* 補助説明 */}
-              <div className="space-y-2">
-                <Label>補助説明</Label>
-                <Input
-                  value={supplemental}
-                  onChange={(e) => { markDirty(); setSupplemental(e.target.value); }}
-                  placeholder="補助説明を入力"
-                />
-              </div>
-
-              {/* LOT番号 1〜4 */}
-              <div className="space-y-2">
-                <Label>LOT番号</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className={`text-xs ${C.text60}`}>LOT 1</Label>
-                    <Input
-                      value={lot1}
-                      onChange={(e) => { markDirty(); setLot1(e.target.value); }}
-                      placeholder="LOT番号 1"
-                      maxLength={50}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className={`text-xs ${C.text60}`}>LOT 2</Label>
-                    <Input
-                      value={lot2}
-                      onChange={(e) => { markDirty(); setLot2(e.target.value); }}
-                      placeholder="LOT番号 2"
-                      maxLength={50}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className={`text-xs ${C.text60}`}>LOT 3</Label>
-                    <Input
-                      value={lot3}
-                      onChange={(e) => { markDirty(); setLot3(e.target.value); }}
-                      placeholder="LOT番号 3"
-                      maxLength={50}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className={`text-xs ${C.text60}`}>LOT 4</Label>
-                    <Input
-                      value={lot4}
-                      onChange={(e) => { markDirty(); setLot4(e.target.value); }}
-                      placeholder="LOT番号 4"
-                      maxLength={50}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 次回予定 */}
-              <div className="space-y-2">
-                <Label>次回の予定</Label>
-                <div className="flex gap-3 items-center flex-wrap">
-                  <Select
-                    value={nextScheduleType}
-                    onValueChange={(v) => { markDirty(); setNextScheduleType(v); }}
-                  >
-                    <SelectTrigger className="w-[130px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>{NEXT_SCHEDULE_ITEMS}</SelectContent>
-                  </Select>
-                  <NotionDatePicker
-                    value={nextDate}
-                    onChange={(v) => { markDirty(); setNextDate(v); }}
-                    className="flex-1 min-w-[160px]"
-                  />
-                </div>
-                {/* BUG-096: 過去日付エラーメッセージ */}
-                <FormFieldError message={fieldErrors.nextDate} />
-              </div>
-
-              {/* 備考 */}
-              <div className="space-y-2">
-                <Label>備考</Label>
-                <Textarea
-                  value={remarks}
-                  onChange={(e) => { markDirty(); setRemarks(e.target.value); }}
-                  placeholder="備考を入力"
-                  className="min-h-[100px]"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* ===== 右カラム: 接種履歴 ===== */}
-          <div className="lg:col-span-2 flex flex-col gap-3">
-            <h3 className={`text-base font-semibold ${C.text}`}>過去の接種履歴</h3>
-
-            <HistoryFilterPanel
-              showDateRange
-              filterStartDate={historyFilter.filterStartDate}
-              onFilterStartDateChange={historyFilter.setFilterStartDate}
-              filterEndDate={historyFilter.filterEndDate}
-              onFilterEndDateChange={historyFilter.setFilterEndDate}
-              searchTerm={historyFilter.historySearchTerm}
-              onSearchTermChange={historyFilter.setHistorySearchTerm}
-              searchPlaceholder="ワクチン名で検索..."
-              sortOrder={historyFilter.sortOrder as SortOrder}
-              onSortOrderChange={historyFilter.setSortOrder}
-              onClear={historyFilter.handleClearHistoryFilter}
-            />
-
-            <div className="flex flex-col gap-2 overflow-y-auto max-h-[600px]">
-              {petHistory.length === 0 ? (
-                <p className={`text-sm ${C.text45} py-4 text-center`}>履歴がありません</p>
-              ) : (
-                petHistory.map((v) => (
-                  <VaccinationCard key={v.id} vaccination={v} />
-                ))
-              )}
-            </div>
-          </div>
+          <VaccinationFieldsPanel
+            date={date}
+            vaccineId={vaccineId}
+            supplemental={supplemental}
+            lot1={lot1}
+            lot2={lot2}
+            lot3={lot3}
+            lot4={lot4}
+            nextScheduleType={nextScheduleType}
+            nextDate={nextDate}
+            remarks={remarks}
+            fieldErrors={fieldErrors}
+            onDateChange={setDate}
+            onVaccineIdChange={setVaccineId}
+            onSupplementalChange={setSupplemental}
+            onLot1Change={setLot1}
+            onLot2Change={setLot2}
+            onLot3Change={setLot3}
+            onLot4Change={setLot4}
+            onNextScheduleTypeChange={setNextScheduleType}
+            onNextDateChange={setNextDate}
+            onRemarksChange={setRemarks}
+            onMarkDirty={markDirty}
+          />
+          <VaccinationHistoryPanel
+            petHistory={petHistory}
+            filterStartDate={historyFilter.filterStartDate}
+            filterEndDate={historyFilter.filterEndDate}
+            historySearchTerm={historyFilter.historySearchTerm}
+            sortOrder={historyFilter.sortOrder}
+            onFilterStartDateChange={historyFilter.setFilterStartDate}
+            onFilterEndDateChange={historyFilter.setFilterEndDate}
+            onHistorySearchTermChange={historyFilter.setHistorySearchTerm}
+            onSortOrderChange={historyFilter.setSortOrder}
+            onClear={historyFilter.handleClearHistoryFilter}
+          />
         </div>
 
         </fieldset>

@@ -3,14 +3,11 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListShiftEntries godoc
@@ -20,19 +17,13 @@ func (h *Handler) ListShiftEntries(c *gin.Context) {
 		return
 	}
 
-	yearMonth := c.Query("date") // YYYY-MM
-
-	var staffID *uint64
-	if s := c.Query("staff_id"); s != "" {
-		id, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid staff_id"))
-			return
-		}
-		staffID = &id
+	filters, err := newListShiftEntriesQuery(c.Request.URL.Query()).toServiceFilters()
+	if err != nil {
+		RespondError(c, err)
+		return
 	}
 
-	shifts, err := h.svc.ShiftEntry.List(c.Request.Context(), clinicID, yearMonth, staffID)
+	shifts, err := h.svc.ShiftEntry.List(c.Request.Context(), clinicID, filters.YearMonth, filters.StaffID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -53,32 +44,13 @@ func (h *Handler) CreateShiftEntry(c *gin.Context) {
 		return
 	}
 
-	date, err := time.Parse("2006-01-02", req.Date)
+	input, err := req.toServiceInput()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid date: use YYYY-MM-DD"))
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
 	}
 
-	var startTime, endTime *string
-	if req.StartTime != "" {
-		startTime = &req.StartTime
-	}
-	if req.EndTime != "" {
-		endTime = &req.EndTime
-	}
-	breaks := make([]service.ShiftBreakInput, 0, len(req.Breaks))
-	for _, b := range req.Breaks {
-		breaks = append(breaks, service.ShiftBreakInput{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
-	}
-	shift, err := h.svc.ShiftEntry.Create(c.Request.Context(), clinicID, &service.CreateShiftEntryInput{
-		StaffID:   req.StaffID,
-		Date:      date,
-		ShiftType: req.ShiftType,
-		StartTime: startTime,
-		EndTime:   endTime,
-		Notes:     req.Notes,
-		Breaks:    breaks,
-	})
+	shift, err := h.svc.ShiftEntry.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -105,23 +77,7 @@ func (h *Handler) UpdateShiftEntry(c *gin.Context) {
 		return
 	}
 
-	input := &service.UpdateShiftEntryInput{
-		StartTime: req.StartTime,
-		EndTime:   req.EndTime,
-		Notes:     req.Notes,
-	}
-	if req.ShiftType != nil {
-		input.ShiftType = req.ShiftType
-	}
-	if req.Breaks != nil {
-		breaks := make([]service.ShiftBreakInput, 0, len(*req.Breaks))
-		for _, b := range *req.Breaks {
-			breaks = append(breaks, service.ShiftBreakInput{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
-		}
-		input.Breaks = &breaks
-	}
-
-	shift, err := h.svc.ShiftEntry.Update(c.Request.Context(), clinicID, id, input)
+	shift, err := h.svc.ShiftEntry.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -155,14 +111,9 @@ func (h *Handler) GetOnDutyStaffs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	dateStr := c.Query("date")
-	if dateStr == "" {
-		RespondError(c, apperrors.WrapInvalidInput("date query parameter is required (YYYY-MM-DD)"))
-		return
-	}
-	date, err := time.Parse("2006-01-02", dateStr)
+	date, err := newOnDutyStaffsQuery(c.Request.URL.Query()).toDate()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid date format: expected YYYY-MM-DD"))
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
 	}
 	staffs, err := h.svc.ShiftEntry.GetOnDutyStaffs(c.Request.Context(), clinicID, date)

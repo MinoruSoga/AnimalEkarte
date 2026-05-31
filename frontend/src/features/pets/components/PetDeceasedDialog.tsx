@@ -2,6 +2,7 @@ import { useActionState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -95,6 +96,9 @@ export function PetDeceasedDialog({
           <DialogTitle className={`text-base font-semibold ${C.text}`}>
             死亡を記録する
           </DialogTitle>
+          <DialogDescription>
+            死亡日と理由を記録し、このペットへの自動LINE配信を停止します。
+          </DialogDescription>
         </DialogHeader>
 
         {/* Pet summary */}

@@ -3,14 +3,12 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
-	"time"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListReservations godoc
@@ -25,46 +23,14 @@ func (h *Handler) ListReservations(c *gin.Context) {
 		return
 	}
 
-	var date *time.Time
-	if dateStr := c.Query("date"); dateStr != "" {
-		t, err := time.Parse("2006-01-02", dateStr)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid date format, use YYYY-MM-DD"))
-			return
-		}
-		date = &t
+	q := newListReservationQuery(c.Request.URL.Query())
+	filters, err := q.toServiceFilters()
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		return
 	}
 
-	var status *string
-	if s := c.Query("status"); s != "" {
-		status = &s
-	}
-
-	var petID *uint64
-	if s := c.Query("pet_id"); s != "" {
-		id, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
-			return
-		}
-		petID = &id
-	}
-	var ownerID *uint64
-	if s := c.Query("owner_id"); s != "" {
-		id, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
-			return
-		}
-		ownerID = &id
-	}
-
-	var source *string
-	if s := c.Query("source"); s != "" {
-		source = &s
-	}
-
-	reservations, total, err := h.svc.Reservation.List(c.Request.Context(), clinicID, page, limit, date, status, source, petID, ownerID)
+	reservations, total, err := h.svc.Reservation.List(c.Request.Context(), clinicID, page, limit, filters.Date, filters.Status, filters.Source, filters.PetID, filters.OwnerID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -90,6 +56,34 @@ func (h *Handler) GetReservation(c *gin.Context) {
 	c.JSON(http.StatusOK, toReservationResponse(reservation))
 }
 
+// GetReservationAvailableTimes godoc
+// GET /reservations/available-times?reservation_type_id=:id&staff_id=:id&date=YYYY-MM-DD
+func (h *Handler) GetReservationAvailableTimes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	filters, err := newReservationAvailableTimesQuery(c.Request.URL.Query()).toServiceFilters()
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	if h.svc.Liff == nil {
+		RespondError(c, apperrors.WrapNotImplemented("予約可能時間の取得は未設定です"))
+		return
+	}
+	slots, err := h.svc.Liff.GetAvailableTimes(c.Request.Context(), clinicID, filters.ReservationTypeID, filters.StaffID, filters.Date)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	resp := make([]liffTimeSlotResponse, 0, len(slots))
+	for _, slot := range slots {
+		resp = append(resp, liffTimeSlotResponse{StartTime: slot.StartTime, EndTime: slot.EndTime})
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
 // CreateReservation godoc
 func (h *Handler) CreateReservation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -106,62 +100,24 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		return
 	}
 
-	source := model.ReservationSourceManual
-	if input.Source == string(model.ReservationSourceLine) {
-		source = model.ReservationSourceLine
-	}
-	reservation := &model.Reservation{
-		ClinicID:          clinicID,
-		StartTime:         input.StartTime,
-		EndTime:           input.EndTime,
-		OwnerID:           input.OwnerID,
-		PetID:             input.PetID,
-		ReservationTypeID: input.ReservationTypeID,
-		DoctorID:          input.DoctorID,
-		IsDesignated:      input.IsDesignated,
-		Notes:             input.Notes,
-		Source:            source,
-		CreatedBy:         &staffID,
-	}
-	if input.VisitType != "" {
-		vt, err := validateEnum(input.VisitType,
-			model.VisitTypeFirst,
-			model.VisitTypeRevisit,
-		)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid visit_type: "+err.Error()))
-			return
-		}
-		reservation.VisitType = vt
-	}
-	if input.Status != "" {
-		status, err := validateEnum(input.Status,
-			model.ReservationStatusConfirmed,
-			model.ReservationStatusPending,
-			model.ReservationStatusCancelled,
-			model.ReservationStatusCheckedIn,
-			model.ReservationStatusInConsultation,
-			model.ReservationStatusAccounting,
-			model.ReservationStatusCompleted,
-		)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
-			return
-		}
-		reservation.Status = status
+	svcInput, err := input.toServiceInput(clinicID, staffID)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		return
 	}
 
 	ctx := c.Request.Context()
 
 	// BUG-144: staff_id のクリニック所属チェック（クロスクリニック FK 防止）
-	if reservation.DoctorID != nil {
-		if err := h.checkDoctorClinicAssignment(ctx, clinicID, *reservation.DoctorID); err != nil {
+	if svcInput.DoctorID != nil {
+		if err := h.checkDoctorClinicAssignment(ctx, clinicID, *svcInput.DoctorID); err != nil {
 			RespondError(c, err)
 			return
 		}
 	}
 
-	if err := h.svc.Reservation.Create(ctx, reservation); err != nil {
+	reservation, err := h.svc.Reservation.Create(ctx, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -185,42 +141,10 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		return
 	}
 
-	svcInput := service.UpdateReservationInput{
-		StartTime:         input.StartTime,
-		EndTime:           input.EndTime,
-		OwnerID:           input.OwnerID,
-		PetID:             input.PetID,
-		ReservationTypeID: input.ReservationTypeID,
-		DoctorID:          input.DoctorID,
-		IsDesignated:      input.IsDesignated,
-		Notes:             input.Notes,
-	}
-	if input.VisitType != nil {
-		vt, err := validateEnum(*input.VisitType,
-			model.VisitTypeFirst,
-			model.VisitTypeRevisit,
-		)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid visit_type: "+err.Error()))
-			return
-		}
-		svcInput.VisitType = &vt
-	}
-	if input.Status != nil {
-		status, err := validateEnum(*input.Status,
-			model.ReservationStatusConfirmed,
-			model.ReservationStatusPending,
-			model.ReservationStatusCancelled,
-			model.ReservationStatusCheckedIn,
-			model.ReservationStatusInConsultation,
-			model.ReservationStatusAccounting,
-			model.ReservationStatusCompleted,
-		)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
-			return
-		}
-		svcInput.Status = &status
+	svcInput, err := input.toServiceInput()
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		return
 	}
 
 	ctx := c.Request.Context()
@@ -239,12 +163,27 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		return
 	}
 
-	// 受付済みに変更された場合はカルテを best-effort で自動作成する（BE-reception-auto-create-medical-record）
-	if svcInput.Status != nil && *svcInput.Status == model.ReservationStatusCheckedIn {
+	// 受付済みに変更された場合は通常カルテを best-effort で自動作成する（BE-reception-auto-create-medical-record）
+	if shouldAutoCreateMedicalRecordForReservation(svcInput.Status, reservation) && h.svc.MedicalRecord != nil {
 		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
 	}
 
 	c.JSON(http.StatusOK, toReservationResponse(reservation))
+}
+
+func shouldAutoCreateMedicalRecordForReservation(status *model.ReservationStatus, reservation *model.Reservation) bool {
+	if status == nil || *status != model.ReservationStatusCheckedIn || reservation == nil {
+		return false
+	}
+	if reservation.ReservationType != nil && reservation.ReservationType.Category == model.ReservationTypeCategoryTrimming {
+		return false
+	}
+	if reservation.ReservationType != nil &&
+		(strings.Contains(reservation.ReservationType.Name, "入院") ||
+			strings.Contains(reservation.ReservationType.Name, "ホテル")) {
+		return false
+	}
+	return true
 }
 
 // DeleteReservation godoc
@@ -282,7 +221,7 @@ func (h *Handler) PatchReservationReservationRoute(c *gin.Context) {
 	}
 	reservation, err := h.svc.Reservation.UpdateReservationRoute(
 		c.Request.Context(), clinicID, id,
-		service.UpdateReservationRouteInput{Route: req.Route},
+		req.toServiceInput(),
 	)
 	if err != nil {
 		RespondError(c, err)
@@ -295,6 +234,7 @@ func (h *Handler) PatchReservationReservationRoute(c *gin.Context) {
 func (h *Handler) RegisterReservationRoutes(rg *gin.RouterGroup) {
 	reservations := rg.Group("/reservations")
 	reservations.GET("", h.RequirePermission(string(model.ResourceReservations), "view"), h.ListReservations)
+	reservations.GET("/available-times", h.RequirePermission(string(model.ResourceReservations), "view"), h.GetReservationAvailableTimes)
 	reservations.GET("/:id", h.RequirePermission(string(model.ResourceReservations), "view"), h.GetReservation)
 	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "create"), h.CreateReservation)
 	reservations.PATCH("/:id", h.RequirePermission(string(model.ResourceReservations), "edit"), h.UpdateReservation)

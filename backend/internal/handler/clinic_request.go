@@ -1,5 +1,19 @@
 package handler
 
+import (
+	"net/url"
+
+	"github.com/animal-ekarte/backend/internal/service"
+)
+
+type listClinicQuery struct {
+	Scope string
+}
+
+func newListClinicQuery(values url.Values) listClinicQuery {
+	return listClinicQuery{Scope: values.Get("scope")}
+}
+
 // createClinicRequest はクリニック作成リクエスト。
 type createClinicRequest struct {
 	Name               string `json:"name"                binding:"required"`
@@ -11,6 +25,20 @@ type createClinicRequest struct {
 	DirectorName       string `json:"director_name"`
 	Email              string `json:"email"`
 	Website            string `json:"website"`
+}
+
+func (r *createClinicRequest) toServiceInput() *service.CreateClinicInput {
+	return &service.CreateClinicInput{
+		Name:               r.Name,
+		PostalCode:         r.PostalCode,
+		Address:            r.Address,
+		PhoneNumber:        r.PhoneNumber,
+		FaxNumber:          r.FaxNumber,
+		RegistrationNumber: r.RegistrationNumber,
+		DirectorName:       r.DirectorName,
+		Email:              r.Email,
+		Website:            r.Website,
+	}
 }
 
 // updateClinicRequest はクリニック更新リクエスト。
@@ -29,4 +57,22 @@ type updateClinicRequest struct {
 	IsActive           *bool    `json:"is_active"`
 	StandardTaxRate    *float64 `json:"standard_tax_rate"`
 	ReducedTaxRate     *float64 `json:"reduced_tax_rate"`
+}
+
+func (r *updateClinicRequest) toServiceInput() *service.UpdateClinicInput {
+	return &service.UpdateClinicInput{
+		Name:               r.Name,
+		PostalCode:         r.PostalCode,
+		Address:            r.Address,
+		PhoneNumber:        r.PhoneNumber,
+		FaxNumber:          r.FaxNumber,
+		RegistrationNumber: r.RegistrationNumber,
+		DirectorName:       r.DirectorName,
+		Email:              r.Email,
+		Website:            r.Website,
+		LogoURL:            r.LogoURL,
+		IsActive:           r.IsActive,
+		StandardTaxRate:    r.StandardTaxRate,
+		ReducedTaxRate:     r.ReducedTaxRate,
+	}
 }

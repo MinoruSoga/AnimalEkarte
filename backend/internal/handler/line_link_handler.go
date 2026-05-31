@@ -25,13 +25,6 @@ func toLinkTokenResponse(r *service.LinkTokenResult) linkTokenResponse {
 	}
 }
 
-// linkAccountRequest は LinkLiffAccount のリクエスト。
-type linkAccountRequest struct {
-	LinkToken   string `json:"link_token" binding:"required"`
-	LineIDToken string `json:"line_id_token" binding:"required"`
-	Force       bool   `json:"force"`
-}
-
 // ReceiveLineWebhook は LINE Webhook を受信する。
 // POST /api/line/webhook
 func (h *Handler) ReceiveLineWebhook(c *gin.Context) {
@@ -83,11 +76,7 @@ func (h *Handler) LinkLiffAccount(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	owner, err := h.svc.LineLink.LinkAccount(c.Request.Context(), clinicID, service.LinkAccountInput{
-		LinkToken:   req.LinkToken,
-		LineIDToken: req.LineIDToken,
-		Force:       req.Force,
-	})
+	owner, err := h.svc.LineLink.LinkAccount(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -1,30 +1,28 @@
 // React/Framework
 import { memo, useMemo, useCallback, useRef, useEffect } from "react";
-import { Link, useSearchParams } from "react-router";
-
-// External
-import { Receipt, FileText, ChevronLeft, ChevronRight, AlertTriangle, ArrowDown, ArrowUp } from "lucide-react";
+import { useSearchParams } from "react-router";
 
 // Internal
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { LoadingFallback } from "@/components/shared/DataStates";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { paths } from "@/config/paths";
+import { C } from "@/lib/design-tokens";
 
 // Relative
 import { useGetAccountings } from "../api/get-accountings";
 import type { Accounting } from "../api/transforms";
 import type { AccountingStatus } from "../types";
+import {
+  AccountingHistoryPagination,
+  AccountingHistorySortControls,
+  AccountingHistorySummary,
+  AccountingHistoryTable,
+  AccountingHistoryUnpaidAlert,
+} from "./OwnerAccountingHistoryParts";
+import type {
+  AccountingHistorySortField,
+  AccountingHistorySortOrder,
+} from "./OwnerAccountingHistoryParts";
 
 const PAGE_SIZE = 10;
-
-/** ソート可能なフィールド */
-type SortField = "date" | "amount" | "status";
-type SortOrder = "asc" | "desc";
 
 /**
  * ステータスの業務的優先度（昇順時の並び）。
@@ -48,10 +46,10 @@ function getAccountingAmount(acc: Accounting): number {
 // URL クエリパラメータ のパース関数 (無効値はデフォルト値にフォールバック)
 const SORT_FIELD_SET = new Set<string>(["date", "amount", "status"]);
 
-function parseSortField(raw: string | null): SortField {
-  return raw !== null && SORT_FIELD_SET.has(raw) ? (raw as SortField) : "date";
+function parseSortField(raw: string | null): AccountingHistorySortField {
+  return raw !== null && SORT_FIELD_SET.has(raw) ? (raw as AccountingHistorySortField) : "date";
 }
-function parseSortOrder(raw: string | null): SortOrder {
+function parseSortOrder(raw: string | null): AccountingHistorySortOrder {
   return raw === "asc" ? "asc" : "desc";
 }
 function parsePage(raw: string | null): number {
@@ -254,212 +252,30 @@ export const OwnerAccountingHistory = memo(function OwnerAccountingHistory({
 
   return (
     <div className="space-y-3">
-      {/* 累計支払い金額 — 完了済 1 件以上のときだけ表示 */}
-      {summary.completedCount > 0 ? (
-        <div
-          className={`flex items-center justify-between rounded-lg ${C.bgPage} px-4 py-3 border ${C.borderMedium}`}
-          data-testid="accounting-history-summary"
-        >
-          <span className={`text-xs ${C.text60}`}>
-            累計支払い金額（精算済 {summary.completedCount} 件）
-          </span>
-          <span className={`text-base font-bold ${C.text} font-mono`}>
-            ¥{summary.completedTotal.toLocaleString()}
-          </span>
-        </div>
-      ) : null}
-
-      {/* 未払い警告 — waiting / pending が 1 件でもあれば表示。クリックで先頭未払い行へスクロール */}
-      {summary.unpaidCount > 0 ? (
-        <div
-          role="alert"
-          className={`flex items-center gap-2 rounded-lg ${C.bgWarning50} ${C.textWarning} px-4 py-3 border ${C.borderWarning20} text-sm`}
-        >
-          <AlertTriangle className={`${ICON.action} ${C.textWarningIcon} shrink-0`} aria-hidden />
-          <button
-            type="button"
-            onClick={handleScrollToFirstUnpaid}
-            className="flex-1 text-left bg-transparent cursor-pointer hover:underline underline-offset-2"
-          >
-            未払いの会計が <strong>{summary.unpaidCount}</strong> 件あります。
-            <span className="ml-1 font-medium">先頭の未払い行を確認する</span>
-          </button>
-        </div>
-      ) : null}
-
-      {/* ソート切替 — 履歴テーブルのすぐ上に配置。
-          フィールドは Select、方向は Toggle ボタン。*/}
-      <div className="flex items-center justify-end gap-2">
-        <Label
-          htmlFor="accounting-history-sort-field"
-          className={`text-xs ${C.text50}`}
-        >
-          並び替え
-        </Label>
-        <Select
-          value={sortField}
-          onValueChange={handleSortFieldChange}
-        >
-          <SelectTrigger
-            id="accounting-history-sort-field"
-            className="h-8 w-[120px] text-xs"
-            aria-label="ソート項目"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="date">受付日</SelectItem>
-            <SelectItem value="amount">金額</SelectItem>
-            <SelectItem value="status">ステータス</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 px-2"
-          onClick={toggleSortOrder}
-          aria-label={sortOrder === "asc" ? "昇順 — クリックで降順に切替" : "降順 — クリックで昇順に切替"}
-          aria-pressed={sortOrder === "asc"}
-        >
-          {sortOrder === "asc" ? (
-            <ArrowUp className={ICON.action} />
-          ) : (
-            <ArrowDown className={ICON.action} />
-          )}
-        </Button>
-      </div>
-
-      <div className={`rounded-lg ${C.bgWhite} overflow-hidden border ${C.borderMedium}`}>
-        <Table>
-          <TableHeader>
-            <TableRow className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}>
-              <TableHead className={STYLE.tableCellMuted}>受付日</TableHead>
-              <TableHead className={STYLE.tableCellMuted}>受付No</TableHead>
-              <TableHead className={STYLE.tableCellMuted}>ペット</TableHead>
-              <TableHead className={STYLE.tableCellMuted}>ステータス</TableHead>
-              <TableHead className={`${STYLE.tableCellMuted} text-right`}>金額</TableHead>
-              <TableHead className={STYLE.tableCellMuted}>操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pagedAccountings.map((acc) => (
-              <AccountingHistoryRow
-                key={acc.id}
-                accounting={acc}
-                ref={acc.id === firstUnpaidId ? firstUnpaidRowRef : undefined}
-                isScrollTarget={acc.id === firstUnpaidId}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {totalPages > 1 ? (
-        <nav
-          className="flex items-center justify-center gap-3 pt-1"
-          role="navigation"
-          aria-label="ページネーション"
-        >
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 px-2"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            aria-label="前のページ"
-          >
-            <ChevronLeft className={ICON.action} />
-            前へ
-          </Button>
-          <span className={`text-xs ${C.text50}`} aria-live="polite">
-            {page} / {totalPages} ページ
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 px-2"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            aria-label="次のページ"
-          >
-            次へ
-            <ChevronRight className={ICON.action} />
-          </Button>
-        </nav>
-      ) : null}
+      <AccountingHistorySummary
+        completedCount={summary.completedCount}
+        completedTotal={summary.completedTotal}
+      />
+      <AccountingHistoryUnpaidAlert
+        unpaidCount={summary.unpaidCount}
+        onScrollToFirstUnpaid={handleScrollToFirstUnpaid}
+      />
+      <AccountingHistorySortControls
+        sortField={sortField}
+        sortOrder={sortOrder}
+        onSortFieldChange={handleSortFieldChange}
+        onToggleSortOrder={toggleSortOrder}
+      />
+      <AccountingHistoryTable
+        accountings={pagedAccountings}
+        firstUnpaidId={firstUnpaidId}
+        firstUnpaidRowRef={firstUnpaidRowRef}
+      />
+      <AccountingHistoryPagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
     </div>
-  );
-});
-
-const STATUS_LABEL: Record<AccountingStatus, string> = {
-  waiting: "未精算",
-  pending: "保留",
-  completed: "精算済",
-  cancelled: "取消",
-};
-
-const AccountingHistoryRow = memo(function AccountingHistoryRow({
-  accounting,
-  ref,
-  isScrollTarget = false,
-}: {
-  accounting: Accounting;
-  ref?: React.Ref<HTMLTableRowElement>;
-  isScrollTarget?: boolean;
-}) {
-  const detailHref = paths.accounting.detail.getHref(accounting.id);
-  const totalAmount = accounting.payment?.billingAmount ?? accounting.payment?.totalAmount ?? 0;
-  const isCompleted = accounting.status === "completed";
-
-  return (
-    <TableRow
-      ref={ref}
-      tabIndex={isScrollTarget ? -1 : undefined}
-      data-testid={isScrollTarget ? "first-unpaid-row" : undefined}
-      className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}
-    >
-      <TableCell className={STYLE.tableCell}>
-        {accounting.scheduledDate || "-"}
-      </TableCell>
-      <TableCell className={STYLE.tableCell}>{accounting.id}</TableCell>
-      <TableCell className={STYLE.tableCell}>{accounting.petName || "-"}</TableCell>
-      <TableCell className={STYLE.tableCell}>
-        <Badge
-          variant={isCompleted ? "default" : "outline"}
-          className="font-normal text-xs"
-        >
-          {STATUS_LABEL[accounting.status] ?? accounting.status}
-        </Badge>
-      </TableCell>
-      <TableCell className={`${STYLE.tableCell} text-right font-mono`}>
-        {isCompleted ? `¥${totalAmount.toLocaleString()}` : "-"}
-      </TableCell>
-      <TableCell className="py-2">
-        <div className="flex items-center justify-end gap-3">
-          {isCompleted ? (
-            <Link
-              to={detailHref}
-              className={`inline-flex items-center gap-1 text-xs ${C.textBrand} hover:underline`}
-              aria-label={`受付No ${accounting.id} の明細兼領収書を表示`}
-            >
-              <Receipt className={ICON.action} />
-              明細兼領収書
-            </Link>
-          ) : null}
-          <Link
-            to={detailHref}
-            className={`inline-flex items-center gap-1 text-xs ${C.text65} hover:underline`}
-            aria-label={`受付No ${accounting.id} の会計詳細を開く`}
-          >
-            <FileText className={ICON.action} />
-            詳細
-            <ChevronRight className={ICON.action} />
-          </Link>
-        </div>
-      </TableCell>
-    </TableRow>
   );
 });

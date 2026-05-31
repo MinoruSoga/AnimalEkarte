@@ -12,6 +12,7 @@ const STATUS_MAP: Record<string, TrimmingStatus> = {
   in_consultation: "進行中",
   accounting: "進行中",
   completed: "完了",
+  cancelled: "キャンセル",
   canceled: "キャンセル",
   no_show: "キャンセル",
 };
@@ -25,6 +26,8 @@ export function transformTrimming(data: BackendTrimming) {
 
   return {
     id: String(data.id ?? 0),
+    reservationTypeId: data.reservation_type_id != null ? String(data.reservation_type_id) : "",
+    hasDetail: data.has_detail ?? false,
     date,
     petId: data.pet?.id != null ? String(data.pet.id) : undefined,
     ownerId: data.pet?.owner?.id != null ? String(data.pet.owner.id) : undefined,

@@ -3,7 +3,6 @@ package handler
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -110,105 +109,11 @@ func (h *Handler) GetCheckupSyncPreview(c *gin.Context) {
 		return
 	}
 
-	input := service.PreviewCheckupSyncInput{
-		CheckupType: c.Query("checkup_type"),
-		Species:     c.Query("species"),
-		CPMStage:    c.Query("cpm_stage"),
-	}
-
-	if s := c.Query("last_visit_before"); s != "" {
-		t, err := time.Parse("2006-01-02", s)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("last_visit_before は YYYY-MM-DD 形式で指定してください"))
-			return
-		}
-		input.LastVisitBefore = &t
-	}
-	if s := c.Query("last_visit_after"); s != "" {
-		t, err := time.Parse("2006-01-02", s)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("last_visit_after は YYYY-MM-DD 形式で指定してください"))
-			return
-		}
-		input.LastVisitAfter = &t
-	}
-
-	// ISSUE-009: 追加フィルタのパース。整数・日付・bool は形式が不正なら 400 を返す（fail-fast）。
-	if s := c.Query("min_age_years"); s != "" {
-		v, err := strconv.Atoi(s)
-		if err != nil || v < 0 {
-			RespondError(c, apperrors.WrapInvalidInput("min_age_years は 0 以上の整数で指定してください"))
-			return
-		}
-		input.MinAgeYears = &v
-	}
-	if s := c.Query("max_age_years"); s != "" {
-		v, err := strconv.Atoi(s)
-		if err != nil || v < 0 {
-			RespondError(c, apperrors.WrapInvalidInput("max_age_years は 0 以上の整数で指定してください"))
-			return
-		}
-		input.MaxAgeYears = &v
-	}
-	if s := c.Query("has_chronic_condition"); s != "" {
-		switch s {
-		case "true":
-			t := true
-			input.HasChronicCondition = &t
-		case "false":
-			f := false
-			input.HasChronicCondition = &f
-		default:
-			RespondError(c, apperrors.WrapInvalidInput("has_chronic_condition は true/false で指定してください"))
-			return
-		}
-	}
-	if s := c.Query("min_total_amount"); s != "" {
-		v, err := strconv.ParseInt(s, 10, 64)
-		if err != nil || v < 0 {
-			RespondError(c, apperrors.WrapInvalidInput("min_total_amount は 0 以上の整数で指定してください"))
-			return
-		}
-		input.MinTotalAmount = &v
-	}
-	if s := c.Query("min_annual_visit_count"); s != "" {
-		v, err := strconv.ParseInt(s, 10, 64)
-		if err != nil || v < 0 {
-			RespondError(c, apperrors.WrapInvalidInput("min_annual_visit_count は 0 以上の整数で指定してください"))
-			return
-		}
-		input.MinAnnualVisitCount = &v
-	}
-	if s := c.Query("last_checkup_before"); s != "" {
-		t, err := time.Parse("2006-01-02", s)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("last_checkup_before は YYYY-MM-DD 形式で指定してください"))
-			return
-		}
-		input.LastCheckupBefore = &t
-	}
-	if s := c.Query("last_checkup_after"); s != "" {
-		t, err := time.Parse("2006-01-02", s)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("last_checkup_after は YYYY-MM-DD 形式で指定してください"))
-			return
-		}
-		input.LastCheckupAfter = &t
-	}
-	// CPM ステージ値域チェック（タグ同期側の定数と一致させる）。
-	if input.CPMStage != "" {
-		switch input.CPMStage {
-		case string(service.CPMStageEncounter),
-			string(service.CPMStageGrowing),
-			string(service.CPMStageCore),
-			string(service.CPMStageSpot),
-			string(service.CPMStageNoah),
-			string(service.CPMStageDormant):
-			// ok
-		default:
-			RespondError(c, apperrors.WrapInvalidInput("cpm_stage は cpm_encounter/cpm_growing/cpm_core/cpm_spot/cpm_noah/cpm_dormant のいずれかを指定してください"))
-			return
-		}
+	q := newCheckupSyncPreviewQuery(c.Request.URL.Query())
+	input, err := q.toServiceInput()
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		return
 	}
 
 	// ISSUE-010: 抽出メタデータを audit_logs に永続化するため actorID を service に渡す。
@@ -217,7 +122,7 @@ func (h *Handler) GetCheckupSyncPreview(c *gin.Context) {
 		actorID = &staffID
 	}
 
-	result, err := h.svc.CheckupSync.PreviewCheckupSync(c.Request.Context(), clinicID, &input, actorID)
+	result, err := h.svc.CheckupSync.PreviewCheckupSync(c.Request.Context(), clinicID, input, actorID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -239,19 +144,10 @@ func (h *Handler) CreateCheckupSync(c *gin.Context) {
 		return
 	}
 
-	if !tagNamePattern.MatchString(req.TagName) {
-		RespondError(c, apperrors.WrapInvalidInput("tag_name は英数字・アンダースコア・ハイフンのみ使用可能です（1〜100文字）"))
+	input, err := req.toServiceInput()
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
-	}
-
-	ownerIDs := make([]uint64, 0, len(req.OwnerIDs))
-	for _, s := range req.OwnerIDs {
-		id, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("owner_ids の値が不正です: "+s))
-			return
-		}
-		ownerIDs = append(ownerIDs, id)
 	}
 
 	var actorID *uint64
@@ -259,11 +155,7 @@ func (h *Handler) CreateCheckupSync(c *gin.Context) {
 		actorID = &staffID
 	}
 
-	result, err := h.svc.CheckupSync.CreateCheckupSync(c.Request.Context(), clinicID, service.CreateCheckupSyncInput{
-		CheckupType: req.CheckupType,
-		OwnerIDs:    ownerIDs,
-		TagName:     req.TagName,
-	}, actorID)
+	result, err := h.svc.CheckupSync.CreateCheckupSync(c.Request.Context(), clinicID, input, actorID)
 	if err != nil {
 		RespondError(c, err)
 		return

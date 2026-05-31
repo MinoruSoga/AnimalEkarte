@@ -1,5 +1,7 @@
 package handler
 
+import "github.com/animal-ekarte/backend/internal/service"
+
 type createReservationTypeRequest struct {
 	Name        string  `json:"name"        binding:"required"`
 	Color       string  `json:"color"`
@@ -19,6 +21,27 @@ type createReservationTypeRequest struct {
 	ReservationImageURL    string `json:"reservation_image_url"`
 	ReservationDayOption   string `json:"reservation_day_option" binding:"omitempty,oneof=none saturday weekday anyday"`
 	IsInternal             bool   `json:"is_internal"`
+}
+
+func (r *createReservationTypeRequest) toServiceInput() *service.CreateReservationTypeInput {
+	return &service.CreateReservationTypeInput{
+		Name:                   r.Name,
+		Color:                  r.Color,
+		IsActive:               r.IsActive,
+		Description:            r.Description,
+		SortOrder:              r.SortOrder,
+		GroupID:                r.GroupID,
+		Category:               r.Category,
+		ReservationDisplayName: r.ReservationDisplayName,
+		DurationMinutes:        r.DurationMinutes,
+		ShortName:              r.ShortName,
+		ShowShortName:          r.ShowShortName,
+		ReservationVisible:     r.ReservationVisible,
+		ReservationComment:     r.ReservationComment,
+		ReservationImageURL:    r.ReservationImageURL,
+		ReservationDayOption:   r.ReservationDayOption,
+		IsInternal:             r.IsInternal,
+	}
 }
 
 type updateReservationTypeRequest struct {
@@ -43,6 +66,28 @@ type updateReservationTypeRequest struct {
 	IsInternal             *bool   `json:"is_internal"`
 }
 
+func (r *updateReservationTypeRequest) toServiceInput() *service.UpdateReservationTypeInput {
+	return &service.UpdateReservationTypeInput{
+		Name:                   r.Name,
+		Color:                  r.Color,
+		IsActive:               r.IsActive,
+		Description:            r.Description,
+		SortOrder:              r.SortOrder,
+		GroupID:                r.GroupID,
+		ClearGroupID:           r.ClearGroupID,
+		Category:               r.Category,
+		ReservationDisplayName: r.ReservationDisplayName,
+		DurationMinutes:        r.DurationMinutes,
+		ShortName:              r.ShortName,
+		ShowShortName:          r.ShowShortName,
+		ReservationVisible:     r.ReservationVisible,
+		ReservationComment:     r.ReservationComment,
+		ReservationImageURL:    r.ReservationImageURL,
+		ReservationDayOption:   r.ReservationDayOption,
+		IsInternal:             r.IsInternal,
+	}
+}
+
 // CreateUnavailableTimeRequest は予約不可時間の作成リクエスト
 type createUnavailableTimeRequest struct {
 	UnavailableType string  `json:"unavailable_type" binding:"required,oneof=weekly specific"`
@@ -50,6 +95,49 @@ type createUnavailableTimeRequest struct {
 	SpecificDate    *string `json:"specific_date"` // "YYYY-MM-DD"
 	StartTime       string  `json:"start_time"     binding:"required"`
 	EndTime         string  `json:"end_time"       binding:"required"`
+}
+
+func (r createUnavailableTimeRequest) toServiceInput() (service.CreateUnavailableTimeInput, error) {
+	input := service.CreateUnavailableTimeInput{
+		UnavailableType: r.UnavailableType,
+		DayOfWeek:       r.DayOfWeek,
+		StartTime:       r.StartTime,
+		EndTime:         r.EndTime,
+	}
+	if r.SpecificDate != nil {
+		specificDate, err := parseDate(r.SpecificDate)
+		if err != nil {
+			return service.CreateUnavailableTimeInput{}, err
+		}
+		input.SpecificDate = specificDate
+	}
+	return input, nil
+}
+
+// CreateAvailableSlotRequest は予約可能開始時刻の作成リクエスト
+type createAvailableSlotRequest struct {
+	AvailableType string  `json:"available_type" binding:"required,oneof=weekly specific"`
+	DayOfWeek     *int8   `json:"day_of_week"`
+	SpecificDate  *string `json:"specific_date"` // "YYYY-MM-DD"
+	StartTime     string  `json:"start_time"     binding:"required"`
+	IsActive      *bool   `json:"is_active"`
+}
+
+func (r createAvailableSlotRequest) toServiceInput() (service.CreateAvailableSlotInput, error) {
+	input := service.CreateAvailableSlotInput{
+		AvailableType: r.AvailableType,
+		DayOfWeek:     r.DayOfWeek,
+		StartTime:     r.StartTime,
+		IsActive:      r.IsActive,
+	}
+	if r.SpecificDate != nil {
+		specificDate, err := parseDate(r.SpecificDate)
+		if err != nil {
+			return service.CreateAvailableSlotInput{}, err
+		}
+		input.SpecificDate = specificDate
+	}
+	return input, nil
 }
 
 // LinkOccupationRequest は職種紐付けリクエスト

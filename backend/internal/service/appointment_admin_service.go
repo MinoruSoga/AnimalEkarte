@@ -37,13 +37,35 @@ type ReservationAdminService interface {
 }
 
 type reservationAdminService struct {
-	repo    repository.ReservationAdminRepository
-	resRepo repository.ReservationRepository
-	tx      repository.Transactor
+	repo                 repository.ReservationAdminRepository
+	resRepo              repository.ReservationRepository
+	tx                   repository.Transactor
+	reservationStaffRepo repository.ReservationStaffRepository
+	unavailableTimeRepo  repository.ReservationTypeUnavailableTimeRepository
+	availableSlotRepo    repository.ReservationTypeAvailableSlotRepository
 }
 
-func NewReservationAdminService(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, tx repository.Transactor) ReservationAdminService {
-	return &reservationAdminService{repo: repo, resRepo: resRepo, tx: tx}
+func NewReservationAdminService(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo ...repository.ReservationStaffRepository) ReservationAdminService {
+	var staffRepo repository.ReservationStaffRepository
+	if len(reservationStaffRepo) > 0 {
+		staffRepo = reservationStaffRepo[0]
+	}
+	return &reservationAdminService{repo: repo, resRepo: resRepo, tx: tx, reservationStaffRepo: staffRepo}
+}
+
+func NewReservationAdminServiceWithAvailability(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationAdminService {
+	var slotRepo repository.ReservationTypeAvailableSlotRepository
+	if len(availableSlotRepo) > 0 {
+		slotRepo = availableSlotRepo[0]
+	}
+	return &reservationAdminService{
+		repo:                 repo,
+		resRepo:              resRepo,
+		tx:                   tx,
+		reservationStaffRepo: reservationStaffRepo,
+		unavailableTimeRepo:  unavailableTimeRepo,
+		availableSlotRepo:    slotRepo,
+	}
 }
 
 func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Reservation, error) {
@@ -71,6 +93,12 @@ func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64
 func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error) {
 	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate time range")
+	}
+	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+		return nil, err
+	}
+	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+		return nil, err
 	}
 
 	visitType := model.VisitType(input.VisitType)

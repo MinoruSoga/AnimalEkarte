@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // medicineListMaxLimit はマスタ全件取得の上限定数（他マスタと統一の全件返却）
@@ -62,21 +61,7 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 		return
 	}
 
-	medicine, err := h.svc.Medicine.Create(c.Request.Context(), clinicID, &service.CreateMedicineInput{
-		Name:            req.Name,
-		ParentID:        req.ParentID,
-		Price:           req.Price,
-		IsActive:        req.IsActive,
-		Description:     req.Description,
-		DosageForm:      req.DosageForm,
-		MedicineUnit:    req.MedicineUnit,
-		InventoryID:     req.InventoryID,
-		DefaultQuantity: req.DefaultQuantity,
-		SortOrder:       req.SortOrder,
-		TaxType:         req.TaxType,
-		TaxRate:         req.TaxRate,
-		IsNonInsurance:  req.IsNonInsurance,
-	})
+	medicine, err := h.svc.Medicine.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -102,22 +87,7 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 		return
 	}
 
-	medicine, err := h.svc.Medicine.Update(c.Request.Context(), clinicID, id, &service.UpdateMedicineInput{
-		Name:            req.Name,
-		ParentID:        req.ParentID,
-		ClearParentID:   req.ClearParentID,
-		Price:           req.Price,
-		IsActive:        req.IsActive,
-		Description:     req.Description,
-		DosageForm:      req.DosageForm,
-		MedicineUnit:    req.MedicineUnit,
-		InventoryID:     req.InventoryID,
-		DefaultQuantity: req.DefaultQuantity,
-		SortOrder:       req.SortOrder,
-		TaxType:         req.TaxType,
-		TaxRate:         req.TaxRate,
-		IsNonInsurance:  req.IsNonInsurance,
-	})
+	medicine, err := h.svc.Medicine.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

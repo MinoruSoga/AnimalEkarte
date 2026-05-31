@@ -1,5 +1,7 @@
 package handler
 
+import "github.com/animal-ekarte/backend/internal/service"
+
 // createMedicineRequest は薬剤作成のバインド struct
 type createMedicineRequest struct {
 	Name            string   `json:"name"             binding:"required"`
@@ -15,6 +17,24 @@ type createMedicineRequest struct {
 	TaxType         *string  `json:"tax_type"         binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate         *float64 `json:"tax_rate"         binding:"omitempty,min=0,max=1"`
 	IsNonInsurance  bool     `json:"is_non_insurance"`
+}
+
+func (r *createMedicineRequest) toServiceInput() *service.CreateMedicineInput {
+	return &service.CreateMedicineInput{
+		Name:            r.Name,
+		ParentID:        r.ParentID,
+		Price:           r.Price,
+		IsActive:        r.IsActive,
+		Description:     r.Description,
+		DosageForm:      r.DosageForm,
+		MedicineUnit:    r.MedicineUnit,
+		InventoryID:     r.InventoryID,
+		DefaultQuantity: r.DefaultQuantity,
+		SortOrder:       r.SortOrder,
+		TaxType:         r.TaxType,
+		TaxRate:         r.TaxRate,
+		IsNonInsurance:  r.IsNonInsurance,
+	}
 }
 
 // updateMedicineRequest は薬剤更新のバインド struct（全フィールドポインタ型）
@@ -36,4 +56,23 @@ type updateMedicineRequest struct {
 	TaxType         *string  `json:"tax_type"         binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate         *float64 `json:"tax_rate"         binding:"omitempty,min=0,max=1"`
 	IsNonInsurance  *bool    `json:"is_non_insurance"`
+}
+
+func (r *updateMedicineRequest) toServiceInput() *service.UpdateMedicineInput {
+	return &service.UpdateMedicineInput{
+		Name:            r.Name,
+		ParentID:        r.ParentID,
+		ClearParentID:   r.ClearParentID,
+		Price:           r.Price,
+		IsActive:        r.IsActive,
+		Description:     r.Description,
+		DosageForm:      r.DosageForm,
+		MedicineUnit:    r.MedicineUnit,
+		InventoryID:     r.InventoryID,
+		DefaultQuantity: r.DefaultQuantity,
+		SortOrder:       r.SortOrder,
+		TaxType:         r.TaxType,
+		TaxRate:         r.TaxRate,
+		IsNonInsurance:  r.IsNonInsurance,
+	}
 }

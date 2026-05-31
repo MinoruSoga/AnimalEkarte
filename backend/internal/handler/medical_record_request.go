@@ -1,6 +1,62 @@
 package handler
 
-import "time"
+import (
+	"net/url"
+	"strconv"
+	"time"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
+)
+
+type listMedicalRecordQuery struct {
+	PetID     string
+	OwnerID   string
+	StartDate string
+	EndDate   string
+}
+
+func newListMedicalRecordQuery(values url.Values) listMedicalRecordQuery {
+	return listMedicalRecordQuery{
+		PetID:     values.Get("pet_id"),
+		OwnerID:   values.Get("owner_id"),
+		StartDate: values.Get("start_date"),
+		EndDate:   values.Get("end_date"),
+	}
+}
+
+type listMedicalRecordFilters struct {
+	PetID     *uint64
+	OwnerID   *uint64
+	StartDate *string
+	EndDate   *string
+}
+
+func (q listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, error) {
+	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
+	ownerID, err := parseOptionalUintQueryFilter(q.OwnerID, "owner_id")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
+	startDate, err := parseOptionalDateQueryFilter(q.StartDate, "start_date")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
+	endDate, err := parseOptionalDateQueryFilter(q.EndDate, "end_date")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
+	return listMedicalRecordFilters{
+		PetID:     petID,
+		OwnerID:   ownerID,
+		StartDate: startDate,
+		EndDate:   endDate,
+	}, nil
+}
 
 // createMedicalRecordRequest はカルテ作成のバインド struct
 // FE互換: FEから送信されるフィールドと BE期待値を統一
@@ -35,10 +91,142 @@ type createMedicalRecordRequest struct {
 	RecommendationReason *string `json:"recommendation_reason"`
 }
 
+func (r *createMedicalRecordRequest) toServiceInput(staffID uint64) (service.CreateMedicalRecordInput, error) {
+	recordDate, err := r.recordDate()
+	if err != nil {
+		return service.CreateMedicalRecordInput{}, err
+	}
+
+	if r.OwnerID == nil || *r.OwnerID == "" {
+		return service.CreateMedicalRecordInput{}, apperrors.WrapInvalidInput("owner_id is required")
+	}
+	if r.PetID == nil || *r.PetID == "" {
+		return service.CreateMedicalRecordInput{}, apperrors.WrapInvalidInput("pet_id is required")
+	}
+
+	ownerID, err := parseOptionalMedicalRecordID(r.OwnerID, "owner_id")
+	if err != nil {
+		return service.CreateMedicalRecordInput{}, err
+	}
+	petID, err := parseOptionalMedicalRecordID(r.PetID, "pet_id")
+	if err != nil {
+		return service.CreateMedicalRecordInput{}, err
+	}
+	doctorID, err := parseOptionalMedicalRecordID(r.DoctorID, "doctor_id")
+	if err != nil {
+		return service.CreateMedicalRecordInput{}, err
+	}
+	appointmentID, err := parseOptionalMedicalRecordID(r.AppointmentID, "appointment_id")
+	if err != nil {
+		return service.CreateMedicalRecordInput{}, err
+	}
+
+	nextVisitDate, err := r.nextVisitDate(recordDate)
+	if err != nil {
+		return service.CreateMedicalRecordInput{}, err
+	}
+
+	visitType := model.VisitTypeRevisit
+	if r.VisitType == string(model.VisitTypeFirst) {
+		visitType = model.VisitTypeFirst
+	}
+
+	var status *model.MedicalRecordStatus
+	if r.Status != "" {
+		parsedStatus, err := validateEnum(r.Status,
+			model.MedicalRecordStatusDraft,
+			model.MedicalRecordStatusFinalized,
+		)
+		if err != nil {
+			return service.CreateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid status: " + err.Error())
+		}
+		status = &parsedStatus
+	}
+	var recommendationReason *string
+	if r.RecommendationReason != nil && *r.RecommendationReason != "" {
+		recommendationReason = r.RecommendationReason
+	}
+
+	return service.CreateMedicalRecordInput{
+		RecordNo:                 r.RecordNo,
+		Date:                     recordDate,
+		OwnerID:                  ownerID,
+		PetID:                    petID,
+		DoctorID:                 doctorID,
+		AppointmentID:            appointmentID,
+		Status:                   status,
+		VisitType:                visitType,
+		NextVisitRecommendedDate: nextVisitDate,
+		RecommendationReason:     recommendationReason,
+		EnteredBy:                &staffID,
+	}, nil
+}
+
+func (r *createMedicalRecordRequest) recordDate() (time.Time, error) {
+	switch {
+	case r.Date != nil:
+		return *r.Date, nil
+	case r.VisitDate != nil && *r.VisitDate != "":
+		parsed, err := time.Parse("2006-01-02", *r.VisitDate)
+		if err != nil {
+			return time.Time{}, apperrors.WrapInvalidInput("invalid visit_date format (expected YYYY-MM-DD)")
+		}
+		return parsed, nil
+	default:
+		return time.Now(), nil
+	}
+}
+
+func (r *createMedicalRecordRequest) nextVisitDate(recordDate time.Time) (*time.Time, error) {
+	if r.NextVisitRecommendedDate == nil || *r.NextVisitRecommendedDate == "" {
+		return nil, nil
+	}
+	parsed, err := time.Parse("2006-01-02", *r.NextVisitRecommendedDate)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
+	}
+	if !parsed.After(recordDate) {
+		return nil, apperrors.WrapInvalidInput("next_visit_recommended_date must be after the record date")
+	}
+	if parsed.After(recordDate.AddDate(2, 0, 0)) {
+		return nil, apperrors.WrapInvalidInput("next_visit_recommended_date must be within 2 years")
+	}
+	return &parsed, nil
+}
+
+func (r *createMedicalRecordRequest) toSubRecordsInput() service.CreateSubRecordsInput {
+	return service.CreateSubRecordsInput{
+		ChiefComplaintTypeID: r.ChiefComplaintTypeID,
+		ChiefComplaint:       r.ChiefComplaint,
+		Notes:                r.Notes,
+		Plan:                 r.Plan,
+		Assessment:           r.Assessment,
+		Diagnosis1CategoryID: r.Diagnosis1CategoryID,
+		Diagnosis1NameID:     r.Diagnosis1NameID,
+		Diagnosis2CategoryID: r.Diagnosis2CategoryID,
+		Diagnosis2NameID:     r.Diagnosis2NameID,
+	}
+}
+
+func parseOptionalMedicalRecordID(s *string, field string) (*uint64, error) {
+	if s == nil || *s == "" {
+		return nil, nil
+	}
+	id, err := strconv.ParseUint(*s, 10, 64)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid " + field + " (must be numeric)")
+	}
+	return &id, nil
+}
+
 // patchMedicalRecordRecommendationReasonRequest は受診推奨理由更新リクエスト（FEAT-381-2）。
 // Reason は revisit / checkup / prevention / exam のいずれか、または "" (未設定)。
 type patchMedicalRecordRecommendationReasonRequest struct {
 	Reason string `json:"reason" binding:"max=100"`
+}
+
+func (r patchMedicalRecordRecommendationReasonRequest) toServiceInput() service.UpdateRecommendationReasonInput {
+	return service.UpdateRecommendationReasonInput{Reason: r.Reason}
 }
 
 // updateMedicalRecordRequest はカルテ更新のバインド struct
@@ -51,4 +239,39 @@ type updateMedicalRecordRequest struct {
 	Status                   *string    `json:"status"      binding:"omitempty,oneof=draft finalized"`
 	Version                  *int       `json:"version"`                     // 楽観的ロック用
 	NextVisitRecommendedDate *string    `json:"next_visit_recommended_date"` // "YYYY-MM-DD" or null
+}
+
+func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (service.UpdateMedicalRecordInput, error) {
+	var status *model.MedicalRecordStatus
+	if r.Status != nil {
+		s, err := validateEnum(*r.Status,
+			model.MedicalRecordStatusDraft,
+			model.MedicalRecordStatusFinalized,
+		)
+		if err != nil {
+			return service.UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid status: " + err.Error())
+		}
+		status = &s
+	}
+
+	var nextVisitDate *time.Time
+	if r.NextVisitRecommendedDate != nil && *r.NextVisitRecommendedDate != "" {
+		parsed, err := time.Parse("2006-01-02", *r.NextVisitRecommendedDate)
+		if err != nil {
+			return service.UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
+		}
+		nextVisitDate = &parsed
+	}
+
+	return service.UpdateMedicalRecordInput{
+		Date:                     r.Date,
+		OwnerID:                  r.OwnerID,
+		PetID:                    r.PetID,
+		DoctorID:                 r.DoctorID,
+		AppointmentID:            r.AppointmentID,
+		Status:                   status,
+		Version:                  r.Version,
+		NextVisitRecommendedDate: nextVisitDate,
+		ActorID:                  &actorID,
+	}, nil
 }

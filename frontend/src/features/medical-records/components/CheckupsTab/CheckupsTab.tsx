@@ -1,193 +1,25 @@
-// React/Framework
-import { useState, useCallback, memo, useMemo, type ChangeEvent } from "react";
-
-// External
-import { Pencil, Plus, Check, X } from "lucide-react";
+import { memo, useCallback, useState } from "react";
 import { toast } from "sonner";
 
-// Internal
-import { Button } from "@/components/ui/button";
-import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
-import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { C, STYLE, ICON, PALETTE } from "@/lib/design-tokens";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
-
-// Relative
-import { CheckupAlertBadge } from "@/features/checkups";
+import { C } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
-import { useGetCheckups } from "../../api/checkups";
-import { useCreateCheckup } from "../../api/checkups";
-import { useUpdateCheckup } from "../../api/checkups";
-import { useDeleteCheckup } from "../../api/checkups";
-import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
 import { useGetStaffs } from "@/hooks/use-staffs";
-import type { StaffItem } from "@/hooks/use-staffs";
-import type { Checkup, CreateCheckupInput, UpdateCheckupInput } from "../../api/checkups";
-import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
-
-// ── 静的定数 ────────────────────────────────────────────────────────────
-
-const TABLE_HEADER = (
-  <thead>
-    <tr className={`border-b ${C.borderLight} ${C.bgPage30} h-10`}>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-32`}>日付</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-40`}>健診種別</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-32`}>次回予定日</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-32`}>担当医</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70}`}>結果</th>
-      <th className={`px-2 text-right text-xs font-medium ${C.text70} w-24`}>操作</th>
-    </tr>
-  </thead>
-);
-
-// ── 追加フォームの初期状態 ─────────────────────────────────────────────
-
-interface AddFormState {
-  checkup_type_id: string;
-  date: string;
-  next_date: string;
-  doctor_id: string;
-  result: string;
-}
-
-const EMPTY_ADD_FORM: AddFormState = {
-  checkup_type_id: "",
-  date: "",
-  next_date: "",
-  doctor_id: "",
-  result: "",
-};
-
-// BUG-090: 実施日のデフォルト値として本日の日付を返す
-function todayISODate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function makeDefaultAddForm(): AddFormState {
-  return { ...EMPTY_ADD_FORM, date: todayISODate() };
-}
-
-// ── 編集行コンポーネント ───────────────────────────────────────────────
-
-interface EditRowProps {
-  checkup: Checkup;
-  onSave: (checkupId: string, input: UpdateCheckupInput) => void;
-  onCancel: () => void;
-  isPending: boolean;
-  checkupTypes: CheckupTypeItem[];
-  staffs: StaffItem[];
-}
-
-const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, checkupTypes, staffs }: EditRowProps) {
-  const [form, setForm] = useState<UpdateCheckupInput>({
-    checkup_type_id: Number(checkup.checkup_type_id),
-    date: checkup.date,
-    next_date: checkup.next_date ?? "",
-    doctor_id: checkup.doctor_id ? Number(checkup.doctor_id) : null,
-    result: checkup.result,
-  });
-
-  const handleChange = useCallback(
-    (field: keyof UpdateCheckupInput, value: string | number | null) => {
-      setForm((prev) => ({ ...prev, [field]: value }));
-    },
-    []
-  );
-
-  const handleSave = useCallback(() => {
-    const payload: UpdateCheckupInput = { ...form };
-    if (form.doctor_id === null) {
-      payload.doctor_id_clear = true;
-    }
-    onSave(checkup.id, payload);
-  }, [checkup.id, form, onSave]);
-
-  return (
-    <tr className={`border-b ${C.borderLight} ${C.bgNotice40}`}>
-      <td className="px-3 py-2">
-        <NotionDatePicker
-          value={form.date ?? ""}
-          onChange={(v) => handleChange("date", v)}
-          placeholder="日付"
-          className="h-8 w-full"
-        />
-      </td>
-      <td className="px-3 py-2">
-        <select
-          value={form.checkup_type_id ?? ""}
-          onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-            handleChange("checkup_type_id", e.target.value ? Number(e.target.value) : null)
-          }
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
-        >
-          <option value="">選択してください</option>
-          {checkupTypes.map((type: CheckupTypeItem) => (
-            <option key={type.id} value={type.id}>
-              {type.name}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-3 py-2">
-        <NotionDatePicker
-          value={form.next_date ?? ""}
-          onChange={(v) => handleChange("next_date", v || null)}
-          placeholder="次回日"
-          className="h-8 w-full"
-        />
-      </td>
-      <td className="px-3 py-2">
-        <select
-          value={form.doctor_id ?? ""}
-          onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-            handleChange("doctor_id", e.target.value ? Number(e.target.value) : null)
-          }
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
-        >
-          <option value="">-</option>
-          {staffs.map((s: StaffItem) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-3 py-2">
-        <input
-          type="text"
-          value={form.result ?? ""}
-          onChange={(e) => handleChange("result", e.target.value)}
-          placeholder="結果を入力..."
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
-        />
-      </td>
-      <td className="px-2 py-2">
-        <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={handleSave}
-            disabled={isPending}
-            className={`${STYLE.iconBtn32} ${C.textStatusGreen} ${C.hoverBgStatusGreen}`}
-            title="保存"
-          >
-            <Check className={`${ICON.xs}`} />
-          </button>
-          <button
-            onClick={onCancel}
-            disabled={isPending}
-            className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverBgLight}`}
-            title="キャンセル"
-          >
-            <X className={`${ICON.xs}`} />
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-});
-
-// ── Props ──────────────────────────────────────────────────────────────
-
-type LstepStatus = "synced" | "not-linked" | "opt-out";
+import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
+import {
+  useCreateCheckup,
+  useDeleteCheckup,
+  useGetCheckups,
+  useUpdateCheckup,
+  type CreateCheckupInput,
+  type UpdateCheckupInput,
+} from "../../api/checkups";
+import {
+  CheckupsTable,
+  LstepStatusBadge,
+  makeDefaultCheckupAddForm,
+  type AddCheckupFormState,
+  type LstepStatus,
+} from "./CheckupsTabTable";
 
 interface CheckupsTabProps {
   medicalRecordId: string;
@@ -195,69 +27,29 @@ interface CheckupsTabProps {
   isFinalized?: boolean;
 }
 
-function LstepStatusBadge({ status }: { status: LstepStatus }) {
-  if (status === "synced") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full text-white"
-        style={{ backgroundColor: PALETTE.lineGreen }}
-      >
-        LINE通知対象
-      </span>
-    );
-  }
-  if (status === "not-linked") {
-    return (
-      <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.textNotice} ${C.borderNotice} ${C.bgNotice40}`}>
-        LINE未連携
-      </span>
-    );
-  }
-  return (
-    <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.text40} ${C.borderMediumLight} ${C.bgPage30}`}>
-      LINE受信拒否
-    </span>
-  );
-}
-
-// ── Component ──────────────────────────────────────────────────────────
-
-export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepStatus, isFinalized = false }: CheckupsTabProps) {
+export const CheckupsTab = memo(function CheckupsTab({
+  medicalRecordId,
+  lstepStatus,
+  isFinalized = false,
+}: CheckupsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const { data: staffs = [] } = useGetStaffs();
   const createMutation = useCreateCheckup(medicalRecordId);
-  const { mutate: createCheckupFn } = createMutation;
   const updateMutation = useUpdateCheckup(medicalRecordId);
-  const { mutate: updateCheckupFn } = updateMutation;
   const deleteMutation = useDeleteCheckup(medicalRecordId);
-  const { mutate: deleteCheckupFn } = deleteMutation;
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  // BUG-090: lazy init で本日日付をデフォルト値にセット
-  const [addForm, setAddForm] = useState<AddFormState>(() => makeDefaultAddForm());
+  const [addForm, setAddForm] = useState<AddCheckupFormState>(() => makeDefaultCheckupAddForm());
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
 
-  // js-cache-function-results: checkupTypes 由来の option リストをキャッシュ
-  const checkupTypeOptions = useMemo(
-    () =>
-      checkupTypes.map((type: CheckupTypeItem) => (
-        <option key={type.id} value={type.id}>
-          {type.name}
-        </option>
-      )),
-    [checkupTypes],
-  );
-
-  // ── handlers ──
-
   const handleAddFormChange = useCallback(
-    (field: keyof AddFormState, value: string) => {
+    (field: keyof AddCheckupFormState, value: string) => {
       setAddForm((prev) => ({ ...prev, [field]: value }));
     },
-    []
+    [],
   );
 
   const handleAddSubmit = useCallback(() => {
@@ -270,6 +62,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
       return;
     }
     setAddFormErrors({});
+
     const input: CreateCheckupInput = {
       checkup_type_id: Number(addForm.checkup_type_id),
       date: addForm.date,
@@ -277,53 +70,47 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
       doctor_id: addForm.doctor_id ? Number(addForm.doctor_id) : null,
       result: addForm.result,
     };
-    createCheckupFn(input, {
+    createMutation.mutate(input, {
       onSuccess: () => {
-        setAddForm(makeDefaultAddForm());
+        setAddForm(makeDefaultCheckupAddForm());
         setIsAdding(false);
         toast.success("健診記録を追加しました");
       },
     });
-  }, [canCreate, addForm, createCheckupFn]);
+  }, [addForm, canCreate, createMutation]);
 
   const handleAddCancel = useCallback(() => {
-    setAddForm(EMPTY_ADD_FORM);
+    setAddForm(makeDefaultCheckupAddForm());
     setIsAdding(false);
   }, []);
 
   const handleEditSave = useCallback(
     (checkupId: string, input: UpdateCheckupInput) => {
       if (!canEdit) return;
-      updateCheckupFn(
+      updateMutation.mutate(
         { checkupId, input },
         {
           onSuccess: () => {
             setEditingId(null);
             toast.success("健診記録を更新しました");
           },
-        }
+        },
       );
     },
-    [canEdit, updateCheckupFn]
+    [canEdit, updateMutation],
   );
-
-  const handleEditCancel = useCallback(() => {
-    setEditingId(null);
-  }, []);
 
   const handleDelete = useCallback(
     (checkupId: string) => {
       if (!canDelete) return;
-      deleteCheckupFn(checkupId, {
+      deleteMutation.mutate(checkupId, {
         onSuccess: () => {
           toast.success("健診記録を削除しました");
         },
       });
     },
-    [canDelete, deleteCheckupFn]
+    [canDelete, deleteMutation],
   );
-
-  // ── render ──
 
   if (isLoading) {
     return (
@@ -342,165 +129,32 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId, lstepSta
           <LstepStatusBadge status={lstepStatus} />
         </div>
       ) : null}
-      <div className={`${STYLE.tableContainer} overflow-x-auto`}>
-        <table className="w-full">
-          {TABLE_HEADER}
-          <tbody>
-            {checkupList.length === 0 ? (
-              <tr>
-                <td colSpan={6} className={STYLE.tableEmptySm}>
-                  健診記録がありません。下の「記録を追加」ボタンから追加してください。
-                </td>
-              </tr>
-            ) : (
-              checkupList.map((checkup) =>
-                editingId === checkup.id ? (
-                  <EditRow
-                    key={checkup.id}
-                    checkup={checkup}
-                    onSave={handleEditSave}
-                    onCancel={handleEditCancel}
-                    isPending={updateMutation.isPending}
-                    checkupTypes={checkupTypes}
-                    staffs={staffs}
-                  />
-                ) : (
-                  <tr
-                    key={checkup.id}
-                    className={`border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors h-12`}
-                  >
-                    <td className={`px-3 text-sm ${C.text}`}>{checkup.date}</td>
-                    <td className={`px-3 text-sm ${C.text}`}>
-                      {checkup.checkup_type?.name ?? checkup.checkup_type_id}
-                    </td>
-                    <td className={`px-3 text-sm ${C.text60}`}>
-                      {checkup.next_date ? (
-                        <div className="flex items-center gap-1.5">
-                          <span>{checkup.next_date}</span>
-                          <CheckupAlertBadge nextDate={checkup.next_date} />
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className={`px-3 text-sm ${C.text60}`}>
-                      {checkup.doctor?.name ?? (checkup.doctor_id ? checkup.doctor_id : "-")}
-                    </td>
-                    <td className={`px-3 text-sm ${C.text}`}>{checkup.result}</td>
-                    <td className="px-2">
-                      <div className="flex items-center justify-end gap-1">
-                        {canEdit && !isFinalized ? (
-                          <button
-                            onClick={() => setEditingId(checkup.id)}
-                            className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverText} ${C.hoverBgLight}`}
-                            title="編集"
-                          >
-                            <Pencil className={`${ICON.xs}`} />
-                          </button>
-                        ) : null}
-                        {canDelete && !isFinalized ? (
-                          <DeleteIconButton
-                            onClick={() => handleDelete(checkup.id)}
-                            disabled={deleteMutation.isPending}
-                          />
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              )
-            )}
-          </tbody>
-        </table>
 
-        {/* 確定済みカルテ: 閲覧専用メッセージ */}
-        {isFinalized ? (
-          <div className={`px-4 py-3 text-sm ${C.text60} border-t ${C.borderLight}`}>
-            確定済みカルテのため健診情報は編集できません
-          </div>
-        ) : null}
+      <CheckupsTable
+        checkups={checkupList}
+        editingId={editingId}
+        isFinalized={isFinalized}
+        isAdding={isAdding}
+        addForm={addForm}
+        addFormErrors={addFormErrors}
+        checkupTypes={checkupTypes}
+        staffs={staffs}
+        canCreate={canCreate}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        createPending={createMutation.isPending}
+        updatePending={updateMutation.isPending}
+        deletePending={deleteMutation.isPending}
+        onStartAdd={() => setIsAdding(true)}
+        onAddFormChange={handleAddFormChange}
+        onAddSubmit={handleAddSubmit}
+        onAddCancel={handleAddCancel}
+        onStartEdit={setEditingId}
+        onEditSave={handleEditSave}
+        onEditCancel={() => setEditingId(null)}
+        onDelete={handleDelete}
+      />
 
-        {/* インライン追加フォーム */}
-        {!isFinalized && isAdding ? (
-          <div className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
-            <div className="flex flex-col">
-              <NotionDatePicker
-                value={addForm.date}
-                onChange={(v) => handleAddFormChange("date", v)}
-                placeholder="日付"
-                className="h-8 w-32"
-              />
-              <FormFieldError message={addFormErrors.date} />
-            </div>
-            <div className="flex flex-col">
-              <select
-                value={addForm.checkup_type_id}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("checkup_type_id", e.target.value)}
-                className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
-              >
-                <option value="">選択</option>
-                {checkupTypeOptions}
-              </select>
-              <FormFieldError message={addFormErrors.checkup_type_id} />
-            </div>
-            <NotionDatePicker
-              value={addForm.next_date}
-              onChange={(v) => handleAddFormChange("next_date", v)}
-              placeholder="次回日"
-              className="h-8 w-32"
-            />
-            <select
-              value={addForm.doctor_id}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("doctor_id", e.target.value)}
-              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
-            >
-              <option value="">担当医</option>
-              {staffs.map((s: StaffItem) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <input
-              autoFocus
-              type="text"
-              placeholder="結果を入力..."
-              value={addForm.result}
-              onChange={(e) => handleAddFormChange("result", e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleAddSubmit();
-                if (e.key === "Escape") handleAddCancel();
-              }}
-              className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
-            />
-            <Button
-              size="sm"
-              className={`${STYLE.btnPrimary} h-8 text-xs px-3`}
-              onClick={handleAddSubmit}
-              disabled={createMutation.isPending || !addForm.date || !addForm.checkup_type_id}
-            >
-              追加
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className={`h-8 text-xs px-3 ${C.borderMedium}`}
-              onClick={handleAddCancel}
-            >
-              キャンセル
-            </Button>
-          </div>
-        ) : (
-          canCreate && !isFinalized ? (
-            <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
-              <Plus className={`${ICON.xs}`} />
-              <span>記録を追加</span>
-            </button>
-          ) : null
-        )}
-      </div>
-
-      {/* フッター: 件数表示 */}
       {checkupList.length > 0 ? (
         <div className={`${C.bgWhite} border ${C.borderLight} rounded-[4px] px-4 py-3`}>
           <span className={`text-sm ${C.text60}`}>

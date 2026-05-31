@@ -29,10 +29,16 @@ import type { ReceptionAppointment } from "../api/types";
 
 interface ServiceIconProps {
   service: string;
+  category?: string;
 }
 
-function ServiceIcon({ service }: ServiceIconProps) {
-  if (service.includes("トリミング")) return <Scissors className={ICON.xs} />;
+function isHospitalizationService(service: string): boolean {
+  return service.includes("入院") || service.includes("ホテル");
+}
+
+function ServiceIcon({ service, category }: ServiceIconProps) {
+  if (category === "trimming" || service.includes("トリミング")) return <Scissors className={ICON.xs} />;
+  if (isHospitalizationService(service)) return <BedDouble className={ICON.xs} />;
   if (service.includes("ワクチン")) return <Syringe className={ICON.xs} />;
   if (service.includes("手術")) return <Activity className={ICON.xs} />;
   if (service.includes("診療")) return <Stethoscope className={ICON.xs} />;
@@ -43,6 +49,7 @@ interface AppointmentCardProps {
   appointment: ReceptionAppointment;
   columnTitle: string;
   onCardClick: (appointment: ReceptionAppointment) => void;
+  onRecordOpen?: (appointment: ReceptionAppointment, columnTitle: string) => void;
   isDragOverlay?: boolean;
 }
 
@@ -50,6 +57,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   appointment,
   columnTitle,
   onCardClick,
+  onRecordOpen,
   isDragOverlay = false,
 }: AppointmentCardProps) {
   const navigate = useNavigate();
@@ -73,28 +81,35 @@ export const AppointmentCard = memo(function AppointmentCard({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const isTrimming = appointment.reservationType.includes("トリミング");
-  const isHospitalization = appointment.reservationType.includes("入院");
+  const isTrimming = appointment.reservationCategory === "trimming";
+  const isHospitalization = isHospitalizationService(appointment.reservationType);
+  const isMedical = !isTrimming && !isHospitalization;
   const visitColor = getVisitTypeColor(appointment.visitType);
+  const canOpenRecordFromCard = isTrimming
+    ? columnTitle === "受付済"
+    : isMedical && (columnTitle === "受付済" || columnTitle === "診療中");
 
   const handleKarteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isTrimming) {
-      navigate(
-        appointment.petId
-          ? `${paths.trimming.new.getHref()}?petId=${appointment.petId}`
-          : paths.trimming.new.getHref(),
-        { state: { from: "/" } },
-      );
-    } else {
-      navigate(
-        appointment.petId
-          ? `${paths.medicalRecords.new.getHref()}?petId=${appointment.petId}`
-          : paths.medicalRecords.selectPet.getHref(),
-        { state: { from: "/", appointmentId: appointment.id } },
-      );
-    }
-  }, [navigate, isTrimming, appointment.petId, appointment.id]);
+    onRecordOpen?.(appointment, columnTitle);
+    const params = new URLSearchParams();
+    if (appointment.petId) params.set("petId", appointment.petId);
+    if (appointment.id) params.set("appointmentId", appointment.id);
+    if (appointment.visitDate) params.set("visitDate", appointment.visitDate);
+    const query = params.toString();
+    const basePath = isTrimming
+      ? appointment.petId
+        ? paths.trimming.new.getHref()
+        : paths.trimming.selectPet.getHref()
+      : appointment.petId
+        ? paths.medicalRecords.new.getHref()
+        : paths.medicalRecords.selectPet.getHref();
+
+    navigate(
+      query ? `${basePath}?${query}` : basePath,
+      { state: { from: "/", appointmentId: appointment.id, visitDate: appointment.visitDate } },
+    );
+  }, [navigate, isTrimming, appointment, appointment.petId, appointment.id, appointment.visitDate, columnTitle, onRecordOpen]);
 
   const handleAccountingClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -150,7 +165,7 @@ export const AppointmentCard = memo(function AppointmentCard({
               {appointment.visitType}
             </Badge>
             <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] ${C.bgWhite} tracking-[var(--tracking-notion-sm)]`}>
-              <ServiceIcon service={appointment.reservationType} />
+              <ServiceIcon service={appointment.reservationType} category={appointment.reservationCategory} />
               <span className="truncate max-w-[80px]">{appointment.reservationType}</span>
             </Badge>
 
@@ -164,15 +179,17 @@ export const AppointmentCard = memo(function AppointmentCard({
 
           {/* ミニアクションボタン */}
           <div className={`flex items-center gap-1 pt-0.5 border-t ${C.borderDivider}`}>
-            <button
-              type="button"
-              aria-label={isTrimming ? `${appointment.petName}のトリミング記録` : `${appointment.petName}のカルテ`}
-              className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] ${C.accent} ${C.bgAccentLight30} border ${C.borderAccentBadge} rounded px-1.5 py-0.5 ${C.hoverBgAccentLight60} transition-colors`}
-              onClick={handleKarteClick}
-            >
-              {isTrimming ? <Scissors className={`${ICON.xs} shrink-0`} /> : <FileText className={`${ICON.xs} shrink-0`} />}
-              <span>{isTrimming ? "施術" : "カルテ"}</span>
-            </button>
+            {canOpenRecordFromCard ? (
+              <button
+                type="button"
+                aria-label={isTrimming ? `${appointment.petName}のトリミング記録` : `${appointment.petName}のカルテ`}
+                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] ${C.accent} ${C.bgAccentLight30} border ${C.borderAccentBadge} rounded px-1.5 py-0.5 ${C.hoverBgAccentLight60} transition-colors`}
+                onClick={handleKarteClick}
+              >
+                {isTrimming ? <Scissors className={`${ICON.xs} shrink-0`} /> : <FileText className={`${ICON.xs} shrink-0`} />}
+                <span>{isTrimming ? "施術" : "カルテ"}</span>
+              </button>
+            ) : null}
             {columnTitle !== "診療中" ? (
               <button
                 type="button"

@@ -12,15 +12,37 @@ interface ReservationsListResponse {
   limit: number;
 }
 
-export const getReservations = async (): Promise<Reservation[]> => {
-  const { data } = await axios.get<ReservationsListResponse>("/v1/reservations");
+export interface ReservationFilters {
+  date?: string;
+  status?: string;
+  source?: string;
+  petId?: string;
+  ownerId?: string;
+  enabled?: boolean;
+}
+
+function buildReservationParams(filters?: ReservationFilters): Record<string, string | number> {
+  const params: Record<string, string | number> = { page: 1, limit: 100 };
+  if (filters?.date) params.date = filters.date;
+  if (filters?.status) params.status = filters.status;
+  if (filters?.source) params.source = filters.source;
+  if (filters?.petId) params.pet_id = filters.petId;
+  if (filters?.ownerId) params.owner_id = filters.ownerId;
+  return params;
+}
+
+export const getReservations = async (filters?: ReservationFilters): Promise<Reservation[]> => {
+  const { data } = await axios.get<ReservationsListResponse>("/v1/reservations", {
+    params: buildReservationParams(filters),
+  });
   return data.data.map(transformReservation);
 };
 
-export const useGetReservations = () => {
+export const useGetReservations = (filters?: ReservationFilters) => {
   return useQuery({
-    queryKey: ["reservations"],
-    queryFn: getReservations,
+    queryKey: ["reservations", filters],
+    queryFn: () => getReservations(filters),
+    enabled: filters?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.REALTIME, // 予約一覧は高頻度変更
     gcTime: QUERY_GC_TIMES.SHORT,
   });

@@ -1,7 +1,7 @@
 import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback, useMemo } from "react";
 import { Plus, ChevronLeft } from "lucide-react";
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays, subWeeks, subMonths, subYears, addDays, addWeeks, addMonths, addYears } from "date-fns";
+import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -9,83 +9,14 @@ import { Command, CommandInput, CommandItem, CommandList, CommandEmpty } from "@
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
 import { FILTER_CONDITIONS } from "./types";
+import { DATE_PRESETS, resolvePreset } from "./date-preset-utils";
+import type { DatePreset } from "./date-preset-utils";
 import type {
   FilterProperty,
   ActiveFilter,
   FilterCondition,
   FilterOption,
-  RelativePoint,
-  RelativeUnit,
 } from "./types";
-
-// ─── Relative date resolution ─────────────────────────────
-
-function resolveRelativeDate(
-  point: RelativePoint,
-  unit: RelativeUnit,
-): { from: Date; to: Date } {
-  const now = new Date();
-  const today = startOfDay(now);
-
-  switch (unit) {
-    case "day": {
-      const target =
-        point === "this" ? today :
-        point === "last" ? subDays(today, 1) :
-        addDays(today, 1);
-      return { from: target, to: endOfDay(target) };
-    }
-    case "week": {
-      const base =
-        point === "this" ? today :
-        point === "last" ? subWeeks(today, 1) :
-        addWeeks(today, 1);
-      return {
-        from: startOfWeek(base, { locale: ja }),
-        to: endOfWeek(base, { locale: ja }),
-      };
-    }
-    case "month": {
-      const base =
-        point === "this" ? today :
-        point === "last" ? subMonths(today, 1) :
-        addMonths(today, 1);
-      return { from: startOfMonth(base), to: endOfMonth(base) };
-    }
-    case "year": {
-      const base =
-        point === "this" ? today :
-        point === "last" ? subYears(today, 1) :
-        addYears(today, 1);
-      return { from: startOfYear(base), to: endOfYear(base) };
-    }
-  }
-}
-
-// ─── Date presets (module-level constant) ─────────────────
-
-type DatePreset =
-  | { label: string; type: "relative"; point: RelativePoint; unit: RelativeUnit }
-  | { label: string; type: "last_n_days"; n: number };
-
-const DATE_PRESETS: DatePreset[] = [
-  { label: "今日",     type: "relative",    point: "this", unit: "day" },
-  { label: "昨日",     type: "relative",    point: "last", unit: "day" },
-  { label: "今週",     type: "relative",    point: "this", unit: "week" },
-  { label: "先週",     type: "relative",    point: "last", unit: "week" },
-  { label: "今月",     type: "relative",    point: "this", unit: "month" },
-  { label: "先月",     type: "relative",    point: "last", unit: "month" },
-  { label: "直近7日",  type: "last_n_days", n: 7 },
-  { label: "直近30日", type: "last_n_days", n: 30 },
-];
-
-function resolvePreset(preset: DatePreset): { from: Date; to: Date } {
-  if (preset.type === "last_n_days") {
-    const today = startOfDay(new Date());
-    return { from: subDays(today, preset.n - 1), to: endOfDay(today) };
-  }
-  return resolveRelativeDate(preset.point, preset.unit);
-}
 
 // ─── Step tracking ────────────────────────────────────────
 

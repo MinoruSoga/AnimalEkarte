@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- CheckupType ----
@@ -52,24 +51,13 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 		return
 	}
 
-	var input createCheckupTypeRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req createCheckupTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	svcInput := &service.CreateCheckupTypeInput{
-		Name:        input.Name,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		Interval:    input.Interval,
-		TargetAge:   input.TargetAge,
-		ParentID:    input.ParentID,
-		SortOrder:   input.SortOrder,
-	}
-
-	checkupType, err := h.svc.CheckupType.Create(c.Request.Context(), clinicID, svcInput)
+	checkupType, err := h.svc.CheckupType.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -88,25 +76,13 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input updateCheckupTypeRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req updateCheckupTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	svcInput := &service.UpdateCheckupTypeInput{
-		Name:          input.Name,
-		Price:         input.Price,
-		IsActive:      input.IsActive,
-		Description:   input.Description,
-		Interval:      input.Interval,
-		TargetAge:     input.TargetAge,
-		ParentID:      input.ParentID,
-		ClearParentID: input.ClearParentID,
-		SortOrder:     input.SortOrder,
-	}
-
-	checkupType, err := h.svc.CheckupType.Update(c.Request.Context(), clinicID, id, svcInput)
+	checkupType, err := h.svc.CheckupType.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

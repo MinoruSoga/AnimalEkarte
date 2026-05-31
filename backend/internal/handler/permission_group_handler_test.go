@@ -106,6 +106,22 @@ func (m *mockAuditServiceForPG) Log(ctx context.Context, log *model.AuditLog) er
 	return nil
 }
 
+func (m *mockAuditServiceForPG) LogEntry(ctx context.Context, input *service.AuditLogInput) error {
+	if m.logFn != nil {
+		return m.logFn(ctx, &model.AuditLog{
+			ClinicID:   input.ClinicID,
+			ActorID:    input.ActorID,
+			ActorType:  input.ActorType,
+			Action:     input.Action,
+			Resource:   input.Resource,
+			ResourceID: input.ResourceID,
+			IPAddress:  input.IPAddress,
+			UserAgent:  input.UserAgent,
+		})
+	}
+	return nil
+}
+
 func (m *mockAuditServiceForPG) LogAuthLogin(ctx context.Context, clinicID, staffID *uint64, action, ipAddress, userAgent string) error {
 	if m.logAuthLoginFn != nil {
 		return m.logAuthLoginFn(ctx, clinicID, staffID, action, ipAddress, userAgent)

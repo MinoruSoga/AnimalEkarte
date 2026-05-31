@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 // Types
 import type { ApiVitalRecord, CreateVitalRecordRequest } from "../../api/daily-records-types";
@@ -153,6 +153,9 @@ export const DailyVitalsSection = memo(function DailyVitalsSection({ vitals, onA
                 <DialogContent className="max-w-sm">
                     <DialogHeader>
                         <DialogTitle>バイタル追加</DialogTitle>
+                        <DialogDescription>
+                            時刻、体温、心拍数、呼吸数、体重などのバイタルを記録します。
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3 py-2">
                         <div>

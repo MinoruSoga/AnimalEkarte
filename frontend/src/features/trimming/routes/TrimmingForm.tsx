@@ -1,393 +1,35 @@
 // React/Framework
-import { ICON, C } from "@/lib/design-tokens";
-import { useDeferredValue, lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { ICON, C, STYLE } from "@/lib/design-tokens";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
-import { Scissors, Upload, X, Trash2 } from "lucide-react";
+import { Scissors, Trash2 } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { MasterLink } from "@/components/shared/MasterLink";
-import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
-import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback } from "@/components/shared/DataStates";
-import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
-import type { SortOrder } from "@/types";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 
 // Relative (direct file import, no barrel — bundle-barrel-imports)
+import {
+  TrimmingLeftColumn,
+  TrimmingMiddleColumn,
+  TrimmingRightColumn,
+} from "../components/TrimmingFormColumns.ts";
 import { useTrimmingForm } from "../hooks/use-trimming-form";
 import type { TrimmingFormData } from "@/types/trimming";
-import { useGetTrimmingsByPetId } from "../api/get-trimming";
 import { ResourceTrimming } from "@/types/generated/models";
-
-// bundle-dynamic-imports: 重いモーダルは lazy() + Suspense で遅延ロード
-const MasterSelectModal = lazy(() =>
-  import("@/components/shared/MasterSelectModal").then((m) => ({ default: m.MasterSelectModal }))
-);
-const ConfirmDialog = lazy(() =>
-  import("@/components/shared/ConfirmDialog/ConfirmDialog").then((m) => ({ default: m.ConfirmDialog }))
-);
-
-// ─── 静的JSXはモジュール定数に巻き上げ (rendering-hoist-jsx) ────────────────
-const BW_UNIT_ITEMS = (
-  <>
-    <SelectItem value="Kg">Kg</SelectItem>
-    <SelectItem value="g">g</SelectItem>
-  </>
-);
-
-// ─── memo化されたフォームセクション ─────────────────────────────────────────
-
-interface MasterItem {
-  id: string;
-  name: string;
-  price?: number;
-  status?: string;
-}
-
-interface LeftColumnProps {
-  formData: TrimmingFormData;
-  courses: MasterItem[];
-  options: MasterItem[];
-  styleImagePreview: string | null;
-  onFormChange: (updates: Partial<TrimmingFormData>) => void;
-  onCourseModalOpen: () => void;
-  onStyleImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemoveStyleImage: () => void;
-  courseError?: string;
-}
-
-// rerender-memo: フォームセクションを memo() で独立させる
-const LeftColumn = memo(function LeftColumn({
-  formData,
-  courses,
-  options,
-  styleImagePreview,
-  onFormChange,
-  onCourseModalOpen,
-  onStyleImageChange,
-  onRemoveStyleImage,
-  courseError,
-}: LeftColumnProps) {
-  const selectedCourse = courses.find((c) => c.id === formData.courseId);
-  // js-set-map-lookups: optionIds.includes() O(n) → Set.has() O(1)
-  const optionIdSet = useMemo(() => new Set(formData.optionIds), [formData.optionIds]);
-
-  return (
-    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Label className={`text-sm ${C.text60}`}>コース</Label>
-          <MasterLink category="trimming_course" label="マスタ管理" />
-        </div>
-        <MasterSelectTrigger
-          id="courseId"
-          selectedItem={selectedCourse ? { name: selectedCourse.name, price: selectedCourse.price } : undefined}
-          placeholder="コースを選択"
-          icon={<Scissors className={ICON.action} />}
-          onClick={onCourseModalOpen}
-          variant="block"
-        />
-        {/* BUG-027: inline course validation error */}
-        <FormFieldError message={courseError} />
-      </div>
-
-      <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>スタイルの希望</Label>
-        <Textarea
-          value={formData.styleRequest}
-          onChange={(e) => onFormChange({ styleRequest: e.target.value })}
-          placeholder="スタイルの希望を入力..."
-          className="min-h-[80px] text-sm"
-        />
-      </div>
-
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Label className={`text-sm ${C.text60}`}>オプション</Label>
-          <MasterLink category="trimming_option" label="マスタ管理" />
-        </div>
-        {options.length > 0 ? (
-          <div className="space-y-2">
-            {options.map((option) => (
-              <div key={option.id} className="flex items-center gap-2">
-                <Checkbox
-                  id={`option-${option.id}`}
-                  checked={optionIdSet.has(option.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      onFormChange({ optionIds: [...formData.optionIds, option.id] });
-                    } else {
-                      onFormChange({ optionIds: formData.optionIds.filter((id) => id !== option.id) });
-                    }
-                  }}
-                />
-                <label htmlFor={`option-${option.id}`} className={`text-sm ${C.text} cursor-pointer`}>
-                  {option.name}
-                </label>
-                {option.price != null ? (
-                  <span className={`text-xs ${C.text60} ml-auto`}>
-                    ¥{option.price.toLocaleString()}
-                  </span>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      {/* Style Image */}
-      <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>希望スタイル画像</Label>
-        {styleImagePreview ? (
-          <div className="relative">
-            <img
-              src={styleImagePreview}
-              alt="Style preview"
-              className={`w-full h-32 object-cover rounded-md border ${C.borderPrimary20}`}
-            />
-            <button
-              onClick={onRemoveStyleImage}
-              className={`absolute top-1 right-1 p-1 ${C.bgWhite} rounded-full shadow-sm ${C.hoverBgPage}`}
-            >
-              <X className={`${ICON.action} ${C.text}`} />
-            </button>
-          </div>
-        ) : (
-          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer ${C.hoverBgPage}`}>
-            <div className="flex flex-col items-center">
-              <Upload className={`${ICON.lg} ${C.text40} mb-1`} />
-              <span className={`text-sm ${C.text60}`}>画像をアップロード</span>
-            </div>
-            <input type="file" accept="image/*" onChange={onStyleImageChange} className="hidden" />
-          </label>
-        )}
-      </div>
-    </div>
-  );
-});
-
-interface MiddleColumnProps {
-  formData: TrimmingFormData;
-  completedImagePreview: string | null;
-  onFormChange: (updates: Partial<TrimmingFormData>) => void;
-  onCompletedImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemoveCompletedImage: () => void;
-}
-
-const MiddleColumn = memo(function MiddleColumn({
-  formData,
-  completedImagePreview,
-  onFormChange,
-  onCompletedImageChange,
-  onRemoveCompletedImage,
-}: MiddleColumnProps) {
-  return (
-    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
-      <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>体重 (BW)</Label>
-        <div className="flex gap-2">
-          <NumberInput
-            value={formData.bw}
-            onChange={(v) => onFormChange({ bw: v })}
-            placeholder="体重"
-            className="flex-1 text-sm"
-          />
-          <Select
-            value={formData.bwUnit}
-            onValueChange={(val) => onFormChange({ bwUnit: val as "Kg" | "g" })}
-          >
-            <SelectTrigger className="w-[80px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {BW_UNIT_ITEMS}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>体温 (BT)</Label>
-        <NumberInput
-          step={0.1}
-          value={formData.bt}
-          onChange={(v) => onFormChange({ bt: v })}
-          placeholder="体温"
-          suffix="℃"
-          className="text-sm"
-        />
-      </div>
-
-      <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>使用シャンプー</Label>
-        <Input
-          value={formData.usedShampoo}
-          onChange={(e) => onFormChange({ usedShampoo: e.target.value })}
-          placeholder="シャンプー名"
-          className="text-sm"
-        />
-      </div>
-
-      <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>使用リボン</Label>
-        <Input
-          value={formData.usedRibbon}
-          onChange={(e) => onFormChange({ usedRibbon: e.target.value })}
-          placeholder="リボン"
-          className="text-sm"
-        />
-      </div>
-
-      <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>備考</Label>
-        <Textarea
-          value={formData.remarks}
-          onChange={(e) => onFormChange({ remarks: e.target.value })}
-          placeholder="備考を入力..."
-          className="min-h-[60px] text-sm"
-        />
-      </div>
-
-      {/* Completed Image */}
-      <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>完成画像</Label>
-        {completedImagePreview ? (
-          <div className="relative">
-            <img
-              src={completedImagePreview}
-              alt="Completed preview"
-              className={`w-full h-32 object-cover rounded-md border ${C.borderPrimary20}`}
-            />
-            <button
-              onClick={onRemoveCompletedImage}
-              className={`absolute top-1 right-1 p-1 ${C.bgWhite} rounded-full shadow-sm ${C.hoverBgPage}`}
-            >
-              <X className={`${ICON.action} ${C.text}`} />
-            </button>
-          </div>
-        ) : (
-          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer ${C.hoverBgPage}`}>
-            <div className="flex flex-col items-center">
-              <Upload className={`${ICON.lg} ${C.text40} mb-1`} />
-              <span className={`text-sm ${C.text60}`}>画像をアップロード</span>
-            </div>
-            <input type="file" accept="image/*" onChange={onCompletedImageChange} className="hidden" />
-          </label>
-        )}
-      </div>
-    </div>
-  );
-});
-
-interface HistoryItem {
-  id: string;
-  date: string;
-  styleRequest: string;
-  staff: string;
-}
-
-interface RightColumnProps {
-  sortedHistory: HistoryItem[];
-  isHistoryLoading: boolean;
-  historySearchTerm: string;
-  historySortOrder: SortOrder;
-  historyDateRange: { from: string; to: string };
-  onSearchTermChange: (val: string) => void;
-  onSortOrderChange: (val: SortOrder) => void;
-  onClear: () => void;
-  onFilterStartDateChange: (val: string) => void;
-  onFilterEndDateChange: (val: string) => void;
-  onHistoryClick: (updates: Partial<TrimmingFormData>) => void;
-}
-
-const RightColumn = memo(function RightColumn({
-  sortedHistory,
-  isHistoryLoading,
-  historySearchTerm,
-  historySortOrder,
-  historyDateRange,
-  onSearchTermChange,
-  onSortOrderChange,
-  onClear,
-  onFilterStartDateChange,
-  onFilterEndDateChange,
-  onHistoryClick,
-}: RightColumnProps) {
-  // js-cache-function-results: sortedHistory の JSX リストを useMemo でキャッシュ。
-  // RightColumn は memo() 済みだが filter 等の別 props 変化でも再レンダーされるため。
-  const historyCards = useMemo(
-    () =>
-      sortedHistory.map((hist) => (
-        <div
-          key={hist.id}
-          className={`p-3 border ${C.borderMedium} rounded-lg ${C.bgWhite} ${C.hoverBgPage} transition-colors cursor-pointer`}
-          onClick={() => onHistoryClick({ styleRequest: hist.styleRequest, staffName: hist.staff })}
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <div className={`text-xs ${C.text60} mb-1`}>{hist.date}</div>
-              <div className={`text-sm ${C.text} font-medium truncate`}>{hist.styleRequest}</div>
-              <div className={`text-xs ${C.text60} mt-1`}>{hist.staff}</div>
-            </div>
-          </div>
-        </div>
-      )),
-    [sortedHistory, onHistoryClick]
-  );
-
-  return (
-    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
-      <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>施術履歴</Label>
-        <HistoryFilterPanel
-          searchTerm={historySearchTerm}
-          onSearchTermChange={onSearchTermChange}
-          sortOrder={historySortOrder}
-          onSortOrderChange={onSortOrderChange}
-          onClear={onClear}
-          showDateRange={true}
-          filterStartDate={historyDateRange.from}
-          onFilterStartDateChange={onFilterStartDateChange}
-          filterEndDate={historyDateRange.to}
-          onFilterEndDateChange={onFilterEndDateChange}
-          searchPlaceholder="スタイル希望で検索..."
-        />
-      </div>
-
-      {/* History Cards */}
-      <div className="space-y-2 max-h-[600px] overflow-y-auto">
-        {isHistoryLoading ? (
-          <LoadingFallback />
-        ) : sortedHistory.length === 0 ? (
-          <div className={`text-center py-8 text-sm ${C.text40}`}>
-            施術履歴がありません
-          </div>
-        ) : (
-          historyCards
-        )}
-      </div>
-    </div>
-  );
-});
-
-// rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
-const TRIMMING_PRIORITY_FIELDS = ["staffId", "courseId"] as const;
+import { ConfirmDialog, MasterSelectModal } from "./TrimmingLazyModals";
+import { TRIMMING_FORM_ID, TRIMMING_PRIORITY_FIELDS } from "./TrimmingFormModel";
+import { useTrimmingHistory } from "./useTrimmingHistory";
 
 // ─── メインコンポーネント ────────────────────────────────────────────────────
 
@@ -465,31 +107,19 @@ export function TrimmingForm() {
   const [staffModalOpen, setStaffModalOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const [historySearchTerm, setHistorySearchTerm] = useState("");
-  const [historySortOrder, setHistorySortOrder] = useState<SortOrder>("desc");
-  // rerender-dependencies: object state を 2 つの primitive state に分割
-  const [historyDateRangeFrom, setHistoryDateRangeFrom] = useState("");
-  const [historyDateRangeTo, setHistoryDateRangeTo] = useState("");
-  const deferredHistorySearch = useDeferredValue(historySearchTerm);
-
-  const { data: petTrimmings = [], isLoading: isHistoryLoading } = useGetTrimmingsByPetId(selectedPet?.id ?? "");
-
-  const sortedHistory = useMemo(() => {
-    const filtered = petTrimmings.filter((t) => {
-      if (deferredHistorySearch && !t.styleRequest.toLowerCase().includes(deferredHistorySearch.toLowerCase())) {
-        return false;
-      }
-      const recordDate = t.date.slice(0, 10);
-      if (historyDateRangeFrom && recordDate < historyDateRangeFrom) return false;
-      if (historyDateRangeTo && recordDate > historyDateRangeTo) return false;
-      return true;
-    });
-    return filtered.toSorted((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return historySortOrder === "desc" ? dateB - dateA : dateA - dateB;
-    });
-  }, [petTrimmings, deferredHistorySearch, historyDateRangeFrom, historyDateRangeTo, historySortOrder]);
+  const {
+    handleHistoryClear,
+    handleHistoryClick: buildHistoryUpdates,
+    historyDateRange,
+    historySearchTerm,
+    historySortOrder,
+    isHistoryLoading,
+    setHistoryDateRangeFrom,
+    setHistoryDateRangeTo,
+    setHistorySearchTerm,
+    setHistorySortOrder,
+    sortedHistory,
+  } = useTrimmingHistory(selectedPet?.id ?? "");
 
   // rerender-functional-setstate: useCallback でハンドラを安定化
   // ※ React hooks はコンポーネントのトップレベルで呼ぶ（ガード節の前に定義）
@@ -515,15 +145,8 @@ export function TrimmingForm() {
   const handleOpenStaffModal = useCallback(() => setStaffModalOpen(true), []);
 
   const handleHistoryClick = useCallback((updates: Partial<TrimmingFormData>) => {
-    handleFormChange(updates);
-  }, [handleFormChange]);
-
-  const handleHistoryClear = useCallback(() => {
-    setHistorySearchTerm("");
-    setHistorySortOrder("desc");
-    setHistoryDateRangeFrom("");
-    setHistoryDateRangeTo("");
-  }, []);
+    handleFormChange(buildHistoryUpdates(updates));
+  }, [buildHistoryUpdates, handleFormChange]);
 
   const handleHistoryStartDateChange = useCallback((val: string) => {
     setHistoryDateRangeFrom(val);
@@ -536,12 +159,6 @@ export function TrimmingForm() {
   const activeStaffItems = useMemo(
     () => staffItems.filter((s) => s.status === "active"),
     [staffItems]
-  );
-
-  // rerender-dependencies: primitive から object を再構築して RightColumn に渡す (安定参照)
-  const historyDateRange = useMemo(
-    () => ({ from: historyDateRangeFrom, to: historyDateRangeTo }),
-    [historyDateRangeFrom, historyDateRangeTo]
   );
 
   if (!selectedPet && mode === "new" && petId) {
@@ -587,9 +204,9 @@ export function TrimmingForm() {
           {/* rendering-conditional-render: && → ? ... : null */}
           {mode === "edit" && canDelete ? (
             <Button
+              type="button"
               onClick={() => setDeleteConfirmOpen(true)}
               variant="ghost-danger"
-              type="button"
               className="h-10 rounded-[6px] text-sm px-4"
               disabled={isDeleting}
             >
@@ -598,16 +215,21 @@ export function TrimmingForm() {
             </Button>
           ) : null}
           {canSubmit ? (
-            <SubmitButton className="h-10" disabled={isSaving}>
-              保存
-            </SubmitButton>
+            <Button
+              type="submit"
+              form={TRIMMING_FORM_ID}
+              className={`${STYLE.confirmPrimary} h-10`}
+              disabled={isSaving}
+            >
+              {isSaving ? "保存中..." : "保存"}
+            </Button>
           ) : null}
         </div>
       }
     >
       {/* NavigationBlocker: isSaving 中はブロック無効化 */}
       <NavigationBlocker when={isDirty && !isSaving} />
-      <form action={formAction}>
+      <form id={TRIMMING_FORM_ID} action={formAction}>
       <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
       {/* rendering-conditional-render: && → ? ... : null */}
       {selectedPet ? (
@@ -629,11 +251,14 @@ export function TrimmingForm() {
           {fieldErrors.staffId ? (
             <FormFieldError message={fieldErrors.staffId} />
           ) : null}
+          {fieldErrors.reservationTypeId ? (
+            <FormFieldError message={fieldErrors.reservationTypeId} />
+          ) : null}
 
           {/* Main Content - 3 column layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* rerender-memo: 各カラムを独立したmemo化コンポーネントに分離 */}
-            <LeftColumn
+            <TrimmingLeftColumn
               formData={formData}
               courses={courses}
               options={options}
@@ -644,14 +269,14 @@ export function TrimmingForm() {
               onRemoveStyleImage={removeStyleImage}
               courseError={fieldErrors.courseId}
             />
-            <MiddleColumn
+            <TrimmingMiddleColumn
               formData={formData}
               completedImagePreview={completedImagePreview}
               onFormChange={handleFormChange}
               onCompletedImageChange={handleCompletedImageChange}
               onRemoveCompletedImage={removeCompletedImage}
             />
-            <RightColumn
+            <TrimmingRightColumn
               sortedHistory={sortedHistory}
               isHistoryLoading={isHistoryLoading}
               historySearchTerm={historySearchTerm}

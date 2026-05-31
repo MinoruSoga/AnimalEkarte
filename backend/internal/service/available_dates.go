@@ -31,6 +31,7 @@ type AvailableDatesInput struct {
 	StaffID        uint64 // 0 = 指名なし
 	StaffInputsFn  func(ctx context.Context, date time.Time, typeID, staffID uint64) ([]StaffSlotInput, error)
 	SlotSettingsFn func(date time.Time) TimeSlotsInput
+	SlotFilterFn   func(date time.Time, slots []TimeSlot) []TimeSlot
 }
 
 // AvailableDatesSettings は空き日付計算に必要な設定項目。
@@ -178,6 +179,9 @@ func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]Avai
 			slots, err := GenerateTimeSlots(&slotInput)
 			if err != nil {
 				return nil, window, err
+			}
+			if input.SlotFilterFn != nil {
+				slots = input.SlotFilterFn(d, slots)
 			}
 			if len(slots) == 0 {
 				result.Available = false

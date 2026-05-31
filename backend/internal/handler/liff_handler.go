@@ -3,8 +3,6 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -74,13 +72,12 @@ func (h *Handler) GetLiffStaffs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	typeIDStr := c.Query("courseId")
-	typeID, err := strconv.ParseUint(typeIDStr, 10, 64)
-	if err != nil || typeID == 0 {
-		RespondError(c, apperrors.WrapInvalidInput("invalid courseId"))
+	courseID, err := newLiffCourseQuery(c.Request.URL.Query()).toCourseID()
+	if err != nil {
+		RespondError(c, err)
 		return
 	}
-	staffs, err := h.svc.Liff.GetStaffs(c.Request.Context(), clinicID, typeID)
+	staffs, err := h.svc.Liff.GetStaffs(c.Request.Context(), clinicID, courseID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -99,14 +96,13 @@ func (h *Handler) GetLiffAvailableDates(c *gin.Context) {
 	if !ok {
 		return
 	}
-	typeID, err := strconv.ParseUint(c.Query("courseId"), 10, 64)
-	if err != nil || typeID == 0 {
-		RespondError(c, apperrors.WrapInvalidInput("invalid courseId"))
+	filters, err := newLiffAvailableDatesQuery(c.Request.URL.Query()).toServiceFilters()
+	if err != nil {
+		RespondError(c, err)
 		return
 	}
-	staffID, _ := strconv.ParseUint(c.Query("staffId"), 10, 64) // 0 = 指名なし
 
-	dates, window, err := h.svc.Liff.GetAvailableDates(c.Request.Context(), clinicID, typeID, staffID)
+	dates, window, err := h.svc.Liff.GetAvailableDates(c.Request.Context(), clinicID, filters.CourseID, filters.StaffID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -133,21 +129,13 @@ func (h *Handler) GetLiffAvailableTimes(c *gin.Context) {
 	if !ok {
 		return
 	}
-	typeID, err := strconv.ParseUint(c.Query("courseId"), 10, 64)
-	if err != nil || typeID == 0 {
-		RespondError(c, apperrors.WrapInvalidInput("invalid courseId"))
-		return
-	}
-	staffID, _ := strconv.ParseUint(c.Query("staffId"), 10, 64)
-
-	dateStr := c.Query("date")
-	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	filters, err := newLiffAvailableTimesQuery(c.Request.URL.Query()).toServiceFilters()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid date: must be YYYY-MM-DD"))
+		RespondError(c, err)
 		return
 	}
 
-	slots, err := h.svc.Liff.GetAvailableTimes(c.Request.Context(), clinicID, typeID, staffID, date)
+	slots, err := h.svc.Liff.GetAvailableTimes(c.Request.Context(), clinicID, filters.CourseID, filters.StaffID, filters.Date)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -185,23 +173,10 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 		return
 	}
 
-	date, err := time.ParseInLocation("2006-01-02", req.Date, time.Local)
+	input, err := req.toServiceInput()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid date: must be YYYY-MM-DD"))
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
-	}
-
-	input := &service.CreateReservationInput{
-		ReservationTypeID:    req.TypeID,
-		StaffID:              req.StaffID,
-		Date:                 date,
-		StartTime:            req.StartTime,
-		EndTime:              req.EndTime,
-		CustomerFields:       req.CustomerFields,
-		RequestText:          req.RequestText,
-		TrimmingCourseID:     req.TrimmingCourseID,
-		TrimmingOptionIDs:    req.TrimmingOptionIDs,
-		TrimmingStyleRequest: req.TrimmingStyleRequest,
 	}
 
 	// 指名予約時のみ所属チェック（StaffID=0 は「指名なし」）
@@ -305,10 +280,8 @@ func (h *Handler) CancelLiffReservation(c *gin.Context) {
 		return
 	}
 
-	idStr := c.Param("id")
-	reservationID, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || reservationID == 0 {
-		RespondError(c, apperrors.WrapInvalidInput("invalid reservation id"))
+	reservationID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 

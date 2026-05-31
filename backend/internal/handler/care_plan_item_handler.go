@@ -8,7 +8,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListCarePlanItems godoc
@@ -54,22 +53,7 @@ func (h *Handler) CreateCarePlanItem(c *gin.Context) {
 		return
 	}
 
-	input := &service.CreateCarePlanItemInput{
-		Type:                  req.Type,
-		Name:                  req.Name,
-		Description:           req.Description,
-		Timing:                req.Timing,
-		Status:                req.Status,
-		Notes:                 req.Notes,
-		MedicineID:            req.MedicineID,
-		ProcedureID:           req.ProcedureID,
-		HospitalizationPlanID: req.HospitalizationPlanID,
-		UnitPrice:             req.UnitPrice,
-		Category:              req.Category,
-		SortOrder:             req.SortOrder,
-	}
-
-	item, err := h.svc.CarePlanItem.Create(c.Request.Context(), clinicID, hospitalizationID, input)
+	item, err := h.svc.CarePlanItem.Create(c.Request.Context(), clinicID, hospitalizationID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -101,25 +85,7 @@ func (h *Handler) UpdateCarePlanItem(c *gin.Context) {
 		return
 	}
 
-	// Timing: pass nil when the key is absent from request vs empty slice to clear.
-	// Since Go JSON unmarshals missing array as nil and present empty array as []string{},
-	// we can pass req.Timing directly: nil means not provided, non-nil means update.
-	input := &service.UpdateCarePlanItemInput{
-		Type:                  req.Type,
-		Name:                  req.Name,
-		Description:           req.Description,
-		Timing:                req.Timing,
-		Status:                req.Status,
-		Notes:                 req.Notes,
-		MedicineID:            req.MedicineID,
-		ProcedureID:           req.ProcedureID,
-		HospitalizationPlanID: req.HospitalizationPlanID,
-		UnitPrice:             req.UnitPrice,
-		Category:              req.Category,
-		SortOrder:             req.SortOrder,
-	}
-
-	item, err := h.svc.CarePlanItem.Update(c.Request.Context(), clinicID, hospitalizationID, itemID, input)
+	item, err := h.svc.CarePlanItem.Update(c.Request.Context(), clinicID, hospitalizationID, itemID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

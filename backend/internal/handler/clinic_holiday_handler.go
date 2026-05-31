@@ -19,9 +19,8 @@ func (h *Handler) ListClinicHolidays(c *gin.Context) {
 		return
 	}
 
-	yearMonth := c.Query("year_month") // YYYY-MM (optional)
-
-	holidays, err := h.svc.ClinicHoliday.List(c.Request.Context(), clinicID, yearMonth)
+	query := newListClinicHolidaysQuery(c.Request.URL.Query())
+	holidays, err := h.svc.ClinicHoliday.List(c.Request.Context(), clinicID, query.YearMonth)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -71,9 +71,26 @@ func defaultMockBillingItemRepo() *mockBillingItemRepository {
 	}
 }
 
-type mockTreatmentRepositoryForBilling struct{}
+type mockBillingItemRepositoryWithTrimming struct {
+	*mockBillingItemRepository
+	findUnbilledTrimmingItemsByPetIDFn func(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
+}
 
-func (m *mockTreatmentRepositoryForBilling) FindUnbilledByPetID(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
+func (m *mockBillingItemRepositoryWithTrimming) FindUnbilledTrimmingItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error) {
+	if m.findUnbilledTrimmingItemsByPetIDFn != nil {
+		return m.findUnbilledTrimmingItemsByPetIDFn(ctx, clinicID, petID)
+	}
+	return nil, nil
+}
+
+type mockTreatmentRepositoryForBilling struct {
+	findUnbilledByPetIDFn func(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error)
+}
+
+func (m *mockTreatmentRepositoryForBilling) FindUnbilledByPetID(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error) {
+	if m.findUnbilledByPetIDFn != nil {
+		return m.findUnbilledByPetIDFn(ctx, clinicID, petID)
+	}
 	return nil, nil
 }
 func (m *mockTreatmentRepositoryForBilling) FindByMedicalRecordID(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
@@ -110,6 +127,11 @@ func defaultMockBillingRepo() *mockAccountingRepository {
 // ---- Tests ----
 
 func TestBillingItemService_CreateItem(t *testing.T) {
+	treatmentID := uint64(100)
+	appointmentID := uint64(200)
+	trimmingCourseID := uint64(300)
+	trimmingOptionID := uint64(400)
+
 	tests := []struct {
 		name          string
 		input         *CreateBillingItemInput
@@ -138,21 +160,29 @@ func TestBillingItemService_CreateItem(t *testing.T) {
 		{
 			name: "creates item with explicit tax_type and source",
 			input: &CreateBillingItemInput{
-				ClinicID:  1,
-				BillingID: 10,
-				Category:  string(model.ItemCategoryMedicine),
-				Name:      "薬剤料",
-				UnitPrice: 500,
-				Quantity:  2,
-				TaxType:   string(model.TaxTypeIncluded),
-				TaxRate:   0.08,
-				Source:    string(model.ItemSourceMedicalRecord),
+				ClinicID:         1,
+				BillingID:        10,
+				Category:         string(model.ItemCategoryMedicine),
+				Name:             "薬剤料",
+				UnitPrice:        500,
+				Quantity:         2,
+				TaxType:          string(model.TaxTypeIncluded),
+				TaxRate:          0.08,
+				Source:           string(model.ItemSourceMedicalRecord),
+				TreatmentID:      &treatmentID,
+				AppointmentID:    &appointmentID,
+				TrimmingCourseID: &trimmingCourseID,
+				TrimmingOptionID: &trimmingOptionID,
 			},
 			wantErr: false,
 			checkDefaults: func(t *testing.T, item *model.BillingItem) {
 				assert.Equal(t, model.TaxTypeIncluded, item.TaxType)
 				assert.Equal(t, 0.08, item.TaxRate)
 				assert.Equal(t, model.ItemSourceMedicalRecord, item.Source)
+				assert.Equal(t, &treatmentID, item.TreatmentID)
+				assert.Equal(t, &appointmentID, item.AppointmentID)
+				assert.Equal(t, &trimmingCourseID, item.TrimmingCourseID)
+				assert.Equal(t, &trimmingOptionID, item.TrimmingOptionID)
 			},
 		},
 		{
@@ -374,5 +404,59 @@ func TestBillingItemService_DeleteItem(t *testing.T) {
 				assert.NoError(t, err)
 			}
 		})
+	}
+}
+
+func TestBillingItemService_GetUnbilledItems_IncludesMedicalAndTrimming(t *testing.T) {
+	appointmentID := uint64(30)
+	repo := &mockBillingItemRepositoryWithTrimming{
+		mockBillingItemRepository: defaultMockBillingItemRepo(),
+		findUnbilledTrimmingItemsByPetIDFn: func(_ context.Context, clinicID, petID uint64) ([]model.BillingItem, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(20), petID)
+			return []model.BillingItem{
+				{
+					ID:            30000000001,
+					Category:      model.ItemCategoryTrimming,
+					Name:          "シャンプーコース",
+					UnitPrice:     5000,
+					Quantity:      1,
+					TaxType:       model.TaxTypeExcluded,
+					TaxRate:       0.10,
+					Source:        model.ItemSourceTrimming,
+					AppointmentID: &appointmentID,
+				},
+			}, nil
+		},
+	}
+	treatmentRepo := &mockTreatmentRepositoryForBilling{
+		findUnbilledByPetIDFn: func(_ context.Context, clinicID, petID uint64) ([]model.Treatment, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(20), petID)
+			return []model.Treatment{
+				{
+					ID:          10,
+					ItemType:    model.TreatmentItemTypeProcedure,
+					Content:     "処置",
+					UnitPrice:   1000,
+					Quantity:    1,
+					IsInsurance: true,
+					SortOrder:   2,
+				},
+			}, nil
+		},
+	}
+	svc := NewBillingItemService(repo, defaultMockBillingRepo(), treatmentRepo)
+
+	items, err := svc.GetUnbilledItems(context.Background(), 1, 20)
+
+	assert.NoError(t, err)
+	if assert.Len(t, items, 2) {
+		assert.Equal(t, model.ItemSourceMedicalRecord, items[0].Source)
+		assert.Equal(t, model.ItemCategoryProcedure, items[0].Category)
+		assert.Equal(t, ptrUint64(10), items[0].TreatmentID)
+		assert.Equal(t, model.ItemSourceTrimming, items[1].Source)
+		assert.Equal(t, model.ItemCategoryTrimming, items[1].Category)
+		assert.Equal(t, &appointmentID, items[1].AppointmentID)
 	}
 }

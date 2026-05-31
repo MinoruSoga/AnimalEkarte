@@ -63,14 +63,7 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 		editorStaffID = &id
 	}
 
-	saved, err := h.svc.ManualArticle.Upsert(c.Request.Context(), &service.UpsertManualArticleInput{
-		Category:     category,
-		Slug:         slug,
-		Title:        req.Title,
-		OrderValue:   req.OrderValue,
-		Section:      req.Section,
-		BodyMarkdown: req.BodyMarkdown,
-	}, editorStaffID)
+	saved, err := h.svc.ManualArticle.Upsert(c.Request.Context(), req.toServiceInput(category, slug), editorStaffID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -78,13 +71,13 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 
 	// 監査ログ: マニュアル編集（ベストエフォート、失敗は無視）
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionManualArticleUpsert,
 			Resource:   "manual_article",
 			ResourceID: &saved.ID,
-			NewValue:   marshalAuditJSON(saved),
+			NewValue:   saved,
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
 		})
@@ -119,13 +112,13 @@ func (h *Handler) DeleteManualArticle(c *gin.Context) {
 
 	// 監査ログ: マニュアル削除（ベストエフォート）
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionManualArticleDelete,
 			Resource:   "manual_article",
 			ResourceID: &target.ID,
-			OldValue:   marshalAuditJSON(target),
+			OldValue:   target,
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
 		})

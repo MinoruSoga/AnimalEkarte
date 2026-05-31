@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useMemo } from "react";
+import { memo } from "react";
 
 // Internal
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { C, STYLE } from "@/lib/design-tokens";
@@ -68,14 +68,6 @@ export const VaccinationForm = memo(function VaccinationForm({
   onSave,
   isSaving,
 }: VaccinationFormProps) {
-  // js-cache-function-results: props 配列から生成する JSX リストを useMemo でキャッシュ
-  const vaccineSelectItems = useMemo(
-    () => vaccineOptions.map((opt) => (
-      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-    )),
-    [vaccineOptions]
-  );
-
   return (
     <div className="col-span-6 flex flex-col gap-4">
       {/* Row 1: Name and Date */}
@@ -85,14 +77,13 @@ export const VaccinationForm = memo(function VaccinationForm({
             <Label className={`text-sm font-medium ${C.text60}`}>予防接種名</Label>
             <MasterLink category="vaccine" label="編集" className="text-[11px]" />
           </div>
-          <Select value={vaccineName} onValueChange={setVaccineName}>
-            <SelectTrigger className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm ${C.text}`}>
-              <SelectValue placeholder="ワクチンを選択" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999]">
-              {vaccineSelectItems}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={vaccineName}
+            onValueChange={setVaccineName}
+            options={vaccineOptions}
+            placeholder="ワクチンを選択"
+            searchPlaceholder="ワクチンを検索..."
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm font-medium ${C.text60}`}>

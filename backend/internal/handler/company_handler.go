@@ -7,7 +7,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // GetCompany は法人情報を返す（シングルトン）
@@ -27,19 +26,7 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	company, err := h.svc.Company.Update(c.Request.Context(), &service.UpdateCompanyInput{
-		Name:                      req.Name,
-		PostalCode:                req.PostalCode,
-		Address:                   req.Address,
-		PhoneNumber:               req.PhoneNumber,
-		FaxNumber:                 req.FaxNumber,
-		Email:                     req.Email,
-		Website:                   req.Website,
-		DirectorName:              req.DirectorName,
-		RegistrationNumber:        req.RegistrationNumber,
-		InvoiceRegistrationNumber: req.InvoiceRegistrationNumber,
-		LogoURL:                   req.LogoURL,
-	})
+	company, err := h.svc.Company.Update(c.Request.Context(), req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

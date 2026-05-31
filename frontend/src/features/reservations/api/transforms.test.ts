@@ -167,6 +167,14 @@ describe("transformReservation", () => {
     expect(result.type).toBe("診療");
   });
 
+  it("reservation_type.category を category にマップする", () => {
+    const result = transformReservation({
+      ...minimalBackend,
+      reservation_type: { id: 1, clinic_id: 1, name: "シャンプー", category: "trimming" } as BackendReservation["reservation_type"],
+    });
+    expect(result.category).toBe("trimming");
+  });
+
   it("doctor.name を doctor にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,
@@ -245,5 +253,22 @@ describe("transformToCreateRequest", () => {
   it("notes が未設定のとき undefined を渡す", () => {
     const result = transformToCreateRequest({ ...baseData, notes: undefined }, "1", "1");
     expect(result.notes).toBeUndefined();
+  });
+
+  it("status と reservation_route を作成 payload に含める", () => {
+    const result = transformToCreateRequest({
+      ...baseData,
+      status: "checked_in",
+      reservationRoute: "reception",
+      source: "manual",
+    }, "10", "20");
+
+    expect(result).toEqual(expect.objectContaining({
+      pet_id: 10,
+      owner_id: 20,
+      status: "checked_in",
+      reservation_route: "reception",
+      source: "manual",
+    }));
   });
 });

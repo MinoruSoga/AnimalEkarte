@@ -68,8 +68,7 @@ export function ManualContent({ article }: ManualContentProps) {
 
   return (
     <article
-      className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-[860px] mx-auto manual-article pt-16 md:pt-6"
-      style={{ backgroundColor: "#FFFFFF" }}
+      className={`flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-[860px] mx-auto manual-article pt-16 md:pt-6 ${C.bgWhite}`}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
@@ -103,8 +102,7 @@ export function ManualContent({ article }: ManualContentProps) {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className={`underline ${C.text} hover:opacity-70`}
-              style={{ color: "#038B94" }}
+              className={`underline ${C.textBrand} hover:opacity-70`}
             >
               {children}
             </a>
@@ -127,8 +125,7 @@ export function ManualContent({ article }: ManualContentProps) {
           ),
           blockquote: ({ children }) => (
             <blockquote
-              className={`my-4 pl-4 border-l-2 italic ${C.text65}`}
-              style={{ borderColor: "#038B94" }}
+              className={`my-4 pl-4 border-l-2 italic ${C.text65} ${C.borderLBrand}`}
             >
               {children}
             </blockquote>
@@ -138,8 +135,7 @@ export function ManualContent({ article }: ManualContentProps) {
             if (isInline) {
               return (
                 <code
-                  className={`px-1.5 py-0.5 rounded-[3px] text-[0.875em] ${C.text}`}
-                  style={{ backgroundColor: "rgba(135,131,120,0.15)" }}
+                  className={`px-1.5 py-0.5 rounded-[3px] text-[0.875em] ${C.text} ${C.bgHoverMd}`}
                 >
                   {children}
                 </code>
@@ -151,8 +147,7 @@ export function ManualContent({ article }: ManualContentProps) {
           },
           pre: ({ children }) => (
             <pre
-              className={`my-4 p-4 rounded-[3px] overflow-x-auto text-sm ${C.text}`}
-              style={{ backgroundColor: "rgba(135,131,120,0.10)" }}
+              className={`my-4 p-4 rounded-[3px] overflow-x-auto text-sm ${C.text} ${C.bgPrimary10}`}
             >
               {children}
             </pre>

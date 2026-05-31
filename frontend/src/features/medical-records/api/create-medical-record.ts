@@ -22,6 +22,7 @@ export const useCreateMedicalRecord = () => {
     mutationFn: createMedicalRecord,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["medical-records"] });
+      queryClient.invalidateQueries({ queryKey: ["reception"] });
     },
     onError: (error) => handleApiError(error, "カルテ作成"),
   });
