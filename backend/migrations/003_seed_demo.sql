@@ -3956,8 +3956,8 @@ BEGIN
             -- A. 1日1組限定の「同日にトリミングと一般診療を持つ飼主」の処理
             -- i = 1 のトリミング枠でこの特別なペアのベース（トリミング予約）を登録する
             IF i = 1 THEN
-                -- 存在する pets からランダムに1頭取得（この日の special とする）
-                SELECT id, owner_id INTO special_pet_id, special_owner_id FROM pets ORDER BY random() LIMIT 1;
+                -- 存在する pets からランダムに1頭取得（この日の special とする。八王子病院 clinic_id = 1 に限定）
+                SELECT id, owner_id INTO special_pet_id, special_owner_id FROM pets WHERE clinic_id = 1 ORDER BY random() LIMIT 1;
                 rand_pet_id := special_pet_id;
                 rand_owner_id := special_owner_id;
                 -- 使用済み飼主リストに追加
@@ -3975,15 +3975,15 @@ BEGIN
                 
             -- i = 2 のトリミング枠（もしあれば）
             ELSIF i <= trimming_count THEN
-                -- 重複しない別の飼主・ペットを取得
+                -- 重複しない別の飼主・ペットを取得 (八王子病院 clinic_id = 1 に限定)
                 SELECT id, owner_id INTO rand_pet_id, rand_owner_id 
                 FROM pets 
-                WHERE owner_id IS NOT NULL AND NOT (owner_id = ANY(used_owner_ids))
+                WHERE clinic_id = 1 AND owner_id IS NOT NULL AND NOT (owner_id = ANY(used_owner_ids))
                 ORDER BY random() LIMIT 1;
                 
                 -- 万が一ペットが取れなかった場合は、重複を許容してフォールバック
                 IF rand_pet_id IS NULL THEN
-                    SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets ORDER BY random() LIMIT 1;
+                    SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets WHERE clinic_id = 1 ORDER BY random() LIMIT 1;
                 END IF;
                 
                 used_owner_ids := array_append(used_owner_ids, rand_owner_id);
@@ -4024,14 +4024,14 @@ BEGIN
                     -- 医師の重複を避けるために16:00 + (医師インデックス * 15分) にする
                     start_ts := target_date::timestamp + '16:00:00'::interval + ((doctor_idx - 1) * 15 * '1 minute'::interval);
                 ELSE
-                    -- 通常の新規飼主の診療予約
+                    -- 通常の新規飼主の診療予約 (八王子病院 clinic_id = 1 に限定)
                     SELECT id, owner_id INTO rand_pet_id, rand_owner_id 
                     FROM pets 
-                    WHERE owner_id IS NOT NULL AND NOT (owner_id = ANY(used_owner_ids))
+                    WHERE clinic_id = 1 AND owner_id IS NOT NULL AND NOT (owner_id = ANY(used_owner_ids))
                     ORDER BY random() LIMIT 1;
                     
                     IF rand_pet_id IS NULL THEN
-                        SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets ORDER BY random() LIMIT 1;
+                        SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets WHERE clinic_id = 1 ORDER BY random() LIMIT 1;
                     END IF;
                     
                     used_owner_ids := array_append(used_owner_ids, rand_owner_id);
@@ -4247,11 +4247,11 @@ BEGIN
         FOR i IN 1..hotel_count LOOP
             SELECT id, owner_id INTO rand_pet_id, rand_owner_id 
             FROM pets 
-            WHERE owner_id IS NOT NULL AND NOT (owner_id = ANY(used_owner_ids))
+            WHERE clinic_id = 1 AND owner_id IS NOT NULL AND NOT (owner_id = ANY(used_owner_ids))
             ORDER BY random() LIMIT 1;
             
             IF rand_pet_id IS NULL THEN
-                SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets ORDER BY random() LIMIT 1;
+                SELECT id, owner_id INTO rand_pet_id, rand_owner_id FROM pets WHERE clinic_id = 1 ORDER BY random() LIMIT 1;
             END IF;
             
             used_owner_ids := array_append(used_owner_ids, rand_owner_id);
@@ -4327,6 +4327,35 @@ BEGIN
 
     END LOOP;
 END $$;
+
+-- -----------------------------------------------------------------------------
+-- 15. シードデータ全体の論理整合性一括クリーンアップ (ねじれ補正 & シフト同期)
+-- -----------------------------------------------------------------------------
+-- A. 飼い主とペットのねじれ補正 (静的シードデータのねじれを完全自動補正)
+-- A-1. 予約テーブルの飼い主とペットのねじれ補正
+UPDATE appointments a
+SET owner_id = p.owner_id
+FROM pets p
+WHERE a.pet_id = p.id AND a.owner_id <> p.owner_id;
+
+-- A-2. カルテテーブルの飼い主とペットのねじれ補正
+UPDATE medical_records m
+SET owner_id = p.owner_id
+FROM pets p
+WHERE m.pet_id = p.id AND m.owner_id <> p.owner_id;
+
+-- A-3. 会計テーブルの飼い主とペットのねじれ補正
+UPDATE billings b
+SET owner_id = p.owner_id
+FROM pets p
+WHERE b.pet_id = p.id AND b.owner_id <> p.owner_id;
+
+-- B. シフト off 時の予約補正 (予約があるスタッフ of シフトを出勤に補正 - 重複を避けるため DISTINCT を付与)
+INSERT INTO shift_entries (clinic_id, staff_id, date, shift_type, start_time, end_time, notes)
+SELECT DISTINCT a.clinic_id, a.doctor_id, a.start_time::date, 'full'::shift_type, '09:00'::time, '18:00'::time, '予約連動出勤（静的予約補正）'
+FROM appointments a
+ON CONFLICT (staff_id, date) DO UPDATE
+SET shift_type = 'full'::shift_type, start_time = '09:00'::time, end_time = '18:00'::time, notes = '予約連動出勤（静的予約補正）';
 
 -- 最後にシーケンスの最終同期を行う
 SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
