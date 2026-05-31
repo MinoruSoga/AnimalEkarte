@@ -72,12 +72,26 @@ resource "aws_ecs_cluster" "main" {
   name = "${var.name_prefix}-cluster"
 
   setting {
-    name  = "containerInsights"
-    value = "enabled"
+    name = "containerInsights"
+    # コスト最適化: STG では Container Insights のカスタムメトリクス（CW:MetricMonitorUsage 約 $8/月）が不要。
+    # CloudWatch Logs（無料枠内）は task definition 側で維持する。
+    value = "disabled"
   }
 
   tags = {
     Name = "${var.name_prefix}-cluster"
+  }
+}
+
+# Capacity Providers — STG コスト最適化: Fargate Spot を既定にし同一サイズで単価約 -70%。
+# Spot は 2 分前通知で中断・自動再配置するが STG では許容。
+resource "aws_ecs_cluster_capacity_providers" "main" {
+  cluster_name       = aws_ecs_cluster.main.name
+  capacity_providers = ["FARGATE", "FARGATE_SPOT"]
+
+  default_capacity_provider_strategy {
+    capacity_provider = "FARGATE_SPOT"
+    weight            = 1
   }
 }
 
@@ -209,7 +223,12 @@ resource "aws_ecs_service" "main" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.main.arn
   desired_count   = var.desired_count
-  launch_type     = "FARGATE"
+
+  # コスト最適化: Fargate Spot で実行（launch_type と capacity_provider_strategy は併用不可）
+  capacity_provider_strategy {
+    capacity_provider = "FARGATE_SPOT"
+    weight            = 1
+  }
 
   network_configuration {
     subnets          = var.private_subnet_ids
@@ -225,7 +244,14 @@ resource "aws_ecs_service" "main" {
 
   enable_execute_command = true
 
-  depends_on = [aws_lb_listener.http]
+  # capacity provider はサービス作成前にクラスタへ関連付けが必要
+  depends_on = [aws_lb_listener.http, aws_ecs_cluster_capacity_providers.main]
+
+  # 夜間スケジューラが desired_count を 0/1 に変更するため、terraform は管理しない
+  # （ignore しないと apply のたびに var.desired_count へ戻してしまう）
+  lifecycle {
+    ignore_changes = [desired_count]
+  }
 
   tags = {
     Name = "${var.name_prefix}-service"

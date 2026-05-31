@@ -101,8 +101,10 @@ resource "aws_security_group" "rds" {
 
 # CloudWatch Logs Group
 resource "aws_cloudwatch_log_group" "ecs" {
-  name              = "/ecs/${var.name_prefix}"
-  retention_in_days = 30
+  name = "/ecs/${var.name_prefix}"
+  # コスト最適化（STG）: 保持を最小化。ログ課金自体は無料枠内で $0 だが PO 方針でログを最小化。
+  # ただし完全除去はしない — Phase 4（毎朝の起動時 migrate）失敗を当日中にデバッグするため 1 日は保持する。
+  retention_in_days = 1
 
   tags = {
     Name = "${var.name_prefix}-ecs-logs"

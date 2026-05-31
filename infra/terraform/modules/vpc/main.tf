@@ -47,8 +47,9 @@ resource "aws_subnet" "private" {
   }
 }
 
-# Elastic IP for NAT Gateway
+# Elastic IP for NAT Gateway (use_nat_instance=false 時のみ)
 resource "aws_eip" "nat" {
+  count  = var.use_nat_instance ? 0 : 1
   domain = "vpc"
 
   tags = {
@@ -58,13 +59,84 @@ resource "aws_eip" "nat" {
   depends_on = [aws_internet_gateway.main]
 }
 
-# NAT Gateway (single for cost optimization)
+# NAT Gateway (use_nat_instance=false 時のみ。true では fck-nat インスタンスに置換)
 resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
+  count         = var.use_nat_instance ? 0 : 1
+  allocation_id = aws_eip.nat[0].id
   subnet_id     = aws_subnet.public[0].id
 
   tags = {
     Name = "${var.name_prefix}-nat"
+  }
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+# ---- fck-nat: NAT Gateway の代替（コスト最適化, use_nat_instance=true 時のみ）----
+
+# fck-nat 公式 AMI（arm64, owner=fck-nat）
+data "aws_ami" "fck_nat" {
+  count       = var.use_nat_instance ? 1 : 0
+  most_recent = true
+  owners      = ["568608671756"]
+
+  filter {
+    name   = "name"
+    values = ["fck-nat-amzn2-*-arm64-ebs"]
+  }
+}
+
+# fck-nat 用 SG: VPC 内（private subnet）からの全通信を許可、外向き全許可
+resource "aws_security_group" "fck_nat" {
+  count       = var.use_nat_instance ? 1 : 0
+  name        = "${var.name_prefix}-fck-nat-sg"
+  description = "Allow VPC traffic to be NAT-forwarded"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "All traffic from within VPC"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.name_prefix}-fck-nat-sg"
+  }
+}
+
+# fck-nat インスタンス（t4g.nano, public subnet, source/dest check 無効）
+resource "aws_instance" "fck_nat" {
+  count                       = var.use_nat_instance ? 1 : 0
+  ami                         = data.aws_ami.fck_nat[0].id
+  instance_type               = "t4g.nano"
+  subnet_id                   = aws_subnet.public[0].id
+  vpc_security_group_ids      = [aws_security_group.fck_nat[0].id]
+  associate_public_ip_address = true
+  # NAT 転送のため必須
+  source_dest_check = false
+
+  tags = {
+    Name = "${var.name_prefix}-fck-nat"
+  }
+}
+
+# fck-nat 用 EIP（外向き IP を安定化。LINE 等の IP allowlist 対策）
+resource "aws_eip" "fck_nat" {
+  count    = var.use_nat_instance ? 1 : 0
+  domain   = "vpc"
+  instance = aws_instance.fck_nat[0].id
+
+  tags = {
+    Name = "${var.name_prefix}-fck-nat-eip"
   }
 
   depends_on = [aws_internet_gateway.main]
@@ -92,18 +164,22 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# Private Route Table
+# Private Route Table（0.0.0.0/0 は toggle 対応のため別 aws_route で定義）
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main.id
-  }
 
   tags = {
     Name = "${var.name_prefix}-private-rt"
   }
+}
+
+# private → インターネット の egress ルート。NAT Gateway か fck-nat の ENI、存在する方へ。
+# one() は count-list が空なら null を返すため、片方だけが非 null になる。
+resource "aws_route" "private_egress" {
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = one(aws_nat_gateway.main[*].id)
+  network_interface_id   = one(aws_instance.fck_nat[*].primary_network_interface_id)
 }
 
 # Private Route Table Association

@@ -106,6 +106,28 @@ variable "use_public_rds" {
   default     = false
 }
 
+# コスト最適化: RDS の public IP 付与を制御（subnet group 配置とは独立）。
+# false で public IP を剥がし $3.65/月削減 + インターネット露出遮断。DB アクセスは SSM port-forward 経由。
+variable "rds_publicly_accessible" {
+  description = "Whether the RDS instance gets a public IP"
+  type        = bool
+  default     = false
+}
+
+# コスト最適化: NAT Gateway($32.67/月) を fck-nat EC2(t4g.nano, ~$3/月) に置換。true で切替。
+variable "use_nat_instance" {
+  description = "Use a fck-nat EC2 instance instead of a managed NAT Gateway"
+  type        = bool
+  default     = false
+}
+
+# コスト最適化: 毎日 22:00–8:00 JST に ECS=0 + RDS stop（EventBridge Scheduler）。
+variable "enable_off_hours_schedule" {
+  description = "Enable off-hours stop/start schedules for ECS + RDS"
+  type        = bool
+  default     = false
+}
+
 # ALB HTTPS Configuration
 variable "alb_certificate_arn" {
   description = "ACM certificate ARN for ALB HTTPS listener"
