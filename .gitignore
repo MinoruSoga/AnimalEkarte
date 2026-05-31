@@ -90,3 +90,6 @@ existing_paths.txt
 existing_schemas.txt
 parse_sql.py
 tables.txt
+
+# Codegraph index (生成キャッシュ・ランタイム成果物。57MB の SQLite DB / socket / daemon ログ)
+.codegraph/
