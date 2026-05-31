@@ -3844,6 +3844,8 @@ DECLARE
     appointment_id INT := 1000;
     trimming_id INT := 1000;
     hospitalization_id INT := 1000;
+    medical_record_id INT := 1000;
+    billing_id INT := 1000;
     rand_owner_id INT;
     rand_pet_id INT;
     rand_doctor_id INT;
@@ -3882,6 +3884,15 @@ DECLARE
     doctor_idx INT;
     doctor_count INT;
     n INT;
+
+    -- カルテ・会計連携用変数
+    v_subtotal INT;
+    v_tax INT;
+    v_total INT;
+    v_item_name VARCHAR;
+    v_pay_method VARCHAR;
+    v_received INT;
+    v_change INT;
 BEGIN
     -- 医師とトリマーのIDリストを取得
     SELECT array_agg(id) INTO doctor_ids FROM staffs WHERE staff_type = 'doctor';
@@ -4055,6 +4066,55 @@ BEGIN
                 trimming_id := trimming_id + 1;
             END IF;
 
+            -- C. 過去の一般診療であり、且つ約30%の確率でカルテ（medical_records）および会計（billings）を連動生成する
+            IF NOT is_trimming AND v_status = 'completed' AND random() < 0.3 THEN
+                -- カルテ作成
+                INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, doctor_id, status)
+                VALUES (medical_record_id, 1, 'REC-' || (10000 + medical_record_id), target_date, rand_owner_id, rand_pet_id, rand_doctor_id, 'finalized'::medical_record_status)
+                ON CONFLICT (id) DO NOTHING;
+
+                -- 会計作成（初診なら3000円、再診なら1000円程度にする）
+                IF v_visit_type = 'first' THEN
+                    v_subtotal := 3000;
+                ELSE
+                    v_subtotal := 1000;
+                END IF;
+                v_tax := v_subtotal * 0.1;
+                v_total := v_subtotal + v_tax;
+
+                INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo)
+                VALUES (billing_id, 1, medical_record_id, NULL, rand_owner_id, rand_pet_id, v_subtotal, v_tax, v_total, false, 'completed', target_date, start_ts + '30 minutes'::interval, 'デモ自動生成会計')
+                ON CONFLICT (id) DO NOTHING;
+
+                -- 会計明細作成
+                IF v_visit_type = 'first' THEN
+                    v_item_name := '一般初診料';
+                ELSE
+                    v_item_name := '一般再診料';
+                END IF;
+
+                INSERT INTO billing_items (billing_id, category, name, unit_price, quantity, tax_type, tax_rate, source)
+                VALUES (billing_id, 'examination'::item_category, v_item_name, v_subtotal, 1, 'excluded'::tax_type, 0.10, 'medical_record'::item_source)
+                ON CONFLICT DO NOTHING;
+
+                -- 支払情報作成
+                IF random() < 0.5 THEN
+                    v_pay_method := 'cash';
+                    v_received := ceil(v_total / 1000.0) * 1000; -- おつりが発生するようにきりのいい札で支払う
+                ELSE
+                    v_pay_method := 'credit_card';
+                    v_received := v_total;
+                END IF;
+                v_change := v_received - v_total;
+
+                INSERT INTO payments (billing_id, subtotal, tax_total, total_amount, billing_amount, received_amount, change_amount, method, paid_by)
+                VALUES (billing_id, v_subtotal, v_tax, v_total, v_total, v_received, v_change, v_pay_method::payment_method, rand_doctor_id)
+                ON CONFLICT DO NOTHING;
+
+                medical_record_id := medical_record_id + 1;
+                billing_id := billing_id + 1;
+            END IF;
+
             appointment_id := appointment_id + 1;
         END LOOP;
 
@@ -4100,6 +4160,10 @@ END $$;
 SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
 SELECT setval(pg_get_serial_sequence('appointment_trimming_details', 'id'), (SELECT MAX(id) FROM appointment_trimming_details));
 SELECT setval(pg_get_serial_sequence('hospitalizations', 'id'), (SELECT MAX(id) FROM hospitalizations));
+SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
+SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM billings));
+SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
+SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
 
 -- END OF DEMO SEED --
 
