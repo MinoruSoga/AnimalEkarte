@@ -114,18 +114,22 @@ variable "rds_publicly_accessible" {
   default     = false
 }
 
-# コスト最適化: NAT Gateway($32.67/月) を fck-nat EC2(t4g.nano, ~$3/月) に置換。true で切替。
+# コスト最適化: NAT Gateway($32.67/月) を fck-nat EC2(t4g.nano, ~$3/月) に置換。
+# STG では 2026-06-01 に切替済み・外向き検証済みのため default true（live 状態と一致）。
+# 本番で managed NAT Gateway(HA) を使うなら tfvars で false に上書きする。
 variable "use_nat_instance" {
   description = "Use a fck-nat EC2 instance instead of a managed NAT Gateway"
   type        = bool
-  default     = false
+  default     = true
 }
 
 # コスト最適化: 毎日 22:00–8:00 JST に ECS=0 + RDS stop（EventBridge Scheduler）。
+# STG では 2026-06-01 に有効化済みのため default true（live 状態と一致）。
+# 24/7 稼働が必要な環境では tfvars で false に上書きする。
 variable "enable_off_hours_schedule" {
   description = "Enable off-hours stop/start schedules for ECS + RDS"
   type        = bool
-  default     = false
+  default     = true
 }
 
 # ALB HTTPS Configuration
