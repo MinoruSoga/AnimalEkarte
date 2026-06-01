@@ -82,7 +82,7 @@ func (m *mockAccountingRepositoryForClose) SavePaymentSplits(_ context.Context, 
 	return nil
 }
 
-func (m *mockAccountingRepositoryForClose) CompleteAccountingAppointments(_ context.Context, _ uint64, _, _ *uint64, _ time.Time) (int64, error) {
+func (m *mockAccountingRepositoryForClose) CompleteAccountingAppointments(_ context.Context, _ uint64, _, _, _ *uint64, _ time.Time) (int64, error) {
 	return 0, nil
 }
 

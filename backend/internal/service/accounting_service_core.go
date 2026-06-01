@@ -132,7 +132,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 }
 
 func (s *accountingService) completeAccountingAppointments(ctx context.Context, clinicID uint64, billing *model.Billing) error {
-	updated, err := s.repo.CompleteAccountingAppointments(ctx, clinicID, billing.OwnerID, billing.PetID, billing.ScheduledDate)
+	updated, err := s.repo.CompleteAccountingAppointments(ctx, clinicID, billing.MedicalRecordID, billing.OwnerID, billing.PetID, billing.ScheduledDate)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to complete accounting appointments",
 			slog.Uint64("clinic_id", clinicID),
