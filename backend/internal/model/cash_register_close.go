@@ -3,6 +3,8 @@ package model
 import (
 	"encoding/json"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // CashRegisterClose はレジ締めレコード
@@ -20,6 +22,7 @@ type CashRegisterClose struct {
 	ClosedAt          time.Time       `gorm:"not null;default:now()"            json:"closed_at"`
 	CreatedAt         time.Time       `gorm:"autoCreateTime"                    json:"created_at"`
 	UpdatedAt         time.Time       `gorm:"autoUpdateTime"                    json:"updated_at"`
+	DeletedAt         gorm.DeletedAt  `                                         json:"-"`
 
 	// Relations
 	ClosedByStaff *Staff `gorm:"foreignKey:ClosedBy" json:"closed_by_staff,omitempty" tygo:"-"`
