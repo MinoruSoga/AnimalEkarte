@@ -63,6 +63,8 @@ export function transformGenericMasterItem(data: GenericMasterBackendItem): Mast
     // Consultation-specific fields
     timeCondition: data.time_condition != null ? String(data.time_condition) : undefined,
     duration: data.duration != null ? Number(data.duration) : null,
+    // TrimmingCourse-specific field (#73)
+    courseTypeId: data.course_type_id != null ? String(data.course_type_id) : undefined,
   };
 }
 

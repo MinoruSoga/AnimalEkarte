@@ -174,4 +174,6 @@ export interface MasterItem {
   defaultQuantity?: number;
   timeCondition?: string;
   duration?: number | null;
+  /** トリミングコース種別マスタ ID（#73・trimmingCourse 固有） */
+  courseTypeId?: string;
 }
