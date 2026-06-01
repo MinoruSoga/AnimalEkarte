@@ -3,9 +3,13 @@
 > **Animal Ekarte**: デプロイ後の CRUD スモークテスト自動化スコープ・実装方針・GitHub Actions ロードマップ
 > **最新更新**: 2026-05-27 | **目的**: 本番リリース候補判定の全自動化ビジョン
 >
-> **⚠️ 2026-06 更新**: 旧 `stg-health-check.yml` / `stg-readonly-smoke.yml` / `stg-crud-smoke.yml` の
-> 3本は **`stg-smoke.yml` に統合**された。実行は `gh workflow run stg-smoke.yml -f level={health|readonly|crud}`。
-> 以下の本文中の旧ワークフロー名は歴史的記録であり、現行の実体は `stg-smoke.yml` 単一。
+> **⚠️ 2026-06 更新（重要）**: 本ドキュメントは歴史的記録である。
+> 3本の smoke workflow は `stg-smoke.yml` に統合後、**login/readonly/CRUD の自動化は実際には
+> 一度も機能していなかった**ことが判明した（`STG_DEMO_EMAIL`/`STG_DEMO_PASSWORD` secret が
+> 未設定で login 段階から失敗。本文の「Phase 2/3 実装済み・success」記載は health check の成功を
+> 誤って CRUD の成功と記録したもの）。約1年間誰も依存していなかったため**デッドコードとして撤去**し、
+> `stg-smoke.yml` は現状 **health 疎通のみ**。CRUD の正しさは backend unit/integration テスト +
+> FE route-guard テストでカバー済み。復活には STG_DEMO secret 設定 + git 履歴 `281a561e` の参照が必要。
 
 ---
 
@@ -268,10 +272,11 @@ GitHub Actions Secrets に以下を登録：
 
 | Secret 名 | 値 | 管理元 |
 |-----------|-----|-------|
-| `STG_DEMO_EMAIL` | demo account email | SSM Parameter Store |
-| `STG_DEMO_PASSWORD` | demo account password | SSM Parameter Store (encrypted) |
-| `STG_API_BASE_URL` | https://api.stg.noah-karte.com | Repository environment (public) |
-| `AWS_ROLE_ARN` | OIDC role for GitHub Actions | AWS IAM (Team Lead 設定) |
+| `STG_DEMO_EMAIL` | demo account email | （**未設定**。CRUD smoke 復活時に要設定）|
+| `STG_DEMO_PASSWORD` | demo account password | （**未設定**。同上）|
+
+> 旧記載の `STG_API_BASE_URL` / `AWS_ROLE_ARN` は workflow から参照されておらず（API URL は
+> ハードコード、deploy は OIDC role ARN を直接指定）、未使用のため削除した。
 
 ### 5.2 実装方針
 

@@ -1,30 +1,22 @@
 name: STG Smoke Test
 
-# 旧 stg-health-check.yml / stg-readonly-smoke.yml / stg-crud-smoke.yml を統合。
-# level 入力で深度を選択する（各段階は前段を内包する progression）:
-#   health   … 疎通のみ（/health）
-#   readonly … + ログイン + 読み取り API 検証
-#   crud     … + permission-groups / staffs の CRUD 検証（cleanup 付き）
+# STG の疎通確認（/health）。手動トリガー。
+#
+# 注: login / readonly / CRUD の smoke は STG_DEMO_EMAIL / STG_DEMO_PASSWORD secret が
+#     未設定で約1年間 login 段階から機能していなかったため、2026-06 にデッドコードとして撤去した。
+#     CRUD の正しさは backend の unit/integration テスト + FE の route-guard テストでカバー済み。
+#     復活させる場合: git 履歴 commit 281a561e の login/readonly/CRUD ステップ（level 入力付き）を戻し、
+#     `gh secret set STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD`（STG demo の system-admin 認証）を設定する。
 on:
   workflow_dispatch:
-    inputs:
-      level:
-        description: "深度: health / readonly / crud"
-        type: choice
-        options:
-          - health
-          - readonly
-          - crud
-        default: crud
 
 jobs:
-  smoke:
+  health:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     env:
       API_BASE: https://api.stg.noah-karte.com
     steps:
-      # ── health（全 level 共通）──
       - name: Health Check
         run: |
           set -euo pipefail
@@ -42,135 +34,3 @@ jobs:
             exit 1
           fi
           echo "Health endpoint OK."
-
-      # ── login（readonly / crud）──
-      - name: Login
-        if: ${{ inputs.level == 'readonly' || inputs.level == 'crud' }}
-        env:
-          DEMO_EMAIL: ${{ secrets.STG_DEMO_EMAIL }}
-          DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if [ -z "${DEMO_EMAIL}" ] || [ -z "${DEMO_PASSWORD}" ]; then
-            echo "Error: STG_DEMO_EMAIL / STG_DEMO_PASSWORD not set in secrets."
-            exit 1
-          fi
-          body_file="$(mktemp)"
-          http_code="$(curl -sS -c cookie.txt -o "$body_file" -w "%{http_code}" \
-            -H "Content-Type: application/json" \
-            -d "{\"email\":\"${DEMO_EMAIL}\",\"password\":\"${DEMO_PASSWORD}\"}" \
-            "${API_BASE}/api/v1/login")"
-          echo "Login HTTP Status: ${http_code}"
-          if [ "$http_code" != "200" ]; then
-            echo "Error: Login failed with HTTP ${http_code}"
-            exit 1
-          fi
-          is_admin="$(jq -r '.is_system_admin // .data.is_system_admin // empty' "$body_file")"
-          if [ "$is_admin" != "true" ]; then
-            echo "Error: Account is not system admin (is_system_admin=${is_admin})"
-            exit 1
-          fi
-          echo "Login successful. Cookie saved."
-
-      # ── 読み取り検証（readonly / crud）──
-      - name: Read-only API Verification
-        if: ${{ inputs.level == 'readonly' || inputs.level == 'crud' }}
-        run: |
-          set -euo pipefail
-          [ -f cookie.txt ] || { echo "Error: cookie.txt missing (login failed)"; exit 1; }
-          API_V1="${API_BASE}/api/v1"
-          check_get() {
-            local path="$1" name="$2" f code count
-            echo "--- GET ${path} ---"
-            f="$(mktemp)"
-            code="$(curl -sS -b cookie.txt -o "$f" -w "%{http_code}" "${API_V1}${path}")"
-            echo "HTTP Status: ${code}"
-            [ "$code" = "200" ] || { echo "Error: GET ${name} failed (HTTP ${code})"; exit 1; }
-            count=$(jq '. | length' "$f" 2>/dev/null || jq '.data | length' "$f" 2>/dev/null || echo invalid)
-            [ "$count" != "invalid" ] || { echo "Error: ${name} response is not valid JSON"; exit 1; }
-            echo "${name} count: ${count}"
-          }
-          check_get "/clinics?scope=all" "clinics"
-          check_get "/masters/permission-groups" "permission-groups"
-          check_get "/masters/staffs" "staffs"
-          echo "Read-only verification passed."
-
-      # ── CRUD（crud のみ）──
-      - name: CRUD Automation
-        if: ${{ inputs.level == 'crud' }}
-        run: |
-          set -euo pipefail
-          [ -f cookie.txt ] || { echo "Error: cookie.txt missing (login failed)"; exit 1; }
-          API_V1="${API_BASE}/api/v1"
-          RUN_ID="${GITHUB_RUN_ID}"
-          CREATED_PG_ID=""
-          CREATED_STAFF_ID=""
-
-          cleanup() {
-            echo "=== Cleanup ==="
-            if [ -n "${CREATED_STAFF_ID}" ]; then
-              hcode=$(curl -sS -b cookie.txt -o /dev/null -w "%{http_code}" -X DELETE "${API_V1}/masters/staffs/${CREATED_STAFF_ID}")
-              echo "Cleanup delete staff: ${hcode}"
-            fi
-            if [ -n "${CREATED_PG_ID}" ]; then
-              hcode=$(curl -sS -b cookie.txt -o /dev/null -w "%{http_code}" -X DELETE "${API_V1}/masters/permission-groups/${CREATED_PG_ID}")
-              echo "Cleanup delete permission-group: ${hcode}"
-            fi
-            rm -f cookie.txt
-          }
-          trap cleanup EXIT
-
-          # PermissionGroups: Create → Read → Update
-          echo "=== PermissionGroups CRUD ==="
-          f="$(mktemp)"
-          code="$(curl -sS -b cookie.txt -o "$f" -w "%{http_code}" \
-            -H "Content-Type: application/json" \
-            -d "{\"name\":\"STG_AUTO_PG_${RUN_ID}\",\"description\":\"Smoke test temporary group\",\"color\":\"#E5E7EB\",\"is_active\":true,\"sort_order\":0}" \
-            "${API_V1}/masters/permission-groups")"
-          echo "POST permission-group: ${code}"
-          [ "$code" = "201" ] || { echo "Error: create PG failed"; jq -r '.error // .message // empty' "$f" 2>/dev/null || true; exit 1; }
-          CREATED_PG_ID="$(jq -r '.id // empty' "$f")"
-          [ -n "${CREATED_PG_ID}" ] || { echo "Error: parse PG id failed"; exit 1; }
-          echo "Created PG ID: ${CREATED_PG_ID}"
-
-          code="$(curl -sS -b cookie.txt -o /dev/null -w "%{http_code}" "${API_V1}/masters/permission-groups/${CREATED_PG_ID}")"
-          echo "GET permission-group: ${code}"; [ "$code" = "200" ] || { echo "Error: get PG failed"; exit 1; }
-
-          code="$(curl -sS -b cookie.txt -o /dev/null -w "%{http_code}" -X PATCH \
-            -H "Content-Type: application/json" -d "{\"description\":\"Smoke test temporary group (updated)\"}" \
-            "${API_V1}/masters/permission-groups/${CREATED_PG_ID}")"
-          echo "PATCH permission-group: ${code}"; [ "$code" = "200" ] || { echo "Error: patch PG failed"; exit 1; }
-
-          # Staffs: Create → Read → Update
-          echo "=== Staffs CRUD ==="
-          f="$(mktemp)"
-          code="$(curl -sS -b cookie.txt -o "$f" -w "%{http_code}" \
-            -H "Content-Type: application/json" \
-            -d "{\"name\":\"STG_AUTO_STAFF_${RUN_ID}\",\"email\":\"stg-auto-${RUN_ID}@example.com\",\"password\":\"stg-password-1234\",\"sort_order\":0}" \
-            "${API_V1}/masters/staffs")"
-          echo "POST staff: ${code}"
-          [ "$code" = "201" ] || { echo "Error: create staff failed"; jq -r '.error // .message // empty' "$f" 2>/dev/null || true; exit 1; }
-          CREATED_STAFF_ID="$(jq -r '.id // empty' "$f")"
-          [ -n "${CREATED_STAFF_ID}" ] || { echo "Error: parse staff id failed"; exit 1; }
-          echo "Created Staff ID: ${CREATED_STAFF_ID}"
-
-          code="$(curl -sS -b cookie.txt -o /dev/null -w "%{http_code}" "${API_V1}/masters/staffs/${CREATED_STAFF_ID}")"
-          echo "GET staff: ${code}"; [ "$code" = "200" ] || { echo "Error: get staff failed"; exit 1; }
-
-          code="$(curl -sS -b cookie.txt -o /dev/null -w "%{http_code}" -X PATCH \
-            -H "Content-Type: application/json" -d "{\"name\":\"STG_AUTO_STAFF_${RUN_ID}_UPDATED\"}" \
-            "${API_V1}/masters/staffs/${CREATED_STAFF_ID}")"
-          echo "PATCH staff: ${code}"; [ "$code" = "200" ] || { echo "Error: patch staff failed"; exit 1; }
-
-          # Explicit Delete（依存している staff を先に）
-          echo "=== Explicit Delete ==="
-          code="$(curl -sS -b cookie.txt -o /dev/null -w "%{http_code}" -X DELETE "${API_V1}/masters/staffs/${CREATED_STAFF_ID}")"
-          echo "DELETE staff: ${code}"; [ "$code" = "204" ] || { echo "Error: delete staff failed"; exit 1; }
-          CREATED_STAFF_ID=""
-          code="$(curl -sS -b cookie.txt -o /dev/null -w "%{http_code}" -X DELETE "${API_V1}/masters/permission-groups/${CREATED_PG_ID}")"
-          echo "DELETE permission-group: ${code}"; [ "$code" = "204" ] || { echo "Error: delete PG failed"; exit 1; }
-          CREATED_PG_ID=""
-
-          echo "All CRUD smoke tests passed."
-
-      # ── Clinics は read-only のみ（write は deferred / cleanup 信頼性が整うまで TODO）──

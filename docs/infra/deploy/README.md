@@ -62,16 +62,14 @@ gh workflow run backend-deploy.yml --ref staging
 ```
 
 ### 3.4 自動スモークテストの実行 (手動トリガー)
-旧 stg-health-check / stg-readonly-smoke / stg-crud-smoke の3本は `stg-smoke.yml` に統合。
-`level` 入力で深度を選択（各段階は前段を内包）:
 ```bash
-# health: 疎通のみ
-gh workflow run stg-smoke.yml -f level=health
-# readonly: + ログイン + 読み取り API 検証
-gh workflow run stg-smoke.yml -f level=readonly
-# crud: + permission-groups / staffs の CRUD 検証 (Clinics write deferred)。default
-gh workflow run stg-smoke.yml -f level=crud
+# STG 疎通確認（/health）
+gh workflow run stg-smoke.yml
 ```
+> 旧 stg-health-check / stg-readonly-smoke / stg-crud-smoke の3本は `stg-smoke.yml` に統合後、
+> login/readonly/CRUD は `STG_DEMO_*` secret 未設定で約1年間機能していなかったためデッドコードとして撤去
+> （現状は health 疎通のみ）。CRUD の正しさは backend unit/integration テスト + FE route-guard テストでカバー。
+> CRUD smoke を復活させる場合は `STG_DEMO_EMAIL`/`STG_DEMO_PASSWORD` を設定し git 履歴 `281a561e` を参照。
 
 ---
 

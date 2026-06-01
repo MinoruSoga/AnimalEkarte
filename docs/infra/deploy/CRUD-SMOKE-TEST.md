@@ -10,9 +10,10 @@
 > 本手順書に記載されたテスト項目は、GitHub Actions ワークフローによって自動化されています。
 > 迅速かつ安全な疎通確認のために、まずは以下の自動化ワークフローの実行を推奨します。
 > 詳細は [CRUD-SMOKE-AUTOMATION.md](./CRUD-SMOKE-AUTOMATION.md) を参照してください。
-> 3本の smoke workflow は `stg-smoke.yml` に統合済み（`level` 入力で深度選択）:
-> - ログイン・読み込み専用 API 疎通検証: `gh workflow run stg-smoke.yml -f level=readonly`
-> - CRUD 自動検証 (Clinics write deferred): `gh workflow run stg-smoke.yml -f level=crud`
+> **⚠️ 2026-06**: login/readonly/CRUD の自動 smoke は `STG_DEMO_*` secret 未設定で約1年間
+> 機能していなかったため撤去された（`stg-smoke.yml` は現状 health 疎通のみ）。
+> 本手順書の CRUD 項目は **手動 curl** 又は本表の項目を参照して実施する。
+> CRUD の正しさ自体は backend unit/integration テスト + FE route-guard テストでカバー済み。
 
 ## 1. テストの目的
 本テストは、デプロイ完了直後のステージング環境において、主要な 3 系統（医院・権限・スタッフ）の機能が、インフラ・DB・API の各層で正しく連携して動作することを確認するために実施します。
