@@ -11,34 +11,37 @@ import (
 
 // CreateTrimmingCourseInput はトリミングコース作成の入力DTO
 type CreateTrimmingCourseInput struct {
-	Name        string
-	TargetSize  string
-	Price       *int64
-	Duration    *int
-	IsActive    bool
-	Description string
-	SortOrder   int
+	Name         string
+	TargetSize   string
+	CourseTypeID *uint64 // #73 種別マスタ FK(nullable)
+	Price        *int64
+	Duration     *int
+	IsActive     bool
+	Description  string
+	SortOrder    int
 }
 
 // UpdateTrimmingCourseInput はトリミングコース更新のサービス入力 DTO
 type UpdateTrimmingCourseInput struct {
-	Name        *string
-	Price       *int64
-	IsActive    *bool
-	Description *string
-	TargetSize  *string
-	Duration    *int
-	SortOrder   *int
+	Name         *string
+	Price        *int64
+	IsActive     *bool
+	Description  *string
+	TargetSize   *string
+	CourseTypeID *uint64 // #73 種別マスタ FK(nullable)
+	Duration     *int
+	SortOrder    *int
 }
 
 const (
-	colTrimmingCourseName        = "name"
-	colTrimmingCoursePrice       = "price"
-	colTrimmingCourseIsActive    = "is_active"
-	colTrimmingCourseDescription = "description"
-	colTrimmingCourseTargetSize  = "target_size"
-	colTrimmingCourseDuration    = "duration"
-	colTrimmingCourseSortOrder   = "sort_order"
+	colTrimmingCourseName         = "name"
+	colTrimmingCoursePrice        = "price"
+	colTrimmingCourseIsActive     = "is_active"
+	colTrimmingCourseDescription  = "description"
+	colTrimmingCourseTargetSize   = "target_size"
+	colTrimmingCourseCourseTypeID = "course_type_id"
+	colTrimmingCourseDuration     = "duration"
+	colTrimmingCourseSortOrder    = "sort_order"
 )
 
 func buildTrimmingCourseUpdate(input *UpdateTrimmingCourseInput) map[string]any {
@@ -57,6 +60,9 @@ func buildTrimmingCourseUpdate(input *UpdateTrimmingCourseInput) map[string]any 
 	}
 	if input.TargetSize != nil {
 		fields[colTrimmingCourseTargetSize] = model.TargetSize(*input.TargetSize)
+	}
+	if input.CourseTypeID != nil {
+		fields[colTrimmingCourseCourseTypeID] = *input.CourseTypeID
 	}
 	if input.Duration != nil {
 		fields[colTrimmingCourseDuration] = *input.Duration
@@ -109,13 +115,14 @@ func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, inp
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	course := &model.TrimmingCourse{
-		ClinicID:    clinicID,
-		Name:        input.Name,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		Duration:    input.Duration,
-		SortOrder:   input.SortOrder,
+		ClinicID:     clinicID,
+		Name:         input.Name,
+		Price:        input.Price,
+		IsActive:     input.IsActive,
+		Description:  input.Description,
+		CourseTypeID: input.CourseTypeID,
+		Duration:     input.Duration,
+		SortOrder:    input.SortOrder,
 	}
 	if input.TargetSize != "" {
 		ts := model.TargetSize(input.TargetSize)

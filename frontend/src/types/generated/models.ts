@@ -2642,6 +2642,23 @@ export interface AppointmentTrimmingOption {
 }
 
 //////////
+// source: trimming_course_type.go
+
+/**
+ * TrimmingCourseType はクリニックごとのトリミングコース種別マスタ (issue #73)。
+ * payment_methods と同型の拡張可能マスタ。trimming_courses.course_type_id から参照される。
+ */
+export interface TrimmingCourseType {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  sort_order: number /* int */;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: trimming_master.go
 
 export type TargetSize = string;
@@ -2657,6 +2674,7 @@ export interface TrimmingCourse {
   is_active: boolean;
   description: string;
   target_size?: TargetSize;
+  course_type_id?: number /* uint64 */; // #73 種別マスタ FK(nullable)
   duration?: number /* int */;
   sort_order: number /* int */;
   created_at: string;

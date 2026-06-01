@@ -139,6 +139,14 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PATCH("/trimming-options/:id", perm(model.ResourceMasterTrimming, "edit"), h.UpdateTrimmingOption)
 	masters.DELETE("/trimming-options/:id", perm(model.ResourceMasterTrimming, "delete"), h.DeleteTrimmingOption)
 
+	// Trimming Course Types (#73)
+	masters.GET("/trimming-course-types", perm(model.ResourceMasterTrimming, "view"), h.ListTrimmingCourseTypes)
+	masters.POST("/trimming-course-types", perm(model.ResourceMasterTrimming, "create"), h.CreateTrimmingCourseType)
+	masters.PATCH("/trimming-course-types/reorder", perm(model.ResourceMasterTrimming, "edit"), h.ReorderTrimmingCourseTypes)
+	masters.GET("/trimming-course-types/:id", perm(model.ResourceMasterTrimming, "view"), h.GetTrimmingCourseType)
+	masters.PATCH("/trimming-course-types/:id", perm(model.ResourceMasterTrimming, "edit"), h.UpdateTrimmingCourseType)
+	masters.DELETE("/trimming-course-types/:id", perm(model.ResourceMasterTrimming, "delete"), h.DeleteTrimmingCourseType)
+
 	// Examination Types
 	masters.GET("/examination-types", perm(model.ResourceMasterMedical, "view"), h.ListExaminationTypes)
 	masters.POST("/examination-types", perm(model.ResourceMasterMedical, "create"), h.CreateExaminationType)

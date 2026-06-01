@@ -73,6 +73,7 @@ type Services struct {
 	// FEAT-368: 集計・締め機能
 	ClosingSettings     ClosingSettingsService
 	PaymentMethodMaster PaymentMethodMasterService
+	TrimmingCourseType  TrimmingCourseTypeService
 	CashRegister        CashRegisterService
 	AccountingReport    AccountingReportService
 
@@ -242,6 +243,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		// FEAT-368: 集計・締め機能
 		ClosingSettings:           closingSettingsSvc,
 		PaymentMethodMaster:       NewPaymentMethodMasterService(repos.PaymentMethodMaster),
+		TrimmingCourseType:        NewTrimmingCourseTypeService(repos.TrimmingCourseType),
 		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster),
 		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday),
 		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting),
