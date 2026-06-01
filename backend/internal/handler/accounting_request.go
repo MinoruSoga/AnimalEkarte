@@ -316,4 +316,7 @@ func (r updateBillingItemRequest) toServiceInput() (*service.UpdateBillingItemIn
 type createRefundRequest struct {
 	Amount int64  `json:"amount" binding:"required,min=1"`
 	Reason string `json:"reason"`
+	// PaymentMethod / PaymentMethodID は返金先の支払手段（任意・記録のみ・#60）。混在支払いの返金追跡用。
+	PaymentMethod   *string `json:"payment_method"    binding:"omitempty,oneof=cash credit_card electronic_money"`
+	PaymentMethodID *uint64 `json:"payment_method_id" binding:"omitempty"`
 }

@@ -100,15 +100,17 @@ func toUnpaidByOwnerResponse(items []repository.UnpaidOwnerAggregate, total int6
 }
 
 type refundResponse struct {
-	ID             uint64    `json:"id"`
-	ClinicID       uint64    `json:"clinic_id"`
-	BillingID      uint64    `json:"billing_id"`
-	Amount         int64     `json:"amount"`
-	Reason         string    `json:"reason"`
-	RefundedBy     *uint64   `json:"refunded_by"`
-	RefundedByName string    `json:"refunded_by_name"`
-	RefundedAt     time.Time `json:"refunded_at"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID              uint64    `json:"id"`
+	ClinicID        uint64    `json:"clinic_id"`
+	BillingID       uint64    `json:"billing_id"`
+	Amount          int64     `json:"amount"`
+	Reason          string    `json:"reason"`
+	RefundedBy      *uint64   `json:"refunded_by"`
+	RefundedByName  string    `json:"refunded_by_name"`
+	PaymentMethod   *string   `json:"payment_method,omitempty"`
+	PaymentMethodID *uint64   `json:"payment_method_id,omitempty"`
+	RefundedAt      time.Time `json:"refunded_at"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 func toRefundResponse(r *model.BillingRefund) refundResponse {
@@ -116,16 +118,23 @@ func toRefundResponse(r *model.BillingRefund) refundResponse {
 	if r.RefundedByStaff != nil {
 		staffName = r.RefundedByStaff.Name
 	}
+	var paymentMethod *string
+	if r.PaymentMethod != nil {
+		pm := string(*r.PaymentMethod)
+		paymentMethod = &pm
+	}
 	return refundResponse{
-		ID:             r.ID,
-		ClinicID:       r.ClinicID,
-		BillingID:      r.BillingID,
-		Amount:         r.Amount,
-		Reason:         r.Reason,
-		RefundedBy:     r.RefundedBy,
-		RefundedByName: staffName,
-		RefundedAt:     r.RefundedAt,
-		CreatedAt:      r.CreatedAt,
+		ID:              r.ID,
+		ClinicID:        r.ClinicID,
+		BillingID:       r.BillingID,
+		Amount:          r.Amount,
+		Reason:          r.Reason,
+		RefundedBy:      r.RefundedBy,
+		RefundedByName:  staffName,
+		PaymentMethod:   paymentMethod,
+		PaymentMethodID: r.PaymentMethodID,
+		RefundedAt:      r.RefundedAt,
+		CreatedAt:       r.CreatedAt,
 	}
 }
 

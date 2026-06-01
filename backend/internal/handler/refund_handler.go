@@ -7,6 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListRefunds godoc
@@ -57,7 +59,18 @@ func (h *Handler) CreateRefund(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	refund, err := h.svc.Refund.Create(ctx, clinicID, billingID, &staffID, req.Amount, req.Reason)
+	var paymentMethod *model.PaymentMethod
+	if req.PaymentMethod != nil {
+		pm := model.PaymentMethod(*req.PaymentMethod)
+		paymentMethod = &pm
+	}
+	refund, err := h.svc.Refund.Create(ctx, clinicID, billingID, service.CreateRefundInput{
+		StaffID:         &staffID,
+		Amount:          req.Amount,
+		Reason:          req.Reason,
+		PaymentMethod:   paymentMethod,
+		PaymentMethodID: req.PaymentMethodID,
+	})
 	if err != nil {
 		RespondError(c, err)
 		return

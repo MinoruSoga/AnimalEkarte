@@ -9,9 +9,18 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// CreateRefundInput は返金作成の入力DTO。
+type CreateRefundInput struct {
+	StaffID         *uint64
+	Amount          int64
+	Reason          string
+	PaymentMethod   *model.PaymentMethod // 返金先の支払手段（nullable・記録のみ）
+	PaymentMethodID *uint64              // payment_methods マスタ FK（nullable）
+}
+
 // RefundService は返金ビジネスロジックのインターフェース
 type RefundService interface {
-	Create(ctx context.Context, clinicID, billingID uint64, staffID *uint64, amount int64, reason string) (*model.BillingRefund, error)
+	Create(ctx context.Context, clinicID, billingID uint64, input CreateRefundInput) (*model.BillingRefund, error)
 	ListByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error)
 }
 
@@ -25,7 +34,8 @@ func NewRefundService(repo repository.RefundRepository, accountRepo repository.A
 	return &refundService{repo: repo, accountRepo: accountRepo}
 }
 
-func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, staffID *uint64, amount int64, reason string) (*model.BillingRefund, error) {
+func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, input CreateRefundInput) (*model.BillingRefund, error) {
+	amount := input.Amount
 	if amount <= 0 {
 		return nil, apperrors.WrapInvalidInput("amount must be positive")
 	}
@@ -57,11 +67,13 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 	}
 
 	refund := &model.BillingRefund{
-		ClinicID:   clinicID,
-		BillingID:  billingID,
-		Amount:     amount,
-		Reason:     reason,
-		RefundedBy: staffID,
+		ClinicID:        clinicID,
+		BillingID:       billingID,
+		Amount:          amount,
+		Reason:          input.Reason,
+		RefundedBy:      input.StaffID,
+		PaymentMethod:   input.PaymentMethod,
+		PaymentMethodID: input.PaymentMethodID,
 	}
 	if err := s.repo.Create(ctx, refund); err != nil {
 		slog.ErrorContext(ctx, "failed to create refund", "error", err)
