@@ -2,7 +2,7 @@ import { EyeOff, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { C, ICON } from "@/lib/design-tokens";
-import type { TaxType } from "@/types/generated/models";
+import type { PaymentMethod, TaxType } from "@/types/generated/models";
 import type { Accounting } from "../types";
 import { AccountingDocument } from "./AccountingDocument";
 import { InsuranceCard } from "./InsuranceCard";
@@ -106,7 +106,7 @@ interface AccountingDetailColumnsProps {
   onUseInsuranceChange: (enabled: boolean) => void;
   onInsuranceRatioChange: (ratio: string) => void;
   onSplitsChange: (splits: PaymentSplitDraft[]) => void;
-  onRefund: (amount: number, reason: string, paymentMethodId?: number) => void;
+  onRefund: (amount: number, reason: string, paymentMethod?: PaymentMethod) => void;
 }
 
 export function AccountingDetailColumns({
@@ -172,6 +172,7 @@ export function AccountingDetailColumns({
           <RefundSection
             accountingId={accountingId}
             totalAmount={accounting.payment?.totalAmount ?? 0}
+            paymentSplits={accounting.paymentSplits ?? []}
             isRefunding={isRefunding}
             onRefund={onRefund}
             canEdit={canEdit}

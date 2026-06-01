@@ -10,8 +10,9 @@ import (
 )
 
 type mockRefundRepo struct {
-	createFn func(ctx context.Context, refund *model.BillingRefund) error
-	sumFn    func(ctx context.Context, clinicID, billingID uint64) (int64, error)
+	createFn      func(ctx context.Context, refund *model.BillingRefund) error
+	sumFn         func(ctx context.Context, clinicID, billingID uint64) (int64, error)
+	sumByMethodFn func(ctx context.Context, clinicID, billingID uint64, method model.PaymentMethod) (int64, error)
 }
 
 func (m *mockRefundRepo) Create(ctx context.Context, refund *model.BillingRefund) error {
@@ -29,15 +30,32 @@ func (m *mockRefundRepo) SumByBillingID(ctx context.Context, clinicID, billingID
 	return 0, nil
 }
 
+func (m *mockRefundRepo) SumByBillingIDAndPaymentMethod(ctx context.Context, clinicID, billingID uint64, method model.PaymentMethod) (int64, error) {
+	if m.sumByMethodFn != nil {
+		return m.sumByMethodFn(ctx, clinicID, billingID, method)
+	}
+	return 0, nil
+}
+
 func completedBillingForRefund() *model.Billing {
 	return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted, TotalAmount: 10000}
 }
 
-// #60: 支払方法を指定した返金で PaymentMethod / PaymentMethodID が保存されること。
+func billingWithSplits(total int64, splits ...model.PaymentSplit) *model.Billing {
+	return &model.Billing{
+		ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted, TotalAmount: total, PaymentSplits: splits,
+	}
+}
+
+func split(method model.PaymentMethod, amount int64) model.PaymentSplit {
+	return model.PaymentSplit{ID: 1, ClinicID: 1, BillingID: 1, Method: method, Amount: amount}
+}
+
+// #60: 支払方法(ENUM)を指定した返金で PaymentMethod が保存されること。
 func TestRefundService_Create_RecordsPaymentMethod(t *testing.T) {
 	accountRepo := &mockAccountingRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
-			return completedBillingForRefund(), nil
+			return billingWithSplits(10000, split(model.PaymentMethodCreditCard, 5000)), nil
 		},
 	}
 	var saved *model.BillingRefund
@@ -51,24 +69,21 @@ func TestRefundService_Create_RecordsPaymentMethod(t *testing.T) {
 	svc := NewRefundService(refundRepo, accountRepo)
 
 	method := model.PaymentMethodCreditCard
-	methodID := uint64(5)
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{
-		StaffID:         ptrUint64(1),
-		Amount:          3000,
-		Reason:          "返金テスト",
-		PaymentMethod:   &method,
-		PaymentMethodID: &methodID,
+		StaffID:       ptrUint64(1),
+		Amount:        3000,
+		Reason:        "返金テスト",
+		PaymentMethod: &method,
 	})
 
 	assert.NoError(t, err)
 	if assert.NotNil(t, saved) {
 		assert.Equal(t, &method, saved.PaymentMethod)
-		assert.Equal(t, &methodID, saved.PaymentMethodID)
 		assert.Equal(t, int64(3000), saved.Amount)
 	}
 }
 
-// #60: 支払方法未指定（単一支払い・後方互換）では PaymentMethod / PaymentMethodID が nil のままであること。
+// #60: 支払方法未指定（単一支払い・後方互換）では PaymentMethod が nil のまま、全体チェックのみ。
 func TestRefundService_Create_NilPaymentMethodWhenUnspecified(t *testing.T) {
 	accountRepo := &mockAccountingRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
@@ -94,7 +109,6 @@ func TestRefundService_Create_NilPaymentMethodWhenUnspecified(t *testing.T) {
 	assert.NoError(t, err)
 	if assert.NotNil(t, saved) {
 		assert.Nil(t, saved.PaymentMethod)
-		assert.Nil(t, saved.PaymentMethodID)
 	}
 }
 
@@ -112,4 +126,86 @@ func TestRefundService_Create_RejectsNonCompletedBilling(t *testing.T) {
 
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1000})
 	assert.Error(t, err)
+}
+
+// #60 Phase 2: 支払方法別上限超過は 400（カード ¥3,000 受取に ¥3,500 カード返金）。
+func TestRefundService_Create_PaymentMethodExceedsReceived(t *testing.T) {
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return billingWithSplits(5000, split(model.PaymentMethodCreditCard, 3000), split(model.PaymentMethodCash, 2000)), nil
+		},
+	}
+	refundRepo := &mockRefundRepo{
+		createFn: func(_ context.Context, _ *model.BillingRefund) error { return nil },
+	}
+	svc := NewRefundService(refundRepo, accountRepo)
+
+	method := model.PaymentMethodCreditCard
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 3500, PaymentMethod: &method})
+	assert.Error(t, err) // 全体(3500<=5000)は通るが方法別(3500>3000)で拒否
+}
+
+// #60 Phase 2: その支払方法での支払がない場合は 400。
+func TestRefundService_Create_PaymentMethodNotUsed(t *testing.T) {
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return billingWithSplits(5000, split(model.PaymentMethodCash, 5000)), nil
+		},
+	}
+	refundRepo := &mockRefundRepo{
+		createFn: func(_ context.Context, _ *model.BillingRefund) error { return nil },
+	}
+	svc := NewRefundService(refundRepo, accountRepo)
+
+	method := model.PaymentMethodCreditCard // 現金のみの会計にカード返金
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1000, PaymentMethod: &method})
+	assert.Error(t, err)
+}
+
+// #60 Phase 2: 同一支払方法の返金累積で上限超過は 400（カード ¥3,000 受取、既返金 ¥1,000、追加 ¥2,500）。
+func TestRefundService_Create_PaymentMethodAccumulates(t *testing.T) {
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return billingWithSplits(3000, split(model.PaymentMethodCreditCard, 3000)), nil
+		},
+	}
+	refundRepo := &mockRefundRepo{
+		createFn: func(_ context.Context, _ *model.BillingRefund) error { return nil },
+		sumByMethodFn: func(_ context.Context, _, _ uint64, _ model.PaymentMethod) (int64, error) {
+			return 1000, nil // カードで既に ¥1,000 返金済み
+		},
+	}
+	svc := NewRefundService(refundRepo, accountRepo)
+
+	method := model.PaymentMethodCreditCard
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 2500, PaymentMethod: &method})
+	assert.Error(t, err) // 1000 + 2500 > 3000
+}
+
+// #60 Phase 2: 上限内なら成功（カード ¥3,000 受取、既返金 ¥1,000、追加 ¥1,500）。
+func TestRefundService_Create_PaymentMethodWithinLimit(t *testing.T) {
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return billingWithSplits(5000, split(model.PaymentMethodCreditCard, 3000), split(model.PaymentMethodCash, 2000)), nil
+		},
+	}
+	var saved *model.BillingRefund
+	refundRepo := &mockRefundRepo{
+		createFn: func(_ context.Context, r *model.BillingRefund) error {
+			saved = r
+			r.ID = 200
+			return nil
+		},
+		sumByMethodFn: func(_ context.Context, _, _ uint64, _ model.PaymentMethod) (int64, error) {
+			return 1000, nil
+		},
+	}
+	svc := NewRefundService(refundRepo, accountRepo)
+
+	method := model.PaymentMethodCreditCard
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1500, PaymentMethod: &method})
+	assert.NoError(t, err) // 1000 + 1500 <= 3000
+	if assert.NotNil(t, saved) {
+		assert.Equal(t, &method, saved.PaymentMethod)
+	}
 }

@@ -11,11 +11,10 @@ import (
 
 // CreateRefundInput は返金作成の入力DTO。
 type CreateRefundInput struct {
-	StaffID         *uint64
-	Amount          int64
-	Reason          string
-	PaymentMethod   *model.PaymentMethod // 返金先の支払手段（nullable・記録のみ）
-	PaymentMethodID *uint64              // payment_methods マスタ FK（nullable）
+	StaffID       *uint64
+	Amount        int64
+	Reason        string
+	PaymentMethod *model.PaymentMethod // 返金先の支払手段（nullable・ENUM。会計 payment_splits.method と同体系）
 }
 
 // RefundService は返金ビジネスロジックのインターフェース
@@ -66,14 +65,35 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 		return nil, apperrors.WrapInvalidInput("リファンド額が請求残高を超えています")
 	}
 
+	// #60 Phase 2: 支払方法を指定した返金は、その支払方法で受け取った額を上限とする。
+	// 混在支払い(payment_splits)で「カード ¥3,000 で支払った会計にカードから ¥3,000 超の返金」を防ぐ。
+	// 支払方法未指定(nil)は上の全体チェックのみ(後方互換)。
+	if input.PaymentMethod != nil {
+		var receivedByMethod int64
+		for i := range billing.PaymentSplits {
+			if billing.PaymentSplits[i].Method == *input.PaymentMethod {
+				receivedByMethod += billing.PaymentSplits[i].Amount
+			}
+		}
+		if receivedByMethod == 0 {
+			return nil, apperrors.WrapInvalidInput("指定された支払方法での支払がありません")
+		}
+		refundedByMethod, sumErr := s.repo.SumByBillingIDAndPaymentMethod(ctx, clinicID, billingID, *input.PaymentMethod)
+		if sumErr != nil {
+			return nil, apperrors.Wrap(sumErr, "sum refunds by payment method")
+		}
+		if amount > receivedByMethod-refundedByMethod {
+			return nil, apperrors.WrapInvalidInput("支払方法別の返金上限を超えています")
+		}
+	}
+
 	refund := &model.BillingRefund{
-		ClinicID:        clinicID,
-		BillingID:       billingID,
-		Amount:          amount,
-		Reason:          input.Reason,
-		RefundedBy:      input.StaffID,
-		PaymentMethod:   input.PaymentMethod,
-		PaymentMethodID: input.PaymentMethodID,
+		ClinicID:      clinicID,
+		BillingID:     billingID,
+		Amount:        amount,
+		Reason:        input.Reason,
+		RefundedBy:    input.StaffID,
+		PaymentMethod: input.PaymentMethod,
 	}
 	if err := s.repo.Create(ctx, refund); err != nil {
 		slog.ErrorContext(ctx, "failed to create refund", "error", err)

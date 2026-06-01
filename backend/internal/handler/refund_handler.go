@@ -65,11 +65,10 @@ func (h *Handler) CreateRefund(c *gin.Context) {
 		paymentMethod = &pm
 	}
 	refund, err := h.svc.Refund.Create(ctx, clinicID, billingID, service.CreateRefundInput{
-		StaffID:         &staffID,
-		Amount:          req.Amount,
-		Reason:          req.Reason,
-		PaymentMethod:   paymentMethod,
-		PaymentMethodID: req.PaymentMethodID,
+		StaffID:       &staffID,
+		Amount:        req.Amount,
+		Reason:        req.Reason,
+		PaymentMethod: paymentMethod,
 	})
 	if err != nil {
 		RespondError(c, err)

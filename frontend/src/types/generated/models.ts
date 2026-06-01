@@ -315,11 +315,10 @@ export interface BillingRefund {
   reason: string;
   refunded_by?: number /* uint64 */; // 返金処理スタッフID（nullable）
   /**
-   * PaymentMethod は返金先の支払手段（nullable）。混在会計でどの手段へ返金したか記録する。
-   * PaymentMethodID と dual maintain する（payment_splits と同パターン）。記録のみ・Phase 1 では未指定可。
+   * PaymentMethod は返金先の支払手段（nullable・ENUM）。混在会計でどの手段へ返金したか記録する。
+   * 会計の payment_splits.method と同じ ENUM 体系。混在支払いの方法別返金上限(#60 Phase 2)に使う。
    */
   payment_method?: PaymentMethod;
-  payment_method_id?: number /* uint64 */;
   refunded_at: string;
   created_at: string;
   /**

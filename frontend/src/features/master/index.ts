@@ -24,8 +24,6 @@ export { useGetAllVaccinesMaster } from "./api/vaccines-master";
 export { useGetAllCheckupTypes } from "./api/checkup-types";
 export type { CheckupTypeItem } from "./api/checkup-types";
 export { useGetStaffs } from "./api/staffs";
-export { useGetPaymentMethods } from "./api/payment-method-master";
-export type { PaymentMethod } from "./api/payment-method-master";
 export {
   useGetReservationTypeGroups,
   useCreateReservationTypeGroup,

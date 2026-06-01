@@ -15,6 +15,8 @@ type RefundRepository interface {
 	Create(ctx context.Context, refund *model.BillingRefund) error
 	FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error)
 	SumByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error)
+	// SumByBillingIDAndPaymentMethod は指定支払方法(ENUM)への返金合計を返す(#60 Phase 2 方法別上限)。
+	SumByBillingIDAndPaymentMethod(ctx context.Context, clinicID, billingID uint64, method model.PaymentMethod) (int64, error)
 }
 
 type refundRepository struct {
@@ -53,6 +55,18 @@ func (r *refundRepository) SumByBillingID(ctx context.Context, clinicID, billing
 		Select("COALESCE(SUM(amount), 0)").
 		Scan(&total).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "billing_refund", fmt.Sprintf("billing_id=%d", billingID))
+	}
+	return total, nil
+}
+
+func (r *refundRepository) SumByBillingIDAndPaymentMethod(ctx context.Context, clinicID, billingID uint64, method model.PaymentMethod) (int64, error) {
+	var total int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.BillingRefund{}).
+		Scopes(clinicScope(clinicID)).Where("billing_id = ? AND payment_method = ?", billingID, method).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&total).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "billing_refund", fmt.Sprintf("billing_id=%d method=%s", billingID, method))
 	}
 	return total, nil
 }

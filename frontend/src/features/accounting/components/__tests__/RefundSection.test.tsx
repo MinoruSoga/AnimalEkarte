@@ -14,14 +14,12 @@ function createWrapper() {
   );
 }
 
-const handlers = [
-  http.get("/api/v1/accountings/:id/refunds", () => HttpResponse.json([])),
-  http.get("/api/v1/payment-methods", () =>
-    HttpResponse.json([
-      { id: 1, clinic_id: 1, name: "現金", is_active: true, display_order: 0 },
-      { id: 2, clinic_id: 1, name: "クレジットカード", is_active: true, display_order: 1 },
-    ]),
-  ),
+const handlers = [http.get("/api/v1/accountings/:id/refunds", () => HttpResponse.json([]))];
+
+// 会計の支払方法内訳（混在: カード + 現金）
+const splits = [
+  { id: 1, clinicId: "1", billingId: "1", method: "credit_card" as const, amount: 3000, receivedAmount: 3000, changeAmount: 0 },
+  { id: 2, clinicId: "1", billingId: "1", method: "cash" as const, amount: 2000, receivedAmount: 2000, changeAmount: 0 },
 ];
 
 afterEach(() => server.resetHandlers());
@@ -36,6 +34,7 @@ describe("RefundSection — 支払方法別返金 (#60)", () => {
       <RefundSection
         accountingId="1"
         totalAmount={10000}
+        paymentSplits={splits}
         isRefunding={false}
         onRefund={onRefund}
         canEdit={true}
@@ -56,7 +55,7 @@ describe("RefundSection — 支払方法別返金 (#60)", () => {
     expect(onRefund).toHaveBeenCalledWith(3000, "", undefined);
   }, 15000);
 
-  it("返金ダイアログに支払方法セレクタが表示される", async () => {
+  it("会計で使われた支払方法が選択肢として表示される", async () => {
     server.use(...handlers);
     const user = userEvent.setup({ delay: null });
 
@@ -64,6 +63,7 @@ describe("RefundSection — 支払方法別返金 (#60)", () => {
       <RefundSection
         accountingId="1"
         totalAmount={10000}
+        paymentSplits={splits}
         isRefunding={false}
         onRefund={vi.fn()}
         canEdit={true}
@@ -73,5 +73,26 @@ describe("RefundSection — 支払方法別返金 (#60)", () => {
 
     await user.click(screen.getByRole("button", { name: /返金を登録/ }));
     expect(await screen.findByTestId("refund-payment-method-trigger")).toBeInTheDocument();
+  }, 15000);
+
+  it("単一支払い（splits 空）では支払方法セレクタを表示しない", async () => {
+    server.use(...handlers);
+    const user = userEvent.setup({ delay: null });
+
+    render(
+      <RefundSection
+        accountingId="1"
+        totalAmount={10000}
+        paymentSplits={[]}
+        isRefunding={false}
+        onRefund={vi.fn()}
+        canEdit={true}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    await user.click(screen.getByRole("button", { name: /返金を登録/ }));
+    await screen.findByPlaceholderText("0");
+    expect(screen.queryByTestId("refund-payment-method-trigger")).not.toBeInTheDocument();
   }, 15000);
 });

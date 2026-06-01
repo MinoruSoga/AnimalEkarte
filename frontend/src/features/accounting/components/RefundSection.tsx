@@ -7,24 +7,35 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useGetPaymentMethods } from "@/features/master";
 import { C, ICON } from "@/lib/design-tokens";
+import type { PaymentMethod } from "@/types/generated/models";
 
 import { useGetRefunds } from "../api/get-refunds";
+import type { PaymentSplitInfo } from "../types";
 
 const NO_PAYMENT_METHOD = "none";
+
+// 会計 payment_splits.method (ENUM) と同体系の支払方法ラベル。
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: "現金",
+  credit_card: "カード",
+  electronic_money: "電子マネー",
+};
 
 interface RefundSectionProps {
   accountingId: string;
   totalAmount: number;
+  /** この会計で実際に使われた支払方法の内訳。返金の支払方法選択肢の出所（#60）。 */
+  paymentSplits: PaymentSplitInfo[];
   isRefunding: boolean;
-  onRefund: (amount: number, reason: string, paymentMethodId?: number) => void;
+  onRefund: (amount: number, reason: string, paymentMethod?: PaymentMethod) => void;
   canEdit: boolean;
 }
 
 export const RefundSection = memo(function RefundSection({
   accountingId,
   totalAmount,
+  paymentSplits,
   isRefunding,
   onRefund,
   canEdit,
@@ -32,19 +43,17 @@ export const RefundSection = memo(function RefundSection({
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState("");
   const [refundReason, setRefundReason] = useState("");
-  const [refundPaymentMethodId, setRefundPaymentMethodId] = useState(NO_PAYMENT_METHOD);
+  const [refundPaymentMethod, setRefundPaymentMethod] = useState(NO_PAYMENT_METHOD);
   const { data: refunds = [] } = useGetRefunds(accountingId);
-  const { data: paymentMethods = [] } = useGetPaymentMethods();
 
-  const activePaymentMethods = useMemo(
-    () => paymentMethods.filter((m) => m.isActive).sort((a, b) => a.displayOrder - b.displayOrder),
-    [paymentMethods],
-  );
-  // 返金一覧の支払方法表示用: id -> name
-  const paymentMethodNameById = useMemo(
-    () => new Map(paymentMethods.map((m) => [m.id, m.name])),
-    [paymentMethods],
-  );
+  // この会計で使われた支払方法（ENUM）のユニーク一覧。返金の選択肢にする。
+  const usedPaymentMethods = useMemo(() => {
+    const seen = new Set<PaymentMethod>();
+    for (const s of paymentSplits) {
+      if (s.method) seen.add(s.method);
+    }
+    return [...seen];
+  }, [paymentSplits]);
 
   const totalRefunded = refunds.reduce((sum, r) => sum + r.amount, 0);
   const refundableAmount = totalAmount - totalRefunded;
@@ -52,14 +61,14 @@ export const RefundSection = memo(function RefundSection({
   const handleSubmit = useCallback(() => {
     const amount = parseInt(refundAmount, 10);
     if (!amount || amount <= 0) return;
-    const paymentMethodId =
-      refundPaymentMethodId !== NO_PAYMENT_METHOD ? Number(refundPaymentMethodId) : undefined;
-    onRefund(amount, refundReason, paymentMethodId);
+    const paymentMethod =
+      refundPaymentMethod !== NO_PAYMENT_METHOD ? (refundPaymentMethod as PaymentMethod) : undefined;
+    onRefund(amount, refundReason, paymentMethod);
     setRefundDialogOpen(false);
     setRefundAmount("");
     setRefundReason("");
-    setRefundPaymentMethodId(NO_PAYMENT_METHOD);
-  }, [refundAmount, refundReason, refundPaymentMethodId, onRefund]);
+    setRefundPaymentMethod(NO_PAYMENT_METHOD);
+  }, [refundAmount, refundReason, refundPaymentMethod, onRefund]);
 
   return (
     <Card>
@@ -118,22 +127,24 @@ export const RefundSection = memo(function RefundSection({
                       className="h-10"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>支払方法（任意）</Label>
-                    <Select value={refundPaymentMethodId} onValueChange={setRefundPaymentMethodId}>
-                      <SelectTrigger data-testid="refund-payment-method-trigger" className="h-10">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NO_PAYMENT_METHOD}>指定なし</SelectItem>
-                        {activePaymentMethods.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {usedPaymentMethods.length > 0 ? (
+                    <div className="space-y-2">
+                      <Label>支払方法（任意）</Label>
+                      <Select value={refundPaymentMethod} onValueChange={setRefundPaymentMethod}>
+                        <SelectTrigger data-testid="refund-payment-method-trigger" className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NO_PAYMENT_METHOD}>指定なし</SelectItem>
+                          {usedPaymentMethods.map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {PAYMENT_METHOD_LABELS[m] ?? m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : null}
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setRefundDialogOpen(false)}>
@@ -177,7 +188,7 @@ export const RefundSection = memo(function RefundSection({
                     ¥{r.amount.toLocaleString()}
                   </td>
                   <td className={`px-3 py-2 text-xs ${C.text50}`}>
-                    {r.paymentMethodId ? (paymentMethodNameById.get(r.paymentMethodId) ?? "-") : "-"}
+                    {r.paymentMethod ? (PAYMENT_METHOD_LABELS[r.paymentMethod] ?? r.paymentMethod) : "-"}
                   </td>
                   <td className={`px-3 py-2 ${C.text50} truncate max-w-[120px]`}>
                     {r.reason || "-"}
