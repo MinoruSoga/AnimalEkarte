@@ -109,6 +109,10 @@ func (m *mockTreatmentRepository) FindUnbilledByPetID(_ context.Context, _, _ ui
 	return nil, nil
 }
 
+func (m *mockTreatmentRepository) CountFinalizedUnconfirmedByPetAndDate(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
+	return 0, nil
+}
+
 // ---- Tests ----
 
 func TestTreatmentService_List(t *testing.T) {

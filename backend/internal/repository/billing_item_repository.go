@@ -266,3 +266,25 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 	}
 	return items, nil
 }
+
+// CountNonAccountingTrimmingByPetAndDate は同日同ペットの「未会計対象化」トリミング appointment 件数を返す(#77)。
+// トリミング予約区分で status が accounting/completed/cancelled でない = まだ会計待ちに進んでいない取り残し候補。
+func (r *billingItemRepository) CountNonAccountingTrimmingByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Reservation{}).
+		Joins("JOIN reservation_types rt ON rt.id = appointments.reservation_type_id AND rt.deleted_at IS NULL").
+		Where("appointments.clinic_id = ? AND appointments.pet_id = ? AND appointments.deleted_at IS NULL", clinicID, petID).
+		Where("rt.category = ?", model.ReservationTypeCategoryTrimming).
+		Where("appointments.status NOT IN ?", []model.ReservationStatus{
+			model.ReservationStatusAccounting,
+			model.ReservationStatusCompleted,
+			model.ReservationStatusCancelled,
+		}).
+		Where("DATE(appointments.start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", date).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "appointment", fmt.Sprintf("clinic=%d pet=%d trimming", clinicID, petID))
+	}
+	return count, nil
+}

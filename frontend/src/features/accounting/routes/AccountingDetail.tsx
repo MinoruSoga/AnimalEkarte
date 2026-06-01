@@ -23,6 +23,7 @@ import {
   AccountingHeaderActions,
   AccountingPrintArea,
   ReadOnlyAccountingBanner,
+  UngroupedItemsWarningBanner,
 } from "../components/AccountingDetailPanels";
 import { useAccountingCompletionAction } from "./useAccountingCompletionAction";
 import { useAccountingDetailState } from "./useAccountingDetailState";
@@ -58,6 +59,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     displayItems,
     setLocalItems,
     accounting,
+    ungroupedSummary,
     calculation,
     setCompletedPayment,
     hasInsurance,
@@ -161,6 +163,11 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
         }
       >
         <ReadOnlyAccountingBanner show={Boolean(id && !canEdit)} />
+        <UngroupedItemsWarningBanner
+          show={Boolean(!id && ungroupedSummary?.hasUngrouped)}
+          medicalRecordCount={ungroupedSummary?.medicalRecordCount ?? 0}
+          trimmingCount={ungroupedSummary?.trimmingCount ?? 0}
+        />
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <AccountingDetailColumns
           accounting={accounting}

@@ -5,6 +5,7 @@ import { useGetPet } from "@/hooks/use-pet";
 import { calculateBillingTotals } from "@/lib/calculations";
 
 import { getUnbilledItems } from "../api/get-unbilled-items";
+import { useGetUngroupedSameDay } from "../api/get-ungrouped-items";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo } from "../types";
 import { createInitialPaymentSplits } from "./AccountingDetailModel";
@@ -63,6 +64,14 @@ export function useAccountingDetailState({
     [accountingId, baseItems, unbilledItems],
   );
 
+  // #77: 同日同ペットの未会計対象化項目(取り残し)を検出して警告するためのサマリ。新規会計時のみ。
+  const ungroupedScheduledDate = baseAccounting?.scheduledDate ?? "";
+  const { data: ungroupedSummary } = useGetUngroupedSameDay(
+    newPetId,
+    ungroupedScheduledDate,
+    !accountingId && !!newPetId,
+  );
+
   const [localItems, setLocalItems] = useState<AccountingItem[] | null>(null);
 
   const displayItems = useMemo(
@@ -109,6 +118,7 @@ export function useAccountingDetailState({
   return {
     newPetId,
     baseAccounting,
+    ungroupedSummary,
     baseItems: editableBaseItems,
     displayItems,
     localItems,

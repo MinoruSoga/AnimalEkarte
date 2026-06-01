@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -22,6 +23,9 @@ type TreatmentRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	FindUnbilledByPetID(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error)
+	// CountFinalizedUnconfirmedByPetAndDate は同日同ペットの「未会計対象化」診察カルテ件数を返す(#77)。
+	// finalized だが billing_confirmation 未confirmed かつ未会計のカルテ = 取り残し候補。
+	CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
 	Create(ctx context.Context, treatment *model.Treatment) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -78,6 +82,23 @@ func (r *treatmentRepository) FindUnbilledByPetID(ctx context.Context, clinicID,
 		return nil, apperrors.FromGORM(err, "treatment", "")
 	}
 	return treatments, nil
+}
+
+func (r *treatmentRepository) CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.MedicalRecord{}).
+		Joins("LEFT JOIN billing_confirmations bc ON bc.medical_record_id = medical_records.id").
+		Where("medical_records.clinic_id = ? AND medical_records.pet_id = ? AND medical_records.deleted_at IS NULL", clinicID, petID).
+		Where("medical_records.status = ?", model.MedicalRecordStatusFinalized).
+		Where("DATE(medical_records.date) = DATE(?)", date).
+		Where("(bc.id IS NULL OR bc.status != 'confirmed')").
+		Where("NOT EXISTS (SELECT 1 FROM billings b WHERE b.medical_record_id = medical_records.id AND b.status != 'cancelled' AND b.deleted_at IS NULL)").
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d pet=%d", clinicID, petID))
+	}
+	return count, nil
 }
 
 func (r *treatmentRepository) Create(ctx context.Context, treatment *model.Treatment) error {

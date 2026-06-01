@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -78,6 +79,14 @@ type BillingItemService interface {
 	UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
 	DeleteItem(ctx context.Context, clinicID, id uint64) error
 	GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
+	// GetUngroupedSameDaySummary は同日同ペットの未会計対象化項目(診察/トリミング)の件数を返す(#77 取り残し警告)。
+	GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
+}
+
+// UngroupedSameDaySummary は #77 取り残し警告用の未会計対象化件数サマリ。
+type UngroupedSameDaySummary struct {
+	MedicalRecordCount int64
+	TrimmingCount      int64
 }
 
 type billingItemService struct {
@@ -88,6 +97,10 @@ type billingItemService struct {
 
 type unbilledTrimmingItemFinder interface {
 	FindUnbilledTrimmingItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
+}
+
+type ungroupedTrimmingCounter interface {
+	CountNonAccountingTrimmingByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
 }
 
 // NewBillingItemService は BillingItemService を初期化して返す
@@ -265,6 +278,23 @@ func (s *billingItemService) GetUnbilledItems(ctx context.Context, clinicID, pet
 		items = append(items, trimmingItems...)
 	}
 	return items, nil
+}
+
+func (s *billingItemService) GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error) {
+	mrCount, err := s.treatmentRepo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicID, petID, date)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count ungrouped medical records", "error", err)
+		return UngroupedSameDaySummary{}, apperrors.Wrap(err, "failed to count ungrouped medical records")
+	}
+	var trimmingCount int64
+	if counter, ok := s.repo.(ungroupedTrimmingCounter); ok {
+		trimmingCount, err = counter.CountNonAccountingTrimmingByPetAndDate(ctx, clinicID, petID, date)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to count ungrouped trimming", "error", err)
+			return UngroupedSameDaySummary{}, apperrors.Wrap(err, "failed to count ungrouped trimming")
+		}
+	}
+	return UngroupedSameDaySummary{MedicalRecordCount: mrCount, TrimmingCount: trimmingCount}, nil
 }
 
 func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
