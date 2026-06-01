@@ -63,6 +63,8 @@ export function transformToRefund(r: BillingRefund & { refunded_by_name?: string
     reason: r.reason,
     refundedBy: r.refunded_by ?? null,
     refundedByName: r.refunded_by_name ?? "",
+    paymentMethod: r.payment_method ?? undefined,
+    paymentMethodId: r.payment_method_id != null ? String(r.payment_method_id) : undefined,
     refundedAt: r.refunded_at,
     createdAt: r.created_at,
   };

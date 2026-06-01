@@ -314,6 +314,12 @@ export interface BillingRefund {
   amount: number /* int64 */; // 返金額（正の整数、円）
   reason: string;
   refunded_by?: number /* uint64 */; // 返金処理スタッフID（nullable）
+  /**
+   * PaymentMethod は返金先の支払手段（nullable）。混在会計でどの手段へ返金したか記録する。
+   * PaymentMethodID と dual maintain する（payment_splits と同パターン）。記録のみ・Phase 1 では未指定可。
+   */
+  payment_method?: PaymentMethod;
+  payment_method_id?: number /* uint64 */;
   refunded_at: string;
   created_at: string;
   /**

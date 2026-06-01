@@ -31,11 +31,11 @@ export function useAccountingSettlementActions({
   startRefundTransition,
 }: UseAccountingSettlementActionsParams) {
   const handleRefund = useCallback(
-    (amount: number, reason: string) => {
+    (amount: number, reason: string, paymentMethodId?: number) => {
       if (!accountingId) return;
       startRefundTransition(async () => {
         try {
-          await createRefund(accountingId, { amount, reason });
+          await createRefund(accountingId, { amount, reason, paymentMethodId });
           queryClient.invalidateQueries({ queryKey: ["accounting-refunds", accountingId] });
           queryClient.invalidateQueries({ queryKey: ["accountings"] });
           toast.success(`¥${amount.toLocaleString()} の返金を登録しました`);

@@ -106,7 +106,7 @@ interface AccountingDetailColumnsProps {
   onUseInsuranceChange: (enabled: boolean) => void;
   onInsuranceRatioChange: (ratio: string) => void;
   onSplitsChange: (splits: PaymentSplitDraft[]) => void;
-  onRefund: (amount: number, reason: string) => void;
+  onRefund: (amount: number, reason: string, paymentMethodId?: number) => void;
 }
 
 export function AccountingDetailColumns({
