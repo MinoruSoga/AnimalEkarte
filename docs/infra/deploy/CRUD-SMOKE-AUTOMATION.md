@@ -2,6 +2,10 @@
 
 > **Animal Ekarte**: デプロイ後の CRUD スモークテスト自動化スコープ・実装方針・GitHub Actions ロードマップ
 > **最新更新**: 2026-05-27 | **目的**: 本番リリース候補判定の全自動化ビジョン
+>
+> **⚠️ 2026-06 更新**: 旧 `stg-health-check.yml` / `stg-readonly-smoke.yml` / `stg-crud-smoke.yml` の
+> 3本は **`stg-smoke.yml` に統合**された。実行は `gh workflow run stg-smoke.yml -f level={health|readonly|crud}`。
+> 以下の本文中の旧ワークフロー名は歴史的記録であり、現行の実体は `stg-smoke.yml` 単一。
 
 ---
 
@@ -49,7 +53,7 @@ curl -s https://api.stg.noah-karte.com/health | jq '.status'
 - **ワークフロー**: `.github/workflows/stg-health-check.yml` 作成済み
 - **トリガー**: `workflow_dispatch` により手動実行のみ（自動実行なし）
 - **検証ロジック**: `curl -sS -o "$body_file" -w "%{http_code}"` で HTTP ステータスと応答本体を分離；`jq -r '.status // empty'` で JSON を安全にパース；HTTP 200 かつ `.status=="ok"` を確認
-- **実行コマンド**: `gh workflow run stg-health-check.yml`（ローカル実行）又は GitHub Web UI より手動トリガー
+- **実行コマンド**: `gh workflow run stg-smoke.yml -f level=health`（ローカル実行）又は GitHub Web UI より手動トリガー
 - **Phase 1 スコープ**: エンドポイント疎通確認のみ。ログイン・CRUD・DB・テストデータ削除は Phase 2 以降
 
 **参考**:
@@ -344,7 +348,7 @@ fi
 
 **手動実行コマンド**:
 ```bash
-gh workflow run stg-readonly-smoke.yml
+gh workflow run stg-smoke.yml -f level=readonly
 ```
 
 ### Phase 3: CRUD Smoke 自動化 (完了 - Clinics write は deferred)
@@ -356,7 +360,7 @@ gh workflow run stg-readonly-smoke.yml
 
 **手動実行コマンド**:
 ```bash
-gh workflow run stg-crud-smoke.yml
+gh workflow run stg-smoke.yml -f level=crud
 ```
 
 **現在の運用方針**:

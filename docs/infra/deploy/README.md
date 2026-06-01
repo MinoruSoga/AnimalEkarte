@@ -62,12 +62,15 @@ gh workflow run backend-deploy.yml --ref staging
 ```
 
 ### 3.4 自動スモークテストの実行 (手動トリガー)
+旧 stg-health-check / stg-readonly-smoke / stg-crud-smoke の3本は `stg-smoke.yml` に統合。
+`level` 入力で深度を選択（各段階は前段を内包）:
 ```bash
-# Phase 2: ログイン & 読み込み専用 API 疎通確認
-gh workflow run stg-readonly-smoke.yml
-
-# Phase 3: CRUD 自動化検証 (Clinics write deferred)
-gh workflow run stg-crud-smoke.yml
+# health: 疎通のみ
+gh workflow run stg-smoke.yml -f level=health
+# readonly: + ログイン + 読み取り API 検証
+gh workflow run stg-smoke.yml -f level=readonly
+# crud: + permission-groups / staffs の CRUD 検証 (Clinics write deferred)。default
+gh workflow run stg-smoke.yml -f level=crud
 ```
 
 ---
