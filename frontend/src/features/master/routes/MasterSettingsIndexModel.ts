@@ -26,6 +26,7 @@ export type GroupKey =
   | "treatmentItems"
   | "diagnosisGroup"
   | "trimmingGroup"
+  | "trimmingCourseTypes"
   | "inquiry_template"
   | "shift_template"
   | "paymentMethods"
@@ -80,6 +81,14 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     resource: ResourceMasterTrimming,
     countCategories: ["trimming_course", "trimming_option"],
   },
+  trimmingCourseTypes: {
+    label: "コース種別マスタ",
+    description: "シャンプー・シャンプー＆カットなどコース種別を管理します",
+    IconComponent: Scissors,
+    path: "/settings/trimming-course-type",
+    resource: ResourceMasterTrimming,
+    countCategories: [],
+  },
   inquiry_template: {
     label: "問診テンプレート",
     description: "問診票のテンプレートを管理します",
@@ -122,7 +131,7 @@ export const MASTER_SECTIONS: SectionDef[] = [
   },
   { title: "予約管理マスタ", keys: ["reservationType"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
-  { title: "トリミング関連", keys: ["trimmingGroup"] },
+  { title: "トリミング関連", keys: ["trimmingGroup", "trimmingCourseTypes"] },
   { title: "会計・商品", keys: ["merchandise_item", "insurance", "paymentMethods", "closingTime"] },
   { title: "スタッフ・権限", keys: ["staff", "occupations", "permission_group"] },
   { title: "シフト管理", keys: ["shift_template"] },

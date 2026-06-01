@@ -100,6 +100,17 @@ export const settingsRoute: RouteObject = {
       }],
     },
     {
+      path: "trimming-course-type",
+      element: <RequirePermission resource={ResourceMasterTrimming}><Outlet /></RequirePermission>,
+      children: [{
+        index: true,
+        lazy: async () => {
+          const { TrimmingCourseTypeSettings } = await import("@/features/master");
+          return { Component: TrimmingCourseTypeSettings };
+        },
+      }],
+    },
+    {
       path: "medicine",
       element: <RequirePermission resource={ResourceMasterMedical}><Outlet /></RequirePermission>,
       children: [{

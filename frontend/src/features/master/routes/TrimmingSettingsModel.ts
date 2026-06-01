@@ -37,6 +37,7 @@ export function buildTrimmingCourseCreateRequest(
     name: data.name,
     price: toNullableNumber(data.price),
     target_size: data.targetSize !== "" ? data.targetSize : null,
+    course_type_id: data.courseTypeId !== "" ? Number(data.courseTypeId) : undefined,
     duration: toNullableNumber(data.duration),
     description: data.description || undefined,
     is_active: true,

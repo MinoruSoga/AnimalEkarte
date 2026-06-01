@@ -1,0 +1,98 @@
+import { useCallback } from "react";
+import { Scissors } from "lucide-react";
+import { usePermission } from "@/hooks/use-permission";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
+import { TableCell } from "@/components/ui/table";
+import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { RowActionButton } from "@/components/shared/RowActionButton";
+import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { C, ICON } from "@/lib/design-tokens";
+import { ResourceMasterTrimming } from "@/types/generated/models";
+import { MASTER_STATUS_FILTER } from "../constants/styles";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
+import { TrimmingCourseTypeSidePanel } from "../components/TrimmingCourseTypeSidePanel";
+import type { TrimmingCourseTypeFormData } from "../components/TrimmingCourseTypeSidePanelModel";
+import {
+  useGetTrimmingCourseTypes,
+  useCreateTrimmingCourseType,
+  useUpdateTrimmingCourseType,
+  useDeleteTrimmingCourseType,
+} from "../api/trimming-course-type";
+import type {
+  CreateTrimmingCourseTypeRequest,
+  TrimmingCourseType,
+  UpdateTrimmingCourseTypeRequest,
+} from "../api/trimming-course-type";
+import {
+  buildTrimmingCourseTypeCreateRequest,
+  buildTrimmingCourseTypeUpdateRequest,
+} from "./TrimmingCourseTypeSettingsModel";
+
+// ─── Constants ───
+const COLUMNS = [
+  { header: "名称", className: "flex-1" },
+  { header: "ステータス", className: "w-[90px]", align: "center" as const },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
+];
+
+// ─── Page ───
+export function TrimmingCourseTypeSettings() {
+  usePermission(ResourceMasterTrimming);
+  const { data } = useGetTrimmingCourseTypes();
+  const createMutation = useCreateTrimmingCourseType();
+  const updateMutation = useUpdateTrimmingCourseType();
+  const deleteMutation = useDeleteTrimmingCourseType();
+
+  const dirty = useSidePeekDirty();
+  const crud = useMasterCRUD<TrimmingCourseType>({
+    data,
+    deleteMutation,
+    entityLabel: "コース種別",
+    dirtyGuard: dirty,
+  });
+  const handleDirtyChange = useCallback((d: boolean) => {
+    if (d) dirty.markDirty();
+    else dirty.markClean();
+  }, [dirty]);
+
+  const { handleSave } = useMasterSave<
+    TrimmingCourseType,
+    TrimmingCourseTypeFormData,
+    CreateTrimmingCourseTypeRequest,
+    UpdateTrimmingCourseTypeRequest
+  >({
+    crud,
+    createMutation,
+    updateMutation,
+    validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
+    toCreateRequest: buildTrimmingCourseTypeCreateRequest,
+    toUpdateRequest: buildTrimmingCourseTypeUpdateRequest,
+  });
+
+  return (
+    <MasterCRUDPage
+      title="トリミングコース種別マスタ"
+      icon={<Scissors className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMasterTrimming}
+      entityLabel="コース種別"
+      searchPlaceholder="種別名で検索..."
+      emptyMessage="コース種別が登録されていません"
+      crud={crud}
+      handleSave={handleSave}
+      columns={COLUMNS}
+      filterProperties={[MASTER_STATUS_FILTER]}
+      renderRow={(item, onEdit, canEdit) => (
+        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
+          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+          <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
+          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
+        </DataTableRow>
+      )}
+      renderSidePanel={(props) => (
+        <TrimmingCourseTypeSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />
+      )}
+    />
+  );
+}

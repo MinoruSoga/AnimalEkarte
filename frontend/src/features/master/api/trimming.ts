@@ -72,6 +72,7 @@ function transformTrimmingCourse(data: ModelTrimmingCourse) {
     isActive: data.is_active,
     description: data.description,
     targetSize: (data.target_size as TargetSize) ?? null,
+    courseTypeId: data.course_type_id != null ? String(data.course_type_id) : null,
     duration: data.duration ?? null,
     sortOrder: data.sort_order,
     createdAt: data.created_at,

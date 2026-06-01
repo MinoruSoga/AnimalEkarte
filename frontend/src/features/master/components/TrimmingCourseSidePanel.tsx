@@ -11,7 +11,9 @@ import {
   type TargetSize,
   type TrimmingCourse,
 } from "../api/trimming";
+import { useGetTrimmingCourseTypes } from "../api/trimming-course-type";
 import {
+  COURSE_TYPE_EMPTY_VALUE,
   TARGET_SIZE_EMPTY_VALUE,
   trimmingCourseToFormData,
   type CourseFormData,
@@ -37,6 +39,8 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
   const [formData, setFormData] = useState<CourseFormData>(() => trimmingCourseToFormData(item));
   const [nameError, setNameError] = useState("");
   const [isDirty, setIsDirty] = useState(false);
+  const { data: courseTypes = [] } = useGetTrimmingCourseTypes();
+  const activeCourseTypes = courseTypes.filter((t) => t.isActive || t.id === formData.courseTypeId);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -73,6 +77,13 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
     }));
   }, [setFormDataDirty]);
 
+  const handleCourseTypeChange = useCallback((value: string) => {
+    setFormDataDirty((prev) => ({
+      ...prev,
+      courseTypeId: value === COURSE_TYPE_EMPTY_VALUE ? "" : value,
+    }));
+  }, [setFormDataDirty]);
+
   const handleDurationChange = useCallback((value: string) => {
     setFormDataDirty((prev) => ({ ...prev, duration: value }));
   }, [setFormDataDirty]);
@@ -106,6 +117,25 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         >
           <NotionStatusPill isActive={formData.isActive} />
         </button>
+      </PropertyRow>
+
+      <PropertyRow label="コース種別">
+        <Select
+          value={formData.courseTypeId || COURSE_TYPE_EMPTY_VALUE}
+          onValueChange={handleCourseTypeChange}
+        >
+          <SelectTrigger className={STYLE.selectCompact}>
+            <SelectValue placeholder="選択" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={COURSE_TYPE_EMPTY_VALUE}>指定なし</SelectItem>
+            {activeCourseTypes.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </PropertyRow>
 
       <PropertyRow label="対象サイズ">
