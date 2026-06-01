@@ -224,9 +224,15 @@ resource "aws_ecs_service" "main" {
   task_definition = aws_ecs_task_definition.main.arn
   desired_count   = var.desired_count
 
-  # コスト最適化: Fargate Spot で実行（launch_type と capacity_provider_strategy は併用不可）
+  # コスト最適化: Fargate Spot を強く優先（weight 4）しつつ、Spot 在庫枯渇時は
+  # on-demand FARGATE（weight 1）へ fallback。夜間スケジュールの朝 8:00 自動起動が
+  # Spot 在庫切れで失敗しないようにするための保険。大半のタスクは Spot で起動する。
   capacity_provider_strategy {
     capacity_provider = "FARGATE_SPOT"
+    weight            = 4
+  }
+  capacity_provider_strategy {
+    capacity_provider = "FARGATE"
     weight            = 1
   }
 
@@ -252,7 +258,10 @@ resource "aws_ecs_service" "main" {
     # task_definition: deploy パイプライン(.env.staging から env 注入)が管理する。
     #   terraform の task def は env 空のスケルトンのため、terraform に管理させると
     #   service が env 無しタスクで起動して STG が落ちる（2026-06-01 に実際に発生）。
-    ignore_changes = [desired_count, task_definition]
+    # capacity_provider_strategy: 変更が service 置換を強制し、置換時に空スケルトン
+    #   task def で再作成されて STG が落ちるため、runtime(CLI)管理にして ignore する。
+    #   現状 live は FARGATE_SPOT weight4 + FARGATE weight1（Spot 優先 + on-demand fallback）。
+    ignore_changes = [desired_count, task_definition, capacity_provider_strategy]
   }
 
   tags = {
