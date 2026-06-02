@@ -3,6 +3,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -77,7 +78,7 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 
 	// 監査ログ: 権限グループ作成
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
+		if err := h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
@@ -87,7 +88,10 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 			NewValue:   pg,
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
-		})
+		}); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to write audit log for permission group create",
+				"error", err, "resource_id", pg.ID, "actor_id", staffID)
+		}
 	}
 
 	c.Header("Location", fmt.Sprintf("/v1/masters/permission-groups/%d", pg.ID))
@@ -119,7 +123,7 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 
 	// 監査ログ: 権限グループ更新
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
+		if err := h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
@@ -129,7 +133,10 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 			NewValue:   updated,
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
-		})
+		}); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to write audit log for permission group update",
+				"error", err, "resource_id", id, "actor_id", staffID)
+		}
 	}
 
 	c.JSON(http.StatusOK, toPermissionGroupResponse(updated))
@@ -168,7 +175,10 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 			auditInput.ClinicID = &oldPG.ClinicID
 			auditInput.OldValue = oldPG
 		}
-		_ = h.svc.Audit.LogEntry(c.Request.Context(), &auditInput)
+		if err := h.svc.Audit.LogEntry(c.Request.Context(), &auditInput); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to write audit log for permission group delete",
+				"error", err, "resource_id", id, "actor_id", staffID)
+		}
 	}
 
 	c.Status(http.StatusNoContent)
@@ -211,7 +221,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	}
 
 	// 監査ログ: 権限ルール更新
-	_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
+	if err := h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 		ActorID:    &staffID,
 		ActorType:  "staff",
 		Action:     model.AuditActionPermissionRulesUpdate,
@@ -220,7 +230,10 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 		NewValue:   inputRules,
 		IPAddress:  c.ClientIP(),
 		UserAgent:  c.Request.Header.Get("User-Agent"),
-	})
+	}); err != nil {
+		slog.WarnContext(c.Request.Context(), "failed to write audit log for permission group rules update",
+			"error", err, "resource_id", id, "actor_id", staffID)
+	}
 
 	// Return updated group with rules
 	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id)
