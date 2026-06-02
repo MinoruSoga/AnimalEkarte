@@ -104,7 +104,8 @@ export type TrimmingOption = ReturnType<typeof transformTrimmingOption>;
 // Query keys
 // ─────────────────────────────────────────────────
 
-const TRIMMING_COURSES_KEY = ["masters", "trimming-courses"] as const;
+// P8: useMasterItems("trimmingCourse") と queryKey を統一（キャッシュ無効化が機能するため）
+const TRIMMING_COURSES_KEY = ["masters", "trimmingCourse"] as const;
 const TRIMMING_OPTIONS_KEY = ["masters", "trimming-options"] as const;
 
 // ─────────────────────────────────────────────────
