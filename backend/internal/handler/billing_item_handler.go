@@ -123,11 +123,11 @@ func toUngroupedSameDayResponse(s service.UngroupedSameDaySummary) ungroupedSame
 
 func parseUngroupedDate(s string) time.Time {
 	if s == "" {
-		return time.Now()
+		return time.Now().UTC()
 	}
 	t, err := time.Parse("2006-01-02", s)
 	if err != nil {
-		return time.Now()
+		return time.Now().UTC()
 	}
 	return t
 }

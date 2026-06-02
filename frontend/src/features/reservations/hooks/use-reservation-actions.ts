@@ -157,17 +157,27 @@ export function useReservationActions({
         }
       } else {
         try {
-          await Promise.all(
+          const results = await Promise.allSettled(
             selectedPets.map((pet) => {
               const createPayload = transformToCreateRequest(data, pet.id, pet.ownerId);
               return createMutation.mutateAsync(createPayload);
             }),
           );
-          toast.success("予約を作成しました", {
-            description: `担当医: ${targetDoctor} / ${selectedPets.length}件`,
-          });
-          handleCloseForm();
-          navigateBackIfNeeded();
+          const succeeded = results.filter((r) => r.status === "fulfilled").length;
+          const failed = results.filter((r) => r.status === "rejected").length;
+
+          if (failed > 0) {
+            toast.error(`${failed}件の予約作成に失敗しました`, {
+              description: `${succeeded}件は成功しました。`,
+            });
+          }
+          if (succeeded > 0) {
+            toast.success(`${succeeded}件の予約を作成しました`, {
+              description: `担当医: ${targetDoctor}`,
+            });
+            handleCloseForm();
+            navigateBackIfNeeded();
+          }
         } catch (error) {
           handleApiError(error, "作成");
         }

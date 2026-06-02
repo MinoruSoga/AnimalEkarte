@@ -61,7 +61,7 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		slog.Uint64("clinic_id", input.ClinicID))
 	if billing.Status == model.BillingStatusCompleted {
 		if err := s.completeAccountingAppointments(ctx, input.ClinicID, billing); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to complete accounting appointments during create")
 		}
 		s.syncCPMStageTag(ctx, input.ClinicID, billing)
 	}
@@ -124,7 +124,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		slog.Uint64("clinic_id", input.ClinicID))
 	if input.Status != nil && *input.Status == model.BillingStatusCompleted {
 		if err := s.completeAccountingAppointments(ctx, input.ClinicID, accounting); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to complete accounting appointments during update")
 		}
 		s.syncCPMStageTag(ctx, input.ClinicID, accounting)
 	}

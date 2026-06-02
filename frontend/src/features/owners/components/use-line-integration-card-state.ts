@@ -1,6 +1,7 @@
 import { useActionState, useRef, useState } from "react";
 
 import { LSTEP_EXCL_DELIVERY_STOP } from "@/constants/lstep-tag-names";
+import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
 import type { Owner } from "@/types/owner";
 
@@ -60,8 +61,9 @@ export function useLineIntegrationCardState({
       try {
         await updateLine({ line_user_id: lineUserId });
         return { error: null, success: true };
-      } catch {
-        return { error: null, success: false };
+      } catch (error) {
+        handleApiError(error, "LINE User ID 紐付け");
+        return { error: "LINE User ID の紐付けに失敗しました", success: false };
       }
     },
     INITIAL_LINE_ID_STATE,

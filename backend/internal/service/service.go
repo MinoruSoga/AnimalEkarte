@@ -206,7 +206,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Consultation:                   NewConsultationService(repos.Consultation),
 		Procedure:                      NewProcedureService(repos.Procedure),
 		HospitalizationPlan:            NewHospitalizationPlanService(repos.HospitalizationPlan),
-		TrimmingCourse:                 NewTrimmingCourseService(repos.TrimmingCourse),
+		TrimmingCourse:                 NewTrimmingCourseService(repos.TrimmingCourse, repos.TrimmingCourseType),
 		TrimmingOption:                 NewTrimmingOptionService(repos.TrimmingOption),
 		ExaminationType:                NewExamTypeService(repos.ExaminationType),
 		DiagnosisType:                  NewDiagnosisTypeService(repos.DiagnosisType),

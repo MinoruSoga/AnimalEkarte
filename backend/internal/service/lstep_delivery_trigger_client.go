@@ -11,15 +11,15 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *lstepDeliveryTriggerService) applyTagAndLog(ctx context.Context, client lstep.Client, lineUserID, tagName string, logID uint64) error {
+func (s *lstepDeliveryTriggerService) applyTagAndLog(ctx context.Context, clinicID uint64, client lstep.Client, lineUserID, tagName string, logID uint64) error {
 	if err := client.AddTag(ctx, lineUserID, tagName); err != nil {
 		slog.ErrorContext(ctx, "delivery trigger: failed to add tag", "tag", tagName, "error", err)
 		reason := fmt.Sprintf("lstep_add_tag_failed: %s", tagName)
-		_ = s.triggerLogRepo.UpdateStatus(ctx, logID, model.TriggerStatusFailed, nil, &reason)
+		_ = s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, string(model.TriggerStatusFailed), nil, &reason)
 		return apperrors.Wrap(err, "failed to add lstep tag")
 	}
 	now := time.Now()
-	if err := s.triggerLogRepo.UpdateStatus(ctx, logID, model.TriggerStatusFired, &now, nil); err != nil {
+	if err := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, string(model.TriggerStatusFired), &now, nil); err != nil {
 		slog.ErrorContext(ctx, "failed to update trigger log status", "error", err, "log_id", logID)
 		return apperrors.Wrap(err, "failed to update trigger log status")
 	}

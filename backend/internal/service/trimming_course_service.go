@@ -84,12 +84,13 @@ type TrimmingCourseService interface {
 }
 
 type trimmingCourseService struct {
-	repo repository.TrimmingCourseRepository
+	repo           repository.TrimmingCourseRepository
+	courseTypeRepo repository.TrimmingCourseTypeRepository
 }
 
 // NewTrimmingCourseService は TrimmingCourseService を生成する
-func NewTrimmingCourseService(repo repository.TrimmingCourseRepository) TrimmingCourseService {
-	return &trimmingCourseService{repo: repo}
+func NewTrimmingCourseService(repo repository.TrimmingCourseRepository, courseTypeRepo repository.TrimmingCourseTypeRepository) TrimmingCourseService {
+	return &trimmingCourseService{repo: repo, courseTypeRepo: courseTypeRepo}
 }
 
 func (s *trimmingCourseService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
@@ -113,6 +114,11 @@ func (s *trimmingCourseService) GetByID(ctx context.Context, clinicID, id uint64
 func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingCourseInput) (*model.TrimmingCourse, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
+	}
+	if input.CourseTypeID != nil {
+		if _, err := s.courseTypeRepo.FindByID(ctx, clinicID, *input.CourseTypeID); err != nil {
+			return nil, apperrors.WrapInvalidInput("course_type_id not found in this clinic")
+		}
 	}
 	course := &model.TrimmingCourse{
 		ClinicID:     clinicID,

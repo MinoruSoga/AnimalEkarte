@@ -26,7 +26,11 @@ export async function refreshToken(): Promise<RefreshResponse | null> {
         // 正常なセッション失効
         return null;
       }
-      // 5xx など予期しないエラーは null を返してログアウト扱いにする
+      // 5xx: バックエンド障害の可能性
+      console.warn("[auth] refreshToken: unexpected server error", { status });
+    } else if (Axios.isAxiosError(error)) {
+      // ネットワーク断
+      console.warn("[auth] refreshToken: network error", { message: error.message });
     }
     return null;
   }

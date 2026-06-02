@@ -27,7 +27,7 @@ func (m *mockAnalyticsTriggerLogRepo) Create(_ context.Context, _ *model.LstepDe
 func (m *mockAnalyticsTriggerLogRepo) ExistsTodayByOwnerAndType(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
 	return false, nil
 }
-func (m *mockAnalyticsTriggerLogRepo) UpdateStatus(_ context.Context, _ uint64, _ string, _ *time.Time, _ *string) error {
+func (m *mockAnalyticsTriggerLogRepo) UpdateStatus(_ context.Context, _, _ uint64, _ string, _ *time.Time, _ *string) error {
 	return nil
 }
 func (m *mockAnalyticsTriggerLogRepo) FindByClinicAndDate(_ context.Context, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
@@ -66,7 +66,7 @@ func (m *mockAnalyticsTriggerLogRepo) CountVisitConversionsByType(ctx context.Co
 func (m *mockAnalyticsTriggerLogRepo) FindByOwnerAndDate(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 	return nil, nil
 }
-func (m *mockAnalyticsTriggerLogRepo) UpdateSuppressed(_ context.Context, _ uint64, _ string) error {
+func (m *mockAnalyticsTriggerLogRepo) UpdateSuppressed(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
 

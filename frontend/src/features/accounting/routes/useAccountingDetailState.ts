@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { useGetPet } from "@/hooks/use-pet";
@@ -91,9 +91,9 @@ export function useAccountingDetailState({
     };
   }, [baseAccounting, completedPayment, displayItems]);
 
-  const [hasInsurance, setHasInsurance] = useState(() => (baseAccounting?.payment?.insuranceAmount ?? 0) < 0);
-  const [insuranceRatio, setInsuranceRatio] = useState(() => baseAccounting?.payment?.insuranceRatio?.toString() ?? "0.5");
-  const [paymentSplits, setPaymentSplits] = useState<PaymentSplitDraft[]>(() => createInitialPaymentSplits(baseAccounting));
+  const [hasInsurance, setHasInsurance] = useState(false);
+  const [insuranceRatio, setInsuranceRatio] = useState("0.5");
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplitDraft[]>([]);
 
   const calculation = useMemo(() => {
     if (!accounting) return null;
@@ -114,6 +114,14 @@ export function useAccountingDetailState({
       billingAmount: billingResult.billingAmount,
     };
   }, [accounting, hasInsurance, insuranceRatio]);
+
+  // Sync fetched accounting state to form fields (P1 bug fix: avoid race condition on mount)
+  useEffect(() => {
+    if (!fetchedAccounting?.payment) return;
+    setHasInsurance((fetchedAccounting.payment.insuranceAmount ?? 0) < 0);
+    setInsuranceRatio(fetchedAccounting.payment.insuranceRatio?.toString() ?? "0.5");
+    setPaymentSplits(createInitialPaymentSplits(fetchedAccounting));
+  }, [fetchedAccounting]);
 
   return {
     newPetId,

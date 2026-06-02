@@ -63,7 +63,7 @@ func (s *lstepDeliveryTriggerService) applySuppression(
 		for i := range active {
 			l := &active[i]
 			reason := fmt.Sprintf("superseded by %s (priority %d < %d)", triggerType, currentPri, bestPri)
-			if suppErr := s.triggerLogRepo.UpdateSuppressed(ctx, l.ID, reason); suppErr != nil {
+			if suppErr := s.triggerLogRepo.UpdateSuppressed(ctx, clinicID, l.ID, reason); suppErr != nil {
 				slog.ErrorContext(ctx, "delivery trigger: failed to suppress existing log", "log_id", l.ID, "error", suppErr)
 				return false, apperrors.Wrap(suppErr, "failed to suppress existing trigger log")
 			}

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, STYLE } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 import { getForbiddenPrefix } from "@/constants/lstep-auto-tag-prefixes";
 import { useCreateOwnerTag } from "../api/create-owner-tag";
 
@@ -50,8 +51,9 @@ export function LstepTagAddDialog({
       try {
         await mutateAsync({ tag_name: tagName });
         return { error: null, success: true };
-      } catch {
-        return { error: null, success: false };
+      } catch (error) {
+        handleApiError(error, "タグの追加");
+        return { error: "タグの追加に失敗しました", success: false };
       }
     },
     INITIAL_STATE
