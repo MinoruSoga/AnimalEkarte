@@ -143,6 +143,7 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 
 // Update は指定フィールドのみを更新し、更新後のレコードを返す。
 // map[string]any を使うことで GORM のゼロ値スキップ問題を回避する。
+// P2: service 層で逆遷移を拒否（修正 1）、repo は RowsAffected チェックで clinic scope/soft-delete を検証
 func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
@@ -153,6 +154,7 @@ func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID u
 		return nil, apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
 	}
 	if result.RowsAffected == 0 {
+		// clinic scope 外 or soft-delete 済み（service 層逆遷移ガード後に clinic scope 外になる場合）
 		return nil, apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
 	}
 	var billing model.Billing
