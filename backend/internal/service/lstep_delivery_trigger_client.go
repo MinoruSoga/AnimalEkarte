@@ -19,7 +19,11 @@ func (s *lstepDeliveryTriggerService) applyTagAndLog(ctx context.Context, client
 		return apperrors.Wrap(err, "failed to add lstep tag")
 	}
 	now := time.Now()
-	return s.triggerLogRepo.UpdateStatus(ctx, logID, model.TriggerStatusFired, &now, nil)
+	if err := s.triggerLogRepo.UpdateStatus(ctx, logID, model.TriggerStatusFired, &now, nil); err != nil {
+		slog.ErrorContext(ctx, "failed to update trigger log status", "error", err, "log_id", logID)
+		return apperrors.Wrap(err, "failed to update trigger log status")
+	}
+	return nil
 }
 
 // buildClient はクリニック設定から lstep.Client を構築する。

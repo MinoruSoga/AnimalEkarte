@@ -100,7 +100,9 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, string(old))
+			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, string(old)); delCacheErr != nil {
+				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", string(old))
+			}
 		}
 	}
 
@@ -174,7 +176,9 @@ func (s *lstepTagSyncService) SyncCPMStageTagV2(ctx context.Context, clinicID, o
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, string(old))
+			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, string(old)); delCacheErr != nil {
+				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", string(old))
+			}
 		}
 	}
 

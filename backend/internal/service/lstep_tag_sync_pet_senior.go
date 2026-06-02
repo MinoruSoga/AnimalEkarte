@@ -61,7 +61,9 @@ func (s *lstepTagSyncService) SyncSeniorTag(ctx context.Context, clinicID, owner
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, seniorTag)
+			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, seniorTag); delCacheErr != nil {
+				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", seniorTag)
+			}
 		}
 	}
 

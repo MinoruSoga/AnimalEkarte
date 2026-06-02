@@ -116,7 +116,9 @@ func (s *lstepTagSyncService) SyncPetSpeciesTags(ctx context.Context, clinicID, 
 				apiFailed = true
 				continue
 			}
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, entry.tag)
+			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, entry.tag); delCacheErr != nil {
+				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", entry.tag)
+			}
 		}
 	}
 

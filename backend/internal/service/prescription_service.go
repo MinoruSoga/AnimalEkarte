@@ -118,7 +118,7 @@ func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecor
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get medical record")
 	}
-	if mr.Status == model.MedicalRecordStatusFinalized {
+	if mr != nil && mr.Status == model.MedicalRecordStatusFinalized {
 		return nil, apperrors.WrapConflict("確定済みの診療記録の処方は編集できません")
 	}
 	fields := buildPrescriptionUpdate(input)
@@ -154,7 +154,7 @@ func (s *prescriptionService) Delete(ctx context.Context, clinicID, medicalRecor
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get medical record")
 	}
-	if mr.Status == model.MedicalRecordStatusFinalized {
+	if mr != nil && mr.Status == model.MedicalRecordStatusFinalized {
 		return apperrors.WrapConflict("確定済みの診療記録の処方は削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, prescriptionID); err != nil {

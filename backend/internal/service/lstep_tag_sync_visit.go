@@ -83,7 +83,9 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 				apiFailed = true
 			} else {
-				_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName)
+				if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delCacheErr != nil {
+					slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", c.TagName)
+				}
 			}
 		}
 	}
@@ -94,7 +96,9 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, staleTag)
+			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, staleTag); delCacheErr != nil {
+				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", staleTag)
+			}
 		}
 	}
 
