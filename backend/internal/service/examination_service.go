@@ -145,6 +145,18 @@ func (s *examinationService) GetByID(ctx context.Context, clinicID, id uint64) (
 }
 
 func (s *examinationService) Create(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error) {
+	// HC-005: 親カルテが確定済みの場合は作成拒否
+	if input.MedicalRecordID != nil {
+		parent, err := s.medRec.FindByID(ctx, clinicID, *input.MedicalRecordID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+			return nil, apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return nil, apperrors.WrapConflict("確定済みカルテに検査を追加できません")
+		}
+	}
+
 	status := input.Status
 	if status == "" {
 		status = model.ExaminationStatusPending
