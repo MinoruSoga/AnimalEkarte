@@ -258,16 +258,17 @@ func main() {
 	if cfg.GinMode == "release" {
 		// Production: trust ALB CIDR
 		// e.g., TRUSTED_PROXY_CIDR="10.0.0.0/8" for AWS ALB in private subnet
-		albCidr := os.Getenv("TRUSTED_PROXY_CIDR")
-		trustedProxies = []string{albCidr}
-		slog.Info("rate-limit: trusting ALB CIDR for X-Forwarded-For", slog.String("cidr", albCidr))
+		if albCidr := os.Getenv("TRUSTED_PROXY_CIDR"); albCidr != "" {
+			trustedProxies = []string{albCidr}
+			slog.Info("rate-limit: trusting ALB CIDR")
+		}
 	} else {
 		// Development: trust localhost only
 		trustedProxies = []string{"127.0.0.1"}
 	}
 	if err := r.SetTrustedProxies(trustedProxies); err != nil {
-		slog.Error("failed to set trusted proxies", slog.String("error", err.Error()))
-		os.Exit(1)
+		// Log but continue - SetTrustedProxies failure is non-fatal
+		slog.Warn("failed to set trusted proxies", slog.Any("error", err))
 	}
 	r.Use(gin.Recovery())
 	r.Use(middleware.SecurityHeaders(cfg.GinMode == "release"))

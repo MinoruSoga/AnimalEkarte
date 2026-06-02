@@ -215,10 +215,7 @@ const waitingAccounting = {
     },
   ],
   payments: [],
-  payment_splits: [
-    { method: "cash", amount: "1100", receivedAmount: "" },
-    { method: "credit_card", amount: "", receivedAmount: "" },
-  ],
+  payment_splits: [],
 };
 
 function setupWaitingHandlers() {
