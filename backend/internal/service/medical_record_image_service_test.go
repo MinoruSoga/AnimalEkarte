@@ -14,26 +14,26 @@ import (
 // ---- MedicalRecordImage モック ----
 
 type mockMedicalRecordImageRepository struct {
-	listByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
-	findByIDFn              func(ctx context.Context, imageID uint64) (*model.MedicalRecordImage, error)
+	listByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
+	findByIDFn              func(ctx context.Context, clinicID, imageID uint64) (*model.MedicalRecordImage, error)
 	createFn                func(ctx context.Context, image *model.MedicalRecordImage) error
-	deleteFn                func(ctx context.Context, imageID uint64) error
+	deleteFn                func(ctx context.Context, clinicID, imageID uint64) error
 }
 
-func (m *mockMedicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
-	return m.listByMedicalRecordIDFn(ctx, medicalRecordID)
+func (m *mockMedicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockMedicalRecordImageRepository) FindByID(ctx context.Context, imageID uint64) (*model.MedicalRecordImage, error) {
-	return m.findByIDFn(ctx, imageID)
+func (m *mockMedicalRecordImageRepository) FindByID(ctx context.Context, clinicID, imageID uint64) (*model.MedicalRecordImage, error) {
+	return m.findByIDFn(ctx, clinicID, imageID)
 }
 
 func (m *mockMedicalRecordImageRepository) Create(ctx context.Context, image *model.MedicalRecordImage) error {
 	return m.createFn(ctx, image)
 }
 
-func (m *mockMedicalRecordImageRepository) Delete(ctx context.Context, imageID uint64) error {
-	return m.deleteFn(ctx, imageID)
+func (m *mockMedicalRecordImageRepository) Delete(ctx context.Context, clinicID, imageID uint64) error {
+	return m.deleteFn(ctx, clinicID, imageID)
 }
 
 // ---- Tests ----
@@ -78,13 +78,13 @@ func TestMedicalRecordImageService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicalRecordImageRepository{
-				listByMedicalRecordIDFn: func(_ context.Context, _ uint64) ([]model.MedicalRecordImage, error) {
+				listByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]model.MedicalRecordImage, error) {
 					return tt.repoImages, tt.repoErr
 				},
 			}
 			svc := NewMedicalRecordImageService(repo)
 
-			images, err := svc.List(context.Background(), tt.medicalRecordID)
+			images, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -176,7 +176,7 @@ func TestMedicalRecordImageService_Create(t *testing.T) {
 			}
 			svc := NewMedicalRecordImageService(repo)
 
-			image, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
+			image, err := svc.Create(context.Background(), 1, tt.medicalRecordID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -252,16 +252,16 @@ func TestMedicalRecordImageService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicalRecordImageRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.MedicalRecordImage, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecordImage, error) {
 					return tt.repoImage, tt.findByIDErr
 				},
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.deleteErr
 				},
 			}
 			svc := NewMedicalRecordImageService(repo)
 
-			err := svc.Delete(context.Background(), tt.medicalRecordID, tt.imageID)
+			err := svc.Delete(context.Background(), 1, tt.medicalRecordID, tt.imageID)
 
 			if tt.wantErr {
 				assert.Error(t, err)

@@ -38,7 +38,7 @@ func (h *Handler) ListMedicalRecordImages(c *gin.Context) {
 		return
 	}
 
-	images, err := h.svc.MedicalRecordImage.List(c.Request.Context(), medicalRecordID)
+	images, err := h.svc.MedicalRecordImage.List(c.Request.Context(), clinicID, medicalRecordID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -72,7 +72,7 @@ func (h *Handler) CreateMedicalRecordImage(c *gin.Context) {
 		return
 	}
 
-	image, err := h.svc.MedicalRecordImage.Create(c.Request.Context(), medicalRecordID, req.toServiceInput())
+	image, err := h.svc.MedicalRecordImage.Create(c.Request.Context(), clinicID, medicalRecordID, req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -101,7 +101,7 @@ func (h *Handler) DeleteMedicalRecordImage(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.MedicalRecordImage.Delete(c.Request.Context(), medicalRecordID, imageID); err != nil {
+	if err := h.svc.MedicalRecordImage.Delete(c.Request.Context(), clinicID, medicalRecordID, imageID); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -153,7 +153,7 @@ func (h *Handler) UploadMedicalRecordImage(c *gin.Context) {
 	now := time.Now()
 	input := uploadMeta.toUploadedInput(imageURL, now).toServiceInput()
 
-	image, err := h.svc.MedicalRecordImage.Create(c.Request.Context(), medicalRecordID, input)
+	image, err := h.svc.MedicalRecordImage.Create(c.Request.Context(), clinicID, medicalRecordID, input)
 	if err != nil {
 		// Clean up uploaded file on service error (best-effort, non-blocking)
 		if delErr := h.uploader.Delete(c.Request.Context(), key); delErr != nil {
