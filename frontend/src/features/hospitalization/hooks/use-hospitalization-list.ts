@@ -41,10 +41,15 @@ export const useHospitalizationList = () => {
         const swapPayload = sourceHosp.cageId
           ? { cage_id: sourceHosp.cageId }
           : {};
-        await Promise.all([
+        const results = await Promise.allSettled([
           updateHospitalization(sourceHosp.id, { cage_id: targetCageId }),
           updateHospitalization(targetHosp.id, swapPayload),
         ]);
+        // どちらかが失敗した場合はエラー表示（ロールバックは BE で処理）
+        const failed = results.filter((r) => r.status === "rejected");
+        if (failed.length > 0) {
+          handleApiError(failed[0].reason, "スワップ");
+        }
       } else {
         await updateHospitalization(sourceHosp.id, { cage_id: targetCageId });
       }

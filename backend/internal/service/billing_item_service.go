@@ -177,10 +177,11 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	}
 
 	if err := s.recalculateTotals(ctx, input.ClinicID, input.BillingID); err != nil {
-		slog.WarnContext(ctx, "failed to recalculate billing totals after create",
+		slog.ErrorContext(ctx, "failed to recalculate billing totals after create",
 			slog.Uint64("billing_id", input.BillingID),
 			slog.String("error", err.Error()),
 		)
+		return nil, apperrors.Wrap(err, "failed to recalculate billing totals")
 	}
 
 	slog.InfoContext(ctx, "billing item created",
@@ -212,10 +213,11 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 	}
 
 	if err := s.recalculateTotals(ctx, clinicID, item.BillingID); err != nil {
-		slog.WarnContext(ctx, "failed to recalculate billing totals after update",
+		slog.ErrorContext(ctx, "failed to recalculate billing totals after update",
 			slog.Uint64("billing_id", item.BillingID),
 			slog.String("error", err.Error()),
 		)
+		return nil, apperrors.Wrap(err, "failed to recalculate billing totals")
 	}
 
 	slog.InfoContext(ctx, "billing item updated",
@@ -244,10 +246,11 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 	}
 
 	if err := s.recalculateTotals(ctx, clinicID, billingID); err != nil {
-		slog.WarnContext(ctx, "failed to recalculate billing totals after delete",
+		slog.ErrorContext(ctx, "failed to recalculate billing totals after delete",
 			slog.Uint64("billing_id", billingID),
 			slog.String("error", err.Error()),
 		)
+		return apperrors.Wrap(err, "failed to recalculate billing totals")
 	}
 
 	slog.InfoContext(ctx, "billing item deleted",
