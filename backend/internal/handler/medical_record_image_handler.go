@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -154,8 +155,10 @@ func (h *Handler) UploadMedicalRecordImage(c *gin.Context) {
 
 	image, err := h.svc.MedicalRecordImage.Create(c.Request.Context(), medicalRecordID, input)
 	if err != nil {
-		// Clean up uploaded file on service error (non-fatal)
-		_ = h.uploader.Delete(c.Request.Context(), key)
+		// Clean up uploaded file on service error (best-effort, non-blocking)
+		if delErr := h.uploader.Delete(c.Request.Context(), key); delErr != nil {
+			slog.WarnContext(c.Request.Context(), "failed to delete uploaded image on service error (best-effort)", "error", delErr, "key", key)
+		}
 		RespondError(c, err)
 		return
 	}
