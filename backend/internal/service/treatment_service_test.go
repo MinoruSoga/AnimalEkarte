@@ -162,9 +162,9 @@ func TestTreatmentService_List(t *testing.T) {
 				},
 			}
 			svc := NewTreatmentService(&repository.Repositories{
-				Treatment: repo,
+				Treatment:     repo,
 				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-				Inventory: &mockInventoryRepository{},
+				Inventory:     &mockInventoryRepository{},
 			})
 
 			treatments, err := svc.List(context.Background(), clinicID, tt.medicalRecordID)
@@ -265,9 +265,9 @@ func TestTreatmentService_Create(t *testing.T) {
 			invRepo := &mockInventoryRepository{}
 			// TransactionFn: DB 不要でトランザクションをインライン実行
 			repos := &repository.Repositories{
-				Treatment: repo,
+				Treatment:     repo,
 				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-				Inventory: invRepo,
+				Inventory:     invRepo,
 			}
 			repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
 				return fn(repos)
@@ -425,9 +425,9 @@ func TestTreatmentService_Update(t *testing.T) {
 				},
 			}
 			svc := NewTreatmentService(&repository.Repositories{
-				Treatment: repo,
+				Treatment:     repo,
 				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-				Inventory: &mockInventoryRepository{},
+				Inventory:     &mockInventoryRepository{},
 			})
 
 			treatment, err := svc.Update(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID, tt.input)
@@ -512,9 +512,9 @@ func TestTreatmentService_Delete(t *testing.T) {
 				},
 			}
 			svc := NewTreatmentService(&repository.Repositories{
-				Treatment: repo,
+				Treatment:     repo,
 				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-				Inventory: &mockInventoryRepository{},
+				Inventory:     &mockInventoryRepository{},
 			})
 
 			err := svc.Delete(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID)

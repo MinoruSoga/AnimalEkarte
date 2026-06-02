@@ -71,7 +71,7 @@ func NewLstepTagSummaryService(tagCache repository.LstepTagCacheRepository) Lste
 // sanitizeCSVCell はセルがスプレッドシート数式と解釈されるのを防ぐ。
 // 先頭文字が = + - @ の場合、単一引用符 ' で前置する。
 func sanitizeCSVCell(cell string) string {
-	if len(cell) > 0 {
+	if cell != "" {
 		switch cell[0] {
 		case '=', '+', '-', '@':
 			return "'" + cell

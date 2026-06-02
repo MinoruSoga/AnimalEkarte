@@ -98,7 +98,7 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 	}
 
 	if excluded {
-		if updateErr := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, string(model.TriggerStatusExcluded), nil, &reason); updateErr != nil {
+		if updateErr := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, model.TriggerStatusExcluded, nil, &reason); updateErr != nil {
 			slog.WarnContext(ctx, "failed to record trigger log excluded status (non-fatal)", "log_id", logID, "error", updateErr)
 		}
 		return false, nil
