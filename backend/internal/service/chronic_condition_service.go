@@ -135,7 +135,9 @@ func (s *chronicConditionService) syncTags(ctx context.Context, clinicID, ownerI
 		slog.ErrorContext(ctx, "failed to get active condition codes", "error", err)
 		return
 	}
-	_ = s.tagSyncSvc.SyncChronicConditionTags(ctx, clinicID, ownerID, codes)
+	if err := s.tagSyncSvc.SyncChronicConditionTags(ctx, clinicID, ownerID, codes); err != nil {
+		slog.WarnContext(ctx, "failed to sync chronic condition tags (non-fatal)", "owner_id", ownerID, "error", err)
+	}
 }
 
 func buildChronicConditionUpdateFields(input UpdateChronicConditionInput) map[string]any {

@@ -106,6 +106,10 @@ func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicI
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
 	}
+	// P2: RowsAffected == 0 は clinic scope 外 or soft-delete の可能性（NOT FOUND）
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
+	}
 	return nil
 }
 

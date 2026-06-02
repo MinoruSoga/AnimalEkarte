@@ -15,7 +15,9 @@ func (s *lstepDeliveryTriggerService) applyTagAndLog(ctx context.Context, clinic
 	if err := client.AddTag(ctx, lineUserID, tagName); err != nil {
 		slog.ErrorContext(ctx, "delivery trigger: failed to add tag", "tag", tagName, "error", err)
 		reason := fmt.Sprintf("lstep_add_tag_failed: %s", tagName)
-		_ = s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, string(model.TriggerStatusFailed), nil, &reason)
+		if updateErr := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, string(model.TriggerStatusFailed), nil, &reason); updateErr != nil {
+			slog.WarnContext(ctx, "failed to record trigger log failed status (non-fatal)", "log_id", logID, "error", updateErr)
+		}
 		return apperrors.Wrap(err, "failed to add lstep tag")
 	}
 	now := time.Now()
