@@ -89,13 +89,17 @@ func (s *lstepTagSyncService) SyncHealthcheckTags(ctx context.Context, clinicID,
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add healthcheck done tag")
 		}
-		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthHealthcheckDoneTag, "auto", fmt.Sprintf("最終健診: %s", lastCheckupDate.Format("2006-01-02")))
+		if err := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthHealthcheckDoneTag, "auto", fmt.Sprintf("最終健診: %s", lastCheckupDate.Format("2006-01-02"))); err != nil {
+			slog.WarnContext(ctx, "failed to upsert tag cache (non-fatal)", "tag", HlthHealthcheckDoneTag, "owner_id", ownerID, "error", err)
+		}
 		if delErr := client.RemoveTag(ctx, lineUserID, HlthHealthcheckNeverTag); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove healthcheck never tag", "error", delErr)
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthHealthcheckNeverTag)
+			if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthHealthcheckNeverTag); err != nil {
+				slog.WarnContext(ctx, "failed to delete tag cache (non-fatal)", "tag", HlthHealthcheckNeverTag, "owner_id", ownerID, "error", err)
+			}
 		}
 	} else {
 		if addErr := client.AddTag(ctx, lineUserID, HlthHealthcheckNeverTag); addErr != nil {
@@ -103,13 +107,17 @@ func (s *lstepTagSyncService) SyncHealthcheckTags(ctx context.Context, clinicID,
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add healthcheck never tag")
 		}
-		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthHealthcheckNeverTag, "auto", "")
+		if err := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthHealthcheckNeverTag, "auto", ""); err != nil {
+			slog.WarnContext(ctx, "failed to upsert tag cache (non-fatal)", "tag", HlthHealthcheckNeverTag, "owner_id", ownerID, "error", err)
+		}
 		if delErr := client.RemoveTag(ctx, lineUserID, HlthHealthcheckDoneTag); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove healthcheck done tag", "error", delErr)
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthHealthcheckDoneTag)
+			if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthHealthcheckDoneTag); err != nil {
+				slog.WarnContext(ctx, "failed to delete tag cache (non-fatal)", "tag", HlthHealthcheckDoneTag, "owner_id", ownerID, "error", err)
+			}
 		}
 	}
 	if !apiFailed {

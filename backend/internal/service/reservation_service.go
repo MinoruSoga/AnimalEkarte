@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -373,6 +374,12 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find reservation")
+	}
+	// P10: status 遷移の妥当性チェック（terminal state からの逆遷移禁止）
+	if input.Status != nil && *input.Status != current.Status {
+		if current.Status == model.ReservationStatusCompleted || current.Status == model.ReservationStatusCancelled {
+			return nil, apperrors.WrapConflict(fmt.Sprintf("cannot change status from %s", current.Status))
+		}
 	}
 	if err := validateLineReservationCheckedInLink(current, input); err != nil {
 		return nil, err

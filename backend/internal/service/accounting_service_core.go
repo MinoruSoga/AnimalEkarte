@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -69,9 +70,14 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 }
 
 func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error) {
-	if _, err := s.repo.FindByID(ctx, input.ClinicID, input.ID); err != nil {
+	existing, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to find accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find accounting")
+	}
+	// P10: completed billing を上書き禁止（金銭改竄・二重請求防止）
+	if existing.Status == model.BillingStatusCompleted {
+		return nil, apperrors.WrapConflict(fmt.Sprintf("billing %d is already completed", input.ID))
 	}
 	// BUG-142: 金額バリデーション
 	if input.TotalAmount != nil && *input.TotalAmount < 0 {

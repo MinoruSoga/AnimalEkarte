@@ -85,7 +85,9 @@ func (s *lstepTagSyncService) SyncVaccineDeadlineTag(ctx context.Context, clinic
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, PrevVaccineDeadlineTag)
+			if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, PrevVaccineDeadlineTag); err != nil {
+				slog.WarnContext(ctx, "failed to delete tag cache (non-fatal)", "tag", PrevVaccineDeadlineTag, "owner_id", ownerID, "error", err)
+			}
 		}
 	}
 
