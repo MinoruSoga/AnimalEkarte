@@ -118,6 +118,9 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	if input.UnitPrice < 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
+	if input.Quantity <= 0 {
+		return nil, apperrors.WrapInvalidInput("数量は正の値である必要があります")
+	}
 
 	// テナント所有権確認: billing が同一クリニックに属することを確認
 	if _, err := s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID); err != nil {
@@ -200,6 +203,9 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
+	}
+	if input.Quantity != nil && *input.Quantity <= 0 {
+		return nil, apperrors.WrapInvalidInput("数量は正の値である必要があります")
 	}
 
 	fields := buildBillingItemUpdate(input)

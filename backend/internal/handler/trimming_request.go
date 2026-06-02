@@ -77,7 +77,7 @@ type createTrimmingRequest struct {
 	Remarks        string   `json:"remarks"`
 	StyleImage     string   `json:"style_image"`
 	CompletedImage string   `json:"completed_image"`
-	OptionIDs      []uint64 `json:"option_ids"`
+	OptionIDs      []uint64 `json:"option_ids" binding:"max=50,dive"`
 }
 
 func (r *createTrimmingRequest) toServiceInput() *service.CreateTrimmingInput {

@@ -196,7 +196,7 @@ type updateAccountingRequest struct {
 	ReceivedAmount  *int64   `json:"received_amount"`
 	ChangeAmount    *int64   `json:"change_amount"`
 	// PaymentSplits: 混在支払い内訳（nil = 従来単一支払い互換）
-	PaymentSplits []paymentSplitRequest `json:"payment_splits"`
+	PaymentSplits []paymentSplitRequest `json:"payment_splits" binding:"max=50,dive"`
 }
 
 func (r *updateAccountingRequest) toServiceInput(id, clinicID, staffID uint64) *service.UpdateAccountingInput {

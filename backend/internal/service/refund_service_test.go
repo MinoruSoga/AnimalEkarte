@@ -93,7 +93,8 @@ func TestRefundService_Create_RecordsPaymentMethod(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{})
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
 
 	method := model.PaymentMethodCreditCard
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{
@@ -125,7 +126,8 @@ func TestRefundService_Create_NilPaymentMethodWhenUnspecified(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{})
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
 
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{
 		StaffID: ptrUint64(1),
@@ -149,7 +151,8 @@ func TestRefundService_Create_RejectsNonCompletedBilling(t *testing.T) {
 	refundRepo := &mockRefundRepo{
 		createFn: func(_ context.Context, _ *model.BillingRefund) error { return nil },
 	}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{})
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
 
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1000})
 	assert.Error(t, err)
@@ -165,7 +168,8 @@ func TestRefundService_Create_PaymentMethodExceedsReceived(t *testing.T) {
 	refundRepo := &mockRefundRepo{
 		createFn: func(_ context.Context, _ *model.BillingRefund) error { return nil },
 	}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{})
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
 
 	method := model.PaymentMethodCreditCard
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 3500, PaymentMethod: &method})
@@ -182,7 +186,8 @@ func TestRefundService_Create_PaymentMethodNotUsed(t *testing.T) {
 	refundRepo := &mockRefundRepo{
 		createFn: func(_ context.Context, _ *model.BillingRefund) error { return nil },
 	}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{})
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
 
 	method := model.PaymentMethodCreditCard // 現金のみの会計にカード返金
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1000, PaymentMethod: &method})
@@ -202,7 +207,8 @@ func TestRefundService_Create_PaymentMethodAccumulates(t *testing.T) {
 			return 1000, nil // カードで既に ¥1,000 返金済み
 		},
 	}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{})
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
 
 	method := model.PaymentMethodCreditCard
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 2500, PaymentMethod: &method})
@@ -227,7 +233,8 @@ func TestRefundService_Create_PaymentMethodWithinLimit(t *testing.T) {
 			return 1000, nil
 		},
 	}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{})
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
 
 	method := model.PaymentMethodCreditCard
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1500, PaymentMethod: &method})

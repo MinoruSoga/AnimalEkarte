@@ -238,7 +238,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ManualArticle:                  NewManualArticleService(repos.ManualArticle),
 		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:                    NewBillingItemService(repos.BillingItem, repos.Accounting, repos.Treatment),
-		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditSvc),
+		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditSvc, tx),
 		PasswordReset:                  NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
 		// FEAT-368: 集計・締め機能
 		ClosingSettings:           closingSettingsSvc,
