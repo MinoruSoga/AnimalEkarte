@@ -141,8 +141,9 @@ func (h *Handler) DeleteManualArticle(c *gin.Context) {
 func (h *Handler) registerManualArticleRoutes(rg *gin.RouterGroup) {
 	manual := rg.Group("/manual/articles")
 	// 閲覧系: 認証済みユーザー全員（マニュアル閲覧は全スタッフ向け）
-	manual.GET("", h.ListManualArticles)
-	manual.GET("/:category/:slug", h.GetManualArticle)
+	// SEC-602: P5 RequirePermission(view) 付与
+	manual.GET("", h.RequirePermission(string(model.ResourceManualEdit), "view"), h.ListManualArticles)
+	manual.GET("/:category/:slug", h.RequirePermission(string(model.ResourceManualEdit), "view"), h.GetManualArticle)
 	manual.GET("/:category/:slug/versions", h.RequirePermission(string(model.ResourceManualEdit), "view"), h.ListManualArticleVersions)
 
 	// 編集系: ResourceManualEdit 権限必須
