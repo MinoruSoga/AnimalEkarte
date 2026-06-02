@@ -26,11 +26,12 @@ type RefundService interface {
 type refundService struct {
 	repo        repository.RefundRepository
 	accountRepo repository.AccountingRepository
+	auditSvc    AuditService
 }
 
 // NewRefundService はRefundServiceを初期化して返す
-func NewRefundService(repo repository.RefundRepository, accountRepo repository.AccountingRepository) RefundService {
-	return &refundService{repo: repo, accountRepo: accountRepo}
+func NewRefundService(repo repository.RefundRepository, accountRepo repository.AccountingRepository, auditSvc AuditService) RefundService {
+	return &refundService{repo: repo, accountRepo: accountRepo, auditSvc: auditSvc}
 }
 
 func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, input CreateRefundInput) (*model.BillingRefund, error) {
@@ -104,6 +105,18 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("billing_id", billingID),
 		slog.Int64("amount", amount))
+
+	// 監査ログ記録（best-effort）
+	_ = s.auditSvc.LogEntry(ctx, &AuditLogInput{
+		ClinicID:   &clinicID,
+		ActorID:    input.StaffID,
+		ActorType:  "staff",
+		Action:     "create",
+		Resource:   "billing_refund",
+		ResourceID: &refund.ID,
+		NewValue:   refund,
+	})
+
 	return refund, nil
 }
 

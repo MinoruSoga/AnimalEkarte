@@ -68,6 +68,18 @@ func NewLstepTagSummaryService(tagCache repository.LstepTagCacheRepository) Lste
 	return &lstepTagSummaryService{tagCache: tagCache}
 }
 
+// sanitizeCSVCell はセルがスプレッドシート数式と解釈されるのを防ぐ。
+// 先頭文字が = + - @ の場合、単一引用符 ' で前置する。
+func sanitizeCSVCell(cell string) string {
+	if len(cell) > 0 {
+		switch cell[0] {
+		case '=', '+', '-', '@':
+			return "'" + cell
+		}
+	}
+	return cell
+}
+
 func (s *lstepTagSummaryService) GetTagSummary(ctx context.Context, clinicID uint64) (TagSummaryResponse, error) {
 	rows, total, err := s.tagCache.TagSummary(ctx, clinicID)
 	if err != nil {
@@ -134,7 +146,7 @@ func (s *lstepTagSummaryService) ExportOwnersByTagCSV(ctx context.Context, clini
 		}
 		cw.Write([]string{ //nolint:errcheck // csv.Writer error is captured by cw.Error() after Flush()
 			fmt.Sprintf("%d", r.OwnerID),
-			r.OwnerName,
+			sanitizeCSVCell(r.OwnerName),
 			lvd,
 			extractCPMStage(r.Tags),
 		})

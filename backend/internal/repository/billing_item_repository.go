@@ -116,7 +116,7 @@ func (r *billingItemRepository) HasItemByOwnerSince(ctx context.Context, clinicI
 	var count int64
 	err := r.db.WithContext(ctx).Model(&model.BillingItem{}).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id").
-		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.issued_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
+		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.completed_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
 		Where("billing_items.name IN ? AND billing_items.deleted_at IS NULL", names).
 		Count(&count).Error
 	if err != nil {
@@ -140,7 +140,7 @@ func (r *billingItemRepository) FindOwnersByCategoryPurchaseDate(ctx context.Con
 		  AND billing_items.deleted_at IS NULL
 		  AND billing_items.category = ?
 		GROUP BY billings.owner_id
-		HAVING MAX(billings.issued_at::date) = ?::date
+		HAVING MAX(billings.completed_at::date) = ?::date
 	`, clinicID, category, target).Scan(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("clinic=%d category=%s date=%s", clinicID, category, target))
@@ -155,7 +155,7 @@ func (r *billingItemRepository) FindOwnersByCategoryPurchaseDate(ctx context.Con
 func (r *billingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
 	q := r.db.WithContext(ctx).Model(&model.BillingItem{}).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id").
-		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.issued_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
+		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.completed_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
 		Where("billing_items.deleted_at IS NULL")
 	if len(names) > 0 {
 		q = q.Where("billing_items.name IN ?", names)
