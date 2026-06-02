@@ -141,41 +141,6 @@ func (m *mockMedicalRecordRepositoryForExam) FindLastVisitDateByOwner(ctx contex
 	return nil, nil
 }
 
-// mockAuditServiceForExam は AuditService のテスト用 stub（全メソッド実装）
-type mockAuditServiceForExam struct{}
-
-func (m *mockAuditServiceForExam) LogEntry(ctx context.Context, input *AuditLogInput) error {
-	return nil
-}
-
-func (m *mockAuditServiceForExam) Log(ctx context.Context, audit *model.AuditLog) error {
-	return nil
-}
-
-func (m *mockAuditServiceForExam) LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue any) error {
-	return nil
-}
-
-func (m *mockAuditServiceForExam) LogLstepOperation(ctx context.Context, clinicID uint64, actorID *uint64, action, resourceType string, resourceID *uint64) error {
-	return nil
-}
-
-func (m *mockAuditServiceForExam) LogLstepOperationWithMetadata(ctx context.Context, clinicID uint64, actorID *uint64, action, resourceType string, resourceID *uint64, metadata map[string]any) error {
-	return nil
-}
-
-func (m *mockAuditServiceForExam) LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID uint64, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error {
-	return nil
-}
-
-func (m *mockAuditServiceForExam) LogAddendumDelete(ctx context.Context, clinicID uint64, actorID *uint64, addendumID uint64, medicalRecordID uint64) error {
-	return nil
-}
-
-func (m *mockAuditServiceForExam) LogVaccinationAdministration(ctx context.Context, clinicID uint64, actorID *uint64, action string, vaccinationID uint64, oldValue, newValue any) error {
-	return nil
-}
-
 func TestExaminationService_List(t *testing.T) {
 	petID := uint64(5)
 	ownerID := uint64(2)
