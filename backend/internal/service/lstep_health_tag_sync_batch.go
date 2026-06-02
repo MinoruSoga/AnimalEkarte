@@ -20,6 +20,13 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 		return 0, []error{apperrors.Wrap(err, "failed to find owners with line user id")}
 	}
 
+	// PERF-03 Stage 1: Cache tag code mappings for health prevention tags once per clinic
+	cachedMappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
+	if err != nil {
+		slog.ErrorContext(ctx, "health-prevention batch: failed to cache mappings", "clinic_id", clinicID, "error", err)
+		cachedMappings = nil // fallback to per-owner fetch
+	}
+
 	var errs []error
 	count := 0
 	for i := range owners {
@@ -28,7 +35,7 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 			name string
 			fn   func() error
 		}{
-			{"SyncHealthcheckTags", func() error { return s.SyncHealthcheckTags(ctx, clinicID, ownerID) }},
+			{"SyncHealthcheckTags", func() error { return s.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, cachedMappings, nil) }},
 			{"SyncAnnual4CheckupTag", func() error { return s.SyncAnnual4CheckupTag(ctx, clinicID, ownerID) }},
 			{"SyncVaccineDeadlineTag", func() error { return s.SyncVaccineDeadlineTag(ctx, clinicID, ownerID) }},
 			{"SyncFilariaTag", func() error { return s.SyncFilariaTag(ctx, clinicID, ownerID) }},

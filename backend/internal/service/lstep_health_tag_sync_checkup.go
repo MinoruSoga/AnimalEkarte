@@ -12,6 +12,10 @@ import (
 
 // SyncHealthcheckTags は健診履歴に基づき HLTH_健診あり / HLTH_健診未受診 を同期する（FEAT-379）。
 func (s *lstepTagSyncService) SyncHealthcheckTags(ctx context.Context, clinicID, ownerID uint64) error {
+	return s.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil)
+}
+
+func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil {
 		return nil
 	}
@@ -21,10 +25,17 @@ func (s *lstepTagSyncService) SyncHealthcheckTags(ctx context.Context, clinicID,
 		return nil
 	}
 
-	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find tag code mappings for healthcheck", "error", err)
-		return apperrors.Wrap(err, "failed to find tag code mappings")
+	// PERF-03: Use cached mappings if provided, otherwise fetch (fallback)
+	var mappings []*model.LstepTagCodeMapping
+	if cachedMappings != nil {
+		mappings = cachedMappings
+	} else {
+		var err error
+		mappings, err = s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find tag code mappings for healthcheck", "error", err)
+			return apperrors.Wrap(err, "failed to find tag code mappings")
+		}
 	}
 	checkupCodes := extractTagCodes(mappings, model.CodeTypeCheckupType)
 	if len(checkupCodes) == 0 {
