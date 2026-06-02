@@ -207,7 +207,7 @@ func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 		spy := &mockMiddlewareAuditService{}
 		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims([]uint64{1, 2}))
 
-		w, _ := runAuthMiddlewareWithAudit(t, "Bearer"+token, spy, func(req *http.Request) {
+		w, _ := runAuthMiddlewareWithAudit(t, "Bearer "+token, spy, func(req *http.Request) {
 			req.Header.Set("X-Clinic-ID", "2")
 			req.AddCookie(&http.Cookie{Name: "prev_clinic_id", Value: "1"})
 		})
@@ -231,7 +231,7 @@ func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 		spy := &mockMiddlewareAuditService{}
 		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims([]uint64{1, 2}))
 
-		w, _ := runAuthMiddlewareWithAudit(t, "Bearer"+token, spy, func(req *http.Request) {
+		w, _ := runAuthMiddlewareWithAudit(t, "Bearer "+token, spy, func(req *http.Request) {
 			req.Header.Set("X-Clinic-ID", "2")
 			req.AddCookie(&http.Cookie{Name: "prev_clinic_id", Value: "2"})
 		})
@@ -244,7 +244,7 @@ func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 		spy := &mockMiddlewareAuditService{}
 		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims([]uint64{1, 2}))
 
-		w, _ := runAuthMiddlewareWithAudit(t, "Bearer"+token, spy, func(req *http.Request) {
+		w, _ := runAuthMiddlewareWithAudit(t, "Bearer "+token, spy, func(req *http.Request) {
 			req.Header.Set("X-Clinic-ID", "2")
 			// no prev_clinic_id cookie
 		})
@@ -264,7 +264,7 @@ func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 		spy := &mockMiddlewareAuditService{}
 		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims([]uint64{1}))
 
-		w, _ := runAuthMiddlewareWithAudit(t, "Bearer"+token, spy, func(req *http.Request) {
+		w, _ := runAuthMiddlewareWithAudit(t, "Bearer "+token, spy, func(req *http.Request) {
 			req.AddCookie(&http.Cookie{Name: "prev_clinic_id", Value: "1"})
 			// no X-Clinic-ID header
 		})
@@ -284,7 +284,7 @@ func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 		}
 		token := makeToken(t, jwt.SigningMethodHS256, clinicSwitchClaims([]uint64{1, 2}))
 
-		w, _ := runAuthMiddlewareWithAudit(t, "Bearer"+token, spy, func(req *http.Request) {
+		w, _ := runAuthMiddlewareWithAudit(t, "Bearer "+token, spy, func(req *http.Request) {
 			req.Header.Set("X-Clinic-ID", "2")
 			req.AddCookie(&http.Cookie{Name: "prev_clinic_id", Value: "1"})
 		})
