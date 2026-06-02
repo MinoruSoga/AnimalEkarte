@@ -44,7 +44,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 	var refund *model.BillingRefund
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// 請求が存在するか確認（マルチテナント保護）— FOR UPDATE でロック
-		billing, err := s.accountRepo.FindByID(txCtx, clinicID, billingID)
+		billing, err := s.accountRepo.LockAndFindByID(txCtx, clinicID, billingID)
 		if err != nil {
 			slog.ErrorContext(txCtx, "failed to get billing", "error", err)
 			return apperrors.Wrap(err, "failed to get billing")
@@ -108,7 +108,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 			slog.Int64("amount", amount))
 
 		// 監査ログ記録（best-effort）
-		_ = s.auditSvc.LogEntry(txCtx, &AuditLogInput{
+		if err := s.auditSvc.LogEntry(txCtx, &AuditLogInput{
 			ClinicID:   &clinicID,
 			ActorID:    input.StaffID,
 			ActorType:  "staff",
@@ -116,7 +116,9 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 			Resource:   "billing_refund",
 			ResourceID: &refund.ID,
 			NewValue:   refund,
-		})
+		}); err != nil {
+			slog.WarnContext(txCtx, "audit log failed for refund create", "error", err, "refund_id", refund.ID)
+		}
 
 		return nil
 	}); err != nil {

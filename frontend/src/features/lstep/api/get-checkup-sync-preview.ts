@@ -67,7 +67,10 @@ export interface CheckupSyncPreviewResponse {
 
 // GET /v1/clinics/:clinicId/lstep/checkup-sync/preview
 export function useGetCheckupSyncPreview(params: CheckupSyncParams | null) {
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1");
+  if (!clinicId) {
+    throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+  }
 
   return useQuery({
     queryKey: ["checkup-sync-preview", params],

@@ -1,9 +1,10 @@
 package handler
 
 import (
-	"context"
 	"log/slog"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -107,17 +108,23 @@ func buildAllPermissions() EffectivePermissions {
 // calculateEffectivePermissions はユーザー種別に応じた実効権限を計算する。
 // isSystemAdmin=true: 全リソース全権限バイパス
 // isSystemAdmin=false: DB の staff_permission_groups → permission_group_rules から UNION 計算
-func (h *Handler) calculateEffectivePermissions(ctx context.Context, isSystemAdmin bool, staffID uint64) EffectivePermissions {
+func (h *Handler) calculateEffectivePermissions(ginCtx *gin.Context, isSystemAdmin bool, staffID uint64) EffectivePermissions {
 	// system_admin は全権限バイパス
 	if isSystemAdmin {
 		return buildAllPermissions()
 	}
 
-	// staff: service 経由で実効権限を取得（handler → repository 直接呼び出し禁止）
-	rules, err := h.svc.EffectivePermission.GetEffectivePermissions(ctx, staffID)
+	clinicID, ok := extractClinicID(ginCtx)
+	if !ok {
+		slog.ErrorContext(ginCtx.Request.Context(), "failed to extract clinic_id for effective permissions", "staff_id", staffID)
+		return make(EffectivePermissions)
+	}
+
+	// staff: service 経由で実効権限を取得（handler → repository 直接呼び出し禁止、clinic_id スコープ付き）
+	rules, err := h.svc.EffectivePermission.GetEffectivePermissions(ginCtx.Request.Context(), staffID, clinicID)
 	if err != nil {
 		// エラー時は空の権限（最小権限の原則）だが、ログ記録は必須（オペレーター障害認知のため）
-		slog.ErrorContext(ctx, "failed to get effective permissions", "staff_id", staffID, "error", err)
+		slog.ErrorContext(ginCtx.Request.Context(), "failed to get effective permissions", "staff_id", staffID, "clinic_id", clinicID, "error", err)
 		return make(EffectivePermissions)
 	}
 

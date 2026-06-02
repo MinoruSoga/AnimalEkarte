@@ -27,6 +27,9 @@ export function useGetLstepTagOwners(params: LstepTagOwnersParams) {
     queryKey: ["lstep-tag-owners", params],
     queryFn: async () => {
       const clinicId = localStorage.getItem("auth_current_clinic:v1");
+      if (!clinicId) {
+        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+      }
       const { data } = await axios.get<LstepTagOwnersResponse>(
         `/v1/clinics/${clinicId}/lstep/owners`,
         { params }

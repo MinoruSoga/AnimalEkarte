@@ -15,13 +15,17 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst)
 	end := start.AddDate(0, 1, 0)
 
+	// Convert JST to UTC for query (completed_at is stored in UTC)
+	utcStart := start.UTC()
+	utcEnd := end.UTC()
+
 	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
-	mArgs := []any{clinicID, model.BillingStatusCompleted, start, end}
+	mArgs := []any{clinicID, model.BillingStatusCompleted, utcStart, utcEnd}
 	mCompletedCTE := `WITH completed_billings AS (
 		SELECT id, completed_at FROM billings
 		WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
-		  AND completed_at AT TIME ZONE 'Asia/Tokyo' >= ?
-		  AND completed_at AT TIME ZONE 'Asia/Tokyo' < ?
+		  AND completed_at >= ?
+		  AND completed_at < ?
 	)`
 
 	// Query 1: 日×支払方法別合計 (payment_splits のみ)

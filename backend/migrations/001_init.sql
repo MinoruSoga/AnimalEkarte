@@ -2215,6 +2215,11 @@ CREATE INDEX idx_billings_has_insurance
   ON billings(clinic_id, has_insurance)
   WHERE deleted_at IS NULL;
 
+-- PERF-01: 月次レポート・締め集計最適化
+CREATE INDEX idx_billings_clinic_completed_at
+  ON billings(clinic_id, completed_at)
+  WHERE deleted_at IS NULL AND status = 'completed';
+
 -- 入院管理
 CREATE INDEX idx_hospitalizations_clinic_status
   ON hospitalizations(clinic_id, status)

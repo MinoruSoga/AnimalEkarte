@@ -33,12 +33,13 @@ type MedicalRecordImageService interface {
 }
 
 type medicalRecordImageService struct {
-	repo repository.MedicalRecordImageRepository
+	repo   repository.MedicalRecordImageRepository
+	medRec repository.MedicalRecordRepository
 }
 
 // NewMedicalRecordImageService は MedicalRecordImageService を初期化して返す
-func NewMedicalRecordImageService(repo repository.MedicalRecordImageRepository) MedicalRecordImageService {
-	return &medicalRecordImageService{repo: repo}
+func NewMedicalRecordImageService(repo repository.MedicalRecordImageRepository, medRec repository.MedicalRecordRepository) MedicalRecordImageService {
+	return &medicalRecordImageService{repo: repo, medRec: medRec}
 }
 
 func (s *medicalRecordImageService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
@@ -51,6 +52,11 @@ func (s *medicalRecordImageService) List(ctx context.Context, clinicID, medicalR
 }
 
 func (s *medicalRecordImageService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+	// Verify parent medical record exists and belongs to clinic
+	if _, err := s.medRec.FindByID(ctx, clinicID, medicalRecordID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find parent medical record")
+	}
+
 	if err := validateMedicalImageType(string(input.ImageType)); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate medical image type")
 	}

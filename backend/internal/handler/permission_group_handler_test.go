@@ -82,12 +82,12 @@ func (m *mockPermissionGroupService) Reorder(ctx context.Context, clinicID uint6
 // ---- mock EffectivePermissionService ----
 
 type mockEffectivePermissionService struct {
-	getEffectivePermissionsFn func(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
+	getEffectivePermissionsFn func(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
 }
 
-func (m *mockEffectivePermissionService) GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
+func (m *mockEffectivePermissionService) GetEffectivePermissions(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error) {
 	if m.getEffectivePermissionsFn != nil {
-		return m.getEffectivePermissionsFn(ctx, staffID)
+		return m.getEffectivePermissionsFn(ctx, staffID, clinicID)
 	}
 	return nil, nil
 }
@@ -688,14 +688,15 @@ func TestPermissionGroupHandler_SetRules(t *testing.T) {
 func TestPermissionGroupHandler_GetEffectivePermissions(t *testing.T) {
 	t.Run("正常: EffectivePermissionService がルールを返す", func(t *testing.T) {
 		svc := &mockEffectivePermissionService{
-			getEffectivePermissionsFn: func(_ context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
+			getEffectivePermissionsFn: func(_ context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error) {
 				assert.Equal(t, uint64(1), staffID)
+				assert.Equal(t, uint64(1), clinicID)
 				return []model.PermissionGroupRule{
 					{Resource: string(model.ResourceMasterPermission), CanView: true, CanEdit: true},
 				}, nil
 			},
 		}
-		rules, err := svc.GetEffectivePermissions(context.Background(), 1)
+		rules, err := svc.GetEffectivePermissions(context.Background(), 1, 1)
 		require.NoError(t, err)
 		assert.Len(t, rules, 1)
 		assert.Equal(t, string(model.ResourceMasterPermission), rules[0].Resource)
@@ -705,11 +706,11 @@ func TestPermissionGroupHandler_GetEffectivePermissions(t *testing.T) {
 
 	t.Run("エラー: サービスがエラーを返す", func(t *testing.T) {
 		svc := &mockEffectivePermissionService{
-			getEffectivePermissionsFn: func(_ context.Context, _ uint64) ([]model.PermissionGroupRule, error) {
+			getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
 				return nil, fmt.Errorf("db error")
 			},
 		}
-		rules, err := svc.GetEffectivePermissions(context.Background(), 1)
+		rules, err := svc.GetEffectivePermissions(context.Background(), 1, 1)
 		assert.Error(t, err)
 		assert.Nil(t, rules)
 	})

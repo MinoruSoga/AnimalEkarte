@@ -138,7 +138,9 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	}
 
 	// 監査ログ（best-effort）
-	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "pet_death_tag_sync", "pet", &petID)
+	if err := s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "pet_death_tag_sync", "pet", &petID); err != nil {
+		slog.WarnContext(ctx, "audit log failed for pet death tag sync", "error", err, "pet_id", petID)
+	}
 
 	return nil
 }
@@ -172,7 +174,9 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 	}
 
 	// 監査ログ（best-effort）
-	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "pet_revival_tag_sync", "pet", &petID)
+	if err := s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "pet_revival_tag_sync", "pet", &petID); err != nil {
+		slog.WarnContext(ctx, "audit log failed for pet revival tag sync", "error", err, "pet_id", petID)
+	}
 
 	return nil
 }

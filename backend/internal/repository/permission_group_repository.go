@@ -23,8 +23,8 @@ type PermissionGroupRepository interface {
 	CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	// FindAllEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
-	// UNION (bool_or) して実効権限を返す。
-	FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
+	// UNION (bool_or) して実効権限を返す（clinicID スコープ付き）。
+	FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
 	// FindAllGroupIDsByStaffID はスタッフが所属する権限グループIDリストを返す。
 	FindAllGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error)
 	// UpdateStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
@@ -140,13 +140,12 @@ func (r *permissionGroupRepository) CountUsageByGroupID(ctx context.Context, cli
 // FindAllEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
 // UNION (bool_or) して実効権限を返す。
 // 戻り値の各要素は resource 毎に集約済み（GroupID=0, ID=0）。
-// staff_clinic_assignments を JOIN して clinic 境界を明示する（CODE-QUALITY-227）。
-func (r *permissionGroupRepository) FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
+// clinicID パラメータで検索範囲を制限し、マルチクリニック昇格を防止（High-7）。
+func (r *permissionGroupRepository) FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error) {
 	var rules []model.PermissionGroupRule
 	// staff_permission_groups → permission_groups (active & not deleted) → permission_group_rules を JOIN し
 	// resource 毎に bool_or で集約する。
-	// staff_clinic_assignments を JOIN することで、スタッフが所属するクリニックの
-	// グループのみに絞り込む（pg.clinic_id = sca.clinic_id による clinic 境界の明示）。
+	// pg.clinic_id = ? で結果を指定クリニックに限定し、所属外クリニックの権限が混入するのを防止。
 	err := r.db.WithContext(ctx).
 		Raw(`
 			SELECT
@@ -160,18 +159,15 @@ func (r *permissionGroupRepository) FindAllEffectivePermissionsByStaffID(ctx con
 				ON pg.id = spg.group_id
 				AND pg.deleted_at IS NULL
 				AND pg.is_active = true
-			JOIN staff_clinic_assignments sca
-				ON sca.staff_id = spg.staff_id
-				AND sca.clinic_id = pg.clinic_id
-				AND sca.deleted_at IS NULL
+				AND pg.clinic_id = ?
 			JOIN permission_group_rules pgr
 				ON pgr.group_id = pg.id
 			WHERE spg.staff_id = ?
 			GROUP BY pgr.resource
-		`, staffID).
+		`, clinicID, staffID).
 		Scan(&rules).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "effective_permissions", fmt.Sprintf("staff:%d", staffID))
+		return nil, apperrors.FromGORM(err, "effective_permissions", fmt.Sprintf("staff:%d clinic:%d", staffID, clinicID))
 	}
 	return rules, nil
 }

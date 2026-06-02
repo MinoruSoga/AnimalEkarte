@@ -32,14 +32,16 @@ func (s *lstepBatchService) RunLTVTopPercentSyncAllClinics(ctx context.Context) 
 		}
 		if count > 0 {
 			slog.InfoContext(ctx, "ltv-top-percent batch: synced ltv tags", "clinic_id", clinic.ID, "count", count)
-			_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
+			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
 				"batch_ltv_top_percent", "clinic", &clinic.ID,
 				map[string]any{
 					"operation":       "batch_ltv_top_percent",
 					"processed_count": count,
 					"error_count":     len(errs),
 				},
-			)
+			); err != nil {
+				slog.WarnContext(ctx, "audit log failed for ltv top percent batch", "error", err, "clinic_id", clinic.ID)
+			}
 		}
 	}
 	return nil
@@ -86,14 +88,16 @@ func (s *lstepBatchService) RunVisitDormantSyncAllClinics(ctx context.Context) e
 		}
 		if count > 0 {
 			slog.InfoContext(ctx, "visit-dormant batch: synced visit tags", "clinic_id", clinic.ID, "count", count)
-			_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
+			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
 				"batch_visit_dormant", "clinic", &clinic.ID,
 				map[string]any{
 					"operation":       "batch_visit_dormant",
 					"processed_count": count,
 					"error_count":     len(errs),
 				},
-			)
+			); err != nil {
+				slog.WarnContext(ctx, "audit log failed for visit dormant batch", "error", err, "clinic_id", clinic.ID)
+			}
 		}
 	}
 	return nil
@@ -125,14 +129,16 @@ func (s *lstepBatchService) RunHealthPreventionTagSyncAllClinics(ctx context.Con
 		}
 		if count > 0 {
 			slog.InfoContext(ctx, "health-prevention batch: synced tags", "clinic_id", clinic.ID, "count", count)
-			_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
+			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
 				"batch_health_prevention", "clinic", &clinic.ID,
 				map[string]any{
 					"operation":       "batch_health_prevention",
 					"processed_count": count,
 					"error_count":     len(errs),
 				},
-			)
+			); err != nil {
+				slog.WarnContext(ctx, "audit log failed for health prevention batch", "error", err, "clinic_id", clinic.ID)
+			}
 		}
 	}
 	return nil

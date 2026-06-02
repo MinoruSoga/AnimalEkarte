@@ -56,7 +56,7 @@ func (s *lstepBatchService) RunDormantDetectionAllClinics(ctx context.Context) e
 		if count > 0 {
 			slog.InfoContext(ctx, "dormant batch: synced dormant tags", "clinic_id", clinic.ID, "count", count)
 			// ISSUE-010: 処理件数・エラー件数・閾値を永続化する。閾値は後から判定基準を再現できるよう含める。
-			_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
+			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
 				"batch_dormant_detect", "clinic", &clinic.ID,
 				map[string]any{
 					"operation":       "batch_dormant_detect",
@@ -64,7 +64,9 @@ func (s *lstepBatchService) RunDormantDetectionAllClinics(ctx context.Context) e
 					"error_count":     len(errs),
 					"min_days_since":  180,
 				},
-			)
+			); err != nil {
+				slog.WarnContext(ctx, "audit log failed for dormant batch", "error", err, "clinic_id", clinic.ID)
+			}
 		}
 	}
 	return nil

@@ -91,7 +91,7 @@ func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uin
 	)
 
 	// ISSUE-010: 一括タグ付与の実行件数とスキップ理由内訳を audit_logs.metadata に永続化する。
-	_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinicID, actorID,
+	if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinicID, actorID,
 		"checkup_sync", "owner", nil,
 		map[string]any{
 			"operation":             "checkup_sync_execute",
@@ -105,7 +105,9 @@ func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uin
 			"skipped_no_living_pet": skippedNoLivingPet,
 			"skipped_line_unlinked": skippedLineUnlinked,
 		},
-	)
+	); err != nil {
+		slog.WarnContext(ctx, "audit log failed for checkup sync execute", "error", err, "clinic_id", clinicID)
+	}
 
 	return result, nil
 }

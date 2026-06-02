@@ -219,7 +219,7 @@ func (m *mockPermissionGroupForStaff) CountUsageByGroupID(_ context.Context, _, 
 func (m *mockPermissionGroupForStaff) Reorder(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
 }
-func (m *mockPermissionGroupForStaff) FindAllEffectivePermissionsByStaffID(_ context.Context, _ uint64) ([]model.PermissionGroupRule, error) {
+func (m *mockPermissionGroupForStaff) FindAllEffectivePermissionsByStaffID(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
 	return nil, nil
 }
 func (m *mockPermissionGroupForStaff) FindAllGroupIDsByStaffID(_ context.Context, _ uint64) ([]uint64, error) {

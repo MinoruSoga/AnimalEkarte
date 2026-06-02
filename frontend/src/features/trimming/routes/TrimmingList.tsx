@@ -75,7 +75,7 @@ export function TrimmingList() {
     startIndex,
     endIndex,
     goToPage,
-  } = usePagination(sortedData, { pageSize: 10 });
+  } = usePagination(sortedData, { pageSize: 10, resetKey: [deferredKeyword, JSON.stringify(activeFilters)].join("|") });
 
   // FE-144: URLクエリパラメータからページ番号を読み取る
   const urlPage = Number(searchParams.get("page") ?? 1);

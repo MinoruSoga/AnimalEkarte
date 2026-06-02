@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -15,6 +16,8 @@ import (
 type AccountingRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	// LockAndFindByID は FOR UPDATE で請求を行ロック取得する（TOCTOU 防止）。トランザクション内でのみ使用。
+	LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	SavePayment(ctx context.Context, payment *model.Payment) error
@@ -122,6 +125,30 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
 	}
 	// Preload した Refunds から TotalRefundedAmount を計算（FindAll と同じ算出ロジック）
+	var total int64
+	for i := range billing.Refunds {
+		total += billing.Refunds[i].Amount
+	}
+	billing.TotalRefundedAmount = total
+	return &billing, nil
+}
+
+// LockAndFindByID は FOR UPDATE で請求を行ロック取得する。
+// refund_service の CreateRefund のトランザクション内で使用し、TOCTOU を防止する。
+func (r *accountingRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
+	var billing model.Billing
+	err := r.db.WithContext(ctx).
+		Preload("Items", "deleted_at IS NULL").
+		Preload("Payments", "deleted_at IS NULL").
+		Preload("Payments.PaidByStaff", "deleted_at IS NULL").
+		Preload("PaymentSplits").
+		Scopes(clinicScope(clinicID)).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).First(&billing).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
+	}
+	// Preload した Refunds から TotalRefundedAmount を計算（FindByID と同じ）
 	var total int64
 	for i := range billing.Refunds {
 		total += billing.Refunds[i].Amount
@@ -259,7 +286,7 @@ func (r *accountingRepository) CompleteAccountingAppointments(ctx context.Contex
 		result := r.db.WithContext(ctx).
 			Model(&model.Reservation{}).
 			Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
-			Where("status NOT IN ?", []model.ReservationStatus{model.ReservationStatusCompleted, model.ReservationStatusCancelled}).
+			Where("status NOT IN ?", []model.ReservationStatus{model.ReservationStatusCompleted, model.ReservationStatusCancelled, model.ReservationStatusNoShow}).
 			Where("id IN (?)",
 				r.db.Model(&model.MedicalRecord{}).
 					Select("appointment_id").

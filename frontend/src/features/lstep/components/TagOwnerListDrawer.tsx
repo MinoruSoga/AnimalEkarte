@@ -44,6 +44,9 @@ function buildOwnersCsv(
 
 async function fetchAllOwnersForCsv(tagName: string, ownerCount: number): Promise<LstepTagOwner[]> {
   const clinicId = localStorage.getItem("auth_current_clinic:v1");
+  if (!clinicId) {
+    throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+  }
   const perPage = 100;
   const totalPages = Math.max(1, Math.ceil(ownerCount / perPage));
   const owners: LstepTagOwner[] = [];

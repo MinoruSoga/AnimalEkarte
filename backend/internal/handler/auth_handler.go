@@ -67,7 +67,7 @@ func (h *Handler) Login(c *gin.Context) {
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
 
-	permMap := h.calculateEffectivePermissions(ctx, account.IsSystemAdmin, staff.ID)
+	permMap := h.calculateEffectivePermissions(c, account.IsSystemAdmin, staff.ID)
 
 	// 監査ログ: ログイン成功
 	if len(clinicIDs) > 0 {
@@ -339,7 +339,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 
 	mainClinicIDStr = resolveSystemAdminMainClinicID(mainClinicIDStr, isSystemAdmin, allClinics)
 
-	permMap := h.calculateEffectivePermissions(ctx, isSystemAdmin, staff.ID)
+	permMap := h.calculateEffectivePermissions(c, isSystemAdmin, staff.ID)
 
 	c.JSON(http.StatusOK, toMeResponse(staff, account, mainClinicIDStr, clinicNameMap, allClinics, permMap))
 }

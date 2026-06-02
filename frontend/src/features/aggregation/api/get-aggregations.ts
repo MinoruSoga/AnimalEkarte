@@ -90,6 +90,9 @@ export function useGetOwnerAggregations(params: AggregationParams) {
     queryKey: ["owner-aggregations", params],
     queryFn: async () => {
       const clinicId = localStorage.getItem("auth_current_clinic:v1");
+      if (!clinicId) {
+        throw new Error("clinic_id not found in storage");
+      }
       const { data } = await axios.get<AggregationResponse>(
         `/v1/clinics/${clinicId}/owners/aggregations`,
         { params }

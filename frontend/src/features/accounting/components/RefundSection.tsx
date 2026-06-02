@@ -61,6 +61,11 @@ export const RefundSection = memo(function RefundSection({
   const handleSubmit = useCallback(() => {
     const amount = parseInt(refundAmount, 10);
     if (!amount || amount <= 0) return;
+    if (amount > refundableAmount) {
+      const toast = require("sonner").toast;
+      toast.error(`返金額は残額 ¥${refundableAmount.toLocaleString()} 以下で入力してください`);
+      return;
+    }
     const paymentMethod =
       refundPaymentMethod !== NO_PAYMENT_METHOD ? (refundPaymentMethod as PaymentMethod) : undefined;
     onRefund(amount, refundReason, paymentMethod);
@@ -68,7 +73,7 @@ export const RefundSection = memo(function RefundSection({
     setRefundAmount("");
     setRefundReason("");
     setRefundPaymentMethod(NO_PAYMENT_METHOD);
-  }, [refundAmount, refundReason, refundPaymentMethod, onRefund]);
+  }, [refundAmount, refundReason, refundPaymentMethod, onRefund, refundableAmount]);
 
   return (
     <Card>

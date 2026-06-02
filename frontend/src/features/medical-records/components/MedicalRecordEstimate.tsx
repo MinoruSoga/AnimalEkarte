@@ -52,6 +52,9 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     setComment(existingEstimate.comment ?? "");
     setRemarks(existingEstimate.notes ?? "");
     setGlobalDiscountAmount(existingEstimate.discount_amount ?? 0);
+    // EstimateItem → TreatmentItem: name→content, unit_price→unitPrice など型互換性なし
+    // 今後の改善: explicit mapping function が必要
+    setItems((existingEstimate.items as any) ?? []);
   }, [existingEstimate]);
 
   const handleAddItem = useCallback(() => {

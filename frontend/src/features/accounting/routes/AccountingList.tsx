@@ -149,7 +149,7 @@ export function AccountingList() {
 
   const pagination = usePagination(sortedData, {
     pageSize: 20,
-    resetKey: deferredSearch,
+    resetKey: [deferredSearch, JSON.stringify(activeFilters)].join("|"),
   });
 
   // FE-144: URLクエリパラメータからページ番号を読み取る

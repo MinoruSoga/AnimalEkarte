@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ---- MedicalRecordImage モック ----
@@ -18,6 +19,55 @@ type mockMedicalRecordImageRepository struct {
 	findByIDFn              func(ctx context.Context, clinicID, imageID uint64) (*model.MedicalRecordImage, error)
 	createFn                func(ctx context.Context, image *model.MedicalRecordImage) error
 	deleteFn                func(ctx context.Context, clinicID, imageID uint64) error
+}
+
+type mockMedicalRecordRepositoryForImage struct {
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+}
+
+func (m *mockMedicalRecordRepositoryForImage) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+	return m.findByIDFn(ctx, clinicID, id)
+}
+
+// Stub other methods to satisfy interface (not used in these tests)
+func (m *mockMedicalRecordRepositoryForImage) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+	return nil, 0, nil
+}
+func (m *mockMedicalRecordRepositoryForImage) Create(_ context.Context, _ *model.MedicalRecord) error {
+	return nil
+}
+func (m *mockMedicalRecordRepositoryForImage) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+func (m *mockMedicalRecordRepositoryForImage) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockMedicalRecordRepositoryForImage) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+func (m *mockMedicalRecordRepositoryForImage) CountEstimatesByMedicalRecordID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+func (m *mockMedicalRecordRepositoryForImage) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
+	return nil, nil
+}
+func (m *mockMedicalRecordRepositoryForImage) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+func (m *mockMedicalRecordRepositoryForImage) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+	return nil, nil
+}
+func (m *mockMedicalRecordRepositoryForImage) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+func (m *mockMedicalRecordRepositoryForImage) FindOwnersByLastVisitDays(_ context.Context, _ uint64, _ int, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+func (m *mockMedicalRecordRepositoryForImage) FindOwnersByNextVisitRecommended(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+	return nil, nil
+}
+func (m *mockMedicalRecordRepositoryForImage) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
 }
 
 func (m *mockMedicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
@@ -82,7 +132,8 @@ func TestMedicalRecordImageService_List(t *testing.T) {
 					return tt.repoImages, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordImageService(repo)
+			medRecRepo := &mockMedicalRecordRepositoryForImage{}
+			svc := NewMedicalRecordImageService(repo, medRecRepo)
 
 			images, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
@@ -174,7 +225,12 @@ func TestMedicalRecordImageService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordImageService(repo)
+			medRecRepo := &mockMedicalRecordRepositoryForImage{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: tt.medicalRecordID}, nil // stub: always return valid parent record
+				},
+			}
+			svc := NewMedicalRecordImageService(repo, medRecRepo)
 
 			image, err := svc.Create(context.Background(), 1, tt.medicalRecordID, tt.input)
 
@@ -259,7 +315,8 @@ func TestMedicalRecordImageService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewMedicalRecordImageService(repo)
+			medRecRepo := &mockMedicalRecordRepositoryForImage{}
+			svc := NewMedicalRecordImageService(repo, medRecRepo)
 
 			err := svc.Delete(context.Background(), 1, tt.medicalRecordID, tt.imageID)
 

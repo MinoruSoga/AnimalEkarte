@@ -31,7 +31,10 @@ async function createCheckupSync(
 
 // POST /v1/clinics/:clinicId/lstep/checkup-sync
 export function useCreateCheckupSync() {
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1");
+  if (!clinicId) {
+    throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+  }
 
   return useMutation({
     mutationFn: (body: CheckupSyncRequest) =>

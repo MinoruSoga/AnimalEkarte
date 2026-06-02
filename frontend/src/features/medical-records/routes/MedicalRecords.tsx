@@ -125,7 +125,7 @@ export function MedicalRecords() {
     startIndex,
     endIndex,
     goToPage,
-  } = usePagination(sortedData, { pageSize: 20, resetKey: searchTerm });
+  } = usePagination(sortedData, { pageSize: 20, resetKey: [searchTerm, JSON.stringify(activeFilters)].join("|") });
 
   // FE-144: URLクエリパラメータからページ番号を読み取る
   const urlPage = Number(searchParams.get("page") ?? 1);

@@ -21,7 +21,7 @@ func (m *mockMedicalRecordRepoForTreatment) FindAll(_ context.Context, _ uint64,
 	return nil, 0, nil
 }
 func (m *mockMedicalRecordRepoForTreatment) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-	return &model.MedicalRecord{}, nil
+	return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 }
 func (m *mockMedicalRecordRepoForTreatment) Create(_ context.Context, _ *model.MedicalRecord) error {
 	return nil
@@ -163,6 +163,7 @@ func TestTreatmentService_List(t *testing.T) {
 			}
 			svc := NewTreatmentService(&repository.Repositories{
 				Treatment: repo,
+				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
 				Inventory: &mockInventoryRepository{},
 			})
 
@@ -265,6 +266,7 @@ func TestTreatmentService_Create(t *testing.T) {
 			// TransactionFn: DB 不要でトランザクションをインライン実行
 			repos := &repository.Repositories{
 				Treatment: repo,
+				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
 				Inventory: invRepo,
 			}
 			repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
@@ -424,6 +426,7 @@ func TestTreatmentService_Update(t *testing.T) {
 			}
 			svc := NewTreatmentService(&repository.Repositories{
 				Treatment: repo,
+				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
 				Inventory: &mockInventoryRepository{},
 			})
 
@@ -510,6 +513,7 @@ func TestTreatmentService_Delete(t *testing.T) {
 			}
 			svc := NewTreatmentService(&repository.Repositories{
 				Treatment: repo,
+				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
 				Inventory: &mockInventoryRepository{},
 			})
 

@@ -21,6 +21,9 @@ export function useGetLstepCsvImports(limit = 20) {
     queryKey: ["lstep-csv-imports", limit],
     queryFn: async () => {
       const clinicId = localStorage.getItem("auth_current_clinic:v1");
+      if (!clinicId) {
+        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+      }
       const { data } = await axios.get<LstepCsvImportItem[]>(
         `/v1/clinics/${clinicId}/lstep/csv-imports?limit=${limit}`
       );

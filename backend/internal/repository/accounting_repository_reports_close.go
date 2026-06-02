@@ -12,16 +12,20 @@ import (
 // payment_splits を正として集計（SUM(DISTINCT) hack を除去）。
 // カテゴリ別集計: billing_items を CTE で per-billing 合算し、payment_splits と JOIN して按分なしで集計。
 func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error) {
+	// Convert JST input to UTC for query (completed_at is stored in UTC)
+	utcStart := input.PeriodStart.UTC()
+	utcEnd := input.PeriodEnd.UTC()
+
 	// 集計行: カテゴリ×支払方法別の純売上
 	// payment_splits を正として使い、Cartesian 積バグを回避する。
 	// カテゴリは billing_items から1会計1行に集約し、payment_splits と billing_id で結合する。
 	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
-	cArgs := []any{input.ClinicID, model.BillingStatusCompleted, input.PeriodStart, input.PeriodEnd}
+	cArgs := []any{input.ClinicID, model.BillingStatusCompleted, utcStart, utcEnd}
 	completedCTE := `WITH completed_billings AS (
 		SELECT id FROM billings
 		WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
-		  AND completed_at AT TIME ZONE 'Asia/Tokyo' >= ?
-		  AND completed_at AT TIME ZONE 'Asia/Tokyo' < ?
+		  AND completed_at >= ?
+		  AND completed_at < ?
 	)`
 
 	// Query 1: 支払方法別合計 (payment_splits のみ)

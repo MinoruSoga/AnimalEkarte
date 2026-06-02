@@ -81,8 +81,9 @@ type PermissionGroupService interface {
 
 // EffectivePermissionService は有効権限取得の責務を持つ独立インターフェース。
 // CRUD 操作の PermissionGroupService とは認可責務が異なるため分離する。
+// clinicID パラメータを持つことで、マルチクリニック権限昇格を防止（High-7）。
 type EffectivePermissionService interface {
-	GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
+	GetEffectivePermissions(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
 }
 
 type permissionGroupService struct {
@@ -284,10 +285,10 @@ func (s *permissionGroupService) Reorder(ctx context.Context, clinicID uint64, i
 	return nil
 }
 
-func (s *permissionGroupService) GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
-	rules, err := s.repo.FindAllEffectivePermissionsByStaffID(ctx, staffID)
+func (s *permissionGroupService) GetEffectivePermissions(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error) {
+	rules, err := s.repo.FindAllEffectivePermissionsByStaffID(ctx, staffID, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get effective permissions", "error", err, "id", staffID)
+		slog.ErrorContext(ctx, "failed to get effective permissions", "error", err, "staff_id", staffID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get effective permissions")
 	}
 	return rules, nil

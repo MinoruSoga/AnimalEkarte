@@ -117,11 +117,13 @@ type ExaminationService interface {
 }
 
 type examinationService struct {
-	repo repository.ExaminationRepository
+	repo     repository.ExaminationRepository
+	medRec   repository.MedicalRecordRepository
+	auditSvc AuditService
 }
 
-func NewExaminationService(repo repository.ExaminationRepository) ExaminationService {
-	return &examinationService{repo: repo}
+func NewExaminationService(repo repository.ExaminationRepository, medRec repository.MedicalRecordRepository, auditSvc AuditService) ExaminationService {
+	return &examinationService{repo: repo, medRec: medRec, auditSvc: auditSvc}
 }
 
 func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -174,6 +176,18 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	if existing.Status == model.ExaminationStatusConfirmed {
 		return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+	}
+
+	// HC-003: 親カルテが確定済みの場合は編集拒否
+	if existing.MedicalRecordID != nil {
+		parent, err := s.medRec.FindByID(ctx, clinicID, *existing.MedicalRecordID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+			return nil, apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return nil, apperrors.WrapConflict("確定済みカルテの検査は編集できません")
+		}
 	}
 
 	fields := buildExaminationUpdate(input)
@@ -252,9 +266,23 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 }
 
 func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		return apperrors.Wrap(err, "failed to find examination")
 	}
+
+	// HC-003: 親カルテが確定済みの場合は削除拒否
+	if existing.MedicalRecordID != nil {
+		parent, err := s.medRec.FindByID(ctx, clinicID, *existing.MedicalRecordID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+			return apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテの検査は削除できません")
+		}
+	}
+
 	// FK依存チェック: 検査に紐付く検査明細が存在する場合は削除を拒否
 	itemCount, err := s.repo.CountItemsByExamID(ctx, clinicID, id)
 	if err != nil {

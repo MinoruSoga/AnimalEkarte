@@ -20,6 +20,9 @@ export function useGetLstepDeliveryTriggerSummary(
     queryKey: ["lstep-delivery-trigger-summary", from, to, triggerType ?? ""],
     queryFn: async () => {
       const clinicId = localStorage.getItem("auth_current_clinic:v1");
+      if (!clinicId) {
+        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+      }
       const params = new URLSearchParams({ from, to });
       if (triggerType) params.set("trigger_type", triggerType);
       const { data } = await axios.get<DeliveryTriggerSummaryResponse>(

@@ -65,6 +65,9 @@ func (m *mockAccountingRepositoryForClose) FindAll(_ context.Context, _ uint64, 
 func (m *mockAccountingRepositoryForClose) FindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
 	return nil, nil
 }
+func (m *mockAccountingRepositoryForClose) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
+	return nil, nil
+}
 func (m *mockAccountingRepositoryForClose) Create(_ context.Context, _ uint64, _ *model.Billing) error {
 	return nil
 }

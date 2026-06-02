@@ -35,6 +35,13 @@ func (m *mockAccountingRepository) FindByID(ctx context.Context, clinicID, id ui
 	return nil, nil
 }
 
+func (m *mockAccountingRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
+}
+
 func (m *mockAccountingRepository) Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
 	return m.createFn(ctx, clinicID, accounting)
 }

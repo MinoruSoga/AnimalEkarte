@@ -167,7 +167,9 @@ func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, inpu
 
 	// 6. 監査ログ
 	ownerID := lt.OwnerID
-	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "link_line_user_id", "owner", &ownerID)
+	if err := s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "link_line_user_id", "owner", &ownerID); err != nil {
+		slog.WarnContext(ctx, "audit log failed for line user id link", "error", err, "owner_id", ownerID)
+	}
 
 	owner.LineUserID = &lineUserID
 	return owner, nil

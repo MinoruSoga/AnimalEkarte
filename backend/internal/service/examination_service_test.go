@@ -10,6 +10,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // mockExaminationRepository は ExaminationRepository のテスト用モック実装
@@ -32,7 +33,8 @@ func (m *mockExaminationRepository) FindByID(ctx context.Context, clinicID, id u
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
-	return nil, nil
+	mrID := uint64(1)
+	return &model.Examination{ID: id, Status: model.ExaminationStatusCompleted, MedicalRecordID: &mrID}, nil
 }
 
 func (m *mockExaminationRepository) Create(ctx context.Context, exam *model.Examination) error {
@@ -66,6 +68,112 @@ func (m *mockExaminationRepository) ReplaceItemsByExamID(ctx context.Context, cl
 		return items, nil
 	}
 	return m.replaceItemsByExamIDFn(ctx, clinicID, examID, items)
+}
+
+// mockMedicalRecordRepositoryForExam は MedicalRecordRepository のテスト用 stub（全メソッド実装）
+type mockMedicalRecordRepositoryForExam struct{}
+
+func (m *mockMedicalRecordRepositoryForExam) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+	return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+	return nil, 0, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) Create(ctx context.Context, record *model.MedicalRecord) error {
+	return nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) Delete(ctx context.Context, clinicID, id uint64) error {
+	return nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*repository.OwnerVisitSummary, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]repository.DormantOwnerEntry, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) FindOwnersByLTVRange(ctx context.Context, clinicID uint64, minLTV, maxLTV int64, excludeOwnerIDs []uint64) ([]uint64, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) FindOwnersByPetAgeRange(ctx context.Context, clinicID uint64, minMonths, maxMonths int, excludeOwnerIDs []uint64) ([]uint64, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) FindLastVisitDateByOwner(ctx context.Context, clinicID, ownerID uint64) (*time.Time, error) {
+	return nil, nil
+}
+
+// mockAuditServiceForExam は AuditService のテスト用 stub（全メソッド実装）
+type mockAuditServiceForExam struct{}
+
+func (m *mockAuditServiceForExam) LogEntry(ctx context.Context, input *AuditLogInput) error {
+	return nil
+}
+
+func (m *mockAuditServiceForExam) Log(ctx context.Context, audit *model.AuditLog) error {
+	return nil
+}
+
+func (m *mockAuditServiceForExam) LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue any) error {
+	return nil
+}
+
+func (m *mockAuditServiceForExam) LogLstepOperation(ctx context.Context, clinicID uint64, actorID *uint64, action, resourceType string, resourceID *uint64) error {
+	return nil
+}
+
+func (m *mockAuditServiceForExam) LogLstepOperationWithMetadata(ctx context.Context, clinicID uint64, actorID *uint64, action, resourceType string, resourceID *uint64, metadata map[string]any) error {
+	return nil
+}
+
+func (m *mockAuditServiceForExam) LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID uint64, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error {
+	return nil
+}
+
+func (m *mockAuditServiceForExam) LogAddendumDelete(ctx context.Context, clinicID uint64, actorID *uint64, addendumID uint64, medicalRecordID uint64) error {
+	return nil
+}
+
+func (m *mockAuditServiceForExam) LogVaccinationAdministration(ctx context.Context, clinicID uint64, actorID *uint64, action string, vaccinationID uint64, oldValue, newValue any) error {
+	return nil
 }
 
 func TestExaminationService_List(t *testing.T) {
@@ -176,7 +284,7 @@ func TestExaminationService_List(t *testing.T) {
 					return tt.repoItems, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
 
 			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -242,7 +350,7 @@ func TestExaminationService_GetByID(t *testing.T) {
 					return tt.repoItem, tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
 
 			item, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -310,7 +418,7 @@ func TestExaminationService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
 
 			exam, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
@@ -387,7 +495,7 @@ func TestExaminationService_Update(t *testing.T) {
 					return &model.Examination{ID: 1}, nil
 				},
 			}
-			svc := NewExaminationService(repo)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
 
 			exam, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -476,7 +584,7 @@ func TestExaminationService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -573,7 +681,7 @@ func TestExaminationService_ListItems(t *testing.T) {
 					return tt.repoItems, tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
 
 			items, err := svc.ListItems(context.Background(), 1, 10)
 
@@ -603,7 +711,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 				return items, nil
 			},
 		}
-		svc := NewExaminationService(repo)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
 
 		min1 := 1.0
 		max10 := 10.0
@@ -646,7 +754,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 				return nil, nil
 			},
 		}
-		svc := NewExaminationService(repo)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
 
 		_, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
 			{Name: "WBC", InspectionValue: "5.0"},
@@ -661,7 +769,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 				return nil, apperrors.WrapNotFound("exam", "999")
 			},
 		}
-		svc := NewExaminationService(repo)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
 
 		_, err := svc.ReplaceItems(context.Background(), 1, 999, []UpsertExamItemInput{})
 		assert.Error(t, err)
@@ -680,7 +788,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 				return []model.ExamResult{}, nil
 			},
 		}
-		svc := NewExaminationService(repo)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
 
 		saved, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{})
 		assert.NoError(t, err)
@@ -697,7 +805,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewExaminationService(repo)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
 
 		_, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
 			{Name: "WBC", InspectionValue: "5.0"},
