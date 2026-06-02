@@ -161,8 +161,9 @@ func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, inpu
 
 	// 5. トークン使用済みマーク
 	if err := s.lineLinkTokenRepo.MarkUsed(ctx, lt.ID, time.Now()); err != nil {
-		slog.ErrorContext(ctx, "failed to mark link token used", "error", err)
-		// トークンのマーク失敗は処理続行（二重使用のリスクはあるが紐付けは完了している）
+		slog.ErrorContext(ctx, "failed to mark link token used — aborting to prevent duplicate use", "error", err)
+		// トークンのマーク失敗は即座に返す（二重使用リスク排除）
+		return nil, apperrors.Wrap(err, "failed to mark link token used")
 	}
 
 	// 6. 監査ログ

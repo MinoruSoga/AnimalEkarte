@@ -196,7 +196,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		)
 		return nil
 	}); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create billing item in transaction")
 	}
 
 	return item, nil
@@ -248,7 +248,7 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 		}
 		return nil
 	}); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update billing item in transaction")
 	}
 
 	return updated, nil

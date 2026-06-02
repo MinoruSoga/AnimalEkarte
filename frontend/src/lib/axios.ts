@@ -25,6 +25,8 @@ function sanitizeNullBytes(value: unknown): unknown {
 function requestInterceptor(config: InternalAxiosRequestConfig) {
   config.headers ??= new Axios.AxiosHeaders() as typeof config.headers;
   config.headers.Accept = "application/json";
+  // H1: CSRF 保護用 X-Requested-With ヘッダを全リクエストに追加（preflight 強制で CSRF 防止）
+  config.headers["X-Requested-With"] = "XMLHttpRequest";
   // crypto.randomUUID() は HTTPS または localhost (secure context) でのみ利用可能。
   // Docker内ホスト名 (frontend:3000) など非セキュアコンテキストでは使用不可のため
   // Math.random ベースのフォールバックを用意する。

@@ -37,7 +37,7 @@ func (s *medicalRecordService) CountByPetID(ctx context.Context, clinicID, petID
 
 func (s *medicalRecordService) Create(ctx context.Context, clinicID uint64, input *CreateMedicalRecordInput) (*model.MedicalRecord, error) {
 	if err := s.applyAppointmentContextForCreate(ctx, clinicID, input); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to apply appointment context for medical record")
 	}
 
 	record := buildMedicalRecordForCreate(clinicID, input)

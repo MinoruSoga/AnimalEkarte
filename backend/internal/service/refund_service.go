@@ -122,7 +122,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 
 		return nil
 	}); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create refund in transaction")
 	}
 
 	return refund, nil

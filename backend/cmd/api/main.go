@@ -244,6 +244,22 @@ func main() {
 
 	// ルーター設定
 	r := gin.New()
+	// H2: Set trusted proxies to prevent rate-limit bypass via X-Forwarded-For spoofing
+	trustedProxies := []string{}
+	if cfg.GinMode == "release" {
+		// Production: trust ALB CIDR if set via environment variable
+		// e.g., TRUSTED_PROXY_CIDR="10.0.0.0/8" for AWS ALB in private subnet
+		if albCidr := os.Getenv("TRUSTED_PROXY_CIDR"); albCidr != "" {
+			trustedProxies = []string{albCidr}
+			slog.Info("rate-limit: trusting ALB CIDR", slog.String("cidr", albCidr))
+		} else {
+			slog.Warn("rate-limit: TRUSTED_PROXY_CIDR not set — using direct connection only (rate-limit will not work behind ALB)")
+		}
+	} else {
+		// Development: trust localhost only
+		trustedProxies = []string{"127.0.0.1"}
+	}
+	r.SetTrustedProxies(trustedProxies)
 	r.Use(gin.Recovery())
 	r.Use(middleware.SecurityHeaders(cfg.GinMode == "release"))
 	r.Use(middleware.RequestID())

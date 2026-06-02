@@ -179,11 +179,13 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		ownerID := *created.MedicalRecord.OwnerID
 		svc := s.lstepDeliveryTrigger
 		// context.WithoutCancel: HTTP request の cancel から切離しつつ tracing context を保持。
-		// fire-and-forget goroutine のため、timeout は Lstep API クライアント側 (30s) で吸収。
+		// M-4: fire-and-forget goroutine のため、context.WithTimeout で明示的に制限を設定。
 		bgCtx := context.WithoutCancel(ctx)
 		go func() {
-			if err := svc.TriggerCheckupFollowUp(bgCtx, clinicID, ownerID); err != nil {
-				slog.WarnContext(bgCtx, "checkup followup trigger failed (non-fatal)", "error", err, "owner_id", ownerID)
+			trigCtx, cancel := context.WithTimeout(bgCtx, 35*time.Second)
+			defer cancel()
+			if err := svc.TriggerCheckupFollowUp(trigCtx, clinicID, ownerID); err != nil {
+				slog.WarnContext(trigCtx, "checkup followup trigger failed (non-fatal)", "error", err, "owner_id", ownerID)
 			}
 		}()
 	}

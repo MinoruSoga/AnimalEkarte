@@ -125,7 +125,9 @@ func (s *passwordResetService) ResetPassword(ctx context.Context, rawToken, newP
 
 	if time.Now().After(prt.ExpiresAt) {
 		// 期限切れトークンを削除してからエラーを返す
-		_ = s.tokenRepo.DeleteByID(ctx, prt.ID)
+		if delErr := s.tokenRepo.DeleteByID(ctx, prt.ID); delErr != nil {
+			slog.WarnContext(ctx, "failed to delete expired reset token", "error", delErr, "token_id", prt.ID)
+		}
 		return apperrors.WrapInvalidInput("token has expired")
 	}
 

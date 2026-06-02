@@ -221,14 +221,18 @@ func (s *lstepTagSyncService) SyncAnnual4CheckupTag(ctx context.Context, clinicI
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add annual4checkup tag")
 		}
-		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthAnnual4CheckupTag, "auto", "")
+		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthAnnual4CheckupTag, "auto", ""); cacheErr != nil {
+			slog.ErrorContext(ctx, "failed to upsert annual4checkup tag cache", "error", cacheErr)
+		}
 	} else {
 		if delErr := client.RemoveTag(ctx, lineUserID, HlthAnnual4CheckupTag); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove annual4checkup tag", "error", delErr)
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthAnnual4CheckupTag)
+			if cacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthAnnual4CheckupTag); cacheErr != nil {
+				slog.ErrorContext(ctx, "failed to delete annual4checkup tag cache", "error", cacheErr)
+			}
 		}
 	}
 	if !apiFailed {
