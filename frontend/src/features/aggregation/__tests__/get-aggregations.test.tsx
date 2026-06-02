@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
@@ -53,11 +53,18 @@ const mockResponse: AggregationResponse = {
 
 describe('useGetOwnerAggregations', () => {
   beforeEach(() => {
+    // Mock localStorage for clinic_id
+    localStorage.setItem('auth_current_clinic:v1', '1');
+
     server.use(
       http.get('/api/v1/clinics/:clinic_id/owners/aggregations', () => {
         return HttpResponse.json(mockResponse);
       })
     );
+  });
+
+  afterEach(() => {
+    localStorage.removeItem('auth_current_clinic:v1');
   });
 
   it('should fetch aggregation data with default parameters', async () => {

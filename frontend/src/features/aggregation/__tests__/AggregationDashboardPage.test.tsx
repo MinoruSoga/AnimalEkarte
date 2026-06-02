@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -58,12 +58,19 @@ const createWrapper = (initialEntries: string[] = ["/aggregation"]) => {
 
 describe('AggregationDashboardPage', () => {
   beforeEach(() => {
+    // Mock localStorage for clinic_id
+    localStorage.setItem('auth_current_clinic:v1', '1');
+
     server.use(
       http.get('/api/v1/clinics/:clinic_id/owners/aggregations', () => {
         return HttpResponse.json(mockResponse);
       })
     );
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    localStorage.removeItem('auth_current_clinic:v1');
   });
 
   it('should render revenue tab by default', async () => {
