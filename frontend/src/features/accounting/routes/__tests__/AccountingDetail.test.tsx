@@ -215,7 +215,10 @@ const waitingAccounting = {
     },
   ],
   payments: [],
-  payment_splits: [],
+  payment_splits: [
+    { method: "cash", amount: "1100", received_amount: "" },
+    { method: "credit_card", amount: "", received_amount: "" },
+  ],
 };
 
 function setupWaitingHandlers() {
@@ -228,6 +231,10 @@ function setupWaitingHandlers() {
     ),
     http.get("/api/v1/masters/merchandise-items", () =>
       HttpResponse.json([])
+    ),
+    // Payment API handlers for Dialog test
+    http.post(`/api/v1/accountings/${WAITING_ID}/payments`, () =>
+      HttpResponse.json({ id: 999, ...waitingAccounting.payments?.[0] })
     )
   );
 }
