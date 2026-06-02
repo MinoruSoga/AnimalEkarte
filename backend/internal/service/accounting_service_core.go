@@ -80,7 +80,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	}
 	// 混在会計バリデーション
 	if err := validatePaymentSplits(input.PaymentSplits, input.BillingAmount); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate payment splits")
 	}
 	fields := buildAccountingUpdate(input)
 	if len(fields) == 0 && !hasPaymentFields(input) {
@@ -114,7 +114,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 				slog.Uint64("billing_id", input.ID))
 			return nil
 		}); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to upsert payment")
 		}
 	}
 
