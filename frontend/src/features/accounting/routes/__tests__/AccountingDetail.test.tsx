@@ -216,8 +216,8 @@ const waitingAccounting = {
   ],
   payments: [],
   payment_splits: [
-    { method: "cash", amount: "1100", received_amount: "" },
-    { method: "credit_card", amount: "", received_amount: "" },
+    { method: "cash", amount: "1100", receivedAmount: "" },
+    { method: "credit_card", amount: "", receivedAmount: "" },
   ],
 };
 
