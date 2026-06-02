@@ -296,7 +296,8 @@ func (r *ltvRepository) calculateDateRange(params *FindOwnerLTVParams) (fromDate
 
 // buildOrderBy はソートフィールドと順序から ORDER BY 句を構築する。
 func (r *ltvRepository) buildOrderBy(sort, order string) string {
-	if order == "" {
+	// Whitelist order parameter to prevent SQL injection
+	if order != "asc" && order != "desc" {
 		order = "desc"
 	}
 

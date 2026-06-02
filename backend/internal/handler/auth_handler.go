@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -71,7 +72,9 @@ func (h *Handler) Login(c *gin.Context) {
 	// 監査ログ: ログイン成功
 	if len(clinicIDs) > 0 {
 		mainCID := clinicIDs[0]
-		_ = h.svc.Audit.LogAuthLogin(ctx, &mainCID, &staff.ID, model.AuditActionAuthLoginSuccess, c.ClientIP(), c.Request.Header.Get("User-Agent"))
+		if logErr := h.svc.Audit.LogAuthLogin(ctx, &mainCID, &staff.ID, model.AuditActionAuthLoginSuccess, c.ClientIP(), c.Request.Header.Get("User-Agent")); logErr != nil {
+			slog.ErrorContext(ctx, "audit log failed for login success", "staff_id", staff.ID, "error", logErr)
+		}
 	}
 
 	c.JSON(http.StatusOK, LoginResponse{
@@ -96,7 +99,9 @@ func (h *Handler) Logout(c *gin.Context) {
 			if clinicIDStr, ok := clinicIDVal.(string); ok {
 				if staffID, err := strconv.ParseUint(userIDStr, 10, 64); err == nil {
 					if clinicID, err := strconv.ParseUint(clinicIDStr, 10, 64); err == nil {
-						_ = h.svc.Audit.LogAuthLogin(ctx, &clinicID, &staffID, model.AuditActionAuthLogout, c.ClientIP(), c.Request.Header.Get("User-Agent"))
+						if logErr := h.svc.Audit.LogAuthLogin(ctx, &clinicID, &staffID, model.AuditActionAuthLogout, c.ClientIP(), c.Request.Header.Get("User-Agent")); logErr != nil {
+							slog.ErrorContext(ctx, "audit log failed for logout", "staff_id", staffID, "clinic_id", clinicID, "error", logErr)
+						}
 					}
 				}
 			}

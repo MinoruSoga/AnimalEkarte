@@ -281,6 +281,10 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find medical record")
 	}
+	// Prevent deletion of finalized medical records (data integrity/legal compliance)
+	if existing.Status == model.MedicalRecordStatusFinalized {
+		return apperrors.WrapConflict("確定済みの診療記録は削除できません")
+	}
 	estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(ctx, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check estimate dependencies", "error", err, "id", id, "clinic_id", clinicID)

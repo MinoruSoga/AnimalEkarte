@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -115,7 +116,8 @@ func (h *Handler) calculateEffectivePermissions(ctx context.Context, isSystemAdm
 	// staff: service 経由で実効権限を取得（handler → repository 直接呼び出し禁止）
 	rules, err := h.svc.EffectivePermission.GetEffectivePermissions(ctx, staffID)
 	if err != nil {
-		// エラー時は空の権限（最小権限の原則）
+		// エラー時は空の権限（最小権限の原則）だが、ログ記録は必須（オペレーター障害認知のため）
+		slog.ErrorContext(ctx, "failed to get effective permissions", "staff_id", staffID, "error", err)
 		return make(EffectivePermissions)
 	}
 
