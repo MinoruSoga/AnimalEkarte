@@ -82,8 +82,9 @@ type AccountingService interface {
 type accountingService struct {
 	repo       repository.AccountingRepository
 	tagSyncSvc LstepTagSyncService
+	transactor repository.Transactor
 }
 
-func NewAccountingService(repo repository.AccountingRepository, tagSyncSvc LstepTagSyncService) AccountingService {
-	return &accountingService{repo: repo, tagSyncSvc: tagSyncSvc}
+func NewAccountingService(repo repository.AccountingRepository, tagSyncSvc LstepTagSyncService, transactor repository.Transactor) AccountingService {
+	return &accountingService{repo: repo, tagSyncSvc: tagSyncSvc, transactor: transactor}
 }

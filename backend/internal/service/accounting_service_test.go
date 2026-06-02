@@ -229,7 +229,7 @@ func TestAccountingService_List(t *testing.T) {
 					return tt.repoBillings, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			billings, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -291,7 +291,7 @@ func TestAccountingService_GetByID(t *testing.T) {
 					return tt.repoBilling, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			billing, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -352,7 +352,7 @@ func TestAccountingService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			billing, err := svc.Create(context.Background(), &tt.input)
 
@@ -384,7 +384,7 @@ func TestAccountingService_Create_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewAccountingService(repo, tagSync)
+	svc := NewAccountingService(repo, tagSync, &mockTransactor{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -421,7 +421,7 @@ func TestAccountingService_Create_CompletesSameDayAccountingAppointments(t *test
 			return 2, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil)
+	svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -457,7 +457,7 @@ func TestAccountingService_Create_PassesMedicalRecordIDToCompleteAppointments(t 
 			return 1, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil)
+	svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 	_, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:        1,
@@ -489,7 +489,7 @@ func TestAccountingService_Create_NilMedicalRecordIDForTrimmingOnly(t *testing.T
 			return 1, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil)
+	svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 	_, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -575,7 +575,7 @@ func TestAccountingService_Update(t *testing.T) {
 					return tt.repoRet, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			billing, err := svc.Update(context.Background(), &tt.input)
 
@@ -613,7 +613,7 @@ func TestAccountingService_Update_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewAccountingService(repo, tagSync)
+	svc := NewAccountingService(repo, tagSync, &mockTransactor{})
 
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       30,
@@ -666,7 +666,7 @@ func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *test
 			return 2, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil)
+	svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       30,
@@ -751,7 +751,7 @@ func TestAccountingService_Cancel(t *testing.T) {
 					return tt.findByIDResult, nil
 				},
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			err := svc.Cancel(context.Background(), tt.clinicID, tt.id)
 
@@ -982,7 +982,7 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewAccountingService(repo, nil)
+	svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 	input := &UpdateAccountingInput{
 		ID:            1,
@@ -1091,7 +1091,7 @@ func TestAccountingService_GetDailySummary(t *testing.T) {
 			repo := &mockAccountingRepository{
 				getDailySummaryFn: tt.getDailySummaryFn,
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			got, err := svc.GetDailySummary(context.Background(), 1, tt.dateStr)
 

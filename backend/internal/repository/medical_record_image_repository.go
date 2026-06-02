@@ -12,10 +12,10 @@ import (
 
 // MedicalRecordImageRepository は診療画像のデータアクセス層
 type MedicalRecordImageRepository interface {
-	FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
 	Create(ctx context.Context, image *model.MedicalRecordImage) error
-	Delete(ctx context.Context, id uint64) error
-	FindByID(ctx context.Context, id uint64) (*model.MedicalRecordImage, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordImage, error)
 }
 
 type medicalRecordImageRepository struct {
@@ -27,9 +27,10 @@ func NewMedicalRecordImageRepository(db *gorm.DB) MedicalRecordImageRepository {
 	return &medicalRecordImageRepository{db: db}
 }
 
-func (r *medicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+func (r *medicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
 	images := make([]model.MedicalRecordImage, 0)
 	if err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
 		Where("medical_record_id = ?", medicalRecordID).
 		Preload("Staff", "deleted_at IS NULL").
 		Order("sort_order ASC, created_at ASC").
@@ -46,8 +47,9 @@ func (r *medicalRecordImageRepository) Create(ctx context.Context, image *model.
 	return nil
 }
 
-func (r *medicalRecordImageRepository) Delete(ctx context.Context, id uint64) error {
+func (r *medicalRecordImageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
 		Delete(&model.MedicalRecordImage{})
 	if result.Error != nil {
@@ -59,9 +61,10 @@ func (r *medicalRecordImageRepository) Delete(ctx context.Context, id uint64) er
 	return nil
 }
 
-func (r *medicalRecordImageRepository) FindByID(ctx context.Context, id uint64) (*model.MedicalRecordImage, error) {
+func (r *medicalRecordImageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordImage, error) {
 	var image model.MedicalRecordImage
 	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
 		Preload("Staff", "deleted_at IS NULL").
 		First(&image, id).Error
 	if err != nil {

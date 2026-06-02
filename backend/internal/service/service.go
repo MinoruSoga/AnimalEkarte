@@ -179,7 +179,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		MedicalRecord:         NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, nil, auditSvc, lstepTagSyncSvc),
 		MedicalRecordAddendum: NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, auditSvc),
 		Hospitalization:       NewHospitalizationService(repos),
-		Accounting:            NewAccountingService(repos.Accounting, lstepTagSyncSvc),
+		Accounting:            NewAccountingService(repos.Accounting, lstepTagSyncSvc, tx),
 		Trimming: NewTrimmingService(
 			repos.Reservation,
 			repos.ReservationType,
@@ -237,7 +237,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Estimate:                       NewEstimateService(repos.Estimate),
 		ManualArticle:                  NewManualArticleService(repos.ManualArticle),
 		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
-		BillingItem:                    NewBillingItemService(repos.BillingItem, repos.Accounting, repos.Treatment),
+		BillingItem:                    NewBillingItemService(repos.BillingItem, repos.Accounting, repos.Treatment, tx),
 		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditSvc, tx),
 		PasswordReset:                  NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
 		// FEAT-368: 集計・締め機能

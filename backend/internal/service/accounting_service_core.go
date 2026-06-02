@@ -94,22 +94,27 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		}
 	}
 
-	// Payment upsert（支払フィールドが含まれている場合）
+	// Payment upsert（支払フィールドが含まれている場合）— トランザクション内で SavePayment + SavePaymentSplits を実行
 	if hasPaymentFields(input) {
-		payment := buildPaymentFromInput(input)
-		if err := s.repo.SavePayment(ctx, payment); err != nil {
-			slog.ErrorContext(ctx, "failed to upsert payment", "error", err)
-			return nil, apperrors.Wrap(err, "failed to upsert payment")
+		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+			payment := buildPaymentFromInput(input)
+			if err := s.repo.SavePayment(txCtx, payment); err != nil {
+				slog.ErrorContext(txCtx, "failed to upsert payment", "error", err)
+				return apperrors.Wrap(err, "failed to upsert payment")
+			}
+			// payment_splits の更新（混在会計・backward compat 両対応）
+			splits := buildPaymentSplits(input)
+			if err := s.repo.SavePaymentSplits(txCtx, splits); err != nil {
+				slog.ErrorContext(txCtx, "failed to save payment splits", "error", err)
+				return apperrors.Wrap(err, "failed to save payment splits")
+			}
+			slog.InfoContext(txCtx, "payment upserted",
+				slog.Uint64("clinic_id", input.ClinicID),
+				slog.Uint64("billing_id", input.ID))
+			return nil
+		}); err != nil {
+			return nil, err
 		}
-		// payment_splits の更新（混在会計・backward compat 両対応）
-		splits := buildPaymentSplits(input)
-		if err := s.repo.SavePaymentSplits(ctx, splits); err != nil {
-			slog.ErrorContext(ctx, "failed to save payment splits", "error", err)
-			return nil, apperrors.Wrap(err, "failed to save payment splits")
-		}
-		slog.InfoContext(ctx, "payment upserted",
-			slog.Uint64("clinic_id", input.ClinicID),
-			slog.Uint64("billing_id", input.ID))
 	}
 
 	// 更新後のレコードを返す

@@ -93,6 +93,7 @@ type billingItemService struct {
 	repo          repository.BillingItemRepository
 	billingRepo   repository.AccountingRepository
 	treatmentRepo repository.TreatmentRepository
+	transactor    repository.Transactor
 }
 
 type unbilledTrimmingItemFinder interface {
@@ -104,8 +105,8 @@ type ungroupedTrimmingCounter interface {
 }
 
 // NewBillingItemService は BillingItemService を初期化して返す
-func NewBillingItemService(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository) BillingItemService {
-	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo}
+func NewBillingItemService(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor) BillingItemService {
+	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor}
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
@@ -174,24 +175,30 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		SortOrder:             input.SortOrder,
 	}
 
-	if err := s.repo.Create(ctx, item); err != nil {
-		slog.ErrorContext(ctx, "failed to create billing item", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create billing item")
-	}
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Create(txCtx, item); err != nil {
+			slog.ErrorContext(txCtx, "failed to create billing item", "error", err)
+			return apperrors.Wrap(err, "failed to create billing item")
+		}
 
-	if err := s.recalculateTotals(ctx, input.ClinicID, input.BillingID); err != nil {
-		slog.ErrorContext(ctx, "failed to recalculate billing totals after create",
+		if err := s.recalculateTotals(txCtx, input.ClinicID, input.BillingID); err != nil {
+			slog.ErrorContext(txCtx, "failed to recalculate billing totals after create",
+				slog.Uint64("billing_id", input.BillingID),
+				slog.String("error", err.Error()),
+			)
+			return apperrors.Wrap(err, "failed to recalculate billing totals")
+		}
+
+		slog.InfoContext(txCtx, "billing item created",
+			slog.Uint64("clinic_id", input.ClinicID),
 			slog.Uint64("billing_id", input.BillingID),
-			slog.String("error", err.Error()),
+			slog.Uint64("item_id", item.ID),
 		)
-		return nil, apperrors.Wrap(err, "failed to recalculate billing totals")
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
-	slog.InfoContext(ctx, "billing item created",
-		slog.Uint64("clinic_id", input.ClinicID),
-		slog.Uint64("billing_id", input.BillingID),
-		slog.Uint64("item_id", item.ID),
-	)
 	return item, nil
 }
 
@@ -213,29 +220,37 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 		return item, nil
 	}
 
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update billing item", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update billing item")
-	}
+	var updated *model.BillingItem
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to update billing item", "error", err)
+			return apperrors.Wrap(err, "failed to update billing item")
+		}
 
-	if err := s.recalculateTotals(ctx, clinicID, item.BillingID); err != nil {
-		slog.ErrorContext(ctx, "failed to recalculate billing totals after update",
+		if err := s.recalculateTotals(txCtx, clinicID, item.BillingID); err != nil {
+			slog.ErrorContext(txCtx, "failed to recalculate billing totals after update",
+				slog.Uint64("billing_id", item.BillingID),
+				slog.String("error", err.Error()),
+			)
+			return apperrors.Wrap(err, "failed to recalculate billing totals")
+		}
+
+		slog.InfoContext(txCtx, "billing item updated",
+			slog.Uint64("clinic_id", clinicID),
+			slog.Uint64("item_id", id),
 			slog.Uint64("billing_id", item.BillingID),
-			slog.String("error", err.Error()),
 		)
-		return nil, apperrors.Wrap(err, "failed to recalculate billing totals")
+		var err error
+		updated, err = s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get billing item after update", "error", err)
+			return apperrors.Wrap(err, "failed to get billing item after update")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
-	slog.InfoContext(ctx, "billing item updated",
-		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("item_id", id),
-		slog.Uint64("billing_id", item.BillingID),
-	)
-	updated, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get billing item after update", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get billing item after update")
-	}
 	return updated, nil
 }
 
@@ -246,25 +261,27 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 	}
 	billingID := item.BillingID
 
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete billing item", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete billing item")
-	}
+	return s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete billing item", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to delete billing item")
+		}
 
-	if err := s.recalculateTotals(ctx, clinicID, billingID); err != nil {
-		slog.ErrorContext(ctx, "failed to recalculate billing totals after delete",
+		if err := s.recalculateTotals(txCtx, clinicID, billingID); err != nil {
+			slog.ErrorContext(txCtx, "failed to recalculate billing totals after delete",
+				slog.Uint64("billing_id", billingID),
+				slog.String("error", err.Error()),
+			)
+			return apperrors.Wrap(err, "failed to recalculate billing totals")
+		}
+
+		slog.InfoContext(txCtx, "billing item deleted",
+			slog.Uint64("clinic_id", clinicID),
+			slog.Uint64("item_id", id),
 			slog.Uint64("billing_id", billingID),
-			slog.String("error", err.Error()),
 		)
-		return apperrors.Wrap(err, "failed to recalculate billing totals")
-	}
-
-	slog.InfoContext(ctx, "billing item deleted",
-		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("item_id", id),
-		slog.Uint64("billing_id", billingID),
-	)
-	return nil
+		return nil
+	})
 }
 
 func (s *billingItemService) GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error) {
