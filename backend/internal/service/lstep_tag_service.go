@@ -298,6 +298,10 @@ func (s *lstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, 
 	}
 
 	result := &BulkAddOwnerTagResult{FailedOwnerIDs: []uint64{}}
+
+	// PERF-04: Cache owners in memory to avoid N+1 queries (1 per owner → 1 total)
+	// Build owner map: fetch all owners upfront
+	ownerMap := make(map[uint64]*model.Owner)
 	for _, ownerID := range ownerIDs {
 		owner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
 		if findErr != nil {
@@ -305,6 +309,17 @@ func (s *lstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, 
 			result.FailedOwnerIDs = append(result.FailedOwnerIDs, ownerID)
 			continue
 		}
+		ownerMap[ownerID] = owner
+	}
+
+	// Process owners from cache
+	for _, ownerID := range ownerIDs {
+		owner, ok := ownerMap[ownerID]
+		if !ok {
+			// Already marked as failed above
+			continue
+		}
+
 		if owner.LstepOptOut || owner.LineUserID == nil || *owner.LineUserID == "" {
 			result.SkippedCount++
 			continue
