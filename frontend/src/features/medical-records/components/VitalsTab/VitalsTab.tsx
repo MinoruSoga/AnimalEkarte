@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState, lazy, Suspense } from "react";
 import { BarChart2, Table2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,7 +14,11 @@ import {
   useUpdateVital,
 } from "../../api/vitals";
 import type { CreateVitalInput, UpdateVitalInput, Vital } from "../../types";
-import { VitalsGraph } from "./VitalsGraph";
+// recharts(~100KB+ gzip)を引き込む唯一の依存。グラフは showGraph トグル
+// ON 時のみ描画されるため遅延ロードし、医療記録ルートの初期バンドルから外す。
+const VitalsGraph = lazy(() =>
+  import("./VitalsGraph").then((m) => ({ default: m.VitalsGraph })),
+);
 import {
   EMPTY_VITALS_ADD_FORM,
   parseVitalsNumber,
@@ -165,7 +169,9 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
       ) : null}
 
       {showGraph && sortedVitals.length > 0 ? (
-        <VitalsGraph vitals={sortedVitals} />
+        <Suspense fallback={null}>
+          <VitalsGraph vitals={sortedVitals} />
+        </Suspense>
       ) : null}
 
       <VitalsTable
