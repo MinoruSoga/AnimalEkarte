@@ -16,6 +16,7 @@ import FileText from "lucide-react/dist/esm/icons/file-text";
 import ClipboardCheck from "lucide-react/dist/esm/icons/clipboard-check";
 import PawPrint from "lucide-react/dist/esm/icons/paw-print";
 import ShoppingBag from "lucide-react/dist/esm/icons/shopping-bag";
+import MessageSquareText from "lucide-react/dist/esm/icons/message-square-text";
 
 import type { Resource } from "@/types/generated/models";
 import { ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCheckups } from "@/types/generated/models";
@@ -42,7 +43,8 @@ export type MasterSettingsCategory =
   | "animal_species"
   | "inquiry_template"
   | "merchandise_item"
-  | "permission_group";
+  | "permission_group"
+  | "chief_complaint";
 
 export interface CategoryConfig {
   label: string;
@@ -260,5 +262,15 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     labels: { code: "コード", name: "グループ名", category: "分類" },
     showPrice: false, showCode: false, showCategory: false, showParentItem: false,
     namePlaceholder: "獣医師権限", codePlaceholder: "",
+  },
+  chief_complaint: {
+    label: "主訴カテゴリ",
+    description: "問診で使用する主訴カテゴリを管理します",
+    settingsPath: "/settings/interview/chief-complaint",
+    IconComponent: MessageSquareText,
+    resource: ResourceMasterMedical,
+    labels: { code: "", name: "カテゴリ名", category: "" },
+    showPrice: false, showCode: false, showCategory: false, showParentItem: false,
+    namePlaceholder: "消化器症状", codePlaceholder: "",
   },
 };

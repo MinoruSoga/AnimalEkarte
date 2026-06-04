@@ -127,7 +127,7 @@ export const MASTER_SECTIONS: SectionDef[] = [
   { title: "基本設定", keys: ["clinic", "animal_species"] },
   {
     title: "カルテ",
-    keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "medicine"],
+    keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "chief_complaint", "medicine"],
   },
   { title: "予約管理マスタ", keys: ["reservationType"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
