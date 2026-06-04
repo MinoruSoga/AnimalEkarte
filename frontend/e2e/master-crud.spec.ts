@@ -9,9 +9,12 @@ import { test, expect } from '@playwright/test';
 
 const isArm64Runtime = process.platform === 'linux' && os.arch() === 'arm64';
 
-// arm64 環境では describe 全体をスキップする
-const describeBlock = isArm64Runtime ? test.describe.skip : test.describe;
-describeBlock('Master CRUD E2E Tests', () => {
+test.describe('Master CRUD E2E Tests', () => {
+  // arm64 環境では describe 全体をスキップする
+  if (isArm64Runtime) {
+    test.describe.configure({ skip: true });
+  }
+
   test('A: Chief Complaint Navigation', async ({ page }) => {
     // Navigate to settings page
     await page.goto('/settings');
