@@ -579,265 +579,145 @@ ON CONFLICT DO NOTHING;
 
 
 -- -----------------------------------------------------------------------------
+-- 11. exam_types（検査種別: 5件）+ exam_type_fields（検査項目定義）
 -- -----------------------------------------------------------------------------
--- 11. exam_types（Google Sheets gid=887363142 から反映）
--- -----------------------------------------------------------------------------
-INSERT INTO exam_types (id, clinic_id, name, price, is_active, description, parent_id, sort_order, is_non_insurance) VALUES
-    (11008, 1, '検査', 0, true, '検査カテゴリ', NULL, 1, false),
-    (1, 1, '尿検査', 0, true, '既存', 11008, 1, false),
-    (2, 1, '便検査', 0, true, '既存', 11008, 2, false),
-    (3, 1, '血液検査（院内）', 0, true, '既存', 11008, 3, false),
-    (4, 1, '眼科検査', 0, true, '既存', 11008, 4, false),
-    (5, 1, '皮膚検査', 0, true, '既存', 11008, 5, false),
-    (11001, 1, '画像検査（Xray）', 0, true, '既存', 11008, 6, false),
-    (11002, 1, '病理検査', 0, true, '既存', 11008, 7, false),
-    (11003, 1, '特殊検査', 0, false, '既存 / 削除', 11008, 8, false),
-    (11004, 1, 'その他検査', 0, true, '既存', 11008, 9, false),
-    (11005, 1, '画像検査（Echo）', 0, true, '既存', 11008, 10, false),
-    (11006, 1, '血液検査（外注）', 0, true, '既存', 11008, 11, false),
-    (11007, 1, '画像検査（CT）', 0, true, '新規 / 追加', 11008, 12, false)
-ON CONFLICT (id) DO UPDATE
-    SET clinic_id = EXCLUDED.clinic_id,
-        name = EXCLUDED.name,
-        price = EXCLUDED.price,
-        is_active = EXCLUDED.is_active,
-        description = EXCLUDED.description,
-        parent_id = EXCLUDED.parent_id,
-        sort_order = EXCLUDED.sort_order,
-        is_non_insurance = EXCLUDED.is_non_insurance,
-        updated_at = now();
+INSERT INTO exam_types (id, clinic_id, name, price, is_active, description, sort_order) VALUES
+    (1, 1, '血液検査（CBC）',     3000, true, '全血球計算（Complete Blood Count）',         1),
+    (2, 1, '血液化学検査',         5000, true, '肝機能・腎機能・血糖値など生化学的検査',     2),
+    (3, 1, '尿検査',               1500, true, '尿試験紙・尿沈渣検査',                       3),
+    (4, 1, 'レントゲン検査',       3000, true, 'X線撮影（胸部・腹部・四肢）',                4),
+    (5, 1, '超音波検査（エコー）', 5000, true, '腹部エコー・心臓エコー',                     5)
+ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_types', 'id'), (SELECT MAX(id) FROM exam_types));
 
--- exam_type_fields: 既存の検査結果 seed が参照する検査項目定義
+-- exam_type_fields: 血液検査（CBC）
 INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
     (1, 1, 'WBC（白血球数）',      '', '6.0-17.0 x10^3/uL', 1),
     (2, 1, 'RBC（赤血球数）',      '', '5.5-8.5 x10^6/uL',  2),
     (3, 1, 'HCT（ヘマトクリット）', '', '37-55%',            3),
-    (4, 1, 'PLT（血小板数）',      '', '175-500 x10^3/uL',  4),
-    (5, 2, 'ALT（GPT）',           '', '10-125 U/L',         1),
-    (6, 2, 'BUN（尿素窒素）',      '', '7-27 mg/dL',         2),
-    (7, 2, 'CRE（クレアチニン）',  '', '0.5-1.8 mg/dL',      3),
-    (8, 2, 'GLU（血糖値）',        '', '74-143 mg/dL',       4),
-    (9, 1, '尿比重',               '', '1.015-1.045',        1),
-    (10, 1, '尿pH',                '', '5.5-7.5',            2),
-    (11, 1, '尿タンパク',          '', '陰性',               3),
-    (12, 1, '尿潜血',              '', '陰性',               4),
-    (13, 2, '胸部正面',            '', '異常なし',           1),
-    (14, 2, '腹部正面',            '', '異常なし',           2),
-    (15, 2, '四肢',                '', '異常なし',           3),
-    (16, 3, '腹部エコー',          '', '異常なし',           1),
-    (17, 3, '心臓エコー',          '', '異常なし',           2)
+    (4, 1, 'PLT（血小板数）',      '', '175-500 x10^3/uL',  4)
 ON CONFLICT DO NOTHING;
 
--- -----------------------------------------------------------------------------
--- 12. vaccines（Google Sheets gid=887363142 から反映）
--- -----------------------------------------------------------------------------
-INSERT INTO vaccines (id, clinic_id, name, price, is_active, description, parent_id, species, interval, sort_order) VALUES
-    (12001, 1, '予防', 0, true, '予防カテゴリ', NULL, NULL, '', 1),
-    (1, 1, 'ワクチン犬', 0, true, '既存', 12001, 'dog', '', 1),
-    (2, 1, 'ワクチン猫', 0, true, '既存', 12001, 'cat', '', 2),
-    (3, 1, 'ワクチンエキゾ', 0, true, '既存', 12001, 'both', '', 3),
-    (4, 1, 'フィラリア予防薬', 0, true, '既存', 12001, 'both', '', 4),
-    (5, 1, 'フィラリア予防注射', 0, true, '既存', 12001, 'both', '', 5),
-    (6, 1, 'その他の予防', 0, true, '既存', 12001, 'both', '', 6),
-    (7, 1, '定期駆虫薬', 0, true, '既存', 12001, 'both', '', 7),
-    (8, 1, 'ノミダニ予防(犬)', 0, true, '新規 / 追加', 12001, 'dog', '', 8),
-    (9, 1, 'ノミダニ予防(猫)', 0, true, '新規 / 追加', 12001, 'cat', '', 9),
-    (10, 1, 'フィラリア予防(犬)', 0, true, '新規 / 追加', 12001, 'dog', '', 10),
-    (12002, 1, 'フィラリア予防(猫)', 0, true, '新規 / 追加', 12001, 'cat', '', 11)
-ON CONFLICT (id) DO UPDATE
-    SET clinic_id = EXCLUDED.clinic_id,
-        name = EXCLUDED.name,
-        price = EXCLUDED.price,
-        is_active = EXCLUDED.is_active,
-        description = EXCLUDED.description,
-        parent_id = EXCLUDED.parent_id,
-        species = EXCLUDED.species,
-        interval = EXCLUDED.interval,
-        sort_order = EXCLUDED.sort_order,
-        updated_at = now();
+-- exam_type_fields: 血液化学検査
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+    (5, 2, 'ALT（GPT）',        '', '10-125 U/L',    1),
+    (6, 2, 'BUN（尿素窒素）',   '', '7-27 mg/dL',    2),
+    (7, 2, 'CRE（クレアチニン）', '', '0.5-1.8 mg/dL', 3),
+    (8, 2, 'GLU（血糖値）',     '', '74-143 mg/dL',   4)
+ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('vaccines', 'id'), (SELECT MAX(id) FROM vaccines));
+-- exam_type_fields: 尿検査
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+    (9, 1, '尿比重',   '', '1.015-1.045', 1),
+    (10, 1, '尿pH',     '', '5.5-7.5',     2),
+    (11, 1, '尿タンパク', '', '陰性',       3),
+    (12, 1, '尿潜血',   '', '陰性',        4)
+ON CONFLICT DO NOTHING;
 
--- -----------------------------------------------------------------------------
--- 13. medicines（Google Sheets gid=887363142 から反映）
--- -----------------------------------------------------------------------------
-INSERT INTO medicines (id, clinic_id, name, price, is_active, description, parent_id, dosage_form, medicine_unit, default_quantity, sort_order, inventory_id) VALUES
-    (14001, 1, '内用薬', 0, true, '内用薬カテゴリ', NULL, NULL, NULL, 1, 1, NULL),
-    (14002, 1, '外用薬', 0, true, '外用薬カテゴリ', NULL, NULL, NULL, 1, 2, NULL),
-    (1, 1, '抗生物質・抗菌剤（ペニシリン系）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 1, NULL),
-    (2, 1, '駆虫剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 2, NULL),
-    (3, 1, '鎮痛剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 3, NULL),
-    (4, 1, '循環器系薬剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 4, NULL),
-    (5, 1, '免疫抑制剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 5, NULL),
-    (6, 1, '鎮咳剤・去痰剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 6, NULL),
-    (7, 1, '呼吸促進剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 7, NULL),
-    (8, 1, '抗ヒスタミン剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 8, NULL),
-    (9, 1, '抗アレルギー剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 9, NULL),
-    (10, 1, '消化器系薬剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 10, NULL),
-    (11, 1, '肝胆膵疾患用薬剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 11, NULL),
-    (12, 1, '抗腫瘍剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 12, NULL),
-    (13, 1, '血液作用剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 13, NULL),
-    (14, 1, '代謝系薬剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 14, NULL),
-    (15, 1, '内分泌系薬剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 15, NULL),
-    (14003, 1, '神経系薬剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 16, NULL),
-    (14004, 1, '消炎酵素剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 17, NULL),
-    (14005, 1, 'ビタミン剤（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 18, NULL),
-    (14006, 1, '漢方薬（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 19, NULL),
-    (14007, 1, 'その他内用薬（内用）', 0, true, '既存 / その他内用から皮膚薬のみ小分類分ける', 14001, 'tablet', 'per_tablet', 1, 20, NULL),
-    (14008, 1, '皮膚薬（内用）', 0, true, '新規 / その他内用から皮膚薬のみ小分類分ける', 14001, 'tablet', 'per_tablet', 1, 21, NULL),
-    (14009, 1, '追加内用薬', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 22, NULL),
-    (14010, 1, 'その他サプリメント（内用）', 0, true, '既存 / その他と関節系サプリを分ける', 14001, 'tablet', 'per_tablet', 1, 23, NULL),
-    (14011, 1, '関節系サプリメント（内用）', 0, true, '新規 / その他と関節系サプリを分ける', 14001, 'tablet', 'per_tablet', 1, 24, NULL),
-    (14012, 1, 'ステロイド（内用）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 25, NULL),
-    (14013, 1, '抗生物質・抗菌薬（セフェム系）', 0, true, '既存', 14001, 'tablet', 'per_tablet', 1, 26, NULL),
-    (14014, 1, '抗生物質・抗菌剤（フルオロキノロン系）', 0, true, '既存 / 原本画面で末尾が切れていたため要確認', 14001, 'tablet', 'per_tablet', 1, 27, NULL),
-    (14015, 1, '眼科用剤', 0, true, '既存', 14002, 'topical', 'per_dose', 1, 28, NULL),
-    (14016, 1, '皮膚外用剤', 0, true, '既存', 14002, 'topical', 'per_dose', 1, 29, NULL),
-    (14017, 1, '耳鼻科用剤', 0, true, '既存', 14002, 'topical', 'per_dose', 1, 30, NULL),
-    (14018, 1, '坐剤', 0, true, '既存', 14002, 'topical', 'per_dose', 1, 31, NULL),
-    (14019, 1, '消毒剤', 0, true, '既存', 14002, 'topical', 'per_dose', 1, 32, NULL),
-    (14020, 1, '診断用薬剤', 0, true, '既存', 14002, 'topical', 'per_dose', 1, 33, NULL),
-    (14021, 1, '抗生物質・抗菌剤', 0, false, '既存 / 皮膚外用へ移動、小分類削除', 14002, 'topical', 'per_dose', 1, 34, NULL),
-    (14022, 1, 'その他外用薬', 0, false, '既存 / ノミダニ予防へ移動、小分類削除', 14002, 'topical', 'per_dose', 1, 35, NULL),
-    (14023, 1, 'パッチ', 0, false, '既存 / その他外用へ移動、小分類削除', 14002, 'topical', 'per_dose', 1, 36, NULL)
-ON CONFLICT (id) DO UPDATE
-    SET clinic_id = EXCLUDED.clinic_id,
-        name = EXCLUDED.name,
-        price = EXCLUDED.price,
-        is_active = EXCLUDED.is_active,
-        description = EXCLUDED.description,
-        parent_id = EXCLUDED.parent_id,
-        dosage_form = EXCLUDED.dosage_form,
-        medicine_unit = EXCLUDED.medicine_unit,
-        default_quantity = EXCLUDED.default_quantity,
-        sort_order = EXCLUDED.sort_order,
-        inventory_id = EXCLUDED.inventory_id,
-        updated_at = now();
+-- exam_type_fields: レントゲン検査
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+    (13, 2, '胸部正面', '', '異常なし', 1),
+    (14, 2, '腹部正面', '', '異常なし', 2),
+    (15, 2, '四肢',     '', '異常なし', 3)
+ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('medicines', 'id'), (SELECT MAX(id) FROM medicines));
+-- exam_type_fields: 超音波検査
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+    (16, 3, '腹部エコー', '', '異常なし', 1),
+    (17, 3, '心臓エコー', '', '異常なし', 2)
+ON CONFLICT DO NOTHING;
+
 
 -- -----------------------------------------------------------------------------
--- 14. consultations（Google Sheets gid=887363142 から反映）
+-- 12. vaccines（ワクチン: 10件）
 -- -----------------------------------------------------------------------------
-INSERT INTO consultations (id, clinic_id, name, price, is_active, description, parent_id, sort_order, time_condition, duration, tax_type, tax_rate) VALUES
-    (10012, 1, '診察', 0, true, '診察カテゴリ', NULL, 1, '', NULL, 'excluded', 0.10),
-    (1, 1, '初診料', 0, true, '既存', 10012, 1, '', NULL, 'excluded', 0.10),
-    (2, 1, '再診料', 0, true, '既存', 10012, 2, '', NULL, 'excluded', 0.10),
-    (3, 1, '往診料', 0, true, '既存', 10012, 3, '', NULL, 'excluded', 0.10),
-    (4, 1, '時間外診療料', 0, true, '既存', 10012, 4, '', NULL, 'excluded', 0.10),
-    (5, 1, '入院料', 0, true, '既存', 10012, 5, '', NULL, 'excluded', 0.10),
-    (10001, 1, '健康診断料', 0, false, '既存 / 削除', 10012, 6, '', NULL, 'excluded', 0.10),
-    (10002, 1, 'その他診察料', 0, true, '既存', 10012, 7, '', NULL, 'excluded', 0.10),
-    (10003, 1, 'ICU', 0, false, '既存 / 削除', 10012, 8, '', NULL, 'excluded', 0.10),
-    (10004, 1, '指名料', 0, false, '既存 / 削除', 10012, 9, '', NULL, 'excluded', 0.10),
-    (10005, 1, '再診料（新しい病気）', 0, false, '既存 / 削除', 10012, 10, '', NULL, 'excluded', 0.10),
-    (10006, 1, '特別入院料', 0, true, '既存', 10012, 11, '', NULL, 'excluded', 0.10),
-    (10007, 1, '処方料', 0, true, '既存', 10012, 12, '', NULL, 'excluded', 0.10),
-    (10008, 1, '健康診断料（春）', 0, true, '追加案 / 林先生のご要望：四季別の集計が可能になるよう細分化', 10012, 13, '', NULL, 'excluded', 0.10),
-    (10009, 1, '健康診断料（夏）', 0, true, '追加案 / 林先生のご要望：四季別の集計が可能になるよう細分化', 10012, 14, '', NULL, 'excluded', 0.10),
-    (10010, 1, '健康診断料（秋）', 0, true, '追加案 / 林先生のご要望：四季別の集計が可能になるよう細分化', 10012, 15, '', NULL, 'excluded', 0.10),
-    (10011, 1, '健康診断料（冬）', 0, true, '追加案 / 林先生のご要望：四季別の集計が可能になるよう細分化', 10012, 16, '', NULL, 'excluded', 0.10)
-ON CONFLICT (id) DO UPDATE
-    SET clinic_id = EXCLUDED.clinic_id,
-        name = EXCLUDED.name,
-        price = EXCLUDED.price,
-        is_active = EXCLUDED.is_active,
-        description = EXCLUDED.description,
-        parent_id = EXCLUDED.parent_id,
-        sort_order = EXCLUDED.sort_order,
-        time_condition = EXCLUDED.time_condition,
-        duration = EXCLUDED.duration,
-        tax_type = EXCLUDED.tax_type,
-        tax_rate = EXCLUDED.tax_rate,
-        updated_at = now();
+INSERT INTO vaccines (id, clinic_id, name, price, is_active, description, species, interval, sort_order) VALUES
+    (1, 1, '混合ワクチン5種（犬）',      4500, true, 'ジステンパー・パルボ・アデノ1型・アデノ2型・パラインフルエンザ',         'dog', '1年',   1),
+    (2, 1, '混合ワクチン6種（犬）',      5500, true, '5種＋コロナウイルス',                                                    'dog', '1年',   2),
+    (3, 1, '混合ワクチン8種（犬）',      6500, true, '5種＋レプトスピラ3種',                                                   'dog', '1年',   3),
+    (4, 1, '混合ワクチン10種（犬）',     8000, true, '5種＋レプトスピラ5種',                                                   'dog', '1年',   4),
+    (5, 1, '混合ワクチン3種（猫）',      4000, true, '猫ウイルス性鼻気管炎・カリシウイルス・汎白血球減少症',                     'cat', '1年',   5),
+    (6, 1, '混合ワクチン5種（猫）',      5500, true, '3種＋猫白血病・猫クラミジア',                                             'cat', '1年',   6),
+    (7, 1, '狂犬病ワクチン',             3000, true, '狂犬病予防法に基づく接種',                                               'dog', '1年',   7),
+    (8, 1, 'フィラリア予防薬（小型犬）',  900, true, '体重10kg以下犬用フィラリア予防',                                          'dog', '1ヶ月', 8),
+    (9, 1, 'フィラリア予防薬（中型犬）', 1100, true, '体重11-25kg犬用フィラリア予防',                                           'dog', '1ヶ月', 9),
+    (10, 1, 'フィラリア予防薬（大型犬）', 1500, true, '体重26kg以上犬用フィラリア予防',                                          'dog', '1ヶ月', 10)
+ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('consultations', 'id'), (SELECT MAX(id) FROM consultations));
 
 -- -----------------------------------------------------------------------------
--- 15. procedures（Google Sheets gid=887363142 から反映）
+-- 13. medicines（薬剤カテゴリ: 9件 + 薬剤: 15件）
+-- カテゴリレコードは id 1001〜1009、price=NULL、parent_id=NULL
+-- 薬剤レコードは parent_id でカテゴリを参照
 -- -----------------------------------------------------------------------------
-INSERT INTO procedures (id, clinic_id, name, price, is_active, description, parent_id, sort_order, duration, anesthesia, tax_type, tax_rate) VALUES
-    (13047, 1, '注射', 0, true, '注射カテゴリ', NULL, 1, NULL, 'none', 'excluded', 0.10),
-    (13048, 1, '輸液', 0, true, '輸液カテゴリ', NULL, 2, NULL, 'none', 'excluded', 0.10),
-    (13049, 1, '輸血', 0, true, '輸血カテゴリ', NULL, 3, NULL, 'none', 'excluded', 0.10),
-    (13050, 1, '処置', 0, true, '処置カテゴリ', NULL, 4, NULL, 'none', 'excluded', 0.10),
-    (13051, 1, 'お手入れ', 0, true, 'お手入れカテゴリ', NULL, 5, NULL, 'none', 'excluded', 0.10),
-    (13052, 1, '手術', 0, true, '手術カテゴリ', NULL, 6, NULL, 'none', 'excluded', 0.10),
-    (13053, 1, '麻酔', 0, true, '麻酔カテゴリ', NULL, 7, NULL, 'none', 'excluded', 0.10),
-    (1, 1, '抗生物質・抗菌薬（ペニシリン系）', 0, true, '既存', 13047, 1, NULL, 'none', 'excluded', 0.10),
-    (2, 1, '駆虫剤（注射）', 0, true, '既存', 13047, 2, NULL, 'none', 'excluded', 0.10),
-    (3, 1, '鎮痛剤（注射）', 0, true, '既存', 13047, 3, NULL, 'none', 'excluded', 0.10),
-    (4, 1, '循環器系薬剤（注射）', 0, true, '既存', 13047, 4, NULL, 'none', 'excluded', 0.10),
-    (5, 1, '免疫抑制剤（注射）', 0, true, '既存', 13047, 5, NULL, 'none', 'excluded', 0.10),
-    (6, 1, '鎮咳剤・去痰剤（注射）', 0, true, '既存', 13047, 6, NULL, 'none', 'excluded', 0.10),
-    (7, 1, '呼吸促進剤（注射）', 0, true, '既存', 13047, 7, NULL, 'none', 'excluded', 0.10),
-    (8, 1, '抗ヒスタミン剤（注射）', 0, true, '既存', 13047, 8, NULL, 'none', 'excluded', 0.10),
-    (9, 1, '抗アレルギー剤（注射）', 0, true, '既存', 13047, 9, NULL, 'none', 'excluded', 0.10),
-    (10, 1, '消化器系薬剤（注射）', 0, true, '既存', 13047, 10, NULL, 'none', 'excluded', 0.10),
-    (13001, 1, '肝胆膵疾患用薬剤（注射）', 0, true, '既存', 13047, 11, NULL, 'none', 'excluded', 0.10),
-    (13002, 1, '抗腫瘍剤（注射）', 0, true, '既存', 13047, 12, NULL, 'none', 'excluded', 0.10),
-    (13003, 1, '血液作用剤（注射）', 0, true, '既存', 13047, 13, NULL, 'none', 'excluded', 0.10),
-    (13004, 1, '代謝系薬剤（注射）', 0, true, '既存', 13047, 14, NULL, 'none', 'excluded', 0.10),
-    (13005, 1, '内分泌系薬剤（注射）', 0, true, '既存', 13047, 15, NULL, 'none', 'excluded', 0.10),
-    (13006, 1, '神経系薬剤（注射）', 0, true, '既存', 13047, 16, NULL, 'none', 'excluded', 0.10),
-    (13007, 1, '消炎酵素剤（注射）', 0, true, '既存', 13047, 17, NULL, 'none', 'excluded', 0.10),
-    (13008, 1, 'ビタミン剤（注射）', 0, true, '既存', 13047, 18, NULL, 'none', 'excluded', 0.10),
-    (13009, 1, 'その他注射（注射）', 0, true, '既存', 13047, 19, NULL, 'none', 'excluded', 0.10),
-    (13010, 1, 'ステロイド（注射）', 0, true, '既存', 13047, 20, NULL, 'none', 'excluded', 0.10),
-    (13011, 1, '抗生物質・抗菌薬（セフェム系）', 0, true, '既存', 13047, 21, NULL, 'none', 'excluded', 0.10),
-    (13012, 1, '抗生物質・抗菌薬（フルオロキノロン系）', 0, true, '既存 / 原本画面で末尾が切れていたため要確認', 13047, 22, NULL, 'none', 'excluded', 0.10),
-    (13013, 1, '抗生物質・抗菌薬（アミノグリコシド系）', 0, true, '既存 / 原本画面で末尾が切れていたため要確認', 13047, 23, NULL, 'none', 'excluded', 0.10),
-    (13014, 1, '抗生物質・抗菌薬（テトラサイクリン系）', 0, true, '既存 / 原本画面で末尾が切れていたため要確認', 13047, 24, NULL, 'none', 'excluded', 0.10),
-    (13015, 1, '抗生物質・抗菌薬（マクロライド系）', 0, true, '既存 / 原本画面で末尾が切れていたため要確認', 13047, 25, NULL, 'none', 'excluded', 0.10),
-    (13016, 1, '皮下輸液', 0, true, '既存', 13048, 1, NULL, 'none', 'excluded', 0.10),
-    (13017, 1, '入院輸液', 0, true, '既存', 13048, 2, NULL, 'none', 'excluded', 0.10),
-    (13018, 1, '輸血', 0, true, '既存', 13049, 1, NULL, 'none', 'excluded', 0.10),
-    (13019, 1, '耳処置', 0, true, '既存', 13050, 1, NULL, 'none', 'excluded', 0.10),
-    (13020, 1, 'Laser', 0, true, '既存', 13050, 2, NULL, 'none', 'excluded', 0.10),
-    (13021, 1, '外傷処置', 0, true, '既存', 13050, 3, NULL, 'none', 'excluded', 0.10),
-    (13022, 1, '皮膚処置', 0, true, '既存 / 外傷処置に統合', 13050, 4, NULL, 'none', 'excluded', 0.10),
-    (13023, 1, '眼科処置', 0, true, '既存', 13050, 5, NULL, 'none', 'excluded', 0.10),
-    (13024, 1, '歯科処置', 0, true, '既存', 13050, 6, NULL, 'none', 'excluded', 0.10),
-    (13025, 1, '泌尿器系処置', 0, true, '既存', 13050, 7, NULL, 'none', 'excluded', 0.10),
-    (13026, 1, '滴下剤処置', 0, true, '既存', 13050, 8, NULL, 'none', 'excluded', 0.10),
-    (13027, 1, '投薬・給餌処置', 0, true, '既存', 13050, 9, NULL, 'none', 'excluded', 0.10),
-    (13028, 1, 'EMR', 0, true, '既存', 13050, 10, NULL, 'none', 'excluded', 0.10),
-    (13029, 1, 'その他処置', 0, true, '既存', 13050, 11, NULL, 'none', 'excluded', 0.10),
-    (13030, 1, 'お手入れ', 0, true, '既存 / 処置から新しい大分類を追加しそちらに移動', 13050, 12, NULL, 'none', 'excluded', 0.10),
-    (13031, 1, '消化器系処置', 0, true, '既存', 13050, 13, NULL, 'none', 'excluded', 0.10),
-    (13032, 1, '犬 Cast&Spay', 0, true, '既存', 13052, 1, NULL, 'none', 'excluded', 0.10),
-    (13033, 1, '猫 Cast&Spay', 0, true, '既存', 13052, 2, NULL, 'none', 'excluded', 0.10),
-    (13034, 1, 'その他 Cast&Spay', 0, true, '既存', 13052, 3, NULL, 'none', 'excluded', 0.10),
-    (13035, 1, '開腹手術（消化器）', 0, true, '既存 / 開腹手術を２種類に分類', 13052, 4, NULL, 'none', 'excluded', 0.10),
-    (13036, 1, '開腹手術（その他）', 0, true, '新規 / 開腹手術を２種類に分類', 13052, 5, NULL, 'none', 'excluded', 0.10),
-    (13037, 1, 'ヘルニア整復術', 0, true, '既存', 13052, 6, NULL, 'none', 'excluded', 0.10),
-    (13038, 1, '眼科手術', 0, true, '既存', 13052, 7, NULL, 'none', 'excluded', 0.10),
-    (13039, 1, '骨外科手術', 0, true, '既存', 13052, 8, NULL, 'none', 'excluded', 0.10),
-    (13040, 1, '靱帯整復術', 0, true, '既存', 13052, 9, NULL, 'none', 'excluded', 0.10),
-    (13041, 1, '脱臼整復術', 0, true, '既存', 13052, 10, NULL, 'none', 'excluded', 0.10),
-    (13042, 1, 'その他手術', 0, true, '既存', 13052, 11, NULL, 'none', 'excluded', 0.10),
-    (13043, 1, 'ドレープ', 0, true, '既存', 13052, 12, NULL, 'none', 'excluded', 0.10),
-    (13044, 1, '吸入麻酔', 0, true, '既存', 13053, 1, NULL, 'none', 'excluded', 0.10),
-    (13045, 1, '注射麻酔', 0, true, '既存', 13053, 2, NULL, 'none', 'excluded', 0.10),
-    (13046, 1, '局所麻酔', 0, true, '既存', 13053, 3, NULL, 'none', 'excluded', 0.10)
-ON CONFLICT (id) DO UPDATE
-    SET clinic_id = EXCLUDED.clinic_id,
-        name = EXCLUDED.name,
-        price = EXCLUDED.price,
-        is_active = EXCLUDED.is_active,
-        description = EXCLUDED.description,
-        parent_id = EXCLUDED.parent_id,
-        sort_order = EXCLUDED.sort_order,
-        duration = EXCLUDED.duration,
-        anesthesia = EXCLUDED.anesthesia,
-        tax_type = EXCLUDED.tax_type,
-        tax_rate = EXCLUDED.tax_rate,
-        updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('procedures', 'id'), (SELECT MAX(id) FROM procedures));
+-- カテゴリレコード（id 1001〜1009）
+INSERT INTO medicines (id, clinic_id, name, price, is_active, description, sort_order) VALUES
+    (1001, 1, '抗生剤',       NULL, true, '抗生物質カテゴリ',   1),
+    (1002, 1, 'ステロイド',   NULL, true, 'ステロイド剤カテゴリ', 2),
+    (1003, 1, '利尿剤',       NULL, true, '利尿剤カテゴリ',     3),
+    (1004, 1, '消炎剤',       NULL, true, '消炎鎮痛剤カテゴリ', 4),
+    (1005, 1, '神経系薬',     NULL, true, '神経系薬カテゴリ',   5),
+    (1006, 1, '制吐剤',       NULL, true, '制吐剤カテゴリ',     6),
+    (1007, 1, '消化器用薬',   NULL, true, '消化器用薬カテゴリ', 7),
+    (1008, 1, '駆虫剤',       NULL, true, '駆虫剤カテゴリ',     8),
+    (1009, 1, '輸液',         NULL, true, '輸液カテゴリ',       9)
+ON CONFLICT DO NOTHING;
 
+-- 薬剤レコード（parent_id でカテゴリ参照）
+INSERT INTO medicines (id, clinic_id, name, price, is_active, description, dosage_form, medicine_unit, default_quantity, sort_order, parent_id) VALUES
+    (1, 1, 'アモキシシリン 50mg',         500,  true, '広域スペクトラム抗生物質',               'tablet',    'per_tablet', 1,   1, 1001),
+    (2, 1, 'メトロニダゾール 250mg',       600,  true, '嫌気性菌・原虫感染症治療薬',             'tablet',    'per_tablet', 1,   2, 1001),
+    (3, 1, 'プレドニゾロン 5mg',           400,  true, 'ステロイド系抗炎症・免疫抑制剤',         'tablet',    'per_tablet', 1,   3, 1002),
+    (4, 1, 'フロセミド注射液 20mg/2ml',    800,  true, '利尿剤（心臓・腎臓病の浮腫治療）',       'injection', 'per_ml',     2,   4, 1003),
+    (5, 1, 'メロキシカム経口液',           700,  true, 'NSAIDs・痛み・炎症の緩和',               'liquid',    'per_ml',     1,   5, 1004),
+    (6, 1, 'ガバペンチン 100mg',           550,  true, '神経因性疼痛・てんかん補助療法',         'tablet',    'per_tablet', 1,   6, 1005),
+    (7, 1, 'マロピタント 16mg',            800,  true, '制吐剤（乗り物酔い・嘔吐治療）',         'tablet',    'per_tablet', 1,   7, 1006),
+    (8, 1, 'ラクツロース液',               500,  true, '便秘・肝性脳症の治療',                   'liquid',    'per_ml',     5,   8, 1007),
+    (9, 1, 'ノミ・ダニ駆除薬（犬用）',     2500, true, '外部寄生虫予防・駆除（スポットオン）',   'topical',   'per_dose',   1,   9, 1008),
+    (10, 1, 'ノミ・ダニ駆除薬（猫用）',     2500, true, '外部寄生虫予防・駆除（スポットオン）',   'topical',   'per_dose',   1,  10, 1008),
+    (11, 1, '抗生剤点眼薬',                 600,  true, '眼科用抗菌点眼剤',                       'liquid',    'per_ml',     1,  11, 1001),
+    (12, 1, 'デキサメタゾン注射液',         700,  true, '強力ステロイド・アレルギー緊急治療',     'injection', 'per_ml',     1,  12, 1002),
+    (13, 1, '生理食塩水 500ml',             400,  true, '点滴・洗浄用生理食塩水',                 'liquid',    'per_ml',     500, 13, 1009),
+    (14, 1, 'セファレキシン 250mg',         450,  true, '第1世代セフェム系抗生物質',              'tablet',    'per_tablet', 1,  14, 1001),
+    (15, 1, 'オメプラゾール 10mg',          350,  true, 'プロトンポンプ阻害薬（胃酸抑制）',       'tablet',    'per_tablet', 1,  15, 1007)
+ON CONFLICT DO NOTHING;
+
+
+-- -----------------------------------------------------------------------------
+-- 14. consultations（診察項目: 5件）
+-- -----------------------------------------------------------------------------
+INSERT INTO consultations (id, clinic_id, name, price, is_active, description, time_condition, duration, sort_order) VALUES
+    (1, 1, '初診料',       2000, true, '初めての受診または6ヶ月以上受診がない場合', 'first_visit',  30, 1),
+    (2, 1, '再診料',        800, true, '継続通院の診察料',                         'revisit',      15, 2),
+    (3, 1, '往診料',       5000, true, '自宅への往診料（基本料金）',               'anytime',      60, 3),
+    (4, 1, '時間外診療料', 3000, true, '診療時間外・休日の緊急診察',               'after_hours',  30, 4),
+    (5, 1, '電話相談料',    500, true, '電話による診察相談',                       'anytime',      15, 5)
+ON CONFLICT DO NOTHING;
+
+
+-- -----------------------------------------------------------------------------
+-- 15. procedures（処置項目: 10件）
+-- -----------------------------------------------------------------------------
+INSERT INTO procedures (id, clinic_id, name, price, is_active, description, duration, anesthesia, sort_order) VALUES
+    (1, 1, '去勢手術（犬）',   25000, true, '雄犬の去勢手術',                   60,  'general', 1),
+    (2, 1, '避妊手術（猫）',   25000, true, '雌猫の避妊手術',                   90,  'general', 2),
+    (3, 1, '歯石除去',         15000, true, '全身麻酔下での歯石除去・歯周治療', 45,  'general', 3),
+    (4, 1, '耳洗浄',            2500, true, '外耳炎治療・耳道内の洗浄処置',     15,  'none',    4),
+    (5, 1, '爪切り',             500, true, '爪のカット・やすりがけ',           10,  'none',    5),
+    (6, 1, '皮膚縫合',          5000, true, '裂傷・切傷の縫合処置',             30,  'local',   6),
+    (7, 1, '骨折整復',         80000, true, '骨折の外科的整復・固定',          120,  'general', 7),
+    (8, 1, '腫瘍摘出',         20000, true, '皮膚腫瘍の外科的摘出',             60,  'local',   8),
+    (9, 1, '胃洗浄',           10000, true, '異物誤飲時の胃洗浄処置',           30,  'general', 9),
+    (10, 1, '点滴処置',          3000, true, '静脈内点滴（1時間）',              60,  'none',   10),
+    -- 追加
+    (11, 1, '肛門腺絞り',         500, true, '肛門嚢の分泌液除去',              5,   'none',   11),
+    (12, 1, '皮下補液',          3500, true, '脱水時の皮下点滴',                15,  'none',   12),
+    (13, 1, '眼圧検査',          2000, true, '緑内障のスクリーニング',          10,  'none',   13)
+ON CONFLICT DO NOTHING;
+
+
+-- -----------------------------------------------------------------------------
 -- 16. hospitalization_plans（入院プラン: 5件）
 -- -----------------------------------------------------------------------------
 INSERT INTO hospitalization_plans (id, clinic_id, name, price, is_active, description, body_size, billing_unit, sort_order) VALUES
@@ -850,32 +730,19 @@ ON CONFLICT DO NOTHING;
 
 
 -- -----------------------------------------------------------------------------
--- -----------------------------------------------------------------------------
--- 17. trimming_courses（Google Sheets gid=887363142 から反映）
+-- 17. trimming_courses（トリミングコース: 5件）
+-- ※ duration は integer (分)
 -- -----------------------------------------------------------------------------
 INSERT INTO trimming_courses (id, clinic_id, name, price, is_active, description, target_size, duration, sort_order) VALUES
-    (1, 1, '八王子シャンプー', 0, true, '既存', NULL, NULL, 1),
-    (2, 1, '八王子カット', 0, true, '既存', NULL, NULL, 2),
-    (3, 1, '八王子オプション', 0, true, '既存', NULL, NULL, 3),
-    (4, 1, '八王子新規チケット', 0, true, '既存', NULL, NULL, 4),
-    (5, 1, '八王子薬浴', 0, true, '既存', NULL, NULL, 5),
-    (15001, 1, '八王子その他', 0, true, '既存', NULL, NULL, 6),
-    (15002, 1, '八王子お手入れ', 0, true, '既存', NULL, NULL, 7),
-    (15003, 1, '八王子ハーフ犬シャンプー', 0, true, '既存', NULL, NULL, 8),
-    (15004, 1, '八王子ハーフ犬カット', 0, true, '既存', NULL, NULL, 9)
-ON CONFLICT (id) DO UPDATE
-    SET clinic_id = EXCLUDED.clinic_id,
-        name = EXCLUDED.name,
-        price = EXCLUDED.price,
-        is_active = EXCLUDED.is_active,
-        description = EXCLUDED.description,
-        target_size = EXCLUDED.target_size,
-        duration = EXCLUDED.duration,
-        sort_order = EXCLUDED.sort_order,
-        updated_at = now();
+    (1, 1, 'シャンプー&ブロー（小型）', 4000,  true, 'シャンプー・ブロー・ブラッシング',            'small',  60,  1),
+    (2, 1, 'シャンプー&ブロー（中型）', 5500,  true, 'シャンプー・ブロー・ブラッシング',            'medium', 90,  2),
+    (3, 1, 'フルコース（小型）',        7000,  true, 'カット・シャンプー・ブロー・爪切り・耳掃除', 'small',  120, 3),
+    (4, 1, 'フルコース（中型）',        9000,  true, 'カット・シャンプー・ブロー・爪切り・耳掃除', 'medium', 150, 4),
+    (5, 1, 'フルコース（大型）',        12000, true, 'カット・シャンプー・ブロー・爪切り・耳掃除', 'large',  180, 5)
+ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('trimming_courses', 'id'), (SELECT MAX(id) FROM trimming_courses));
 
+-- -----------------------------------------------------------------------------
 -- 18. trimming_options（トリミングオプション: 5件）
 -- ※ is_combinable は boolean, duration は integer（分単位）
 -- -----------------------------------------------------------------------------
@@ -1020,77 +887,20 @@ ON CONFLICT DO NOTHING;
 
 
 -- -----------------------------------------------------------------------------
+-- 25. merchandise_items（物販・フード・その他: 7件）
 -- -----------------------------------------------------------------------------
--- 25. merchandise_items（Google Sheets gid=887363142 から反映）
--- -----------------------------------------------------------------------------
-INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_type, tax_rate, is_active, sort_order) VALUES
-    (1, 1, '犬療法食：Hill''s', 'food', 0, 'excluded', 0.10, true, 1),
-    (2, 1, '犬療法食：WALTHAM', 'food', 0, 'excluded', 0.10, true, 2),
-    (3, 1, '犬療法食：Eukanuba', 'food', 0, 'excluded', 0.10, true, 3),
-    (4, 1, '犬療法食：SPECIFIC', 'food', 0, 'excluded', 0.10, true, 4),
-    (5, 1, '犬療法食：Dr''s Care', 'food', 0, 'excluded', 0.10, true, 5),
-    (6, 1, '犬療法食：その他', 'food', 0, 'excluded', 0.10, true, 6),
-    (7, 1, '猫療法食：Hill''s', 'food', 0, 'excluded', 0.10, true, 7),
-    (16001, 1, '猫療法食：WALTHAM', 'food', 0, 'excluded', 0.10, true, 8),
-    (16002, 1, '猫療法食：Eukanuba', 'food', 0, 'excluded', 0.10, true, 9),
-    (16003, 1, '猫療法食：SPECIFIC', 'food', 0, 'excluded', 0.10, true, 10),
-    (16004, 1, '猫療法食：Dr''s Care', 'food', 0, 'excluded', 0.10, true, 11),
-    (16005, 1, '猫療法食：その他', 'food', 0, 'excluded', 0.10, true, 12),
-    (16006, 1, '犬一般食：Hill''s', 'food', 0, 'excluded', 0.10, true, 13),
-    (16007, 1, '犬一般食：Nutro', 'food', 0, 'excluded', 0.10, true, 14),
-    (16008, 1, '犬一般食：AIMS', 'food', 0, 'excluded', 0.10, true, 15),
-    (16009, 1, '犬一般食：Eukanuba', 'food', 0, 'excluded', 0.10, true, 16),
-    (16010, 1, '犬一般食：Dr''s Diet', 'food', 0, 'excluded', 0.10, true, 17),
-    (16011, 1, '犬一般食：その他', 'food', 0, 'excluded', 0.10, true, 18),
-    (16012, 1, '犬一般食：ちゅーるおやつ系', 'food', 0, 'excluded', 0.10, true, 19),
-    (16013, 1, '猫一般食：Hill''s', 'food', 0, 'excluded', 0.10, true, 20),
-    (16014, 1, '猫一般食：Nutro', 'food', 0, 'excluded', 0.10, true, 21),
-    (16015, 1, '猫一般食：AIMS', 'food', 0, 'excluded', 0.10, true, 22),
-    (16016, 1, '猫一般食：Eukanuba', 'food', 0, 'excluded', 0.10, true, 23),
-    (16017, 1, '猫一般食：Dr''s Diet', 'food', 0, 'excluded', 0.10, true, 24),
-    (16018, 1, '猫一般食：その他', 'food', 0, 'excluded', 0.10, true, 25),
-    (16019, 1, '猫一般食：ちゅーるおやつ系', 'food', 0, 'excluded', 0.10, true, 26),
-    (16020, 1, 'エキゾFood', 'food', 0, 'excluded', 0.10, true, 27),
-    (16021, 1, 'カラー / カラー', 'goods', 0, 'excluded', 0.10, true, 28),
-    (16022, 1, 'エリザベスウェア / （分類なし）', 'goods', 0, 'excluded', 0.10, true, 29),
-    (16023, 1, '商品 / A：トリミング', 'goods', 0, 'excluded', 0.10, true, 30),
-    (16024, 1, '商品 / B：薬浴', 'goods', 0, 'excluded', 0.10, true, 31),
-    (16025, 1, '商品 / C：ペットホテル', 'goods', 0, 'excluded', 0.10, true, 32),
-    (16026, 1, '商品 / D：しつけ教室', 'goods', 0, 'excluded', 0.10, true, 33),
-    (16027, 1, '商品 / E：しつけGoods', 'goods', 0, 'excluded', 0.10, true, 34),
-    (16028, 1, '商品 / F：スナック', 'goods', 0, 'excluded', 0.10, true, 35),
-    (16029, 1, '商品 / G：会計', 'goods', 0, 'excluded', 0.10, true, 36),
-    (16030, 1, '商品 / H：その他', 'goods', 0, 'excluded', 0.10, true, 37),
-    (16031, 1, '商品 / I：シャンプー（TRIM販売）', 'goods', 0, 'excluded', 0.10, true, 38),
-    (16032, 1, '商品 / J：マイクロバブル', 'goods', 0, 'excluded', 0.10, true, 39),
-    (16033, 1, '商品 / K：エステ商品', 'goods', 0, 'excluded', 0.10, true, 40),
-    (16034, 1, '商品 / BOOK', 'goods', 0, 'excluded', 0.10, true, 41),
-    (16035, 1, '商品 / 犬種', 'goods', 0, 'excluded', 0.10, true, 42),
-    (16036, 1, 'Virbac商品', 'other', 0, 'excluded', 0.10, true, 43),
-    (16037, 1, 'Pump', 'other', 0, 'excluded', 0.10, true, 44),
-    (16038, 1, '診療Goods', 'other', 0, 'excluded', 0.10, true, 45),
-    (16039, 1, '在宅治療Goods', 'other', 0, 'excluded', 0.10, true, 46),
-    (16040, 1, 'Shampoo', 'other', 0, 'excluded', 0.10, true, 47),
-    (16041, 1, 'キャンペーン処理マスタ', 'other', 0, 'excluded', 0.10, true, 48),
-    (16042, 1, '文書料', 'other', 0, 'excluded', 0.10, true, 49),
-    (16043, 1, '会計', 'other', 0, 'excluded', 0.10, true, 50),
-    (16044, 1, 'その他', 'other', 0, 'excluded', 0.10, true, 51),
-    (16045, 1, 'L：トリミングカラー', 'other', 0, 'excluded', 0.10, true, 52),
-    (16046, 1, 'M：トリミングハーブパック', 'other', 0, 'excluded', 0.10, true, 53),
-    (16047, 1, 'キャンペーン2025', 'other', 0, 'excluded', 0.10, true, 54),
-    (16048, 1, '新キャンペーン', 'other', 0, 'excluded', 0.10, true, 55)
-ON CONFLICT (id) DO UPDATE
-    SET clinic_id = EXCLUDED.clinic_id,
-        name = EXCLUDED.name,
-        category = EXCLUDED.category,
-        unit_price = EXCLUDED.unit_price,
-        tax_type = EXCLUDED.tax_type,
-        tax_rate = EXCLUDED.tax_rate,
-        is_active = EXCLUDED.is_active,
-        sort_order = EXCLUDED.sort_order,
-        updated_at = now();
+INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_rate, sort_order) VALUES
+    (1, 1, 'ロイヤルカナン 消化器サポート 1kg', 'food', 2800, 0.08, 1),
+    (2, 1, 'ヒルズ k/d 2kg', 'food', 3500, 0.08, 2),
+    (3, 1, 'ペット用歯ブラシセット', 'goods', 1200, 0.10, 3),
+    (4, 1, 'エリザベスカラー（S）', 'goods', 800, 0.10, 4),
+    (5, 1, 'ノミ・ダニ予防首輪', 'goods', 1500, 0.10, 5),
+    (6, 1, '文書料', 'other', 3000, 0.10, 6),
+    (7, 1, '時間外診療費', 'other', 5000, 0.10, 7),
+    (10, 1, 'おやつ（低アレルゲン）', 'food', 800, 0.08, 8),
+    (11, 1, 'シャンプー（薬用）', 'goods', 2500, 0.10, 9)
+ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
 
 -- =============================================================================
 -- マスタ設定完了
@@ -1429,7 +1239,7 @@ INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, proce
     (2, 1, 'medicine',     NULL, NULL, 1,    NULL, true, 'completed', 'アモキシシリン 50mg x 7日分', 500,  7, 2),
     (3, 2, 'consultation', 2,    NULL, NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
     (4, 1, 'consultation', 2,    NULL, NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
-    (5, 1, 'procedure',    NULL, 13019, NULL, NULL, true, 'completed', '耳道洗浄（左耳）',          2500, 1, 2),
+    (5, 1, 'procedure',    NULL, 4,    NULL, NULL, true, 'completed', '耳道洗浄（左耳）',          2500, 1, 2),
     (6, 2, 'consultation', 1,    NULL, NULL, NULL, true, 'completed', '初診料',                    2000, 1, 1),
     (7, 2, 'medicine',     NULL, NULL, 1,    NULL, true, 'completed', 'アモキシシリン 50mg x 5日分', 500,  5, 2),
     (8, 3, 'consultation', 2,    NULL, NULL, NULL, true, 'completed', '再診料',                    800,  1, 1)
@@ -3310,13 +3120,13 @@ ON CONFLICT (id) DO NOTHING;
 -- 追加の処置明細 (treatments) 拡充 (ID 100-)
 INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, procedure_id, medicine_id, is_selected, status, content, unit_price, quantity, sort_order) VALUES
     (100, 61, 'consultation', 1, NULL, NULL, true, 'completed', '初診料', 1500, 1, 1),
-    (101, 61, 'other', NULL, NULL, NULL, true, 'completed', '5種混合ワクチン', 3000, 1, 2),
+    (101, 61, 'medicine', NULL, NULL, 5, true, 'completed', '5種混合ワクチン', 3000, 1, 2),
     (102, 62, 'consultation', 2, NULL, NULL, true, 'completed', '再診料', 800, 1, 1),
-    (103, 62, 'procedure', NULL, 13019, NULL, true, 'completed', '耳道洗浄', 2500, 1, 2),
+    (103, 62, 'procedure', NULL, 4, NULL, true, 'completed', '耳道洗浄', 2500, 1, 2),
     (104, 63, 'consultation', 2, NULL, NULL, true, 'completed', '再診料', 800, 1, 1),
-    (105, 63, 'procedure', NULL, 13016, NULL, true, 'completed', '皮下補液', 3500, 1, 2),
-    (106, 74, 'consultation', 4, NULL, NULL, true, 'completed', '夜間緊急診察料', 10000, 1, 1),
-    (107, 74, 'procedure', NULL, 13029, NULL, true, 'completed', '静脈確保・採血', 3000, 1, 2)
+    (105, 63, 'procedure', NULL, 12, NULL, true, 'completed', '皮下補液', 3500, 1, 2),
+    (106, 74, 'consultation', 1, NULL, NULL, true, 'completed', '夜間緊急診察料', 10000, 1, 1),
+    (107, 74, 'procedure', NULL, 5, NULL, true, 'completed', '静脈確保・採血', 3000, 1, 2)
 ON CONFLICT (id) DO NOTHING;
 
 -- 問診テンプレートの追加
@@ -3341,8 +3151,8 @@ INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_deta
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, is_selected, status, content, unit_price, quantity, sort_order) VALUES
-    (301, 301, 'consultation', 7, true, 'completed', '再診料', 800, 1, 1),
-    (302, 302, 'consultation', 6, true, 'completed', '初診料', 1900, 1, 1),
+    (301, 301, 'consultation', 10, true, 'completed', '再診料', 800, 1, 1),
+    (302, 302, 'consultation', 9,  true, 'completed', '初診料', 1900, 1, 1),
     (401, 401, 'consultation', 10, true, 'completed', '再診料', 800, 1, 1),
     (402, 402, 'consultation', 10, true, 'completed', '再診料', 800, 1, 1)
 ON CONFLICT (id) DO NOTHING;
@@ -4557,3 +4367,4 @@ SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FRO
 SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
 
 -- END OF DEMO SEED --
+
