@@ -11,6 +11,23 @@ import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetEstimateByRecord, useCreateEstimateRecord, useUpdateEstimateRecord } from "../api/save-estimate";
 import { C } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
+import type { EstimateItem } from "@/types/generated/models";
+
+// EstimateItem (BE snake_case) → TreatmentItem (UI camelCase) の明示変換。
+// 旧実装の `as any` キャストはフィールド名非互換 (name→content, unit_price→unitPrice 等) を
+// 隠蔽しており、items が返るケースで項目名・単価が undefined になる潜在バグだった。
+function toTreatmentItem(item: EstimateItem): TreatmentItem {
+  return {
+    id: item.id,
+    content: item.name,
+    memo: "",
+    is_insurance: item.is_insurance_applicable,
+    unitPrice: item.unit_price,
+    quantity: item.quantity,
+    discountRate: item.discount_rate,
+    discountAmount: item.discount_amount,
+  };
+}
 
 interface MedicalRecordEstimateProps {
   isNewRecord?: boolean;
@@ -52,9 +69,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     setComment(existingEstimate.comment ?? "");
     setRemarks(existingEstimate.notes ?? "");
     setGlobalDiscountAmount(existingEstimate.discount_amount ?? 0);
-    // EstimateItem → TreatmentItem: name→content, unit_price→unitPrice など型互換性なし
-    // 今後の改善: explicit mapping function が必要
-    setItems((existingEstimate.items as any) ?? []);
+    setItems((existingEstimate.items ?? []).map(toTreatmentItem));
   }, [existingEstimate]);
 
   const handleAddItem = useCallback(() => {

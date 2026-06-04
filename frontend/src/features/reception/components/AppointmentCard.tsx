@@ -109,7 +109,7 @@ export const AppointmentCard = memo(function AppointmentCard({
       query ? `${basePath}?${query}` : basePath,
       { state: { from: "/", appointmentId: appointment.id, visitDate: appointment.visitDate } },
     );
-  }, [navigate, isTrimming, appointment, appointment.petId, appointment.id, appointment.visitDate, columnTitle, onRecordOpen]);
+  }, [navigate, isTrimming, appointment, columnTitle, onRecordOpen]);
 
   const handleAccountingClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

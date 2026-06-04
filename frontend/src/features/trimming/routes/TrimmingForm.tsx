@@ -164,11 +164,11 @@ export function TrimmingForm() {
 
   const handleHistoryStartDateChange = useCallback((val: string) => {
     setHistoryDateRangeFrom(val);
-  }, []);
+  }, [setHistoryDateRangeFrom]);
 
   const handleHistoryEndDateChange = useCallback((val: string) => {
     setHistoryDateRangeTo(val);
-  }, []);
+  }, [setHistoryDateRangeTo]);
 
   const activeStaffItems = useMemo(
     () => staffItems.filter((s) => s.status === "active"),
