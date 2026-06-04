@@ -8,9 +8,10 @@ import { test, expect } from '@playwright/test';
 // because Playwright Chromium does not run reliably in that environment.
 
 const isArm64Runtime = process.platform === 'linux' && os.arch() === 'arm64';
-test.skip(isArm64Runtime, 'Playwright Chromium is not supported in this Docker arm64 runtime');
 
-test.describe('Master CRUD E2E Tests', () => {
+// arm64 環境では describe 全体をスキップする
+const describeBlock = isArm64Runtime ? test.describe.skip : test.describe;
+describeBlock('Master CRUD E2E Tests', () => {
   test('A: Chief Complaint Navigation', async ({ page }) => {
     // Navigate to settings page
     await page.goto('/settings');
