@@ -70,6 +70,14 @@ jobs:
           done
           exit 1
 
+      - name: Dump Docker logs on failure
+        if: failure()
+        run: |
+          echo "=== backend logs ==="
+          docker compose logs --no-color backend | tail -100
+          echo "=== db logs ==="
+          docker compose logs --no-color db | tail -50
+
       - name: Run k6 API endpoints load test
         run: |
           k6 run load-tests/k6-api-endpoints.js \
@@ -149,6 +157,14 @@ jobs:
             sleep 2
           done
           exit 1
+
+      - name: Dump Docker logs on failure
+        if: failure()
+        run: |
+          echo "=== backend logs ==="
+          docker compose logs --no-color backend | tail -100
+          echo "=== db logs ==="
+          docker compose logs --no-color db | tail -50
 
       - name: Run memory profiling
         run: |
@@ -245,6 +261,14 @@ jobs:
             sleep 5
           done
           exit 1
+
+      - name: Dump Docker logs on failure
+        if: failure()
+        run: |
+          echo "=== backend logs ==="
+          docker compose logs --no-color backend | tail -100
+          echo "=== db logs ==="
+          docker compose logs --no-color db | tail -50
 
       - name: Run Lighthouse audit
         run: |
