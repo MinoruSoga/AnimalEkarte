@@ -3,9 +3,17 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { server } from "@/testing/mocks/node";
 
 import { RefundSection } from "../RefundSection";
+
+// 返金額超過バリデーションの toast 呼び出しを assert するためモック。
+// 過去に require("sonner") が Vite ESM で実行時クラッシュするバグがあり、
+// このパスはテスト空白だった (0a882899 で修正)。
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
+}));
 
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -73,6 +81,40 @@ describe("RefundSection — 支払方法別返金 (#60)", () => {
 
     await user.click(screen.getByRole("button", { name: /返金を登録/ }));
     expect(await screen.findByTestId("refund-payment-method-trigger")).toBeInTheDocument();
+  }, 15000);
+
+  it("返金額が残額を超える場合は onRefund を呼ばずエラー toast を表示する", async () => {
+    server.use(...handlers);
+    const onRefund = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(
+      <RefundSection
+        accountingId="1"
+        totalAmount={10000}
+        paymentSplits={splits}
+        isRefunding={false}
+        onRefund={onRefund}
+        canEdit={true}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    await user.click(screen.getByRole("button", { name: /返金を登録/ }));
+
+    const amountInput = await screen.findByPlaceholderText("0");
+    fireEvent.change(amountInput, { target: { value: "15000" } });
+
+    await user.click(screen.getByRole("button", { name: "登録する" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringContaining("¥10,000 以下で入力してください"),
+      );
+    });
+    expect(onRefund).not.toHaveBeenCalled();
+    // バリデーション失敗時はダイアログが開いたまま (入力値も保持)
+    expect(screen.getByPlaceholderText("0")).toBeInTheDocument();
   }, 15000);
 
   it("単一支払い（splits 空）では支払方法セレクタを表示しない", async () => {
