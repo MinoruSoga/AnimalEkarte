@@ -2,13 +2,15 @@ import { useState } from "react";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import {
-  buildCrossRows,
   CsvImportSection,
-  currentYearMonth,
   DeliveryStatsSection,
-  generateMonthOptions,
   VisitConversionSection,
 } from "../components/LstepAnalyticsSections";
+import {
+  buildCrossRows,
+  currentYearMonth,
+  generateMonthOptions,
+} from "../components/LstepAnalyticsModel";
 import { useGetLstepDeliveryStats } from "../api/get-lstep-delivery-stats";
 import { useGetLstepVisitConversion } from "../api/get-lstep-visit-conversion";
 

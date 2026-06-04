@@ -35,7 +35,35 @@ import type { PetFormData } from "../types";
 import type { UpdatePetRequest } from "@/types/pet";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { ResourceOwners } from "@/types/generated/models";
-import { OwnersListTable, petToFormData } from "../components/OwnersListTable";
+import { OwnersListTable } from "../components/OwnersListTable";
+
+// Pet → ペット編集フォーム初期値の変換。本ルートのモーダルでのみ使用するため
+// コンポーネントファイルからの export はせずここに置く (react-refresh/only-export-components)。
+function petToFormData(pet: Pet): PetFormData {
+  return {
+    id: pet.id,
+    petNumber: pet.petNumber || "",
+    petName: pet.name,
+    petNameKana: pet.petNameKana || "",
+    status: pet.status || "生存",
+    species: pet.species,
+    animalSpeciesId: pet.animalSpeciesId,
+    gender: pet.gender || "",
+    birthDate: pet.birthDate || "",
+    color: pet.color || "",
+    weight: pet.weight || "",
+    food: pet.food || "",
+    environment: pet.environment || "",
+    neuteredDate: pet.neuteredDate || "",
+    acquisitionType: (pet.acquisitionType as PetFormData["acquisitionType"]) || undefined,
+    dangerLevel: (pet.dangerLevel as PetFormData["dangerLevel"]) || undefined,
+    remarks: pet.remarks || "",
+    breed: pet.breed,
+    insuranceId: pet.insuranceId,
+    insuranceName: pet.insuranceName,
+    insuranceDetails: pet.insuranceDetails,
+  };
+}
 
 interface OwnersListProps {
   onUpdatePet?: (id: string, req: UpdatePetRequest) => Promise<Pet>;

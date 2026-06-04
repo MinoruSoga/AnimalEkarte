@@ -19,12 +19,12 @@ import type { CreateVitalInput, UpdateVitalInput, Vital } from "../../types";
 const VitalsGraph = lazy(() =>
   import("./VitalsGraph").then((m) => ({ default: m.VitalsGraph })),
 );
+import { VitalsTable } from "./VitalsTabTable";
 import {
   EMPTY_VITALS_ADD_FORM,
   parseVitalsNumber,
-  VitalsTable,
   type VitalsAddFormState,
-} from "./VitalsTabTable";
+} from "./VitalsTabTableModel";
 
 interface VitalsTabProps {
   medicalRecordId: string;

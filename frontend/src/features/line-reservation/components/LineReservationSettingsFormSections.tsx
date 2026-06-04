@@ -5,31 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectItem } from "@/components/ui/select";
 import { C } from "@/lib/design-tokens";
+// asJsonb / toDisplayTime / toStorageTime は LineReservationSettingsFormModel.ts に分離済み
+// (react-refresh/only-export-components: コンポーネントファイルからの値 export 禁止)。
+import { toDisplayTime, toStorageTime } from "./LineReservationSettingsFormModel";
 
 export type BusinessHours = { start: string; end: string };
 export type BreakHour = { start: string; end: string };
 export type BusinessHoursByWeekday = Record<string, BusinessHours>;
-
-export function asJsonb<T>(value: unknown, fallback: T): T {
-  if (value == null) return fallback;
-  if (typeof value === "string") {
-    try {
-      return JSON.parse(value) as T;
-    } catch {
-      return fallback;
-    }
-  }
-  return value as T;
-}
-
-export function toDisplayTime(t: string): string {
-  if (t.length === 4) return `${t.slice(0, 2)}:${t.slice(2)}`;
-  return t;
-}
-
-export function toStorageTime(t: string): string {
-  return t.replace(":", "");
-}
 
 export const TIME_SLOT_MODE_ITEMS = (
   <>

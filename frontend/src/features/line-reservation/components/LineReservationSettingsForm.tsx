@@ -22,21 +22,19 @@ import {
 import { updateLineReservationSetting } from "../api/update-line-reservation-setting";
 import type { ReservationSetting } from "../api/types";
 import {
-  asJsonb,
   BreakHoursEditor,
   ClosedDatesEditor,
   FieldRow,
   NO_STAFF_MODE_ITEMS,
   Section,
   TIME_SLOT_MODE_ITEMS,
-  toDisplayTime,
-  toStorageTime,
   WeekdayHoursEditor,
   WEEKDAYS,
   type BreakHour,
   type BusinessHours,
   type BusinessHoursByWeekday,
 } from "./LineReservationSettingsFormSections";
+import { asJsonb, toDisplayTime, toStorageTime } from "./LineReservationSettingsFormModel";
 
 // ── SettingsForm ──────────────────────────────────────────────────────────────
 

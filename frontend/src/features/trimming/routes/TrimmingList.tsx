@@ -31,7 +31,8 @@ import type { TrimmingFilters } from "../api/get-trimmings";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceTrimming } from "@/types/generated/models";
 import { handleApiError } from "@/lib/handle-api-error";
-import { buildTrimmingDynamicFilterProperties, TrimmingListTable } from "../components/TrimmingListTable";
+import { TrimmingListTable } from "../components/TrimmingListTable";
+import { buildTrimmingDynamicFilterProperties } from "../components/TrimmingListTableModel";
 
 export function TrimmingList() {
   const navigate = useNavigate();

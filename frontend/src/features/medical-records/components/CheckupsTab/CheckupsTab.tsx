@@ -16,10 +16,12 @@ import {
 import {
   CheckupsTable,
   LstepStatusBadge,
-  makeDefaultCheckupAddForm,
-  type AddCheckupFormState,
   type LstepStatus,
 } from "./CheckupsTabTable";
+import {
+  makeDefaultCheckupAddForm,
+  type AddCheckupFormState,
+} from "./CheckupsTabTableModel";
 
 interface CheckupsTabProps {
   medicalRecordId: string;

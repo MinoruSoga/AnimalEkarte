@@ -6,12 +6,6 @@ import type { UpdateVitalInput, Vital } from "../../types";
 import { VitalsAddRow, VitalsDisplayRow, VitalsEditRow } from "./VitalsTabRows";
 import type { VitalsAddFormState } from "./VitalsTabTableModel";
 
-export {
-  EMPTY_VITALS_ADD_FORM,
-  parseVitalsNumber,
-  type VitalsAddFormState,
-} from "./VitalsTabTableModel";
-
 const TABLE_HEADER = (
   <thead>
     <tr className={`border-b ${C.borderLight} ${C.bgPage30} h-10`}>

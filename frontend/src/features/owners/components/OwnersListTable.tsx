@@ -21,9 +21,8 @@ import { formatDate } from "@/utils/format/date";
 import { formatWeight } from "@/utils/format/number";
 import { getPetStatusColor } from "@/utils/status-helpers";
 import type { Pet } from "@/types";
-import type { PetFormData } from "../types";
 
-export const OWNER_SORT_PROPERTIES: SortProperty[] = [
+const OWNER_SORT_PROPERTIES: SortProperty[] = [
   { key: "ownerNumber", label: "飼主No" },
   { key: "ownerName", label: "飼主名" },
   { key: "name", label: "ペット名" },
@@ -32,7 +31,7 @@ export const OWNER_SORT_PROPERTIES: SortProperty[] = [
   { key: "lastVisit", label: "前回来院" },
 ];
 
-export const OWNER_FILTER_PROPERTIES: FilterProperty[] = [
+const OWNER_FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "species",
     label: "種",
@@ -60,32 +59,6 @@ export const OWNER_FILTER_PROPERTIES: FilterProperty[] = [
     ],
   },
 ];
-
-export function petToFormData(pet: Pet): PetFormData {
-  return {
-    id: pet.id,
-    petNumber: pet.petNumber || "",
-    petName: pet.name,
-    petNameKana: pet.petNameKana || "",
-    status: pet.status || "生存",
-    species: pet.species,
-    animalSpeciesId: pet.animalSpeciesId,
-    gender: pet.gender || "",
-    birthDate: pet.birthDate || "",
-    color: pet.color || "",
-    weight: pet.weight || "",
-    food: pet.food || "",
-    environment: pet.environment || "",
-    neuteredDate: pet.neuteredDate || "",
-    acquisitionType: (pet.acquisitionType as PetFormData["acquisitionType"]) || undefined,
-    dangerLevel: (pet.dangerLevel as PetFormData["dangerLevel"]) || undefined,
-    remarks: pet.remarks || "",
-    breed: pet.breed,
-    insuranceId: pet.insuranceId,
-    insuranceName: pet.insuranceName,
-    insuranceDetails: pet.insuranceDetails,
-  };
-}
 
 interface OwnersPaginationView {
   paginatedData: Pet[];
