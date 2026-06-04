@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { useGetPet } from "@/hooks/use-pet";
@@ -95,6 +95,17 @@ export function useAccountingDetailState({
   const [insuranceRatio, setInsuranceRatio] = useState("0.5");
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplitDraft[]>([]);
 
+  // Sync fetched accounting state to form fields (P1 bug fix: avoid race condition on mount)
+  // useEffect ではなくレンダー中の比較で同期する (use-apply-medical-record.ts と同パターン)。
+  // effect 同期だとデフォルト値での誤計算フレームが一度 commit されてしまう。
+  const [prevFetchedAccounting, setPrevFetchedAccounting] = useState(fetchedAccounting);
+  if (prevFetchedAccounting !== fetchedAccounting && fetchedAccounting?.payment) {
+    setPrevFetchedAccounting(fetchedAccounting);
+    setHasInsurance((fetchedAccounting.payment.insuranceAmount ?? 0) < 0);
+    setInsuranceRatio(fetchedAccounting.payment.insuranceRatio?.toString() ?? "0.5");
+    setPaymentSplits(createInitialPaymentSplits(fetchedAccounting));
+  }
+
   const calculation = useMemo(() => {
     if (!accounting) return null;
 
@@ -114,14 +125,6 @@ export function useAccountingDetailState({
       billingAmount: billingResult.billingAmount,
     };
   }, [accounting, hasInsurance, insuranceRatio]);
-
-  // Sync fetched accounting state to form fields (P1 bug fix: avoid race condition on mount)
-  useEffect(() => {
-    if (!fetchedAccounting?.payment) return;
-    setHasInsurance((fetchedAccounting.payment.insuranceAmount ?? 0) < 0);
-    setInsuranceRatio(fetchedAccounting.payment.insuranceRatio?.toString() ?? "0.5");
-    setPaymentSplits(createInitialPaymentSplits(fetchedAccounting));
-  }, [fetchedAccounting]);
 
   return {
     newPetId,

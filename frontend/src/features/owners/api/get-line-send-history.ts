@@ -34,5 +34,10 @@ export function useGetLineSendHistory(ownerId: string) {
     enabled: !!ownerId && !!clinicId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.SHORT,
+    // pending (送信中) の行がある間は 5 秒間隔でポーリングして送信結果を反映する
+    refetchInterval: (query) => {
+      const items = query.state.data ?? [];
+      return items.some((item) => item.status === "pending") ? 5000 : false;
+    },
   });
 }

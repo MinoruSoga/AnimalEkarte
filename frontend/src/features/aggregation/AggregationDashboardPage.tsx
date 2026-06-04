@@ -142,21 +142,22 @@ export function AggregationDashboardPage() {
   const [params, setParams] = useState<AggregationParams>(TAB_DEFAULT_PARAMS[activeTab]);
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<Set<string>>(new Set());
 
-  // URL → state 同期:
-  //   1. URL に tab がない、または不正値 → URL を正規化し DEFAULT_AGGREGATION_TAB に揃える
-  //   2. ブラウザ戻る/進む等で URL の tab が変わった場合、params も該当タブの初期条件にリセットする
-  //      （ユーザー操作のタブ切り替えは handleTabChange が同時に setParams するので冪等）
-  // 同期目的のため useEffect 内 setState は許容。
-  /* eslint-disable react-hooks/set-state-in-effect */
+  // タブ変更 (ユーザー操作・ブラウザ戻る/進む共通) に伴う params / 選択状態のリセット。
+  // useEffect 同期だと旧タブの params で 1 フレーム commit + 再レンダーが発生するため、
+  // レンダー中の比較で同期する (rerender-derived-state-no-effect パターン)。
+  const [prevTab, setPrevTab] = useState(activeTab);
+  if (prevTab !== activeTab) {
+    setPrevTab(activeTab);
+    setParams(TAB_DEFAULT_PARAMS[activeTab]);
+    setSelectedOwnerIds(new Set());
+  }
+
+  // URL 正規化: URL に tab がない、または不正値 → DEFAULT_AGGREGATION_TAB に揃える
   useEffect(() => {
     if (rawTab !== activeTab) {
       setSearchParams({ tab: activeTab }, { replace: true });
     }
-    setParams(TAB_DEFAULT_PARAMS[activeTab]);
-    setSelectedOwnerIds(new Set());
-    // activeTab が変わったときだけ実行する。
   }, [activeTab, rawTab, setSearchParams]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const { data, isLoading, isError, error } = useGetOwnerAggregations(params);
   const owners = useMemo(() => data?.owners ?? [], [data?.owners]);
@@ -164,7 +165,7 @@ export function AggregationDashboardPage() {
   const handleTabChange = useCallback(
     (tab: string) => {
       const validTab = validateTab(tab) ?? DEFAULT_AGGREGATION_TAB;
-      // setSearchParams のみで完結。useEffect が params / 選択状態のリセットを担う。
+      // setSearchParams のみで完結。レンダー中の prevTab 比較が params / 選択状態のリセットを担う。
       setSearchParams({ tab: validTab }, { replace: true });
     },
     [setSearchParams]

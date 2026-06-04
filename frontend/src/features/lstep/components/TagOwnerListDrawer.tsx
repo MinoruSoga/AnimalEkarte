@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useTransition } from "react";
 import { Link } from "react-router";
 import { Download, Trash2 } from "lucide-react";
 import {
@@ -85,7 +85,7 @@ export function TagOwnerListDrawer({
   canExportCsv = false,
 }: TagOwnerListDrawerProps) {
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
-  const [csvLoading, setCsvLoading] = useState(false);
+  const [csvLoading, startCsvTransition] = useTransition();
 
   const { data, isLoading } = useGetLstepTagOwners({
     tag: tagName,
@@ -95,18 +95,17 @@ export function TagOwnerListDrawer({
   const owners = data?.owners ?? [];
   const canBulkDelete = canDelete && !isAutoManagedTag(tagName);
 
-  const handleExportCsv = useCallback(async () => {
+  const handleExportCsv = useCallback(() => {
     if (ownerCount === 0 || !canExportCsv) return;
-    setCsvLoading(true);
-    try {
-      const allOwners = await fetchAllOwnersForCsv(tagName, ownerCount);
-      const csv = buildOwnersCsv(allOwners, tagName);
-      downloadCsv(csv, `lstep-tag-${tagName}-owners.csv`);
-    } catch (error) {
-      handleApiError(error, "CSV出力");
-    } finally {
-      setCsvLoading(false);
-    }
+    startCsvTransition(async () => {
+      try {
+        const allOwners = await fetchAllOwnersForCsv(tagName, ownerCount);
+        const csv = buildOwnersCsv(allOwners, tagName);
+        downloadCsv(csv, `lstep-tag-${tagName}-owners.csv`);
+      } catch (error) {
+        handleApiError(error, "CSV出力");
+      }
+    });
   }, [ownerCount, tagName, canExportCsv]);
 
   const handleRemoveClick = useCallback(() => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { C } from "@/lib/design-tokens";
@@ -12,7 +12,7 @@ export function AccountingReportsPage() {
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
-  const [isExporting, setIsExporting] = useState(false);
+  const [isExporting, startExportTransition] = useTransition();
 
   const { data, isLoading, isError } = useGetMonthlyReport(year, month);
 
@@ -26,16 +26,15 @@ export function AccountingReportsPage() {
     setMonth(Number(e.target.value));
   };
 
-  const handleExport = async () => {
-    setIsExporting(true);
-    try {
-      await exportMonthlyCSV(year, month);
-      toast.success("CSVをダウンロードしました");
-    } catch (error) {
-      handleApiError(error, "CSVエクスポート");
-    } finally {
-      setIsExporting(false);
-    }
+  const handleExport = () => {
+    startExportTransition(async () => {
+      try {
+        await exportMonthlyCSV(year, month);
+        toast.success("CSVをダウンロードしました");
+      } catch (error) {
+        handleApiError(error, "CSVエクスポート");
+      }
+    });
   };
 
   return (

@@ -1,7 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { axios } from "@/lib/axios";
-import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { C, BADGE } from "@/lib/design-tokens";
+import { useGetLineSendHistory } from "../api/get-line-send-history";
 import type { LineSendHistoryItem } from "../api/get-line-send-history";
 
 const TYPE_LABEL: Record<LineSendHistoryItem["message_type"], string> = {
@@ -37,24 +35,7 @@ interface LineSendHistoryProps {
 }
 
 export function LineSendHistory({ ownerId }: LineSendHistoryProps) {
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
-
-  const { data, isLoading, isError } = useQuery<LineSendHistoryItem[]>({
-    queryKey: ["line-send-history", ownerId],
-    queryFn: async () => {
-      const { data: res } = await axios.get<{ items: LineSendHistoryItem[] }>(
-        `/v1/clinics/${clinicId}/owners/${ownerId}/line/send-logs`
-      );
-      return res.items;
-    },
-    enabled: !!ownerId && !!clinicId,
-    staleTime: QUERY_STALE_TIMES.REALTIME,
-    gcTime: QUERY_GC_TIMES.SHORT,
-    refetchInterval: (query) => {
-      const items = query.state.data ?? [];
-      return items.some((item) => item.status === "pending") ? 5000 : false;
-    },
-  });
+  const { data, isLoading, isError } = useGetLineSendHistory(ownerId);
 
   const recent = (data ?? []).slice(0, 5);
 
