@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState } from "react";
 import { Plus, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,7 +63,6 @@ export const RefundSection = memo(function RefundSection({
     const amount = parseInt(refundAmount, 10);
     if (!amount || amount <= 0) return;
     if (amount > refundableAmount) {
-      const toast = require("sonner").toast;
       toast.error(`返金額は残額 ¥${refundableAmount.toLocaleString()} 以下で入力してください`);
       return;
     }
