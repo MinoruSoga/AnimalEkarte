@@ -7,6 +7,8 @@ import {
 interface TreatmentPlanSidePanelHostProps {
   editTarget: TreatmentItem | "new" | null;
   selectedItem: TreatmentItem | null;
+  parentCandidates: TreatmentItem[];
+  hasChildren: boolean;
   canDelete: boolean;
   canEdit: boolean;
   onClose: () => void;
@@ -18,6 +20,8 @@ interface TreatmentPlanSidePanelHostProps {
 export function TreatmentPlanSidePanelHost({
   editTarget,
   selectedItem,
+  parentCandidates,
+  hasChildren,
   canDelete,
   canEdit,
   onClose,
@@ -31,6 +35,8 @@ export function TreatmentPlanSidePanelHost({
     <TreatmentItemSidePanel
       key={selectedItem ? String(selectedItem.id) : "new-item"}
       item={selectedItem}
+      parentCandidates={parentCandidates}
+      hasChildren={hasChildren}
       onClose={onClose}
       onSave={onSave}
       onDeleteRequest={canDelete ? onDeleteRequest : undefined}

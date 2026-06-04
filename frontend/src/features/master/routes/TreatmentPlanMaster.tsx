@@ -138,6 +138,29 @@ export function TreatmentPlanMaster() {
 
   const selectedItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
 
+  // 現在タブの data (stable reference - undefined を [] に正規化)
+  const activeTabData = useMemo(
+    () => tabConfigs[activeTab].data ?? [],
+    [tabConfigs, activeTab],
+  );
+
+  // 親カテゴリ候補: 現在タブ内の root 行 (parentId なし) のうち isActive, かつ自分自身を除く
+  const parentCandidates = useMemo(
+    () =>
+      activeTabData.filter(
+        (item) => !item.parentId && item.isActive && item.id !== selectedItem?.id,
+      ),
+    [activeTabData, selectedItem?.id],
+  );
+
+  // 子を持つ root かどうか (true → parentId セレクタ非表示)
+  const hasChildren = useMemo(
+    () =>
+      selectedItem != null &&
+      activeTabData.some((item) => item.parentId === selectedItem.id),
+    [activeTabData, selectedItem?.id],
+  );
+
   const startSaveTransition = useCallback((cb: () => void) => {
     cb();
   }, []);
@@ -296,6 +319,8 @@ export function TreatmentPlanMaster() {
         <TreatmentPlanSidePanelHost
           editTarget={editTarget}
           selectedItem={selectedItem}
+          parentCandidates={parentCandidates}
+          hasChildren={hasChildren}
           canDelete={canDelete}
           canEdit={canEdit}
           onClose={handleClose}
