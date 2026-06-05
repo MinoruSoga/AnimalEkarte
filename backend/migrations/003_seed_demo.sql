@@ -3207,7 +3207,7 @@ SELECT setval(pg_get_serial_sequence('pet_chronic_conditions', 'id'), (SELECT MA
 INSERT INTO cash_register_closes (clinic_id, close_date, period, theoretical_cash, actual_cash, cash_difference, category_breakdown, memo, closed_by) VALUES
     (1, '2026-05-21', 'am', 45000, 45000, 0, '{"examination": 12000, "vaccine": 15000, "medicine": 18000}', '過不足なし。', 1),
     (1, '2026-05-21', 'pm', 32000, 31950, -50, '{"examination": 8000, "surgery": 20000, "food": 4000}', '50円不足（釣銭ミス疑い）。', 2)
-ON CONFLICT (clinic_id, close_date, period) DO NOTHING;
+ON CONFLICT (clinic_id, close_date, period) WHERE deleted_at IS NULL DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('cash_register_closes', 'id'), (SELECT MAX(id) FROM cash_register_closes));
 
@@ -4271,7 +4271,7 @@ BEGIN
             -- 【シフト自動補正】予約が入ったスタッフのシフトをその日は 'full'（09:00-18:00）として登録・上書き (データ整合性確保)
             INSERT INTO shift_entries (clinic_id, staff_id, date, shift_type, start_time, end_time, notes)
             VALUES (1, rand_doctor_id, target_date, 'full'::shift_type, '09:00'::time, '18:00'::time, '予約連動出勤（自動補正）')
-            ON CONFLICT (staff_id, date) DO UPDATE 
+            ON CONFLICT (clinic_id, staff_id, date) DO UPDATE
             SET shift_type = 'full'::shift_type, start_time = '09:00'::time, end_time = '18:00'::time, notes = '予約連動出勤（自動補正）';
 
             -- トリミング詳細の追加
@@ -4542,7 +4542,7 @@ WHERE b.pet_id = p.id AND b.owner_id <> p.owner_id;
 INSERT INTO shift_entries (clinic_id, staff_id, date, shift_type, start_time, end_time, notes)
 SELECT DISTINCT a.clinic_id, a.doctor_id, a.start_time::date, 'full'::shift_type, '09:00'::time, '18:00'::time, '予約連動出勤（静的予約補正）'
 FROM appointments a
-ON CONFLICT (staff_id, date) DO UPDATE
+ON CONFLICT (clinic_id, staff_id, date) DO UPDATE
 SET shift_type = 'full'::shift_type, start_time = '09:00'::time, end_time = '18:00'::time, notes = '予約連動出勤（静的予約補正）';
 
 -- 最後にシーケンスの最終同期を行う
@@ -4553,5 +4553,29 @@ SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) F
 SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM billings));
 SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
 SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
+
+-- -----------------------------------------------------------------------------
+-- staff_reservation_capabilities（スタッフ対応可能予約区分）
+-- 全スタッフ × 全アクティブ予約区分
+-- -----------------------------------------------------------------------------
+INSERT INTO staff_reservation_capabilities (clinic_id, staff_id, reservation_type_id)
+SELECT DISTINCT sca.clinic_id, sca.staff_id, rt.id
+FROM staff_clinic_assignments sca
+JOIN reservation_types rt ON rt.clinic_id = sca.clinic_id
+WHERE rt.deleted_at IS NULL
+  AND rt.is_active = true
+ON CONFLICT DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- trimming_courses.course_type_id を デフォルト種別「シャンプー」に紐付け
+-- clinic INSERT トリガーが自動生成した trimming_course_types を参照
+-- -----------------------------------------------------------------------------
+UPDATE trimming_courses
+SET course_type_id = (
+    SELECT id FROM trimming_course_types
+    WHERE clinic_id = trimming_courses.clinic_id AND name = 'シャンプー' AND deleted_at IS NULL
+    LIMIT 1
+)
+WHERE course_type_id IS NULL;
 
 -- END OF DEMO SEED --

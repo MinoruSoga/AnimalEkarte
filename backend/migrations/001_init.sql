@@ -89,7 +89,7 @@ CREATE TYPE medical_image_type AS ENUM ('xray', 'echo', 'photo', 'endoscope', 'c
 CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected');
 CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'returned');
 CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other', 'vaccine', 'trimming', 'hotel', 'training');
-CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization');
+CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization', 'trimming');
 
 -- 予約・会計・入院関連
 CREATE TYPE visit_type AS ENUM ('first', 'revisit');
@@ -785,6 +785,41 @@ CREATE TABLE reservation_types (
 CREATE INDEX idx_reservation_types_group_id ON reservation_types(group_id);
 
 -- ------------------------------------
+-- 16b. reservation_type_available_slots（予約区分予約可能開始時刻）
+-- ------------------------------------
+CREATE TABLE reservation_type_available_slots (
+    id                    BIGSERIAL   PRIMARY KEY,
+    clinic_id             bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    reservation_type_id   bigint      NOT NULL REFERENCES reservation_types(id) ON DELETE CASCADE,
+    available_type        text        NOT NULL CHECK (available_type IN ('weekly', 'specific')),
+    day_of_week           smallint    CHECK (day_of_week >= 0 AND day_of_week <= 6),
+    specific_date         date,
+    start_time            varchar(5)  NOT NULL CHECK (start_time ~ '^[0-2][0-9]:[0-5][0-9]$'),
+    is_active             boolean     NOT NULL DEFAULT true,
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_rtype_available_slot_clinic_type ON reservation_type_available_slots(clinic_id, reservation_type_id);
+CREATE UNIQUE INDEX idx_rtype_available_slot_weekly_unique   ON reservation_type_available_slots(reservation_type_id, day_of_week, start_time) WHERE available_type = 'weekly';
+CREATE UNIQUE INDEX idx_rtype_available_slot_specific_unique ON reservation_type_available_slots(reservation_type_id, specific_date, start_time) WHERE available_type = 'specific';
+
+-- ------------------------------------
+-- 16c. staff_reservation_capabilities（スタッフ対応可能予約区分）
+-- ------------------------------------
+CREATE TABLE staff_reservation_capabilities (
+    id                    BIGSERIAL   PRIMARY KEY,
+    clinic_id             bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    staff_id              bigint      NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
+    reservation_type_id   bigint      NOT NULL REFERENCES reservation_types(id) ON DELETE CASCADE,
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uq_staff_reservation_capability UNIQUE (clinic_id, staff_id, reservation_type_id)
+);
+
+CREATE INDEX idx_staff_reservation_capabilities_clinic_staff ON staff_reservation_capabilities(clinic_id, staff_id);
+CREATE INDEX idx_staff_reservation_capabilities_clinic_type  ON staff_reservation_capabilities(clinic_id, reservation_type_id);
+
+-- ------------------------------------
 -- 17. consultations（診察項目マスタ）
 -- ------------------------------------
 CREATE TABLE consultations (
@@ -847,22 +882,42 @@ CREATE TABLE hospitalization_plans (
 );
 
 -- ------------------------------------
--- 20. trimming_courses（トリミングコースマスタ）
+-- 19b. trimming_course_types（トリミングコース種別マスタ）
 -- ------------------------------------
-CREATE TABLE trimming_courses (
+CREATE TABLE trimming_course_types (
     id          BIGSERIAL   PRIMARY KEY,
-    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    name        text        NOT NULL,
-    price       bigint,
-    is_active   boolean     NOT NULL DEFAULT true,
-    description text        NOT NULL DEFAULT '',
-    target_size target_size,
-    duration    integer,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    name        varchar(50) NOT NULL,
     sort_order  integer              DEFAULT 0,
+    is_active   boolean     NOT NULL DEFAULT true,
     created_at  timestamptz NOT NULL DEFAULT now(),
     updated_at  timestamptz NOT NULL DEFAULT now(),
     deleted_at  timestamptz
 );
+
+CREATE UNIQUE INDEX idx_trimming_course_types_clinic_name ON trimming_course_types(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE INDEX idx_trimming_course_types_clinic_order ON trimming_course_types(clinic_id, sort_order) WHERE deleted_at IS NULL;
+
+-- ------------------------------------
+-- 20. trimming_courses（トリミングコースマスタ）
+-- ------------------------------------
+CREATE TABLE trimming_courses (
+    id             BIGSERIAL   PRIMARY KEY,
+    clinic_id      bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name           text        NOT NULL,
+    price          bigint,
+    is_active      boolean     NOT NULL DEFAULT true,
+    description    text        NOT NULL DEFAULT '',
+    target_size    target_size,
+    duration       integer,
+    sort_order     integer              DEFAULT 0,
+    course_type_id bigint               REFERENCES trimming_course_types(id) ON DELETE SET NULL,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at     timestamptz NOT NULL DEFAULT now(),
+    deleted_at     timestamptz
+);
+
+CREATE INDEX idx_trimming_courses_course_type_id ON trimming_courses(course_type_id) WHERE course_type_id IS NOT NULL;
 
 -- ------------------------------------
 -- 21. trimming_options（トリミングオプションマスタ）
@@ -1771,6 +1826,10 @@ CREATE TABLE billing_items (
     is_insurance_applicable boolean                DEFAULT false,
     source                  item_source            DEFAULT 'manual',
     merchandise_item_id     bigint                 CONSTRAINT fk_billing_items_merchandise REFERENCES merchandise_items(id) ON DELETE SET NULL,
+    treatment_id            bigint                 REFERENCES treatments(id) ON DELETE SET NULL,
+    appointment_id          bigint                 REFERENCES appointments(id) ON DELETE SET NULL,
+    trimming_course_id      bigint                 REFERENCES trimming_courses(id) ON DELETE SET NULL,
+    trimming_option_id      bigint                 REFERENCES trimming_options(id) ON DELETE SET NULL,
     sort_order              integer                DEFAULT 0,
     created_at              timestamptz   NOT NULL DEFAULT now(),
     updated_at              timestamptz   NOT NULL DEFAULT now(),
@@ -1848,9 +1907,10 @@ CREATE TABLE billing_refunds (
     billing_id   bigint      NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
     amount       bigint      NOT NULL CHECK (amount > 0),
     reason       text        NOT NULL DEFAULT '',
-    refunded_by  bigint      REFERENCES staffs(id),
-    refunded_at  timestamptz NOT NULL DEFAULT now(),
-    created_at   timestamptz NOT NULL DEFAULT now()
+    refunded_by     bigint          REFERENCES staffs(id),
+    refunded_at     timestamptz     NOT NULL DEFAULT now(),
+    payment_method  payment_method,
+    created_at      timestamptz     NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
@@ -1989,15 +2049,20 @@ CREATE TABLE cash_register_closes (
     closed_at               timestamptz  NOT NULL DEFAULT now(),
     created_at              timestamptz  NOT NULL DEFAULT now(),
     updated_at              timestamptz  NOT NULL DEFAULT now(),
-    CONSTRAINT uq_cash_register_closes_date_period UNIQUE (clinic_id, close_date, period)
+    deleted_at              timestamptz
 );
 
 CREATE INDEX idx_cash_register_closes_clinic ON cash_register_closes(clinic_id, close_date DESC);
+CREATE UNIQUE INDEX uq_cash_register_closes_date_period ON cash_register_closes(clinic_id, close_date, period) WHERE deleted_at IS NULL;
 
 COMMENT ON TABLE cash_register_closes IS 'レジ締めレコード（FEAT-368）';
 
 
-CREATE INDEX idx_billing_items_merchandise_item_id ON billing_items(merchandise_item_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_billing_items_merchandise_item_id  ON billing_items(merchandise_item_id)  WHERE deleted_at IS NULL;
+CREATE INDEX idx_billing_items_treatment_id         ON billing_items(treatment_id)         WHERE treatment_id IS NOT NULL AND deleted_at IS NULL;
+CREATE INDEX idx_billing_items_appointment_id       ON billing_items(appointment_id)       WHERE appointment_id IS NOT NULL AND deleted_at IS NULL;
+CREATE INDEX idx_billing_items_trimming_course_id   ON billing_items(trimming_course_id)   WHERE trimming_course_id IS NOT NULL AND deleted_at IS NULL;
+CREATE INDEX idx_billing_items_trimming_option_id   ON billing_items(trimming_option_id)   WHERE trimming_option_id IS NOT NULL AND deleted_at IS NULL;
 
 CREATE INDEX idx_estimate_items_merchandise_item_id ON estimate_items(merchandise_item_id);
 
@@ -2621,6 +2686,26 @@ CREATE TRIGGER trg_create_default_payment_methods
     AFTER INSERT ON clinics
     FOR EACH ROW
     EXECUTE FUNCTION create_default_payment_methods();
+
+-- =============================================
+-- デフォルトトリミングコース種別のトリガー
+-- 新しいクリニック作成時に自動でデフォルト種別を挿入する
+-- =============================================
+CREATE OR REPLACE FUNCTION create_default_trimming_course_types()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO trimming_course_types (clinic_id, name, sort_order, is_active, created_at, updated_at)
+    VALUES
+        (NEW.id, 'シャンプー',        0, true, now(), now()),
+        (NEW.id, 'シャンプー＆カット', 1, true, now(), now());
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_create_default_trimming_course_types
+    AFTER INSERT ON clinics
+    FOR EACH ROW
+    EXECUTE FUNCTION create_default_trimming_course_types();
 
 -- =============================================
 -- 取扱説明書（マニュアル）の DB 管理
