@@ -1,0 +1,36 @@
+name: STG Smoke Test
+
+# STG の疎通確認（/health）。手動トリガー。
+#
+# 注: login / readonly / CRUD の smoke は STG_DEMO_EMAIL / STG_DEMO_PASSWORD secret が
+#     未設定で約1年間 login 段階から機能していなかったため、2026-06 にデッドコードとして撤去した。
+#     CRUD の正しさは backend の unit/integration テスト + FE の route-guard テストでカバー済み。
+#     復活させる場合: git 履歴 commit 281a561e の login/readonly/CRUD ステップ（level 入力付き）を戻し、
+#     `gh secret set STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD`（STG demo の system-admin 認証）を設定する。
+on:
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      API_BASE: https://api.stg.noah-karte.com
+    steps:
+      - name: Health Check
+        run: |
+          set -euo pipefail
+          body_file="$(mktemp)"
+          http_code="$(curl -sS -o "$body_file" -w "%{http_code}" "${API_BASE}/health")"
+          echo "Health HTTP Status: ${http_code}"
+          if [ "$http_code" != "200" ]; then
+            echo "Error: Health endpoint returned HTTP ${http_code}; expected 200"
+            cat "$body_file"
+            exit 1
+          fi
+          status="$(jq -r '.status // empty' "$body_file")"
+          if [ "$status" != "ok" ]; then
+            echo "Error: Health status was '${status}'; expected 'ok'"
+            exit 1
+          fi
+          echo "Health endpoint OK."

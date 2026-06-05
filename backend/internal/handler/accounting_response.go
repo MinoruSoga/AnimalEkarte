@@ -107,6 +107,7 @@ type refundResponse struct {
 	Reason         string    `json:"reason"`
 	RefundedBy     *uint64   `json:"refunded_by"`
 	RefundedByName string    `json:"refunded_by_name"`
+	PaymentMethod  *string   `json:"payment_method,omitempty"`
 	RefundedAt     time.Time `json:"refunded_at"`
 	CreatedAt      time.Time `json:"created_at"`
 }
@@ -116,6 +117,11 @@ func toRefundResponse(r *model.BillingRefund) refundResponse {
 	if r.RefundedByStaff != nil {
 		staffName = r.RefundedByStaff.Name
 	}
+	var paymentMethod *string
+	if r.PaymentMethod != nil {
+		pm := string(*r.PaymentMethod)
+		paymentMethod = &pm
+	}
 	return refundResponse{
 		ID:             r.ID,
 		ClinicID:       r.ClinicID,
@@ -124,6 +130,7 @@ func toRefundResponse(r *model.BillingRefund) refundResponse {
 		Reason:         r.Reason,
 		RefundedBy:     r.RefundedBy,
 		RefundedByName: staffName,
+		PaymentMethod:  paymentMethod,
 		RefundedAt:     r.RefundedAt,
 		CreatedAt:      r.CreatedAt,
 	}

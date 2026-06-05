@@ -71,7 +71,9 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 				apiFailed = true
 			} else {
-				_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName)
+				if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delCacheErr != nil {
+					slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", c.TagName)
+				}
 			}
 		}
 		// cpm_dormant は 240d 未満の場合に削除する
@@ -81,7 +83,9 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 				apiFailed = true
 			} else {
-				_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, "cpm_dormant")
+				if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, "cpm_dormant"); delCacheErr != nil {
+					slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", "cpm_dormant")
+				}
 			}
 		}
 	}
@@ -211,7 +215,9 @@ func (s *lstepTagSyncService) SyncVisitDormantTags(ctx context.Context, clinicID
 				apiFailed = true
 				continue
 			}
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, th.tag)
+			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, th.tag); delCacheErr != nil {
+				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", th.tag)
+			}
 		}
 	}
 

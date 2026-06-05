@@ -20,6 +20,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { formatCurrency } from "@/utils/format/number";
 import { getAccountingStatusColor } from "@/utils/status-helpers";
 import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
+import { calculateAccountingTotal } from "./AccountingListTableModel";
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "現金",
@@ -74,16 +75,6 @@ const ACCOUNTING_SORT_PROPERTIES: SortProperty[] = [
   { key: "totalAmount", label: "請求金額" },
   { key: "status", label: "ステータス" },
 ];
-
-export function calculateAccountingTotal(accounting: AccountingType) {
-  if (accounting.payment) return accounting.payment.totalAmount;
-
-  return accounting.items.reduce((sum: number, item) => {
-    const price = item.unitPrice * item.quantity;
-    const tax = Math.floor(price * item.taxRate);
-    return sum + price + tax;
-  }, 0);
-}
 
 interface AccountingPaginationView {
   paginatedData: AccountingType[];

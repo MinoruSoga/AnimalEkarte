@@ -117,13 +117,15 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ? AND status = ?", id, model.MedicalRecordStatusDraft).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
+		// status != draft（finalized or already being updated）
+		return nil, apperrors.WrapConflict("medical_record is not in draft status")
 	}
 	return r.FindByID(ctx, clinicID, id)
 }

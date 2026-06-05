@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
+import type { PaymentMethod } from "@/types/generated/models";
 
 import { cancelAccounting } from "../api/cancel-accounting";
 import { createRefund } from "../api/create-refund";
@@ -31,11 +32,11 @@ export function useAccountingSettlementActions({
   startRefundTransition,
 }: UseAccountingSettlementActionsParams) {
   const handleRefund = useCallback(
-    (amount: number, reason: string) => {
+    (amount: number, reason: string, paymentMethod?: PaymentMethod) => {
       if (!accountingId) return;
       startRefundTransition(async () => {
         try {
-          await createRefund(accountingId, { amount, reason });
+          await createRefund(accountingId, { amount, reason, paymentMethod });
           queryClient.invalidateQueries({ queryKey: ["accounting-refunds", accountingId] });
           queryClient.invalidateQueries({ queryKey: ["accountings"] });
           toast.success(`¥${amount.toLocaleString()} の返金を登録しました`);

@@ -21,7 +21,7 @@ func (m *mockMedicalRecordRepoForTreatment) FindAll(_ context.Context, _ uint64,
 	return nil, 0, nil
 }
 func (m *mockMedicalRecordRepoForTreatment) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-	return &model.MedicalRecord{}, nil
+	return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 }
 func (m *mockMedicalRecordRepoForTreatment) Create(_ context.Context, _ *model.MedicalRecord) error {
 	return nil
@@ -109,6 +109,10 @@ func (m *mockTreatmentRepository) FindUnbilledByPetID(_ context.Context, _, _ ui
 	return nil, nil
 }
 
+func (m *mockTreatmentRepository) CountFinalizedUnconfirmedByPetAndDate(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
+	return 0, nil
+}
+
 // ---- Tests ----
 
 func TestTreatmentService_List(t *testing.T) {
@@ -158,8 +162,9 @@ func TestTreatmentService_List(t *testing.T) {
 				},
 			}
 			svc := NewTreatmentService(&repository.Repositories{
-				Treatment: repo,
-				Inventory: &mockInventoryRepository{},
+				Treatment:     repo,
+				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
+				Inventory:     &mockInventoryRepository{},
 			})
 
 			treatments, err := svc.List(context.Background(), clinicID, tt.medicalRecordID)
@@ -260,8 +265,9 @@ func TestTreatmentService_Create(t *testing.T) {
 			invRepo := &mockInventoryRepository{}
 			// TransactionFn: DB 不要でトランザクションをインライン実行
 			repos := &repository.Repositories{
-				Treatment: repo,
-				Inventory: invRepo,
+				Treatment:     repo,
+				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
+				Inventory:     invRepo,
 			}
 			repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
 				return fn(repos)
@@ -419,8 +425,9 @@ func TestTreatmentService_Update(t *testing.T) {
 				},
 			}
 			svc := NewTreatmentService(&repository.Repositories{
-				Treatment: repo,
-				Inventory: &mockInventoryRepository{},
+				Treatment:     repo,
+				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
+				Inventory:     &mockInventoryRepository{},
 			})
 
 			treatment, err := svc.Update(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID, tt.input)
@@ -505,8 +512,9 @@ func TestTreatmentService_Delete(t *testing.T) {
 				},
 			}
 			svc := NewTreatmentService(&repository.Repositories{
-				Treatment: repo,
-				Inventory: &mockInventoryRepository{},
+				Treatment:     repo,
+				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
+				Inventory:     &mockInventoryRepository{},
 			})
 
 			err := svc.Delete(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID)

@@ -95,10 +95,10 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 		return nil, apperrors.Wrap(err, "failed to validate time range")
 	}
 	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate staff capability")
 	}
 	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate available time")
 	}
 
 	visitType := model.VisitType(input.VisitType)
@@ -113,7 +113,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 	var result *model.Reservation
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if err := checkSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
-			return err
+			return apperrors.Wrap(err, "failed to check slot conflict")
 		}
 
 		ra := &model.Reservation{

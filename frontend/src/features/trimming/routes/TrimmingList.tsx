@@ -31,7 +31,8 @@ import type { TrimmingFilters } from "../api/get-trimmings";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceTrimming } from "@/types/generated/models";
 import { handleApiError } from "@/lib/handle-api-error";
-import { buildTrimmingDynamicFilterProperties, TrimmingListTable } from "../components/TrimmingListTable";
+import { TrimmingListTable } from "../components/TrimmingListTable";
+import { buildTrimmingDynamicFilterProperties } from "../components/TrimmingListTableModel";
 
 export function TrimmingList() {
   const navigate = useNavigate();
@@ -75,7 +76,7 @@ export function TrimmingList() {
     startIndex,
     endIndex,
     goToPage,
-  } = usePagination(sortedData, { pageSize: 10 });
+  } = usePagination(sortedData, { pageSize: 10, resetKey: [deferredKeyword, JSON.stringify(activeFilters)].join("|") });
 
   // FE-144: URLクエリパラメータからページ番号を読み取る
   const urlPage = Number(searchParams.get("page") ?? 1);

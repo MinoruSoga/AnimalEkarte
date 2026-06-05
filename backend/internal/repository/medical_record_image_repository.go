@@ -12,10 +12,10 @@ import (
 
 // MedicalRecordImageRepository は診療画像のデータアクセス層
 type MedicalRecordImageRepository interface {
-	FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
 	Create(ctx context.Context, image *model.MedicalRecordImage) error
-	Delete(ctx context.Context, id uint64) error
-	FindByID(ctx context.Context, id uint64) (*model.MedicalRecordImage, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordImage, error)
 }
 
 type medicalRecordImageRepository struct {
@@ -27,12 +27,13 @@ func NewMedicalRecordImageRepository(db *gorm.DB) MedicalRecordImageRepository {
 	return &medicalRecordImageRepository{db: db}
 }
 
-func (r *medicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+func (r *medicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
 	images := make([]model.MedicalRecordImage, 0)
 	if err := r.db.WithContext(ctx).
-		Where("medical_record_id = ?", medicalRecordID).
+		Joins("JOIN medical_records ON medical_records.id = medical_record_images.medical_record_id AND medical_records.deleted_at IS NULL").
+		Where("medical_records.clinic_id = ? AND medical_record_images.medical_record_id = ?", clinicID, medicalRecordID).
 		Preload("Staff", "deleted_at IS NULL").
-		Order("sort_order ASC, created_at ASC").
+		Order("medical_record_images.sort_order ASC, medical_record_images.created_at ASC").
 		Find(&images).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record_image", "")
 	}
@@ -46,9 +47,10 @@ func (r *medicalRecordImageRepository) Create(ctx context.Context, image *model.
 	return nil
 }
 
-func (r *medicalRecordImageRepository) Delete(ctx context.Context, id uint64) error {
+func (r *medicalRecordImageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ?", id).
+		Where("medical_record_images.id = ? AND medical_record_images.medical_record_id IN "+
+			"(SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Delete(&model.MedicalRecordImage{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "medical_record_image", fmt.Sprintf("%d", id))
@@ -59,11 +61,13 @@ func (r *medicalRecordImageRepository) Delete(ctx context.Context, id uint64) er
 	return nil
 }
 
-func (r *medicalRecordImageRepository) FindByID(ctx context.Context, id uint64) (*model.MedicalRecordImage, error) {
+func (r *medicalRecordImageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordImage, error) {
 	var image model.MedicalRecordImage
 	err := r.db.WithContext(ctx).
+		Joins("JOIN medical_records ON medical_records.id = medical_record_images.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Where("medical_record_images.id = ?", id).
 		Preload("Staff", "deleted_at IS NULL").
-		First(&image, id).Error
+		First(&image).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record_image", fmt.Sprintf("%d", id))
 	}

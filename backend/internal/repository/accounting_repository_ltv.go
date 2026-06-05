@@ -52,7 +52,7 @@ func (r *accountingRepository) FindOwnersByAnnualRevenue(ctx context.Context, cl
 	err := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
 		Scopes(clinicScope(clinicID)).
-		Where("status = ? AND deleted_at IS NULL AND completed_at >= ?", model.BillingStatusCompleted, cutoff).
+		Where("status = ? AND deleted_at IS NULL AND completed_at >= ? AND owner_id IS NOT NULL", model.BillingStatusCompleted, cutoff).
 		Select("owner_id, COALESCE(SUM(total_amount), 0) AS revenue").
 		Group("owner_id").
 		Order("revenue DESC").

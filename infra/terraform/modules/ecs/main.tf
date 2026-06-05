@@ -72,12 +72,26 @@ resource "aws_ecs_cluster" "main" {
   name = "${var.name_prefix}-cluster"
 
   setting {
-    name  = "containerInsights"
-    value = "enabled"
+    name = "containerInsights"
+    # コスト最適化: STG では Container Insights のカスタムメトリクス（CW:MetricMonitorUsage 約 $8/月）が不要。
+    # CloudWatch Logs（無料枠内）は task definition 側で維持する。
+    value = "disabled"
   }
 
   tags = {
     Name = "${var.name_prefix}-cluster"
+  }
+}
+
+# Capacity Providers — STG コスト最適化: Fargate Spot を既定にし同一サイズで単価約 -70%。
+# Spot は 2 分前通知で中断・自動再配置するが STG では許容。
+resource "aws_ecs_cluster_capacity_providers" "main" {
+  cluster_name       = aws_ecs_cluster.main.name
+  capacity_providers = ["FARGATE", "FARGATE_SPOT"]
+
+  default_capacity_provider_strategy {
+    capacity_provider = "FARGATE_SPOT"
+    weight            = 1
   }
 }
 
@@ -209,7 +223,18 @@ resource "aws_ecs_service" "main" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.main.arn
   desired_count   = var.desired_count
-  launch_type     = "FARGATE"
+
+  # コスト最適化: Fargate Spot を強く優先（weight 4）しつつ、Spot 在庫枯渇時は
+  # on-demand FARGATE（weight 1）へ fallback。夜間スケジュールの朝 8:00 自動起動が
+  # Spot 在庫切れで失敗しないようにするための保険。大半のタスクは Spot で起動する。
+  capacity_provider_strategy {
+    capacity_provider = "FARGATE_SPOT"
+    weight            = 4
+  }
+  capacity_provider_strategy {
+    capacity_provider = "FARGATE"
+    weight            = 1
+  }
 
   network_configuration {
     subnets          = var.private_subnet_ids
@@ -225,7 +250,19 @@ resource "aws_ecs_service" "main" {
 
   enable_execute_command = true
 
-  depends_on = [aws_lb_listener.http]
+  # capacity provider はサービス作成前にクラスタへ関連付けが必要
+  depends_on = [aws_lb_listener.http, aws_ecs_cluster_capacity_providers.main]
+
+  lifecycle {
+    # desired_count: 夜間スケジューラが 0/1 を制御するため terraform は管理しない。
+    # task_definition: deploy パイプライン(.env.staging から env 注入)が管理する。
+    #   terraform の task def は env 空のスケルトンのため、terraform に管理させると
+    #   service が env 無しタスクで起動して STG が落ちる（2026-06-01 に実際に発生）。
+    # capacity_provider_strategy: 変更が service 置換を強制し、置換時に空スケルトン
+    #   task def で再作成されて STG が落ちるため、runtime(CLI)管理にして ignore する。
+    #   現状 live は FARGATE_SPOT weight4 + FARGATE weight1（Spot 優先 + on-demand fallback）。
+    ignore_changes = [desired_count, task_definition, capacity_provider_strategy]
+  }
 
   tags = {
     Name = "${var.name_prefix}-service"

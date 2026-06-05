@@ -176,7 +176,7 @@ export function useAccountingCompletionAction({
   );
 
   useEffect(() => {
-    if (formState.success === false) {
+    if (formState.success === false && formState.timestamp > 0) {
       const element = document.getElementById("receivedAmount");
       if (element) {
         element.focus();

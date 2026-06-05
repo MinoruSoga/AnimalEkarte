@@ -118,14 +118,18 @@ func (s *lstepTagSyncService) SyncFilariaTag(ctx context.Context, clinicID, owne
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add filaria tag")
 		}
-		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevFilariaTag, "auto", "未処方")
+		if err := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevFilariaTag, "auto", "未処方"); err != nil {
+			slog.WarnContext(ctx, "failed to upsert tag cache (non-fatal)", "tag", PrevFilariaTag, "owner_id", ownerID, "error", err)
+		}
 	} else {
 		if delErr := client.RemoveTag(ctx, lineUserID, PrevFilariaTag); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove filaria tag", "error", delErr)
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, PrevFilariaTag)
+			if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, PrevFilariaTag); err != nil {
+				slog.WarnContext(ctx, "failed to delete tag cache (non-fatal)", "tag", PrevFilariaTag, "owner_id", ownerID, "error", err)
+			}
 		}
 	}
 	if !apiFailed {
@@ -196,14 +200,18 @@ func (s *lstepTagSyncService) SyncFleaTickTag(ctx context.Context, clinicID, own
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add flea tick tag")
 		}
-		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevFleaTickTag, "auto", "未処方")
+		if err := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevFleaTickTag, "auto", "未処方"); err != nil {
+			slog.WarnContext(ctx, "failed to upsert tag cache (non-fatal)", "tag", PrevFleaTickTag, "owner_id", ownerID, "error", err)
+		}
 	} else {
 		if delErr := client.RemoveTag(ctx, lineUserID, PrevFleaTickTag); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove flea tick tag", "error", delErr)
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, PrevFleaTickTag)
+			if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, PrevFleaTickTag); err != nil {
+				slog.WarnContext(ctx, "failed to delete tag cache (non-fatal)", "tag", PrevFleaTickTag, "owner_id", ownerID, "error", err)
+			}
 		}
 	}
 	if !apiFailed {

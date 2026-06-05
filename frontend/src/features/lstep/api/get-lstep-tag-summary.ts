@@ -19,6 +19,9 @@ export function useGetLstepTagSummary() {
     queryKey: ["lstep-tag-summary"],
     queryFn: async () => {
       const clinicId = localStorage.getItem("auth_current_clinic:v1");
+      if (!clinicId) {
+        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+      }
       const { data } = await axios.get<LstepTagSummaryResponse>(
         `/v1/clinics/${clinicId}/lstep/tag-summary`
       );

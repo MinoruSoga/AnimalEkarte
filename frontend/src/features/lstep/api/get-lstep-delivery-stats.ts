@@ -18,6 +18,9 @@ export function useGetLstepDeliveryStats(yearMonth: string) {
     queryKey: ["lstep-delivery-stats", yearMonth],
     queryFn: async () => {
       const clinicId = localStorage.getItem("auth_current_clinic:v1");
+      if (!clinicId) {
+        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+      }
       const { data } = await axios.get<MonthlyDeliveryStatsResponse>(
         `/v1/clinics/${clinicId}/lstep/analytics/delivery-stats?year_month=${yearMonth}`
       );

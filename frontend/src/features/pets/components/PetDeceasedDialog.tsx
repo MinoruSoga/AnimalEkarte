@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { C, STYLE } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { useRecordPetDeath } from "../api/record-pet-death";
@@ -75,10 +76,11 @@ export function PetDeceasedDialog({
         });
         onOpenChange(false);
         return { success: true, error: null, timestamp: Date.now() };
-      } catch {
+      } catch (error) {
+        handleApiError(error, "ペット死亡記録");
         return {
           success: false,
-          error: null,
+          error: "死亡の記録に失敗しました",
           timestamp: Date.now(),
         };
       }

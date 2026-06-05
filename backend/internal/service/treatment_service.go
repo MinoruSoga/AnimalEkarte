@@ -256,6 +256,16 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 		return nil, apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
 	}
 
+	// HC-004: 親カルテが確定済みの場合は編集拒否
+	parent, err := s.repos.MedicalRecord.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict("確定済みカルテの治療は編集できません")
+	}
+
 	if input.ItemType != nil {
 		if err := validateTreatmentItemType(*input.ItemType); err != nil {
 			return nil, apperrors.Wrap(err, "failed to validate treatment item type")
@@ -307,6 +317,16 @@ func (s *treatmentService) Delete(ctx context.Context, clinicID, medicalRecordID
 	}
 	if existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
+	}
+
+	// HC-004: 親カルテが確定済みの場合は削除拒否
+	parent, err := s.repos.MedicalRecord.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return apperrors.WrapConflict("確定済みカルテの治療は削除できません")
 	}
 
 	if err := s.repos.Treatment.Delete(ctx, clinicID, treatmentID); err != nil {

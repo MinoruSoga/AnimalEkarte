@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { handleApiError } from "@/lib/handle-api-error";
 import { axios } from "@/lib/axios";
 
 // Types
@@ -65,7 +66,8 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
           params: { search: searchTerm.trim() },
         });
         setOwners((data.data ?? []).map(transformOwner));
-      } catch {
+      } catch (error) {
+        handleApiError(error, "飼主検索");
         setOwners([]);
       }
     });

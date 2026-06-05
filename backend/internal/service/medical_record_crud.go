@@ -37,7 +37,7 @@ func (s *medicalRecordService) CountByPetID(ctx context.Context, clinicID, petID
 
 func (s *medicalRecordService) Create(ctx context.Context, clinicID uint64, input *CreateMedicalRecordInput) (*model.MedicalRecord, error) {
 	if err := s.applyAppointmentContextForCreate(ctx, clinicID, input); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to apply appointment context for medical record")
 	}
 
 	record := buildMedicalRecordForCreate(clinicID, input)
@@ -280,6 +280,10 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find medical record")
+	}
+	// Prevent deletion of finalized medical records (data integrity/legal compliance)
+	if existing.Status == model.MedicalRecordStatusFinalized {
+		return apperrors.WrapConflict("確定済みの診療記録は削除できません")
 	}
 	estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(ctx, id)
 	if err != nil {

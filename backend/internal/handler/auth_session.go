@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -22,7 +23,9 @@ func (h *Handler) authenticateUser(ctx context.Context, email, password, clientI
 	if err != nil {
 		if apperrors.IsNotFound(err) {
 			// 監査ログ: ログイン失敗（アカウント不存在）
-			_ = h.svc.Audit.LogAuthLogin(ctx, nil, nil, model.AuditActionAuthLoginFailure, clientIP, userAgent)
+			if logErr := h.svc.Audit.LogAuthLogin(ctx, nil, nil, model.AuditActionAuthLoginFailure, clientIP, userAgent); logErr != nil {
+				slog.ErrorContext(ctx, "audit log failed for login failure (account not found)", "error", logErr)
+			}
 			return nil, nil, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません")
 		}
 		return nil, nil, err
@@ -32,7 +35,9 @@ func (h *Handler) authenticateUser(ctx context.Context, email, password, clientI
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(password)); err != nil {
 		// 監査ログ: ログイン失敗（パスワード不正）
-		_ = h.svc.Audit.LogAuthLogin(ctx, nil, &account.ID, model.AuditActionAuthLoginFailure, clientIP, userAgent)
+		if logErr := h.svc.Audit.LogAuthLogin(ctx, nil, &account.ID, model.AuditActionAuthLoginFailure, clientIP, userAgent); logErr != nil {
+			slog.ErrorContext(ctx, "audit log failed for login failure (invalid password)", "account_id", account.ID, "error", logErr)
+		}
 		return nil, nil, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません")
 	}
 	staff, err := h.svc.Staff.FindByAccountID(ctx, account.ID)

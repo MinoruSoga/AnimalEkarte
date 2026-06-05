@@ -27,22 +27,23 @@ type CreateMedicalRecordImageInput struct {
 
 // MedicalRecordImageService は診療画像のビジネスロジック
 type MedicalRecordImageService interface {
-	List(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
-	Create(ctx context.Context, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error)
-	Delete(ctx context.Context, medicalRecordID, imageID uint64) error
+	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
+	Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error)
+	Delete(ctx context.Context, clinicID, medicalRecordID, imageID uint64) error
 }
 
 type medicalRecordImageService struct {
-	repo repository.MedicalRecordImageRepository
+	repo   repository.MedicalRecordImageRepository
+	medRec repository.MedicalRecordRepository
 }
 
 // NewMedicalRecordImageService は MedicalRecordImageService を初期化して返す
-func NewMedicalRecordImageService(repo repository.MedicalRecordImageRepository) MedicalRecordImageService {
-	return &medicalRecordImageService{repo: repo}
+func NewMedicalRecordImageService(repo repository.MedicalRecordImageRepository, medRec repository.MedicalRecordRepository) MedicalRecordImageService {
+	return &medicalRecordImageService{repo: repo, medRec: medRec}
 }
 
-func (s *medicalRecordImageService) List(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
-	result, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+func (s *medicalRecordImageService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+	result, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list record images", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list record images")
@@ -50,7 +51,12 @@ func (s *medicalRecordImageService) List(ctx context.Context, medicalRecordID ui
 	return result, nil
 }
 
-func (s *medicalRecordImageService) Create(ctx context.Context, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+func (s *medicalRecordImageService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+	// Verify parent medical record exists and belongs to clinic
+	if _, err := s.medRec.FindByID(ctx, clinicID, medicalRecordID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find parent medical record")
+	}
+
 	if err := validateMedicalImageType(string(input.ImageType)); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate medical image type")
 	}
@@ -83,15 +89,15 @@ func (s *medicalRecordImageService) Create(ctx context.Context, medicalRecordID 
 	return image, nil
 }
 
-func (s *medicalRecordImageService) Delete(ctx context.Context, medicalRecordID, imageID uint64) error {
-	image, err := s.repo.FindByID(ctx, imageID)
+func (s *medicalRecordImageService) Delete(ctx context.Context, clinicID, medicalRecordID, imageID uint64) error {
+	image, err := s.repo.FindByID(ctx, clinicID, imageID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get record image")
 	}
 	if image.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("medical_record_image", "not found in this medical record")
 	}
-	if err := s.repo.Delete(ctx, imageID); err != nil {
+	if err := s.repo.Delete(ctx, clinicID, imageID); err != nil {
 		return apperrors.Wrap(err, "failed to delete record image")
 	}
 	slog.InfoContext(ctx, "record image deleted", slog.Uint64("image_id", imageID))

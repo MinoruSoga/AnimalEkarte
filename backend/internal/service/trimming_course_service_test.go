@@ -23,6 +23,37 @@ type mockTrimmingCourseRepository struct {
 	reorderErr             error
 }
 
+// mockMinimalCourseTypeRepo is a minimal mock for TrimmingCourseTypeRepository
+type mockMinimalCourseTypeRepo struct{}
+
+func (m *mockMinimalCourseTypeRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourseType, error) {
+	return &model.TrimmingCourseType{ID: id, ClinicID: clinicID}, nil
+}
+
+func (m *mockMinimalCourseTypeRepo) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourseType, error) {
+	return nil, nil
+}
+
+func (m *mockMinimalCourseTypeRepo) Create(ctx context.Context, t *model.TrimmingCourseType) (*model.TrimmingCourseType, error) {
+	return t, nil
+}
+
+func (m *mockMinimalCourseTypeRepo) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourseType, error) {
+	return nil, nil
+}
+
+func (m *mockMinimalCourseTypeRepo) Delete(ctx context.Context, clinicID, id uint64) error {
+	return nil
+}
+
+func (m *mockMinimalCourseTypeRepo) CountUsageByCourseTypeID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockMinimalCourseTypeRepo) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return nil
+}
+
 func (m *mockTrimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
 	return m.findAllFn(ctx, clinicID)
 }
@@ -97,7 +128,7 @@ func TestTrimmingCourseService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewTrimmingCourseService(repo)
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
 
 			courses, err := svc.List(context.Background(), 1)
 
@@ -153,7 +184,7 @@ func TestTrimmingCourseService_GetByID(t *testing.T) {
 					return tt.repoCourse, tt.repoErr
 				},
 			}
-			svc := NewTrimmingCourseService(repo)
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
 
 			course, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -215,7 +246,7 @@ func TestTrimmingCourseService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewTrimmingCourseService(repo)
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
 
 			result, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -282,7 +313,7 @@ func TestTrimmingCourseService_Update(t *testing.T) {
 					return &model.TrimmingCourse{ID: 1, Name: name}, nil
 				},
 			}
-			svc := NewTrimmingCourseService(repo)
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
 
 			course, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -354,7 +385,7 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewTrimmingCourseService(repo)
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 
@@ -397,7 +428,7 @@ func TestTrimmingCourseService_Reorder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseRepository{reorderErr: tt.repoErr}
-			svc := NewTrimmingCourseService(repo)
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
 
 			err := svc.Reorder(context.Background(), 1, tt.ids)
 
@@ -412,7 +443,7 @@ func TestTrimmingCourseService_Reorder(t *testing.T) {
 
 func TestTrimmingCourseService_Update_NilInput(t *testing.T) {
 	repo := &mockTrimmingCourseRepository{}
-	svc := NewTrimmingCourseService(repo)
+	svc := NewTrimmingCourseService(repo, &mockTrimmingCourseTypeRepository{})
 	result, err := svc.Update(context.Background(), 1, 1, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)

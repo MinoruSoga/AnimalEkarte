@@ -68,10 +68,13 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 
 	protected := api.Group("")
 	var auditSvc service.AuditService
+	var staffSvc service.StaffService
 	if h.svc != nil {
 		auditSvc = h.svc.Audit
+		staffSvc = h.svc.Staff
 	}
-	protected.Use(middleware.Auth(h.cfg.JWTSecret, h.cfg.GinMode == "release", auditSvc))
+	protected.Use(middleware.Auth(h.cfg.JWTSecret, h.cfg.GinMode == "release", auditSvc, staffSvc))
+	protected.Use(middleware.RequireXRequestedWith())
 	// NOTE: SanitizeNullBytes は main.go でグローバル登録済み（BUG-067）
 
 	protected.GET("/me", h.GetMe)

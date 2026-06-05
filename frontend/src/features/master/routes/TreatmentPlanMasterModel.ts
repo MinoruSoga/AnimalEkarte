@@ -108,13 +108,16 @@ export function buildConsultationCreateRequest(
     is_active: data.isActive,
     tax_type: data.taxType,
     tax_rate: data.taxRate,
+    ...(data.parentId ? { parent_id: Number(data.parentId) } : {}),
   };
 }
 
 export function buildConsultationUpdateRequest(
   data: TreatmentFormData,
 ): UpdateConsultationRequest {
-  return buildConsultationCreateRequest(data);
+  const base = buildConsultationCreateRequest(data);
+  if (data.parentId === "") return { ...base, clear_parent_id: true };
+  return base;
 }
 
 export function buildExaminationCreateRequest(
@@ -126,13 +129,16 @@ export function buildExaminationCreateRequest(
     description: data.description || undefined,
     is_active: data.isActive,
     is_non_insurance: data.isNonInsurance,
+    ...(data.parentId ? { parent_id: Number(data.parentId) } : {}),
   };
 }
 
 export function buildExaminationUpdateRequest(
   data: TreatmentFormData,
 ): UpdateExaminationTypeRequest {
-  return buildExaminationCreateRequest(data);
+  const base = buildExaminationCreateRequest(data);
+  if (data.parentId === "") return { ...base, clear_parent_id: true };
+  return base;
 }
 
 export function buildProcedureCreateRequest(
@@ -145,13 +151,16 @@ export function buildProcedureCreateRequest(
     is_active: data.isActive,
     tax_type: data.taxType,
     tax_rate: data.taxRate,
+    ...(data.parentId ? { parent_id: Number(data.parentId) } : {}),
   };
 }
 
 export function buildProcedureUpdateRequest(
   data: TreatmentFormData,
 ): UpdateProcedureRequest {
-  return buildProcedureCreateRequest(data);
+  const base = buildProcedureCreateRequest(data);
+  if (data.parentId === "") return { ...base, clear_parent_id: true };
+  return base;
 }
 
 export function buildVaccineCreateRequest(
@@ -162,13 +171,16 @@ export function buildVaccineCreateRequest(
     price: data.price,
     description: data.description || undefined,
     is_active: data.isActive,
+    ...(data.parentId ? { parent_id: Number(data.parentId) } : {}),
   };
 }
 
 export function buildVaccineUpdateRequest(
   data: TreatmentFormData,
 ): UpdateVaccineRequest {
-  return buildVaccineCreateRequest(data);
+  const base = buildVaccineCreateRequest(data);
+  if (data.parentId === "") return { ...base, clear_parent_id: true };
+  return base;
 }
 
 export function buildCheckupCreateRequest(
@@ -179,11 +191,14 @@ export function buildCheckupCreateRequest(
     price: data.price,
     description: data.description || undefined,
     is_active: data.isActive,
+    ...(data.parentId ? { parent_id: Number(data.parentId) } : {}),
   };
 }
 
 export function buildCheckupUpdateRequest(
   data: TreatmentFormData,
 ): UpdateCheckupTypeRequest {
-  return buildCheckupCreateRequest(data);
+  const base = buildCheckupCreateRequest(data);
+  if (data.parentId === "") return { ...base, clear_parent_id: true };
+  return base;
 }

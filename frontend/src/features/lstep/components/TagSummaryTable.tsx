@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useDeferredValue, useMemo } from "react";
 import { Search, Users, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,8 @@ export function TagSummaryTable({
 }: TagSummaryTableProps) {
   const [categoryFilter, setCategoryFilter] = useState<TagCategory>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  // 入力をブロックせずにフィルタ再計算を遅延させる (他リストと同パターン)
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const handleCategoryChange = useCallback((value: string) => {
     setCategoryFilter(value as TagCategory);
@@ -61,13 +63,13 @@ export function TagSummaryTable({
       result = result.filter((t) => !isAutoManagedTag(t.tag_name));
     }
 
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
+    if (deferredSearchTerm) {
+      const lower = deferredSearchTerm.toLowerCase();
       result = result.filter((t) => t.tag_name.toLowerCase().includes(lower));
     }
 
     return result;
-  }, [tags, categoryFilter, searchTerm]);
+  }, [tags, categoryFilter, deferredSearchTerm]);
 
   return (
     <div className="flex flex-col gap-3">

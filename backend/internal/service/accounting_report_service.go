@@ -329,10 +329,12 @@ func (s *accountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID
 	buf.Write([]byte("\xEF\xBB\xBF"))
 
 	w := csv.NewWriter(&buf)
-	_ = w.Write([]string{
+	if err := w.Write([]string{
 		"日付", "曜日", "AM件数", "AM純売上(円)", "PM件数", "PM純売上(円)", "日計(円)", "返金(円)", "AM締め", "PM締め", "休診",
 		"標準税率課税対象額(円)", "標準税率消費税額(円)", "軽減税率課税対象額(円)", "軽減税率消費税額(円)",
-	})
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to write CSV header")
+	}
 
 	for _, d := range result.DailyDetails {
 		amClosed := "未"
@@ -347,7 +349,7 @@ func (s *accountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID
 		if d.IsHoliday {
 			holiday = "休"
 		}
-		_ = w.Write([]string{
+		if err := w.Write([]string{
 			d.Date,
 			d.Weekday,
 			fmt.Sprintf("%d", d.AMCount),
@@ -360,11 +362,13 @@ func (s *accountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID
 			pmClosed,
 			holiday,
 			"", "", "", "", // 税率別内訳は月次サマリのみ（日別内訳なし）
-		})
+		}); err != nil {
+			return nil, apperrors.Wrap(err, "failed to write CSV row")
+		}
 	}
 
 	tb := result.Summary.TaxBreakdown
-	_ = w.Write([]string{
+	if err := w.Write([]string{
 		"合計", "", "", "", "", "",
 		fmt.Sprintf("%d", result.Summary.NetAmount),
 		fmt.Sprintf("%d", result.Summary.TotalRefund),
@@ -373,8 +377,14 @@ func (s *accountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID
 		fmt.Sprintf("%d", tb.Standard.TaxAmount),
 		fmt.Sprintf("%d", tb.Reduced.TaxableAmount),
 		fmt.Sprintf("%d", tb.Reduced.TaxAmount),
-	})
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to write CSV summary")
+	}
 	w.Flush()
+
+	if err := w.Error(); err != nil {
+		return nil, apperrors.Wrap(err, "CSV writer error")
+	}
 
 	return &MonthlyCSVResult{
 		Filename: fmt.Sprintf("monthly_report_%04d%02d.csv", year, month),

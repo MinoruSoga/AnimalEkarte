@@ -4,6 +4,7 @@ plans/
 file-history/
 logs/
 worktrees/
+projects/
 
 # OS files
 .DS_Store

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { useGetPet } from "@/hooks/use-pet";
 import { calculateBillingTotals } from "@/lib/calculations";
 
 import { getUnbilledItems } from "../api/get-unbilled-items";
+import { useGetUngroupedSameDay } from "../api/get-ungrouped-items";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo } from "../types";
 import { createInitialPaymentSplits } from "./AccountingDetailModel";
@@ -63,6 +64,14 @@ export function useAccountingDetailState({
     [accountingId, baseItems, unbilledItems],
   );
 
+  // #77: 同日同ペットの未会計対象化項目(取り残し)を検出して警告するためのサマリ。新規会計時のみ。
+  const ungroupedScheduledDate = baseAccounting?.scheduledDate ?? "";
+  const { data: ungroupedSummary } = useGetUngroupedSameDay(
+    newPetId,
+    ungroupedScheduledDate,
+    !accountingId && !!newPetId,
+  );
+
   const [localItems, setLocalItems] = useState<AccountingItem[] | null>(null);
 
   const displayItems = useMemo(
@@ -82,9 +91,9 @@ export function useAccountingDetailState({
     };
   }, [baseAccounting, completedPayment, displayItems]);
 
-  const [hasInsurance, setHasInsurance] = useState(() => (baseAccounting?.payment?.insuranceAmount ?? 0) < 0);
-  const [insuranceRatio, setInsuranceRatio] = useState(() => baseAccounting?.payment?.insuranceRatio?.toString() ?? "0.5");
-  const [paymentSplits, setPaymentSplits] = useState<PaymentSplitDraft[]>(() => createInitialPaymentSplits(baseAccounting));
+  const [hasInsurance, setHasInsurance] = useState(false);
+  const [insuranceRatio, setInsuranceRatio] = useState("0.5");
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplitDraft[]>([]);
 
   const calculation = useMemo(() => {
     if (!accounting) return null;
@@ -106,9 +115,26 @@ export function useAccountingDetailState({
     };
   }, [accounting, hasInsurance, insuranceRatio]);
 
+  // Sync fetched accounting state to form fields (P1 bug fix: avoid race condition on mount)
+  // ⚠️ レンダー中比較 (inline-comparison) に書き換えてはならない:
+  // この state は useAccountingCompletionAction の useActionState action closure から参照される。
+  // render-phase setState はマウント時の再レンダーパスで action closure を更新しないため、
+  // マウント後に再レンダーなしで完了をサブミットすると action がデフォルト値
+  // (paymentSplits=[] / hasInsurance=false) を見る。effect 同期なら commit 後の
+  // 通常再レンダーで action が更新されるので安全。
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!fetchedAccounting?.payment) return;
+    setHasInsurance((fetchedAccounting.payment.insuranceAmount ?? 0) < 0);
+    setInsuranceRatio(fetchedAccounting.payment.insuranceRatio?.toString() ?? "0.5");
+    setPaymentSplits(createInitialPaymentSplits(fetchedAccounting));
+  }, [fetchedAccounting]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   return {
     newPetId,
     baseAccounting,
+    ungroupedSummary,
     baseItems: editableBaseItems,
     displayItems,
     localItems,

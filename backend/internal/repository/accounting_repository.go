@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -15,13 +16,16 @@ import (
 type AccountingRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	// LockAndFindByID は FOR UPDATE で請求を行ロック取得する（TOCTOU 防止）。トランザクション内でのみ使用。
+	LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	SavePayment(ctx context.Context, payment *model.Payment) error
 	// SavePaymentSplits は billing の payment_splits を delete-then-recreate で保存する。
 	SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error
-	// CompleteAccountingAppointments は会計完了に伴い、同日同一ペットの会計待ち予約を完了へ進める。
-	CompleteAccountingAppointments(ctx context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
+	// CompleteAccountingAppointments は会計完了に伴い対象 appointment を完了へ進める。
+	// (1) 同日同一ペットの会計待ち(accounting)予約、(2) billing.medical_record_id 経由の診察 appointment(status 非依存)。
+	CompleteAccountingAppointments(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 	// BUG-370: 月末未納者一覧
 	FindUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
 	FindUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
@@ -129,6 +133,30 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 	return &billing, nil
 }
 
+// LockAndFindByID は FOR UPDATE で請求を行ロック取得する。
+// refund_service の CreateRefund のトランザクション内で使用し、TOCTOU を防止する。
+func (r *accountingRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
+	var billing model.Billing
+	err := r.db.WithContext(ctx).
+		Preload("Items", "deleted_at IS NULL").
+		Preload("Payments", "deleted_at IS NULL").
+		Preload("Payments.PaidByStaff", "deleted_at IS NULL").
+		Preload("PaymentSplits").
+		Scopes(clinicScope(clinicID)).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).First(&billing).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
+	}
+	// Preload した Refunds から TotalRefundedAmount を計算（FindByID と同じ）
+	var total int64
+	for i := range billing.Refunds {
+		total += billing.Refunds[i].Amount
+	}
+	billing.TotalRefundedAmount = total
+	return &billing, nil
+}
+
 func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
 	accounting.ClinicID = clinicID
 	if err := r.db.WithContext(ctx).Create(accounting).Error; err != nil {
@@ -142,6 +170,7 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 
 // Update は指定フィールドのみを更新し、更新後のレコードを返す。
 // map[string]any を使うことで GORM のゼロ値スキップ問題を回避する。
+// P2: service 層で逆遷移を拒否（修正 1）、repo は RowsAffected チェックで clinic scope/soft-delete を検証
 func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
@@ -152,6 +181,7 @@ func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID u
 		return nil, apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
 	}
 	if result.RowsAffected == 0 {
+		// clinic scope 外 or soft-delete 済み（service 層逆遷移ガード後に clinic scope 外になる場合）
 		return nil, apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
 	}
 	var billing model.Billing
@@ -232,18 +262,41 @@ func (r *accountingRepository) SavePaymentSplits(ctx context.Context, splits []m
 	return nil
 }
 
-func (r *accountingRepository) CompleteAccountingAppointments(ctx context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
-	if ownerID == nil || petID == nil || scheduledDate.IsZero() {
-		return 0, nil
+func (r *accountingRepository) CompleteAccountingAppointments(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+	var totalAffected int64
+
+	// (1) 同日同一ペットの会計待ち(accounting)予約を完了化する（トリミング + 受付カンバンで会計待ちに進めた診察）。
+	if ownerID != nil && petID != nil && !scheduledDate.IsZero() {
+		result := r.db.WithContext(ctx).
+			Model(&model.Reservation{}).
+			Where("clinic_id = ? AND owner_id = ? AND pet_id = ? AND status = ? AND deleted_at IS NULL",
+				clinicID, *ownerID, *petID, model.ReservationStatusAccounting).
+			Where("DATE(start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", scheduledDate).
+			Update("status", model.ReservationStatusCompleted)
+		if result.Error != nil {
+			return totalAffected, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("clinic=%d owner=%d pet=%d scheduled_date=%s", clinicID, *ownerID, *petID, scheduledDate.Format("2006-01-02")))
+		}
+		totalAffected += result.RowsAffected
 	}
-	result := r.db.WithContext(ctx).
-		Model(&model.Reservation{}).
-		Where("clinic_id = ? AND owner_id = ? AND pet_id = ? AND status = ? AND deleted_at IS NULL",
-			clinicID, *ownerID, *petID, model.ReservationStatusAccounting).
-		Where("DATE(start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", scheduledDate).
-		Update("status", model.ReservationStatusCompleted)
-	if result.Error != nil {
-		return 0, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("clinic=%d owner=%d pet=%d scheduled_date=%s", clinicID, *ownerID, *petID, scheduledDate.Format("2006-01-02")))
+
+	// (2) billing.medical_record_id 経由で診察 appointment を直接完了化する（status 非依存・orphan 根絶）。
+	//     診察は billing_confirmation の医師確認だけで会計可能なため、受付カンバンで会計待ち(accounting)に
+	//     進めずに会計すると (1) の条件に合致せず、会計後も診察カードが受付ボードに残る。これを防ぐ。
+	if medicalRecordID != nil {
+		result := r.db.WithContext(ctx).
+			Model(&model.Reservation{}).
+			Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
+			Where("status NOT IN ?", []model.ReservationStatus{model.ReservationStatusCompleted, model.ReservationStatusCancelled, model.ReservationStatusNoShow}).
+			Where("id IN (?)",
+				r.db.Model(&model.MedicalRecord{}).
+					Select("appointment_id").
+					Where("id = ? AND clinic_id = ? AND appointment_id IS NOT NULL AND deleted_at IS NULL", *medicalRecordID, clinicID)).
+			Update("status", model.ReservationStatusCompleted)
+		if result.Error != nil {
+			return totalAffected, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("clinic=%d medical_record=%d", clinicID, *medicalRecordID))
+		}
+		totalAffected += result.RowsAffected
 	}
-	return result.RowsAffected, nil
+
+	return totalAffected, nil
 }

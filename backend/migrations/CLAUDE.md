@@ -38,3 +38,10 @@ docker compose exec db psql ...  # 直接 SQL 実行
 ## migration 統合後のローカル復旧
 
 `001_init.sql` の checksum mismatch が出たローカル環境は、`docs/infra/deploy/LOCAL_DB_RESET.md` の手順で DB volume を再構築する。
+
+## seed / migration 差し替え時の注意
+
+- 適用済み migration / seed を編集すると既存 DB は checksum mismatch になる
+- seed master / demo の差し替えは静的確認だけでなく **fresh DB apply** が必要
+- DB 非依存の最低検証は `python3 scripts/verify_seed.py`
+- 運用メモ: `docs/infra/deploy/SEED_MIGRATION_OPERATIONS.md`

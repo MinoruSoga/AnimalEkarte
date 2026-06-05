@@ -8,7 +8,6 @@ import type { AddCheckupFormState } from "./CheckupsTabTableModel";
 import { CheckupAddRow, CheckupDisplayRow, CheckupEditRow } from "./CheckupsTabRows";
 
 export { LstepStatusBadge, type LstepStatus } from "./CheckupsTabBadges";
-export { makeDefaultCheckupAddForm, type AddCheckupFormState } from "./CheckupsTabTableModel";
 
 const TABLE_HEADER = (
   <thead>

@@ -23,11 +23,14 @@ func CORS() gin.HandlerFunc {
 		for allowed := range strings.SplitSeq(allowedOrigin, ",") {
 			if strings.TrimSpace(allowed) == origin {
 				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				// SEC-601: キャッシュポイズニング対策（Origin別に異なるレスポンス）
+				c.Writer.Header().Set("Vary", "Origin")
 				break
 			}
 		}
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID, X-Clinic-ID")
+		// SEC-601: X-Requested-With (CSRF対策ヘッダ)を許可
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID, X-Clinic-ID, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Max-Age", "86400")
 

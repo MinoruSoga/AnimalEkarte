@@ -196,7 +196,7 @@ type updateAccountingRequest struct {
 	ReceivedAmount  *int64   `json:"received_amount"`
 	ChangeAmount    *int64   `json:"change_amount"`
 	// PaymentSplits: 混在支払い内訳（nil = 従来単一支払い互換）
-	PaymentSplits []paymentSplitRequest `json:"payment_splits"`
+	PaymentSplits []paymentSplitRequest `json:"payment_splits" binding:"max=50,dive"`
 }
 
 func (r *updateAccountingRequest) toServiceInput(id, clinicID, staffID uint64) *service.UpdateAccountingInput {
@@ -316,4 +316,7 @@ func (r updateBillingItemRequest) toServiceInput() (*service.UpdateBillingItemIn
 type createRefundRequest struct {
 	Amount int64  `json:"amount" binding:"required,min=1"`
 	Reason string `json:"reason"`
+	// PaymentMethod は返金先の支払手段（任意・ENUM・#60）。会計 payment_splits.method と同体系。
+	// 混在支払いの方法別返金上限(Phase 2)に使う。
+	PaymentMethod *string `json:"payment_method" binding:"omitempty,oneof=cash credit_card electronic_money"`
 }

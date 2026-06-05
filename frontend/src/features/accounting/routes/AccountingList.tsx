@@ -21,7 +21,8 @@ import { usePagination } from "@/hooks/use-pagination";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Relative
-import { AccountingListTable, calculateAccountingTotal } from "../components/AccountingListTable";
+import { AccountingListTable } from "../components/AccountingListTable";
+import { calculateAccountingTotal } from "../components/AccountingListTableModel";
 import { DailyAccountingTab } from "../components/DailyAccountingTab";
 import { useGetAccountings } from "../api/get-accountings";
 import type { AccountingFilters } from "../api/get-accountings";
@@ -149,7 +150,7 @@ export function AccountingList() {
 
   const pagination = usePagination(sortedData, {
     pageSize: 20,
-    resetKey: deferredSearch,
+    resetKey: [deferredSearch, JSON.stringify(activeFilters)].join("|"),
   });
 
   // FE-144: URLクエリパラメータからページ番号を読み取る

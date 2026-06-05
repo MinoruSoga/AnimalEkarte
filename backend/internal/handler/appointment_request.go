@@ -96,7 +96,7 @@ func (q reservationAvailableTimesQuery) toServiceFilters() (reservationAvailable
 	if err != nil {
 		return reservationAvailableTimesFilters{}, err
 	}
-	date, err := time.ParseInLocation("2006-01-02", q.Date, time.Local)
+	date, err := time.Parse("2006-01-02", q.Date)
 	if err != nil {
 		return reservationAvailableTimesFilters{}, apperrors.WrapInvalidInput("invalid date: must be YYYY-MM-DD")
 	}

@@ -314,6 +314,11 @@ export interface BillingRefund {
   amount: number /* int64 */; // 返金額（正の整数、円）
   reason: string;
   refunded_by?: number /* uint64 */; // 返金処理スタッフID（nullable）
+  /**
+   * PaymentMethod は返金先の支払手段（nullable・ENUM）。混在会計でどの手段へ返金したか記録する。
+   * 会計の payment_splits.method と同じ ENUM 体系。混在支払いの方法別返金上限(#60 Phase 2)に使う。
+   */
+  payment_method?: PaymentMethod;
   refunded_at: string;
   created_at: string;
   /**
@@ -2637,6 +2642,23 @@ export interface AppointmentTrimmingOption {
 }
 
 //////////
+// source: trimming_course_type.go
+
+/**
+ * TrimmingCourseType はクリニックごとのトリミングコース種別マスタ (issue #73)。
+ * payment_methods と同型の拡張可能マスタ。trimming_courses.course_type_id から参照される。
+ */
+export interface TrimmingCourseType {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  sort_order: number /* int */;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: trimming_master.go
 
 export type TargetSize = string;
@@ -2652,6 +2674,7 @@ export interface TrimmingCourse {
   is_active: boolean;
   description: string;
   target_size?: TargetSize;
+  course_type_id?: number /* uint64 */; // #73 種別マスタ FK(nullable)
   duration?: number /* int */;
   sort_order: number /* int */;
   created_at: string;

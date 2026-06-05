@@ -52,7 +52,7 @@ func runAuthMiddlewareWithAudit(t *testing.T, authHeader string, auditSvc servic
 	var captured *gin.Context
 	w := httptest.NewRecorder()
 	router := gin.New()
-	router.Use(Auth(testSecret, false, auditSvc))
+	router.Use(Auth(testSecret, false, auditSvc, nil))
 	router.GET("/test", func(c *gin.Context) {
 		captured = c
 		c.Status(http.StatusOK)

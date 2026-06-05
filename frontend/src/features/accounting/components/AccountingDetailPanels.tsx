@@ -1,8 +1,8 @@
-import { EyeOff, Printer } from "lucide-react";
+import { AlertTriangle, EyeOff, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { C, ICON } from "@/lib/design-tokens";
-import type { TaxType } from "@/types/generated/models";
+import type { PaymentMethod, TaxType } from "@/types/generated/models";
 import type { Accounting } from "../types";
 import { AccountingDocument } from "./AccountingDocument";
 import { InsuranceCard } from "./InsuranceCard";
@@ -79,6 +79,41 @@ export function ReadOnlyAccountingBanner({ show }: ReadOnlyAccountingBannerProps
   );
 }
 
+interface UngroupedItemsWarningBannerProps {
+  show: boolean;
+  medicalRecordCount: number;
+  trimmingCount: number;
+}
+
+// #77: 同日同ペットにまだ会計対象化されていない項目があるとき、取り残し防止のため警告する。
+export function UngroupedItemsWarningBanner({
+  show,
+  medicalRecordCount,
+  trimmingCount,
+}: UngroupedItemsWarningBannerProps) {
+  if (!show || (medicalRecordCount === 0 && trimmingCount === 0)) return null;
+
+  const parts: string[] = [];
+  if (medicalRecordCount > 0) parts.push(`診察 ${medicalRecordCount}件`);
+  if (trimmingCount > 0) parts.push(`トリミング ${trimmingCount}件`);
+
+  return (
+    <div
+      className={`flex items-start gap-2 px-4 py-2.5 rounded-md border mb-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
+      role="alert"
+      aria-label="同日に会計対象化されていない項目があります"
+    >
+      <AlertTriangle className={`shrink-0 h-4 w-4 mt-0.5 ${C.textWarningIcon}`} aria-hidden="true" />
+      <div className="text-sm">
+        <span className="font-medium">同日にまだ会計対象化されていない項目があります（{parts.join(" / ")}）。</span>
+        <span className={`block ${C.text60} mt-0.5`}>
+          受付ボードで対象を会計待ちに進めてから会計すると、1会計にまとめられます。
+        </span>
+      </div>
+    </div>
+  );
+}
+
 interface AccountingCalculationView {
   subtotal: number;
   taxTotal: number;
@@ -106,7 +141,7 @@ interface AccountingDetailColumnsProps {
   onUseInsuranceChange: (enabled: boolean) => void;
   onInsuranceRatioChange: (ratio: string) => void;
   onSplitsChange: (splits: PaymentSplitDraft[]) => void;
-  onRefund: (amount: number, reason: string) => void;
+  onRefund: (amount: number, reason: string, paymentMethod?: PaymentMethod) => void;
 }
 
 export function AccountingDetailColumns({
@@ -172,6 +207,7 @@ export function AccountingDetailColumns({
           <RefundSection
             accountingId={accountingId}
             totalAmount={accounting.payment?.totalAmount ?? 0}
+            paymentSplits={accounting.paymentSplits ?? []}
             isRefunding={isRefunding}
             onRefund={onRefund}
             canEdit={canEdit}

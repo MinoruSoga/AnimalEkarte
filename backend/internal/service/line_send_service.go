@@ -150,7 +150,9 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *Send
 	// best-effort audit log
 	staffID := input.StaffID
 	ownerID := input.OwnerID
-	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, &staffID, "owner.line.send", "owner", &ownerID)
+	if err := s.auditSvc.LogLstepOperation(ctx, clinicID, &staffID, "owner.line.send", "owner", &ownerID); err != nil {
+		slog.WarnContext(ctx, "audit log failed for line send", "error", err, "owner_id", ownerID)
+	}
 
 	if sendErr != nil {
 		return nil, apperrors.WrapBadGateway(fmt.Sprintf("LINE送信に失敗しました: %s", sendErr.Error()))

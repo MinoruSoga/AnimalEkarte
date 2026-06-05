@@ -243,6 +243,7 @@ func setSystemAdmin(c *gin.Context) {
 func setNonSystemAdmin(c *gin.Context) {
 	c.Set("is_system_admin", false)
 	c.Set("user_id", "1")
+	c.Set("clinic_id", "1")
 }
 
 // ---- ListClinics ----
@@ -340,7 +341,7 @@ func TestListClinics_ScopeAll_NoPermission_Returns403(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	permSvc := &mockEffectivePermissionService{
-		getEffectivePermissionsFn: func(_ context.Context, _ uint64) ([]model.PermissionGroupRule, error) {
+		getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
 			// 権限ルールを空で返す → hospital_settings view 権限なし
 			return []model.PermissionGroupRule{}, nil
 		},

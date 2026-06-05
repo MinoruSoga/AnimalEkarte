@@ -45,7 +45,7 @@ func (h *Handler) ListClinics(c *gin.Context) {
 
 // hasPermission はユーザーの実効権限を確認する。
 // is_system_admin=true は全権限バイパス。
-// それ以外は permission_group_rules から判定する。
+// それ以外は permission_group_rules から判定する（clinic_id スコープ付き）。
 func (h *Handler) hasPermission(c *gin.Context, resource, action string) bool {
 	isSystemAdmin, ok := extractIsSystemAdmin(c)
 	if !ok {
@@ -59,7 +59,11 @@ func (h *Handler) hasPermission(c *gin.Context, resource, action string) bool {
 	if !ok {
 		return false
 	}
-	rules, err := h.svc.EffectivePermission.GetEffectivePermissions(c.Request.Context(), staffID)
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return false
+	}
+	rules, err := h.svc.EffectivePermission.GetEffectivePermissions(c.Request.Context(), staffID, clinicID)
 	if err != nil {
 		return false
 	}

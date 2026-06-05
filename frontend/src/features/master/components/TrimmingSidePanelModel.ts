@@ -5,11 +5,13 @@ import type {
 } from "../api/trimming";
 
 export const TARGET_SIZE_EMPTY_VALUE = "__none__";
+export const COURSE_TYPE_EMPTY_VALUE = "__none__";
 
 export interface CourseFormData {
   name: string;
   price: string;
   targetSize: TargetSize | "";
+  courseTypeId: string;
   duration: string;
   description: string;
   isActive: boolean;
@@ -29,6 +31,7 @@ export function trimmingCourseToFormData(item: TrimmingCourse | null): CourseFor
     name: item?.name ?? "",
     price: item?.price != null ? String(item.price) : "",
     targetSize: item?.targetSize ?? "",
+    courseTypeId: item?.courseTypeId ?? "",
     duration: item?.duration != null ? String(item.duration) : "",
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,

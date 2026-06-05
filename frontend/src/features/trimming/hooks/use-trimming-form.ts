@@ -179,6 +179,11 @@ export function useTrimmingForm(id?: string) {
 
   // 編集モード: サーバーデータを全フィールド復元（初回のみ）
   // rerender-use-ref-transient-values: フラグを useState → useRef に変更して setState-in-effect を排除
+  // ⚠️ レンダー中比較 (inline-comparison) に書き換えてはならない:
+  // localOverrides は下の useActionState action closure (formData 経由) から参照される。
+  // render-phase setState はマウント時の再レンダーパスで action closure を更新しないため、
+  // マウント後に再レンダーなしでサブミットすると action がデフォルト formData を見る
+  // (use-trimming-form.test.ts「受付から既存トリミング記録を開いた保存」で実証済み)。
   const serverDataLoadedRef = useRef(false);
   useEffect(() => {
     if (isEdit && existingTrimming && !serverDataLoadedRef.current) {
@@ -207,6 +212,7 @@ export function useTrimmingForm(id?: string) {
     }
   }, [isEdit, existingTrimming]);
 
+  // appointment 由来の初期反映（初回のみ）。上記と同じ理由で effect 同期が必須。
   const appointmentDataLoadedRef = useRef(false);
   useEffect(() => {
     if (isEdit || !existingAppointmentTrimming || appointmentDataLoadedRef.current) return;
@@ -229,6 +235,7 @@ export function useTrimmingForm(id?: string) {
       staffName: existingAppointmentTrimming.staff || prev.staffName || "",
     }));
     if (existingAppointmentTrimming.styleImage) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStyleImagePreview(existingAppointmentTrimming.styleImage);
     }
     if (existingAppointmentTrimming.completedImage) {

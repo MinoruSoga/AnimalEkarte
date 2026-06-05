@@ -2,7 +2,10 @@ name: Performance Tests (Load & Profiling)
 
 on:
   schedule:
-    - cron: '0 3 * * *'  # 毎日 03:00 JST 実行
+    # GitHub Actions の cron は UTC。0 3 UTC = 12:00 JST（正午）に実行。
+    # ⚠️ STG は毎日 22:00-8:00 JST に自動停止する（enable_off_hours_schedule）。
+    #    この cron は必ず稼働窓 8:00-22:00 JST 内に置くこと（停止窓に動かすと STG ダウンで失敗）。
+    - cron: '0 3 * * *'
   workflow_dispatch:
   push:
     branches: [main, staging]
@@ -66,6 +69,14 @@ jobs:
             sleep 2
           done
           exit 1
+
+      - name: Dump Docker logs on failure
+        if: failure()
+        run: |
+          echo "=== backend logs ==="
+          docker compose logs --no-color backend | tail -100
+          echo "=== db logs ==="
+          docker compose logs --no-color db | tail -50
 
       - name: Run k6 API endpoints load test
         run: |
@@ -146,6 +157,14 @@ jobs:
             sleep 2
           done
           exit 1
+
+      - name: Dump Docker logs on failure
+        if: failure()
+        run: |
+          echo "=== backend logs ==="
+          docker compose logs --no-color backend | tail -100
+          echo "=== db logs ==="
+          docker compose logs --no-color db | tail -50
 
       - name: Run memory profiling
         run: |
@@ -242,6 +261,14 @@ jobs:
             sleep 5
           done
           exit 1
+
+      - name: Dump Docker logs on failure
+        if: failure()
+        run: |
+          echo "=== backend logs ==="
+          docker compose logs --no-color backend | tail -100
+          echo "=== db logs ==="
+          docker compose logs --no-color db | tail -50
 
       - name: Run Lighthouse audit
         run: |

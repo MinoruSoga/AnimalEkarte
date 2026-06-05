@@ -239,6 +239,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 ) (*model.Reservation, error) {
 	appt, err := s.reservation.FindByID(ctx, clinicID, appointmentID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get existing trimming appointment", "error", err, "appointment_id", appointmentID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get existing trimming appointment")
 	}
 	if appt.ReservationType == nil || appt.ReservationType.Category != model.ReservationTypeCategoryTrimming {
@@ -247,6 +248,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 	if existing, err := s.trimmingDetail.FindByAppointmentID(ctx, clinicID, appointmentID); err == nil && existing != nil {
 		return s.GetByID(ctx, clinicID, appointmentID)
 	} else if !apperrors.IsNotFound(err) {
+		slog.ErrorContext(ctx, "failed to check existing trimming detail", "error", err, "appointment_id", appointmentID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to check existing trimming detail")
 	}
 
@@ -316,6 +318,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			CompletedImage:  input.CompletedImage,
 		}
 		if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
+			slog.ErrorContext(txCtx, "failed to create trimming detail", "error", err, "appointment_id", appointmentID, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to create trimming detail")
 		}
 		if len(input.OptionIDs) > 0 {
@@ -325,6 +328,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		}
 		return nil
 	}); err != nil {
+		slog.ErrorContext(ctx, "failed to create trimming detail for existing appointment", "error", err, "appointment_id", appointmentID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create trimming detail for existing appointment")
 	}
 

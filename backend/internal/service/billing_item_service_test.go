@@ -85,6 +85,7 @@ func (m *mockBillingItemRepositoryWithTrimming) FindUnbilledTrimmingItemsByPetID
 
 type mockTreatmentRepositoryForBilling struct {
 	findUnbilledByPetIDFn func(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error)
+	countFinalizedFn      func(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
 }
 
 func (m *mockTreatmentRepositoryForBilling) FindUnbilledByPetID(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error) {
@@ -110,6 +111,27 @@ func (m *mockTreatmentRepositoryForBilling) Delete(_ context.Context, _, _ uint6
 }
 func (m *mockTreatmentRepositoryForBilling) BulkUpdateSortOrder(_ context.Context, _ []repository.TreatmentSortUpdate) error {
 	return nil
+}
+func (m *mockTreatmentRepositoryForBilling) CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error) {
+	if m.countFinalizedFn != nil {
+		return m.countFinalizedFn(ctx, clinicID, petID, date)
+	}
+	return 0, nil
+}
+
+// #77: 同日同ペットの未会計対象化サマリ(診察 count)を service が返すこと。
+func TestBillingItemService_GetUngroupedSameDaySummary(t *testing.T) {
+	treatmentRepo := &mockTreatmentRepositoryForBilling{
+		countFinalizedFn: func(_ context.Context, _, _ uint64, _ time.Time) (int64, error) { return 2, nil },
+	}
+	svc := NewBillingItemService(defaultMockBillingItemRepo(), defaultMockBillingRepo(), treatmentRepo, &mockTransactor{})
+
+	summary, err := svc.GetUngroupedSameDaySummary(context.Background(), 1, 20, time.Now())
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), summary.MedicalRecordCount)
+	// defaultMockBillingItemRepo は ungroupedTrimmingCounter 未実装のため trimming は 0(型アサーション skip)
+	assert.Equal(t, int64(0), summary.TrimmingCount)
 }
 
 func defaultMockTreatmentRepo() *mockTreatmentRepositoryForBilling {
@@ -274,7 +296,7 @@ func TestBillingItemService_CreateItem(t *testing.T) {
 			if tt.billingFindFn != nil {
 				billingRepo.findByIDFn = tt.billingFindFn
 			}
-			svc := NewBillingItemService(repo, billingRepo, defaultMockTreatmentRepo())
+			svc := NewBillingItemService(repo, billingRepo, defaultMockTreatmentRepo(), &mockTransactor{})
 			result, err := svc.CreateItem(context.Background(), tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -347,7 +369,7 @@ func TestBillingItemService_UpdateItem(t *testing.T) {
 			repo.updateFieldsFn = func(_ context.Context, _, _ uint64, _ map[string]any) error {
 				return tt.updateErr
 			}
-			svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo())
+			svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{})
 			result, err := svc.UpdateItem(context.Background(), 1, 1, tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -396,7 +418,7 @@ func TestBillingItemService_DeleteItem(t *testing.T) {
 			repo.deleteFn = func(_ context.Context, _, _ uint64) error {
 				return tt.deleteErr
 			}
-			svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo())
+			svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{})
 			err := svc.DeleteItem(context.Background(), 1, 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -446,7 +468,7 @@ func TestBillingItemService_GetUnbilledItems_IncludesMedicalAndTrimming(t *testi
 			}, nil
 		},
 	}
-	svc := NewBillingItemService(repo, defaultMockBillingRepo(), treatmentRepo)
+	svc := NewBillingItemService(repo, defaultMockBillingRepo(), treatmentRepo, &mockTransactor{})
 
 	items, err := svc.GetUnbilledItems(context.Background(), 1, 20)
 

@@ -73,6 +73,7 @@ type Services struct {
 	// FEAT-368: 集計・締め機能
 	ClosingSettings     ClosingSettingsService
 	PaymentMethodMaster PaymentMethodMasterService
+	TrimmingCourseType  TrimmingCourseTypeService
 	CashRegister        CashRegisterService
 	AccountingReport    AccountingReportService
 
@@ -178,7 +179,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		MedicalRecord:         NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, nil, auditSvc, lstepTagSyncSvc),
 		MedicalRecordAddendum: NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, auditSvc),
 		Hospitalization:       NewHospitalizationService(repos),
-		Accounting:            NewAccountingService(repos.Accounting, lstepTagSyncSvc),
+		Accounting:            NewAccountingService(repos.Accounting, lstepTagSyncSvc, tx),
 		Trimming: NewTrimmingService(
 			repos.Reservation,
 			repos.ReservationType,
@@ -205,14 +206,14 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Consultation:                   NewConsultationService(repos.Consultation),
 		Procedure:                      NewProcedureService(repos.Procedure),
 		HospitalizationPlan:            NewHospitalizationPlanService(repos.HospitalizationPlan),
-		TrimmingCourse:                 NewTrimmingCourseService(repos.TrimmingCourse),
+		TrimmingCourse:                 NewTrimmingCourseService(repos.TrimmingCourse, repos.TrimmingCourseType),
 		TrimmingOption:                 NewTrimmingOptionService(repos.TrimmingOption),
 		ExaminationType:                NewExamTypeService(repos.ExaminationType),
 		DiagnosisType:                  NewDiagnosisTypeService(repos.DiagnosisType),
 		DiagnosisName:                  NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisType),
 		CheckupType:                    NewCheckupTypeService(repos.CheckupType),
 		Clinic:                         NewClinicService(repos.Clinic, repos.PermissionGroup, tx),
-		Examination:                    NewExaminationService(repos.Examination),
+		Examination:                    NewExaminationService(repos.Examination, repos.MedicalRecord, auditSvc),
 		Vaccination:                    NewVaccinationService(repos.Vaccination, lstepTagSyncSvc),
 		Occupation:                     NewOccupationService(repos.Occupation),
 		ChiefComplaintType:             NewChiefComplaintTypeService(repos.ChiefComplaintType),
@@ -230,18 +231,19 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Vital:                          NewVitalService(repos.Vital, repos.MedicalRecord, auditSvc),
 		Treatment:                      NewTreatmentService(repos),
 		DailyRecord:                    NewDailyRecordService(repos.DailyRecord),
-		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage),
+		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord),
 		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan),
 		Checkup:                        NewCheckupService(repos.Checkup, repos.MedicalRecord, nil, lstepTagSyncSvc),
 		Estimate:                       NewEstimateService(repos.Estimate),
 		ManualArticle:                  NewManualArticleService(repos.ManualArticle),
 		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
-		BillingItem:                    NewBillingItemService(repos.BillingItem, repos.Accounting, repos.Treatment),
-		Refund:                         NewRefundService(repos.Refund, repos.Accounting),
+		BillingItem:                    NewBillingItemService(repos.BillingItem, repos.Accounting, repos.Treatment, tx),
+		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditSvc, tx),
 		PasswordReset:                  NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
 		// FEAT-368: 集計・締め機能
 		ClosingSettings:           closingSettingsSvc,
 		PaymentMethodMaster:       NewPaymentMethodMasterService(repos.PaymentMethodMaster),
+		TrimmingCourseType:        NewTrimmingCourseTypeService(repos.TrimmingCourseType),
 		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster),
 		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday),
 		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting),

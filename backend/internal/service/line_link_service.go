@@ -161,13 +161,16 @@ func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, inpu
 
 	// 5. トークン使用済みマーク
 	if err := s.lineLinkTokenRepo.MarkUsed(ctx, lt.ID, time.Now()); err != nil {
-		slog.ErrorContext(ctx, "failed to mark link token used", "error", err)
-		// トークンのマーク失敗は処理続行（二重使用のリスクはあるが紐付けは完了している）
+		slog.ErrorContext(ctx, "failed to mark link token used — aborting to prevent duplicate use", "error", err)
+		// トークンのマーク失敗は即座に返す（二重使用リスク排除）
+		return nil, apperrors.Wrap(err, "failed to mark link token used")
 	}
 
 	// 6. 監査ログ
 	ownerID := lt.OwnerID
-	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "link_line_user_id", "owner", &ownerID)
+	if err := s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "link_line_user_id", "owner", &ownerID); err != nil {
+		slog.WarnContext(ctx, "audit log failed for line user id link", "error", err, "owner_id", ownerID)
+	}
 
 	owner.LineUserID = &lineUserID
 	return owner, nil
@@ -264,7 +267,7 @@ func verifyLineSignature(body []byte, signature, channelSecret string) bool {
 func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, settingRepo repository.LineReservationSettingRepository) (string, error) {
 	setting, err := settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		return "", fmt.Errorf("failed to get line channel id: %w", err)
+		return "", apperrors.Wrap(err, "failed to get line channel id")
 	}
 
 	resp, err := http.PostForm("https://api.line.me/oauth2/v2.1/verify", url.Values{
@@ -272,27 +275,27 @@ func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, set
 		"client_id": {setting.LineChannelID},
 	})
 	if err != nil {
-		return "", fmt.Errorf("line id token verify request failed: %w", err)
+		return "", apperrors.Wrap(err, "line id token verify request failed")
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read verify response: %w", err)
+		return "", apperrors.Wrap(err, "failed to read verify response")
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("line id token verify failed: status=%d body=%s", resp.StatusCode, string(bodyBytes))
+		return "", apperrors.WrapInvalidInput(fmt.Sprintf("line id token verify failed: status=%d body=%s", resp.StatusCode, string(bodyBytes)))
 	}
 
 	var result struct {
 		Sub string `json:"sub"`
 	}
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
-		return "", fmt.Errorf("failed to parse verify response: %w", err)
+		return "", apperrors.Wrap(err, "failed to parse verify response")
 	}
 	if result.Sub == "" {
-		return "", fmt.Errorf("empty sub in verify response")
+		return "", apperrors.WrapInvalidInput("empty sub in verify response")
 	}
 	return result.Sub, nil
 }

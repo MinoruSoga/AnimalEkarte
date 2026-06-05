@@ -65,6 +65,9 @@ func (m *mockAccountingRepositoryForClose) FindAll(_ context.Context, _ uint64, 
 func (m *mockAccountingRepositoryForClose) FindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
 	return nil, nil
 }
+func (m *mockAccountingRepositoryForClose) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
+	return nil, nil
+}
 func (m *mockAccountingRepositoryForClose) Create(_ context.Context, _ uint64, _ *model.Billing) error {
 	return nil
 }
@@ -82,7 +85,7 @@ func (m *mockAccountingRepositoryForClose) SavePaymentSplits(_ context.Context, 
 	return nil
 }
 
-func (m *mockAccountingRepositoryForClose) CompleteAccountingAppointments(_ context.Context, _ uint64, _, _ *uint64, _ time.Time) (int64, error) {
+func (m *mockAccountingRepositoryForClose) CompleteAccountingAppointments(_ context.Context, _ uint64, _, _, _ *uint64, _ time.Time) (int64, error) {
 	return 0, nil
 }
 

@@ -47,8 +47,9 @@ resource "aws_subnet" "private" {
   }
 }
 
-# Elastic IP for NAT Gateway
+# Elastic IP for NAT Gateway (use_nat_instance=false 時のみ)
 resource "aws_eip" "nat" {
+  count  = var.use_nat_instance ? 0 : 1
   domain = "vpc"
 
   tags = {
@@ -58,9 +59,10 @@ resource "aws_eip" "nat" {
   depends_on = [aws_internet_gateway.main]
 }
 
-# NAT Gateway (single for cost optimization)
+# NAT Gateway (use_nat_instance=false 時のみ。true では fck-nat インスタンスに置換)
 resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
+  count         = var.use_nat_instance ? 0 : 1
+  allocation_id = aws_eip.nat[0].id
   subnet_id     = aws_subnet.public[0].id
 
   tags = {
@@ -68,6 +70,105 @@ resource "aws_nat_gateway" "main" {
   }
 
   depends_on = [aws_internet_gateway.main]
+}
+
+# ---- fck-nat: NAT Gateway の代替（コスト最適化, use_nat_instance=true 時のみ）----
+
+# fck-nat 公式 AMI（arm64, owner=fck-nat）
+data "aws_ami" "fck_nat" {
+  count       = var.use_nat_instance ? 1 : 0
+  most_recent = true
+  owners      = ["568608671756"]
+
+  filter {
+    name   = "name"
+    # fck-nat 公式 AMI は Amazon Linux 2023 ベース（fck-nat-al2023-hvm-<ver>-<date>-arm64-ebs）。
+    # nat64 variant（fck-nat-nat64-*）はこのパターンに含まれない。most_recent で最新版を採用。
+    values = ["fck-nat-al2023-hvm-*-arm64-ebs"]
+  }
+}
+
+# fck-nat 用 SG: VPC 内（private subnet）からの全通信を許可、外向き全許可
+resource "aws_security_group" "fck_nat" {
+  count       = var.use_nat_instance ? 1 : 0
+  name        = "${var.name_prefix}-fck-nat-sg"
+  description = "Allow VPC traffic to be NAT-forwarded"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "All traffic from within VPC"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.name_prefix}-fck-nat-sg"
+  }
+}
+
+# fck-nat インスタンス（t4g.nano, public subnet, source/dest check 無効）
+resource "aws_instance" "fck_nat" {
+  count                       = var.use_nat_instance ? 1 : 0
+  ami                         = data.aws_ami.fck_nat[0].id
+  instance_type               = "t4g.nano"
+  subnet_id                   = aws_subnet.public[0].id
+  vpc_security_group_ids      = [aws_security_group.fck_nat[0].id]
+  associate_public_ip_address = true
+  # NAT 転送のため必須
+  source_dest_check = false
+
+  tags = {
+    Name = "${var.name_prefix}-fck-nat"
+  }
+}
+
+# fck-nat 用 EIP（外向き IP を安定化。LINE 等の IP allowlist 対策）
+resource "aws_eip" "fck_nat" {
+  count    = var.use_nat_instance ? 1 : 0
+  domain   = "vpc"
+  instance = aws_instance.fck_nat[0].id
+
+  tags = {
+    Name = "${var.name_prefix}-fck-nat-eip"
+  }
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+data "aws_region" "current" {}
+
+# fck-nat auto-recovery: システムステータスチェック失敗（ホスト障害）時に EC2 が
+# 同一インスタンスを自動回復する。同一 instance-id / ENI / private IP を保持するため
+# route table は据え置きで有効。夜間スケジュールの朝起動が fck-nat 依存になったための保険。
+resource "aws_cloudwatch_metric_alarm" "fck_nat_recover" {
+  count               = var.use_nat_instance ? 1 : 0
+  alarm_name          = "${var.name_prefix}-fck-nat-auto-recover"
+  alarm_description   = "Recover fck-nat instance on system status check failure"
+  namespace           = "AWS/EC2"
+  metric_name         = "StatusCheckFailed_System"
+  statistic           = "Maximum"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = 1
+  period              = 60
+  evaluation_periods  = 2
+  alarm_actions       = ["arn:aws:automate:${data.aws_region.current.name}:ec2:recover"]
+
+  dimensions = {
+    InstanceId = aws_instance.fck_nat[0].id
+  }
+
+  tags = {
+    Name = "${var.name_prefix}-fck-nat-auto-recover"
+  }
 }
 
 # Public Route Table
@@ -93,12 +194,16 @@ resource "aws_route_table_association" "public" {
 }
 
 # Private Route Table
+# 0.0.0.0/0 は inline route で定義（既存 state と整合。standalone aws_route への移行は
+# 既存 inline route との RouteAlreadyExists 競合を起こすため避ける）。
+# toggle 互換: one() で NAT Gateway / fck-nat ENI の存在する方を指す（片方は null = 省略扱い）。
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
   route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main.id
+    cidr_block           = "0.0.0.0/0"
+    nat_gateway_id       = one(aws_nat_gateway.main[*].id)
+    network_interface_id = one(aws_instance.fck_nat[*].primary_network_interface_id)
   }
 
   tags = {

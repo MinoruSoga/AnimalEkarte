@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [staging, production]
+    branches: [main, staging, production]
   push:
     branches: [main]
 
@@ -27,6 +27,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       codegen: ${{ steps.filter.outputs.codegen }}
+      migrations: ${{ steps.filter.outputs.migrations }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -44,6 +45,8 @@ jobs:
               - 'backend/internal/model/**'
               - 'backend/tygo.yaml'
               - 'frontend/src/types/generated/**'
+            migrations:
+              - 'backend/migrations/*.sql'
 
   # ──────────────────────────────────────────────
   # Backend: build + lint + schema check
@@ -51,7 +54,7 @@ jobs:
   backend:
     name: Backend
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.backend == 'true' && (github.event_name != 'pull_request' || github.base_ref != 'main')
     runs-on: ubuntu-latest
 
     services:
@@ -83,8 +86,12 @@ jobs:
         run: |
           for f in backend/migrations/*.sql; do
             echo "Applying $f ..."
-            psql -f "$f"
+            psql -v ON_ERROR_STOP=1 -1 -f "$f"
           done
+
+      - name: Verify seed invariants
+        if: needs.changes.outputs.migrations == 'true'
+        run: python3 scripts/verify_seed.py
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -134,7 +141,7 @@ jobs:
   frontend:
     name: Frontend
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: needs.changes.outputs.frontend == 'true' && (github.event_name != 'pull_request' || github.base_ref != 'main')
     runs-on: ubuntu-latest
 
     steps:
@@ -157,6 +164,14 @@ jobs:
         working-directory: frontend
         run: pnpm install
 
+      - name: Type check
+        working-directory: frontend
+        run: pnpm run type-check
+
+      - name: Test
+        working-directory: frontend
+        run: pnpm run test:run
+
       - name: Lint
         working-directory: frontend
         run: pnpm run lint
@@ -171,7 +186,7 @@ jobs:
   codegen-check:
     name: Codegen Sync
     needs: changes
-    if: needs.changes.outputs.codegen == 'true'
+    if: needs.changes.outputs.codegen == 'true' && (github.event_name != 'pull_request' || github.base_ref != 'main')
     runs-on: ubuntu-latest
 
     steps:
@@ -198,3 +213,47 @@ jobs:
             echo "::error::models.ts is out of sync with Go models. Run 'make codegen' and commit the result."
             exit 1
           fi
+
+  # ──────────────────────────────────────────────
+  # PR to main: lightweight migration guard
+  # ──────────────────────────────────────────────
+  migration-verify:
+    name: Migration Verify
+    needs: changes
+    if: github.event_name == 'pull_request' && github.base_ref == 'main' && needs.changes.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ekarte_user
+          POSTGRES_PASSWORD: ekarte_password
+          POSTGRES_DB: ekarte_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ekarte_user -d ekarte_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Apply migrations
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: ekarte_user
+          PGPASSWORD: ekarte_password
+          PGDATABASE: ekarte_db
+        run: |
+          for f in backend/migrations/*.sql; do
+            echo "Applying $f ..."
+            psql -v ON_ERROR_STOP=1 -1 -f "$f"
+          done
+
+      - name: Verify seed invariants
+        run: python3 scripts/verify_seed.py

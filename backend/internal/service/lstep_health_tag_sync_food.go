@@ -67,14 +67,18 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID,
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add food purchase tag")
 		}
-		_ = s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag, "auto", "購入済")
+		if err := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag, "auto", "購入済"); err != nil {
+			slog.WarnContext(ctx, "failed to upsert tag cache (non-fatal)", "tag", LtvFoodPurchaseTag, "owner_id", ownerID, "error", err)
+		}
 	} else {
 		if delErr := client.RemoveTag(ctx, lineUserID, LtvFoodPurchaseTag); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove food purchase tag", "error", delErr)
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag)
+			if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag); err != nil {
+				slog.WarnContext(ctx, "failed to delete tag cache (non-fatal)", "tag", LtvFoodPurchaseTag, "owner_id", ownerID, "error", err)
+			}
 		}
 	}
 	if !apiFailed {

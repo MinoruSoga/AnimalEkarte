@@ -15,6 +15,8 @@ export { ReservationTypeSettings } from "./routes/ReservationTypeSettings";
 export { StaffSettings } from "./routes/StaffSettings";
 export { TreatmentPlanMaster } from "./routes/TreatmentPlanMaster";
 export { TrimmingSettings } from "./routes/TrimmingSettings";
+export { TrimmingCourseTypeSettings } from "./routes/TrimmingCourseTypeSettings";
+export { useGetTrimmingCourseTypes } from "./api/trimming-course-type";
 
 export { useReservationTypeColorMap } from "./hooks/use-reservation-type-color-map";
 export { useGetCompany } from "./api/company";

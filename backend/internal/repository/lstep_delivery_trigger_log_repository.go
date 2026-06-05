@@ -38,7 +38,7 @@ type LstepDeliveryTriggerLogRepository interface {
 	// ExistsTodayByOwnerAndType は当日同一飼い主・同一トリガー種別のログが存在するか返す（二重発火防止）。
 	ExistsTodayByOwnerAndType(ctx context.Context, clinicID, ownerID uint64, triggerType string, date time.Time) (bool, error)
 	// UpdateStatus はログのステータス・fired_at・excluded_reason を更新する。
-	UpdateStatus(ctx context.Context, id uint64, status string, firedAt *time.Time, excludedReason *string) error
+	UpdateStatus(ctx context.Context, clinicID, id uint64, status string, firedAt *time.Time, excludedReason *string) error
 	// FindByClinicAndDate はクリニック・日付でトリガーログ一覧を返す（管理確認用）。
 	FindByClinicAndDate(ctx context.Context, clinicID uint64, date time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	// CountByStatusAndDateRange はクリニック・期間でステータス別件数マップを返す。triggerType が空なら全種別。
@@ -58,7 +58,7 @@ type LstepDeliveryTriggerLogRepository interface {
 	// FindByOwnerAndDate は同日同 owner_id の既存ログを返す (Q23 suppressed check 用)。
 	FindByOwnerAndDate(ctx context.Context, clinicID, ownerID uint64, date time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	// UpdateSuppressed は既存ログを suppressed_by_priority=true に更新する (Q23 降格処理用)。
-	UpdateSuppressed(ctx context.Context, logID uint64, reason string) error
+	UpdateSuppressed(ctx context.Context, clinicID, logID uint64, reason string) error
 }
 
 type lstepDeliveryTriggerLogRepository struct{ db *gorm.DB }
@@ -89,7 +89,7 @@ func (r *lstepDeliveryTriggerLogRepository) ExistsTodayByOwnerAndType(ctx contex
 	return count > 0, nil
 }
 
-func (r *lstepDeliveryTriggerLogRepository) UpdateStatus(ctx context.Context, id uint64, status string, firedAt *time.Time, excludedReason *string) error {
+func (r *lstepDeliveryTriggerLogRepository) UpdateStatus(ctx context.Context, clinicID, id uint64, status string, firedAt *time.Time, excludedReason *string) error {
 	fields := map[string]any{"status": status}
 	if firedAt != nil {
 		fields["fired_at"] = firedAt
@@ -98,9 +98,12 @@ func (r *lstepDeliveryTriggerLogRepository) UpdateStatus(ctx context.Context, id
 		fields["excluded_reason"] = excludedReason
 	}
 	result := r.db.WithContext(ctx).Model(&model.LstepDeliveryTriggerLog{}).
-		Where("id = ?", id).Updates(fields)
+		Where("id = ? AND clinic_id = ?", id, clinicID).Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "lstep_delivery_trigger_log", "update_status")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("lstep_delivery_trigger_log", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
@@ -298,16 +301,19 @@ func (r *lstepDeliveryTriggerLogRepository) FindByOwnerAndDate(ctx context.Conte
 }
 
 // UpdateSuppressed は既存ログを suppressed_by_priority=true に更新する (Q23 降格処理用)。
-func (r *lstepDeliveryTriggerLogRepository) UpdateSuppressed(ctx context.Context, logID uint64, reason string) error {
-	err := r.db.WithContext(ctx).
+func (r *lstepDeliveryTriggerLogRepository) UpdateSuppressed(ctx context.Context, clinicID, logID uint64, reason string) error {
+	result := r.db.WithContext(ctx).
 		Model(&model.LstepDeliveryTriggerLog{}).
-		Where("id = ?", logID).
+		Where("id = ? AND clinic_id = ?", logID, clinicID).
 		Updates(map[string]any{
 			"suppressed_by_priority": true,
 			"suppression_reason":     reason,
-		}).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "lstep_delivery_trigger_log", fmt.Sprintf("%d", logID))
+		})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "lstep_delivery_trigger_log", fmt.Sprintf("%d", logID))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("lstep_delivery_trigger_log", fmt.Sprintf("%d", logID))
 	}
 	return nil
 }

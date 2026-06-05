@@ -103,8 +103,8 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	livingPets, err := s.petRepo.FindLivingByOwner(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find living pets after pet death", "error", err)
-		// タグ同期失敗は死亡記録を巻き戻さない
-		return nil
+		// DB エラーは呼び出し元に通知（死亡記録の巻き戻しは行わない）
+		return apperrors.Wrap(err, "failed to find living pets after pet death")
 	}
 
 	if len(livingPets) == 0 {
@@ -138,7 +138,9 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	}
 
 	// 監査ログ（best-effort）
-	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "pet_death_tag_sync", "pet", &petID)
+	if err := s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "pet_death_tag_sync", "pet", &petID); err != nil {
+		slog.WarnContext(ctx, "audit log failed for pet death tag sync", "error", err, "pet_id", petID)
+	}
 
 	return nil
 }
@@ -172,7 +174,9 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 	}
 
 	// 監査ログ（best-effort）
-	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "pet_revival_tag_sync", "pet", &petID)
+	if err := s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "pet_revival_tag_sync", "pet", &petID); err != nil {
+		slog.WarnContext(ctx, "audit log failed for pet revival tag sync", "error", err, "pet_id", petID)
+	}
 
 	return nil
 }
@@ -298,7 +302,9 @@ func (s *lstepLifecycleService) removePetDerivedTagsFromLstep(ctx context.Contex
 				if removeErr := client.RemoveTag(ctx, lineUserID, t.TagName); removeErr != nil {
 					slog.ErrorContext(ctx, "failed to remove pet-derived tag", "error", removeErr, "tag", t.TagName)
 				} else {
-					_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName)
+					if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName); delErr != nil {
+						slog.ErrorContext(ctx, "failed to delete pet-derived tag cache", "error", delErr, "tag", t.TagName)
+					}
 				}
 				break
 			}

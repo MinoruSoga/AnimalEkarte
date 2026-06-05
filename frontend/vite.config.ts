@@ -92,6 +92,9 @@ export default defineConfig({
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
           // 日付操作
           'vendor-date': ['date-fns'],
+          // グラフ（recharts + d3 依存で重量級。遅延ロードされる消費側と
+          // 共有できるよう独立チャンクに隔離してキャッシュ効率を上げる）
+          'vendor-charts': ['recharts'],
           // アイコン（全体で最大の外部 JS 資産になりやすい）
           'vendor-icons': ['lucide-react'],
           // その他ユーティリティ
@@ -107,7 +110,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/testing/setup.ts',
     css: true,
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/**', 'e2e/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

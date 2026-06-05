@@ -272,20 +272,22 @@ func buildLstepSettingsResponse(kvMap map[string]string, lastUpdated *time.Time)
 
 func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {
 	if err := s.updateIntegrationCredentials(ctx, clinicID, input); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update integration credentials")
 	}
 	if input.IsSyncEnabled != nil && s.syncSettingsRepo != nil {
 		if err := s.updateSyncEnabled(ctx, clinicID, *input.IsSyncEnabled); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to update sync enabled")
 		}
 	}
 	if err := s.updateClinicSyncConfig(ctx, clinicID, input); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update clinic sync config")
 	}
 
 	resp, err := s.GetSettings(ctx, clinicID)
 	if err == nil && s.auditSvc != nil {
-		_ = s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "update_settings", "clinic", &clinicID)
+		if auditErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "update_settings", "clinic", &clinicID); auditErr != nil {
+			slog.WarnContext(ctx, "audit log failed for update lstep settings", "error", auditErr, "clinic_id", clinicID)
+		}
 	}
 	return resp, err
 }
@@ -296,7 +298,9 @@ func (s *lstepSettingsService) DeleteSettings(ctx context.Context, clinicID uint
 		return apperrors.Wrap(err, "failed to delete lstep settings")
 	}
 	if s.auditSvc != nil {
-		_ = s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "delete_settings", "clinic", &clinicID)
+		if auditErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "delete_settings", "clinic", &clinicID); auditErr != nil {
+			slog.WarnContext(ctx, "audit log failed for delete lstep settings", "error", auditErr, "clinic_id", clinicID)
+		}
 	}
 	return nil
 }

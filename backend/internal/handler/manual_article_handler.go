@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -69,9 +70,9 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 		return
 	}
 
-	// 監査ログ: マニュアル編集（ベストエフォート、失敗は無視）
+	// 監査ログ: マニュアル編集（ベストエフォート、失敗はログ記録）
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
+		if err := h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionManualArticleUpsert,
@@ -80,7 +81,10 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 			NewValue:   saved,
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
-		})
+		}); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to write audit log for manual article upsert",
+				"error", err, "resource_id", saved.ID, "actor_id", staffID)
+		}
 	}
 
 	c.JSON(http.StatusOK, toManualArticleResponse(saved))
@@ -110,9 +114,9 @@ func (h *Handler) DeleteManualArticle(c *gin.Context) {
 		return
 	}
 
-	// 監査ログ: マニュアル削除（ベストエフォート）
+	// 監査ログ: マニュアル削除（ベストエフォート、失敗はログ記録）
 	if staffID, ok := extractStaffID(c); ok {
-		_ = h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
+		if err := h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionManualArticleDelete,
@@ -121,7 +125,10 @@ func (h *Handler) DeleteManualArticle(c *gin.Context) {
 			OldValue:   target,
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
-		})
+		}); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to write audit log for manual article delete",
+				"error", err, "resource_id", target.ID, "actor_id", staffID)
+		}
 	}
 
 	c.Status(http.StatusNoContent)
@@ -134,8 +141,9 @@ func (h *Handler) DeleteManualArticle(c *gin.Context) {
 func (h *Handler) registerManualArticleRoutes(rg *gin.RouterGroup) {
 	manual := rg.Group("/manual/articles")
 	// 閲覧系: 認証済みユーザー全員（マニュアル閲覧は全スタッフ向け）
-	manual.GET("", h.ListManualArticles)
-	manual.GET("/:category/:slug", h.GetManualArticle)
+	// SEC-602: P5 RequirePermission(view) 付与
+	manual.GET("", h.RequirePermission(string(model.ResourceManualEdit), "view"), h.ListManualArticles)
+	manual.GET("/:category/:slug", h.RequirePermission(string(model.ResourceManualEdit), "view"), h.GetManualArticle)
 	manual.GET("/:category/:slug/versions", h.RequirePermission(string(model.ResourceManualEdit), "view"), h.ListManualArticleVersions)
 
 	// 編集系: ResourceManualEdit 権限必須

@@ -31,11 +31,16 @@ async function createCheckupSync(
 
 // POST /v1/clinics/:clinicId/lstep/checkup-sync
 export function useCreateCheckupSync() {
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
-
   return useMutation({
-    mutationFn: (body: CheckupSyncRequest) =>
-      createCheckupSync(clinicId, body),
+    // clinicId 欠落チェックはレンダー中 (フック本体) で throw せず mutationFn 内で行う。
+    // フック本体の throw は ErrorBoundary 頼みになりページ全体を落とすため禁止。
+    mutationFn: (body: CheckupSyncRequest) => {
+      const clinicId = localStorage.getItem("auth_current_clinic:v1");
+      if (!clinicId) {
+        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+      }
+      return createCheckupSync(clinicId, body);
+    },
     onSuccess: () => {
       toast.success("Lステップタグの一括付与が完了しました");
     },

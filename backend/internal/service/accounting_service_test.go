@@ -20,7 +20,7 @@ type mockAccountingRepository struct {
 	createFn            func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	updateFieldsFn      func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	savePaymentSplitsFn func(ctx context.Context, splits []model.PaymentSplit) error
-	completeApptsFn     func(ctx context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
+	completeApptsFn     func(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 	getDailySummaryFn   func(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error)
 }
 
@@ -29,6 +29,13 @@ func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64,
 }
 
 func (m *mockAccountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
+}
+
+func (m *mockAccountingRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
@@ -54,9 +61,9 @@ func (m *mockAccountingRepository) SavePaymentSplits(ctx context.Context, splits
 	return nil
 }
 
-func (m *mockAccountingRepository) CompleteAccountingAppointments(ctx context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+func (m *mockAccountingRepository) CompleteAccountingAppointments(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
 	if m.completeApptsFn != nil {
-		return m.completeApptsFn(ctx, clinicID, ownerID, petID, scheduledDate)
+		return m.completeApptsFn(ctx, clinicID, medicalRecordID, ownerID, petID, scheduledDate)
 	}
 	return 0, nil
 }
@@ -229,7 +236,7 @@ func TestAccountingService_List(t *testing.T) {
 					return tt.repoBillings, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			billings, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -291,7 +298,7 @@ func TestAccountingService_GetByID(t *testing.T) {
 					return tt.repoBilling, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			billing, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -352,7 +359,7 @@ func TestAccountingService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			billing, err := svc.Create(context.Background(), &tt.input)
 
@@ -384,7 +391,7 @@ func TestAccountingService_Create_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewAccountingService(repo, tagSync)
+	svc := NewAccountingService(repo, tagSync, &mockTransactor{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -413,7 +420,7 @@ func TestAccountingService_Create_CompletesSameDayAccountingAppointments(t *test
 			accounting.ID = 30
 			return nil
 		},
-		completeApptsFn: func(_ context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+		completeApptsFn: func(_ context.Context, clinicID uint64, _, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
 			completedClinicID = clinicID
 			completedOwnerID = *ownerID
 			completedPetID = *petID
@@ -421,7 +428,7 @@ func TestAccountingService_Create_CompletesSameDayAccountingAppointments(t *test
 			return 2, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil)
+	svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -437,6 +444,70 @@ func TestAccountingService_Create_CompletesSameDayAccountingAppointments(t *test
 	assert.Equal(t, ownerID, completedOwnerID)
 	assert.Equal(t, petID, completedPetID)
 	assert.Equal(t, scheduledDate, completedDate)
+}
+
+// #77: 会計完了時、診察カードの orphan 残留を防ぐため billing.medical_record_id が
+// CompleteAccountingAppointments に渡ることを検証する。
+func TestAccountingService_Create_PassesMedicalRecordIDToCompleteAppointments(t *testing.T) {
+	medicalRecordID := uint64(42)
+	var gotMedicalRecordID *uint64
+	called := false
+
+	repo := &mockAccountingRepository{
+		createFn: func(_ context.Context, _ uint64, accounting *model.Billing) error {
+			accounting.ID = 30
+			return nil
+		},
+		completeApptsFn: func(_ context.Context, _ uint64, mrID, _, _ *uint64, _ time.Time) (int64, error) {
+			called = true
+			gotMedicalRecordID = mrID
+			return 1, nil
+		},
+	}
+	svc := NewAccountingService(repo, nil, &mockTransactor{})
+
+	_, err := svc.Create(context.Background(), &CreateAccountingInput{
+		ClinicID:        1,
+		MedicalRecordID: &medicalRecordID,
+		Status:          model.BillingStatusCompleted,
+		ScheduledDate:   time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, called, "CompleteAccountingAppointments が呼ばれること")
+	if assert.NotNil(t, gotMedicalRecordID) {
+		assert.Equal(t, medicalRecordID, *gotMedicalRecordID)
+	}
+}
+
+// #77: トリミングのみ会計（medical_record_id なし）では nil が渡り、診察補完がスキップされること。
+func TestAccountingService_Create_NilMedicalRecordIDForTrimmingOnly(t *testing.T) {
+	ownerID := uint64(10)
+	petID := uint64(20)
+	gotNonNil := true
+
+	repo := &mockAccountingRepository{
+		createFn: func(_ context.Context, _ uint64, accounting *model.Billing) error {
+			accounting.ID = 30
+			return nil
+		},
+		completeApptsFn: func(_ context.Context, _ uint64, mrID, _, _ *uint64, _ time.Time) (int64, error) {
+			gotNonNil = mrID != nil
+			return 1, nil
+		},
+	}
+	svc := NewAccountingService(repo, nil, &mockTransactor{})
+
+	_, err := svc.Create(context.Background(), &CreateAccountingInput{
+		ClinicID:      1,
+		OwnerID:       &ownerID,
+		PetID:         &petID,
+		Status:        model.BillingStatusCompleted,
+		ScheduledDate: time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
+	})
+
+	assert.NoError(t, err)
+	assert.False(t, gotNonNil, "medical_record_id 未設定なら nil が渡る")
 }
 
 func TestAccountingService_Update(t *testing.T) {
@@ -511,7 +582,7 @@ func TestAccountingService_Update(t *testing.T) {
 					return tt.repoRet, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			billing, err := svc.Update(context.Background(), &tt.input)
 
@@ -549,7 +620,7 @@ func TestAccountingService_Update_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewAccountingService(repo, tagSync)
+	svc := NewAccountingService(repo, tagSync, &mockTransactor{})
 
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       30,
@@ -594,7 +665,7 @@ func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *test
 				Status:        status,
 			}, nil
 		},
-		completeApptsFn: func(_ context.Context, clinicID uint64, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+		completeApptsFn: func(_ context.Context, clinicID uint64, _, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
 			completedClinicID = clinicID
 			completedOwnerID = *ownerID
 			completedPetID = *petID
@@ -602,7 +673,7 @@ func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *test
 			return 2, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil)
+	svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       30,
@@ -687,7 +758,7 @@ func TestAccountingService_Cancel(t *testing.T) {
 					return tt.findByIDResult, nil
 				},
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			err := svc.Cancel(context.Background(), tt.clinicID, tt.id)
 
@@ -918,7 +989,7 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewAccountingService(repo, nil)
+	svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 	input := &UpdateAccountingInput{
 		ID:            1,
@@ -1027,7 +1098,7 @@ func TestAccountingService_GetDailySummary(t *testing.T) {
 			repo := &mockAccountingRepository{
 				getDailySummaryFn: tt.getDailySummaryFn,
 			}
-			svc := NewAccountingService(repo, nil)
+			svc := NewAccountingService(repo, nil, &mockTransactor{})
 
 			got, err := svc.GetDailySummary(context.Background(), 1, tt.dateStr)
 

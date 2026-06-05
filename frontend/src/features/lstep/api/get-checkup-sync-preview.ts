@@ -67,6 +67,8 @@ export interface CheckupSyncPreviewResponse {
 
 // GET /v1/clinics/:clinicId/lstep/checkup-sync/preview
 export function useGetCheckupSyncPreview(params: CheckupSyncParams | null) {
+  // clinicId 欠落時は throw せず enabled で無効化する (use-reservation-types.ts と同パターン)。
+  // レンダー中の throw は ErrorBoundary 頼みになりページ全体を落とすため禁止。
   const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
 
   return useQuery({
@@ -78,7 +80,7 @@ export function useGetCheckupSyncPreview(params: CheckupSyncParams | null) {
       );
       return data;
     },
-    enabled: params !== null,
+    enabled: params !== null && clinicId !== "",
     staleTime: 0,
   });
 }

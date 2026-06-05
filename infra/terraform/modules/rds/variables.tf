@@ -59,3 +59,12 @@ variable "use_public_access" {
   type        = bool
   default     = false
 }
+
+# publicly_accessible を subnet group 選択から切り離すための独立フラグ。
+# use_public_access=true（public subnet group のまま据え置き = churn 回避）でも
+# これを false にすれば public IP を剥がせる（コスト最適化 + インターネット露出遮断）。
+variable "publicly_accessible" {
+  description = "Whether the RDS instance gets a public IP (independent of subnet group placement)"
+  type        = bool
+  default     = false
+}

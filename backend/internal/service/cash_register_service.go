@@ -330,7 +330,12 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 }
 
 func (s *cashRegisterService) List(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error) {
-	return s.closeRepo.FindAll(ctx, clinicID, startDate, endDate, page, limit)
+	records, total, err := s.closeRepo.FindAll(ctx, clinicID, startDate, endDate, page, limit)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list cash register closes", "error", err)
+		return nil, 0, apperrors.Wrap(err, "failed to list cash register closes")
+	}
+	return records, total, nil
 }
 
 func (s *cashRegisterService) GetByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error) {

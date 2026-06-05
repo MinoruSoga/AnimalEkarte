@@ -75,7 +75,9 @@ func (s *lstepTagSyncService) SyncExclusionTags(ctx context.Context, clinicID, o
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, exclTagDeliveryStop)
+			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, exclTagDeliveryStop); delCacheErr != nil {
+				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", exclTagDeliveryStop)
+			}
 		}
 	}
 
@@ -94,7 +96,9 @@ func (s *lstepTagSyncService) SyncExclusionTags(ctx context.Context, clinicID, o
 			slog.ErrorContext(ctx, "failed to remove EXCL caution tag", "error", delErr)
 			apiFailed = true
 		} else {
-			_ = s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, exclTagDeliveryCaution)
+			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, exclTagDeliveryCaution); delCacheErr != nil {
+				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", exclTagDeliveryCaution)
+			}
 		}
 	}
 

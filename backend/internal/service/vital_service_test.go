@@ -199,7 +199,16 @@ func TestVitalService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewVitalService(repo, &mockMedicalRecordRepository{}, nil)
+			medRecordRepo := &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					// HC-006: Return draft medical record for Create tests (finalized check)
+					return &model.MedicalRecord{
+						ID:     tt.medicalRecordID,
+						Status: model.MedicalRecordStatusDraft,
+					}, nil
+				},
+			}
+			svc := NewVitalService(repo, medRecordRepo, nil)
 
 			vital, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 
@@ -496,7 +505,15 @@ func TestVitalService_Create_AuditLog(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewVitalService(repo, &mockMedicalRecordRepository{}, auditSvc)
+	medRecordRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID:     77,
+				Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+	}
+	svc := NewVitalService(repo, medRecordRepo, auditSvc)
 
 	input := &CreateVitalInput{
 		ClinicID:    1,
@@ -597,7 +614,15 @@ func TestVitalService_AuditFailure_NonFatal(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewVitalService(repo, &mockMedicalRecordRepository{}, auditSvc)
+	medRecordRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID:     77,
+				Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+	}
+	svc := NewVitalService(repo, medRecordRepo, auditSvc)
 
 	input := &CreateVitalInput{
 		ClinicID:    1,

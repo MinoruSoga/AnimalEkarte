@@ -98,7 +98,9 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 	}
 
 	if excluded {
-		_ = s.triggerLogRepo.UpdateStatus(ctx, logID, model.TriggerStatusExcluded, nil, &reason)
+		if updateErr := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, model.TriggerStatusExcluded, nil, &reason); updateErr != nil {
+			slog.WarnContext(ctx, "failed to record trigger log excluded status (non-fatal)", "log_id", logID, "error", updateErr)
+		}
 		return false, nil
 	}
 
@@ -108,7 +110,7 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 		return false, apperrors.Wrap(err, "failed to find owner")
 	}
 
-	if err := s.applyTagAndLog(ctx, client, *owner.LineUserID, tagName, logID); err != nil {
+	if err := s.applyTagAndLog(ctx, clinicID, client, *owner.LineUserID, tagName, logID); err != nil {
 		return false, err
 	}
 	return true, nil

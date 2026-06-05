@@ -45,6 +45,9 @@ function CsvUploadSection() {
       }
       try {
         const clinicId = localStorage.getItem("auth_current_clinic:v1");
+        if (!clinicId) {
+          throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+        }
         const fd = new FormData();
         fd.append("file", file);
         await axios.post(

@@ -137,10 +137,12 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 	// ISSUE-010: 抽出条件と件数を audit_logs.metadata に永続化する（slog の構造化ログを DB にも残す）。
 	//   resource_id は対象者リストが多次元のため使えない（個別 owner_id 単一参照は意味を持たない）。
 	//   よって metadata に集計値・条件をまとめて格納する。
-	_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinicID, actorID,
+	if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinicID, actorID,
 		"checkup_sync_preview", "owner", nil,
 		buildCheckupSyncPreviewMetadata(input, len(owners), eligibleCount, lineLinkedCount, optOutCount, noLivingPetCount),
-	)
+	); err != nil {
+		slog.WarnContext(ctx, "audit log failed for checkup sync preview", "error", err, "clinic_id", clinicID)
+	}
 
 	return &PreviewCheckupSyncResult{
 		Owners:           owners,

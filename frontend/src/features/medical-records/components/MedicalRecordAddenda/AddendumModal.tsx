@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 import { useCreateMedicalRecordAddendum } from "../../hooks/use-medical-record-addenda";
 
 const MAX_REASON_LENGTH = 500;
@@ -37,10 +38,12 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
         onOpenChange(false);
         return { error: null };
       } catch (err) {
-        const apiErr = err as { response?: { status: number } };
-        if (apiErr.response?.status === 409) {
+        const isAxiosError = (e: unknown): e is { response?: { status: number } } =>
+          e !== null && typeof e === 'object' && 'response' in e;
+        if (isAxiosError(err) && err.response?.status === 409) {
           return { error: "確定済みカルテでないため追記できません" };
         }
+        handleApiError(err, "追記の保存");
         return { error: "追記の保存に失敗しました" };
       }
     },

@@ -24,8 +24,8 @@ output "internet_gateway_id" {
 }
 
 output "nat_gateway_id" {
-  description = "NAT Gateway ID"
-  value       = aws_nat_gateway.main.id
+  description = "NAT Gateway ID (null when using fck-nat instance)"
+  value       = one(aws_nat_gateway.main[*].id)
 }
 
 output "public_route_table_id" {

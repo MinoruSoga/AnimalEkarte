@@ -59,14 +59,16 @@ func (s *lstepBatchService) RunNoShowCheckAllClinics(ctx context.Context) error 
 		if count > 0 {
 			slog.InfoContext(ctx, "no-show batch: updated reservations", "clinic_id", clinic.ID, "count", count)
 			// ISSUE-010: 処理件数とエラー件数をメタデータとして永続化する。
-			_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
+			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
 				"batch_no_show_detect", "clinic", &clinic.ID,
 				map[string]any{
 					"operation":       "batch_no_show_detect",
 					"processed_count": count,
 					"error_count":     len(errs),
 				},
-			)
+			); err != nil {
+				slog.WarnContext(ctx, "audit log failed for no-show batch", "error", err, "clinic_id", clinic.ID)
+			}
 		}
 	}
 	return nil

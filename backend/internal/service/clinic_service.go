@@ -211,7 +211,7 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 		return nil
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to create clinic", "error", err)
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create clinic")
 	}
 
 	slog.InfoContext(ctx, "clinic created",

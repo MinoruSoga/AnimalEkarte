@@ -103,6 +103,16 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
+	// HC-006: 親カルテが確定済みの場合は作成拒否
+	parent, err := s.medicalRecordRepo.FindByID(ctx, input.ClinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict("確定済みカルテにバイタルを追加できません")
+	}
+
 	vital := &model.VitalRecord{
 		PetID:           input.PetID,
 		MedicalRecordID: &medicalRecordID,

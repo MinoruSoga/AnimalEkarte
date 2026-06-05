@@ -26,7 +26,8 @@ type JWTClaims struct {
 // httpOnly Cookie を優先して読み、なければ Authorization Bearer ヘッダにフォールバックする。
 // secret には config.Config.JWTSecret、isProduction には cfg.GinMode == "release" を渡す。
 // auditSvc はクリニック切替の監査ログ記録に使用する（ベストエフォート: nil 許容）。
-func Auth(secret string, isProduction bool, auditSvc service.AuditService) gin.HandlerFunc {
+// staffSvc は staff の有効性チェック（is_active && deleted_at IS NULL）に使用する。
+func Auth(secret string, isProduction bool, auditSvc service.AuditService, staffSvc service.StaffService) gin.HandlerFunc {
 	key := []byte(secret)
 	return func(c *gin.Context) {
 		var tokenStr string
@@ -72,6 +73,20 @@ func Auth(secret string, isProduction bool, auditSvc service.AuditService) gin.H
 		// err == nil が確定しているためクレームを安全に格納
 		c.Set("user_id", claims.UserID)
 		c.Set("is_system_admin", claims.IsSystemAdmin)
+
+		// P10: staff 有効性チェック（deactivation / soft-delete 防止）
+		staffID, err := strconv.ParseUint(claims.UserID, 10, 64)
+		if err == nil && staffSvc != nil {
+			staff, getErr := staffSvc.GetByID(c.Request.Context(), staffID)
+			if getErr != nil {
+				slog.WarnContext(c.Request.Context(), "failed to verify staff validity (non-fatal)", "staff_id", staffID, "error", getErr)
+				// 取得失敗は許容（DB 一時障害）→ 続行
+			} else if staff == nil || !staff.IsActive {
+				// 削除済み or 無効化済み
+				respondError(c, http.StatusForbidden, "staff account is no longer active")
+				return
+			}
+		}
 
 		// クリニック切替: X-Clinic-ID ヘッダーが送信された場合、所属チェック後に上書き（BUG-128）
 		clinicID := claims.ClinicID

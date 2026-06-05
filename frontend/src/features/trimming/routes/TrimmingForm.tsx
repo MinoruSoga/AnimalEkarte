@@ -14,6 +14,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { useMasterItems } from "@/hooks/use-master-items";
+import { useGetTrimmingCourseTypes } from "@/features/master";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
@@ -43,7 +44,20 @@ export function TrimmingForm() {
   const { data: coursesRaw = [] } = useMasterItems("trimmingCourse");
   const { data: optionsRaw = [] } = useMasterItems("trimmingOption");
   const { data: staffItems = [] } = useMasterItems("staff");
-  const courses = useMemo(() => coursesRaw.map((c) => ({ ...c, id: String(c.id) })), [coursesRaw]);
+  const { data: courseTypes = [] } = useGetTrimmingCourseTypes();
+  // #73: コース選択で種別が分かるよう、コース名に種別名を併記する（例「[シャンプー] フルコース」）
+  const courseTypeNameById = useMemo(
+    () => new Map(courseTypes.map((t) => [t.id, t.name])),
+    [courseTypes],
+  );
+  const courses = useMemo(
+    () =>
+      coursesRaw.map((c) => {
+        const typeName = c.courseTypeId ? courseTypeNameById.get(c.courseTypeId) : undefined;
+        return { ...c, id: String(c.id), name: typeName ? `[${typeName}] ${c.name}` : c.name };
+      }),
+    [coursesRaw, courseTypeNameById],
+  );
   const options = useMemo(() => optionsRaw.map((o) => ({ ...o, id: String(o.id) })), [optionsRaw]);
 
   const {
@@ -150,11 +164,11 @@ export function TrimmingForm() {
 
   const handleHistoryStartDateChange = useCallback((val: string) => {
     setHistoryDateRangeFrom(val);
-  }, []);
+  }, [setHistoryDateRangeFrom]);
 
   const handleHistoryEndDateChange = useCallback((val: string) => {
     setHistoryDateRangeTo(val);
-  }, []);
+  }, [setHistoryDateRangeTo]);
 
   const activeStaffItems = useMemo(
     () => staffItems.filter((s) => s.status === "active"),

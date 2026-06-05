@@ -42,6 +42,14 @@ func main() {
 	}
 	gin.SetMode(cfg.GinMode)
 
+	// H2: Validate TRUSTED_PROXY_CIDR early to prevent deferred cleanup skip
+	if cfg.GinMode == "release" {
+		if os.Getenv("TRUSTED_PROXY_CIDR") == "" {
+			slog.Error("TRUSTED_PROXY_CIDR is required in production (rate-limit bypass risk)")
+			os.Exit(1)
+		}
+	}
+
 	// DB接続
 	db, err := repository.NewDB(cfg)
 	if err != nil {
@@ -244,6 +252,24 @@ func main() {
 
 	// ルーター設定
 	r := gin.New()
+	// H2: Set trusted proxies to prevent rate-limit bypass via X-Forwarded-For spoofing
+	// TRUSTED_PROXY_CIDR validation is done earlier (line 46-50), so only build list here
+	var trustedProxies []string
+	if cfg.GinMode == "release" {
+		// Production: trust ALB CIDR
+		// e.g., TRUSTED_PROXY_CIDR="10.0.0.0/8" for AWS ALB in private subnet
+		if albCidr := os.Getenv("TRUSTED_PROXY_CIDR"); albCidr != "" {
+			trustedProxies = []string{albCidr}
+			slog.Info("rate-limit: trusting ALB CIDR")
+		}
+	} else {
+		// Development: trust localhost only
+		trustedProxies = []string{"127.0.0.1"}
+	}
+	if err := r.SetTrustedProxies(trustedProxies); err != nil {
+		// Log but continue - SetTrustedProxies failure is non-fatal
+		slog.Warn("failed to set trusted proxies", slog.Any("error", err))
+	}
 	r.Use(gin.Recovery())
 	r.Use(middleware.SecurityHeaders(cfg.GinMode == "release"))
 	r.Use(middleware.RequestID())

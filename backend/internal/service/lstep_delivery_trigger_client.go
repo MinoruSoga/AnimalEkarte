@@ -11,15 +11,21 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *lstepDeliveryTriggerService) applyTagAndLog(ctx context.Context, client lstep.Client, lineUserID, tagName string, logID uint64) error {
+func (s *lstepDeliveryTriggerService) applyTagAndLog(ctx context.Context, clinicID uint64, client lstep.Client, lineUserID, tagName string, logID uint64) error {
 	if err := client.AddTag(ctx, lineUserID, tagName); err != nil {
 		slog.ErrorContext(ctx, "delivery trigger: failed to add tag", "tag", tagName, "error", err)
 		reason := fmt.Sprintf("lstep_add_tag_failed: %s", tagName)
-		_ = s.triggerLogRepo.UpdateStatus(ctx, logID, model.TriggerStatusFailed, nil, &reason)
+		if updateErr := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, model.TriggerStatusFailed, nil, &reason); updateErr != nil {
+			slog.WarnContext(ctx, "failed to record trigger log failed status (non-fatal)", "log_id", logID, "error", updateErr)
+		}
 		return apperrors.Wrap(err, "failed to add lstep tag")
 	}
 	now := time.Now()
-	return s.triggerLogRepo.UpdateStatus(ctx, logID, model.TriggerStatusFired, &now, nil)
+	if err := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, model.TriggerStatusFired, &now, nil); err != nil {
+		slog.ErrorContext(ctx, "failed to update trigger log status", "error", err, "log_id", logID)
+		return apperrors.Wrap(err, "failed to update trigger log status")
+	}
+	return nil
 }
 
 // buildClient はクリニック設定から lstep.Client を構築する。

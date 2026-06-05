@@ -2,20 +2,23 @@ import { useState } from "react";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import {
-  buildCrossRows,
   CsvImportSection,
-  currentYearMonth,
   DeliveryStatsSection,
-  generateMonthOptions,
   VisitConversionSection,
 } from "../components/LstepAnalyticsSections";
+import {
+  buildCrossRows,
+  currentYearMonth,
+  generateMonthOptions,
+} from "../components/LstepAnalyticsModel";
 import { useGetLstepDeliveryStats } from "../api/get-lstep-delivery-stats";
 import { useGetLstepVisitConversion } from "../api/get-lstep-visit-conversion";
 
 const MONTH_OPTIONS = generateMonthOptions(12);
 
 export function LstepAnalyticsPage() {
-  const [yearMonth, setYearMonth] = useState(currentYearMonth());
+  // rerender-lazy-state-init: 初期値の算出は初回のみで足りる
+  const [yearMonth, setYearMonth] = useState(() => currentYearMonth());
   const { data, isLoading, isError } = useGetLstepDeliveryStats(yearMonth);
   const {
     data: visitConversion,

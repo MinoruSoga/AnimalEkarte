@@ -106,6 +106,10 @@ func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicI
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
 	}
+	// P2: RowsAffected == 0 は clinic scope 外 or soft-delete の可能性（NOT FOUND）
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
+	}
 	return nil
 }
 
@@ -116,7 +120,7 @@ func (r *billingItemRepository) HasItemByOwnerSince(ctx context.Context, clinicI
 	var count int64
 	err := r.db.WithContext(ctx).Model(&model.BillingItem{}).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id").
-		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.issued_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
+		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.completed_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
 		Where("billing_items.name IN ? AND billing_items.deleted_at IS NULL", names).
 		Count(&count).Error
 	if err != nil {
@@ -140,7 +144,7 @@ func (r *billingItemRepository) FindOwnersByCategoryPurchaseDate(ctx context.Con
 		  AND billing_items.deleted_at IS NULL
 		  AND billing_items.category = ?
 		GROUP BY billings.owner_id
-		HAVING MAX(billings.issued_at::date) = ?::date
+		HAVING MAX(billings.completed_at::date) = ?::date
 	`, clinicID, category, target).Scan(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("clinic=%d category=%s date=%s", clinicID, category, target))
@@ -155,7 +159,7 @@ func (r *billingItemRepository) FindOwnersByCategoryPurchaseDate(ctx context.Con
 func (r *billingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
 	q := r.db.WithContext(ctx).Model(&model.BillingItem{}).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id").
-		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.issued_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
+		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.completed_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
 		Where("billing_items.deleted_at IS NULL")
 	if len(names) > 0 {
 		q = q.Where("billing_items.name IN ?", names)
@@ -265,4 +269,26 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 		})
 	}
 	return items, nil
+}
+
+// CountNonAccountingTrimmingByPetAndDate は同日同ペットの「未会計対象化」トリミング appointment 件数を返す(#77)。
+// トリミング予約区分で status が accounting/completed/cancelled でない = まだ会計待ちに進んでいない取り残し候補。
+func (r *billingItemRepository) CountNonAccountingTrimmingByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Reservation{}).
+		Joins("JOIN reservation_types rt ON rt.id = appointments.reservation_type_id AND rt.deleted_at IS NULL").
+		Where("appointments.clinic_id = ? AND appointments.pet_id = ? AND appointments.deleted_at IS NULL", clinicID, petID).
+		Where("rt.category = ?", model.ReservationTypeCategoryTrimming).
+		Where("appointments.status NOT IN ?", []model.ReservationStatus{
+			model.ReservationStatusAccounting,
+			model.ReservationStatusCompleted,
+			model.ReservationStatusCancelled,
+		}).
+		Where("DATE(appointments.start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", date).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "appointment", fmt.Sprintf("clinic=%d pet=%d trimming", clinicID, petID))
+	}
+	return count, nil
 }

@@ -79,6 +79,10 @@ func (s *prescriptionService) Create(ctx context.Context, clinicID, medicalRecor
 	if mr.OwnerID == nil {
 		return nil, apperrors.WrapInvalidInput("medical record has no owner")
 	}
+	// Prevent adding prescriptions to finalized medical records
+	if mr.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict("確定済みの診療記録には処方を追加できません")
+	}
 
 	p := &model.Prescription{
 		ClinicID:        clinicID,
@@ -109,6 +113,14 @@ func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecor
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("prescription", fmt.Sprintf("%d", prescriptionID))
 	}
+	// Prevent updating prescriptions for finalized medical records
+	mr, err := s.medRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get medical record")
+	}
+	if mr != nil && mr.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict("確定済みの診療記録の処方は編集できません")
+	}
 	fields := buildPrescriptionUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -136,6 +148,14 @@ func (s *prescriptionService) Delete(ctx context.Context, clinicID, medicalRecor
 	}
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("prescription", fmt.Sprintf("%d", prescriptionID))
+	}
+	// Prevent deleting prescriptions for finalized medical records
+	mr, err := s.medRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to get medical record")
+	}
+	if mr != nil && mr.Status == model.MedicalRecordStatusFinalized {
+		return apperrors.WrapConflict("確定済みの診療記録の処方は削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, prescriptionID); err != nil {
 		return apperrors.Wrap(err, "failed to delete prescription")

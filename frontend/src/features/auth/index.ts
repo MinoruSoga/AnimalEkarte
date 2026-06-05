@@ -1,5 +1,6 @@
 export { AuthProvider, useAuth } from "./hooks/use-auth";
 export { usePermission } from "./hooks/use-permission";
+export { ME_QUERY_KEY } from "./api/get-me";
 export { Login } from "./routes/Login";
 // 実装は共有レイヤ（@/components/shared/ChangePasswordDialog/）。
 // auth ドメインの公開 API として feature index から再エクスポートする。

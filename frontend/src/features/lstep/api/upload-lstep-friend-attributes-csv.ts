@@ -5,9 +5,12 @@ import type { LstepCsvImportItem } from "./get-lstep-csv-imports";
 // POST /api/v1/clinics/:clinic_id/lstep/csv-imports/friend-attributes (multipart)
 export function useUploadLstepFriendAttributesCsv() {
   const queryClient = useQueryClient();
+  const clinicId = localStorage.getItem("auth_current_clinic:v1");
+  if (!clinicId) {
+    throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+  }
   return useMutation({
     mutationFn: async (file: File) => {
-      const clinicId = localStorage.getItem("auth_current_clinic:v1");
       const formData = new FormData();
       formData.append("file", file);
       const { data } = await axios.post<LstepCsvImportItem>(

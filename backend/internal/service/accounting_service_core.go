@@ -61,7 +61,7 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		slog.Uint64("clinic_id", input.ClinicID))
 	if billing.Status == model.BillingStatusCompleted {
 		if err := s.completeAccountingAppointments(ctx, input.ClinicID, billing); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to complete accounting appointments during create")
 		}
 		s.syncCPMStageTag(ctx, input.ClinicID, billing)
 	}
@@ -69,7 +69,8 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 }
 
 func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error) {
-	if _, err := s.repo.FindByID(ctx, input.ClinicID, input.ID); err != nil {
+	_, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to find accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find accounting")
 	}
@@ -79,7 +80,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	}
 	// 混在会計バリデーション
 	if err := validatePaymentSplits(input.PaymentSplits, input.BillingAmount); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate payment splits")
 	}
 	fields := buildAccountingUpdate(input)
 	if len(fields) == 0 && !hasPaymentFields(input) {
@@ -94,22 +95,27 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		}
 	}
 
-	// Payment upsert（支払フィールドが含まれている場合）
+	// Payment upsert（支払フィールドが含まれている場合）— トランザクション内で SavePayment + SavePaymentSplits を実行
 	if hasPaymentFields(input) {
-		payment := buildPaymentFromInput(input)
-		if err := s.repo.SavePayment(ctx, payment); err != nil {
-			slog.ErrorContext(ctx, "failed to upsert payment", "error", err)
+		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+			payment := buildPaymentFromInput(input)
+			if err := s.repo.SavePayment(txCtx, payment); err != nil {
+				slog.ErrorContext(txCtx, "failed to upsert payment", "error", err)
+				return apperrors.Wrap(err, "failed to upsert payment")
+			}
+			// payment_splits の更新（混在会計・backward compat 両対応）
+			splits := buildPaymentSplits(input)
+			if err := s.repo.SavePaymentSplits(txCtx, splits); err != nil {
+				slog.ErrorContext(txCtx, "failed to save payment splits", "error", err)
+				return apperrors.Wrap(err, "failed to save payment splits")
+			}
+			slog.InfoContext(txCtx, "payment upserted",
+				slog.Uint64("clinic_id", input.ClinicID),
+				slog.Uint64("billing_id", input.ID))
+			return nil
+		}); err != nil {
 			return nil, apperrors.Wrap(err, "failed to upsert payment")
 		}
-		// payment_splits の更新（混在会計・backward compat 両対応）
-		splits := buildPaymentSplits(input)
-		if err := s.repo.SavePaymentSplits(ctx, splits); err != nil {
-			slog.ErrorContext(ctx, "failed to save payment splits", "error", err)
-			return nil, apperrors.Wrap(err, "failed to save payment splits")
-		}
-		slog.InfoContext(ctx, "payment upserted",
-			slog.Uint64("clinic_id", input.ClinicID),
-			slog.Uint64("billing_id", input.ID))
 	}
 
 	// 更新後のレコードを返す
@@ -124,7 +130,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		slog.Uint64("clinic_id", input.ClinicID))
 	if input.Status != nil && *input.Status == model.BillingStatusCompleted {
 		if err := s.completeAccountingAppointments(ctx, input.ClinicID, accounting); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to complete accounting appointments during update")
 		}
 		s.syncCPMStageTag(ctx, input.ClinicID, accounting)
 	}
@@ -132,7 +138,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 }
 
 func (s *accountingService) completeAccountingAppointments(ctx context.Context, clinicID uint64, billing *model.Billing) error {
-	updated, err := s.repo.CompleteAccountingAppointments(ctx, clinicID, billing.OwnerID, billing.PetID, billing.ScheduledDate)
+	updated, err := s.repo.CompleteAccountingAppointments(ctx, clinicID, billing.MedicalRecordID, billing.OwnerID, billing.PetID, billing.ScheduledDate)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to complete accounting appointments",
 			slog.Uint64("clinic_id", clinicID),

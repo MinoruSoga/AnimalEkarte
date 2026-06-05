@@ -72,14 +72,16 @@ func (s *lstepBatchService) RunDeliveryTriggerBatchAllClinics(ctx context.Contex
 		}
 		if count > 0 {
 			slog.InfoContext(ctx, "delivery trigger batch: fired triggers", "clinic_id", clinic.ID, "count", count)
-			_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
+			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
 				"batch_delivery_trigger", "clinic", &clinic.ID,
 				map[string]any{
 					"operation":       "batch_delivery_trigger",
 					"processed_count": count,
 					"error_count":     len(errs),
 				},
-			)
+			); err != nil {
+				slog.WarnContext(ctx, "audit log failed for delivery trigger batch", "error", err, "clinic_id", clinic.ID)
+			}
 		}
 	}
 	return nil

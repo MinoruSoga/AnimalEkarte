@@ -26,14 +26,15 @@ resource "aws_db_instance" "main" {
   engine         = "postgres"
   engine_version = "16.4"
 
-  instance_class        = var.instance_class
-  allocated_storage     = var.allocated_storage
-  storage_type          = "gp3"
-  storage_encrypted     = true
-  publicly_accessible   = var.use_public_access
-  multi_az              = false
-  deletion_protection   = false
-  skip_final_snapshot   = true
+  instance_class    = var.instance_class
+  allocated_storage = var.allocated_storage
+  storage_type      = "gp3"
+  storage_encrypted = true
+  # コスト最適化 + セキュリティ: public IP を剥がす（subnet group は use_public_access のまま据え置き）。
+  publicly_accessible     = var.publicly_accessible
+  multi_az                = false
+  deletion_protection     = false
+  skip_final_snapshot     = true
   backup_retention_period = var.backup_retention_period
 
   db_name  = var.db_name

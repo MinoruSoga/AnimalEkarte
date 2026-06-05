@@ -225,7 +225,9 @@ func (s *lstepTagService) AddOwnerTag(ctx context.Context, clinicID, ownerID uin
 		slog.ErrorContext(ctx, "failed to upsert tag cache after add", "error", cacheErr, "tag", tagName)
 	}
 
-	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "add_tag", "owner", &ownerID)
+	if err := s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "add_tag", "owner", &ownerID); err != nil {
+		slog.WarnContext(ctx, "audit log failed for add tag", "error", err, "owner_id", ownerID, "tag", tagName)
+	}
 
 	return nil
 }
@@ -270,7 +272,9 @@ func (s *lstepTagService) RemoveOwnerTag(ctx context.Context, clinicID, ownerID 
 		slog.ErrorContext(ctx, "failed to delete tag cache after remove", "error", cacheErr, "tag", tagName)
 	}
 
-	_ = s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "remove_tag", "owner", &ownerID)
+	if err := s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "remove_tag", "owner", &ownerID); err != nil {
+		slog.WarnContext(ctx, "audit log failed for remove tag", "error", err, "owner_id", ownerID, "tag", tagName)
+	}
 
 	return nil
 }
@@ -294,6 +298,10 @@ func (s *lstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, 
 	}
 
 	result := &BulkAddOwnerTagResult{FailedOwnerIDs: []uint64{}}
+
+	// PERF-04: Cache owners in memory to avoid N+1 queries (1 per owner → 1 total)
+	// Build owner map: fetch all owners upfront
+	ownerMap := make(map[uint64]*model.Owner)
 	for _, ownerID := range ownerIDs {
 		owner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
 		if findErr != nil {
@@ -301,6 +309,17 @@ func (s *lstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, 
 			result.FailedOwnerIDs = append(result.FailedOwnerIDs, ownerID)
 			continue
 		}
+		ownerMap[ownerID] = owner
+	}
+
+	// Process owners from cache
+	for _, ownerID := range ownerIDs {
+		owner, ok := ownerMap[ownerID]
+		if !ok {
+			// Already marked as failed above
+			continue
+		}
+
 		if owner.LstepOptOut || owner.LineUserID == nil || *owner.LineUserID == "" {
 			result.SkippedCount++
 			continue
@@ -320,7 +339,7 @@ func (s *lstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, 
 
 	// ISSUE-010: LTV/CPM 一括同期や健診一括タグ付与の件数を audit_logs.metadata に永続化する。
 	failedCount := len(result.FailedOwnerIDs)
-	_ = s.auditSvc.LogLstepOperationWithMetadata(ctx, clinicID, actorID,
+	if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinicID, actorID,
 		"bulk_add_tag", "owner", nil,
 		map[string]any{
 			"operation":       "bulk_add_tag",
@@ -330,7 +349,9 @@ func (s *lstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, 
 			"skipped_count":   result.SkippedCount,
 			"failed_count":    failedCount,
 		},
-	)
+	); err != nil {
+		slog.WarnContext(ctx, "audit log failed for bulk add tag", "error", err, "tag", tagName, "count", len(ownerIDs))
+	}
 
 	return result, nil
 }

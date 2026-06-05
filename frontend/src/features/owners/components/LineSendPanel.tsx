@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/sheet";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, STYLE } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 import { useGetOwnerLineTags } from "../api/get-owner-line-tags";
 import { useSendLineMessage } from "../api/send-line-message";
 import type { LineSendType } from "../api/send-line-message";
@@ -67,10 +68,8 @@ export function LineSendPanel({
           await sendMessage({ message_type: "text", text, purpose });
           return { error: null, success: true };
         } catch (err: unknown) {
-          const msg =
-            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-            "送信に失敗しました。しばらく待ってから再試行してください";
-          return { error: msg, success: false };
+          handleApiError(err, "LINE送信");
+          return { error: "送信に失敗しました。しばらく待ってから再試行してください", success: false };
         }
       }
 
@@ -83,10 +82,8 @@ export function LineSendPanel({
       try {
         uploaded = await uploadLineFile(ownerId, file);
       } catch (err: unknown) {
-        const msg =
-          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-          "ファイルのアップロードに失敗しました";
-        return { error: msg, success: false };
+        handleApiError(err, "ファイルアップロード");
+        return { error: "ファイルのアップロードに失敗しました", success: false };
       }
       try {
         await sendMessage({
@@ -97,10 +94,8 @@ export function LineSendPanel({
         });
         return { error: null, success: true };
       } catch (err: unknown) {
-        const msg =
-          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-          "送信に失敗しました。しばらく待ってから再試行してください";
-        return { error: msg, success: false };
+        handleApiError(err, "LINE送信");
+        return { error: "送信に失敗しました。しばらく待ってから再試行してください", success: false };
       }
     },
     INITIAL_STATE

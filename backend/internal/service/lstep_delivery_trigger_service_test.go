@@ -62,7 +62,7 @@ func (m *mockDeliveryTriggerLogRepository) ExistsTodayByOwnerAndType(ctx context
 	}
 	return false, nil
 }
-func (m *mockDeliveryTriggerLogRepository) UpdateStatus(ctx context.Context, id uint64, status string, firedAt *time.Time, excludedReason *string) error {
+func (m *mockDeliveryTriggerLogRepository) UpdateStatus(ctx context.Context, clinicID, id uint64, status string, firedAt *time.Time, excludedReason *string) error {
 	if m.updateStatusFn != nil {
 		return m.updateStatusFn(ctx, id, status, firedAt, excludedReason)
 	}
@@ -98,7 +98,7 @@ func (m *mockDeliveryTriggerLogRepository) CountVisitConversionsByType(_ context
 func (m *mockDeliveryTriggerLogRepository) FindByOwnerAndDate(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 	return nil, nil
 }
-func (m *mockDeliveryTriggerLogRepository) UpdateSuppressed(_ context.Context, _ uint64, _ string) error {
+func (m *mockDeliveryTriggerLogRepository) UpdateSuppressed(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
 
