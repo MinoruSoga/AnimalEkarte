@@ -253,6 +253,8 @@ type createBillingItemRequest struct {
 	Name                  string  `json:"name"      binding:"required"`
 	UnitPrice             int64   `json:"unit_price" binding:"min=0"`
 	Quantity              float64 `json:"quantity"   binding:"min=0"`
+	DiscountRate          float64 `json:"discount_rate" binding:"min=0,max=100"`
+	DiscountAmount        int64   `json:"discount_amount" binding:"min=0"`
 	TaxType               string  `json:"tax_type"  binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate               float64 `json:"tax_rate"`
 	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
@@ -272,6 +274,8 @@ func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *service.Crea
 		Name:                  r.Name,
 		UnitPrice:             r.UnitPrice,
 		Quantity:              r.Quantity,
+		DiscountRate:          r.DiscountRate,
+		DiscountAmount:        r.DiscountAmount,
 		TaxType:               r.TaxType,
 		TaxRate:               r.TaxRate,
 		IsInsuranceApplicable: r.IsInsuranceApplicable,
@@ -288,6 +292,8 @@ func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *service.Crea
 type updateBillingItemRequest struct {
 	UnitPrice             *int64   `json:"unit_price"`
 	Quantity              *float64 `json:"quantity"`
+	DiscountRate          *float64 `json:"discount_rate" binding:"omitempty,min=0,max=100"`
+	DiscountAmount        *int64   `json:"discount_amount" binding:"omitempty,min=0"`
 	TaxType               *string  `json:"tax_type"  binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate               *float64 `json:"tax_rate"`
 	IsInsuranceApplicable *bool    `json:"is_insurance_applicable"`
@@ -306,6 +312,8 @@ func (r updateBillingItemRequest) toServiceInput() (*service.UpdateBillingItemIn
 	return &service.UpdateBillingItemInput{
 		UnitPrice:             r.UnitPrice,
 		Quantity:              r.Quantity,
+		DiscountRate:          r.DiscountRate,
+		DiscountAmount:        r.DiscountAmount,
 		TaxType:               taxType,
 		TaxRate:               r.TaxRate,
 		IsInsuranceApplicable: r.IsInsuranceApplicable,

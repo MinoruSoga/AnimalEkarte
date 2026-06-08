@@ -143,6 +143,8 @@ type billingItemResponse struct {
 	Name                  string    `json:"name"`
 	UnitPrice             int64     `json:"unit_price"`
 	Quantity              float64   `json:"quantity"`
+	DiscountRate          float64   `json:"discount_rate"`
+	DiscountAmount        int64     `json:"discount_amount"`
 	Subtotal              int64     `json:"subtotal"`
 	TaxType               string    `json:"tax_type"`
 	TaxRate               float64   `json:"tax_rate"`
@@ -231,7 +233,8 @@ type accountingResponse struct {
 }
 
 func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
-	subtotal := int64(float64(item.UnitPrice) * item.Quantity)
+	// #85: subtotal は割引後（単価×数量 − 割引額）。負値は 0 クランプ。
+	subtotal := max(int64(float64(item.UnitPrice)*item.Quantity)-item.DiscountAmount, 0)
 	taxAmount := item.CalculateTaxAmount()
 	return billingItemResponse{
 		ID:                    item.ID,
@@ -240,6 +243,8 @@ func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
 		Name:                  item.Name,
 		UnitPrice:             item.UnitPrice,
 		Quantity:              item.Quantity,
+		DiscountRate:          item.DiscountRate,
+		DiscountAmount:        item.DiscountAmount,
 		Subtotal:              subtotal,
 		TaxType:               string(item.TaxType),
 		TaxRate:               item.TaxRate,
