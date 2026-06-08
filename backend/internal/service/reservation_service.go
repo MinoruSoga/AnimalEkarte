@@ -412,29 +412,39 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	// 時刻・医師の変更がある場合のみ競合チェックが必要
 	needsConflictCheck := input.StartTime != nil || input.EndTime != nil || input.DoctorID != nil
 
+	var updated *model.Reservation
 	if !needsConflictCheck {
 		// 時刻・医師変更なし: トランザクション不要。リポジトリ経由で直接更新
-		updated, err := s.repo.Update(ctx, clinicID, id, fields)
+		u, err := s.repo.Update(ctx, clinicID, id, fields)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update reservation", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update reservation")
 		}
-		slog.InfoContext(ctx, "reservation updated",
-			slog.Uint64("reservation_id", id),
-			slog.Uint64("clinic_id", clinicID))
-		return updated, nil
+		updated = u
+	} else {
+		// 時刻・医師変更あり: SELECT FOR UPDATE + トランザクションで競合を防止
+		u, err := s.updateWithConflictCheck(ctx, clinicID, id, fields, input)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to update reservation", "error", err)
+			return nil, apperrors.Wrap(err, "failed to update reservation")
+		}
+		updated = u
 	}
 
-	// 時刻・医師変更あり: SELECT FOR UPDATE + トランザクションで競合を防止
-	result, err := s.updateWithConflictCheck(ctx, clinicID, id, fields, input)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to update reservation", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update reservation")
+	// Q7: キャンセルされた予約は予約管理から消す（ソフトデリート）。
+	// repo.Update 後の FindByID は deleted_at IS NULL のためレコードを返せないので、
+	// status=cancelled へ更新（updated 取得）した後に Delete でソフトデリートする。
+	if input.Status != nil && *input.Status == model.ReservationStatusCancelled {
+		if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+			slog.ErrorContext(ctx, "failed to soft-delete cancelled reservation", "error", err)
+			return nil, apperrors.Wrap(err, "failed to soft-delete cancelled reservation")
+		}
 	}
+
 	slog.InfoContext(ctx, "reservation updated",
 		slog.Uint64("reservation_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return result, nil
+	return updated, nil
 }
 func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error) {
 	if input.Route != "" {

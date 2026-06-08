@@ -125,7 +125,11 @@ func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, c
 		Scopes(clinicScope(clinicID)).
 		Where("id = ? AND line_customer_id = ? AND status != ?",
 			id, customerID, model.ReservationStatusCancelled).
-		Update("status", model.ReservationStatusCancelled)
+		// Q7: キャンセルは予約管理から消す（ソフトデリート）。status を残しつつ deleted_at をセット
+		Updates(map[string]any{
+			"status":     model.ReservationStatusCancelled,
+			"deleted_at": time.Now(),
+		})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "appointment", fmt.Sprintf("%d", id))
 	}

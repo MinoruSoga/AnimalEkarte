@@ -612,6 +612,29 @@ func TestReservationService_Update(t *testing.T) {
 	}
 }
 
+// Q7: キャンセル(status=cancelled)への更新時は repo.Delete でソフトデリートし、
+// 予約管理(FindAll の deleted_at IS NULL)から除外されることを保証する。
+func TestReservationService_Update_CancelledSoftDeletes(t *testing.T) {
+	statusCancelled := model.ReservationStatusCancelled
+	deleteCalled := false
+	repo := &mockReservationRepository{
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			return &model.Reservation{ID: 1, ClinicID: 1, Status: model.ReservationStatusCancelled}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleteCalled = true
+			return nil
+		},
+	}
+	svc := NewReservationService(repo, nil)
+
+	reservation, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusCancelled})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, reservation)
+	assert.True(t, deleteCalled, "キャンセル時は repo.Delete でソフトデリートされるべき")
+}
+
 func TestReservationService_Update_RejectsExcludedStaffWhenTypeChanges(t *testing.T) {
 	doctorID := uint64(10)
 	nextTypeID := uint64(5)
