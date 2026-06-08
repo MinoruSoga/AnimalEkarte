@@ -123,6 +123,33 @@ func TestCalculateBillingTotals(t *testing.T) {
 			wantTotalAmount: 2700, // 2600 + 外税100のみ
 		},
 		{
+			name: "#85 外税 + 割引額 - 割引後の課税ベースで計算",
+			items: []model.BillingItem{
+				{UnitPrice: 1000, Quantity: 2, DiscountAmount: 500, TaxType: model.TaxTypeExcluded, TaxRate: 0.10},
+			},
+			wantSubtotal:    1500, // 2000 - 500
+			wantTaxTotal:    150,  // round(1500 * 0.10)
+			wantTotalAmount: 1650, // 1500 + 外税150
+		},
+		{
+			name: "#85 内税 + 割引額 - 割引後の税込価格から内数",
+			items: []model.BillingItem{
+				{UnitPrice: 1100, Quantity: 1, DiscountAmount: 100, TaxType: model.TaxTypeIncluded, TaxRate: 0.10},
+			},
+			wantSubtotal:    1000, // 1100 - 100
+			wantTaxTotal:    91,   // round(1000 * 0.10 / 1.10)
+			wantTotalAmount: 1000, // 内税は加算なし
+		},
+		{
+			name: "#85 割引額が小計を超過 - 0 にクランプ",
+			items: []model.BillingItem{
+				{UnitPrice: 500, Quantity: 1, DiscountAmount: 800, TaxType: model.TaxTypeExcluded, TaxRate: 0.10},
+			},
+			wantSubtotal:    0,
+			wantTaxTotal:    0,
+			wantTotalAmount: 0,
+		},
+		{
 			name:            "明細なし",
 			items:           []model.BillingItem{},
 			wantSubtotal:    0,
