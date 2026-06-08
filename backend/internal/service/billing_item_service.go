@@ -16,6 +16,8 @@ import (
 const (
 	colBillingItemUnitPrice             = "unit_price"
 	colBillingItemQuantity              = "quantity"
+	colBillingItemDiscountRate          = "discount_rate"
+	colBillingItemDiscountAmount        = "discount_amount"
 	colBillingItemTaxType               = "tax_type"
 	colBillingItemTaxRate               = "tax_rate"
 	colBillingItemIsInsuranceApplicable = "is_insurance_applicable"
@@ -31,6 +33,8 @@ type CreateBillingItemInput struct {
 	Name                  string
 	UnitPrice             int64
 	Quantity              float64
+	DiscountRate          float64
+	DiscountAmount        int64
 	TaxType               string // "" = デフォルト "excluded"
 	TaxRate               float64
 	IsInsuranceApplicable bool
@@ -46,6 +50,8 @@ type CreateBillingItemInput struct {
 type UpdateBillingItemInput struct {
 	UnitPrice             *int64
 	Quantity              *float64
+	DiscountRate          *float64
+	DiscountAmount        *int64
 	TaxType               *model.TaxType
 	TaxRate               *float64
 	IsInsuranceApplicable *bool
@@ -58,6 +64,12 @@ func buildBillingItemUpdate(input *UpdateBillingItemInput) map[string]any {
 	}
 	if input.Quantity != nil {
 		fields[colBillingItemQuantity] = *input.Quantity
+	}
+	if input.DiscountRate != nil {
+		fields[colBillingItemDiscountRate] = *input.DiscountRate
+	}
+	if input.DiscountAmount != nil {
+		fields[colBillingItemDiscountAmount] = *input.DiscountAmount
 	}
 	if input.TaxType != nil {
 		fields[colBillingItemTaxType] = *input.TaxType
@@ -164,6 +176,8 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		Name:                  input.Name,
 		UnitPrice:             input.UnitPrice,
 		Quantity:              input.Quantity,
+		DiscountRate:          input.DiscountRate,
+		DiscountAmount:        input.DiscountAmount,
 		TaxType:               taxType,
 		TaxRate:               taxRate,
 		IsInsuranceApplicable: input.IsInsuranceApplicable,

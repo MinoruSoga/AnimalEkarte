@@ -99,6 +99,8 @@ type BillingItem struct {
 	Name                  string         `gorm:"not null;default:''"                            json:"name"`
 	UnitPrice             int64          `gorm:"not null;default:0"                             json:"unit_price"`
 	Quantity              float64        `gorm:"type:numeric(10,1);not null;default:1"          json:"quantity"`
+	DiscountRate          float64        `gorm:"type:numeric(5,2);not null;default:0"           json:"discount_rate"`
+	DiscountAmount        int64          `gorm:"not null;default:0"                             json:"discount_amount"`
 	TaxType               TaxType        `gorm:"type:tax_type;not null;default:excluded"        json:"tax_type"`
 	TaxRate               float64        `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
 	IsInsuranceApplicable bool           `gorm:"default:false"                                  json:"is_insurance_applicable"`
