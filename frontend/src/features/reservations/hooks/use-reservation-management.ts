@@ -1,7 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { addHours } from "date-fns";
+import { addHours, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, format } from "date-fns";
+import { ja } from "date-fns/locale";
 import type {
+  CalendarView,
   Reservation,
   ReservationFormData,
   NavigationState,
@@ -14,12 +16,32 @@ import { useReservationRecordNavigation } from "./use-reservation-record-navigat
 
 const EMPTY_RESERVATIONS: Reservation[] = [];
 
-export function useReservationManagement() {
+interface UseReservationManagementParams {
+  currentDate: Date;
+  view: CalendarView;
+  days: 5 | 7;
+}
+
+export function useReservationManagement({ currentDate, view, days }: UseReservationManagementParams) {
   const navigate = useNavigate();
   const location = useLocation();
   const locationFrom = (location.state as NavigationState | null)?.from ?? null;
 
-  const { data: appointments = EMPTY_RESERVATIONS, isLoading } = useGetReservations();
+  // 表示中の週/月の期間を算出し、その範囲の予約だけを取得する。
+  // WeekView (startOfWeek から days 日) / MonthView (startOfWeek(monthStart)〜endOfWeek(monthEnd)) の
+  // 日付生成ロジックと一致させ、表示範囲の予約が limit から漏れないようにする (BUG #82)。
+  const { startDate, endDate } = useMemo(() => {
+    if (view === "month") {
+      const start = startOfWeek(startOfMonth(currentDate), { locale: ja });
+      const end = endOfWeek(endOfMonth(currentDate), { locale: ja });
+      return { startDate: format(start, "yyyy-MM-dd"), endDate: format(end, "yyyy-MM-dd") };
+    }
+    const start = startOfWeek(currentDate, { locale: ja });
+    const end = addDays(start, days - 1);
+    return { startDate: format(start, "yyyy-MM-dd"), endDate: format(end, "yyyy-MM-dd") };
+  }, [currentDate, view, days]);
+
+  const { data: appointments = EMPTY_RESERVATIONS, isLoading } = useGetReservations({ startDate, endDate });
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Reservation | null>(null);

@@ -93,7 +93,7 @@ func buildReservationUpdate(input *UpdateReservationInput) map[string]any {
 }
 
 type ReservationService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
+	List(ctx context.Context, clinicID uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Reservation, error)
@@ -131,8 +131,8 @@ func NewReservationServiceWithAvailability(repo repository.ReservationRepository
 	}
 }
 
-func (s *reservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
-	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit, date, status, source, petID, ownerID)
+func (s *reservationService) List(ctx context.Context, clinicID uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
+	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit, date, startDate, endDate, status, source, petID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list reservations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list reservations")

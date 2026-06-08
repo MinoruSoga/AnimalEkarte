@@ -30,7 +30,7 @@ func (h *Handler) ListReservations(c *gin.Context) {
 		return
 	}
 
-	reservations, total, err := h.svc.Reservation.List(c.Request.Context(), clinicID, page, limit, filters.Date, filters.Status, filters.Source, filters.PetID, filters.OwnerID)
+	reservations, total, err := h.svc.Reservation.List(c.Request.Context(), clinicID, page, limit, filters.Date, filters.StartDate, filters.EndDate, filters.Status, filters.Source, filters.PetID, filters.OwnerID)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -1320,7 +1320,7 @@ func (m *mockReservationRepoForMedicalRecord) FindByID(ctx context.Context, clin
 	}
 	return nil, nil
 }
-func (m *mockReservationRepoForMedicalRecord) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+func (m *mockReservationRepoForMedicalRecord) FindAll(_ context.Context, _ uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockReservationRepoForMedicalRecord) Create(_ context.Context, _ *model.Reservation) error {

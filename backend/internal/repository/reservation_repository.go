@@ -14,7 +14,7 @@ import (
 // ReservationCRUDRepository はコア CRUD 操作（5 メソッド）。
 // reservation_service / trimming_service / liff_service で使用。
 type ReservationCRUDRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, reservation *model.Reservation) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
@@ -70,15 +70,20 @@ func NewReservationRepository(db *gorm.DB) ReservationRepository {
 	return &reservationRepository{db: db}
 }
 
-func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
+func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
 	reservations := make([]model.Reservation, 0)
 	var total int64
 
 	q := dbOrTx(ctx, r.db).Model(&model.Reservation{}).Scopes(clinicScope(clinicID))
-	if date != nil {
+	switch {
+	case date != nil:
+		// 単日フィルタ（当日受付など）
 		start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 		end := start.Add(24 * time.Hour)
 		q = q.Where("start_time >= ? AND start_time < ?", start, end)
+	case startDate != nil && endDate != nil:
+		// 期間レンジフィルタ（予約管理カレンダーの表示中の週/月）。endDate は排他的上限
+		q = q.Where("start_time >= ? AND start_time < ?", *startDate, *endDate)
 	}
 	if status != nil {
 		q = q.Where("status = ?", *status)

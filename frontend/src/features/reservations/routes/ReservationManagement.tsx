@@ -81,7 +81,7 @@ export function ReservationManagement() {
     petSelectConfirmOpen,
     setPetSelectConfirmOpen,
     handlePetSelectConfirm,
-  } = useReservationManagement();
+  } = useReservationManagement({ currentDate, view, days });
 
   // BUG-069: Reservation → ReservationFormData 変換を行うラッパー
   // handleOpenForm は ReservationFormData を期待するが、詳細モーダルからは Reservation が来る
