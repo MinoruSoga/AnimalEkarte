@@ -121,6 +121,10 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	// #83: 予約確定(confirmed)で作成された場合はカルテを best-effort で自動作成する
+	if shouldAutoCreateMedicalRecordForReservation(&svcInput.Status, reservation) && h.svc.MedicalRecord != nil {
+		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
+	}
 	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", reservation.ID))
 	c.JSON(http.StatusCreated, toReservationResponse(reservation))
 }
@@ -172,7 +176,12 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 }
 
 func shouldAutoCreateMedicalRecordForReservation(status *model.ReservationStatus, reservation *model.Reservation) bool {
-	if status == nil || *status != model.ReservationStatusCheckedIn || reservation == nil {
+	if status == nil || reservation == nil {
+		return false
+	}
+	// #83: 予約確定(confirmed)で前倒し作成。受付済み(checked_in)直行(飛び込み等)も対象。
+	// 同日同ペットの重複は AutoCreateFromReservation 側でスキップされるため二重作成しない。
+	if *status != model.ReservationStatusConfirmed && *status != model.ReservationStatusCheckedIn {
 		return false
 	}
 	if reservation.ReservationType != nil && reservation.ReservationType.Category == model.ReservationTypeCategoryTrimming {
