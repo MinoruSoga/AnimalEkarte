@@ -85,6 +85,7 @@ type Repositories struct {
 	ClosingSpecialPeriod ClosingSpecialPeriodRepository
 	PaymentMethodMaster  PaymentMethodMasterRepository
 	TrimmingCourseType   TrimmingCourseTypeRepository
+	Campaign             CampaignRepository
 	CashRegisterClose    CashRegisterCloseRepository
 	// LSTEP / LINE連携
 	LstepSettings     LstepSettingsRepository
@@ -192,6 +193,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		ClosingSpecialPeriod: NewClosingSpecialPeriodRepository(db),
 		PaymentMethodMaster:  NewPaymentMethodMasterRepository(db),
 		TrimmingCourseType:   NewTrimmingCourseTypeRepository(db),
+		Campaign:             NewCampaignRepository(db),
 		CashRegisterClose:    NewCashRegisterCloseRepository(db),
 		// LSTEP / LINE連携
 		LstepSettings:                NewLstepSettingsRepository(db),

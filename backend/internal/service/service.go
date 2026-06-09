@@ -74,6 +74,7 @@ type Services struct {
 	ClosingSettings     ClosingSettingsService
 	PaymentMethodMaster PaymentMethodMasterService
 	TrimmingCourseType  TrimmingCourseTypeService
+	Campaign            CampaignService
 	CashRegister        CashRegisterService
 	AccountingReport    AccountingReportService
 
@@ -244,6 +245,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ClosingSettings:           closingSettingsSvc,
 		PaymentMethodMaster:       NewPaymentMethodMasterService(repos.PaymentMethodMaster),
 		TrimmingCourseType:        NewTrimmingCourseTypeService(repos.TrimmingCourseType),
+		Campaign:                  NewCampaignService(repos.Campaign),
 		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster),
 		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday),
 		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting),

@@ -147,6 +147,14 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PATCH("/trimming-course-types/:id", perm(model.ResourceMasterTrimming, "edit"), h.UpdateTrimmingCourseType)
 	masters.DELETE("/trimming-course-types/:id", perm(model.ResourceMasterTrimming, "delete"), h.DeleteTrimmingCourseType)
 
+	// Campaigns (#81 割引キャンペーンマスタ。会計割引マスタのため ResourceAccounting 権限)
+	masters.GET("/campaigns", perm(model.ResourceAccounting, "view"), h.ListCampaigns)
+	masters.POST("/campaigns", perm(model.ResourceAccounting, "create"), h.CreateCampaign)
+	masters.PATCH("/campaigns/reorder", perm(model.ResourceAccounting, "edit"), h.ReorderCampaigns)
+	masters.GET("/campaigns/:id", perm(model.ResourceAccounting, "view"), h.GetCampaign)
+	masters.PATCH("/campaigns/:id", perm(model.ResourceAccounting, "edit"), h.UpdateCampaign)
+	masters.DELETE("/campaigns/:id", perm(model.ResourceAccounting, "delete"), h.DeleteCampaign)
+
 	// Examination Types
 	masters.GET("/examination-types", perm(model.ResourceMasterMedical, "view"), h.ListExaminationTypes)
 	masters.POST("/examination-types", perm(model.ResourceMasterMedical, "create"), h.CreateExaminationType)
