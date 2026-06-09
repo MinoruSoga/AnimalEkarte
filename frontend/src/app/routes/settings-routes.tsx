@@ -16,6 +16,7 @@ import {
   ResourceMasterTrimming,
   ResourcePaymentMethod,
   ResourceShifts,
+  ResourceAccounting,
 } from "@/types/generated/models";
 
 export const settingsRoute: RouteObject = {
@@ -271,6 +272,18 @@ export const settingsRoute: RouteObject = {
         lazy: async () => {
           const { PaymentMethodSettings } = await import("@/features/master");
           return { Component: PaymentMethodSettings };
+        },
+      }],
+    },
+    // #81: 割引キャンペーンマスタ（会計割引マスタのため ResourceAccounting 権限）
+    {
+      path: "campaigns",
+      element: <RequirePermission resource={ResourceAccounting}><Outlet /></RequirePermission>,
+      children: [{
+        index: true,
+        lazy: async () => {
+          const { CampaignSettings } = await import("@/features/master");
+          return { Component: CampaignSettings };
         },
       }],
     },

@@ -8,6 +8,7 @@ export { InsuranceSettings } from "./routes/InsuranceSettings";
 export { InterviewTemplateSettings } from "./routes/InterviewTemplateSettings";
 export { OccupationSettings } from "./routes/OccupationSettings";
 export { PaymentMethodSettings } from "./routes/PaymentMethodSettings";
+export { CampaignSettings } from "./routes/CampaignSettings";
 export { PermissionGroupSettings } from "./routes/PermissionGroupSettings";
 export { MedicineSettings } from "./routes/MedicineSettings";
 export { MerchandiseItemSettings } from "./routes/MerchandiseItemSettings";
