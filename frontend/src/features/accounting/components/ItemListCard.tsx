@@ -54,6 +54,7 @@ interface ItemListCardProps {
   onDeleteItem: (id: string) => void;
   accountingId?: string;
   onUpdateItemTax?: (itemId: string, taxType: TaxType, taxRate: number) => void;
+  onUpdateItemDiscount?: (itemId: string, discountAmount: number) => void;
   canEdit: boolean;
   canDelete: boolean;
 }
@@ -69,6 +70,7 @@ export const ItemListCard = memo(function ItemListCard({
   onDeleteItem,
   accountingId,
   onUpdateItemTax,
+  onUpdateItemDiscount,
   canEdit,
   canDelete,
 }: ItemListCardProps) {
@@ -132,6 +134,21 @@ export const ItemListCard = memo(function ItemListCard({
             </div>
           </TableCell>
           <TableCell className="text-center">
+            {accountingId !== undefined && onUpdateItemDiscount !== undefined && canEdit ? (
+              <Input
+                type="number"
+                min={0}
+                defaultValue={item.discountAmount}
+                onBlur={(e) => onUpdateItemDiscount(item.id, Math.max(0, parseInt(e.target.value, 10) || 0))}
+                className="w-20 text-right h-8"
+              />
+            ) : (
+              <span className={`text-sm ${C.text50}`}>
+                {item.discountAmount > 0 ? `¥${item.discountAmount.toLocaleString()}` : "-"}
+              </span>
+            )}
+          </TableCell>
+          <TableCell className="text-center">
             {accountingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
               <TaxTypeSelector
                 value={item.taxType}
@@ -173,7 +190,7 @@ export const ItemListCard = memo(function ItemListCard({
           </TableCell>
         </TableRow>
       )),
-    [items, accountingId, onDeleteItem, onUpdateItemTax, canEdit, canDelete],
+    [items, accountingId, onDeleteItem, onUpdateItemTax, onUpdateItemDiscount, canEdit, canDelete],
   );
 
   return (
@@ -341,6 +358,7 @@ export const ItemListCard = memo(function ItemListCard({
               <TableHead>項目名</TableHead>
               <TableHead className="text-right w-[90px]">単価</TableHead>
               <TableHead className="text-center w-[60px]">数量</TableHead>
+              <TableHead className="text-center w-[90px]">割引</TableHead>
               <TableHead className="w-[100px] text-center">課税区分</TableHead>
               <TableHead className="text-center w-[70px]">税率</TableHead>
               <TableHead className="text-right w-[80px]">税額</TableHead>

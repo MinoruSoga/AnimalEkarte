@@ -138,6 +138,7 @@ interface AccountingDetailColumnsProps {
   onAddItem: (name: string, price: string, category: string, taxRate?: number) => void;
   onDeleteItem: (itemId: string) => void;
   onUpdateItemTax: (itemId: string, taxType: TaxType, taxRate: number) => void;
+  onUpdateItemDiscount: (itemId: string, discountAmount: number) => void;
   onUseInsuranceChange: (enabled: boolean) => void;
   onInsuranceRatioChange: (ratio: string) => void;
   onSplitsChange: (splits: PaymentSplitDraft[]) => void;
@@ -160,6 +161,7 @@ export function AccountingDetailColumns({
   onAddItem,
   onDeleteItem,
   onUpdateItemTax,
+  onUpdateItemDiscount,
   onUseInsuranceChange,
   onInsuranceRatioChange,
   onSplitsChange,
@@ -179,6 +181,7 @@ export function AccountingDetailColumns({
           onDeleteItem={onDeleteItem}
           accountingId={accountingId}
           onUpdateItemTax={onUpdateItemTax}
+          onUpdateItemDiscount={onUpdateItemDiscount}
           canEdit={canEdit}
           canDelete={canDelete}
         />

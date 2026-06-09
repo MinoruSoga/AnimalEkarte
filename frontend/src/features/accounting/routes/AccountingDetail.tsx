@@ -119,7 +119,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   // rerender-dependencies: user?.clinic（オブジェクト）の代わりに user（安定参照）を deps に使用
   }, [user, invoiceRegistrationNumber]);
 
-  const { handleAddItem, handleDeleteItem, handleUpdateItemTax } = useAccountingItemActions({
+  const { handleAddItem, handleDeleteItem, handleUpdateItemTax, handleUpdateItemDiscount } = useAccountingItemActions({
     accountingId: id,
     baseItems,
     queryClient,
@@ -185,6 +185,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
           onAddItem={handleAddItem}
           onDeleteItem={handleDeleteItem}
           onUpdateItemTax={handleUpdateItemTax}
+          onUpdateItemDiscount={handleUpdateItemDiscount}
           onUseInsuranceChange={setHasInsurance}
           onInsuranceRatioChange={setInsuranceRatio}
           onSplitsChange={setPaymentSplits}

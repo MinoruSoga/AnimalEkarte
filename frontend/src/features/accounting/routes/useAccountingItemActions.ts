@@ -126,9 +126,25 @@ export function useAccountingItemActions({
     [accountingId, queryClient, startTaxUpdateTransition],
   );
 
+  const handleUpdateItemDiscount = useCallback(
+    (itemId: string, discountAmount: number) => {
+      if (!accountingId) return;
+      startTaxUpdateTransition(async () => {
+        try {
+          await updateBillingItem(itemId, { discount_amount: discountAmount });
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
+        } catch (error) {
+          handleApiError(error, "割引の更新");
+        }
+      });
+    },
+    [accountingId, queryClient, startTaxUpdateTransition],
+  );
+
   return {
     handleAddItem,
     handleDeleteItem,
     handleUpdateItemTax,
+    handleUpdateItemDiscount,
   };
 }
