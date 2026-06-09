@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -19,6 +21,9 @@ type CampaignRepository interface {
 	ReplaceTargets(ctx context.Context, campaignID uint64, categories []model.ItemCategory, itemIDs []uint64) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	// FindApplicableForItem は指定日・カテゴリ・商品に適用される有効なキャンペーンを返す（#81 段階2b）。
+	// 該当が複数ある場合は discount_value が大きいものを優先。該当なしは (nil, nil)。
+	FindApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) (*model.Campaign, error)
 }
 
 type campaignRepository struct{ db *gorm.DB }
@@ -118,4 +123,29 @@ func (r *campaignRepository) Delete(ctx context.Context, clinicID, id uint64) er
 
 func (r *campaignRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return reorderByClinicID(ctx, r.db, &model.Campaign{}, "campaign", clinicID, ids)
+}
+
+func (r *campaignRepository) FindApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) (*model.Campaign, error) {
+	// 対象判定: カテゴリ一致 OR (商品指定があれば)商品一致
+	cond := "EXISTS (SELECT 1 FROM campaign_target_categories ctc WHERE ctc.campaign_id = campaigns.id AND ctc.category = ?)"
+	args := []any{category}
+	if merchandiseItemID != nil {
+		cond += " OR EXISTS (SELECT 1 FROM campaign_target_items cti WHERE cti.campaign_id = campaigns.id AND cti.merchandise_item_id = ?)"
+		args = append(args, *merchandiseItemID)
+	}
+
+	var campaign model.Campaign
+	err := dbOrTx(ctx, r.db).
+		Scopes(clinicScope(clinicID)).
+		Where("is_active = ? AND start_date <= ? AND end_date >= ?", true, date, date).
+		Where(cond, args...).
+		Order("discount_value DESC").
+		First(&campaign).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // 該当キャンペーンなし
+		}
+		return nil, apperrors.FromGORM(err, "campaign", "")
+	}
+	return &campaign, nil
 }

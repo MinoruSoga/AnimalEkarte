@@ -106,6 +106,8 @@ type billingItemService struct {
 	billingRepo   repository.AccountingRepository
 	treatmentRepo repository.TreatmentRepository
 	transactor    repository.Transactor
+	campaignRepo  repository.CampaignRepository // #81 段階2b: nil の場合は自動割引なし
+	ownerRepo     repository.OwnerRepository    // #81 段階2b: 飼主割引取得用
 }
 
 type unbilledTrimmingItemFinder interface {
@@ -116,9 +118,40 @@ type ungroupedTrimmingCounter interface {
 	CountNonAccountingTrimmingByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
 }
 
-// NewBillingItemService は BillingItemService を初期化して返す
+// NewBillingItemService は BillingItemService を初期化して返す（キャンペーン自動割引なし）
 func NewBillingItemService(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor) BillingItemService {
 	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor}
+}
+
+// NewBillingItemServiceWithCampaign は #81 段階2b: キャンペーン/飼主割引の自動適用を有効にした BillingItemService を返す。
+func NewBillingItemServiceWithCampaign(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor, campaignRepo repository.CampaignRepository, ownerRepo repository.OwnerRepository) BillingItemService {
+	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, campaignRepo: campaignRepo, ownerRepo: ownerRepo}
+}
+
+// resolveAutoDiscount は #81 段階2b: 明細に適用するキャンペーン/飼主割引額を算出する(best-effort)。
+// campaignRepo 未配線時は 0。会計日(billing.ScheduledDate)・明細カテゴリで該当キャンペーンを検索し、
+// 飼主割引と高い方を採用する(CalculateItemCampaignDiscount)。
+// 注: CreateBillingItemInput に merchandise_item_id が無いためカテゴリ判定のみ(商品個別指定は将来対応)。
+func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *CreateBillingItemInput) int64 {
+	if s.campaignRepo == nil {
+		return 0
+	}
+	billing, err := s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID)
+	if err != nil || billing == nil {
+		return 0
+	}
+	var ownerRate float64
+	if billing.OwnerID != nil && s.ownerRepo != nil {
+		if owner, oerr := s.ownerRepo.FindByID(ctx, input.ClinicID, *billing.OwnerID); oerr == nil && owner != nil {
+			ownerRate = owner.DiscountRate
+		}
+	}
+	campaign, cerr := s.campaignRepo.FindApplicableForItem(ctx, input.ClinicID, billing.ScheduledDate, model.ItemCategory(input.Category), nil)
+	if cerr != nil {
+		campaign = nil // best-effort: キャンペーン検索失敗は割引なしで続行
+	}
+	itemSubtotal := int64(float64(input.UnitPrice) * input.Quantity)
+	return CalculateItemCampaignDiscount(itemSubtotal, campaign, ownerRate)
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
@@ -187,6 +220,11 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		TrimmingCourseID:      input.TrimmingCourseID,
 		TrimmingOptionID:      input.TrimmingOptionID,
 		SortOrder:             input.SortOrder,
+	}
+
+	// #81 段階2b: 明示的な割引指定が無ければキャンペーン/飼主割引を自動適用(best-effort)
+	if item.DiscountAmount == 0 {
+		item.DiscountAmount = s.resolveAutoDiscount(ctx, input)
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
