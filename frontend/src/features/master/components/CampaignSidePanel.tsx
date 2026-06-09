@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Tag } from "lucide-react";
 
 import { MasterSidePanel, StatusToggleButton } from "@/components/shared/SidePeek";
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { C, LAYOUT } from "@/lib/design-tokens";
 
 import type { Campaign, CampaignDiscountType } from "../api/campaign";
+import { useGetAllMerchandiseItems } from "../api/merchandise-items";
 import { campaignToFormData, type CampaignFormData } from "./CampaignSidePanelModel";
 
 // item_category に対応する対象カテゴリの選択肢
@@ -75,6 +76,26 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
         : [...prev.targetCategories, cat],
     }));
   }, [setFormDataDirty]);
+
+  const toggleItem = useCallback((id: string) => {
+    setFormDataDirty((prev) => ({
+      ...prev,
+      targetItemIds: prev.targetItemIds.includes(id)
+        ? prev.targetItemIds.filter((x) => x !== id)
+        : [...prev.targetItemIds, id],
+    }));
+  }, [setFormDataDirty]);
+
+  const { data: merchandiseItems = [] } = useGetAllMerchandiseItems();
+  const [merchandiseSearch, setMerchandiseSearch] = useState("");
+  const filteredMerchandise = useMemo(() => {
+    let result = merchandiseItems.filter((i) => i.isActive);
+    if (merchandiseSearch) {
+      const lower = merchandiseSearch.toLowerCase();
+      result = result.filter((i) => i.name.toLowerCase().includes(lower));
+    }
+    return result;
+  }, [merchandiseItems, merchandiseSearch]);
 
   const handleAction = useCallback(() => {
     if (!formData.name.trim()) {
@@ -184,9 +205,33 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
               </label>
             ))}
           </div>
-          <p className="text-xs" style={{ color: C.text50 }}>
-            ※ 個別商品の指定は会計画面の割引で対応（段階1e-3 で対象商品選択 UI を追加予定）
-          </p>
+        </div>
+
+        {/* 対象商品（Q1=D 個別商品指定） */}
+        <div className="space-y-2">
+          <Label>対象商品（個別指定）</Label>
+          <Input
+            placeholder="商品名で検索..."
+            value={merchandiseSearch}
+            disabled={readOnly}
+            onChange={(e) => setMerchandiseSearch(e.target.value)}
+          />
+          <div className="max-h-48 space-y-1 overflow-y-auto rounded border p-2">
+            {filteredMerchandise.length === 0 ? (
+              <p className="text-xs" style={{ color: C.text50 }}>商品がありません</p>
+            ) : (
+              filteredMerchandise.map((mItem) => (
+                <label key={mItem.id} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={formData.targetItemIds.includes(mItem.id)}
+                    disabled={readOnly}
+                    onCheckedChange={() => toggleItem(mItem.id)}
+                  />
+                  {mItem.name}
+                </label>
+              ))
+            )}
+          </div>
         </div>
 
         <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
