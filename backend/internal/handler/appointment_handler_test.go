@@ -608,7 +608,11 @@ func TestUpdateReservation_AutoCreateMedicalRecord(t *testing.T) {
 					assert.Equal(t, tt.reservation.ID, id)
 					require.NotNil(t, input.Status)
 					assert.Equal(t, model.ReservationStatusCheckedIn, *input.Status)
-					return tt.reservation, nil
+					// #83 Q9: shouldAutoCreate は更新後の reservation.Status で判定するため、
+					// 更新後ステータス(checked_in)を反映した予約を返す。
+					updated := *tt.reservation
+					updated.Status = *input.Status
+					return &updated, nil
 				},
 			}
 			medicalRecordSvc := &mockMedicalRecordService{

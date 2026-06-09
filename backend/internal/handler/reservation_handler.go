@@ -122,7 +122,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		return
 	}
 	// #83: 予約確定(confirmed)で作成された場合はカルテを best-effort で自動作成する
-	if shouldAutoCreateMedicalRecordForReservation(&svcInput.Status, reservation) && h.svc.MedicalRecord != nil {
+	if shouldAutoCreateMedicalRecordForReservation(reservation) && h.svc.MedicalRecord != nil {
 		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", reservation.ID))
@@ -167,8 +167,8 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		return
 	}
 
-	// 受付済みに変更された場合は通常カルテを best-effort で自動作成する（BE-reception-auto-create-medical-record）
-	if shouldAutoCreateMedicalRecordForReservation(svcInput.Status, reservation) && h.svc.MedicalRecord != nil {
+	// 予約確定/受付済みの場合は通常カルテを best-effort で自動作成する(#83)。owner/pet 紐付け後の遅延作成(Q9)も兼ねる。
+	if shouldAutoCreateMedicalRecordForReservation(reservation) && h.svc.MedicalRecord != nil {
 		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
 	}
 
@@ -180,13 +180,15 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 	c.JSON(http.StatusOK, toReservationResponse(reservation))
 }
 
-func shouldAutoCreateMedicalRecordForReservation(status *model.ReservationStatus, reservation *model.Reservation) bool {
-	if status == nil || reservation == nil {
+func shouldAutoCreateMedicalRecordForReservation(reservation *model.Reservation) bool {
+	if reservation == nil {
 		return false
 	}
-	// #83: 予約確定(confirmed)で前倒し作成。受付済み(checked_in)直行(飛び込み等)も対象。
+	// #83: 予約確定(confirmed)/受付済み(checked_in)の予約でカルテを作成する。
+	// 更新後の reservation.Status で判定するため、owner/pet 紐付けの Update でも confirmed なら作成され、
+	// owner/pet 未確定でスキップされた分が紐付け後に遅延作成される(Q9)。
 	// 同日同ペットの重複は AutoCreateFromReservation 側でスキップされるため二重作成しない。
-	if *status != model.ReservationStatusConfirmed && *status != model.ReservationStatusCheckedIn {
+	if reservation.Status != model.ReservationStatusConfirmed && reservation.Status != model.ReservationStatusCheckedIn {
 		return false
 	}
 	if reservation.ReservationType != nil && reservation.ReservationType.Category == model.ReservationTypeCategoryTrimming {
