@@ -105,6 +105,10 @@ func (m *mockMedicalRecordRepository) CountByOwnerID(ctx context.Context, clinic
 	return 0, nil
 }
 
+func (m *mockMedicalRecordRepository) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 // mrMockOwnerRepo は MedicalRecord テスト用 OwnerRepository モック（FindByID のみ）
 type mrMockOwnerRepo struct {
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)

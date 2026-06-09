@@ -141,6 +141,10 @@ func (m *mockMedicalRecordRepositoryForExam) FindLastVisitDateByOwner(ctx contex
 	return nil, nil
 }
 
+func (m *mockMedicalRecordRepositoryForExam) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 func TestExaminationService_List(t *testing.T) {
 	petID := uint64(5)
 	ownerID := uint64(2)

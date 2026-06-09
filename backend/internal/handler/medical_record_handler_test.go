@@ -91,6 +91,8 @@ func (m *mockMedicalRecordService) AutoCreateFromReservation(ctx context.Context
 	}
 }
 
+func (m *mockMedicalRecordService) DeleteDraftFromReservation(_ context.Context, _, _ uint64) {}
+
 func (m *mockMedicalRecordService) UpdateRecommendationReason(ctx context.Context, clinicID, id uint64, input service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error) {
 	if m.updateRecommendationReasonFn != nil {
 		return m.updateRecommendationReasonFn(ctx, clinicID, id, input)

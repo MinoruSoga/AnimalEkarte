@@ -172,6 +172,11 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
 	}
 
+	// #83 Q10: キャンセルされた予約に紐づく draft カルテを論理削除する（best-effort）
+	if svcInput.Status != nil && *svcInput.Status == model.ReservationStatusCancelled && h.svc.MedicalRecord != nil {
+		h.svc.MedicalRecord.DeleteDraftFromReservation(ctx, clinicID, reservation.ID)
+	}
+
 	c.JSON(http.StatusOK, toReservationResponse(reservation))
 }
 

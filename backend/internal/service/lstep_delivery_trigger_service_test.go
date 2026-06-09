@@ -214,6 +214,10 @@ func (m *mockMedRecordRepoForDelivery) CountByOwnerID(_ context.Context, _, _ ui
 	return 0, nil
 }
 
+func (m *mockMedRecordRepoForDelivery) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 // ---- TagCacheRepository モック（delivery trigger 用）----
 
 type mockTagCacheRepoForDelivery struct {

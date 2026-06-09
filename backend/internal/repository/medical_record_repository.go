@@ -31,6 +31,8 @@ type MedicalRecordRepository interface {
 	Create(ctx context.Context, record *model.MedicalRecord) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	// DeleteDraftByAppointmentID は予約に紐づく draft カルテを論理削除する (#83 Q10)
+	DeleteDraftByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) error
 	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
 	CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error)
 	// FindOwnerVisitSummary は飼い主の初回/最終診療日・年間来院数を集計して返す（Lステップ同期用）。
@@ -137,6 +139,19 @@ func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint6
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+// DeleteDraftByAppointmentID は予約(appointment_id)に紐づく draft カルテを論理削除する (#83 Q10)。
+// draft 以外(診察開始済み等)は削除しない。削除対象なし(RowsAffected 0)は正常としエラーにしない。
+func (r *medicalRecordRepository) DeleteDraftByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) error {
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("appointment_id = ? AND status = ?", appointmentID, model.MedicalRecordStatusDraft).
+		Delete(&model.MedicalRecord{}).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("appointment:%d", appointmentID))
 	}
 	return nil
 }

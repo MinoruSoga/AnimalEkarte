@@ -70,6 +70,10 @@ func (m *mockMedicalRecordRepositoryForImage) CountByOwnerID(_ context.Context, 
 	return 0, nil
 }
 
+func (m *mockMedicalRecordRepositoryForImage) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 func (m *mockMedicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
 	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }

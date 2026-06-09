@@ -67,6 +67,10 @@ func (m *mockMedicalRecordRepoForTreatment) CountByOwnerID(_ context.Context, _,
 	return 0, nil
 }
 
+func (m *mockMedicalRecordRepoForTreatment) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 // ---- Treatment モック ----
 
 type mockTreatmentRepository struct {

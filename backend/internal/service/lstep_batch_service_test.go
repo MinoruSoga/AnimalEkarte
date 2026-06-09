@@ -120,6 +120,10 @@ func (m *batchMockMedRecordRepo) CountByOwnerID(_ context.Context, _, _ uint64) 
 	return 0, nil
 }
 
+func (m *batchMockMedRecordRepo) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 // batchMockTagSyncSvc は batch テスト専用 LstepTagSyncService モック
 type batchMockTagSyncSvc struct {
 	syncDormantTagFn func(ctx context.Context, clinicID, ownerID uint64, daysSince int) error
