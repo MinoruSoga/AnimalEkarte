@@ -104,6 +104,8 @@ export interface BillingItem {
   name: string;
   unit_price: number /* int64 */;
   quantity: number /* float64 */;
+  discount_rate: number /* float64 */;
+  discount_amount: number /* int64 */;
   tax_type: TaxType;
   tax_rate: number /* float64 */;
   is_insurance_applicable: boolean;

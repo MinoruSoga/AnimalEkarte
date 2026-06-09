@@ -19,6 +19,8 @@ export interface BackendAccountingItem extends BillingItem {
 export interface UpdateBillingItemRequest {
   unit_price?: number;
   quantity?: number;
+  discount_rate?: number;
+  discount_amount?: number;
   tax_type?: TaxType;
   tax_rate?: number;
   is_insurance_applicable?: boolean;

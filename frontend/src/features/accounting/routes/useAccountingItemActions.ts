@@ -45,6 +45,8 @@ export function useAccountingItemActions({
         name,
         unitPrice,
         quantity: qty,
+        discountRate: 0,
+        discountAmount: 0,
         taxType: "excluded" as TaxType,
         taxRate: rate,
         taxAmount: Math.round(unitPrice * qty * rate),
