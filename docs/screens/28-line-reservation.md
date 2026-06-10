@@ -7,7 +7,10 @@
 - **URLパターン**: 
   - 基本設定: `/line-reservation/settings`
   - ページ編集: `/line-reservation/page-editor`
-- **アクセス権限**: 医院管理者権限が必要（`ResourceHospitalSettings`）
+  - 予約枠: `/line-reservation/slots`
+- **アクセス権限**:
+  - 基本設定・ページ編集: `ResourceReservations`（画面遷移）／`ResourceHospitalSettings`（API: GET/PUT line-reservation-settings）
+  - 予約枠: `ResourceMasterReservationType`（API が予約区分マスタ配下のため BE と同一リソースでガード）
 
 ---
 
@@ -30,6 +33,15 @@ LINE アプリ内で飼い主が見る画面の文言を編集します。
 - **LINE連携**: Messaging API の Channel ID, Secret, および LIFF ID の登録。
 - **接続テスト**: API が正しく疎通しているか、ボタン一つで確認可能。
 
+### 4. 予約枠カレンダー (`/slots`)
+予約区分ごとの「予約可能な開始時刻（予約可能枠）」を月カレンダー形式で日別に管理します。
+- **予約区分セレクタ**: 編集対象の予約区分を切り替え。`?typeId=` クエリで事前選択可能（予約区分マスタのサイドパネル「カレンダーで編集」からの遷移で使用）。無効区分は「（無効）」表記で選択可能。
+- **月グリッド**: 予約管理ページと同一スタイル。日付セルをクリックすると下部の編集パネルが開く。
+- **特定日枠**: 編集パネルから日別の開始時刻を追加・削除（15分刻み）。
+- **毎週枠**: カレンダーでは読み取り専用表示（リピートアイコン付き）。登録・削除は予約区分マスタのサイドパネルで行う。
+
+> ⚠️ **ホワイトリスト仕様（運用注意）**: 予約可能枠が1件でも登録されている予約区分は、登録された開始時刻のみ予約可能になり、**該当枠のない日は終日予約不可**になる。枠が未登録の場合は営業時間設定から空き枠を自動生成する。この警告は画面上部に常時表示される。
+
 ---
 
 ## 主要な機能
@@ -46,14 +58,18 @@ LINE アプリ内で飼い主が見る画面の文言を編集します。
 
 ### 使用コンポーネント
 - **`LineReservationSettings`**: 管理者向け設定ページ。
+- **`LineReservationSlotsSettings`**: 予約枠カレンダーページ（`features/master`）。
+- **`ReservationTypeAvailableSlotsCalendar`**: 月カレンダー + 日別編集パネル。
 - **`LiffApp` (別プロジェクト)**: 飼い主が操作する LINE 内アプリ。
 - **`TimeslotEngine`**: 空き時間を算出するバックエンドロジック。
 
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
-| GET | `/api/v1/line-reservation-settings` | 稼働状態やルールの取得。 |
-| PATCH | `/api/v1/line-reservation-settings` | 設定の更新。 |
-| POST | `/api/v1/line-reservation/test-connection` | API 接続疎通確認。 |
+| GET | `/api/v1/clinics/:clinic_id/line-reservation-settings` | 稼働状態やルールの取得。 |
+| PUT | `/api/v1/clinics/:clinic_id/line-reservation-settings` | 設定の更新。 |
+| GET | `/api/v1/masters/reservation-types/:id/available-slots` | 予約可能枠の一覧取得。 |
+| POST | `/api/v1/masters/reservation-types/:id/available-slots` | 予約可能枠の追加。 |
+| DELETE | `/api/v1/masters/reservation-types/:id/available-slots/:slotId` | 予約可能枠の削除。 |
 
 ---
