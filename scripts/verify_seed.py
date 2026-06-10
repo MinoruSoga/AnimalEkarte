@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 import re
@@ -21,6 +22,13 @@ MIGRATION_FILES = [
     ROOT / "backend/migrations/002_seed_master.sql",
     ROOT / "backend/migrations/003_seed_demo.sql",
 ]
+
+APPOINTMENT_TIME_FILES = [
+    ROOT / "backend/migrations/003_seed_demo.sql",
+    ROOT / "backend/migrations/004_seed_staging.sql",
+]
+
+JST = timezone(timedelta(hours=9))
 
 SEVEN_MASTER_TABLES = (
     "exam_types",
@@ -443,6 +451,43 @@ def check_cross_tenant(state: SeedState, errors: list[str]) -> None:
         add_result(errors, not mismatches, f"treatments.{column}: cross-tenant references {mismatches}")
 
 
+def parse_timestamp_literal(value: str) -> datetime:
+    if value.endswith(("+00", "+09")):
+        base = value[:-3]
+        offset = int(value[-3:])
+        return datetime.fromisoformat(base).replace(tzinfo=timezone(timedelta(hours=offset)))
+    return datetime.fromisoformat(value).replace(tzinfo=JST)
+
+
+def check_appointment_time_window(errors: list[str]) -> None:
+    timestamp_pattern = re.compile(r"'([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9:.]+(?:\+[0-9]{2})?)'")
+    violations: list[str] = []
+
+    for path in APPOINTMENT_TIME_FILES:
+        in_appointment_insert = False
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if re.search(r"INSERT INTO appointments\b", line):
+                in_appointment_insert = True
+
+            if in_appointment_insert and line.lstrip().startswith("("):
+                timestamps = timestamp_pattern.findall(line)
+                if len(timestamps) >= 2:
+                    start = parse_timestamp_literal(timestamps[0]).astimezone(JST)
+                    end = parse_timestamp_literal(timestamps[1]).astimezone(JST)
+                    start_minutes = start.hour * 60 + start.minute
+                    end_minutes = end.hour * 60 + end.minute
+                    if start.date() != end.date() or start_minutes < 9 * 60 or end_minutes > 19 * 60:
+                        violations.append(
+                            f"{path.relative_to(ROOT)}:{line_number} "
+                            f"{start.strftime('%Y-%m-%d %H:%M')} - {end.strftime('%Y-%m-%d %H:%M')}"
+                        )
+
+            if in_appointment_insert and "ON CONFLICT" in line:
+                in_appointment_insert = False
+
+    add_result(errors, not violations, f"appointments: time outside 09:00-19:00 JST {violations[:20]}")
+
+
 def print_summary(state: SeedState, errors: list[str]) -> None:
     tracked_counts = ", ".join(
         f"{table}={len(state.tables[table])}" for table in sorted(TRACKED_TABLES) if state.tables[table]
@@ -455,7 +500,10 @@ def print_summary(state: SeedState, errors: list[str]) -> None:
     else:
         print("OK")
         print(tracked_counts)
-        print("verified: 7 masters, treatments drift fixes, CHECK equivalent, procedure presence, FK, cross-tenant")
+        print(
+            "verified: 7 masters, treatments drift fixes, CHECK equivalent, "
+            "procedure presence, FK, cross-tenant, appointment time window"
+        )
 
 
 def main() -> int:
@@ -468,6 +516,7 @@ def main() -> int:
     check_procedure_presence(state, errors)
     check_fk_integrity(state, errors)
     check_cross_tenant(state, errors)
+    check_appointment_time_window(errors)
     print_summary(state, errors)
     return 1 if errors else 0
 
