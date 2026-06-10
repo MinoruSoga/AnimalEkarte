@@ -14,6 +14,8 @@ import type {
 // ─────────────────────────────────────────────────
 
 function transformReservationType(data: ModelReservationType) {
+  const groupId = data.group_id ?? data.group?.id;
+
   return {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
@@ -22,7 +24,7 @@ function transformReservationType(data: ModelReservationType) {
     isActive: data.is_active,
     description: data.description,
     sortOrder: data.sort_order,
-    groupId: data.group_id ? String(data.group_id) : undefined,
+    groupId: groupId ? String(groupId) : undefined,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
     // LINE予約用フィールド

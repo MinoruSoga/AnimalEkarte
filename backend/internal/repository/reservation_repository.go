@@ -108,7 +108,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
-	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("ReservationType", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
+	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("ReservationType", "deleted_at IS NULL").Preload("ReservationType.Group", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
@@ -132,6 +132,7 @@ func (r *reservationRepository) findReservationByID(ctx context.Context, scope f
 		Preload("Pet.Owner", "deleted_at IS NULL").
 		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("ReservationType.Group", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CreatedByStaff", "deleted_at IS NULL").
 		Scopes(scope).Where("id = ?", id).First(&reservation).Error

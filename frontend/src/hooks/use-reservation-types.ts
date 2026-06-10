@@ -19,8 +19,8 @@ interface ReservationTypeRaw {
   sort_order: number;
   is_internal: boolean;
   category: string;
-  group_id: number | null;
-  group: ReservationTypeGroupSummary | null;
+  group_id?: number | null;
+  group?: ReservationTypeGroupSummary | null;
 }
 
 // フロントエンド用にグループ化したデータ
@@ -113,7 +113,8 @@ export function useGetReservationTypesGrouped() {
       const active = data.filter((t) => t.is_active);
       const map = new Map<string, GroupedReservationTypes>();
       for (const t of active) {
-        const key = t.group_id != null ? String(t.group_id) : "__other__";
+        const groupId = t.group_id ?? t.group?.id ?? null;
+        const key = groupId != null ? String(groupId) : "__other__";
         const label = t.group?.name ?? "その他";
         if (!map.has(key)) map.set(key, { label, types: [] });
         const entry = map.get(key);
