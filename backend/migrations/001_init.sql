@@ -90,6 +90,7 @@ CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected');
 CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'returned');
 CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other', 'vaccine', 'trimming', 'hotel', 'training');
 CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization', 'trimming');
+CREATE TYPE campaign_discount_type AS ENUM ('rate', 'amount');
 
 -- 予約・会計・入院関連
 CREATE TYPE visit_type AS ENUM ('first', 'revisit');
@@ -1830,6 +1831,8 @@ CREATE TABLE billing_items (
     appointment_id          bigint                 REFERENCES appointments(id) ON DELETE SET NULL,
     trimming_course_id      bigint                 REFERENCES trimming_courses(id) ON DELETE SET NULL,
     trimming_option_id      bigint                 REFERENCES trimming_options(id) ON DELETE SET NULL,
+    discount_rate           numeric(5,2)           NOT NULL DEFAULT 0,
+    discount_amount         bigint                 NOT NULL DEFAULT 0,
     sort_order              integer                DEFAULT 0,
     created_at              timestamptz   NOT NULL DEFAULT now(),
     updated_at              timestamptz   NOT NULL DEFAULT now(),
@@ -2418,6 +2421,8 @@ COMMENT ON TABLE staff_notes IS 'スタッフノート';
 COMMENT ON TABLE appointment_trimming_options IS 'トリミング予約オプション適用';
 COMMENT ON TABLE billings IS '会計';
 COMMENT ON TABLE billing_items IS '会計明細';
+COMMENT ON COLUMN billing_items.discount_rate   IS '#85: 項目別割引率(%)';
+COMMENT ON COLUMN billing_items.discount_amount IS '#85: 項目別割引額(円)';
 COMMENT ON TABLE payments IS '支払い情報';
 COMMENT ON TABLE billing_refunds IS '返金レコード（Stripe モデル）';
 COMMENT ON TABLE shift_entries IS 'スタッフシフト';
@@ -2757,3 +2762,46 @@ CREATE TABLE manual_article_versions (
 CREATE INDEX idx_manual_article_versions_article ON manual_article_versions(article_id, edited_at DESC);
 
 COMMENT ON TABLE manual_article_versions IS 'マニュアル編集履歴（編集ごとに過去版を保持）';
+
+-- ------------------------------------
+-- #81: キャンペーン割引マスタ
+-- ------------------------------------
+CREATE TABLE campaigns (
+    id              BIGSERIAL              PRIMARY KEY,
+    clinic_id       bigint                 NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name            text                   NOT NULL DEFAULT '',
+    start_date      date                   NOT NULL,
+    end_date        date                   NOT NULL,
+    discount_type   campaign_discount_type NOT NULL DEFAULT 'rate',
+    discount_value  numeric(12,2)          NOT NULL DEFAULT 0,
+    is_active       boolean                NOT NULL DEFAULT true,
+    sort_order      integer                NOT NULL DEFAULT 0,
+    created_at      timestamptz            NOT NULL DEFAULT now(),
+    updated_at      timestamptz            NOT NULL DEFAULT now(),
+    deleted_at      timestamptz,
+    CONSTRAINT chk_campaigns_period CHECK (end_date >= start_date)
+);
+
+CREATE TABLE campaign_target_categories (
+    id          BIGSERIAL     PRIMARY KEY,
+    campaign_id bigint        NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    category    item_category NOT NULL,
+    CONSTRAINT uq_campaign_target_categories UNIQUE (campaign_id, category)
+);
+
+CREATE TABLE campaign_target_items (
+    id                  BIGSERIAL PRIMARY KEY,
+    campaign_id         bigint    NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    merchandise_item_id bigint    NOT NULL REFERENCES merchandise_items(id) ON DELETE CASCADE,
+    CONSTRAINT uq_campaign_target_items UNIQUE (campaign_id, merchandise_item_id)
+);
+
+CREATE INDEX idx_campaigns_clinic         ON campaigns(clinic_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_campaigns_clinic_period  ON campaigns(clinic_id, start_date, end_date) WHERE deleted_at IS NULL;
+CREATE INDEX idx_campaign_target_categories_campaign ON campaign_target_categories(campaign_id);
+CREATE INDEX idx_campaign_target_items_campaign      ON campaign_target_items(campaign_id);
+CREATE INDEX idx_campaign_target_items_merchandise   ON campaign_target_items(merchandise_item_id);
+
+COMMENT ON TABLE campaigns IS '#81: 割引キャンペーンマスタ(期間・割引種別/値)';
+COMMENT ON TABLE campaign_target_categories IS '#81: キャンペーン対象カテゴリ(Q1=D カテゴリ単位指定)';
+COMMENT ON TABLE campaign_target_items IS '#81: キャンペーン対象商品(Q1=D 個別商品指定)';
