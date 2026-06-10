@@ -4152,7 +4152,7 @@ BEGIN
                 used_owner_ids := array_append(used_owner_ids, rand_owner_id);
                 
                 is_trimming := true;
-                rand_res_type_id := floor(random() * 4) + 9; -- トリミング(9〜12)
+                rand_res_type_id := 9 + (appointment_id % 4); -- トリミング(9〜12)を均等化
                 res_duration := 90;
                 
                 -- 午前 09:00 〜 10:30
@@ -4177,7 +4177,7 @@ BEGIN
                 used_owner_ids := array_append(used_owner_ids, rand_owner_id);
                 
                 is_trimming := true;
-                rand_res_type_id := floor(random() * 4) + 9;
+                rand_res_type_id := 9 + (appointment_id % 4);
                 res_duration := 90;
                 
                 -- 午後 14:00 〜 15:30
@@ -4201,7 +4201,7 @@ BEGIN
                     -- 同一飼主の2つ目の予定（一般診療 = ID 1）を登録
                     rand_pet_id := special_pet_id;
                     rand_owner_id := special_owner_id;
-                    rand_res_type_id := 1; -- 一般診察
+                    rand_res_type_id := 2; -- 同日2予定は再診として登録
                     special_assigned := true;
                     
                     -- この医師の予約件数をインクリメントして、時間枠スロットを取得
@@ -4223,7 +4223,16 @@ BEGIN
                     END IF;
                     
                     used_owner_ids := array_append(used_owner_ids, rand_owner_id);
-                    rand_res_type_id := floor(random() * 8) + 1; -- 診療(1〜8)
+                    rand_res_type_id := CASE ((appointment_id - 1000) % 8)
+                        WHEN 0 THEN 1 -- 一般診察
+                        WHEN 1 THEN 2 -- 一般診察(再診)
+                        WHEN 2 THEN 3 -- ワクチン接種
+                        WHEN 3 THEN 4 -- お手入れ
+                        WHEN 4 THEN 5 -- 狂犬病
+                        WHEN 5 THEN 6 -- フィラリア予防
+                        WHEN 6 THEN 7 -- 健康診断
+                        ELSE 8        -- 健康診断結果報告
+                    END;
                     
                     -- この医師の予約件数をインクリメント
                     doctor_booking_counts[doctor_idx] := doctor_booking_counts[doctor_idx] + 1;
@@ -4263,9 +4272,25 @@ BEGIN
                 v_status := 'confirmed';
             END IF;
 
+            v_notes := CASE rand_res_type_id
+                WHEN 1 THEN '一般診察：体調確認'
+                WHEN 2 THEN '再診：経過確認'
+                WHEN 3 THEN '混合ワクチン接種'
+                WHEN 4 THEN 'お手入れ：爪切り・耳掃除'
+                WHEN 5 THEN '狂犬病予防接種'
+                WHEN 6 THEN 'フィラリア予防'
+                WHEN 7 THEN '健康診断'
+                WHEN 8 THEN '健康診断結果報告'
+                WHEN 9 THEN 'トリミングコース'
+                WHEN 10 THEN '部分カットコース'
+                WHEN 11 THEN 'シャンプーコース'
+                WHEN 12 THEN 'クイックシャンプー'
+                ELSE '一般診察'
+            END;
+
             -- 予約追加
             INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_type_id, doctor_id, is_designated, status, notes)
-            VALUES (appointment_id, 1, start_ts, end_ts, rand_owner_id, rand_pet_id, v_visit_type::visit_type, rand_res_type_id, rand_doctor_id, (random() < 0.2), v_status::reservation_status, '自動生成されたデモ予約')
+            VALUES (appointment_id, 1, start_ts, end_ts, rand_owner_id, rand_pet_id, v_visit_type::visit_type, rand_res_type_id, rand_doctor_id, (random() < 0.2), v_status::reservation_status, v_notes)
             ON CONFLICT (id) DO NOTHING;
 
             -- 【シフト自動補正】予約が入ったスタッフのシフトをその日は 'full'（09:00-18:00）として登録・上書き (データ整合性確保)

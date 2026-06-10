@@ -1552,6 +1552,52 @@ INSERT INTO appointments ("id", "clinic_id", "start_time", "end_time", "owner_id
 (1683, 1, '2026-06-30 17:20:00+00', '2026-06-30 17:35:00+00', 26, 33, 'revisit', 3, 29, 'f', 'confirmed', '自動生成されたデモ予約', 'manual', NULL, 'f', '{}', NULL, NULL, '2026-05-31 04:33:17.574774+00', '2026-05-31 04:33:17.574774+00', NULL, NULL)
 ON CONFLICT DO NOTHING;
 
+-- 予定予約の予約区分を偏らないデモデータへ補正する。
+-- 予約区分 13（室内ドッグラン）は実予約でない限り使わず、診療系(1-8)・トリミング系(9-12)内で分散する。
+WITH planned_reservations AS (
+    SELECT
+        id,
+        CASE
+            WHEN reservation_type_id BETWEEN 9 AND 12 THEN 9 + (id % 4)
+            ELSE CASE (id % 8)
+                WHEN 0 THEN 1
+                WHEN 1 THEN 2
+                WHEN 2 THEN 3
+                WHEN 3 THEN 4
+                WHEN 4 THEN 5
+                WHEN 5 THEN 6
+                WHEN 6 THEN 7
+                ELSE 8
+            END
+        END AS normalized_reservation_type_id
+    FROM appointments
+    WHERE clinic_id = 1
+      AND status = 'confirmed'
+      AND notes = '自動生成されたデモ予約'
+      AND deleted_at IS NULL
+)
+UPDATE appointments AS a
+SET
+    reservation_type_id = p.normalized_reservation_type_id,
+    notes = CASE p.normalized_reservation_type_id
+        WHEN 1 THEN '一般診察：体調確認'
+        WHEN 2 THEN '再診：経過確認'
+        WHEN 3 THEN '混合ワクチン接種'
+        WHEN 4 THEN 'お手入れ：爪切り・耳掃除'
+        WHEN 5 THEN '狂犬病予防接種'
+        WHEN 6 THEN 'フィラリア予防'
+        WHEN 7 THEN '健康診断'
+        WHEN 8 THEN '健康診断結果報告'
+        WHEN 9 THEN 'トリミングコース'
+        WHEN 10 THEN '部分カットコース'
+        WHEN 11 THEN 'シャンプーコース'
+        WHEN 12 THEN 'クイックシャンプー'
+        ELSE '一般診察'
+    END,
+    updated_at = now()
+FROM planned_reservations AS p
+WHERE a.id = p.id;
+
 -- -----------------------------------------------------------------------------
 -- appointment_trimming_details
 -- -----------------------------------------------------------------------------
