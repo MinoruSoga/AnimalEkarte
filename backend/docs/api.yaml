@@ -1485,6 +1485,29 @@ components:
         end_time:
           type: string
           example: "12:00"
+    CreateReservationTypeAvailableSlotRequest:
+      type: object
+      required: [available_type, start_time]
+      properties:
+        available_type:
+          type: string
+          enum: [weekly, specific]
+          example: weekly
+        day_of_week:
+          type: integer
+          format: int32
+          nullable: true
+          description: weekly の場合のみ指定（0=日曜,6=土曜）
+        specific_date:
+          type: string
+          format: date
+          nullable: true
+          description: specific の場合のみ指定
+        start_time:
+          type: string
+          example: "09:00"
+        is_active:
+          type: boolean
     LinkReservationTypeOccupationRequest:
       type: object
       required: [occupation_id]
@@ -1745,6 +1768,80 @@ components:
           type: string
           format: date-time
           readOnly: true
+    Campaign:
+      type: object
+      description: キャンペーンマスタ
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        start_date:
+          type: string
+          format: date
+          example: "2026-06-01"
+        end_date:
+          type: string
+          format: date
+          example: "2026-06-30"
+        discount_type:
+          type: string
+          enum: [rate, amount]
+        discount_value:
+          type: number
+          format: double
+        is_active:
+          type: boolean
+          default: true
+        sort_order:
+          type: integer
+          format: int32
+          default: 0
+        target_categories:
+          type: array
+          items:
+            type: string
+            enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+        target_item_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    TrimmingCourseType:
+      type: object
+      description: トリミングコース種別マスタ
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+          default: 0
+        is_active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
     TrimmingOption:
       type: object
       required: [name]
@@ -4929,6 +5026,38 @@ components:
         updated_at:
           type: string
           format: date-time
+    ReservationTypeAvailableSlot:
+      type: object
+      description: reservation_type_available_slots schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        reservation_type_id:
+          type: integer
+          format: int64
+        available_type:
+          type: string
+          enum: [weekly, specific]
+        day_of_week:
+          type: integer
+          format: int32
+          nullable: true
+          description: weekly の場合のみ指定（0=日曜,6=土曜）
+        specific_date:
+          type: string
+          format: date
+          nullable: true
+          description: specific の場合のみ指定
+        start_time:
+          type: string
+          example: "09:00"
+        is_active:
+          type: boolean
+          default: true
     ReservationTypeOccupations:
       type: object
       description: reservation_type_occupations schema
@@ -7157,6 +7286,410 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/staffs/{id}/clinics:
+    get:
+      operationId: getStaffClinicAssignments
+      summary: スタッフの勤務先クリニック一覧取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clinic_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: setStaffClinicAssignments
+      summary: スタッフの勤務先クリニック割り当て更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clinic_ids]
+              properties:
+                clinic_ids:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                  description: 割り当てるクリニック ID（空配列=全解除）
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clinic_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/staffs/{id}/excluded-reservation-types:
+    get:
+      operationId: getStaffExcludedReservationTypes
+      summary: スタッフの予約種別除外一覧取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reservation_type_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: setStaffExcludedReservationTypes
+      summary: スタッフの予約種別除外設定更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reservation_type_ids]
+              properties:
+                reservation_type_ids:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                  description: 除外する予約種別 ID（空配列=除外なし）
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reservation_type_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/staffs/{id}/capable-reservation-types:
+    get:
+      operationId: getStaffCapableReservationTypes
+      summary: スタッフ対応可能予約種別一覧取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reservation_type_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: setStaffCapableReservationTypes
+      summary: スタッフ対応可能予約種別設定更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reservation_type_ids]
+              properties:
+                reservation_type_ids:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                  description: 対応可能予約種別 ID（空配列=対応不可）
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reservation_type_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/campaigns:
+    get:
+      operationId: listCampaigns
+      summary: キャンペーン一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: キャンペーン一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Campaign'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createCampaign
+      summary: キャンペーン登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Campaign'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/campaigns/1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/campaigns/reorder:
+    patch:
+      operationId: reorderCampaigns
+      summary: キャンペーン一括並び替え
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '204':
+          description: 並び替え成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/campaigns/{id}:
+    get:
+      operationId: getCampaign
+      summary: キャンペーン取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateCampaign
+      summary: キャンペーン更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Campaign'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteCampaign
+      summary: キャンペーン削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/cages:
     get:
       operationId: listCages
@@ -7651,7 +8184,7 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: 
+                example:
                   /masters/insurances/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
@@ -7741,6 +8274,167 @@ paths:
     delete:
       operationId: deleteInsurance
       summary: 保険削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/reservation-type-groups:
+    get:
+      operationId: listReservationTypeGroups
+      summary: 予約区分グループ一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 予約区分グループ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservationTypeGroups'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createReservationTypeGroup
+      summary: 予約区分グループ作成
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationTypeGroups'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/reservation-type-groups/1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationTypeGroups'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/reservation-type-groups/reorder:
+    patch:
+      operationId: reorderReservationTypeGroups
+      summary: 予約区分グループ並び替え
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '204':
+          description: 並び替え成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/reservation-type-groups/{id}:
+    get:
+      operationId: getReservationTypeGroup
+      summary: 予約区分グループ取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationTypeGroups'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateReservationTypeGroup
+      summary: 予約区分グループ更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationTypeGroups'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationTypeGroups'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteReservationTypeGroup
+      summary: 予約区分グループ削除
       tags: [Masters]
       parameters:
         - name: id
@@ -7952,12 +8646,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ReservationTypeUnavailableTimes'
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservationTypeUnavailableTimes'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -8005,7 +8696,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/reservation-types/{id}/unavailable-times/{unavailableTimeId}:
+  /masters/reservation-types/{id}/unavailable-times/{unavailable_time_id}:
     delete:
       operationId: deleteReservationTypeUnavailableTime
       summary: 予約区分の予約不可時間削除
@@ -8017,7 +8708,104 @@ paths:
           schema:
             type: integer
             format: int64
-        - name: unavailableTimeId
+        - name: unavailable_time_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/reservation-types/{id}/available-slots:
+    get:
+      operationId: listAvailableSlots
+      summary: 予約区分の予約可能開始時刻一覧
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 予約可能開始時刻一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservationTypeAvailableSlot'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createAvailableSlot
+      summary: 予約区分の予約可能開始時刻作成
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationTypeAvailableSlotRequest'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/reservation-types/1/available-slots/1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationTypeAvailableSlot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/reservation-types/{id}/available-slots/{available_slot_id}:
+    delete:
+      operationId: deleteAvailableSlot
+      summary: 予約区分の予約可能開始時刻削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: available_slot_id
           in: path
           required: true
           schema:
@@ -8052,12 +8840,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ReservationTypeOccupations'
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservationTypeOccupations'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -8098,7 +8883,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/reservation-types/{id}/occupations/{occupationId}:
+  /masters/reservation-types/{id}/occupations/{occupation_id}:
     delete:
       operationId: unlinkReservationTypeOccupation
       summary: 予約区分から職種紐付けを削除
@@ -8110,7 +8895,7 @@ paths:
           schema:
             type: integer
             format: int64
-        - name: occupationId
+        - name: occupation_id
           in: path
           required: true
           schema:
@@ -8462,8 +9247,7 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: 
-                  /masters/hospitalization-plans/550e8400-e29b-41d4-a716-446655440000
+                example: /masters/hospitalization-plans/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -8711,6 +9495,167 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/trimming-course-types:
+    get:
+      operationId: listTrimmingCourseTypes
+      summary: トリミングコース種別一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: トリミングコース種別一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrimmingCourseType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createTrimmingCourseType
+      summary: トリミングコース種別登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrimmingCourseType'
+      responses:
+        '201':
+          description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/trimming-course-types/1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingCourseType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/trimming-course-types/reorder:
+    patch:
+      operationId: reorderTrimmingCourseTypes
+      summary: トリミングコース種別一括並び替え
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '204':
+          description: 並び替え成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/trimming-course-types/{id}:
+    patch:
+      operationId: updateTrimmingCourseType
+      summary: トリミングコース種別更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrimmingCourseType'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingCourseType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteTrimmingCourseType
+      summary: トリミングコース種別削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      operationId: getTrimmingCourseType
+      summary: トリミングコース種別取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingCourseType'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -10153,14 +11098,46 @@ paths:
                 color:
                   type: string
       responses:
-        '204':
+        '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionGroup'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/permission-groups/reorder:
+    patch:
+      operationId: reorderPermissionGroups
+      summary: 権限グループ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [PermissionGroups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '204':
+          description: 並び替え成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -10226,8 +11203,12 @@ paths:
                         type: boolean
                         default: false
       responses:
-        '204':
+        '200':
           description: ルール更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionGroup'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -10266,8 +11247,18 @@ paths:
                     format: int64
                   description: 割り当てるグループ ID のリスト（空配列 = 全グループ解除）
       responses:
-        '204':
+        '200':
           description: 割当成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -10475,6 +11466,30 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/chief-complaint-types/reorder:
+    patch:
+      operationId: reorderChiefComplaints
+      summary: 主訴カテゴリ並び替え
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '204':
+          description: 並び替え成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/chief-complaint-types/{id}:
     get:
       operationId: getChiefComplaint
@@ -10593,6 +11608,30 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/inquiry-templates/reorder:
+    patch:
+      operationId: reorderInquiryTemplates
+      summary: 問診テンプレート並び替え
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '204':
+          description: 並び替え成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/inquiry-templates/{id}:
@@ -12213,7 +13252,7 @@ paths:
       responses:
         '204':
           description: No Content
-  /masters/shift-templates:
+  /shift-templates:
     get:
       tags:
         - シフトテンプレート
@@ -12245,7 +13284,7 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/shift-templates/1
+                example: /shift-templates/1
           content:
             application/json:
               schema:
@@ -12256,7 +13295,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/shift-templates/reorder:
+  /shift-templates/reorder:
     patch:
       tags:
         - シフトテンプレート
@@ -12281,7 +13320,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/shift-templates/{id}:
+  /shift-templates/{id}:
     get:
       tags:
         - シフトテンプレート
@@ -12338,11 +13377,19 @@ paths:
       responses:
         '204':
           description: No Content
-  /masters/clinic-holidays:
+  /clinic-holidays:
     get:
       tags:
         - 休診日
       summary: 休診日一覧取得
+      parameters:
+        - name: year_month
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: "^\\d{4}-\\d{2}$"
+          description: 取得対象年月 (YYYY-MM)
       responses:
         '200':
           description: OK
@@ -12352,6 +13399,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ClinicHoliday'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
       tags:
         - 休診日
@@ -12364,63 +13417,44 @@ paths:
       responses:
         '201':
           description: Created
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /clinic-holidays/2026-01-01
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClinicHoliday'
-  /masters/clinic-holidays/{id}:
-    get:
-      tags:
-        - 休診日
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ClinicHoliday'
-    put:
-      tags:
-        - 休診日
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ClinicHoliday'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ClinicHoliday'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinic-holidays/{date}:
     delete:
       tags:
         - 休診日
       parameters:
-        - name: id
+        - name: date
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            format: date
+            pattern: "^\\d{4}-\\d{2}-\\d{2}$"
       responses:
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '204':
           description: No Content
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /staffs/reservation-exclusions:
     get:
       tags:
