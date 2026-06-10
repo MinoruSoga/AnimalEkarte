@@ -219,14 +219,7 @@ func (h *Handler) GetDailySummary(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	items := make([]clinicDailySummaryResponse, 0, len(perClinic))
-	for _, cs := range perClinic {
-		items = append(items, clinicDailySummaryResponse{
-			ClinicID: cs.ClinicID,
-			Summary:  toDailySummaryResponse(cs.Summary),
-		})
-	}
-	c.JSON(http.StatusOK, gin.H{"per_clinic": items})
+	c.JSON(http.StatusOK, toDailySummaryForClinicsResponse(perClinic))
 }
 
 // CancelAccounting は会計を論理削除（status=cancelled）する。

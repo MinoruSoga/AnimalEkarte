@@ -121,6 +121,14 @@ func toUngroupedSameDayResponse(s service.UngroupedSameDaySummary) ungroupedSame
 	}
 }
 
+type discountSuggestionsResponse struct {
+	Suggestions []service.DiscountSuggestion `json:"suggestions"`
+}
+
+func toDiscountSuggestionsResponse(suggestions []service.DiscountSuggestion) discountSuggestionsResponse {
+	return discountSuggestionsResponse{Suggestions: suggestions}
+}
+
 func parseUngroupedDate(s string) time.Time {
 	if s == "" {
 		return time.Now().UTC()
@@ -167,7 +175,7 @@ func (h *Handler) GetBillingItemDiscountSuggestions(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"suggestions": suggestions})
+	c.JSON(http.StatusOK, toDiscountSuggestionsResponse(suggestions))
 }
 
 // RegisterBillingItemRoutes は明細関連のルートを登録する。

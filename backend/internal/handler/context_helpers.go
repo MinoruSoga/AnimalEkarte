@@ -82,6 +82,45 @@ func extractClinicIDs(c *gin.Context) ([]uint64, bool) {
 	return ids, true
 }
 
+func parseClinicIDsParam(raw string) ([]uint64, error) {
+	parts := strings.Split(raw, ",")
+	if len(parts) > maxClinicIDsParam {
+		return nil, apperrors.WrapInvalidInput("too many clinic_ids")
+	}
+	requested := make([]uint64, 0, len(parts))
+	for _, p := range parts {
+		id, err := strconv.ParseUint(strings.TrimSpace(p), 10, 64)
+		if err != nil || id == 0 {
+			return nil, apperrors.WrapInvalidInput("invalid clinic_ids")
+		}
+		requested = append(requested, id)
+	}
+
+	slices.Sort(requested)
+	return slices.Compact(requested), nil
+}
+
+func authorizeClinicIDs(c *gin.Context, requested []uint64) bool {
+	isAdmin, ok := extractIsSystemAdmin(c)
+	if !ok {
+		return false
+	}
+	if isAdmin {
+		return true
+	}
+	allowed, ok := extractClinicIDs(c)
+	if !ok {
+		return false
+	}
+	for _, id := range requested {
+		if !slices.Contains(allowed, id) {
+			RespondError(c, apperrors.WrapForbidden("not assigned to this clinic"))
+			return false
+		}
+	}
+	return true
+}
+
 // resolveListClinicIDs は一覧系 API の拠点横断スコープ (#86) を解決する。
 // クエリパラメータ clinic_ids（カンマ区切り）が:
 //   - 無い場合: JWT/X-Clinic-ID 由来の現在の医院のみ（従来挙動・後方互換）
@@ -100,39 +139,13 @@ func resolveListClinicIDs(c *gin.Context) ([]uint64, bool) {
 		return []uint64{clinicID}, true
 	}
 
-	parts := strings.Split(raw, ",")
-	if len(parts) > maxClinicIDsParam {
-		RespondError(c, apperrors.WrapInvalidInput("too many clinic_ids"))
+	requested, err := parseClinicIDsParam(raw)
+	if err != nil {
+		RespondError(c, err)
 		return nil, false
 	}
-	requested := make([]uint64, 0, len(parts))
-	for _, p := range parts {
-		id, err := strconv.ParseUint(strings.TrimSpace(p), 10, 64)
-		if err != nil || id == 0 {
-			RespondError(c, apperrors.WrapInvalidInput("invalid clinic_ids"))
-			return nil, false
-		}
-		requested = append(requested, id)
-	}
-
-	slices.Sort(requested)
-	requested = slices.Compact(requested) // 重複除去
-
-	isAdmin, ok := extractIsSystemAdmin(c)
-	if !ok {
+	if !authorizeClinicIDs(c, requested) {
 		return nil, false
-	}
-	if !isAdmin {
-		allowed, ok := extractClinicIDs(c)
-		if !ok {
-			return nil, false
-		}
-		for _, id := range requested {
-			if !slices.Contains(allowed, id) {
-				RespondError(c, apperrors.WrapForbidden("not assigned to this clinic"))
-				return nil, false
-			}
-		}
 	}
 	return requested, true
 }

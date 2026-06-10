@@ -9,7 +9,12 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
+
+func toReservationAvailableTimeResponse(slot *service.TimeSlot) liffTimeSlotResponse {
+	return liffTimeSlotResponse{StartTime: slot.StartTime, EndTime: slot.EndTime}
+}
 
 // ListReservations godoc
 func (h *Handler) ListReservations(c *gin.Context) {
@@ -36,7 +41,7 @@ func (h *Handler) ListReservations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(reservations, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(reservations, toReservationResponse), total, page, limit))
 }
 
 // GetReservation godoc
@@ -79,11 +84,7 @@ func (h *Handler) GetReservationAvailableTimes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]liffTimeSlotResponse, 0, len(slots))
-	for _, slot := range slots {
-		resp = append(resp, liffTimeSlotResponse{StartTime: slot.StartTime, EndTime: slot.EndTime})
-	}
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mapSlice(slots, toReservationAvailableTimeResponse))
 }
 
 // CreateReservation godoc

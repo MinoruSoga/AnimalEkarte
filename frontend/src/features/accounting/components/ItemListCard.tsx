@@ -124,6 +124,17 @@ const MERCHANDISE_CATEGORY_SELECT_ITEMS = MERCHANDISE_CATEGORY_OPTIONS.map((o) =
   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
 ));
 
+function getManualPriceError(value: string): string | null {
+  const priceNum = parseInt(value, 10);
+  if (isNaN(priceNum) || priceNum < 0) {
+    return "単価は0以上の整数で入力してください";
+  }
+  if (priceNum > 999999999) {
+    return "単価は999,999,999円以下で入力してください";
+  }
+  return null;
+}
+
 interface ItemListCardProps {
   items: AccountingItem[];
   subtotal: number;
@@ -183,6 +194,23 @@ export const ItemListCard = memo(function ItemListCard({
     },
     [onAddItem],
   );
+
+  const handleAddManualItem = useCallback(() => {
+    const name = manualName.trim();
+    if (!name || !manualPrice) return;
+
+    const priceError = getManualPriceError(manualPrice);
+    if (priceError !== null) {
+      setManualPriceError(priceError);
+      return;
+    }
+
+    setManualPriceError("");
+    onAddItem(name, manualPrice, "other");
+    setManualName("");
+    setManualPrice("");
+    onNewItemOpenChange(false);
+  }, [manualName, manualPrice, onAddItem, onNewItemOpenChange]);
 
   const itemRows = useMemo(
     () =>
@@ -398,23 +426,7 @@ export const ItemListCard = memo(function ItemListCard({
                     type="button"
                     className="w-full"
                     disabled={!manualName.trim() || !manualPrice}
-                    onClick={() => {
-                      if (!manualName.trim() || !manualPrice) return;
-                      const priceNum = parseInt(manualPrice, 10);
-                      if (isNaN(priceNum) || priceNum < 0) {
-                        setManualPriceError("単価は0以上の整数で入力してください");
-                        return;
-                      }
-                      if (priceNum > 999999999) {
-                        setManualPriceError("単価は999,999,999円以下で入力してください");
-                        return;
-                      }
-                      setManualPriceError("");
-                      onAddItem(manualName.trim(), manualPrice, "other");
-                      setManualName("");
-                      setManualPrice("");
-                      onNewItemOpenChange(false);
-                    }}
+                    onClick={handleAddManualItem}
                   >
                     追加する
                   </Button>

@@ -3,7 +3,6 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"slices"
 
 	"github.com/gin-gonic/gin"
 
@@ -69,19 +68,8 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 	// 検証なしで service へ渡すとクロステナント書き込みになる。
 	// system_admin は X-Clinic-ID 検証 (middleware/auth.go) と同様に全医院を許可する。
 	if req.ClinicID != nil && *req.ClinicID != clinicID {
-		isAdmin, ok := extractIsSystemAdmin(c)
-		if !ok {
+		if !authorizeClinicIDs(c, []uint64{*req.ClinicID}) {
 			return
-		}
-		if !isAdmin {
-			clinicIDs, ok := extractClinicIDs(c)
-			if !ok {
-				return
-			}
-			if !slices.Contains(clinicIDs, *req.ClinicID) {
-				RespondError(c, apperrors.WrapForbidden("not assigned to this clinic"))
-				return
-			}
 		}
 		clinicID = *req.ClinicID
 	}

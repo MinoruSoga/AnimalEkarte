@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // BUG-368: レジ締め日次集計レスポンス
@@ -53,6 +54,21 @@ func toDailySummaryResponse(s *repository.DailySummaryResult) dailySummaryRespon
 type clinicDailySummaryResponse struct {
 	ClinicID uint64               `json:"clinic_id"`
 	Summary  dailySummaryResponse `json:"summary"`
+}
+
+type dailySummaryForClinicsResponse struct {
+	PerClinic []clinicDailySummaryResponse `json:"per_clinic"`
+}
+
+func toDailySummaryForClinicsResponse(items []service.ClinicDailySummary) dailySummaryForClinicsResponse {
+	perClinic := make([]clinicDailySummaryResponse, 0, len(items))
+	for _, item := range items {
+		perClinic = append(perClinic, clinicDailySummaryResponse{
+			ClinicID: item.ClinicID,
+			Summary:  toDailySummaryResponse(item.Summary),
+		})
+	}
+	return dailySummaryForClinicsResponse{PerClinic: perClinic}
 }
 
 // BUG-370: 月末未納者一覧レスポンス
