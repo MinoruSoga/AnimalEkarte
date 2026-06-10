@@ -244,12 +244,13 @@ func TestCreateShiftTemplate_Valid_Returns201(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name       string
-		body       any
-		setupCtx   func(c *gin.Context)
-		svc        *mockShiftTemplateService
-		wantStatus int
-		wantBody   string
+		name         string
+		body         any
+		setupCtx     func(c *gin.Context)
+		svc          *mockShiftTemplateService
+		wantStatus   int
+		wantBody     string
+		wantLocation string
 	}{
 		{
 			name: "creates full shift template returns 201",
@@ -278,8 +279,9 @@ func TestCreateShiftTemplate_Valid_Returns201(t *testing.T) {
 					}, nil
 				},
 			},
-			wantStatus: http.StatusCreated,
-			wantBody:   `"name":"通常勤務テンプレート"`,
+			wantStatus:   http.StatusCreated,
+			wantBody:     `"name":"通常勤務テンプレート"`,
+			wantLocation: "/api/v1/shift-templates/10",
 		},
 		{
 			name: "creates off shift template (no start/end time) returns 201",
@@ -294,8 +296,9 @@ func TestCreateShiftTemplate_Valid_Returns201(t *testing.T) {
 					return &model.ShiftTemplate{ID: 11, ClinicID: clinicID, Name: input.Name, ShiftType: model.ShiftTypeOff, IsActive: true}, nil
 				},
 			},
-			wantStatus: http.StatusCreated,
-			wantBody:   `"shift_type":"off"`,
+			wantStatus:   http.StatusCreated,
+			wantBody:     `"shift_type":"off"`,
+			wantLocation: "/api/v1/shift-templates/11",
 		},
 		{
 			name:       "returns 400 when name is missing",
@@ -362,6 +365,9 @@ func TestCreateShiftTemplate_Valid_Returns201(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			if tt.wantLocation != "" {
+				assert.Equal(t, tt.wantLocation, w.Header().Get("Location"))
 			}
 		})
 	}
@@ -560,7 +566,7 @@ func TestUpdateShiftTemplate(t *testing.T) {
 func newReorderShiftTemplatesRouter(svc service.ShiftTemplateService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithShiftTemplateSvc(svc)
-	r.PUT("/shift-templates/reorder", func(c *gin.Context) {
+	r.PATCH("/shift-templates/reorder", func(c *gin.Context) {
 		setClinicID(c)
 	}, h.ReorderShiftTemplates)
 	return r
@@ -581,7 +587,7 @@ func TestReorderShiftTemplates(t *testing.T) {
 		bodyBytes, err := json.Marshal(map[string]any{"ids": []int{3, 1, 2}})
 		require.NoError(t, err)
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPut, "/shift-templates/reorder", bytes.NewReader(bodyBytes))
+		req := httptest.NewRequest(http.MethodPatch, "/shift-templates/reorder", bytes.NewReader(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -593,7 +599,7 @@ func TestReorderShiftTemplates(t *testing.T) {
 		require.NoError(t, err)
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader(bodyBytes))
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
 		c.Request.Header.Set("Content-Type", "application/json")
 		h.ReorderShiftTemplates(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -602,7 +608,7 @@ func TestReorderShiftTemplates(t *testing.T) {
 	t.Run("returns 400 for invalid JSON", func(t *testing.T) {
 		router := newReorderShiftTemplatesRouter(&mockShiftTemplateService{})
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPut, "/shift-templates/reorder", bytes.NewBufferString("not-json"))
+		req := httptest.NewRequest(http.MethodPatch, "/shift-templates/reorder", bytes.NewBufferString("not-json"))
 		req.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusBadRequest, w.Code)

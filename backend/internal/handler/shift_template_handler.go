@@ -58,7 +58,7 @@ func (h *Handler) CreateShiftTemplate(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/v1/masters/shift-templates/%d", tpl.ID))
+	c.Header("Location", fmt.Sprintf("/api/v1/shift-templates/%d", tpl.ID))
 	c.JSON(http.StatusCreated, toShiftTemplateResponse(tpl))
 }
 
@@ -102,7 +102,7 @@ func (h *Handler) DeleteShiftTemplate(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// ReorderShiftTemplates PUT /api/v1/shift-templates/reorder
+// ReorderShiftTemplates PATCH /api/v1/shift-templates/reorder
 func (h *Handler) ReorderShiftTemplates(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
