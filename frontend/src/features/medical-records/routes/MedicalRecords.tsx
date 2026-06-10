@@ -2,6 +2,9 @@
 import { type ReactNode, useState, useCallback, useDeferredValue, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
+// Auth
+import { useAuth } from "@/hooks/use-auth";
+
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
@@ -25,6 +28,7 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Pagination } from "@/components/shared/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
+import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/use-pagination";
@@ -81,9 +85,46 @@ export function MedicalRecords() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
+  const { user, currentClinicId } = useAuth();
+  const assignedClinics = useMemo(() => user?.clinics ?? [], [user?.clinics]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
+
+  // #86: URL ?clinics= から選択拠点を解決
+  const clinicsParam = searchParams.get("clinics");
+  const selectedClinicIds = useMemo(
+    () =>
+      clinicsParam
+        ? clinicsParam.split(",").filter(Boolean)
+        : currentClinicId
+          ? [currentClinicId]
+          : [],
+    [clinicsParam, currentClinicId],
+  );
+  const clinicNames = useMemo(
+    () => Object.fromEntries(assignedClinics.map((m) => [m.clinicId, m.clinicName])),
+    [assignedClinics],
+  );
+  const handleToggleClinic = useCallback((clinicId: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      const current =
+        next.get("clinics")?.split(",").filter(Boolean) ??
+        (currentClinicId ? [currentClinicId] : []);
+      const updated = current.includes(clinicId)
+        ? current.filter((id) => id !== clinicId)
+        : [...current, clinicId];
+      if (updated.length === 0) return prev;
+      if (updated.length === 1 && updated[0] === currentClinicId) {
+        next.delete("clinics");
+      } else {
+        next.set("clinics", updated.join(","));
+      }
+      next.delete("page");
+      return next;
+    });
+  }, [setSearchParams, currentClinicId]);
 
   // activeFilters から日付フィルタのみを抽出してAPIに渡す
   const apiFilters = useMemo<MedicalRecordFilters>(() => {
@@ -93,8 +134,9 @@ export function MedicalRecords() {
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
+      clinicIds: selectedClinicIds.length > 1 ? selectedClinicIds : undefined,
     };
-  }, [activeFilters]);
+  }, [activeFilters, selectedClinicIds]);
 
   const { data: filteredRecords, allRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch, apiFilters, activeFilters);
 
@@ -162,6 +204,8 @@ export function MedicalRecords() {
     );
   }, [navigate]);
 
+  const showClinicColumn = selectedClinicIds.length >= 2;
+
   // js-cache-function-results: directionFor/toggleSort に依存するカラム定義をメモ化
   const COLUMNS = useMemo<{ header: ReactNode; className?: string; align?: "left" | "center" | "right" }[]>(() => [
     {
@@ -188,8 +232,9 @@ export function MedicalRecords() {
       header: <SortableHeader label="ステータス" direction={directionFor("status")} onToggle={() => toggleSort("status")} />,
       className: "w-[100px]",
     },
+    ...(showClinicColumn ? [{ header: "医院", className: "w-[120px] hidden lg:table-cell" }] : []),
     { header: "操作", className: "w-[100px]", align: "right" as const },
-  ], [directionFor, toggleSort]);
+  ], [directionFor, toggleSort, showClinicColumn]);
 
   if (isLoading) return <LoadingFallback />;
   if (isError) return <ErrorFallback />;
@@ -210,6 +255,13 @@ export function MedicalRecords() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4 flex-1 min-h-0">
+        {/* #86: 拠点横断フィルター — 複数所属医院がある場合のみ表示 */}
+        <ClinicScopeFilter
+          clinics={assignedClinics}
+          selectedIds={selectedClinicIds}
+          onToggle={handleToggleClinic}
+        />
+
         {/* Search */}
         <NotionFilter
           properties={filterProperties}
@@ -230,10 +282,12 @@ export function MedicalRecords() {
             columns={COLUMNS}
             data={paginatedData}
             emptyMessage="カルテデータが見つかりません"
-            renderRow={(r) => (
+            renderRow={(r) => {
+              const isOtherClinic = showClinicColumn && r.clinicId !== currentClinicId;
+              return (
               <DataTableRow
                 key={r.id}
-                onClick={() => handleNavigateToForm(r.id)}
+                onClick={isOtherClinic ? undefined : () => handleNavigateToForm(r.id)}
               >
                 <TableCell className={STYLE.tableCellMono}>{r.date}</TableCell>
                 <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
@@ -273,8 +327,15 @@ export function MedicalRecords() {
                     {r.status}
                   </StatusBadge>
                 </TableCell>
+                {showClinicColumn ? (
+                  <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`} data-testid="mr-row-clinic">
+                    <span className={isOtherClinic ? `text-xs ${C.text40}` : "text-xs"}>
+                      {r.clinicId ? (clinicNames[r.clinicId] ?? r.clinicId) : "—"}
+                    </span>
+                  </TableCell>
+                ) : null}
                 <TableCell className="text-right py-2.5">
-                  {(canEdit || canDelete) ? (
+                  {(canEdit || canDelete) && !isOtherClinic ? (
                     <RowActionDropdown
                       actions={[
                         ...(canEdit ? [{
@@ -297,7 +358,8 @@ export function MedicalRecords() {
                   ) : null}
                 </TableCell>
               </DataTableRow>
-            )}
+            );
+            }}
           />
         </FilteringIndicator>
 

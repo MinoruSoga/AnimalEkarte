@@ -39,6 +39,7 @@ export const transformMedicalRecord = (
     visitCount: record.visit_count,
     version: record.version ?? 1,
     recommendationReason: (record.recommendation_reason ?? null) as RecommendationReason | null,
+    clinicId: record.clinic_id ? String(record.clinic_id) : undefined,
   };
 };
 

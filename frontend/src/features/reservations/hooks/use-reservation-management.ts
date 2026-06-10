@@ -20,9 +20,11 @@ interface UseReservationManagementParams {
   currentDate: Date;
   view: CalendarView;
   days: 5 | 7;
+  /** #86: 拠点横断表示。複数医院IDのとき clinic_ids をAPIに送信する */
+  clinicIds?: string[];
 }
 
-export function useReservationManagement({ currentDate, view, days }: UseReservationManagementParams) {
+export function useReservationManagement({ currentDate, view, days, clinicIds }: UseReservationManagementParams) {
   const navigate = useNavigate();
   const location = useLocation();
   const locationFrom = (location.state as NavigationState | null)?.from ?? null;
@@ -41,7 +43,7 @@ export function useReservationManagement({ currentDate, view, days }: UseReserva
     return { startDate: format(start, "yyyy-MM-dd"), endDate: format(end, "yyyy-MM-dd") };
   }, [currentDate, view, days]);
 
-  const { data: appointments = EMPTY_RESERVATIONS, isLoading } = useGetReservations({ startDate, endDate });
+  const { data: appointments = EMPTY_RESERVATIONS, isLoading } = useGetReservations({ startDate, endDate, clinicIds });
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Reservation | null>(null);

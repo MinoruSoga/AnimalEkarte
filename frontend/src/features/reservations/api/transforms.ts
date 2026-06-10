@@ -53,6 +53,7 @@ export const transformReservation = (
     ownerId: reservation.owner_id ? String(reservation.owner_id) : reservation.owner?.id ? String(reservation.owner.id) : undefined,
     source: (reservation.source as "manual" | "line") ?? "manual",
     reservationRoute: (reservation.reservation_route ?? null) as ReservationRoute | null,
+    clinicId: reservation.clinic_id ? String(reservation.clinic_id) : undefined,
   };
 };
 
