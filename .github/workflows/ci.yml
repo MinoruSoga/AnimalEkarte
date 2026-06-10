@@ -13,6 +13,9 @@ concurrency:
 env:
   GO_VERSION: "1.25"
   NODE_VERSION: "24"
+  # JST 統一 (37d6e333): 本番/ローカルは Dockerfile・compose の TZ で time.Local=JST になるが、
+  # CI ランナーは UTC のため go test の time.Local 依存テストが日付境界でズレる。全 job に JST を適用する。
+  TZ: Asia/Tokyo
 
 jobs:
   # ──────────────────────────────────────────────
