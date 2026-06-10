@@ -71,6 +71,8 @@ interface OwnersListProps {
   onUpdatePet?: (id: string, req: UpdatePetRequest) => Promise<Pet>;
 }
 
+const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
+
 export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -80,31 +82,14 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
 
   // #86: 拠点横断表示 — URL の ?clinics=1,2 が表示拠点。未指定は現在の医院のみ（従来挙動）。
   // 選択変更で loader が再実行され、サーバ側 (resolveListClinicIDs) で所属検証される。
-  const { assignedClinics, selectedClinicIds, clinicNameById, currentClinicId } = useClinicScope();
-  const clinicNames = useMemo(
-    () => Object.fromEntries(clinicNameById),
-    [clinicNameById],
-  );
-  // OwnersList 固有: 拠点変更時はページもリセットする
-  const handleToggleClinic = useCallback((clinicId: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      const current =
-        next.get("clinics")?.split(",").filter(Boolean) ??
-        (currentClinicId ? [currentClinicId] : []);
-      const updated = current.includes(clinicId)
-        ? current.filter((id) => id !== clinicId)
-        : [...current, clinicId];
-      if (updated.length === 0) return prev;
-      if (updated.length === 1 && updated[0] === currentClinicId) {
-        next.delete("clinics");
-      } else {
-        next.set("clinics", updated.join(","));
-      }
-      next.delete("page");
-      return next;
-    });
-  }, [setSearchParams, currentClinicId]);
+  const {
+    assignedClinics,
+    selectedClinicIds,
+    isMultiClinic,
+    clinicNameById,
+    currentClinicId,
+    handleToggleClinic,
+  } = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   // rerender-transitions: 入力は即座に反映しつつ、全件フィルタリングは
@@ -329,8 +314,8 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         isFiltering={isFiltering}
         canEdit={canEdit}
         canDelete={canDelete}
-        showClinicColumn={selectedClinicIds.length >= 2}
-        clinicNames={clinicNames}
+        showClinicColumn={isMultiClinic}
+        clinicNameById={clinicNameById}
         currentClinicId={currentClinicId}
         directionFor={directionFor}
         onSearchChange={setSearchTerm}

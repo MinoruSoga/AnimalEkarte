@@ -75,25 +75,21 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 }
 
 func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
-	var pet model.Pet
-	err := r.db.WithContext(ctx).
-		Preload("Owner", "deleted_at IS NULL").
-		Preload("AnimalSpecies").
-		Preload("Insurance", "deleted_at IS NULL").
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&pet).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
-	}
-	return &pet, nil
+	return r.findPetByID(ctx, clinicScope(clinicID), id)
 }
 
 func (r *petRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
+	return r.findPetByID(ctx, clinicScopeIn(clinicIDs), id)
+}
+
+// findPetByID は scope（単一/複数クリニック）を受け取りペットを1件取得する共通実装。
+func (r *petRepository) findPetByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.Pet, error) {
 	var pet model.Pet
 	err := r.db.WithContext(ctx).
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("AnimalSpecies").
 		Preload("Insurance", "deleted_at IS NULL").
-		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&pet).Error
+		Scopes(scope).Where("id = ?", id).First(&pet).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
 	}

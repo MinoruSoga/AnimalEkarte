@@ -41,13 +41,21 @@ const TABS = [
   { value: "unpaid", label: "未納者一覧" },
 ] as const;
 
+const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
+
 export function AccountingList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit } = usePermission("accounting");
 
   // #86 段階3: 拠点横断表示
-  const { assignedClinics, selectedClinicIds, clinicNameById, handleToggleClinic } = useClinicScope();
+  const {
+    assignedClinics,
+    selectedClinicIds,
+    isMultiClinic,
+    clinicNameById,
+    handleToggleClinic,
+  } = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
 
   const tabParam = searchParams.get("tab");
   const activeTab = tabParam === "unpaid" ? "unpaid" : tabParam === "daily" ? "daily" : "list";
@@ -88,9 +96,9 @@ export function AccountingList() {
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
-      clinicIds: selectedClinicIds.length > 1 ? selectedClinicIds : undefined,
+      clinicIds: isMultiClinic ? selectedClinicIds : undefined,
     };
-  }, [activeFilters, selectedClinicIds]);
+  }, [activeFilters, isMultiClinic, selectedClinicIds]);
 
   const { data: accountings = [], isLoading, isError } = useGetAccountings(apiFilters);
 
@@ -228,7 +236,8 @@ export function AccountingList() {
         >
           <UnifiedTabsContent value="daily" className="mt-4">
             <DailyAccountingTab
-              selectedClinicIds={selectedClinicIds.length > 1 ? selectedClinicIds : undefined}
+              selectedClinicIds={isMultiClinic ? selectedClinicIds : undefined}
+              clinicNameById={clinicNameById}
             />
           </UnifiedTabsContent>
           <UnifiedTabsContent value="unpaid" className="mt-4">
@@ -254,7 +263,7 @@ export function AccountingList() {
                 onEdit={handleEdit}
                 onMedicalRecordOpen={handleMedicalRecordOpen}
                 onPageChange={handlePageChange}
-                showClinicColumn={selectedClinicIds.length > 1}
+                showClinicColumn={isMultiClinic}
                 clinicNameById={clinicNameById}
               />
             ) : null}

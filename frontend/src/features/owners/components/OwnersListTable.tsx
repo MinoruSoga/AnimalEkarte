@@ -81,7 +81,7 @@ interface OwnersListTableProps {
   /** #86: 拠点横断表示時に医院列を出す */
   showClinicColumn?: boolean;
   /** #86: clinicId → 医院名（所属医院由来） */
-  clinicNames?: Record<string, string>;
+  clinicNameById?: Map<string, string>;
   /** #86: 現在の医院ID。別医院の行は編集・削除を抑止（閲覧のみ） */
   currentClinicId?: string | null;
   directionFor: (key: string) => "ascending" | "descending" | "none";
@@ -105,7 +105,7 @@ export function OwnersListTable({
   canEdit,
   canDelete,
   showClinicColumn = false,
-  clinicNames,
+  clinicNameById,
   currentClinicId,
   directionFor,
   onSearchChange,
@@ -219,7 +219,7 @@ export function OwnersListTable({
                 canEdit={canEdit && !isOtherClinic}
                 canDelete={canDelete && !isOtherClinic}
                 showClinicColumn={showClinicColumn}
-                clinicNames={clinicNames}
+                clinicNameById={clinicNameById}
                 onRowClick={onRowClick}
                 onEdit={onEdit}
                 onDeleteRequest={onDeleteRequest}
@@ -250,7 +250,7 @@ interface OwnersListRowProps {
   canEdit: boolean;
   canDelete: boolean;
   showClinicColumn?: boolean;
-  clinicNames?: Record<string, string>;
+  clinicNameById?: Map<string, string>;
   onRowClick: (pet: Pet) => void;
   onEdit: (ownerId: string) => void;
   onDeleteRequest: (ownerId: string, ownerName: string) => void;
@@ -261,7 +261,7 @@ function OwnersListRow({
   canEdit,
   canDelete,
   showClinicColumn = false,
-  clinicNames,
+  clinicNameById,
   onRowClick,
   onEdit,
   onDeleteRequest,
@@ -284,7 +284,7 @@ function OwnersListRow({
       {/* #86: 拠点横断表示時のみ医院列を表示 */}
       {showClinicColumn ? (
         <TableCell className={`${STYLE.tableCell} whitespace-nowrap`} data-testid="owner-row-clinic">
-          {clinicNames?.[pet.clinicId ?? ""] ?? "-"}
+          {clinicNameById?.get(pet.clinicId ?? "") ?? "-"}
         </TableCell>
       ) : null}
       <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>

@@ -1,8 +1,6 @@
 import { useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router";
 
-import { useClinicScope } from "@/hooks/use-clinic-scope";
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -31,6 +29,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 };
 
 const MEDICAL_CATEGORIES = new Set(["examination", "test", "procedure", "medicine"]);
+const EMPTY_CLINIC_NAME_MAP = new Map<string, string>();
 
 // ── ヘルパー ─────────────────────────────────────────────────────
 function todayISO(): string {
@@ -103,11 +102,15 @@ function isSingleSummary(data: DailySummary | PerClinicDailySummaryResponse): da
 interface DailyAccountingTabProps {
   /** 拠点横断表示 (#86 段階3): 2件以上の場合に拠点別集計を表示する。 */
   selectedClinicIds?: string[];
+  /** clinicId → 医院名（所属医院由来） */
+  clinicNameById?: Map<string, string>;
 }
 
-export function DailyAccountingTab({ selectedClinicIds }: DailyAccountingTabProps) {
+export function DailyAccountingTab({
+  selectedClinicIds,
+  clinicNameById = EMPTY_CLINIC_NAME_MAP,
+}: DailyAccountingTabProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { clinicNameById } = useClinicScope();
   const isMultiClinic = selectedClinicIds !== undefined && selectedClinicIds.length > 1;
   const selectedDate = searchParams.get("daily_date") ?? todayISO();
 

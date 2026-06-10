@@ -2,6 +2,13 @@ import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { useAuth } from "./use-auth";
 
+interface UseClinicScopeOptions {
+  /** 拠点トグル時に URL から削除する付随パラメータ（例: page） */
+  resetParamsOnToggle?: readonly string[];
+}
+
+const EMPTY_RESET_PARAMS: readonly string[] = [];
+
 /**
  * #86 拠点横断表示で共通して使う URL-driven の拠点スコープ管理。
  *
@@ -11,7 +18,7 @@ import { useAuth } from "./use-auth";
  * - clinicNameById    : clinicId → 医院名 のMapルックアップ
  * - handleToggleClinic: 拠点トグル（URL を更新する）
  */
-export function useClinicScope() {
+export function useClinicScope({ resetParamsOnToggle = EMPTY_RESET_PARAMS }: UseClinicScopeOptions = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, currentClinicId } = useAuth();
 
@@ -51,10 +58,13 @@ export function useClinicScope() {
         } else {
           next.set("clinics", updated.join(","));
         }
+        for (const param of resetParamsOnToggle) {
+          next.delete(param);
+        }
         return next;
       });
     },
-    [setSearchParams, currentClinicId],
+    [setSearchParams, currentClinicId, resetParamsOnToggle],
   );
 
   return {

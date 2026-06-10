@@ -72,6 +72,38 @@ func buildCampaignUpdate(input *UpdateCampaignInput) map[string]any {
 	return fields
 }
 
+func buildCampaignTargetCategories(categories []model.ItemCategory) []model.CampaignTargetCategory {
+	targets := make([]model.CampaignTargetCategory, 0, len(categories))
+	for _, category := range categories {
+		targets = append(targets, model.CampaignTargetCategory{Category: category})
+	}
+	return targets
+}
+
+func buildCampaignTargetItems(itemIDs []uint64) []model.CampaignTargetItem {
+	targets := make([]model.CampaignTargetItem, 0, len(itemIDs))
+	for _, id := range itemIDs {
+		targets = append(targets, model.CampaignTargetItem{MerchandiseItemID: id})
+	}
+	return targets
+}
+
+func campaignTargetCategoryValues(targets []model.CampaignTargetCategory) []model.ItemCategory {
+	categories := make([]model.ItemCategory, 0, len(targets))
+	for _, target := range targets {
+		categories = append(categories, target.Category)
+	}
+	return categories
+}
+
+func campaignTargetItemIDValues(targets []model.CampaignTargetItem) []uint64 {
+	itemIDs := make([]uint64, 0, len(targets))
+	for _, target := range targets {
+		itemIDs = append(itemIDs, target.MerchandiseItemID)
+	}
+	return itemIDs
+}
+
 func validateCampaignDiscount(dt model.CampaignDiscountType, value float64) error {
 	switch dt {
 	case model.CampaignDiscountTypeRate:
@@ -143,20 +175,16 @@ func (s *campaignService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, err
 	}
 	m := &model.Campaign{
-		ClinicID:      clinicID,
-		Name:          input.Name,
-		StartDate:     input.StartDate,
-		EndDate:       input.EndDate,
-		DiscountType:  input.DiscountType,
-		DiscountValue: input.DiscountValue,
-		IsActive:      input.IsActive,
-		SortOrder:     input.SortOrder,
-	}
-	for _, c := range input.TargetCategories {
-		m.TargetCategories = append(m.TargetCategories, model.CampaignTargetCategory{Category: c})
-	}
-	for _, id := range input.TargetItemIDs {
-		m.TargetItems = append(m.TargetItems, model.CampaignTargetItem{MerchandiseItemID: id})
+		ClinicID:         clinicID,
+		Name:             input.Name,
+		StartDate:        input.StartDate,
+		EndDate:          input.EndDate,
+		DiscountType:     input.DiscountType,
+		DiscountValue:    input.DiscountValue,
+		IsActive:         input.IsActive,
+		SortOrder:        input.SortOrder,
+		TargetCategories: buildCampaignTargetCategories(input.TargetCategories),
+		TargetItems:      buildCampaignTargetItems(input.TargetItemIDs),
 	}
 	result, err := s.repo.Create(ctx, m)
 	if err != nil {
@@ -217,17 +245,11 @@ func (s *campaignService) Update(ctx context.Context, clinicID, id uint64, input
 		}
 	}
 	if hasTargets {
-		cats := make([]model.ItemCategory, 0, len(current.TargetCategories))
-		for _, tc := range current.TargetCategories {
-			cats = append(cats, tc.Category)
-		}
+		cats := campaignTargetCategoryValues(current.TargetCategories)
 		if input.TargetCategories != nil {
 			cats = *input.TargetCategories
 		}
-		itemIDs := make([]uint64, 0, len(current.TargetItems))
-		for _, ti := range current.TargetItems {
-			itemIDs = append(itemIDs, ti.MerchandiseItemID)
-		}
+		itemIDs := campaignTargetItemIDValues(current.TargetItems)
 		if input.TargetItemIDs != nil {
 			itemIDs = *input.TargetItemIDs
 		}

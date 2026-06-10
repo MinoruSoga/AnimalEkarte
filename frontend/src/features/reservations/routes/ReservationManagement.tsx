@@ -59,7 +59,7 @@ export function ReservationManagement() {
   }, [setSearchParams]);
 
   // #86: 拠点横断表示
-  const { assignedClinics, selectedClinicIds, handleToggleClinic } = useClinicScope();
+  const { assignedClinics, selectedClinicIds, isMultiClinic, handleToggleClinic } = useClinicScope();
 
   const { activeEntries, colorMap: dynamicColorMap } = useReservationTypeColorMap();
 
@@ -86,7 +86,12 @@ export function ReservationManagement() {
     petSelectConfirmOpen,
     setPetSelectConfirmOpen,
     handlePetSelectConfirm,
-  } = useReservationManagement({ currentDate, view, days, clinicIds: selectedClinicIds.length > 1 ? selectedClinicIds : undefined });
+  } = useReservationManagement({
+    currentDate,
+    view,
+    days,
+    clinicIds: isMultiClinic ? selectedClinicIds : undefined,
+  });
 
   // BUG-069: Reservation → ReservationFormData 変換を行うラッパー
   // handleOpenForm は ReservationFormData を期待するが、詳細モーダルからは Reservation が来る

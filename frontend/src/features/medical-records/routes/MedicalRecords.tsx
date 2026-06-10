@@ -81,39 +81,23 @@ const MEDICAL_RECORD_SORT_PROPERTIES: SortProperty[] = [
   { key: "status", label: "ステータス" },
 ];
 
+const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
+
 export function MedicalRecords() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
-  const { assignedClinics, selectedClinicIds, clinicNameById, currentClinicId } = useClinicScope();
-  const clinicNames = useMemo(
-    () => Object.fromEntries(clinicNameById),
-    [clinicNameById],
-  );
+  const {
+    assignedClinics,
+    selectedClinicIds,
+    isMultiClinic,
+    clinicNameById,
+    currentClinicId,
+    handleToggleClinic,
+  } = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
-
-  // MedicalRecords 固有: 拠点変更時はページもリセットする
-  const handleToggleClinic = useCallback((clinicId: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      const current =
-        next.get("clinics")?.split(",").filter(Boolean) ??
-        (currentClinicId ? [currentClinicId] : []);
-      const updated = current.includes(clinicId)
-        ? current.filter((id) => id !== clinicId)
-        : [...current, clinicId];
-      if (updated.length === 0) return prev;
-      if (updated.length === 1 && updated[0] === currentClinicId) {
-        next.delete("clinics");
-      } else {
-        next.set("clinics", updated.join(","));
-      }
-      next.delete("page");
-      return next;
-    });
-  }, [setSearchParams, currentClinicId]);
 
   // activeFilters から日付フィルタのみを抽出してAPIに渡す
   const apiFilters = useMemo<MedicalRecordFilters>(() => {
@@ -123,9 +107,9 @@ export function MedicalRecords() {
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
-      clinicIds: selectedClinicIds.length > 1 ? selectedClinicIds : undefined,
+      clinicIds: isMultiClinic ? selectedClinicIds : undefined,
     };
-  }, [activeFilters, selectedClinicIds]);
+  }, [activeFilters, isMultiClinic, selectedClinicIds]);
 
   const { data: filteredRecords, allRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch, apiFilters, activeFilters);
 
@@ -193,7 +177,7 @@ export function MedicalRecords() {
     );
   }, [navigate]);
 
-  const showClinicColumn = selectedClinicIds.length >= 2;
+  const showClinicColumn = isMultiClinic;
 
   // js-cache-function-results: directionFor/toggleSort に依存するカラム定義をメモ化
   const COLUMNS = useMemo<{ header: ReactNode; className?: string; align?: "left" | "center" | "right" }[]>(() => [
@@ -319,7 +303,7 @@ export function MedicalRecords() {
                 {showClinicColumn ? (
                   <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`} data-testid="mr-row-clinic">
                     <span className={isOtherClinic ? `text-xs ${C.text40}` : "text-xs"}>
-                      {r.clinicId ? (clinicNames[r.clinicId] ?? r.clinicId) : "—"}
+                      {r.clinicId ? (clinicNameById.get(r.clinicId) ?? r.clinicId) : "—"}
                     </span>
                   </TableCell>
                 ) : null}

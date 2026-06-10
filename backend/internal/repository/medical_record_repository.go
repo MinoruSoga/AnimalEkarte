@@ -96,23 +96,15 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 }
 
 func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	var record model.MedicalRecord
-	err := r.db.WithContext(ctx).
-		Preload("Treatments", "deleted_at IS NULL").
-		Preload("Vitals").
-		Preload("Doctor", "deleted_at IS NULL").
-		Preload("EnteredByStaff", "deleted_at IS NULL").
-		Preload("Owner", "deleted_at IS NULL").
-		Preload("Pet", "deleted_at IS NULL").
-		Preload("Pet.AnimalSpecies").
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&record).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
-	}
-	return &record, nil
+	return r.findMedicalRecordByID(ctx, clinicScope(clinicID), id)
 }
 
 func (r *medicalRecordRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error) {
+	return r.findMedicalRecordByID(ctx, clinicScopeIn(clinicIDs), id)
+}
+
+// findMedicalRecordByID は scope（単一/複数クリニック）を受け取りカルテを1件取得する共通実装。
+func (r *medicalRecordRepository) findMedicalRecordByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
 	err := r.db.WithContext(ctx).
 		Preload("Treatments", "deleted_at IS NULL").
@@ -122,7 +114,7 @@ func (r *medicalRecordRepository) FindByIDForClinics(ctx context.Context, clinic
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.AnimalSpecies").
-		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&record).Error
+		Scopes(scope).Where("id = ?", id).First(&record).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
 	}

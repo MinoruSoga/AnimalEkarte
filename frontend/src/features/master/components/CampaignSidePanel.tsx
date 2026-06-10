@@ -28,6 +28,12 @@ const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "other", label: "その他" },
 ];
 
+function toggleSelection(values: string[], value: string): string[] {
+  return values.includes(value)
+    ? values.filter((item) => item !== value)
+    : [...values, value];
+}
+
 interface CampaignSidePanelProps {
   item: Campaign | null;
   onClose: () => void;
@@ -71,18 +77,14 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
   const toggleCategory = useCallback((cat: string) => {
     setFormDataDirty((prev) => ({
       ...prev,
-      targetCategories: prev.targetCategories.includes(cat)
-        ? prev.targetCategories.filter((c) => c !== cat)
-        : [...prev.targetCategories, cat],
+      targetCategories: toggleSelection(prev.targetCategories, cat),
     }));
   }, [setFormDataDirty]);
 
   const toggleItem = useCallback((id: string) => {
     setFormDataDirty((prev) => ({
       ...prev,
-      targetItemIds: prev.targetItemIds.includes(id)
-        ? prev.targetItemIds.filter((x) => x !== id)
-        : [...prev.targetItemIds, id],
+      targetItemIds: toggleSelection(prev.targetItemIds, id),
     }));
   }, [setFormDataDirty]);
 
@@ -157,7 +159,7 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
             />
           </div>
         </div>
-        {periodError ? <p className="text-xs" style={{ color: C.danger }}>{periodError}</p> : null}
+        {periodError ? <p className={`text-xs ${C.danger}`}>{periodError}</p> : null}
 
         {/* 割引種別・値 */}
         <div className="grid grid-cols-2 gap-3">
@@ -218,7 +220,7 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           />
           <div className="max-h-48 space-y-1 overflow-y-auto rounded border p-2">
             {filteredMerchandise.length === 0 ? (
-              <p className="text-xs" style={{ color: C.text50 }}>商品がありません</p>
+              <p className={`text-xs ${C.text50}`}>商品がありません</p>
             ) : (
               filteredMerchandise.map((mItem) => (
                 <label key={mItem.id} className="flex items-center gap-2 text-sm">

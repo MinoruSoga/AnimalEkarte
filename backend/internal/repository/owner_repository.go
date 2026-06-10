@@ -90,17 +90,22 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 }
 
 func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
-	var owner model.Owner
-	err := r.db.WithContext(ctx).Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "deleted_at IS NULL").Preload("Pets.Owner", "deleted_at IS NULL").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&owner).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
-	}
-	return &owner, nil
+	return r.findOwnerByID(ctx, clinicScope(clinicID), id)
 }
 
 func (r *ownerRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+	return r.findOwnerByID(ctx, clinicScopeIn(clinicIDs), id)
+}
+
+// findOwnerByID は scope（単一/複数クリニック）を受け取り飼主を1件取得する共通実装。
+func (r *ownerRepository) findOwnerByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "deleted_at IS NULL").Preload("Pets.Owner", "deleted_at IS NULL").Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&owner).Error
+	err := r.db.WithContext(ctx).
+		Preload("Pets", "deleted_at IS NULL").
+		Preload("Pets.AnimalSpecies").
+		Preload("Pets.Insurance", "deleted_at IS NULL").
+		Preload("Pets.Owner", "deleted_at IS NULL").
+		Scopes(scope).Where("id = ?", id).First(&owner).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}
