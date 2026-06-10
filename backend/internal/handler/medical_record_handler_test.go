@@ -25,6 +25,7 @@ import (
 type mockMedicalRecordService struct {
 	listFn                       func(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	getByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	getByIDForClinicsFn          func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error)
 	countByPetFn                 func(ctx context.Context, clinicID, petID uint64) (int64, error)
 	createFn                     func(ctx context.Context, clinicID uint64, input *service.CreateMedicalRecordInput) (*model.MedicalRecord, error)
 	updateFn                     func(ctx context.Context, clinicID, id uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error)
@@ -41,7 +42,10 @@ func (m *mockMedicalRecordService) GetByID(ctx context.Context, clinicID, id uin
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockMedicalRecordService) GetByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
+func (m *mockMedicalRecordService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error) {
+	if m.getByIDForClinicsFn != nil {
+		return m.getByIDForClinicsFn(ctx, clinicIDs, id)
+	}
 	return nil, nil
 }
 
@@ -351,8 +355,8 @@ func TestGetMedicalRecord(t *testing.T) {
 			paramID:  "7",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-					assert.Equal(t, uint64(1), clinicID)
+				getByIDForClinicsFn: func(_ context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
 					assert.Equal(t, uint64(7), id)
 					return &model.MedicalRecord{ID: 7}, nil
 				},
@@ -378,7 +382,7 @@ func TestGetMedicalRecord(t *testing.T) {
 			paramID:  "999",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				getByIDForClinicsFn: func(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
 					return nil, apperrors.WrapNotFound("medical_record", "999")
 				},
 			},

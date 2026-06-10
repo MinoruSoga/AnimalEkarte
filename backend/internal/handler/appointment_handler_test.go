@@ -24,6 +24,7 @@ import (
 type mockReservationService struct {
 	listFn                   func(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	getByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	getByIDForClinicsFn      func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error)
 	createFn                 func(ctx context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error)
 	updateFn                 func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.Reservation, error)
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
@@ -38,7 +39,10 @@ func (m *mockReservationService) GetByID(ctx context.Context, clinicID, id uint6
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockReservationService) GetByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
+func (m *mockReservationService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
+	if m.getByIDForClinicsFn != nil {
+		return m.getByIDForClinicsFn(ctx, clinicIDs, id)
+	}
 	return nil, nil
 }
 
@@ -217,8 +221,8 @@ func TestGetReservation(t *testing.T) {
 			paramID:  "3",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
-					assert.Equal(t, uint64(1), clinicID)
+				getByIDForClinicsFn: func(_ context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
 					assert.Equal(t, uint64(3), id)
 					return &model.Reservation{ID: 3, Notes: "再診"}, nil
 				},
@@ -245,7 +249,7 @@ func TestGetReservation(t *testing.T) {
 			paramID:  "999",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				getByIDForClinicsFn: func(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
 					return nil, apperrors.WrapNotFound("reservation", "999")
 				},
 			},

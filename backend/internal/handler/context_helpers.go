@@ -152,11 +152,13 @@ func resolveAllClinicIDs(c *gin.Context) ([]uint64, bool) {
 	if isAdmin {
 		return []uint64{clinicID}, true
 	}
-	allowed, ok := extractClinicIDs(c) // JWT ClinicIDs[]
-	if !ok || len(allowed) == 0 {
-		return []uint64{clinicID}, true
+	// extractClinicIDs はエラー時に 401 を書くため、ここでは直接 peek する
+	if val, exists := c.Get("clinic_ids"); exists {
+		if ids, ok2 := val.([]uint64); ok2 && len(ids) > 0 {
+			return ids, true
+		}
 	}
-	return allowed, true
+	return []uint64{clinicID}, true
 }
 
 // extractIsSystemAdmin はJWT認証済みコンテキストから is_system_admin を取得する。

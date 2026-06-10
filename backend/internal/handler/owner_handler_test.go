@@ -25,6 +25,7 @@ import (
 type mockOwnerService struct {
 	listFn                    func(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	getByIDFn                 func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	getByIDForClinicsFn       func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error)
 	createWithPetsFn          func(ctx context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error)
 	updateFn                  func(ctx context.Context, clinicID, id uint64, input *service.UpdateOwnerInput) (*model.Owner, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
@@ -43,7 +44,10 @@ func (m *mockOwnerService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockOwnerService) GetByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
+func (m *mockOwnerService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+	if m.getByIDForClinicsFn != nil {
+		return m.getByIDForClinicsFn(ctx, clinicIDs, id)
+	}
 	return nil, nil
 }
 
@@ -106,9 +110,10 @@ func newHandlerWithOwnerSvc(svc service.OwnerService) *Handler {
 	}
 }
 
-// setClinicID は gin.Context に clinic_id を設定するヘルパー
+// setClinicID は gin.Context に clinic_id + is_system_admin を設定するヘルパー
 func setClinicID(c *gin.Context) {
 	c.Set("clinic_id", "1")
+	c.Set("is_system_admin", false)
 }
 
 // ---- ListOwners ----
@@ -286,8 +291,8 @@ func TestGetOwner(t *testing.T) {
 			paramID:  "42",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
-				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Owner, error) {
-					assert.Equal(t, uint64(1), clinicID)
+				getByIDForClinicsFn: func(_ context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
 					assert.Equal(t, uint64(42), id)
 					return &model.Owner{ID: 42, Name: "佐藤花子"}, nil
 				},
@@ -314,7 +319,7 @@ func TestGetOwner(t *testing.T) {
 			paramID:  "999",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				getByIDForClinicsFn: func(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
 					return nil, apperrors.WrapNotFound("owner", "999")
 				},
 			},
