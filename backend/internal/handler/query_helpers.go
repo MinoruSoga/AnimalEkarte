@@ -9,9 +9,16 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
+const defaultMaxPaginationLimit = 100
+
 // parsePagination はページネーションパラメータを安全にパースする。
 // page: 1以上の整数, limit: 1〜100の整数
 func parsePagination(c *gin.Context) (page, limit int, err error) {
+	return parsePaginationWithMax(c, defaultMaxPaginationLimit)
+}
+
+// parsePaginationWithMax はページネーション上限だけを呼び出し元で調整できる共通パーサ。
+func parsePaginationWithMax(c *gin.Context, maxLimit int) (page, limit int, err error) {
 	pageStr := c.DefaultQuery("page", "1")
 	// BUG-143: limit と per_page の両方をサポート（per_page は limit のエイリアス）
 	limitStr := c.DefaultQuery("limit", "")
@@ -25,8 +32,8 @@ func parsePagination(c *gin.Context) (page, limit int, err error) {
 	}
 
 	limit, err = strconv.Atoi(limitStr)
-	if err != nil || limit < 1 || limit > 100 {
-		return 0, 0, apperrors.WrapInvalidInput("limit は1〜100の範囲で指定してください")
+	if err != nil || limit < 1 || limit > maxLimit {
+		return 0, 0, apperrors.WrapInvalidInput(fmt.Sprintf("limit は1〜%dの範囲で指定してください", maxLimit))
 	}
 
 	return page, limit, nil

@@ -154,6 +154,26 @@ func TestListReservations(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			name:     "allows large limit for calendar range",
+			query:    "page=1&limit=1000&start_date=2026-03-22&end_date=2026-03-28",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationService{
+				listFn: func(_ context.Context, _ []uint64, _ int, limit int, _, startDate, endDate *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+					assert.Equal(t, 1000, limit)
+					require.NotNil(t, startDate)
+					require.NotNil(t, endDate)
+					assert.Equal(t, 2026, startDate.Year())
+					assert.Equal(t, time.March, startDate.Month())
+					assert.Equal(t, 22, startDate.Day())
+					assert.Equal(t, 2026, endDate.Year())
+					assert.Equal(t, time.March, endDate.Month())
+					assert.Equal(t, 29, endDate.Day())
+					return []model.Reservation{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
 			name:       "returns 400 for invalid date format",
 			query:      "page=1&limit=10&date=2026/03/24",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },

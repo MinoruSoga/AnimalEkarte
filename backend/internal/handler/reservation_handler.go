@@ -12,6 +12,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
+const reservationListMaxLimit = 1000
+
 func toReservationAvailableTimeResponse(slot *service.TimeSlot) liffTimeSlotResponse {
 	return liffTimeSlotResponse{StartTime: slot.StartTime, EndTime: slot.EndTime}
 }
@@ -23,7 +25,7 @@ func (h *Handler) ListReservations(c *gin.Context) {
 	if !ok {
 		return
 	}
-	page, limit, err := parsePagination(c)
+	page, limit, err := parsePaginationWithMax(c, reservationListMaxLimit)
 	if err != nil {
 		RespondError(c, err)
 		return
