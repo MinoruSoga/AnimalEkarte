@@ -3,7 +3,6 @@ import { useNavigate } from "react-router";
 import { CalendarDays, Clock, Plus, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { handleApiError } from "@/lib/handle-api-error";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import {
@@ -84,15 +83,13 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
       };
       await createMutation.mutateAsync(req);
       setForm(DEFAULT_FORM);
-    } catch (error) {
-      handleApiError(error, "予約可能枠の追加");
+    } catch {
+      // エラー通知は useCreateAvailableSlot の onError に一本化（二重トースト防止）
     }
   }, null);
 
   const handleDelete = useCallback((id: number) => {
-    deleteMutation.mutate(id, {
-      onError: (error) => handleApiError(error, "削除"),
-    });
+    deleteMutation.mutate(id);
   }, [deleteMutation]);
 
   const itemList = useMemo(() => items.map((item) => {
