@@ -6,9 +6,11 @@ import { useNavigate, useSearchParams } from "react-router";
 // Components
 import { UnpaidTab } from "../components/UnpaidTab";
 import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
+import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
+import { useAuth } from "@/hooks/use-auth";
 
 // External
 import { Plus, CreditCard } from "lucide-react";
@@ -43,6 +45,38 @@ export function AccountingList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit } = usePermission("accounting");
+
+  // #86 段階3: 拠点横断表示
+  const { user, currentClinicId } = useAuth();
+  const assignedClinics = useMemo(() => user?.clinics ?? [], [user?.clinics]);
+  const clinicsParam = searchParams.get("clinics");
+  const selectedClinicIds = useMemo(
+    () =>
+      clinicsParam
+        ? clinicsParam.split(",").filter(Boolean)
+        : currentClinicId
+          ? [currentClinicId]
+          : [],
+    [clinicsParam, currentClinicId],
+  );
+  const handleToggleClinic = useCallback((clinicId: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      const current =
+        next.get("clinics")?.split(",").filter(Boolean) ??
+        (currentClinicId ? [currentClinicId] : []);
+      const updated = current.includes(clinicId)
+        ? current.filter((id) => id !== clinicId)
+        : [...current, clinicId];
+      if (updated.length === 0) return prev;
+      if (updated.length === 1 && updated[0] === currentClinicId) {
+        next.delete("clinics");
+      } else {
+        next.set("clinics", updated.join(","));
+      }
+      return next;
+    });
+  }, [setSearchParams, currentClinicId]);
 
   const tabParam = searchParams.get("tab");
   const activeTab = tabParam === "unpaid" ? "unpaid" : tabParam === "daily" ? "daily" : "list";
@@ -84,8 +118,9 @@ export function AccountingList() {
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
+      clinicIds: selectedClinicIds.length > 1 ? selectedClinicIds : undefined,
     };
-  }, [activeFilters]);
+  }, [activeFilters, selectedClinicIds]);
 
   const { data: accountings = [], isLoading, isError } = useGetAccountings(apiFilters);
 
@@ -209,13 +244,22 @@ export function AccountingList() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
+        {assignedClinics.length > 1 ? (
+          <ClinicScopeFilter
+            clinics={assignedClinics}
+            selectedIds={selectedClinicIds}
+            onToggle={handleToggleClinic}
+          />
+        ) : null}
         <UnifiedTabs
           items={tabItems}
           value={activeTab}
           onValueChange={handleTabChange}
         >
           <UnifiedTabsContent value="daily" className="mt-4">
-            <DailyAccountingTab />
+            <DailyAccountingTab
+              selectedClinicIds={selectedClinicIds.length > 1 ? selectedClinicIds : undefined}
+            />
           </UnifiedTabsContent>
           <UnifiedTabsContent value="unpaid" className="mt-4">
             <UnpaidTab />

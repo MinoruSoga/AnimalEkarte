@@ -49,6 +49,12 @@ func toDailySummaryResponse(s *repository.DailySummaryResult) dailySummaryRespon
 	}
 }
 
+// clinicDailySummaryResponse は拠点別日次集計レスポンス (#86 段階3 論点4=2)。
+type clinicDailySummaryResponse struct {
+	ClinicID uint64               `json:"clinic_id"`
+	Summary  dailySummaryResponse `json:"summary"`
+}
+
 // BUG-370: 月末未納者一覧レスポンス
 
 type unpaidOwnerResponse struct {

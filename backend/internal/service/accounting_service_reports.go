@@ -73,3 +73,25 @@ func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64
 	}
 	return result, nil
 }
+
+// GetDailySummaryForClinics は複数医院の拠点別日次集計を返す (#86 段階3 論点4=2)。
+func (s *accountingService) GetDailySummaryForClinics(ctx context.Context, clinicIDs []uint64, dateStr string) ([]ClinicDailySummary, error) {
+	if dateStr == "" {
+		dateStr = time.Now().Format("2006-01-02")
+	}
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	date, err := time.ParseInLocation("2006-01-02", dateStr, jst)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM-DD")
+	}
+	results := make([]ClinicDailySummary, 0, len(clinicIDs))
+	for _, clinicID := range clinicIDs {
+		r, rerr := s.repo.GetDailySummary(ctx, clinicID, date)
+		if rerr != nil {
+			slog.ErrorContext(ctx, "failed to get daily summary for clinic", "clinic_id", clinicID, "error", rerr)
+			return nil, apperrors.Wrap(rerr, "failed to get daily summary for clinics")
+		}
+		results = append(results, ClinicDailySummary{ClinicID: clinicID, Summary: r})
+	}
+	return results, nil
+}

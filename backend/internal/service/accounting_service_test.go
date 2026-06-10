@@ -28,6 +28,10 @@ func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64,
 	return m.findAllFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 }
 
+func (m *mockAccountingRepository) FindAllForClinics(_ context.Context, _ []uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
+	return nil, 0, nil
+}
+
 func (m *mockAccountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)

@@ -18,6 +18,7 @@ import { formatCurrency } from "@/utils/format/number";
 
 import { useGetAccountings } from "../api/get-accountings";
 import { useGetDailySummary } from "../api/get-daily-summary";
+import type { ClinicDailySummaryItem, DailySummary, PerClinicDailySummaryResponse } from "../api/get-daily-summary";
 import type { Accounting, AccountingItem } from "../types";
 
 // ── 定数 ────────────────────────────────────────────────────────
@@ -92,8 +93,17 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
   );
 }
 
+function isSingleSummary(data: DailySummary | PerClinicDailySummaryResponse): data is DailySummary {
+  return "billing_count" in data;
+}
+
 // ── メインコンポーネント ──────────────────────────────────────────
-export function DailyAccountingTab() {
+interface DailyAccountingTabProps {
+  /** 拠点横断表示 (#86 段階3): 2件以上の場合に拠点別集計を表示する。 */
+  selectedClinicIds?: string[];
+}
+
+export function DailyAccountingTab({ selectedClinicIds }: DailyAccountingTabProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedDate = searchParams.get("daily_date") ?? todayISO();
 
@@ -108,9 +118,13 @@ export function DailyAccountingTab() {
   const { data: accountings = [], isLoading, isError } = useGetAccountings({
     startDate: selectedDate,
     endDate: selectedDate,
+    clinicIds: selectedClinicIds,
   });
 
-  const { data: summary } = useGetDailySummary(selectedDate);
+  const { data: summaryRaw } = useGetDailySummary(selectedDate, selectedClinicIds);
+  const summary = summaryRaw && isSingleSummary(summaryRaw) ? summaryRaw : null;
+  const perClinicSummaries: ClinicDailySummaryItem[] =
+    summaryRaw && !isSingleSummary(summaryRaw) ? summaryRaw.per_clinic : [];
 
   const rows = useMemo<RowData[]>(() => {
     return accountings
@@ -170,6 +184,26 @@ export function DailyAccountingTab() {
                 label={PAYMENT_METHOD_LABELS[pt.method] ?? pt.method}
                 value={formatCurrency(pt.total)}
               />
+            ))}
+          </div>
+        ) : null}
+        {perClinicSummaries.length > 0 ? (
+          <div className="flex flex-col gap-2" data-testid="daily-summary-per-clinic">
+            {perClinicSummaries.map((cs) => (
+              <div key={cs.clinic_id} className={`rounded-lg border ${C.borderLight} px-3 py-2 ${C.bgWhite}`}>
+                <p className={`text-xs font-medium ${C.text60} mb-1.5`}>拠点 {cs.clinic_id}</p>
+                <div className="flex flex-wrap gap-2">
+                  <SummaryCard label="会計件数" value={`${cs.summary.billing_count}件`} />
+                  <SummaryCard label="売上合計" value={formatCurrency(cs.summary.grand_total)} />
+                  {cs.summary.payment_totals.map((pt) => (
+                    <SummaryCard
+                      key={pt.method}
+                      label={PAYMENT_METHOD_LABELS[pt.method] ?? pt.method}
+                      value={formatCurrency(pt.total)}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         ) : null}

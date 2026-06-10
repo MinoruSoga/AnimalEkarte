@@ -8,11 +8,12 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ListAccountings godoc
 func (h *Handler) ListAccountings(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicIDs, ok := resolveListClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -30,17 +31,33 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 		return
 	}
 
-	accountings, total, err := h.svc.Accounting.List(
-		c.Request.Context(),
-		clinicID,
-		filters.PetID,
-		filters.OwnerID,
-		filters.Status,
-		filters.StartDate,
-		filters.EndDate,
-		page,
-		limit,
-	)
+	var accountings []model.Billing
+	var total int64
+	if len(clinicIDs) == 1 {
+		accountings, total, err = h.svc.Accounting.List(
+			c.Request.Context(),
+			clinicIDs[0],
+			filters.PetID,
+			filters.OwnerID,
+			filters.Status,
+			filters.StartDate,
+			filters.EndDate,
+			page,
+			limit,
+		)
+	} else {
+		accountings, total, err = h.svc.Accounting.ListForClinics(
+			c.Request.Context(),
+			clinicIDs,
+			filters.PetID,
+			filters.OwnerID,
+			filters.Status,
+			filters.StartDate,
+			filters.EndDate,
+			page,
+			limit,
+		)
+	}
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -180,20 +197,39 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 }
 
 // GetDailySummary はレジ締め日次集計を返す。BUG-368
-// GET /v1/accountings/daily-summary?date=YYYY-MM-DD
+// GET /v1/accountings/daily-summary?date=YYYY-MM-DD[&clinic_ids=1,2]
+// clinic_ids が複数の場合は per_clinic 配列を追加で返す (#86 段階3 論点4=2)。
 func (h *Handler) GetDailySummary(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicIDs, ok := resolveListClinicIDs(c)
 	if !ok {
 		return
 	}
 
 	query := newDailySummaryQuery(c.Request.URL.Query())
-	result, err := h.svc.Accounting.GetDailySummary(c.Request.Context(), clinicID, query.Date)
+
+	if len(clinicIDs) == 1 {
+		result, err := h.svc.Accounting.GetDailySummary(c.Request.Context(), clinicIDs[0], query.Date)
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, toDailySummaryResponse(result))
+		return
+	}
+
+	perClinic, err := h.svc.Accounting.GetDailySummaryForClinics(c.Request.Context(), clinicIDs, query.Date)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toDailySummaryResponse(result))
+	items := make([]clinicDailySummaryResponse, 0, len(perClinic))
+	for _, cs := range perClinic {
+		items = append(items, clinicDailySummaryResponse{
+			ClinicID: cs.ClinicID,
+			Summary:  toDailySummaryResponse(cs.Summary),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"per_clinic": items})
 }
 
 // CancelAccounting は会計を論理削除（status=cancelled）する。

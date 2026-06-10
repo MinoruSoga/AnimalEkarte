@@ -15,6 +15,8 @@ import (
 
 type AccountingRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	// FindAllForClinics は複数医院の会計を横断検索する (#86 段階3)。clinicIDs はハンドラ層で所属検証済みであること。
+	FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	// LockAndFindByID は FOR UPDATE で請求を行ロック取得する（TOCTOU 防止）。トランザクション内でのみ使用。
 	LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
@@ -79,6 +81,64 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 	}
 
 	// 返金合計をサブクエリで一括取得
+	if len(billings) > 0 {
+		ids := make([]uint64, 0, len(billings))
+		for i := range billings {
+			ids = append(ids, billings[i].ID)
+		}
+		type refundSum struct {
+			BillingID uint64
+			Total     int64
+		}
+		var sums []refundSum
+		if err := r.db.WithContext(ctx).
+			Model(&model.BillingRefund{}).
+			Unscoped().
+			Select("billing_id, COALESCE(SUM(amount), 0) AS total").
+			Where("billing_id IN ?", ids).
+			Group("billing_id").
+			Scan(&sums).Error; err != nil {
+			return nil, 0, apperrors.FromGORM(err, "billing_refund", "")
+		}
+		sumMap := make(map[uint64]int64, len(sums))
+		for _, s := range sums {
+			sumMap[s.BillingID] = s.Total
+		}
+		for i := range billings {
+			billings[i].TotalRefundedAmount = sumMap[billings[i].ID]
+		}
+	}
+	return billings, total, nil
+}
+
+func (r *accountingRepository) FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
+	billings := make([]model.Billing, 0)
+	var total int64
+
+	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(clinicScopeIn(clinicIDs))
+	if petID != nil {
+		q = q.Where("pet_id = ?", *petID)
+	}
+	if ownerID != nil {
+		q = q.Where("owner_id = ?", *ownerID)
+	}
+	if status != nil {
+		q = q.Where("status = ?", *status)
+	}
+	if startDate != nil {
+		q = q.Where("scheduled_date >= ?", *startDate)
+	}
+	if endDate != nil {
+		q = q.Where("scheduled_date <= ?", *endDate)
+	}
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "billing", "")
+	}
+	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").Preload("PaymentSplits").
+		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "billing", "")
+	}
+
 	if len(billings) > 0 {
 		ids := make([]uint64, 0, len(billings))
 		for i := range billings {
