@@ -115,6 +115,7 @@ interface MedicalRecordPrintAreaProps {
   isNewRecord: boolean;
   recordId?: string;
   doctorName: string;
+  recordDate?: string;
   pet: {
     name: string;
     species?: string;
@@ -137,6 +138,7 @@ export function MedicalRecordPrintArea({
   isNewRecord,
   recordId,
   doctorName,
+  recordDate,
   pet,
   clinic,
   chiefComplaint,
@@ -154,7 +156,7 @@ export function MedicalRecordPrintArea({
       </style>
       <MedicalRecordPrintView
         recordNo={recordId}
-        date={formatJSTDate(new Date())}
+        date={recordDate ?? formatJSTDate(new Date())}
         doctorName={doctorName}
         pet={pet}
         clinic={{

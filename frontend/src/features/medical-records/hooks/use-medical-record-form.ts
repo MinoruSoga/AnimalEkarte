@@ -226,6 +226,26 @@ export function useMedicalRecordForm(recordId?: string) {
     });
   };
 
+  // 診察日変更ハンドラ
+  const handleChangeDate = useCallback((newDate: string) => {
+    if (!recordId) return;
+    startSaveTransition(async () => {
+      try {
+        await updateMutation.mutateAsync({
+          id: recordId,
+          req: {
+            date: `${newDate}T00:00:00+09:00`,
+            version: existingRecord?.version,
+          } as UpdateMedicalRecordRequest,
+        });
+        await queryClient.invalidateQueries({ queryKey: ["medical-record", recordId] });
+        toast.success(`診察日を ${newDate} に変更しました`);
+      } catch (error) {
+        handleApiError(error, "診察日変更");
+      }
+    });
+  }, [recordId, existingRecord?.version, updateMutation, queryClient, startSaveTransition]);
+
   const {
     pendingOwnerChange,
     requestOwnerChange,
@@ -306,6 +326,9 @@ export function useMedicalRecordForm(recordId?: string) {
     visitCount: existingRecord?.visitCount,
     // 担当医変更
     handleChangeDoctor,
+    // 診察日
+    recordDate: existingRecord?.date,
+    handleChangeDate,
     // 飼主変更
     pendingOwnerChange,
     requestOwnerChange,

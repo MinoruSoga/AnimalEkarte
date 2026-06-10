@@ -24,9 +24,12 @@ interface MedicalRecordStickyHeaderProps {
   canEdit: boolean;
   isNewRecord: boolean;
   tabs: { value: string; label: string }[];
+  recordDate?: string;
+  recordStatus?: string;
   onVisitTypeClick: () => void;
   onStaffClick: () => void;
   onOwnerClick: () => void;
+  onDateChange?: (date: string) => void;
 }
 
 export function MedicalRecordStickyHeader({
@@ -37,10 +40,17 @@ export function MedicalRecordStickyHeader({
   canEdit,
   isNewRecord,
   tabs,
+  recordDate,
+  recordStatus,
   onVisitTypeClick,
   onStaffClick,
   onOwnerClick,
+  onDateChange,
 }: MedicalRecordStickyHeaderProps) {
+  const dateInputValue = recordDate ? recordDate.replace(/\//g, "-") : undefined;
+  const isFinalized = recordStatus === "確定済";
+  const canEditDate = canEdit && !isFinalized && !!onDateChange;
+
   return (
     <div className={`sticky top-0 z-10 ${C.bgPage}`}>
       <PatientInfoCard
@@ -64,6 +74,25 @@ export function MedicalRecordStickyHeader({
         visitCount={visitCount}
         sticky={false}
       />
+
+      {!isNewRecord ? (
+        <div className={`flex items-center gap-2 px-4 py-1.5 border-b ${C.borderMedium} ${C.bgWhite}`}>
+          <span className={`text-xs ${C.text50} shrink-0`}>診察日</span>
+          {canEditDate ? (
+            <input
+              key={dateInputValue}
+              type="date"
+              defaultValue={dateInputValue}
+              onChange={(e) => {
+                if (e.target.value) onDateChange(e.target.value);
+              }}
+              className={`text-sm ${C.text} bg-transparent rounded px-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-current`}
+            />
+          ) : (
+            <span className={`text-sm ${C.text}`}>{recordDate ?? "-"}</span>
+          )}
+        </div>
+      ) : null}
 
       <div className={`flex shrink-0 overflow-x-auto ${C.bgPage}`}>
         <UnifiedTabsList items={tabs} />

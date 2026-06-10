@@ -91,6 +91,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     handleNextVisitDateValidChange,
     recommendationReason,
     setRecommendationReason,
+    recordDate,
+    handleChangeDate,
     } = useMedicalRecordForm(recordId);
 
     useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
@@ -274,9 +276,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         canEdit={canEdit}
         isNewRecord={isNewRecord}
         tabs={MEDICAL_RECORD_TAB_ITEMS}
+        recordDate={recordDate}
+        recordStatus={currentRecord?.status}
         onVisitTypeClick={handleVisitTypeCycle}
         onStaffClick={handleOpenStaffModal}
         onOwnerClick={handleOpenOwnerSearch}
+        onDateChange={handleChangeDate}
       />
       <MedicalRecordTabsArea
         activeTab={activeTab}
@@ -395,6 +400,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       isNewRecord={isNewRecord}
       recordId={recordId}
       doctorName={staffName}
+      recordDate={recordDate}
       pet={{
         name: selectedPet.name,
         species: selectedPet.species,

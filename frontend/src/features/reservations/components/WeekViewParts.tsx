@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { addDays, format, isSameDay } from "date-fns";
 import { ja } from "date-fns/locale";
 
@@ -7,6 +7,8 @@ import type { Reservation } from "@/types";
 
 import { DayColumn } from "./WeekViewDayColumn";
 import { HOUR_HEIGHT, HOURS, WEEK_DAYS, type ReservationTypeColor } from "./WeekViewGridConstants";
+
+const INITIAL_SCROLL_HOUR = 9;
 
 export type { ReservationTypeColor } from "./WeekViewGridConstants";
 
@@ -29,8 +31,16 @@ export function WeekViewGrid({
   dynamicColorMap,
   columnWidth,
 }: WeekViewGridProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = INITIAL_SCROLL_HOUR * HOUR_HEIGHT;
+    }
+  }, []);
+
   return (
-    <div className={`flex-1 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-auto relative`}>
+    <div ref={scrollRef} className={`flex-1 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-auto relative`}>
       <div style={{ minWidth: "100%" }}>
         <div className={`flex border-b ${C.borderMedium} sticky top-0 z-30 ${C.bgWhite}`}>
           <div className={`w-12 flex-shrink-0 ${C.bgPage} border-r border-b ${C.borderMedium} sticky left-0 z-40`} />
