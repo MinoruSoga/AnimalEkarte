@@ -98,7 +98,7 @@ type mockAnalyticsOwnerRepo struct {
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 }
 
-func (m *mockAnalyticsOwnerRepo) FindAll(_ context.Context, _ uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+func (m *mockAnalyticsOwnerRepo) FindAll(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockAnalyticsOwnerRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {

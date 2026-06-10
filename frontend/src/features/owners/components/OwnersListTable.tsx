@@ -78,6 +78,12 @@ interface OwnersListTableProps {
   isFiltering: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  /** #86: 拠点横断表示時に医院列を出す */
+  showClinicColumn?: boolean;
+  /** #86: clinicId → 医院名（所属医院由来） */
+  clinicNames?: Record<string, string>;
+  /** #86: 現在の医院ID。別医院の行は編集・削除を抑止（閲覧のみ） */
+  currentClinicId?: string | null;
   directionFor: (key: string) => "ascending" | "descending" | "none";
   onSearchChange: (value: string) => void;
   onFilterChange: (filters: ActiveFilter[]) => void;
@@ -98,6 +104,9 @@ export function OwnersListTable({
   isFiltering,
   canEdit,
   canDelete,
+  showClinicColumn = false,
+  clinicNames,
+  currentClinicId,
   directionFor,
   onSearchChange,
   onFilterChange,
@@ -129,6 +138,8 @@ export function OwnersListTable({
       ),
       className: "w-[180px]",
     },
+    // #86: 拠点横断表示時のみ医院列を表示
+    ...(showClinicColumn ? [{ header: "医院", className: "w-[110px]" }] : []),
     { header: "ペット番号", className: "w-[100px] hidden lg:table-cell" },
     {
       header: (
@@ -196,17 +207,25 @@ export function OwnersListTable({
           columns={columns}
           data={pagination.paginatedData}
           emptyMessage="データが見つかりません"
-          renderRow={(pet) => (
-            <OwnersListRow
-              key={pet.id}
-              pet={pet}
-              canEdit={canEdit}
-              canDelete={canDelete}
-              onRowClick={onRowClick}
-              onEdit={onEdit}
-              onDeleteRequest={onDeleteRequest}
-            />
-          )}
+          renderRow={(pet) => {
+            // #86: 別医院の行は編集・削除を抑止（閲覧のみ）。行クリックの遷移ガードは呼び出し側
+            const isOtherClinic = !!(
+              currentClinicId && pet.clinicId && pet.clinicId !== currentClinicId
+            );
+            return (
+              <OwnersListRow
+                key={pet.id}
+                pet={pet}
+                canEdit={canEdit && !isOtherClinic}
+                canDelete={canDelete && !isOtherClinic}
+                showClinicColumn={showClinicColumn}
+                clinicNames={clinicNames}
+                onRowClick={onRowClick}
+                onEdit={onEdit}
+                onDeleteRequest={onDeleteRequest}
+              />
+            );
+          }}
         />
       </FilteringIndicator>
 
@@ -230,6 +249,8 @@ interface OwnersListRowProps {
   pet: Pet;
   canEdit: boolean;
   canDelete: boolean;
+  showClinicColumn?: boolean;
+  clinicNames?: Record<string, string>;
   onRowClick: (pet: Pet) => void;
   onEdit: (ownerId: string) => void;
   onDeleteRequest: (ownerId: string, ownerName: string) => void;
@@ -239,6 +260,8 @@ function OwnersListRow({
   pet,
   canEdit,
   canDelete,
+  showClinicColumn = false,
+  clinicNames,
   onRowClick,
   onEdit,
   onDeleteRequest,
@@ -258,6 +281,12 @@ function OwnersListRow({
           ) : null}
         </span>
       </TableCell>
+      {/* #86: 拠点横断表示時のみ医院列を表示 */}
+      {showClinicColumn ? (
+        <TableCell className={`${STYLE.tableCell} whitespace-nowrap`} data-testid="owner-row-clinic">
+          {clinicNames?.[pet.clinicId ?? ""] ?? "-"}
+        </TableCell>
+      ) : null}
       <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {pet.petNumber || "-"}
       </TableCell>

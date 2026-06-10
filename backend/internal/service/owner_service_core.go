@@ -8,8 +8,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *ownerService) List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
-	owners, total, err := s.repo.FindAll(ctx, clinicID, page, limit, search)
+func (s *ownerService) List(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error) {
+	owners, total, err := s.repo.FindAll(ctx, clinicIDs, page, limit, search)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list owners", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list owners")

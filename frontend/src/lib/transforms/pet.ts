@@ -56,6 +56,13 @@ const DANGER_LEVEL_MAP: Record<string, string> = {
  */
 export const transformBackendPetToFrontend = (p: BackendPet) => ({
   id: String(p.id ?? 0),
+  // #86: 拠点横断一覧での医院名表示用。飼主の所属医院を優先し、無ければペット自身の clinic_id
+  clinicId:
+    p.owner?.clinic_id != null
+      ? String(p.owner.clinic_id)
+      : p.clinic_id != null
+        ? String(p.clinic_id)
+        : undefined,
   ownerId: String(p.owner_id ?? 0),
   ownerNumber: p.owner?.id,
   ownerName: p.owner?.name ?? "",

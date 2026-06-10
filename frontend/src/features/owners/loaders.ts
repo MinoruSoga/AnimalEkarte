@@ -28,12 +28,17 @@ export interface OwnersLoaderData {
 /**
  * 飼主一覧ローダー — /v1/owners（ペットネスト）から全飼主を取得し
  * ペット行にフラット化する。ペット0件の飼主も1行（空ペット）として含める。
+ * #86: URL の ?clinics=1,2 を API の clinic_ids に引き渡し拠点横断取得する
+ * （所属検証はサーバ側 resolveListClinicIDs が行う。未指定は現在の医院のみ）。
  */
-export const ownersLoader = async (): Promise<OwnersLoaderData> => {
+export const ownersLoader = async ({ request }: { request: Request }): Promise<OwnersLoaderData> => {
   try {
+    const clinics = new URL(request.url).searchParams.get("clinics") ?? undefined;
+    const baseParams = clinics ? { clinic_ids: clinics } : {};
+
     // page 1 で総件数を確認し、残りのページを並列フェッチ
     const { data: firstPage } = await axios.get<OwnersResponse>("/v1/owners", {
-      params: { page: 1, limit: PER_PAGE },
+      params: { ...baseParams, page: 1, limit: PER_PAGE },
     });
 
     const totalPages = Math.ceil(firstPage.total / PER_PAGE);
@@ -41,7 +46,7 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
     const remainingPages = await Promise.all(
       Array.from({ length: totalPages - 1 }, (_, i) =>
         axios.get<OwnersResponse>("/v1/owners", {
-          params: { page: i + 2, limit: PER_PAGE },
+          params: { ...baseParams, page: i + 2, limit: PER_PAGE },
         }).then(r => r.data)
       )
     );
@@ -64,6 +69,7 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
       const ownerAddress = [owner.address1, owner.address2].filter(Boolean).join(" ") || undefined;
       const emptyPet: Pet = {
         id: `owner-${owner.id}`,
+        clinicId: owner.clinic_id != null ? String(owner.clinic_id) : undefined,
         ownerId: String(owner.id),
         ownerNumber: owner.id,
         ownerName: owner.owner_name ?? "",

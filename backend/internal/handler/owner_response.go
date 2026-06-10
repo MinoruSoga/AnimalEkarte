@@ -51,7 +51,9 @@ type petInOwnerResponse struct {
 }
 
 type ownerResponse struct {
-	ID                     uint64               `json:"id"`
+	ID uint64 `json:"id"`
+	// ClinicID は所属医院 (#86 拠点横断一覧で医院名表示に使用)
+	ClinicID               uint64               `json:"clinic_id"`
 	OwnerName              string               `json:"owner_name"`
 	OwnerNameKana          string               `json:"owner_name_kana"`
 	BirthDate              *time.Time           `json:"birth_date,omitempty"`
@@ -135,6 +137,7 @@ func toOwnerResponse(o *model.Owner) ownerResponse {
 	}
 	return ownerResponse{
 		ID:                     o.ID,
+		ClinicID:               o.ClinicID,
 		OwnerName:              o.Name,
 		OwnerNameKana:          o.NameKana,
 		BirthDate:              o.BirthDate,

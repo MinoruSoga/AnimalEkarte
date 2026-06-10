@@ -1,12 +1,17 @@
 package handler
 
 import (
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
+
+// maxClinicIDsParam は clinic_ids クエリパラメータの上限数 (staff_request の clinic_ids binding max=50 と整合)
+const maxClinicIDsParam = 50
 
 // extractContextUint64 はJWTコンテキストから string 型の値を取得し uint64 にパースする共通ヘルパー。
 // missingMsg: 存在しない場合の 401 メッセージ / invalidMsg: 型変換・パース失敗時の 400 メッセージ
@@ -75,6 +80,61 @@ func extractClinicIDs(c *gin.Context) ([]uint64, bool) {
 		return nil, false
 	}
 	return ids, true
+}
+
+// resolveListClinicIDs は一覧系 API の拠点横断スコープ (#86) を解決する。
+// クエリパラメータ clinic_ids（カンマ区切り）が:
+//   - 無い場合: JWT/X-Clinic-ID 由来の現在の医院のみ（従来挙動・後方互換）
+//   - ある場合: 所属医院 (clinic_ids context) の部分集合であることを検証して採用。
+//     1件でも所属外が含まれれば 403。system_admin は X-Clinic-ID 検証と同様に全医院を許可。
+//
+// 戻り値は必ず非空。検証失敗時は即座にHTTPエラーレスポンスを書いて (nil, false) を返す。
+// 呼び出し元は false 時に即 return すること。
+func resolveListClinicIDs(c *gin.Context) ([]uint64, bool) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return nil, false
+	}
+	raw := c.Query("clinic_ids")
+	if raw == "" {
+		return []uint64{clinicID}, true
+	}
+
+	parts := strings.Split(raw, ",")
+	if len(parts) > maxClinicIDsParam {
+		RespondError(c, apperrors.WrapInvalidInput("too many clinic_ids"))
+		return nil, false
+	}
+	requested := make([]uint64, 0, len(parts))
+	for _, p := range parts {
+		id, err := strconv.ParseUint(strings.TrimSpace(p), 10, 64)
+		if err != nil || id == 0 {
+			RespondError(c, apperrors.WrapInvalidInput("invalid clinic_ids"))
+			return nil, false
+		}
+		requested = append(requested, id)
+	}
+
+	slices.Sort(requested)
+	requested = slices.Compact(requested) // 重複除去
+
+	isAdmin, ok := extractIsSystemAdmin(c)
+	if !ok {
+		return nil, false
+	}
+	if !isAdmin {
+		allowed, ok := extractClinicIDs(c)
+		if !ok {
+			return nil, false
+		}
+		for _, id := range requested {
+			if !slices.Contains(allowed, id) {
+				RespondError(c, apperrors.WrapForbidden("not assigned to this clinic"))
+				return nil, false
+			}
+		}
+	}
+	return requested, true
 }
 
 // extractIsSystemAdmin はJWT認証済みコンテキストから is_system_admin を取得する。

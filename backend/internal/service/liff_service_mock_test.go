@@ -275,7 +275,7 @@ type mockLiffOwnerRepository struct {
 	findByNameAndPhoneFn func(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error)
 }
 
-func (m *mockLiffOwnerRepository) FindAll(_ context.Context, _ uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+func (m *mockLiffOwnerRepository) FindAll(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
 	return nil, 0, nil
 }
 

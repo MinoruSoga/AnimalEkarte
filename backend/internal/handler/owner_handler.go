@@ -12,7 +12,8 @@ import (
 
 // ListOwners godoc
 func (h *Handler) ListOwners(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
+	clinicIDs, ok := resolveListClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -23,7 +24,7 @@ func (h *Handler) ListOwners(c *gin.Context) {
 	}
 	query := newListOwnersQuery(c.Request.URL.Query())
 
-	owners, total, err := h.svc.Owner.List(c.Request.Context(), clinicID, page, limit, query.Search)
+	owners, total, err := h.svc.Owner.List(c.Request.Context(), clinicIDs, page, limit, query.Search)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -5,6 +5,7 @@ import { useNavigate, useLoaderData, useRevalidator, useSearchParams } from "rea
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
+import { useAuth } from "@/hooks/use-auth";
 
 // External
 import { Plus } from "lucide-react";
@@ -14,6 +15,7 @@ import { toast } from "sonner";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
 import { usePagination } from "@/hooks/use-pagination";
 import { ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
@@ -75,6 +77,44 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const { canCreate, canEdit, canDelete } = usePermission("owners");
   const revalidator = useRevalidator();
   const { pets } = useLoaderData<OwnersLoaderData>();
+
+  // #86: 拠点横断表示 — URL の ?clinics=1,2 が表示拠点。未指定は現在の医院のみ（従来挙動）。
+  // 選択変更で loader が再実行され、サーバ側 (resolveListClinicIDs) で所属検証される。
+  const { user, currentClinicId } = useAuth();
+  const assignedClinics = useMemo(() => user?.clinics ?? [], [user?.clinics]);
+  const clinicsParam = searchParams.get("clinics");
+  const selectedClinicIds = useMemo(
+    () =>
+      clinicsParam
+        ? clinicsParam.split(",").filter(Boolean)
+        : currentClinicId
+          ? [currentClinicId]
+          : [],
+    [clinicsParam, currentClinicId],
+  );
+  const clinicNames = useMemo(
+    () => Object.fromEntries(assignedClinics.map((m) => [m.clinicId, m.clinicName])),
+    [assignedClinics],
+  );
+  const handleToggleClinic = useCallback((clinicId: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      const current =
+        next.get("clinics")?.split(",").filter(Boolean) ??
+        (currentClinicId ? [currentClinicId] : []);
+      const updated = current.includes(clinicId)
+        ? current.filter((id) => id !== clinicId)
+        : [...current, clinicId];
+      if (updated.length === 0) return prev; // 最低1拠点は維持
+      if (updated.length === 1 && updated[0] === currentClinicId) {
+        next.delete("clinics"); // デフォルト（現在の医院のみ）はパラメータ無し
+      } else {
+        next.set("clinics", updated.join(","));
+      }
+      next.delete("page"); // 拠点変更時はページリセット
+      return next;
+    });
+  }, [setSearchParams, currentClinicId]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   // rerender-transitions: 入力は即座に反映しつつ、全件フィルタリングは
@@ -196,9 +236,14 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   }, [navigate]);
 
   // 行クリック → 飼主編集・ペット一覧ページに遷移
+  // #86: 別医院の行は詳細 API が現在医院スコープで 404 になるため遷移させない（閲覧のみ）
   const handleRowClick = useCallback((pet: Pet) => {
+    if (pet.clinicId && currentClinicId && pet.clinicId !== currentClinicId) {
+      toast.info("別医院のデータです。医院を切り替えると詳細を表示できます");
+      return;
+    }
     navigate(paths.owners.detail.getHref(pet.ownerId));
-  }, [navigate]);
+  }, [navigate, currentClinicId]);
 
   // rerender-dependencies: object 依存を避け stable な変数に抽出してから deps に渡す
   const petModalItem = petModal.item;
@@ -275,6 +320,16 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       }
       maxWidth="max-w-full"
     >
+      {/* #86: 複数所属ユーザーのみ拠点横断フィルタを表示 */}
+      {assignedClinics.length >= 2 ? (
+        <div className="mb-3">
+          <ClinicScopeFilter
+            clinics={assignedClinics}
+            selectedIds={selectedClinicIds}
+            onToggle={handleToggleClinic}
+          />
+        </div>
+      ) : null}
       <OwnersListTable
         filteredCount={filteredPets.length}
         pagination={pagination}
@@ -284,6 +339,9 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         isFiltering={isFiltering}
         canEdit={canEdit}
         canDelete={canDelete}
+        showClinicColumn={selectedClinicIds.length >= 2}
+        clinicNames={clinicNames}
+        currentClinicId={currentClinicId}
         directionFor={directionFor}
         onSearchChange={setSearchTerm}
         onFilterChange={setActiveFilters}
