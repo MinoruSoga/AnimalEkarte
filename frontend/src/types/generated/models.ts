@@ -356,6 +356,52 @@ export interface Cage {
 }
 
 //////////
+// source: campaign.go
+
+/**
+ * CampaignDiscountType はキャンペーン割引の種別（率 or 額）。
+ */
+export type CampaignDiscountType = string;
+export const CampaignDiscountTypeRate: CampaignDiscountType = "rate";
+export const CampaignDiscountTypeAmount: CampaignDiscountType = "amount";
+/**
+ * Campaign は割引キャンペーンマスタ (issue #81)。
+ * payment_methods / trimming_course_types と同型の拡張可能マスタ。
+ * Q1=D: 対象はカテゴリ単位(TargetCategories)+個別商品(TargetItems)の併用。
+ */
+export interface Campaign {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  start_date: string;
+  end_date: string;
+  discount_type: CampaignDiscountType;
+  discount_value: number /* float64 */;
+  is_active: boolean;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+  target_categories?: CampaignTargetCategory[];
+  target_items?: CampaignTargetItem[];
+}
+/**
+ * CampaignTargetCategory はキャンペーン対象カテゴリ (Q1=D)。
+ */
+export interface CampaignTargetCategory {
+  id: number /* uint64 */;
+  campaign_id: number /* uint64 */;
+  category: ItemCategory;
+}
+/**
+ * CampaignTargetItem はキャンペーン対象の個別商品 (Q1=D)。
+ */
+export interface CampaignTargetItem {
+  id: number /* uint64 */;
+  campaign_id: number /* uint64 */;
+  merchandise_item_id: number /* uint64 */;
+}
+
+//////////
 // source: cash_register_close.go
 
 /**

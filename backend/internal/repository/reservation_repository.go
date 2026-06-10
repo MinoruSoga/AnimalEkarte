@@ -14,7 +14,8 @@ import (
 // ReservationCRUDRepository はコア CRUD 操作（5 メソッド）。
 // reservation_service / trimming_service / liff_service で使用。
 type ReservationCRUDRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
+	// FindAll は指定した複数医院 (#86 拠点横断) の予約を検索する。clinicIDs はハンドラ層で所属検証済みであること。
+	FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, reservation *model.Reservation) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
@@ -70,11 +71,16 @@ func NewReservationRepository(db *gorm.DB) ReservationRepository {
 	return &reservationRepository{db: db}
 }
 
-func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
+func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
 	reservations := make([]model.Reservation, 0)
 	var total int64
 
-	q := dbOrTx(ctx, r.db).Model(&model.Reservation{}).Scopes(clinicScope(clinicID))
+	// フェイルセーフ: 検証バグ等で空スライスが渡っても全件露出させない
+	if len(clinicIDs) == 0 {
+		return reservations, 0, nil
+	}
+
+	q := dbOrTx(ctx, r.db).Model(&model.Reservation{}).Scopes(clinicScopeIn(clinicIDs))
 	switch {
 	case date != nil:
 		// 単日フィルタ（当日受付など）

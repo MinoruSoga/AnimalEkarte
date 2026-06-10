@@ -8,7 +8,7 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 |----------|----------|---------|
 | **Configuration** | `.claude/settings.json` | permissions, hooks, env |
 | **Rules** | `.claude/rules/` | 1 auto-loaded rule file (claude-code-usage.md) |
-| **Hooks** | `.claude/hooks/` | 14 Node.js/shell hooks (ECC準拠 JSON protocol) |
+| **Hooks** | `.claude/hooks/` | 17 Node.js/shell hooks (ECC準拠 JSON protocol) |
 | **Memory** | `~/.claude/projects/.../memory/` | persistent knowledge files |
 | **Commands** | `.claude/docs/commands-guide.md` | Slash commands usage guide & use cases |
 | **Workflows** | `.claude/docs/workflows/` | Development workflow guides |
@@ -20,20 +20,25 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 ┌─────────────────────────────────────┐
 │  Claude Code Session                │
 ├─────────────────────────────────────┤
-│  Agent Team (17 agents)             │
+│  Agent Team (22 agents)             │
 │  - architect (Opus)                 │
 │  - planner (Opus)                   │
 │  - security-analyst (Opus)          │
+│  - healthcare-reviewer (Opus)       │
 │  - implementer (Sonnet)             │
 │  - go-expert (Sonnet)               │
 │  - go-reviewer (Sonnet)             │
+│  - go-build-resolver (Sonnet)       │
 │  - typescript-reviewer (Sonnet)     │
+│  - build-error-resolver (Sonnet)    │
 │  - refactor-cleaner (Sonnet)        │
+│  - code-simplifier (Sonnet)         │
 │  - database-reviewer (Sonnet)       │
 │  - performance-optimizer (Sonnet)   │
 │  - tdd-guide (Sonnet)               │
 │  - test-strategist (Sonnet)         │
 │  - silent-failure-hunter (Sonnet)   │
+│  - type-design-analyzer (Sonnet)    │
 │  - debugger (Haiku)                 │
 │  - formatter (Haiku)                │
 │  - researcher (Haiku)               │
@@ -47,7 +52,7 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 │  database-design, testing, api,     │
 │  naming-conventions, security, ...  │
 ├─────────────────────────────────────┤
-│  Hooks (12 registered, 14 scripts)  │
+│  Hooks (17 registered, 17 scripts)  │
 │  PreToolUse:                        │
 │    - block-dangerous (exit 2)       │
 │    - block-no-verify (exit 2)       │
@@ -56,13 +61,14 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 │    - large-file-block (exit 2)      │
 │    - config-protection (warn)       │
 │  PostToolUse:                       │
-│    - console-warn (warn)            │
-│    - file-size-warn (warn)          │
-│  PreCompact / Stop / SessionStart:  │
+│    - console-warn, file-size-warn   │
+│    - format-go, typecheck-ts        │
+│    - after-shell, harness-state     │
+│  PreCompact/Stop/SessionStart/      │
+│  UserPromptSubmit:                  │
 │    - save-state, save-progress      │
 │    - desktop-notify, session-init   │
-│  (unregistered: format-go,          │
-│   typecheck-ts — high Docker cost)  │
+│    - before-submit-prompt (secrets) │
 ├─────────────────────────────────────┤
 │  Memory (persistent knowledge)      │
 │  - project-architecture.md          │
@@ -95,6 +101,9 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 - `hooks/stop-save-progress.js`: Save session progress on stop
 - `hooks/stop-desktop-notify.js`: macOS notification when Claude finishes
 - `hooks/session-init.sh`: Session start log
+- `hooks/after-shell-execution.js`: Log PR URL after gh pr create (PostToolUse)
+- `hooks/before-submit-prompt.js`: Detect potential secrets in user prompts (UserPromptSubmit)
+- `hooks/harness-state.js`: Track harness iteration state during /harness runs (PostToolUse)
 
 ## Development Workflow
 

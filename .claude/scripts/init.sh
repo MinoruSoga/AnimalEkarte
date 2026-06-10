@@ -35,7 +35,7 @@ if [ ! -f claude-progress.txt ]; then
 初期セットアップ完了
 
 ## 次のステップ
-features.jsonの最初の機能から開始
+GitHub Issues / docs/tasks/open/ の最初のタスクから開始
 
 ## 注意事項
 - 各機能完了後にこのファイルを更新すること

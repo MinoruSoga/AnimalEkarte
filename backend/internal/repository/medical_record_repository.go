@@ -26,7 +26,8 @@ type DormantOwnerEntry struct {
 }
 
 type MedicalRecordRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	// FindAll は指定した複数医院 (#86 拠点横断) のカルテを検索する。clinicIDs はハンドラ層で所属検証済みであること。
+	FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
@@ -60,11 +61,15 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
-func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
 	records := make([]model.MedicalRecord, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Scopes(clinicScope(clinicID))
+	// フェイルセーフ: 検証バグ等で空スライスが渡っても全件露出させない
+	if len(clinicIDs) == 0 {
+		return []model.MedicalRecord{}, 0, nil
+	}
+	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Scopes(clinicScopeIn(clinicIDs))
 	if petID != nil {
 		q = q.Where("pet_id = ?", *petID)
 	}

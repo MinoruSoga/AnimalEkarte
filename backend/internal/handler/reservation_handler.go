@@ -13,7 +13,8 @@ import (
 
 // ListReservations godoc
 func (h *Handler) ListReservations(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
+	clinicIDs, ok := resolveListClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -30,7 +31,7 @@ func (h *Handler) ListReservations(c *gin.Context) {
 		return
 	}
 
-	reservations, total, err := h.svc.Reservation.List(c.Request.Context(), clinicID, page, limit, filters.Date, filters.StartDate, filters.EndDate, filters.Status, filters.Source, filters.PetID, filters.OwnerID)
+	reservations, total, err := h.svc.Reservation.List(c.Request.Context(), clinicIDs, page, limit, filters.Date, filters.StartDate, filters.EndDate, filters.Status, filters.Source, filters.PetID, filters.OwnerID)
 	if err != nil {
 		RespondError(c, err)
 		return

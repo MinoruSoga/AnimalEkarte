@@ -30,7 +30,7 @@ func (m *mockMedicalRecordRepositoryForImage) FindByID(ctx context.Context, clin
 }
 
 // Stub other methods to satisfy interface (not used in these tests)
-func (m *mockMedicalRecordRepositoryForImage) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+func (m *mockMedicalRecordRepositoryForImage) FindAll(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockMedicalRecordRepositoryForImage) Create(_ context.Context, _ *model.MedicalRecord) error {

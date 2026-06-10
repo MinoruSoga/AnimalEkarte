@@ -14,7 +14,7 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
-	findAllFn                          func(ctx context.Context, clinicID uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
+	findAllFn func(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	createFn                           func(ctx context.Context, reservation *model.Reservation) error
 	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
@@ -24,8 +24,8 @@ type mockReservationRepository struct {
 	countConflictsFn                   func(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
 }
 
-func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
-	return m.findAllFn(ctx, clinicID, page, limit, date, startDate, endDate, status, source, petID, ownerID)
+func (m *mockReservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
+	return m.findAllFn(ctx, clinicIDs, page, limit, date, startDate, endDate, status, source, petID, ownerID)
 }
 
 func (m *mockReservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
@@ -251,13 +251,13 @@ func TestReservationService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationRepository{
-				findAllFn: func(_ context.Context, _ uint64, _, _ int, _, _, _ *time.Time, _ *string, _ *string, _ *uint64, _ *uint64) ([]model.Reservation, int64, error) {
+				findAllFn: func(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _ *string, _ *string, _ *uint64, _ *uint64) ([]model.Reservation, int64, error) {
 					return tt.repoReservations, tt.repoTotal, tt.repoErr
 				},
 			}
 			svc := NewReservationService(repo, nil)
 
-			reservations, total, err := svc.List(context.Background(), tt.clinicID, tt.page, tt.limit, tt.date, nil, nil, tt.status, nil, tt.petID, tt.ownerID)
+			reservations, total, err := svc.List(context.Background(), []uint64{tt.clinicID}, tt.page, tt.limit, tt.date, nil, nil, tt.status, nil, tt.petID, tt.ownerID)
 
 			if tt.wantErr {
 				assert.Error(t, err)

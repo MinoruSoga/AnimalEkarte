@@ -8,8 +8,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *medicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
-	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+func (s *medicalRecordService) List(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+	items, total, err := s.repo.FindAll(ctx, clinicIDs, petID, ownerID, startDate, endDate, page, limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list medical records", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list medical records")
@@ -179,7 +179,7 @@ func (s *medicalRecordService) findExistingRecordByAppointment(
 		return nil
 	}
 	dateStr := record.Date.Format("2006-01-02")
-	records, _, err := s.repo.FindAll(ctx, clinicID, record.PetID, nil, &dateStr, &dateStr, 1, 50)
+	records, _, err := s.repo.FindAll(ctx, []uint64{clinicID}, record.PetID, nil, &dateStr, &dateStr, 1, 50)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to check existing medical record by appointment",
 			slog.Uint64("appointment_id", *record.AppointmentID),

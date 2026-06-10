@@ -48,7 +48,7 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 
 	// 同日同ペットのカルテ存在チェック（重複防止）
 	dateStr := reservation.StartTime.Format("2006-01-02")
-	_, total, err := s.repo.FindAll(ctx, clinicID, reservation.PetID, nil, &dateStr, &dateStr, 1, 1)
+	_, total, err := s.repo.FindAll(ctx, []uint64{clinicID}, reservation.PetID, nil, &dateStr, &dateStr, 1, 1)
 	if err != nil {
 		slog.WarnContext(ctx, "autoCreateFromReservation: failed to check existing records",
 			slog.Uint64("reservation_id", reservation.ID),

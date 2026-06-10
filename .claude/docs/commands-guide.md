@@ -8,7 +8,6 @@
 
 | コマンド | 一言 | 典型的な呼び出し |
 |---------|------|----------------|
-| `/next` | 次タスクを選んで着手 | 朝イチ・タスク切り替え時 |
 | `/implement` | イシューを実装してクローズ | `/implement FE-123` |
 | `/save` | 作業をコミット・記録 | 区切りのいい時 |
 | `/status` | 進捗・git 状態を確認 | `/compact` 後・朝イチ |
@@ -34,6 +33,8 @@
 | `/checkpoint` | 作業チェックポイントの作成・確認 | 長いセッションの節目 |
 | `/plan` | 実装計画作成・ユーザー確認後に着手 | 新機能・大規模変更の前 |
 | `/test-coverage` | カバレッジ分析・80% 未満にテスト生成 | テスト不足の調査・改善時 |
+| `/harness` | 実装→P1-P18チェック→承認ループ（最大3回） | 規約準拠を保証したい実装時 |
+| `/harness-status` | ハーネスの現在状態を確認・リセット | ハーネス実行中の進捗確認 |
 
 ---
 
@@ -43,7 +44,7 @@
 
 ```
 /status          → 昨日からの変更・git 状態を把握
-/next            → features.json から次タスクを選択して着手
+（次タスクは GitHub Issues / docs/tasks/open/ から選択する）
 ```
 
 ### 2. 機能実装（標準フロー）
@@ -58,6 +59,12 @@
 TDD で進める場合:
 ```
 /tdd-workflow FE-123       → Red-Green-Refactor サイクルをガイドしながら実装
+```
+
+規約準拠を自動ループで保証したい場合:
+```
+/harness FE-123            → 実装 → P1-P18チェック → 問題があれば自動修正 → 承認
+/save                      → APPROVED 後にコミット
 ```
 
 ### 3. ビルドエラー・型エラーが出た
@@ -143,10 +150,11 @@ TDD で進める場合:
 - `/review-pr 42` — GitHub PR を取得してレビューし `gh pr review` で投稿まで実行
 - `/go-review` — Go コードの idiom・パフォーマンス専門レビュー（`/review` より深い）
 
-### `/implement` vs 手動実装
+### `/implement` vs `/harness` vs 手動実装
 
-- イシュー番号（`BE-XXX` / `FE-XXX`）がある → `/implement` で一気通貫
-- 探索的な作業・設計が必要 → `/plan` で計画してから `/implement`
+- イシュー番号（`BE-XXX` / `FE-XXX`）があり規約違反リスクが低い → `/implement` で一気通貫
+- P1-P18 / React 19 パターンへの準拠を自動保証したい → `/harness` でループ付き実装
+- 探索的な作業・設計が必要 → `/plan` で計画してから `/implement` または `/harness`
 
 ### `/plan` の使いどころ
 
@@ -217,6 +225,16 @@ TDD で進める場合:
 # /docs — パス指定
 /docs src/features/owners/api
 /docs backend/internal/handler/owner_handler.go
+
+# /harness — イシュー番号またはタスク説明
+/harness BE-042              # バックエンドイシューをハーネスで実装（Go P1-P18チェック）
+/harness FE-038              # フロントエンドイシューをハーネスで実装（React 19チェック）
+/harness "clinic_id を patients テーブルに追加"  # テキスト説明でもOK
+/harness                     # 引数なし = 未コミット変更を規約チェックのみ実行
+
+# /harness-status — サブコマンド
+/harness-status              # 現在のハーネス状態（タスク名・イテレーション・変更ファイル）を表示
+/harness-status reset        # harness-active.json を削除してリセット
 
 # /checkpoint — サブコマンド
 /checkpoint create "feature-start"   # チェックポイント作成

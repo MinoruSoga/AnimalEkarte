@@ -53,7 +53,8 @@ type UpdateRecommendationReasonInput struct {
 }
 
 type MedicalRecordService interface {
-	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	// List は指定した複数医院 (#86 拠点横断) のカルテ一覧を返す。clinicIDs はハンドラ層で所属検証済みであること。
+	List(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateMedicalRecordInput) (*model.MedicalRecord, error)

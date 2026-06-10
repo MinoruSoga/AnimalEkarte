@@ -341,7 +341,7 @@ type mockLiffReservationRepository struct {
 	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 }
 
-func (m *mockLiffReservationRepository) FindAll(_ context.Context, _ uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+func (m *mockLiffReservationRepository) FindAll(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
 }
 

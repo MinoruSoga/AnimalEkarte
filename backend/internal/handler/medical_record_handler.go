@@ -12,7 +12,8 @@ import (
 
 // ListMedicalRecords godoc
 func (h *Handler) ListMedicalRecords(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
+	clinicIDs, ok := resolveListClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -30,7 +31,7 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 
 	records, total, err := h.svc.MedicalRecord.List(
 		c.Request.Context(),
-		clinicID,
+		clinicIDs,
 		filters.PetID,
 		filters.OwnerID,
 		filters.StartDate,

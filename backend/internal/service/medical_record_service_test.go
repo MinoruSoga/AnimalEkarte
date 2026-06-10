@@ -15,7 +15,7 @@ import (
 
 // mockMedicalRecordRepository は MedicalRecordRepository のテスト用モック実装
 type mockMedicalRecordRepository struct {
-	findAllFn                         func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	findAllFn func(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	findByIDFn                        func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	createFn                          func(ctx context.Context, record *model.MedicalRecord) error
 	updateFieldsFn                    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
@@ -27,11 +27,11 @@ type mockMedicalRecordRepository struct {
 	countByOwnerIDCallCount           int
 }
 
-func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
 	if m.findAllFn == nil {
 		return []model.MedicalRecord{}, 0, nil
 	}
-	return m.findAllFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+	return m.findAllFn(ctx, clinicIDs, petID, ownerID, startDate, endDate, page, limit)
 }
 
 func (m *mockMedicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
@@ -291,7 +291,7 @@ func TestMedicalRecordService_List(t *testing.T) {
 			capturedPetID := (*uint64)(nil)
 			capturedOwnerID := (*uint64)(nil)
 			repo := &mockMedicalRecordRepository{
-				findAllFn: func(_ context.Context, _ uint64, petID *uint64, ownerID *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				findAllFn: func(_ context.Context, _ []uint64, petID *uint64, ownerID *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 					capturedPetID = petID
 					capturedOwnerID = ownerID
 					return tt.repoRecords, tt.repoTotal, tt.repoErr
@@ -299,7 +299,7 @@ func TestMedicalRecordService_List(t *testing.T) {
 			}
 			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 
-			records, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
+			records, total, err := svc.List(context.Background(), []uint64{tt.clinicID}, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -540,7 +540,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 		petID := uint64(10)
 		createCalled := false
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ uint64, gotPetID, _ *uint64, startDate, endDate *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, gotPetID, _ *uint64, startDate, endDate *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 				assert.Equal(t, petID, *gotPetID)
 				assert.Equal(t, "2026-05-29", *startDate)
 				assert.Equal(t, "2026-05-29", *endDate)
@@ -1156,7 +1156,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 
 	t.Run("skips when owner_id and pet_id are nil and no line_customer_id", func(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 				return nil, 0, nil
 			},
 		}
@@ -1174,7 +1174,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 		created := false
 		findAllCalled := false
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 				findAllCalled = true
 				return nil, 0, nil
 			},
@@ -1203,7 +1203,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 		created := false
 		findAllCalled := false
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 				findAllCalled = true
 				return nil, 0, nil
 			},
@@ -1234,7 +1234,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 	t.Run("resolves owner_id from line_customer and creates medical record (BUG-386)", func(t *testing.T) {
 		var createdRecord *model.MedicalRecord
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 				return nil, 0, nil
 			},
 			createFn: func(_ context.Context, record *model.MedicalRecord) error {
@@ -1279,7 +1279,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 	t.Run("skips when line_customer has no owner_id", func(t *testing.T) {
 		created := false
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 				return nil, 0, nil
 			},
 			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
@@ -1324,7 +1324,7 @@ func (m *mockReservationRepoForMedicalRecord) FindByID(ctx context.Context, clin
 	}
 	return nil, nil
 }
-func (m *mockReservationRepoForMedicalRecord) FindAll(_ context.Context, _ uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+func (m *mockReservationRepoForMedicalRecord) FindAll(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockReservationRepoForMedicalRecord) Create(_ context.Context, _ *model.Reservation) error {

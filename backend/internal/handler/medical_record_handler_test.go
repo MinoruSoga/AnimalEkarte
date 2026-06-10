@@ -23,7 +23,7 @@ import (
 // ---- mock MedicalRecordService ----
 
 type mockMedicalRecordService struct {
-	listFn                       func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	listFn                       func(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	getByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	countByPetFn                 func(ctx context.Context, clinicID, petID uint64) (int64, error)
 	createFn                     func(ctx context.Context, clinicID uint64, input *service.CreateMedicalRecordInput) (*model.MedicalRecord, error)
@@ -33,8 +33,8 @@ type mockMedicalRecordService struct {
 	autoCreateFromReservationFn  func(ctx context.Context, clinicID uint64, reservation *model.Reservation)
 }
 
-func (m *mockMedicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
-	return m.listFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+func (m *mockMedicalRecordService) List(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+	return m.listFn(ctx, clinicIDs, petID, ownerID, startDate, endDate, page, limit)
 }
 
 func (m *mockMedicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
@@ -266,8 +266,8 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, clinicID uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
-					assert.Equal(t, uint64(1), clinicID)
+				listFn: func(_ context.Context, clinicIDs []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
 					return []model.MedicalRecord{{ID: 1, RecordNo: "MR-20260324-1-ABCDEF"}}, 1, nil
 				},
 			},
@@ -279,7 +279,7 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10&pet_id=5",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, _ uint64, petID, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, petID, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 					require.NotNil(t, petID)
 					assert.Equal(t, uint64(5), *petID)
 					return []model.MedicalRecord{}, 0, nil
@@ -306,7 +306,7 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 					return nil, 0, fmt.Errorf("db error")
 				},
 			},
