@@ -6,26 +6,52 @@
  */
 
 @media print {
-  /* アプリ側のサイドバー・ヘッダーを隠す: design-tokens の sidebarContainer を狙う */
-  .no-print,
-  nav[aria-label="メインナビゲーション"],
-  aside[aria-label="マニュアル目次"] {
+  /* ブラウザ印刷では overflow: hidden / h-full の親があると 1 ページ分で切れるため解除する */
+  html.manual-print-mode,
+  html.manual-print-mode body,
+  body.manual-print-mode,
+  body.manual-print-mode #root,
+  body.manual-print-mode #root > div,
+  body.manual-print-mode main {
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* アプリ側のサイドバー・ヘッダーを隠す */
+  body.manual-print-mode .no-print,
+  body.manual-print-mode nav[aria-label="メインナビゲーション"],
+  body.manual-print-mode aside[aria-label="マニュアル目次"],
+  body.manual-print-mode div:has(> nav[aria-label="メインナビゲーション"]) {
     display: none !important;
   }
 
   /* メインコンテンツを全幅で */
+  body.manual-print-mode #root > div,
+  body.manual-print-mode main,
   .manual-root {
-    background: #ffffff !important;
+    background: white !important;
     overflow: visible !important;
     display: block !important;
+    position: static !important;
+  }
+
+  body.manual-print-mode main {
+    width: 100% !important;
+    padding: 0 !important;
   }
 
   .manual-article {
     max-width: 100% !important;
+    width: 100% !important;
     overflow: visible !important;
     padding: 0 !important;
     padding-top: 0 !important;
-    color: #000 !important;
+    color: black !important;
+    display: block !important;
+    flex: none !important;
   }
 
   /* 見出しはページ切り替えで分断されないように */
@@ -53,7 +79,7 @@
   .manual-article a[href^="http"]::after {
     content: " (" attr(href) ")";
     font-size: 0.85em;
-    color: #555;
+    color: rgb(85 85 85);
   }
 
   /* リンクの装飾を控えめに */
