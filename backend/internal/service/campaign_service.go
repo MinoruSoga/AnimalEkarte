@@ -104,6 +104,43 @@ func campaignTargetItemIDValues(targets []model.CampaignTargetItem) []uint64 {
 	return itemIDs
 }
 
+func resolveCampaignPeriod(current *model.Campaign, input *UpdateCampaignInput) (time.Time, time.Time, bool) {
+	start, end := current.StartDate, current.EndDate
+	hasPeriodUpdate := input.StartDate != nil || input.EndDate != nil
+	if input.StartDate != nil {
+		start = *input.StartDate
+	}
+	if input.EndDate != nil {
+		end = *input.EndDate
+	}
+	return start, end, hasPeriodUpdate
+}
+
+func resolveCampaignDiscount(current *model.Campaign, input *UpdateCampaignInput) (model.CampaignDiscountType, float64, bool) {
+	discountType, discountValue := current.DiscountType, current.DiscountValue
+	hasDiscountUpdate := input.DiscountType != nil || input.DiscountValue != nil
+	if input.DiscountType != nil {
+		discountType = *input.DiscountType
+	}
+	if input.DiscountValue != nil {
+		discountValue = *input.DiscountValue
+	}
+	return discountType, discountValue, hasDiscountUpdate
+}
+
+func resolveCampaignTargets(current *model.Campaign, input *UpdateCampaignInput) ([]model.ItemCategory, []uint64, bool) {
+	categories := campaignTargetCategoryValues(current.TargetCategories)
+	itemIDs := campaignTargetItemIDValues(current.TargetItems)
+	hasTargets := input.TargetCategories != nil || input.TargetItemIDs != nil
+	if input.TargetCategories != nil {
+		categories = *input.TargetCategories
+	}
+	if input.TargetItemIDs != nil {
+		itemIDs = *input.TargetItemIDs
+	}
+	return categories, itemIDs, hasTargets
+}
+
 func validateCampaignDiscount(dt model.CampaignDiscountType, value float64) error {
 	switch dt {
 	case model.CampaignDiscountTypeRate:
@@ -208,33 +245,21 @@ func (s *campaignService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	// 期間・割引のバリデーション（指定があれば現在値とマージして検証）
-	start, end := current.StartDate, current.EndDate
-	if input.StartDate != nil {
-		start = *input.StartDate
-	}
-	if input.EndDate != nil {
-		end = *input.EndDate
-	}
-	if input.StartDate != nil || input.EndDate != nil {
+	start, end, hasPeriodUpdate := resolveCampaignPeriod(current, input)
+	if hasPeriodUpdate {
 		if err := validateCampaignPeriod(start, end); err != nil {
 			return nil, err
 		}
 	}
-	dt, dv := current.DiscountType, current.DiscountValue
-	if input.DiscountType != nil {
-		dt = *input.DiscountType
-	}
-	if input.DiscountValue != nil {
-		dv = *input.DiscountValue
-	}
-	if input.DiscountType != nil || input.DiscountValue != nil {
-		if err := validateCampaignDiscount(dt, dv); err != nil {
+	discountType, discountValue, hasDiscountUpdate := resolveCampaignDiscount(current, input)
+	if hasDiscountUpdate {
+		if err := validateCampaignDiscount(discountType, discountValue); err != nil {
 			return nil, err
 		}
 	}
 
 	fields := buildCampaignUpdate(input)
-	hasTargets := input.TargetCategories != nil || input.TargetItemIDs != nil
+	cats, itemIDs, hasTargets := resolveCampaignTargets(current, input)
 	if len(fields) == 0 && !hasTargets {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
@@ -245,21 +270,18 @@ func (s *campaignService) Update(ctx context.Context, clinicID, id uint64, input
 		}
 	}
 	if hasTargets {
-		cats := campaignTargetCategoryValues(current.TargetCategories)
-		if input.TargetCategories != nil {
-			cats = *input.TargetCategories
-		}
-		itemIDs := campaignTargetItemIDValues(current.TargetItems)
-		if input.TargetItemIDs != nil {
-			itemIDs = *input.TargetItemIDs
-		}
 		if err := s.repo.ReplaceTargets(ctx, id, cats, itemIDs); err != nil {
 			slog.ErrorContext(ctx, "failed to replace campaign targets", "error", err, "id", id, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to replace campaign targets")
 		}
 	}
 	slog.InfoContext(ctx, "campaign updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("id", id))
-	return s.repo.FindByID(ctx, clinicID, id)
+	updated, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get updated campaign", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to get updated campaign")
+	}
+	return updated, nil
 }
 
 func (s *campaignService) Delete(ctx context.Context, clinicID, id uint64) error {
