@@ -93,6 +93,9 @@ type BillingItemService interface {
 	GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
 	// GetUngroupedSameDaySummary は同日同ペットの未会計対象化項目(診察/トリミング)の件数を返す(#77 取り残し警告)。
 	GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
+	// GetDiscountSuggestions は指定明細に適用可能な割引候補を返す（#81 Q-I スタッフ選択）。
+	// campaignRepo 未配線の場合は飼主割引のみ。
+	GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error)
 }
 
 // UngroupedSameDaySummary は #77 取り残し警告用の未会計対象化件数サマリ。
@@ -404,6 +407,34 @@ func treatmentTypeToItemCategory(t model.TreatmentItemType) model.ItemCategory {
 	default:
 		return model.ItemCategoryOther
 	}
+}
+
+// GetDiscountSuggestions は指定明細に適用可能な割引候補を返す (#81 Q-I スタッフ選択)。
+func (s *billingItemService) GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error) {
+	item, err := s.repo.FindByID(ctx, clinicID, itemID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find billing item")
+	}
+	billing, err := s.billingRepo.FindByID(ctx, clinicID, item.BillingID)
+	if err != nil || billing == nil {
+		return nil, apperrors.Wrap(err, "failed to find billing")
+	}
+	var ownerRate float64
+	if billing.OwnerID != nil && s.ownerRepo != nil {
+		if owner, oerr := s.ownerRepo.FindByID(ctx, clinicID, *billing.OwnerID); oerr == nil && owner != nil {
+			ownerRate = owner.DiscountRate
+		}
+	}
+	var campaigns []*model.Campaign
+	if s.campaignRepo != nil {
+		campaigns, err = s.campaignRepo.FindAllApplicableForItem(ctx, clinicID, billing.ScheduledDate, model.ItemCategory(item.Category), nil)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find applicable campaigns for suggestions", "error", err)
+			campaigns = nil // best-effort
+		}
+	}
+	itemSubtotal := int64(float64(item.UnitPrice) * item.Quantity)
+	return BuildDiscountSuggestions(itemSubtotal, campaigns, ownerRate), nil
 }
 
 // recalculateTotals は billing の全明細から subtotal/tax_total/total_amount を再計算して保存する

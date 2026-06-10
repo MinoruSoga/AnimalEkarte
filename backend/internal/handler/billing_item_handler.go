@@ -153,6 +153,24 @@ func (h *Handler) GetUngroupedSameDay(c *gin.Context) {
 }
 
 // RegisterBillingItemRoutes は明細関連のルートを登録する
+// GetBillingItemDiscountSuggestions は指定明細に適用可能な割引候補を返す (#81 Q-I スタッフ選択)。
+func (h *Handler) GetBillingItemDiscountSuggestions(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	itemID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	suggestions, err := h.svc.BillingItem.GetDiscountSuggestions(c.Request.Context(), clinicID, itemID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"suggestions": suggestions})
+}
+
 func (h *Handler) RegisterBillingItemRoutes(rg *gin.RouterGroup) {
 	items := rg.Group("/billing-items")
 	items.GET("/unbilled", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetUnbilledItems)
@@ -160,4 +178,5 @@ func (h *Handler) RegisterBillingItemRoutes(rg *gin.RouterGroup) {
 	items.POST("", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateBillingItem)
 	items.PATCH("/:id", h.RequirePermission(string(model.ResourceAccounting), "edit"), h.UpdateBillingItem)
 	items.DELETE("/:id", h.RequirePermission(string(model.ResourceAccounting), "delete"), h.DeleteBillingItem)
+	items.GET("/:id/discount-suggestions", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetBillingItemDiscountSuggestions)
 }

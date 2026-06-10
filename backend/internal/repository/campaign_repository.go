@@ -24,6 +24,9 @@ type CampaignRepository interface {
 	// FindApplicableForItem は指定日・カテゴリ・商品に適用される有効なキャンペーンを返す（#81 段階2b）。
 	// 該当が複数ある場合は discount_value が大きいものを優先。該当なしは (nil, nil)。
 	FindApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) (*model.Campaign, error)
+	// FindAllApplicableForItem は指定日・カテゴリ・商品に適用される全有効キャンペーンを返す（#81 Q-I スタッフ選択用）。
+	// discount_value 降順。該当なしは (nil, nil)。
+	FindAllApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) ([]*model.Campaign, error)
 }
 
 type campaignRepository struct{ db *gorm.DB }
@@ -125,15 +128,18 @@ func (r *campaignRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 	return reorderByClinicID(ctx, r.db, &model.Campaign{}, "campaign", clinicID, ids)
 }
 
-func (r *campaignRepository) FindApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) (*model.Campaign, error) {
-	// 対象判定: カテゴリ一致 OR (商品指定があれば)商品一致
+func (r *campaignRepository) buildApplicableCond(category model.ItemCategory, merchandiseItemID *uint64) (string, []any) {
 	cond := "EXISTS (SELECT 1 FROM campaign_target_categories ctc WHERE ctc.campaign_id = campaigns.id AND ctc.category = ?)"
 	args := []any{category}
 	if merchandiseItemID != nil {
 		cond += " OR EXISTS (SELECT 1 FROM campaign_target_items cti WHERE cti.campaign_id = campaigns.id AND cti.merchandise_item_id = ?)"
 		args = append(args, *merchandiseItemID)
 	}
+	return cond, args
+}
 
+func (r *campaignRepository) FindApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) (*model.Campaign, error) {
+	cond, args := r.buildApplicableCond(category, merchandiseItemID)
 	var campaign model.Campaign
 	err := dbOrTx(ctx, r.db).
 		Scopes(clinicScope(clinicID)).
@@ -148,4 +154,19 @@ func (r *campaignRepository) FindApplicableForItem(ctx context.Context, clinicID
 		return nil, apperrors.FromGORM(err, "campaign", "")
 	}
 	return &campaign, nil
+}
+
+func (r *campaignRepository) FindAllApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) ([]*model.Campaign, error) {
+	cond, args := r.buildApplicableCond(category, merchandiseItemID)
+	var campaigns []*model.Campaign
+	err := dbOrTx(ctx, r.db).
+		Scopes(clinicScope(clinicID)).
+		Where("is_active = ? AND start_date <= ? AND end_date >= ?", true, date, date).
+		Where(cond, args...).
+		Order("discount_value DESC").
+		Find(&campaigns).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "campaign", "")
+	}
+	return campaigns, nil
 }
