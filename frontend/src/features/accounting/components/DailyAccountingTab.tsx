@@ -1,6 +1,8 @@
 import { useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router";
 
+import { useAuth } from "@/hooks/use-auth";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -105,6 +107,12 @@ interface DailyAccountingTabProps {
 
 export function DailyAccountingTab({ selectedClinicIds }: DailyAccountingTabProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const clinicNameById = useMemo(
+    () => new Map((user?.clinics ?? []).map((c) => [c.clinicId, c.clinicName])),
+    [user?.clinics],
+  );
+  const isMultiClinic = selectedClinicIds !== undefined && selectedClinicIds.length > 1;
   const selectedDate = searchParams.get("daily_date") ?? todayISO();
 
   const handleDateChange = useCallback((next: string) => {
@@ -191,7 +199,9 @@ export function DailyAccountingTab({ selectedClinicIds }: DailyAccountingTabProp
           <div className="flex flex-col gap-2" data-testid="daily-summary-per-clinic">
             {perClinicSummaries.map((cs) => (
               <div key={cs.clinic_id} className={`rounded-lg border ${C.borderLight} px-3 py-2 ${C.bgWhite}`}>
-                <p className={`text-xs font-medium ${C.text60} mb-1.5`}>拠点 {cs.clinic_id}</p>
+                <p className={`text-xs font-medium ${C.text60} mb-1.5`}>
+                  {clinicNameById.get(String(cs.clinic_id)) ?? `拠点 ${cs.clinic_id}`}
+                </p>
                 <div className="flex flex-wrap gap-2">
                   <SummaryCard label="会計件数" value={`${cs.summary.billing_count}件`} />
                   <SummaryCard label="売上合計" value={formatCurrency(cs.summary.grand_total)} />
@@ -225,6 +235,9 @@ export function DailyAccountingTab({ selectedClinicIds }: DailyAccountingTabProp
             <Table>
               <TableHeader>
                 <TableRow className={`${C.bgPage30}`}>
+                  {isMultiClinic ? (
+                    <TableHead className={`text-xs ${C.text60} whitespace-nowrap w-[100px]`}>拠点</TableHead>
+                  ) : null}
                   <TableHead className={`text-xs ${C.text60} whitespace-nowrap`}>飼主名</TableHead>
                   <TableHead className={`text-xs ${C.text60} whitespace-nowrap`}>ペット名</TableHead>
                   <TableHead className={`text-right text-xs ${C.text60} whitespace-nowrap`}>診療</TableHead>
@@ -241,6 +254,11 @@ export function DailyAccountingTab({ selectedClinicIds }: DailyAccountingTabProp
               <TableBody>
                 {rows.map(({ accounting: a, breakdown, subtotal, tax, discount, total }) => (
                   <TableRow key={a.id} className={`border-b ${C.borderLight}`}>
+                    {isMultiClinic ? (
+                      <TableCell className={`text-sm ${C.text60} py-2 whitespace-nowrap`}>
+                        {clinicNameById.get(a.clinicId) ?? a.clinicId}
+                      </TableCell>
+                    ) : null}
                     <TableCell className={`text-sm ${C.text} py-2 font-medium whitespace-nowrap`}>
                       {a.ownerName}
                     </TableCell>
@@ -283,7 +301,7 @@ export function DailyAccountingTab({ selectedClinicIds }: DailyAccountingTabProp
               </TableBody>
               <TableFooter>
                 <TableRow className={`font-bold border-t-2 ${C.borderLight}`}>
-                  <TableCell colSpan={2} className="py-2 text-sm">合計（{rows.length}件）</TableCell>
+                  <TableCell colSpan={isMultiClinic ? 3 : 2} className="py-2 text-sm">合計（{rows.length}件）</TableCell>
                   <TableCell className="text-right text-sm font-mono py-2">
                     {totals.medical > 0 ? formatCurrency(totals.medical) : "-"}
                   </TableCell>

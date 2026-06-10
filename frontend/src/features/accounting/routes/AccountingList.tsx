@@ -49,6 +49,10 @@ export function AccountingList() {
   // #86 段階3: 拠点横断表示
   const { user, currentClinicId } = useAuth();
   const assignedClinics = useMemo(() => user?.clinics ?? [], [user?.clinics]);
+  const clinicNameById = useMemo(
+    () => new Map(assignedClinics.map((c) => [c.clinicId, c.clinicName])),
+    [assignedClinics],
+  );
   const clinicsParam = searchParams.get("clinics");
   const selectedClinicIds = useMemo(
     () =>
@@ -284,6 +288,8 @@ export function AccountingList() {
                 onEdit={handleEdit}
                 onMedicalRecordOpen={handleMedicalRecordOpen}
                 onPageChange={handlePageChange}
+                showClinicColumn={selectedClinicIds.length > 1}
+                clinicNameById={clinicNameById}
               />
             ) : null}
           </UnifiedTabsContent>

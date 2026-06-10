@@ -101,6 +101,9 @@ interface AccountingListTableProps {
   onEdit: (id: string) => void;
   onMedicalRecordOpen: (medicalRecordId: string) => void;
   onPageChange: (page: number) => void;
+  /** 拠点横断表示 (#86 段階3) */
+  showClinicColumn?: boolean;
+  clinicNameById?: Map<string, string>;
 }
 
 export function AccountingListTable({
@@ -119,8 +122,12 @@ export function AccountingListTable({
   onEdit,
   onMedicalRecordOpen,
   onPageChange,
+  showClinicColumn,
+  clinicNameById,
 }: AccountingListTableProps) {
+  const clinicColumn = showClinicColumn ? [{ header: "拠点", className: "w-[100px]" }] : [];
   const columns = [
+    ...clinicColumn,
     {
       header: (
         <SortableHeader
@@ -199,6 +206,8 @@ export function AccountingListTable({
               key={accounting.id}
               accounting={accounting}
               canEdit={canEdit}
+              showClinicColumn={showClinicColumn}
+              clinicNameById={clinicNameById}
               onEdit={onEdit}
               onMedicalRecordOpen={onMedicalRecordOpen}
             />
@@ -225,6 +234,8 @@ export function AccountingListTable({
 interface AccountingListRowProps {
   accounting: AccountingType;
   canEdit: boolean;
+  showClinicColumn?: boolean;
+  clinicNameById?: Map<string, string>;
   onEdit: (id: string) => void;
   onMedicalRecordOpen: (medicalRecordId: string) => void;
 }
@@ -232,6 +243,8 @@ interface AccountingListRowProps {
 function AccountingListRow({
   accounting,
   canEdit,
+  showClinicColumn,
+  clinicNameById,
   onEdit,
   onMedicalRecordOpen,
 }: AccountingListRowProps) {
@@ -239,6 +252,11 @@ function AccountingListRow({
 
   return (
     <DataTableRow key={accounting.id} onClick={() => onEdit(accounting.id)}>
+      {showClinicColumn ? (
+        <TableCell className={`text-sm ${C.text60} py-2 whitespace-nowrap`}>
+          {clinicNameById?.get(accounting.clinicId) ?? accounting.clinicId}
+        </TableCell>
+      ) : null}
       <TableCell className={`font-mono text-base ${C.text} py-2`}>{accounting.scheduledDate}</TableCell>
       <TableCell className={`text-base ${C.text} py-2`}>{accounting.ownerName}</TableCell>
       <TableCell className={`text-base ${C.text} py-2`}>{accounting.petName}</TableCell>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { useAuth } from "@/hooks/use-auth";
 import { useGetPet } from "@/hooks/use-pet";
 import { calculateBillingTotals } from "@/lib/calculations";
 
@@ -23,6 +24,7 @@ export function useAccountingDetailState({
   locationState,
   fetchedAccounting,
 }: UseAccountingDetailStateArgs) {
+  const { currentClinicId } = useAuth();
   const newPetId = useMemo(() => {
     if (accountingId) return "";
     return new URLSearchParams(locationSearch).get("petId") ?? "";
@@ -37,6 +39,7 @@ export function useAccountingDetailState({
     const stateItems = locationState?.accountingItems ?? [];
     return {
       id: "acc_new",
+      clinicId: currentClinicId ?? "",
       ownerId: newPetData?.ownerId ?? "",
       ownerName: newPetData?.ownerName ?? "飼い主様",
       petId: newPetId,
@@ -48,7 +51,7 @@ export function useAccountingDetailState({
       payment: undefined,
       totalRefundedAmount: 0,
     };
-  }, [accountingId, fetchedAccounting, locationState, newPetData, newPetId]);
+  }, [accountingId, currentClinicId, fetchedAccounting, locationState, newPetData, newPetId]);
 
   const baseItems = useMemo(() => baseAccounting?.items ?? [], [baseAccounting]);
 

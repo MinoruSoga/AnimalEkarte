@@ -111,6 +111,7 @@ export interface Refund {
 /** @see {@link import("@/types/generated/models").Billing} */
 export interface Accounting {
   id: string;
+  clinicId: string;
   medicalRecordId?: string;
   ownerId: string;
   ownerName: string;

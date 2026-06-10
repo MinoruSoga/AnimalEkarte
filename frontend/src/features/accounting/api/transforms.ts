@@ -92,6 +92,7 @@ export function transformToAccounting(data: BackendAccounting) {
   const splits = data.payment_splits;
   return {
     id: String(data.id ?? 0),
+    clinicId: String(data.clinic_id),
     medicalRecordId: data.medical_record_id ? String(data.medical_record_id) : undefined,
     ownerId: String(data.owner_id ?? 0),
     ownerName: data.owner?.name ?? "",
