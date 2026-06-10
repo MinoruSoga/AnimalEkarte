@@ -15,7 +15,7 @@ import {
   AvailableSlotTypeWeekly,
   AvailableSlotTypeSpecific,
 } from "@/types/generated/models";
-import { DAY_OF_WEEK_LABELS, TIME_SELECT_ITEMS } from "./available-slot-options";
+import { TIME_SELECT_ITEMS } from "./available-slot-options";
 import type { CreateAvailableSlotRequest } from "../api/reservation-type-available-slots";
 
 const DAY_OF_WEEK_ITEMS = (
@@ -29,6 +29,17 @@ const DAY_OF_WEEK_ITEMS = (
     <SelectItem value="6">土曜日</SelectItem>
   </>
 );
+
+// react-refresh/only-export-components: JSX 以外の値は共有ファイルから export できないためローカル定義
+const DAY_OF_WEEK_LABELS: Record<number, string> = {
+  0: "日",
+  1: "月",
+  2: "火",
+  3: "水",
+  4: "木",
+  5: "金",
+  6: "土",
+};
 
 interface FormState {
   availableType: string;

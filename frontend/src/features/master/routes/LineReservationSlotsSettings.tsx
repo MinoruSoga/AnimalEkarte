@@ -15,7 +15,9 @@ export function LineReservationSlotsSettings() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const typeIdParam = searchParams.get("typeId");
-  const selectedType = activeTypes.find((t) => t.id === typeIdParam) ?? activeTypes[0];
+  // typeId 明示指定は無効区分も許可する（予約区分マスタの無効区分パネルから遷移できるため）。
+  // 未指定時のデフォルトは有効区分を優先する。
+  const selectedType = types.find((t) => t.id === typeIdParam) ?? activeTypes[0] ?? types[0];
 
   const handleTypeChange = useCallback(
     (value: string) => {
@@ -47,9 +49,9 @@ export function LineReservationSlotsSettings() {
               <SelectValue placeholder="予約区分を選択" />
             </SelectTrigger>
             <SelectContent>
-              {activeTypes.map((t) => (
+              {types.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
-                  {t.name}
+                  {t.isActive ? t.name : `${t.name}（無効）`}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -69,7 +71,7 @@ export function LineReservationSlotsSettings() {
             reservationTypeId={selectedType.id}
           />
         ) : (
-          <p className={`text-sm ${C.text40} py-4`}>有効な予約区分がありません</p>
+          <p className={`text-sm ${C.text40} py-4`}>予約区分がありません</p>
         )}
       </div>
     </div>

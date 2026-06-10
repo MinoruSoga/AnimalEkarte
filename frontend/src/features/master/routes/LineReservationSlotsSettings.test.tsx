@@ -100,4 +100,29 @@ describe("LineReservationSlotsSettings", () => {
       expect(requestedTypeId).toBe("7");
     });
   });
+
+  it("typeId で無効区分を明示指定した場合は別区分へフォールバックしない", async () => {
+    let requestedTypeId: string | null = null;
+    server.use(
+      http.get("/api/v1/masters/reservation-types", () =>
+        HttpResponse.json([
+          reservationType(5, "停止中の区分", false),
+          reservationType(6, "一般診療", true),
+        ]),
+      ),
+      http.get(
+        "/api/v1/masters/reservation-types/:id/available-slots",
+        ({ params }) => {
+          requestedTypeId = String(params.id);
+          return HttpResponse.json([]);
+        },
+      ),
+    );
+
+    renderPage("/line-reservation/slots?typeId=5");
+
+    await waitFor(() => {
+      expect(requestedTypeId).toBe("5");
+    });
+  });
 });
