@@ -68,6 +68,9 @@
 ### 2.4 シフト設定 (Shifts)
 - `GET/POST /clinic-holidays` — クリニック休診日一覧取得・登録。
 - `DELETE /clinic-holidays/:date` — 指定日の休診日削除。
+- `GET/POST /shift-templates` — シフトテンプレートの一覧取得・登録。
+- `PATCH /shift-templates/reorder` — テンプレート順序の保存。
+- `GET/PATCH/DELETE /shift-templates/:id` — テンプレートの参照・更新・削除。
 
 ### 2.5 LINE/Lステップ連携 (CRM)
 - `GET/PATCH /lstep-settings` — 連携状態・判定閾値の管理。

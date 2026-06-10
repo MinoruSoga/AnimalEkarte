@@ -43,6 +43,6 @@
 |:---|:---|:---|
 | GET | `/api/v1/masters/animal-species` | 有効な動物種一覧の取得。 |
 | PATCH | `/api/v1/masters/animal-species/:id` | 属性の更新。 |
-| PUT | `/api/v1/masters/animal-species/reorder` | 表示順序の一括保存。 |
+| PATCH | `/api/v1/masters/animal-species/reorder` | 表示順序の一括保存。 |
 
 ---

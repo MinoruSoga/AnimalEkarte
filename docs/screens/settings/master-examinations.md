@@ -41,8 +41,8 @@
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
-| GET | `/api/v1/masters/examinations` | 定義済み項目の一覧取得。 |
-| PATCH | `/api/v1/masters/examinations/:id` | 基準値や属性の更新。 |
-| PUT | `/api/v1/masters/examinations/reorder` | 並び順の一括保存。 |
+| GET | `/api/v1/masters/examination-types` | 定義済み項目の一覧取得。 |
+| PATCH | `/api/v1/masters/examination-types/:id` | 基準値や属性の更新。 |
+| PATCH | `/api/v1/masters/examination-types/reorder` | 並び順の一括保存。 |
 
 ---

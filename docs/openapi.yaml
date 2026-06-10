@@ -950,6 +950,123 @@ paths:
           description: No Content
 
 
+  /api/v1/shift-templates:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Shifts]
+      summary: シフトテンプレート一覧取得
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShiftTemplate'
+    post:
+      tags: [Shifts]
+      summary: シフトテンプレート作成
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftTemplate'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースの相対 URI。
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftTemplate'
+
+  /api/v1/shift-templates/reorder:
+    patch:
+      tags: [Shifts]
+      summary: シフトテンプレート並び順の一括保存
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '204':
+          description: No Content
+        '400':
+          description: 不正な入力
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/shift-templates/{id}:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [Shifts]
+      summary: シフトテンプレート取得
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftTemplate'
+        '404':
+          description: Not Found
+    patch:
+      tags: [Shifts]
+      summary: シフトテンプレート更新
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftTemplate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftTemplate'
+        '400':
+          description: 不正な入力
+        '404':
+          description: Not Found
+    delete:
+      tags: [Shifts]
+      summary: シフトテンプレート削除
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+
+
   /api/v1/examinations:
     parameters:
       - $ref: '#/components/parameters/XClinicIDHeader'
@@ -1095,6 +1212,45 @@ components:
         total: { type: integer }
         page: { type: integer }
         limit: { type: integer }
+
+    ShiftTemplateBreak:
+      type: object
+      properties:
+        id:
+          type: integer
+        break_start:
+          type: string
+        break_end:
+          type: string
+
+    ShiftTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinic_id:
+          type: integer
+        name:
+          type: string
+        shift_type:
+          type: string
+          enum: [full, morning, afternoon, off, paid_leave]
+        start_time:
+          type: string
+        end_time:
+          type: string
+        notes:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+        is_active:
+          type: boolean
+          default: true
+        breaks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShiftTemplateBreak'
 
     ExaminationStatus:
       type: string
