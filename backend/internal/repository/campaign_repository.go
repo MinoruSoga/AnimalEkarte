@@ -89,7 +89,7 @@ func (r *campaignRepository) Update(ctx context.Context, clinicID, id uint64, fi
 // ReplaceTargets は campaign の対象カテゴリ・対象商品を全削除→再作成で差し替える。
 // 呼び出し側(service)で campaign の所有(clinic_id)を確認済みであること。
 func (r *campaignRepository) ReplaceTargets(ctx context.Context, campaignID uint64, categories []model.ItemCategory, itemIDs []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("campaign_id = ?", campaignID).Delete(&model.CampaignTargetCategory{}).Error; err != nil {
 			return apperrors.FromGORM(err, "campaign_target_category", "")
 		}
@@ -107,7 +107,10 @@ func (r *campaignRepository) ReplaceTargets(ctx context.Context, campaignID uint
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to replace campaign targets")
+	}
+	return nil
 }
 
 func (r *campaignRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -128,9 +131,9 @@ func (r *campaignRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 	return reorderByClinicID(ctx, r.db, &model.Campaign{}, "campaign", clinicID, ids)
 }
 
-func (r *campaignRepository) buildApplicableCond(category model.ItemCategory, merchandiseItemID *uint64) (string, []any) {
-	cond := "EXISTS (SELECT 1 FROM campaign_target_categories ctc WHERE ctc.campaign_id = campaigns.id AND ctc.category = ?)"
-	args := []any{category}
+func (r *campaignRepository) buildApplicableCond(category model.ItemCategory, merchandiseItemID *uint64) (cond string, args []any) {
+	cond = "EXISTS (SELECT 1 FROM campaign_target_categories ctc WHERE ctc.campaign_id = campaigns.id AND ctc.category = ?)"
+	args = []any{category}
 	if merchandiseItemID != nil {
 		cond += " OR EXISTS (SELECT 1 FROM campaign_target_items cti WHERE cti.campaign_id = campaigns.id AND cti.merchandise_item_id = ?)"
 		args = append(args, *merchandiseItemID)

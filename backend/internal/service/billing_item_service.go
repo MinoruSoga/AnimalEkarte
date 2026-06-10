@@ -427,7 +427,7 @@ func (s *billingItemService) GetDiscountSuggestions(ctx context.Context, clinicI
 	}
 	var campaigns []*model.Campaign
 	if s.campaignRepo != nil {
-		campaigns, err = s.campaignRepo.FindAllApplicableForItem(ctx, clinicID, billing.ScheduledDate, model.ItemCategory(item.Category), nil)
+		campaigns, err = s.campaignRepo.FindAllApplicableForItem(ctx, clinicID, billing.ScheduledDate, item.Category, nil)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to find applicable campaigns for suggestions", "error", err)
 			campaigns = nil // best-effort

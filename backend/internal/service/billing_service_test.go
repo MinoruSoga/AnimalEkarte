@@ -128,7 +128,7 @@ func TestCalculateBillingTotals(t *testing.T) {
 				{UnitPrice: 1000, Quantity: 2, DiscountAmount: 500, TaxType: model.TaxTypeExcluded, TaxRate: 0.10},
 			},
 			wantSubtotal:    1500, // 2000 - 500
-			wantTaxTotal:    150,  // round(1500 * 0.10)
+			wantTaxTotal:    150,  // 1500 * 10%
 			wantTotalAmount: 1650, // 1500 + 外税150
 		},
 		{
@@ -137,7 +137,7 @@ func TestCalculateBillingTotals(t *testing.T) {
 				{UnitPrice: 1100, Quantity: 1, DiscountAmount: 100, TaxType: model.TaxTypeIncluded, TaxRate: 0.10},
 			},
 			wantSubtotal:    1000, // 1100 - 100
-			wantTaxTotal:    91,   // round(1000 * 0.10 / 1.10)
+			wantTaxTotal:    91,   // 1000 * 10% 内数
 			wantTotalAmount: 1000, // 内税は加算なし
 		},
 		{
