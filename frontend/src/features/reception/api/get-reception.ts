@@ -22,7 +22,7 @@ export function todayISO(): string {
 export async function getReception(date: string): Promise<ReceptionColumn[]> {
   const { data } = await axios.get<ReservationsResponse>(
     "/v1/reservations",
-    { params: { date } }
+    { params: { date, limit: 100 } },
   );
   return transformReservationsToReceptionColumns(data.data);
 }
