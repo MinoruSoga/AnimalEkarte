@@ -132,6 +132,18 @@ func NewBillingItemServiceWithCampaign(repo repository.BillingItemRepository, bi
 	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, campaignRepo: campaignRepo, ownerRepo: ownerRepo}
 }
 
+// resolveOwnerDiscountRate は会計に紐付く飼主の割引率を返す。ownerRepo 未配線または取得失敗は 0。
+func (s *billingItemService) resolveOwnerDiscountRate(ctx context.Context, clinicID uint64, ownerID *uint64) float64 {
+	if ownerID == nil || s.ownerRepo == nil {
+		return 0
+	}
+	owner, err := s.ownerRepo.FindByID(ctx, clinicID, *ownerID)
+	if err != nil || owner == nil {
+		return 0
+	}
+	return owner.DiscountRate
+}
+
 // resolveAutoDiscount は #81 段階2b: 明細に適用するキャンペーン/飼主割引額を算出する(best-effort)。
 // campaignRepo 未配線時は 0。会計日(billing.ScheduledDate)・明細カテゴリ・個別商品IDで該当キャンペーンを検索し、
 // 飼主割引と高い方を採用する(CalculateItemCampaignDiscount)。
@@ -143,12 +155,7 @@ func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *Cre
 	if err != nil || billing == nil {
 		return 0
 	}
-	var ownerRate float64
-	if billing.OwnerID != nil && s.ownerRepo != nil {
-		if owner, oerr := s.ownerRepo.FindByID(ctx, input.ClinicID, *billing.OwnerID); oerr == nil && owner != nil {
-			ownerRate = owner.DiscountRate
-		}
-	}
+	ownerRate := s.resolveOwnerDiscountRate(ctx, input.ClinicID, billing.OwnerID)
 	campaign, cerr := s.campaignRepo.FindApplicableForItem(ctx, input.ClinicID, billing.ScheduledDate, model.ItemCategory(input.Category), input.MerchandiseItemID)
 	if cerr != nil {
 		campaign = nil // best-effort: キャンペーン検索失敗は割引なしで続行
@@ -419,12 +426,7 @@ func (s *billingItemService) GetDiscountSuggestions(ctx context.Context, clinicI
 	if err != nil || billing == nil {
 		return nil, apperrors.Wrap(err, "failed to find billing")
 	}
-	var ownerRate float64
-	if billing.OwnerID != nil && s.ownerRepo != nil {
-		if owner, oerr := s.ownerRepo.FindByID(ctx, clinicID, *billing.OwnerID); oerr == nil && owner != nil {
-			ownerRate = owner.DiscountRate
-		}
-	}
+	ownerRate := s.resolveOwnerDiscountRate(ctx, clinicID, billing.OwnerID)
 	var campaigns []*model.Campaign
 	if s.campaignRepo != nil {
 		campaigns, err = s.campaignRepo.FindAllApplicableForItem(ctx, clinicID, billing.ScheduledDate, item.Category, nil)

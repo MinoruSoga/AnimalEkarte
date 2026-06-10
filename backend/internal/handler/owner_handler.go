@@ -30,11 +30,7 @@ func (h *Handler) ListOwners(c *gin.Context) {
 		return
 	}
 
-	ownerResponses := make([]ownerResponse, 0, len(owners))
-	for i := range owners {
-		ownerResponses = append(ownerResponses, toOwnerResponse(&owners[i]))
-	}
-	c.JSON(http.StatusOK, newPaginatedResponse(ownerResponses, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(owners, toOwnerResponse), total, page, limit))
 }
 
 // GetOwner godoc

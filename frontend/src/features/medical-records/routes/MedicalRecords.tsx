@@ -3,7 +3,7 @@ import { type ReactNode, useState, useCallback, useDeferredValue, useMemo, useEf
 import { useNavigate, useSearchParams } from "react-router";
 
 // Auth
-import { useAuth } from "@/hooks/use-auth";
+import { useClinicScope } from "@/hooks/use-clinic-scope";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
@@ -85,27 +85,16 @@ export function MedicalRecords() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
-  const { user, currentClinicId } = useAuth();
-  const assignedClinics = useMemo(() => user?.clinics ?? [], [user?.clinics]);
+  const { assignedClinics, selectedClinicIds, clinicNameById, currentClinicId } = useClinicScope();
+  const clinicNames = useMemo(
+    () => Object.fromEntries(clinicNameById),
+    [clinicNameById],
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
 
-  // #86: URL ?clinics= から選択拠点を解決
-  const clinicsParam = searchParams.get("clinics");
-  const selectedClinicIds = useMemo(
-    () =>
-      clinicsParam
-        ? clinicsParam.split(",").filter(Boolean)
-        : currentClinicId
-          ? [currentClinicId]
-          : [],
-    [clinicsParam, currentClinicId],
-  );
-  const clinicNames = useMemo(
-    () => Object.fromEntries(assignedClinics.map((m) => [m.clinicId, m.clinicName])),
-    [assignedClinics],
-  );
+  // MedicalRecords 固有: 拠点変更時はページもリセットする
   const handleToggleClinic = useCallback((clinicId: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);

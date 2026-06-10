@@ -14,7 +14,7 @@ type DocumentPaymentInfo = Pick<
   "totalAmount" | "insuranceAmount" | "billingAmount" | "receivedAmount" | "changeAmount"
 >;
 
-interface ClinicInfo {
+export interface ClinicInfo {
   name?: string;
   postalCode?: string;
   address?: string;

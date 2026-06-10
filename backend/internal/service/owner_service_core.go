@@ -96,7 +96,8 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, s.wrapOwnerUpdateError(ctx, clinicID, id, err, "failed to update owner", "failed to update owner")
+		slog.ErrorContext(ctx, "failed to update owner", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to update owner")
 	}
 
 	slog.InfoContext(ctx, "owner updated",
@@ -104,7 +105,12 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		slog.Uint64("clinic_id", clinicID))
 
 	// DB の最新状態を返す
-	return s.reloadOwner(ctx, clinicID, id, "failed to get updated owner", "failed to get updated owner")
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get updated owner", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to get updated owner")
+	}
+	return owner, nil
 }
 
 func (s *ownerService) ensureOwnerEmailUnique(ctx context.Context, clinicID, currentOwnerID uint64, email string) error {

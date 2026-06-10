@@ -152,7 +152,6 @@ func (h *Handler) GetUngroupedSameDay(c *gin.Context) {
 	c.JSON(http.StatusOK, toUngroupedSameDayResponse(summary))
 }
 
-// RegisterBillingItemRoutes は明細関連のルートを登録する
 // GetBillingItemDiscountSuggestions は指定明細に適用可能な割引候補を返す (#81 Q-I スタッフ選択)。
 func (h *Handler) GetBillingItemDiscountSuggestions(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -171,6 +170,7 @@ func (h *Handler) GetBillingItemDiscountSuggestions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"suggestions": suggestions})
 }
 
+// RegisterBillingItemRoutes は明細関連のルートを登録する。
 func (h *Handler) RegisterBillingItemRoutes(rg *gin.RouterGroup) {
 	items := rg.Group("/billing-items")
 	items.GET("/unbilled", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetUnbilledItems)

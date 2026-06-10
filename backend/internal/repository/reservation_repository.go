@@ -116,23 +116,15 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 }
 
 func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
-	var reservation model.Reservation
-	err := dbOrTx(ctx, r.db).
-		Preload("Owner", "deleted_at IS NULL").
-		Preload("Pet", "deleted_at IS NULL").
-		Preload("Pet.Owner", "deleted_at IS NULL").
-		Preload("Pet.AnimalSpecies").
-		Preload("ReservationType", "deleted_at IS NULL").
-		Preload("Doctor", "deleted_at IS NULL").
-		Preload("CreatedByStaff", "deleted_at IS NULL").
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&reservation).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
-	}
-	return &reservation, nil
+	return r.findReservationByID(ctx, clinicScope(clinicID), id)
 }
 
 func (r *reservationRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
+	return r.findReservationByID(ctx, clinicScopeIn(clinicIDs), id)
+}
+
+// findReservationByID は scope（単一/複数クリニック）を受け取り予約を1件取得する共通実装。
+func (r *reservationRepository) findReservationByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.Reservation, error) {
 	var reservation model.Reservation
 	err := dbOrTx(ctx, r.db).
 		Preload("Owner", "deleted_at IS NULL").
@@ -142,7 +134,7 @@ func (r *reservationRepository) FindByIDForClinics(ctx context.Context, clinicID
 		Preload("ReservationType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CreatedByStaff", "deleted_at IS NULL").
-		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&reservation).Error
+		Scopes(scope).Where("id = ?", id).First(&reservation).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}

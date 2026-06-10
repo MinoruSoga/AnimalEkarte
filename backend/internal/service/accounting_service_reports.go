@@ -56,15 +56,24 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64) err
 	return nil
 }
 
-// GetDailySummary は指定日のレジ締め集計を返す。BUG-368
-func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64, dateStr string) (*repository.DailySummaryResult, error) {
+// parseDailySummaryDate は dateStr（空なら今日）を JST でパースする共通ヘルパー。
+func parseDailySummaryDate(dateStr string) (time.Time, error) {
 	if dateStr == "" {
 		dateStr = time.Now().Format("2006-01-02")
 	}
 	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
 	date, err := time.ParseInLocation("2006-01-02", dateStr, jst)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM-DD")
+		return time.Time{}, apperrors.WrapInvalidInput("date must be YYYY-MM-DD")
+	}
+	return date, nil
+}
+
+// GetDailySummary は指定日のレジ締め集計を返す。BUG-368
+func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64, dateStr string) (*repository.DailySummaryResult, error) {
+	date, err := parseDailySummaryDate(dateStr)
+	if err != nil {
+		return nil, err
 	}
 	result, err := s.repo.GetDailySummary(ctx, clinicID, date)
 	if err != nil {
@@ -76,13 +85,9 @@ func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64
 
 // GetDailySummaryForClinics は複数医院の拠点別日次集計を返す (#86 段階3 論点4=2)。
 func (s *accountingService) GetDailySummaryForClinics(ctx context.Context, clinicIDs []uint64, dateStr string) ([]ClinicDailySummary, error) {
-	if dateStr == "" {
-		dateStr = time.Now().Format("2006-01-02")
-	}
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	date, err := time.ParseInLocation("2006-01-02", dateStr, jst)
+	date, err := parseDailySummaryDate(dateStr)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM-DD")
+		return nil, err
 	}
 	results := make([]ClinicDailySummary, 0, len(clinicIDs))
 	for _, clinicID := range clinicIDs {

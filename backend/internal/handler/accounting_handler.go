@@ -180,11 +180,7 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 			RespondError(c, err)
 			return
 		}
-		responses := make([]accountingResponse, 0, len(accountings))
-		for i := range accountings {
-			responses = append(responses, toAccountingResponse(&accountings[i]))
-		}
-		c.JSON(http.StatusOK, newPaginatedResponse(responses, total, page, limit))
+		c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(accountings, toAccountingResponse), total, page, limit))
 	case "owner":
 		aggregates, total, summary, err := h.svc.Accounting.ListUnpaidByOwner(ctx, clinicID, filters.BaseDate, page, limit)
 		if err != nil {

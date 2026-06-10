@@ -65,8 +65,8 @@ func (h *Handler) GetMedicalRecord(c *gin.Context) {
 		return
 	}
 
-	// Get visit count if pet_id exists (clinicIDs[0] = mainClinicID for cross-clinic scope)
-	var visitCount int64 = 0
+	// pet_id がある場合のみ来院回数を取得する（clinicIDs[0] = mainClinicID for cross-clinic scope）
+	var visitCount int64
 	if record.PetID != nil {
 		visitCount, err = h.svc.MedicalRecord.CountByPetID(c.Request.Context(), record.ClinicID, *record.PetID)
 		if err != nil {

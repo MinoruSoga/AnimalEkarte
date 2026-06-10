@@ -281,36 +281,21 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	if err := s.updatePetFields(ctx, clinicID, id, fields, "failed to update pet", "failed to update pet"); err != nil {
-		return nil, err
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update pet", "error", err)
+		return nil, apperrors.Wrap(err, "failed to update pet")
 	}
 
 	slog.InfoContext(ctx, "pet updated",
 		slog.Uint64("pet_id", id),
 		slog.Uint64("clinic_id", clinicID))
 
-	pet, err := s.reloadPet(ctx, clinicID, id, "failed to get updated pet", "failed to get updated pet")
-	if err != nil {
-		return nil, err
-	}
-	s.syncLstepTags(ctx, clinicID, pet.OwnerID)
-	return pet, nil
-}
-
-func (s *petService) updatePetFields(ctx context.Context, clinicID, id uint64, fields map[string]any, logMessage, wrapMessage string) error {
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, logMessage, "error", err)
-		return apperrors.Wrap(err, wrapMessage)
-	}
-	return nil
-}
-
-func (s *petService) reloadPet(ctx context.Context, clinicID, id uint64, logMessage, wrapMessage string) (*model.Pet, error) {
 	pet, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, logMessage, "error", err)
-		return nil, apperrors.Wrap(err, wrapMessage)
+		slog.ErrorContext(ctx, "failed to get updated pet", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get updated pet")
 	}
+	s.syncLstepTags(ctx, clinicID, pet.OwnerID)
 	return pet, nil
 }
 

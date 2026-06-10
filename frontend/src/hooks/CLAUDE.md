@@ -75,6 +75,7 @@ export function useGetPet(petId: string) {
 | `use-postal-code-lookup.ts` | 郵便番号→住所変換 |
 | `use-staff-validation.ts` | スタッフバリデーション共有ロジック |
 | `use-reservation-type-color-map.ts` | 予約タイプカラーマッピング |
+| `use-clinic-scope.ts` | #86 拠点横断表示: URL ?clinics= driven の医院スコープ管理（selectedClinicIds / handleToggleClinic / clinicNameById） |
 
 ### Cross-feature データ系（Query Cache 共有）
 

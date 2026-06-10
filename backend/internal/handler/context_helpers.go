@@ -140,14 +140,14 @@ func resolveListClinicIDs(c *gin.Context) ([]uint64, bool) {
 // resolveAllClinicIDs はユーザーの全所属医院IDを返す（詳細画面の拠点横断閲覧用 #86）。
 // system_admin は mainClinicID 単体を返す（全医院スキャン防止）。
 // 戻り値は必ず1件以上。失敗時は HTTPエラーを書いて (nil, false) を返す。
+//
+// extractIsSystemAdmin/extractClinicIDs はエラー時に 401 を書くため、ここでは
+// コンテキスト値を直接読み取り、存在しない場合は mainClinicID のみを返すフォールバック動作をとる。
 func resolveAllClinicIDs(c *gin.Context) ([]uint64, bool) {
-	clinicID, ok := extractClinicID(c) // mainClinicID (always present)
+	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return nil, false
 	}
-	// is_system_admin / clinic_ids は JWT ミドルウェアが設定する。
-	// extractIsSystemAdmin/extractClinicIDs はエラー時に 401 を書くため、
-	// フォールバックが必要なここでは直接ペークする。
 	if val, exists := c.Get("is_system_admin"); exists {
 		if isAdmin, _ := val.(bool); isAdmin {
 			return []uint64{clinicID}, true

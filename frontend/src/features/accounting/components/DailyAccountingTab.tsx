@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router";
 
-import { useAuth } from "@/hooks/use-auth";
+import { useClinicScope } from "@/hooks/use-clinic-scope";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -107,11 +107,7 @@ interface DailyAccountingTabProps {
 
 export function DailyAccountingTab({ selectedClinicIds }: DailyAccountingTabProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
-  const clinicNameById = useMemo(
-    () => new Map((user?.clinics ?? []).map((c) => [c.clinicId, c.clinicName])),
-    [user?.clinics],
-  );
+  const { clinicNameById } = useClinicScope();
   const isMultiClinic = selectedClinicIds !== undefined && selectedClinicIds.length > 1;
   const selectedDate = searchParams.get("daily_date") ?? todayISO();
 

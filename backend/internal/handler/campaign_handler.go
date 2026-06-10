@@ -21,11 +21,7 @@ func (h *Handler) ListCampaigns(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	out := make([]campaignResponse, 0, len(ms))
-	for i := range ms {
-		out = append(out, toCampaignResponse(&ms[i]))
-	}
-	c.JSON(http.StatusOK, out)
+	c.JSON(http.StatusOK, mapSlice(ms, toCampaignResponse))
 }
 
 // GetCampaign godoc

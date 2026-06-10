@@ -5,7 +5,7 @@ import { useNavigate, useLoaderData, useRevalidator, useSearchParams } from "rea
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
-import { useAuth } from "@/hooks/use-auth";
+import { useClinicScope } from "@/hooks/use-clinic-scope";
 
 // External
 import { Plus } from "lucide-react";
@@ -80,22 +80,12 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
 
   // #86: 拠点横断表示 — URL の ?clinics=1,2 が表示拠点。未指定は現在の医院のみ（従来挙動）。
   // 選択変更で loader が再実行され、サーバ側 (resolveListClinicIDs) で所属検証される。
-  const { user, currentClinicId } = useAuth();
-  const assignedClinics = useMemo(() => user?.clinics ?? [], [user?.clinics]);
-  const clinicsParam = searchParams.get("clinics");
-  const selectedClinicIds = useMemo(
-    () =>
-      clinicsParam
-        ? clinicsParam.split(",").filter(Boolean)
-        : currentClinicId
-          ? [currentClinicId]
-          : [],
-    [clinicsParam, currentClinicId],
-  );
+  const { assignedClinics, selectedClinicIds, clinicNameById, currentClinicId } = useClinicScope();
   const clinicNames = useMemo(
-    () => Object.fromEntries(assignedClinics.map((m) => [m.clinicId, m.clinicName])),
-    [assignedClinics],
+    () => Object.fromEntries(clinicNameById),
+    [clinicNameById],
   );
+  // OwnersList 固有: 拠点変更時はページもリセットする
   const handleToggleClinic = useCallback((clinicId: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -105,13 +95,13 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       const updated = current.includes(clinicId)
         ? current.filter((id) => id !== clinicId)
         : [...current, clinicId];
-      if (updated.length === 0) return prev; // 最低1拠点は維持
+      if (updated.length === 0) return prev;
       if (updated.length === 1 && updated[0] === currentClinicId) {
-        next.delete("clinics"); // デフォルト（現在の医院のみ）はパラメータ無し
+        next.delete("clinics");
       } else {
         next.set("clinics", updated.join(","));
       }
-      next.delete("page"); // 拠点変更時はページリセット
+      next.delete("page");
       return next;
     });
   }, [setSearchParams, currentClinicId]);

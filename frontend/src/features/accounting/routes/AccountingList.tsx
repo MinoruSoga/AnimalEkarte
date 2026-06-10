@@ -10,7 +10,7 @@ import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicS
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
-import { useAuth } from "@/hooks/use-auth";
+import { useClinicScope } from "@/hooks/use-clinic-scope";
 
 // External
 import { Plus, CreditCard } from "lucide-react";
@@ -47,44 +47,10 @@ export function AccountingList() {
   const { canCreate, canEdit } = usePermission("accounting");
 
   // #86 段階3: 拠点横断表示
-  const { user, currentClinicId } = useAuth();
-  const assignedClinics = useMemo(() => user?.clinics ?? [], [user?.clinics]);
-  const clinicNameById = useMemo(
-    () => new Map(assignedClinics.map((c) => [c.clinicId, c.clinicName])),
-    [assignedClinics],
-  );
-  const clinicsParam = searchParams.get("clinics");
-  const selectedClinicIds = useMemo(
-    () =>
-      clinicsParam
-        ? clinicsParam.split(",").filter(Boolean)
-        : currentClinicId
-          ? [currentClinicId]
-          : [],
-    [clinicsParam, currentClinicId],
-  );
-  const handleToggleClinic = useCallback((clinicId: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      const current =
-        next.get("clinics")?.split(",").filter(Boolean) ??
-        (currentClinicId ? [currentClinicId] : []);
-      const updated = current.includes(clinicId)
-        ? current.filter((id) => id !== clinicId)
-        : [...current, clinicId];
-      if (updated.length === 0) return prev;
-      if (updated.length === 1 && updated[0] === currentClinicId) {
-        next.delete("clinics");
-      } else {
-        next.set("clinics", updated.join(","));
-      }
-      return next;
-    });
-  }, [setSearchParams, currentClinicId]);
+  const { assignedClinics, selectedClinicIds, clinicNameById, handleToggleClinic } = useClinicScope();
 
   const tabParam = searchParams.get("tab");
   const activeTab = tabParam === "unpaid" ? "unpaid" : tabParam === "daily" ? "daily" : "list";
-  const tabItems = TABS;
   const handleTabChange = useCallback((tab: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -256,7 +222,7 @@ export function AccountingList() {
           />
         ) : null}
         <UnifiedTabs
-          items={tabItems}
+          items={TABS}
           value={activeTab}
           onValueChange={handleTabChange}
         >

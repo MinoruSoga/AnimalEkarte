@@ -1,7 +1,7 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { useSearchParams } from "react-router";
-import { useAuth } from "@/hooks/use-auth";
+import { useClinicScope } from "@/hooks/use-clinic-scope";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
 import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 
@@ -59,36 +59,7 @@ export function ReservationManagement() {
   }, [setSearchParams]);
 
   // #86: 拠点横断表示
-  const { user, currentClinicId } = useAuth();
-  const assignedClinics = useMemo(() => user?.clinics ?? [], [user?.clinics]);
-  const clinicsParam = searchParams.get("clinics");
-  const selectedClinicIds = useMemo(
-    () =>
-      clinicsParam
-        ? clinicsParam.split(",").filter(Boolean)
-        : currentClinicId
-          ? [currentClinicId]
-          : [],
-    [clinicsParam, currentClinicId],
-  );
-  const handleToggleClinic = useCallback((clinicId: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      const current =
-        next.get("clinics")?.split(",").filter(Boolean) ??
-        (currentClinicId ? [currentClinicId] : []);
-      const updated = current.includes(clinicId)
-        ? current.filter((id) => id !== clinicId)
-        : [...current, clinicId];
-      if (updated.length === 0) return prev;
-      if (updated.length === 1 && updated[0] === currentClinicId) {
-        next.delete("clinics");
-      } else {
-        next.set("clinics", updated.join(","));
-      }
-      return next;
-    });
-  }, [setSearchParams, currentClinicId]);
+  const { assignedClinics, selectedClinicIds, handleToggleClinic } = useClinicScope();
 
   const { activeEntries, colorMap: dynamicColorMap } = useReservationTypeColorMap();
 

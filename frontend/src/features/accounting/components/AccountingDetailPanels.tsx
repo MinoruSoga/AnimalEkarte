@@ -4,22 +4,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { C, ICON } from "@/lib/design-tokens";
 import type { PaymentMethod, TaxType } from "@/types/generated/models";
 import type { Accounting } from "../types";
-import { AccountingDocument } from "./AccountingDocument";
+import { AccountingDocument, type ClinicInfo } from "./AccountingDocument";
 import { InsuranceCard } from "./InsuranceCard";
 import { ItemListCard } from "./ItemListCard";
 import { PaymentCard, type PaymentSplitDraft } from "./PaymentCard";
 import { RefundSection } from "./RefundSection";
-
-interface ClinicInfo {
-  name?: string;
-  postalCode?: string;
-  address?: string;
-  phoneNumber?: string;
-  registrationNumber?: string;
-  invoiceRegistrationNumber?: string;
-  standardTaxRate?: number;
-  reducedTaxRate?: number;
-}
 
 interface AccountingHeaderActionsProps {
   status: Accounting["status"];

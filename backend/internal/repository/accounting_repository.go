@@ -55,69 +55,21 @@ func NewAccountingRepository(db *gorm.DB) AccountingRepository {
 }
 
 func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
-	billings := make([]model.Billing, 0)
-	var total int64
-
 	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(clinicScope(clinicID))
-	if petID != nil {
-		q = q.Where("pet_id = ?", *petID)
-	}
-	if ownerID != nil {
-		q = q.Where("owner_id = ?", *ownerID)
-	}
-	if status != nil {
-		q = q.Where("status = ?", *status)
-	}
-	if startDate != nil {
-		q = q.Where("scheduled_date >= ?", *startDate)
-	}
-	if endDate != nil {
-		q = q.Where("scheduled_date <= ?", *endDate)
-	}
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "billing", "")
-	}
-	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").Preload("PaymentSplits").
-		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "billing", "")
-	}
-
-	// 返金合計をサブクエリで一括取得
-	if len(billings) > 0 {
-		ids := make([]uint64, 0, len(billings))
-		for i := range billings {
-			ids = append(ids, billings[i].ID)
-		}
-		type refundSum struct {
-			BillingID uint64
-			Total     int64
-		}
-		var sums []refundSum
-		if err := r.db.WithContext(ctx).
-			Model(&model.BillingRefund{}).
-			Unscoped().
-			Select("billing_id, COALESCE(SUM(amount), 0) AS total").
-			Where("billing_id IN ?", ids).
-			Group("billing_id").
-			Scan(&sums).Error; err != nil {
-			return nil, 0, apperrors.FromGORM(err, "billing_refund", "")
-		}
-		sumMap := make(map[uint64]int64, len(sums))
-		for _, s := range sums {
-			sumMap[s.BillingID] = s.Total
-		}
-		for i := range billings {
-			billings[i].TotalRefundedAmount = sumMap[billings[i].ID]
-		}
-	}
-	return billings, total, nil
+	return r.findBillingsWithFilters(ctx, q, petID, ownerID, status, startDate, endDate, page, limit)
 }
 
 func (r *accountingRepository) FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
+	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(clinicScopeIn(clinicIDs))
+	return r.findBillingsWithFilters(ctx, q, petID, ownerID, status, startDate, endDate, page, limit)
+}
+
+// findBillingsWithFilters はフィルタ・ページネーション適用後に返金合計を付与して返す共通実装。
+// FindAll / FindAllForClinics の clinic スコープ差分は呼び出し元で適用済みのクエリ q を受け取る。
+func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *gorm.DB, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
 	billings := make([]model.Billing, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(clinicScopeIn(clinicIDs))
 	if petID != nil {
 		q = q.Where("pet_id = ?", *petID)
 	}
@@ -140,64 +92,57 @@ func (r *accountingRepository) FindAllForClinics(ctx context.Context, clinicIDs 
 		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-
-	if len(billings) > 0 {
-		ids := make([]uint64, 0, len(billings))
-		for i := range billings {
-			ids = append(ids, billings[i].ID)
-		}
-		type refundSum struct {
-			BillingID uint64
-			Total     int64
-		}
-		var sums []refundSum
-		if err := r.db.WithContext(ctx).
-			Model(&model.BillingRefund{}).
-			Unscoped().
-			Select("billing_id, COALESCE(SUM(amount), 0) AS total").
-			Where("billing_id IN ?", ids).
-			Group("billing_id").
-			Scan(&sums).Error; err != nil {
-			return nil, 0, apperrors.FromGORM(err, "billing_refund", "")
-		}
-		sumMap := make(map[uint64]int64, len(sums))
-		for _, s := range sums {
-			sumMap[s.BillingID] = s.Total
-		}
-		for i := range billings {
-			billings[i].TotalRefundedAmount = sumMap[billings[i].ID]
-		}
+	if err := r.attachRefundTotals(ctx, billings); err != nil {
+		return nil, 0, err
 	}
 	return billings, total, nil
 }
 
+// attachRefundTotals は billing スライスの各要素に返金合計をサブクエリで一括付与する。
+func (r *accountingRepository) attachRefundTotals(ctx context.Context, billings []model.Billing) error {
+	if len(billings) == 0 {
+		return nil
+	}
+	ids := make([]uint64, 0, len(billings))
+	for i := range billings {
+		ids = append(ids, billings[i].ID)
+	}
+	type refundSum struct {
+		BillingID uint64
+		Total     int64
+	}
+	var sums []refundSum
+	if err := r.db.WithContext(ctx).
+		Model(&model.BillingRefund{}).
+		Unscoped().
+		Select("billing_id, COALESCE(SUM(amount), 0) AS total").
+		Where("billing_id IN ?", ids).
+		Group("billing_id").
+		Scan(&sums).Error; err != nil {
+		return apperrors.FromGORM(err, "billing_refund", "")
+	}
+	sumMap := make(map[uint64]int64, len(sums))
+	for _, s := range sums {
+		sumMap[s.BillingID] = s.Total
+	}
+	for i := range billings {
+		billings[i].TotalRefundedAmount = sumMap[billings[i].ID]
+	}
+	return nil
+}
+
 func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
-	var billing model.Billing
-	err := r.db.WithContext(ctx).
-		Preload("Items", "deleted_at IS NULL").
-		Preload("Payments", "deleted_at IS NULL").
-		Preload("Payments.PaidByStaff", "deleted_at IS NULL").
-		Preload("Refunds").
-		Preload("Refunds.RefundedByStaff").
-		Preload("Owner", "deleted_at IS NULL").
-		Preload("Pet", "deleted_at IS NULL").
-		Preload("PaymentSplits").
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&billing).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
-	}
-	// Preload した Refunds から TotalRefundedAmount を計算（FindAll と同じ算出ロジック）
-	var total int64
-	for i := range billing.Refunds {
-		total += billing.Refunds[i].Amount
-	}
-	billing.TotalRefundedAmount = total
-	return &billing, nil
+	return r.findBillingByIDWithScope(r.db.WithContext(ctx).Scopes(clinicScope(clinicID)), id)
 }
 
 func (r *accountingRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error) {
+	return r.findBillingByIDWithScope(r.db.WithContext(ctx).Scopes(clinicScopeIn(clinicIDs)), id)
+}
+
+// findBillingByIDWithScope は clinic スコープ適用済みのクエリで billing を1件取得し、返金合計を計算して返す。
+func (r *accountingRepository) findBillingByIDWithScope(q *gorm.DB, id uint64) (*model.Billing, error) {
 	var billing model.Billing
-	err := r.db.WithContext(ctx).
+	err := q.
 		Preload("Items", "deleted_at IS NULL").
 		Preload("Payments", "deleted_at IS NULL").
 		Preload("Payments.PaidByStaff", "deleted_at IS NULL").
@@ -206,7 +151,7 @@ func (r *accountingRepository) FindByIDForClinics(ctx context.Context, clinicIDs
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("PaymentSplits").
-		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&billing).Error
+		Where("id = ?", id).First(&billing).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
 	}

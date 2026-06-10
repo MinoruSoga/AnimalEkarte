@@ -33,11 +33,7 @@ func (h *Handler) ListPets(c *gin.Context) {
 		return
 	}
 
-	petResponses := make([]petListResponse, 0, len(pets))
-	for i := range pets {
-		petResponses = append(petResponses, toPetListResponse(&pets[i]))
-	}
-	c.JSON(http.StatusOK, newPaginatedResponse(petResponses, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(pets, toPetListResponse), total, page, limit))
 }
 
 // GetPet godoc

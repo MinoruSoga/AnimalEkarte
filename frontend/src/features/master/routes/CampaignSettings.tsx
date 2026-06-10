@@ -42,7 +42,10 @@ export function CampaignSettings() {
 
   const dirty = useSidePeekDirty();
   const crud = useMasterCRUD<Campaign>({ data, deleteMutation, entityLabel: "キャンペーン", dirtyGuard: dirty });
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+  const handleDirtyChange = useCallback(
+    (isDirty: boolean) => (isDirty ? dirty.markDirty() : dirty.markClean()),
+    [dirty],
+  );
 
   const { handleSave } = useMasterSave<
     Campaign,
