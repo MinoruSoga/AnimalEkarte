@@ -1460,7 +1460,13 @@ INSERT INTO appointment_trimming_details (appointment_id, clinic_id, course_id, 
     (105, 1, 4, 12.0, 'Kg', '全体カット'),
     (106, 1, 2, 8.0,  'Kg', '爪切り・ブラッシング'),
     (107, 1, 1, 5.0,  'Kg', 'シャンプー'),
-    (108, 1, 3, 3800, 'g',  'トリミング')
+    (108, 1, 3, 3800, 'g',  'トリミング'),
+    (227, 1, 5, 3.0,  'Kg', 'サマーカット'),
+    (228, 1, 1, 4.8,  'Kg', 'シャンプーコース'),
+    (229, 1, 3, 6.2,  'Kg', 'トリミング'),
+    (246, 1, 4, 8.0,  'Kg', '全体カット'),
+    (247, 1, 1, 5.5,  'Kg', 'シャンプー'),
+    (248, 1, 3, 4.8,  'Kg', 'トリミング')
 ON CONFLICT (appointment_id) DO UPDATE SET updated_at = now();
 
 SELECT setval(pg_get_serial_sequence('appointment_trimming_details', 'id'), (SELECT MAX(id) FROM appointment_trimming_details));
