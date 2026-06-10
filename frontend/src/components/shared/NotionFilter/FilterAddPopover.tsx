@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandItem, CommandList, CommandEmpty } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
+import { toJSTWallDate } from "@/lib/jst-date";
 import type { DateRange } from "react-day-picker";
 import { FILTER_CONDITIONS } from "./types";
 import { DATE_PRESETS, resolvePreset } from "./date-preset-utils";
@@ -315,7 +316,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                 className="rounded-md"
                 captionLayout="dropdown"
                 fromYear={2020}
-                toYear={new Date().getFullYear() + 2}
+                toYear={toJSTWallDate(new Date()).getFullYear() + 2}
                 classNames={{
                   months: "relative flex flex-col",
                   month_caption: "flex justify-center items-center h-9 w-full",

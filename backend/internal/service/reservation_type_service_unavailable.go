@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -124,8 +125,7 @@ func validateUnavailableTimeNotOverlaps(existing []model.ReservationTypeUnavaila
 			if input.SpecificDate == nil || existing[i].SpecificDate == nil {
 				continue
 			}
-			// DATE 型は UTC 午前0時で格納されるため日付文字列で比較
-			if existing[i].SpecificDate.UTC().Format("2006-01-02") != input.SpecificDate.UTC().Format("2006-01-02") {
+			if existing[i].SpecificDate.In(time.Local).Format("2006-01-02") != input.SpecificDate.In(time.Local).Format("2006-01-02") {
 				continue
 			}
 		}

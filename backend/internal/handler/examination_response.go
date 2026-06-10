@@ -29,12 +29,12 @@ func toExaminationResponse(exam *model.Examination) examinationResponse {
 		PetID:           exam.PetID,
 		ExamTypeID:      exam.ExamTypeID,
 		DoctorID:        exam.DoctorID,
-		Date:            exam.Date,
+		Date:            localTime(exam.Date),
 		ResultSummary:   exam.ResultSummary,
 		Machine:         exam.Machine,
 		Status:          string(exam.Status),
-		CreatedAt:       exam.CreatedAt,
-		UpdatedAt:       exam.UpdatedAt,
+		CreatedAt:       localTime(exam.CreatedAt),
+		UpdatedAt:       localTime(exam.UpdatedAt),
 	}
 }
 
@@ -72,8 +72,8 @@ func toExamResultResponse(item *model.ExamResult) examResultResponse {
 		IsAbnormal:      item.IsAbnormal,
 		Status:          string(item.Status),
 		SortOrder:       item.SortOrder,
-		CreatedAt:       item.CreatedAt,
-		UpdatedAt:       item.UpdatedAt,
+		CreatedAt:       localTime(item.CreatedAt),
+		UpdatedAt:       localTime(item.UpdatedAt),
 	}
 }
 

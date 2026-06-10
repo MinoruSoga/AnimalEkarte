@@ -34,6 +34,11 @@ func main() {
 	})
 	logger.Info("starting Animal Ekarte API v2.0 (45 tables)")
 
+	if err := config.ConfigureTimeZone(); err != nil {
+		slog.Error("timezone configuration failed", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
 	// 設定読み込み
 	cfg := config.Load()
 	if err := cfg.Validate(); err != nil {

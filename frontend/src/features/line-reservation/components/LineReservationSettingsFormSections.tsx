@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectItem } from "@/components/ui/select";
 import { C } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 // asJsonb / toDisplayTime / toStorageTime は LineReservationSettingsFormModel.ts に分離済み
 // (react-refresh/only-export-components: コンポーネントファイルからの値 export 禁止)。
 import { toDisplayTime, toStorageTime } from "./LineReservationSettingsFormModel";
@@ -123,7 +124,7 @@ interface ClosedDatesEditorProps {
 
 export function ClosedDatesEditor({ value, onChange }: ClosedDatesEditorProps) {
   const handleAdd = useCallback(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayJSTISO();
     onChange([...value, today]);
   }, [value, onChange]);
 

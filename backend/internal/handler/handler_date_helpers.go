@@ -14,7 +14,7 @@ func parseDate(dateStr *string) (*time.Time, error) {
 	}
 
 	// フォーマット1: YYYY-MM-DD
-	t, err := time.Parse("2006-01-02", *dateStr)
+	t, err := time.ParseInLocation("2006-01-02", *dateStr, time.Local)
 	if err == nil {
 		return &t, nil
 	}

@@ -153,8 +153,8 @@ func toRefundResponse(r *model.BillingRefund) refundResponse {
 		RefundedBy:     r.RefundedBy,
 		RefundedByName: staffName,
 		PaymentMethod:  paymentMethod,
-		RefundedAt:     r.RefundedAt,
-		CreatedAt:      r.CreatedAt,
+		RefundedAt:     localTime(r.RefundedAt),
+		CreatedAt:      localTime(r.CreatedAt),
 	}
 }
 
@@ -278,7 +278,7 @@ func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
 		TrimmingCourseID:      item.TrimmingCourseID,
 		TrimmingOptionID:      item.TrimmingOptionID,
 		SortOrder:             item.SortOrder,
-		CreatedAt:             item.CreatedAt,
+		CreatedAt:             localTime(item.CreatedAt),
 	}
 }
 
@@ -303,8 +303,8 @@ func toPaymentResponse(p *model.Payment) paymentResponse {
 		Method:          string(p.Method),
 		PaidBy:          p.PaidBy,
 		PaidByName:      staffName,
-		CreatedAt:       p.CreatedAt,
-		UpdatedAt:       p.UpdatedAt,
+		CreatedAt:       localTime(p.CreatedAt),
+		UpdatedAt:       localTime(p.UpdatedAt),
 	}
 }
 
@@ -324,7 +324,7 @@ func toPaymentSplitResponse(s *model.PaymentSplit) paymentSplitResponse {
 		ChangeAmount:    s.ChangeAmount,
 		PaidBy:          s.PaidBy,
 		PaidByName:      staffName,
-		CreatedAt:       s.CreatedAt,
+		CreatedAt:       localTime(s.CreatedAt),
 	}
 }
 
@@ -377,14 +377,14 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 		TotalRefundedAmount: b.TotalRefundedAmount,
 		HasInsurance:        b.HasInsurance,
 		Status:              string(b.Status),
-		ScheduledDate:       b.ScheduledDate,
-		CompletedAt:         b.CompletedAt,
+		ScheduledDate:       localTime(b.ScheduledDate),
+		CompletedAt:         localTimePtr(b.CompletedAt),
 		Memo:                b.Memo,
 		Items:               items,
 		Payments:            payments,
 		PaymentSplits:       splits,
 		Refunds:             refunds,
-		CreatedAt:           b.CreatedAt,
-		UpdatedAt:           b.UpdatedAt,
+		CreatedAt:           localTime(b.CreatedAt),
+		UpdatedAt:           localTime(b.UpdatedAt),
 	}
 }

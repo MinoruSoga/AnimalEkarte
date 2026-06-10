@@ -6,9 +6,12 @@ services:
     env_file:
       - .env.local
     environment:
+      TZ: Asia/Tokyo
+      PGTZ: Asia/Tokyo
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+    command: ["postgres", "-c", "timezone=Asia/Tokyo"]
     ports:
       - "5434:5432"
     volumes:
@@ -36,6 +39,7 @@ services:
     env_file:
       - .env.local
     environment:
+      TZ: Asia/Tokyo
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: ${DB_USER}
@@ -59,6 +63,7 @@ services:
     ports:
       - "3003:3000"
     environment:
+      - TZ=Asia/Tokyo
       - VITE_API_URL=/api
     volumes:
       - ./frontend:/app
@@ -70,6 +75,8 @@ services:
   codegen:
     image: golang:1.25-alpine
     working_dir: /app
+    environment:
+      TZ: Asia/Tokyo
     volumes:
       - ./backend:/app
       - ./frontend:/frontend

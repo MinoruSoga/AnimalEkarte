@@ -19,7 +19,7 @@ func normalizeTimeString(s *string) *string {
 		return nil
 	}
 	for _, layout := range []string{"15:04:05", "15:04"} {
-		if t, err := time.Parse(layout, *s); err == nil {
+		if t, err := time.ParseInLocation(layout, *s, time.Local); err == nil {
 			normalized := t.Format("15:04:05")
 			return &normalized
 		}
@@ -140,11 +140,11 @@ func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) e
 		return nil
 	}
 	const layout = "15:04:05"
-	st, err := time.Parse(layout, *startTime)
+	st, err := time.ParseInLocation(layout, *startTime, time.Local)
 	if err != nil {
 		return apperrors.Wrap(apperrors.ErrInvalidInput, "invalid start_time format: expected HH:MM:SS")
 	}
-	et, err := time.Parse(layout, *endTime)
+	et, err := time.ParseInLocation(layout, *endTime, time.Local)
 	if err != nil {
 		return apperrors.Wrap(apperrors.ErrInvalidInput, "invalid end_time format: expected HH:MM:SS")
 	}
@@ -277,7 +277,7 @@ func validateYearMonth(yearMonth string) error {
 	if !matched {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid year_month format: %s (expected YYYY-MM)", yearMonth))
 	}
-	_, err := time.Parse("2006-01", yearMonth)
+	_, err := time.ParseInLocation("2006-01", yearMonth, time.Local)
 	if err != nil {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid year_month value: %s", yearMonth))
 	}

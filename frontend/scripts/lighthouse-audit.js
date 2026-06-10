@@ -17,6 +17,22 @@ import path from 'node:path';
 
 const BASE_URL = process.argv.find(arg => arg.startsWith('--url'))?.split('=')[1] || 'http://localhost:3000';
 const OUTPUT_DIR = 'frontend/audit-results';
+const JST_TIME_ZONE = 'Asia/Tokyo';
+
+function formatJSTTimestamp(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: JST_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}+09:00`;
+}
 
 async function launchChrome() {
   const chrome = await chromeLauncher.launch({ chromeFlags: ['--headless'] });
@@ -43,7 +59,7 @@ function generateReport(results) {
   const categories = results.lhr.categories;
   const report = {
     url: results.lhr.fetchTime,
-    timestamp: new Date().toISOString(),
+    timestamp: formatJSTTimestamp(),
     categories: {},
     metrics: {},
   };
@@ -101,7 +117,7 @@ async function main() {
     const report = generateReport(results);
 
     // ファイルに保存
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const timestamp = formatJSTTimestamp().replace(/[:+]/g, '-');
     const reportPath = path.join(OUTPUT_DIR, `lighthouse-${timestamp}.json`);
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
 

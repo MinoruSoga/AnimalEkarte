@@ -1,3 +1,4 @@
+import { formatJSTWallDate, jstDateStartISOString, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 import type { Pet, TreatmentPlan } from "@/types";
 
 import type {
@@ -7,7 +8,6 @@ import type {
 } from "../api/types";
 import type { HospitalizationFormData } from "../types";
 
-const MS_PER_DAY = 86_400_000;
 export const DEFAULT_HOSPITALIZATION_DAYS = 7;
 
 export const DEFAULT_TREATMENT_PLANS: TreatmentPlan[] = [
@@ -36,7 +36,9 @@ export const DEFAULT_TREATMENT_PLANS: TreatmentPlan[] = [
 ];
 
 export function getDefaultHospitalizationEndDate() {
-  return new Date(Date.now() + DEFAULT_HOSPITALIZATION_DAYS * MS_PER_DAY).toISOString().split("T")[0];
+  const endDate = toJSTWallDate(new Date());
+  endDate.setDate(endDate.getDate() + DEFAULT_HOSPITALIZATION_DAYS);
+  return formatJSTWallDate(endDate);
 }
 
 export function createInitialHospitalizationFormData(): HospitalizationFormData {
@@ -94,9 +96,9 @@ export function buildCreateHospitalizationRequest(
   formData: HospitalizationFormData,
   pet: Pet
 ): CreateHospitalizationRequest {
-  const today = new Date().toISOString().split("T")[0];
-  const startISO = `${formData.displayDate || today}T00:00:00Z`;
-  const endISO = `${formData.endDate || getDefaultHospitalizationEndDate()}T00:00:00Z`;
+  const today = todayJSTISO();
+  const startISO = jstDateStartISOString(formData.displayDate || today);
+  const endISO = jstDateStartISOString(formData.endDate || getDefaultHospitalizationEndDate());
 
   return {
     pet_id: pet.id,

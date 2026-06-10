@@ -117,7 +117,7 @@ func parseCsvTime(s string) *time.Time {
 		return nil
 	}
 	for _, format := range csvDateFormats {
-		if t, err := time.Parse(format, s); err == nil {
+		if t, err := time.ParseInLocation(format, s, time.Local); err == nil {
 			return &t
 		}
 	}

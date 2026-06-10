@@ -27,7 +27,7 @@ func toInquiryTemplateResponse(it *model.InquiryTemplate) inquiryTemplateRespons
 		Content:   it.Content,
 		IsActive:  it.IsActive,
 		SortOrder: it.SortOrder,
-		CreatedAt: it.CreatedAt,
-		UpdatedAt: it.UpdatedAt,
+		CreatedAt: localTime(it.CreatedAt),
+		UpdatedAt: localTime(it.UpdatedAt),
 	}
 }

@@ -25,7 +25,7 @@ func toChiefComplaintResponse(cc *model.ChiefComplaintType) chiefComplaintRespon
 		Description: cc.Description,
 		IsActive:    cc.IsActive,
 		SortOrder:   cc.SortOrder,
-		CreatedAt:   cc.CreatedAt,
-		UpdatedAt:   cc.UpdatedAt,
+		CreatedAt:   localTime(cc.CreatedAt),
+		UpdatedAt:   localTime(cc.UpdatedAt),
 	}
 }

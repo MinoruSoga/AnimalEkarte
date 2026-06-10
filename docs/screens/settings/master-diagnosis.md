@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: 臨床現場で使用される標準的な診断名、および疾患カテゴリの体系的管理。
-- **URLパターン**: `/settings/masters/diagnoses`
+- **URLパターン**: `/settings/diagnosis`
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---
@@ -39,7 +39,15 @@
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
-| GET | `/api/v1/masters/diagnoses` | 体系化された診断名リストの取得。 |
-| PATCH | `/api/v1/masters/diagnoses/reorder` | 並び順の一括保存。 |
+| GET | `/api/v1/masters/diagnosis-types` | 診断カテゴリ一覧の取得。 |
+| POST | `/api/v1/masters/diagnosis-types` | 診断カテゴリの作成。 |
+| PATCH | `/api/v1/masters/diagnosis-types/:id` | 診断カテゴリ情報の更新。 |
+| DELETE | `/api/v1/masters/diagnosis-types/:id` | 診断カテゴリの削除。 |
+| PATCH | `/api/v1/masters/diagnosis-types/reorder` | 診断カテゴリ表示順の一括保存。 |
+| GET | `/api/v1/masters/diagnosis-names` | 診断名一覧の取得。 |
+| POST | `/api/v1/masters/diagnosis-names` | 診断名の作成。 |
+| PATCH | `/api/v1/masters/diagnosis-names/:id` | 診断名情報の更新。 |
+| DELETE | `/api/v1/masters/diagnosis-names/:id` | 診断名の削除。 |
+| PATCH | `/api/v1/masters/diagnosis-names/reorder` | 診断名表示順の一括保存。 |
 
 ---

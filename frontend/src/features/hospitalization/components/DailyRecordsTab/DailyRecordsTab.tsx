@@ -9,6 +9,7 @@ import { Loader2, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { handleApiError } from "@/lib/handle-api-error";
+import { todayJSTISO } from "@/lib/jst-date";
 
 // Relative
 import { DailyDateNav } from "../../components/DailyRecordsTab/DailyDateNav";
@@ -29,7 +30,7 @@ interface DailyRecordsTabProps {
 }
 
 function getTodayStr(): string {
-    return new Date().toISOString().split("T")[0];
+    return todayJSTISO();
 }
 
 function clampDate(date: string, min: string, max: string): string {

@@ -9,6 +9,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE } from "@/lib/design-tokens";
+import { toJSTWallDate } from "@/lib/jst-date";
 import type { ClinicMembership } from "@/types/auth";
 import { MEMBERSHIP_TYPE_VALUES, type MembershipType, type OwnerData } from "../types";
 
@@ -283,7 +284,7 @@ export const OwnerInfoSection = memo(function OwnerInfoSection({
           value={ownerData.birthDate}
           onChange={(value) => onChange("birthDate", value)}
           placeholder="生年月日を選択…"
-          disabledDays={{ after: new Date() }}
+          disabledDays={{ after: toJSTWallDate(new Date()) }}
         />
       </div>
 

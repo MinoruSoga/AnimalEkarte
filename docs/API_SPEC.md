@@ -21,7 +21,7 @@
 - **Base URL**: `https://api.noah-karte.com/api/v1`
 - **データ形式**: JSON (Request/Response)
 - **文字コード**: UTF-8
-- **日付形式**: ISO 8601 (UTC) `YYYY-MM-DDTHH:mm:ssZ`
+- **日時形式**: ISO 8601（JST / `Asia/Tokyo`）。日時は `YYYY-MM-DDTHH:mm:ss+09:00` を基本とし、日付のみの入力は `YYYY-MM-DD` を日本時間の暦日として扱う。
 - **金額単位**: 最小単位（円）
 
 ### 1.2 認証と認可

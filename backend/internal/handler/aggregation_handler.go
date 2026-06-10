@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -52,11 +53,11 @@ func toOwnerAggregationResponse(item *service.OwnerAggregationItem) ownerAggrega
 		CPMStage:           item.CPMStage,
 	}
 	if item.LastVisitDate != nil {
-		s := item.LastVisitDate.Format("2006-01-02")
+		s := item.LastVisitDate.In(time.Local).Format("2006-01-02")
 		r.LastVisitDate = &s
 	}
 	if item.FirstVisitDate != nil {
-		s := item.FirstVisitDate.Format("2006-01-02")
+		s := item.FirstVisitDate.In(time.Local).Format("2006-01-02")
 		r.FirstVisitDate = &s
 	}
 	return r

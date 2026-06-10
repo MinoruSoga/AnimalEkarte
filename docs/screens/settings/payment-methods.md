@@ -37,7 +37,10 @@
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
-| GET | `/api/v1/masters/payment-methods` | 利用可能な支払方法一覧の取得。 |
-| PATCH | `/api/v1/masters/payment-methods/:id` | 名称やステータスの更新。 |
+| GET | `/api/v1/payment-methods` | 利用可能な支払方法一覧の取得。 |
+| POST | `/api/v1/payment-methods` | 新規支払方法の作成。 |
+| PATCH | `/api/v1/payment-methods/:id` | 名称やステータスの更新。 |
+| DELETE | `/api/v1/payment-methods/:id` | 支払方法の削除。 |
+| PATCH | `/api/v1/payment-methods/reorder` | 表示順の一括保存。 |
 
 ---

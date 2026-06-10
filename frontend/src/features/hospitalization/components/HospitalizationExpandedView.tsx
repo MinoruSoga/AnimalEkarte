@@ -1,5 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 import { memo } from "react";
 import { formatDate } from "@/utils/format/date";
 
@@ -26,7 +27,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
     hospitalization,
 }: HospitalizationExpandedViewProps) {
     // Determine the effective discharge date
-    const dischargeDate = hospitalization.endDate || new Date().toISOString().split("T")[0];
+    const dischargeDate = hospitalization.endDate || todayJSTISO();
 
     return (
         <div className={`hidden lg:flex flex-col ${H_STYLES.gap.default} w-full h-full`}>

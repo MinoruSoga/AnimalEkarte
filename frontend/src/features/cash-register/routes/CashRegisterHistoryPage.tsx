@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
 import { C, STYLE } from "@/lib/design-tokens";
+import { formatJSTDateTimeLocal, toJSTWallDate } from "@/lib/jst-date";
 import { useGetCashRegisterCloses } from "../api/get-cash-register-closes";
 
 export function CashRegisterHistoryPage() {
-  const now = new Date();
+  const now = toJSTWallDate(new Date());
   const [year, setYear] = useState<number>(now.getFullYear());
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
 
@@ -113,12 +114,7 @@ export function CashRegisterHistoryPage() {
                       </td>
                       <td className={`px-4 py-3 ${C.text60}`}>
                         {close.closedAt
-                          ? new Date(close.closedAt).toLocaleString("ja-JP", {
-                              month: "2-digit",
-                              day: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
+                          ? formatJSTDateTimeLocal(close.closedAt).slice(5).replace("T", " ")
                           : "—"}
                       </td>
                     </tr>

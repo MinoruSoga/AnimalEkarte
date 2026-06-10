@@ -6,6 +6,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { Button } from "@/components/ui/button";
 import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 import { useGetOwnerAggregations, type AggregationParams, type AggregationOwner } from "./api/get-aggregations";
 import { AggregationFilterPanel } from "./AggregationFilterPanel";
 import { AggregationOwnerTable } from "./AggregationOwnerTable";
@@ -18,7 +19,7 @@ export const DEFAULT_AGGREGATION_TAB: AggregationTab = "revenue";
 
 const AGGREGATION_TABS: readonly AggregationTab[] = ["revenue", "visit", "last_visit"] as const;
 
-const CURRENT_YEAR = new Date().getFullYear();
+const CURRENT_YEAR = Number(todayJSTISO().slice(0, 4));
 
 const TAB_DEFAULT_PARAMS: Record<AggregationTab, AggregationParams> = {
   revenue: {
@@ -216,7 +217,7 @@ export function AggregationDashboardPage() {
     // 誤操作防止: 選択 0 件のときは早期 return（disabled 属性と二重で防御）
     if (selectedCount === 0) return;
     const csv = buildCsvContent(selectedOwners, activeTab);
-    const date = new Date().toISOString().slice(0, 10);
+    const date = todayJSTISO();
     downloadCsv(csv, `aggregation-${activeTab}-${date}.csv`);
   }, [selectedCount, selectedOwners, activeTab]);
 

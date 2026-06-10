@@ -68,8 +68,8 @@ func toManualArticleResponse(a *model.ManualArticle) ManualArticleResponse {
 		Section:          a.Section,
 		BodyMarkdown:     a.BodyMarkdown,
 		UpdatedByStaffID: a.UpdatedByStaffID,
-		CreatedAt:        a.CreatedAt,
-		UpdatedAt:        a.UpdatedAt,
+		CreatedAt:        localTime(a.CreatedAt),
+		UpdatedAt:        localTime(a.UpdatedAt),
 	}
 }
 
@@ -82,6 +82,6 @@ func toManualArticleVersionResponse(v *model.ManualArticleVersion) ManualArticle
 		Section:         v.Section,
 		BodyMarkdown:    v.BodyMarkdown,
 		EditedByStaffID: v.EditedByStaffID,
-		EditedAt:        v.EditedAt,
+		EditedAt:        localTime(v.EditedAt),
 	}
 }

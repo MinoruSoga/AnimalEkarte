@@ -53,7 +53,7 @@ func toInquiryResponse(inquiry *model.Inquiry) inquiryResponse {
 		OwnerObservations:    inquiry.OwnerObservations,
 		Notes:                inquiry.Notes,
 		StaffID:              inquiry.StaffID,
-		CreatedAt:            inquiry.CreatedAt,
-		UpdatedAt:            inquiry.UpdatedAt,
+		CreatedAt:            localTime(inquiry.CreatedAt),
+		UpdatedAt:            localTime(inquiry.UpdatedAt),
 	}
 }

@@ -131,11 +131,11 @@ func toDiscountSuggestionsResponse(suggestions []service.DiscountSuggestion) dis
 
 func parseUngroupedDate(s string) time.Time {
 	if s == "" {
-		return time.Now().UTC()
+		return time.Now().In(time.Local)
 	}
-	t, err := time.Parse("2006-01-02", s)
+	t, err := time.ParseInLocation("2006-01-02", s, time.Local)
 	if err != nil {
-		return time.Now().UTC()
+		return time.Now().In(time.Local)
 	}
 	return t
 }

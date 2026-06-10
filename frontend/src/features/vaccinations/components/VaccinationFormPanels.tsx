@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { C } from "@/lib/design-tokens";
+import { toJSTWallDate } from "@/lib/jst-date";
 import type { SortOrder } from "@/types";
 import type { VaccinationRecord } from "../api/transforms";
 import { VaccinationCard } from "./VaccinationCard";
@@ -91,7 +92,7 @@ export function VaccinationFieldsPanel({
                 onMarkDirty();
                 onDateChange(value);
               }}
-              disabledDays={{ after: new Date() }}
+              disabledDays={{ after: toJSTWallDate(new Date()) }}
             />
             <FormFieldError message={fieldErrors.date} />
           </div>

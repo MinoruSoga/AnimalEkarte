@@ -11,16 +11,11 @@ import (
 // GetMonthlyReport は指定年月の月次売上レポートを集計する。FEAT-368
 // payment_splits を正として集計（SUM(DISTINCT) hack を除去）。
 func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error) {
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst)
+	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
 	end := start.AddDate(0, 1, 0)
 
-	// Convert JST to UTC for query (completed_at is stored in UTC)
-	utcStart := start.UTC()
-	utcEnd := end.UTC()
-
 	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
-	mArgs := []any{clinicID, model.BillingStatusCompleted, utcStart, utcEnd}
+	mArgs := []any{clinicID, model.BillingStatusCompleted, start, end}
 	mCompletedCTE := `WITH completed_billings AS (
 		SELECT id, completed_at FROM billings
 		WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?

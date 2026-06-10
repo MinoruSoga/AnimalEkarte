@@ -59,7 +59,7 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64) err
 // parseDailySummaryDate は dateStr（空なら今日）を JST でパースする共通ヘルパー。
 func parseDailySummaryDate(dateStr string) (time.Time, error) {
 	if dateStr == "" {
-		dateStr = time.Now().Format("2006-01-02")
+		dateStr = time.Now().In(time.Local).Format("2006-01-02")
 	}
 	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
 	date, err := time.ParseInLocation("2006-01-02", dateStr, jst)

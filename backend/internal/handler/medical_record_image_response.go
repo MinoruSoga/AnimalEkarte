@@ -38,12 +38,12 @@ func toMedicalRecordImageResponse(img *model.MedicalRecordImage) medicalRecordIm
 		MimeType:        img.MimeType,
 		ImageType:       string(img.ImageType),
 		Description:     img.Description,
-		TakenAt:         img.TakenAt,
+		TakenAt:         localTimePtr(img.TakenAt),
 		ExamID:          img.ExamID,
 		StaffID:         img.StaffID,
 		SortOrder:       img.SortOrder,
-		CreatedAt:       img.CreatedAt,
-		UpdatedAt:       img.UpdatedAt,
+		CreatedAt:       localTime(img.CreatedAt),
+		UpdatedAt:       localTime(img.UpdatedAt),
 	}
 	if img.Staff != nil {
 		r.Staff = toStaffSummary(img.Staff)

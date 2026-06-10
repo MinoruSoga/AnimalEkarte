@@ -37,7 +37,7 @@ func toCompanyResponse(c *model.Company) companyResponse {
 		RegistrationNumber:        c.RegistrationNumber,
 		InvoiceRegistrationNumber: c.InvoiceRegistrationNumber,
 		LogoURL:                   c.LogoURL,
-		CreatedAt:                 c.CreatedAt,
-		UpdatedAt:                 c.UpdatedAt,
+		CreatedAt:                 localTime(c.CreatedAt),
+		UpdatedAt:                 localTime(c.UpdatedAt),
 	}
 }

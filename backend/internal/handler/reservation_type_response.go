@@ -30,8 +30,7 @@ func toUnavailableTimeResponse(t *model.ReservationTypeUnavailableTime) unavaila
 		EndTime:           t.EndTime,
 	}
 	if t.SpecificDate != nil {
-		// DATE 型は UTC 午前0時で格納される
-		s := t.SpecificDate.UTC().Format("2006-01-02")
+		s := t.SpecificDate.In(time.Local).Format("2006-01-02")
 		resp.SpecificDate = &s
 	}
 	return resp
@@ -61,7 +60,7 @@ func toAvailableSlotResponse(slot *model.ReservationTypeAvailableSlot) available
 		IsActive:          slot.IsActive,
 	}
 	if slot.SpecificDate != nil {
-		s := slot.SpecificDate.UTC().Format("2006-01-02")
+		s := slot.SpecificDate.In(time.Local).Format("2006-01-02")
 		resp.SpecificDate = &s
 	}
 	return resp
@@ -89,7 +88,7 @@ func toReservationTypeOccupationResponse(o *model.ReservationTypeOccupation) res
 		ClinicID:          o.ClinicID,
 		ReservationTypeID: o.ReservationTypeID,
 		OccupationID:      o.OccupationID,
-		CreatedAt:         o.CreatedAt,
+		CreatedAt:         localTime(o.CreatedAt),
 	}
 	if o.Occupation != nil {
 		resp.Occupation = &occupationSummary{
@@ -143,8 +142,8 @@ func toReservationTypeResponse(st *model.ReservationType) reservationTypeRespons
 		Description:            st.Description,
 		SortOrder:              st.SortOrder,
 		GroupID:                st.GroupID,
-		CreatedAt:              st.CreatedAt,
-		UpdatedAt:              st.UpdatedAt,
+		CreatedAt:              localTime(st.CreatedAt),
+		UpdatedAt:              localTime(st.UpdatedAt),
 		ReservationDisplayName: st.ReservationDisplayName,
 		DurationMinutes:        st.DurationMinutes,
 		ShortName:              st.ShortName,

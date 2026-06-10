@@ -163,7 +163,7 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 		return
 	}
 
-	filters, err := newListUnpaidBillingsQuery(c.Request.URL.Query()).toServiceFilters(time.Now().Format("2006-01-02"))
+	filters, err := newListUnpaidBillingsQuery(c.Request.URL.Query()).toServiceFilters(time.Now().In(time.Local).Format("2006-01-02"))
 	if err != nil {
 		RespondError(c, err)
 		return

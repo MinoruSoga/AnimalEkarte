@@ -45,8 +45,30 @@
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
-| GET | `/api/v1/masters/treatments` | カテゴリ別の項目一覧取得。 |
-| POST | `/api/v1/masters/treatments` | 新規診療項目の登録。 |
-| PATCH | `/api/v1/masters/treatments/:id` | 価格や各種フラグの更新。 |
+| GET | `/api/v1/masters/consultations` | 診察項目一覧の取得。 |
+| POST | `/api/v1/masters/consultations` | 診察項目の作成。 |
+| PATCH | `/api/v1/masters/consultations/:id` | 診察項目の更新。 |
+| DELETE | `/api/v1/masters/consultations/:id` | 診察項目の削除。 |
+| PATCH | `/api/v1/masters/consultations/reorder` | 診察項目の表示順一括保存。 |
+| GET | `/api/v1/masters/examination-types` | 検査項目一覧の取得。 |
+| POST | `/api/v1/masters/examination-types` | 検査項目の作成。 |
+| PATCH | `/api/v1/masters/examination-types/:id` | 検査項目の更新。 |
+| DELETE | `/api/v1/masters/examination-types/:id` | 検査項目の削除。 |
+| PATCH | `/api/v1/masters/examination-types/reorder` | 検査項目の表示順一括保存。 |
+| GET | `/api/v1/masters/procedures` | 処置項目一覧の取得。 |
+| POST | `/api/v1/masters/procedures` | 処置項目の作成。 |
+| PATCH | `/api/v1/masters/procedures/:id` | 処置項目の更新。 |
+| DELETE | `/api/v1/masters/procedures/:id` | 処置項目の削除。 |
+| PATCH | `/api/v1/masters/procedures/reorder` | 処置項目の表示順一括保存。 |
+| GET | `/api/v1/masters/vaccines` | 予防接種項目一覧の取得。 |
+| POST | `/api/v1/masters/vaccines` | 予防接種項目の作成。 |
+| PATCH | `/api/v1/masters/vaccines/:id` | 予防接種項目の更新。 |
+| DELETE | `/api/v1/masters/vaccines/:id` | 予防接種項目の削除。 |
+| PATCH | `/api/v1/masters/vaccines/reorder` | 予防接種項目の表示順一括保存。 |
+| GET | `/api/v1/masters/checkup-types` | 定期健診項目一覧の取得。 |
+| POST | `/api/v1/masters/checkup-types` | 定期健診項目の作成。 |
+| PATCH | `/api/v1/masters/checkup-types/:id` | 定期健診項目の更新。 |
+| DELETE | `/api/v1/masters/checkup-types/:id` | 定期健診項目の削除。 |
+| PATCH | `/api/v1/masters/checkup-types/reorder` | 定期健診項目の表示順一括保存。 |
 
 ---

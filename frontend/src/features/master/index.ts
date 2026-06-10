@@ -13,6 +13,7 @@ export { PermissionGroupSettings } from "./routes/PermissionGroupSettings";
 export { MedicineSettings } from "./routes/MedicineSettings";
 export { MerchandiseItemSettings } from "./routes/MerchandiseItemSettings";
 export { ReservationTypeSettings } from "./routes/ReservationTypeSettings";
+export { LineReservationSlotsSettings } from "./routes/LineReservationSlotsSettings";
 export { StaffSettings } from "./routes/StaffSettings";
 export { TreatmentPlanMaster } from "./routes/TreatmentPlanMaster";
 export { TrimmingSettings } from "./routes/TrimmingSettings";

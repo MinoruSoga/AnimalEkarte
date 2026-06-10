@@ -18,6 +18,7 @@ import {
 } from "date-fns";
 import { ja } from "date-fns/locale";
 
+import { toJSTWallDate } from "@/lib/jst-date";
 import type { RelativePoint, RelativeUnit } from "./types";
 
 export type DatePreset =
@@ -39,7 +40,7 @@ export function resolveRelativeDate(
   point: RelativePoint,
   unit: RelativeUnit,
 ): { from: Date; to: Date } {
-  const now = new Date();
+  const now = toJSTWallDate(new Date());
   const today = startOfDay(now);
 
   switch (unit) {
@@ -71,7 +72,7 @@ export function resolveRelativeDate(
 
 export function resolvePreset(preset: DatePreset): { from: Date; to: Date } {
   if (preset.type === "last_n_days") {
-    const today = startOfDay(new Date());
+    const today = startOfDay(toJSTWallDate(new Date()));
     return { from: subDays(today, preset.n - 1), to: endOfDay(today) };
   }
   return resolveRelativeDate(preset.point, preset.unit);

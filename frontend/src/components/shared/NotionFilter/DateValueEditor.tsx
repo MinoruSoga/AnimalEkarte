@@ -6,6 +6,7 @@ import type { DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/components/ui/utils";
 import { C } from "@/lib/design-tokens";
+import { toJSTWallDate } from "@/lib/jst-date";
 
 import { DATE_PRESETS, resolvePreset } from "./date-preset-utils";
 
@@ -104,7 +105,7 @@ export const DateValueEditor = memo(function DateValueEditor({
           className="rounded-md"
           captionLayout="dropdown"
           fromYear={2020}
-          toYear={new Date().getFullYear() + 2}
+          toYear={toJSTWallDate(new Date()).getFullYear() + 2}
           classNames={{
             months: "relative flex flex-col",
             month_caption: "flex justify-center items-center h-9 w-full",

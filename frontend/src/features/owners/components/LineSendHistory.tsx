@@ -1,4 +1,5 @@
 import { C, BADGE } from "@/lib/design-tokens";
+import { formatJSTDateTimeLocal } from "@/lib/jst-date";
 import { useGetLineSendHistory } from "../api/get-line-send-history";
 import type { LineSendHistoryItem } from "../api/get-line-send-history";
 
@@ -21,13 +22,7 @@ const STATUS_LABEL: Record<LineSendHistoryItem["status"], string> = {
 };
 
 function formatSentAt(sentAt: string): string {
-  const d = new Date(sentAt);
-  return d.toLocaleString("ja-JP", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatJSTDateTimeLocal(sentAt).slice(5).replace("T", " ");
 }
 
 interface LineSendHistoryProps {

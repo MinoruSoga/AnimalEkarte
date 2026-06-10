@@ -37,7 +37,7 @@ export interface ApiStaffNote {
 export interface ApiDailyRecord {
     id: string;
     hospitalization_id: string;
-    date: string; // ISO8601 e.g. "2026-03-14T00:00:00Z"
+    date: string; // ISO8601 e.g. "2026-03-14T00:00:00+09:00"
     created_at: string;
     updated_at: string;
     vital_records: ApiVitalRecord[];

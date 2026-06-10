@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { C, STYLE, PALETTE } from "@/lib/design-tokens";
+import { formatJSTWallDate, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 
 // ─────────────────────────────────────────────────
 // Date helpers (no date-fns dependency)
@@ -8,17 +9,17 @@ import { C, STYLE, PALETTE } from "@/lib/design-tokens";
 function addMonths(date: Date, months: number): string {
   const d = new Date(date);
   d.setMonth(d.getMonth() + months);
-  return d.toISOString().split("T")[0];
+  return formatJSTWallDate(d);
 }
 
 function addYears(date: Date, years: number): string {
   const d = new Date(date);
   d.setFullYear(d.getFullYear() + years);
-  return d.toISOString().split("T")[0];
+  return formatJSTWallDate(d);
 }
 
 function today(): string {
-  return new Date().toISOString().split("T")[0];
+  return todayJSTISO();
 }
 
 // ─────────────────────────────────────────────────
@@ -28,7 +29,7 @@ function today(): string {
 function validate(value: string): string | null {
   if (value === "") return null; // 空欄はOK
 
-  const now = new Date();
+  const now = toJSTWallDate(new Date());
   now.setHours(0, 0, 0, 0);
 
   const selected = new Date(value);
@@ -58,10 +59,10 @@ interface QuickOption {
 }
 
 const QUICK_OPTIONS: QuickOption[] = [
-  { label: "1ヶ月後", getValue: () => addMonths(new Date(), 1) },
-  { label: "3ヶ月後", getValue: () => addMonths(new Date(), 3) },
-  { label: "6ヶ月後", getValue: () => addMonths(new Date(), 6) },
-  { label: "1年後",   getValue: () => addYears(new Date(), 1) },
+  { label: "1ヶ月後", getValue: () => addMonths(toJSTWallDate(new Date()), 1) },
+  { label: "3ヶ月後", getValue: () => addMonths(toJSTWallDate(new Date()), 3) },
+  { label: "6ヶ月後", getValue: () => addMonths(toJSTWallDate(new Date()), 6) },
+  { label: "1年後",   getValue: () => addYears(toJSTWallDate(new Date()), 1) },
 ];
 
 // ─────────────────────────────────────────────────

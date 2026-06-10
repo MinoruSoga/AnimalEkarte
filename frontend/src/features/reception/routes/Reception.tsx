@@ -11,6 +11,7 @@ import { ja } from "date-fns/locale";
 // Internal
 import { paths } from "@/config/paths";
 import { C, STYLE } from "@/lib/design-tokens";
+import { toJSTWallDate } from "@/lib/jst-date";
 import { Button } from "@/components/ui/button";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
@@ -87,7 +88,7 @@ export function Reception() {
 
     const { handleDragEnd } = useReceptionDragHandlers(columns, moveCard);
 
-    const todayLabel = format(new Date(), "yyyy年M月d日 (E)", { locale: ja });
+    const todayLabel = format(toJSTWallDate(new Date()), "yyyy年M月d日 (E)", { locale: ja });
 
     const handleRecordOpen = useCallback((appointment: ReceptionAppointment, columnTitle: string) => {
         if (columnTitle === "受付済" && canEditReservation) {

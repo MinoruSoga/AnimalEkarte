@@ -1,6 +1,10 @@
 package handler
 
-import "github.com/animal-ekarte/backend/internal/model"
+import (
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/model"
+)
 
 // campaignResponse は割引キャンペーンのレスポンス (#81)
 type campaignResponse struct {
@@ -30,8 +34,8 @@ func toCampaignResponse(m *model.Campaign) campaignResponse {
 		ID:               m.ID,
 		ClinicID:         m.ClinicID,
 		Name:             m.Name,
-		StartDate:        m.StartDate.Format("2006-01-02"),
-		EndDate:          m.EndDate.Format("2006-01-02"),
+		StartDate:        m.StartDate.In(time.Local).Format("2006-01-02"),
+		EndDate:          m.EndDate.In(time.Local).Format("2006-01-02"),
 		DiscountType:     string(m.DiscountType),
 		DiscountValue:    m.DiscountValue,
 		IsActive:         m.IsActive,

@@ -1,7 +1,9 @@
 import { useState, useCallback } from "react";
 
+import { todayJSTISO } from "@/lib/jst-date";
+
 export function useCashRegisterCloseForm() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayJSTISO();
   const [date, setDate] = useState<string>(today);
   const [period, setPeriod] = useState<"am" | "pm">("am");
   const [previewEnabled, setPreviewEnabled] = useState(false);

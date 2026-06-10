@@ -241,7 +241,7 @@ func (r *medicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, cli
 		AnnualCount  int64
 	}
 	var result row
-	oneYearAgo := time.Now().AddDate(-1, 0, 0)
+	oneYearAgo := time.Now().In(time.Local).AddDate(-1, 0, 0)
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
 		Scopes(clinicScope(clinicID)).
@@ -264,7 +264,7 @@ func (r *medicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, cli
 
 // FindOwnersByFirstVisitDate は初回来院日（MIN(date)）が targetDate と一致する飼い主IDリストを返す（FEAT-383）。
 func (r *medicalRecordRepository) FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	target := targetDate.Format("2006-01-02")
+	target := targetDate.In(time.Local).Format("2006-01-02")
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).
@@ -287,7 +287,7 @@ func (r *medicalRecordRepository) FindOwnersByFirstVisitDate(ctx context.Context
 
 // FindOwnersByLastVisitDays は最終来院日が asOf から exactDays 日前の飼い主IDリストを返す（FEAT-383）。
 func (r *medicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error) {
-	target := asOf.AddDate(0, 0, -exactDays).Format("2006-01-02")
+	target := asOf.In(time.Local).AddDate(0, 0, -exactDays).Format("2006-01-02")
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).
@@ -312,7 +312,7 @@ func (r *medicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Context,
 // NOTE: P4 規約逸脱 (GORM Scopes 未使用) だが clinic_id を WHERE 句に二重指定して横テナント漏洩を防ぐ。
 // リファクタ時に clinic_id WHERE のいずれか一方を削除しないこと (M-5 / AUDIT-2026-05-06 参照)。
 func (r *medicalRecordRepository) FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	target := targetDate.Format("2006-01-02")
+	target := targetDate.In(time.Local).Format("2006-01-02")
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	// 飼い主ごとに最新カルテ（MAX(id)）を取得し、その next_visit_recommended_date が targetDate のものを抽出。
@@ -340,7 +340,7 @@ func (r *medicalRecordRepository) FindOwnersByNextVisitRecommended(ctx context.C
 
 // FindDormantOwnerEntries は最終来院から minDaysSince 日以上経過した飼い主一覧を返す（バッチ処理用）。
 func (r *medicalRecordRepository) FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]DormantOwnerEntry, error) {
-	cutoff := time.Now().AddDate(0, 0, -minDaysSince)
+	cutoff := time.Now().In(time.Local).AddDate(0, 0, -minDaysSince)
 	type row struct {
 		OwnerID     uint64
 		LastVisitAt time.Time
@@ -357,7 +357,7 @@ func (r *medicalRecordRepository) FindDormantOwnerEntries(ctx context.Context, c
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d dormant", clinicID))
 	}
-	now := time.Now()
+	now := time.Now().In(time.Local)
 	entries := make([]DormantOwnerEntry, 0, len(rows))
 	for _, r := range rows {
 		entries = append(entries, DormantOwnerEntry{

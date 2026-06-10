@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Reservation } from '../types/models';
 import { liffApi } from '../api/liff-api';
 import { BackButton } from '../components/BackButton';
+import { formatJSTApplicationDate } from '../lib/jst-date';
 
 interface MyReservationsPageProps {
   clinicId: string;
@@ -16,9 +17,7 @@ function formatDate(dateStr: string): string {
 }
 
 function formatCreatedAt(isoStr: string): string {
-  if (!isoStr) return '';
-  const d = new Date(isoStr);
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 申し込み`;
+  return formatJSTApplicationDate(isoStr);
 }
 
 const STATUS_LABELS: Record<string, string> = {

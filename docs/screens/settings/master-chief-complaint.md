@@ -39,7 +39,10 @@
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
-| GET | `/api/v1/masters/chief-complaints` | 有効なカテゴリ一覧の取得。 |
-| PATCH | `/api/v1/masters/chief-complaints/:id` | 名称やテンプレート紐付けの更新。 |
+| GET | `/api/v1/masters/chief-complaint-types` | 有効なカテゴリ一覧の取得。 |
+| POST | `/api/v1/masters/chief-complaint-types` | 新規カテゴリの作成。 |
+| PATCH | `/api/v1/masters/chief-complaint-types/:id` | 名称やテンプレート紐付けの更新。 |
+| DELETE | `/api/v1/masters/chief-complaint-types/:id` | カテゴリの削除。 |
+| PATCH | `/api/v1/masters/chief-complaint-types/reorder` | 表示順の一括保存。 |
 
 ---

@@ -26,13 +26,12 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(transformReservationToReceptionAppointment({ ...minimal, id: 7 }).id).toBe("7");
   });
 
-  it("start_time から HH:mm 形式の time を生成する", () => {
+  it("start_time から JST 基準の HH:mm 形式の time を生成する", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
       start_time: "2026-03-25T10:30:00Z",
     });
-    // UTC時刻をそのまま使う（テスト環境はUTC）
-    expect(result.time).toMatch(/^\d{2}:\d{2}$/);
+    expect(result.time).toBe("19:30");
   });
 
   it("start_time から JST 基準の visitDate を生成する", () => {

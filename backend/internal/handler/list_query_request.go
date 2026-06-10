@@ -42,7 +42,7 @@ func parseOptionalDateQueryFilter(value, field string) (*string, error) {
 	if value == "" {
 		return nil, nil
 	}
-	if _, err := time.Parse("2006-01-02", value); err != nil {
+	if _, err := time.ParseInLocation("2006-01-02", value, time.Local); err != nil {
 		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s は YYYY-MM-DD 形式で入力してください", field))
 	}
 	return &value, nil
@@ -59,7 +59,7 @@ func parseOptionalDateTimeQueryFilter(value, field string) (*time.Time, error) {
 	if value == "" {
 		return nil, nil
 	}
-	parsed, err := time.Parse("2006-01-02", value)
+	parsed, err := time.ParseInLocation("2006-01-02", value, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s は YYYY-MM-DD 形式で入力してください", field))
 	}

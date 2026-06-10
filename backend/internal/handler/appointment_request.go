@@ -47,21 +47,21 @@ func (q *listReservationQuery) toServiceFilters() (listReservationFilters, error
 	var filters listReservationFilters
 
 	if q.Date != "" {
-		t, err := time.Parse("2006-01-02", q.Date)
+		t, err := time.ParseInLocation("2006-01-02", q.Date, time.Local)
 		if err != nil {
 			return listReservationFilters{}, fmt.Errorf("invalid date format, use YYYY-MM-DD")
 		}
 		filters.Date = &t
 	}
 	if q.StartDate != "" {
-		t, err := time.Parse("2006-01-02", q.StartDate)
+		t, err := time.ParseInLocation("2006-01-02", q.StartDate, time.Local)
 		if err != nil {
 			return listReservationFilters{}, fmt.Errorf("invalid start_date format, use YYYY-MM-DD")
 		}
 		filters.StartDate = &t
 	}
 	if q.EndDate != "" {
-		t, err := time.Parse("2006-01-02", q.EndDate)
+		t, err := time.ParseInLocation("2006-01-02", q.EndDate, time.Local)
 		if err != nil {
 			return listReservationFilters{}, fmt.Errorf("invalid end_date format, use YYYY-MM-DD")
 		}
@@ -118,7 +118,7 @@ func (q reservationAvailableTimesQuery) toServiceFilters() (reservationAvailable
 	if err != nil {
 		return reservationAvailableTimesFilters{}, err
 	}
-	date, err := time.Parse("2006-01-02", q.Date)
+	date, err := time.ParseInLocation("2006-01-02", q.Date, time.Local)
 	if err != nil {
 		return reservationAvailableTimesFilters{}, apperrors.WrapInvalidInput("invalid date: must be YYYY-MM-DD")
 	}

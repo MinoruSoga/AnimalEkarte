@@ -69,7 +69,7 @@ func NewReservationAdminServiceWithAvailability(repo repository.ReservationAdmin
 }
 
 func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Reservation, error) {
-	t, err := time.Parse("2006-01", yearMonth)
+	t, err := time.ParseInLocation("2006-01", yearMonth, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM format for month view")
 	}

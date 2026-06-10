@@ -165,8 +165,8 @@ func toPetResponse(p *model.Pet) petResponse {
 		LastVisit:       p.LastVisit,
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
-		CreatedAt:       p.CreatedAt,
-		UpdatedAt:       p.UpdatedAt,
+		CreatedAt:       localTime(p.CreatedAt),
+		UpdatedAt:       localTime(p.UpdatedAt),
 	}
 	if p.Owner != nil {
 		resp.Owner = &petOwnerNested{

@@ -13,16 +13,16 @@ import (
 
 // chronicConditionResponse は慢性疾患フラグのレスポンス型（BE-012）。
 type chronicConditionResponse struct {
-	ID            uint64    `json:"id"`
-	ClinicID      uint64    `json:"clinic_id"`
-	PetID         uint64    `json:"pet_id"`
-	ConditionCode string    `json:"condition_code"`
-	ConditionName string    `json:"condition_name"`
-	DiagnosedAt   string    `json:"diagnosed_at"`
-	Notes         *string   `json:"notes,omitempty"`
-	IsActive      bool      `json:"is_active"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            uint64  `json:"id"`
+	ClinicID      uint64  `json:"clinic_id"`
+	PetID         uint64  `json:"pet_id"`
+	ConditionCode string  `json:"condition_code"`
+	ConditionName string  `json:"condition_name"`
+	DiagnosedAt   string  `json:"diagnosed_at"`
+	Notes         *string `json:"notes,omitempty"`
+	IsActive      bool    `json:"is_active"`
+	CreatedAt     string  `json:"created_at"`
+	UpdatedAt     string  `json:"updated_at"`
 }
 
 func toChronicConditionResponse(r *model.PetChronicCondition) chronicConditionResponse {
@@ -32,11 +32,11 @@ func toChronicConditionResponse(r *model.PetChronicCondition) chronicConditionRe
 		PetID:         r.PetID,
 		ConditionCode: r.ConditionCode,
 		ConditionName: r.ConditionName,
-		DiagnosedAt:   r.DiagnosedAt.Format("2006-01-02"),
+		DiagnosedAt:   r.DiagnosedAt.In(time.Local).Format("2006-01-02"),
 		Notes:         r.Notes,
 		IsActive:      r.IsActive,
-		CreatedAt:     r.CreatedAt,
-		UpdatedAt:     r.UpdatedAt,
+		CreatedAt:     r.CreatedAt.In(time.Local).Format(time.RFC3339),
+		UpdatedAt:     r.UpdatedAt.In(time.Local).Format(time.RFC3339),
 	}
 }
 

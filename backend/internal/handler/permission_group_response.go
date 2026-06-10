@@ -47,8 +47,8 @@ func toPermissionGroupResponse(pg *model.PermissionGroup) permissionGroupRespons
 		IsActive:    pg.IsActive,
 		SortOrder:   pg.SortOrder,
 		Rules:       rules,
-		CreatedAt:   pg.CreatedAt,
-		UpdatedAt:   pg.UpdatedAt,
+		CreatedAt:   localTime(pg.CreatedAt),
+		UpdatedAt:   localTime(pg.UpdatedAt),
 	}
 }
 
@@ -61,7 +61,7 @@ func toPermissionGroupRuleResponse(rule *model.PermissionGroupRule) permissionGr
 		CanCreate: rule.CanCreate,
 		CanEdit:   rule.CanEdit,
 		CanDelete: rule.CanDelete,
-		CreatedAt: rule.CreatedAt,
-		UpdatedAt: rule.UpdatedAt,
+		CreatedAt: localTime(rule.CreatedAt),
+		UpdatedAt: localTime(rule.UpdatedAt),
 	}
 }

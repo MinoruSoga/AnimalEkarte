@@ -31,7 +31,7 @@ func toCageResponse(c *model.Cage) cageResponse {
 		IsActive:    c.IsActive,
 		Description: c.Description,
 		SortOrder:   c.SortOrder,
-		CreatedAt:   c.CreatedAt,
-		UpdatedAt:   c.UpdatedAt,
+		CreatedAt:   localTime(c.CreatedAt),
+		UpdatedAt:   localTime(c.UpdatedAt),
 	}
 }

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { C } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 import { formatCurrency } from "@/utils/format/number";
 
 import { useGetAccountings } from "../api/get-accountings";
@@ -33,8 +34,7 @@ const EMPTY_CLINIC_NAME_MAP = new Map<string, string>();
 
 // ── ヘルパー ─────────────────────────────────────────────────────
 function todayISO(): string {
-  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  return jst.toISOString().slice(0, 10);
+  return todayJSTISO();
 }
 
 interface CategoryBreakdown {

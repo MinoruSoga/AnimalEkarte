@@ -23,7 +23,7 @@ func toPaymentMethodResponse(m *model.PaymentMethodMaster) paymentMethodResponse
 		Name:         m.Name,
 		DisplayOrder: m.DisplayOrder,
 		IsActive:     m.IsActive,
-		CreatedAt:    m.CreatedAt,
-		UpdatedAt:    m.UpdatedAt,
+		CreatedAt:    localTime(m.CreatedAt),
+		UpdatedAt:    localTime(m.UpdatedAt),
 	}
 }

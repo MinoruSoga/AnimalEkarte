@@ -1,6 +1,7 @@
 import { useState, useEffect, useTransition, useCallback, useActionState, useRef } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { jstDateStartISOString, todayJSTISO } from "@/lib/jst-date";
 import { useNavigate, useSearchParams } from "react-router";
 import type { ExaminationRecord } from "../api/transforms";
 import { paths } from "@/config/paths";
@@ -239,7 +240,7 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
             date: current.date
               ? current.date.includes("T")
                 ? current.date
-                : `${current.date}T00:00:00Z`
+                : jstDateStartISOString(current.date)
               : undefined,
           };
           await updateMutation.mutateAsync({ id, req });
@@ -254,7 +255,7 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
             pet_id: Number(pet.id) || null,
             exam_type_id: Number(current.testTypeId) || 0,
             doctor_id: current.doctorId ? Number(current.doctorId) : null,
-            date: current.date ?? new Date().toISOString(),
+            date: current.date ?? jstDateStartISOString(todayJSTISO()),
             result_summary: current.resultSummary,
             machine: current.machine,
           };

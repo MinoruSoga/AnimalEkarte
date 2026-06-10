@@ -25,7 +25,7 @@ func toReservationTypeGroupResponse(g *model.ReservationTypeGroup) reservationTy
 		Color:     g.Color,
 		SortOrder: g.SortOrder,
 		IsActive:  g.IsActive,
-		CreatedAt: g.CreatedAt,
-		UpdatedAt: g.UpdatedAt,
+		CreatedAt: localTime(g.CreatedAt),
+		UpdatedAt: localTime(g.UpdatedAt),
 	}
 }

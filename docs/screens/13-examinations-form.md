@@ -50,6 +50,6 @@
 | GET | `/api/v1/examinations/:id` | 検査基本情報および項目リストの取得。 |
 | POST | `/api/v1/examinations` | 新規保存。 |
 | PATCH | `/api/v1/examinations/:id` | 数値・判定・ステータスの更新。 |
-| GET | `/api/v1/masters/exam-types` | 利用可能な検査種別リストの取得。 |
+| GET | `/api/v1/masters/examination-types` | 利用可能な検査種別リストの取得。 |
 
 ---

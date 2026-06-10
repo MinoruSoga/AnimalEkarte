@@ -21,6 +21,21 @@ resource "aws_db_subnet_group" "public" {
 }
 
 # RDS PostgreSQL Instance
+resource "aws_db_parameter_group" "main" {
+  name   = "${var.name_prefix}-postgres16-params"
+  family = "postgres16"
+
+  parameter {
+    name         = "timezone"
+    value        = "Asia/Tokyo"
+    apply_method = "immediate"
+  }
+
+  tags = {
+    Name = "${var.name_prefix}-postgres16-params"
+  }
+}
+
 resource "aws_db_instance" "main" {
   identifier     = "${var.name_prefix}-db"
   engine         = "postgres"
@@ -44,6 +59,7 @@ resource "aws_db_instance" "main" {
 
   vpc_security_group_ids = [var.rds_sg_id]
   db_subnet_group_name   = var.use_public_access ? aws_db_subnet_group.public[0].name : aws_db_subnet_group.private[0].name
+  parameter_group_name   = aws_db_parameter_group.main.name
 
   enabled_cloudwatch_logs_exports = ["postgresql"]
 

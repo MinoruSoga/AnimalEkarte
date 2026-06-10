@@ -35,7 +35,7 @@ func toSharedFileResponse(r *service.SharedFileResponse) sharedFileResponse {
 		FileName:   r.FileName,
 		FileSize:   r.FileSize,
 		Purpose:    r.Purpose,
-		ExpiresAt:  r.ExpiresAt,
-		CreatedAt:  r.CreatedAt,
+		ExpiresAt:  localTimePtr(r.ExpiresAt),
+		CreatedAt:  localTime(r.CreatedAt),
 	}
 }

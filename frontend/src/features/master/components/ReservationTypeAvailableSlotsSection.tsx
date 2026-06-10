@@ -1,9 +1,11 @@
 import { useActionState, useCallback, useMemo, useState } from "react";
-import { Clock, Plus, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router";
+import { CalendarDays, Clock, Plus, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { handleApiError } from "@/lib/handle-api-error";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import {
   useGetAvailableSlots,
   useCreateAvailableSlot,
@@ -13,6 +15,7 @@ import {
   AvailableSlotTypeWeekly,
   AvailableSlotTypeSpecific,
 } from "@/types/generated/models";
+import { DAY_OF_WEEK_LABELS, TIME_SELECT_ITEMS } from "./available-slot-options";
 import type { CreateAvailableSlotRequest } from "../api/reservation-type-available-slots";
 
 const DAY_OF_WEEK_ITEMS = (
@@ -26,27 +29,6 @@ const DAY_OF_WEEK_ITEMS = (
     <SelectItem value="6">土曜日</SelectItem>
   </>
 );
-
-const DAY_OF_WEEK_LABELS: Record<number, string> = {
-  0: "日",
-  1: "月",
-  2: "火",
-  3: "水",
-  4: "木",
-  5: "金",
-  6: "土",
-};
-
-const TIME_OPTIONS: string[] = [];
-for (let h = 0; h < 24; h++) {
-  for (const m of [0, 15, 30, 45]) {
-    TIME_OPTIONS.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-  }
-}
-
-const TIME_SELECT_ITEMS = TIME_OPTIONS.map((time) => (
-  <SelectItem key={time} value={time}>{time}</SelectItem>
-));
 
 interface FormState {
   availableType: string;
@@ -73,6 +55,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
   const deleteMutation = useDeleteAvailableSlot(clinicId, reservationTypeId);
 
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+  const navigate = useNavigate();
 
   const handleFieldChange = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -131,6 +114,14 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
       <div className="flex items-center gap-1.5 mb-3">
         <Clock className={`${ICON.smXs} ${C.text50}`} />
         <p className={`text-xs font-medium ${C.text50}`}>予約可能枠</p>
+        <button
+          type="button"
+          onClick={() => navigate(`${paths.lineReservation.slots.getHref()}?typeId=${reservationTypeId}`)}
+          className={`ml-auto flex items-center gap-1 text-xs ${C.text50} ${C.hoverTextAccent} transition-colors`}
+        >
+          <CalendarDays className={ICON.smXs} />
+          カレンダーで編集
+        </button>
       </div>
 
       {isLoading ? (

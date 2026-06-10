@@ -28,16 +28,24 @@ describe("transformReservation", () => {
     expect(result.id).toBe("0");
   });
 
-  it("start_time を Date に変換する", () => {
+  it("start_time を JST 壁時計時刻の Date に変換する", () => {
     const result = transformReservation({ ...minimalBackend, start_time: "2026-03-25T10:00:00Z" });
     expect(result.start).toBeInstanceOf(Date);
-    expect(result.start.toISOString()).toBe("2026-03-25T10:00:00.000Z");
+    expect(result.start.getFullYear()).toBe(2026);
+    expect(result.start.getMonth()).toBe(2);
+    expect(result.start.getDate()).toBe(25);
+    expect(result.start.getHours()).toBe(19);
+    expect(result.start.getMinutes()).toBe(0);
   });
 
-  it("end_time を Date に変換する", () => {
+  it("end_time を JST 壁時計時刻の Date に変換する", () => {
     const result = transformReservation({ ...minimalBackend, end_time: "2026-03-25T10:30:00Z" });
     expect(result.end).toBeInstanceOf(Date);
-    expect(result.end.toISOString()).toBe("2026-03-25T10:30:00.000Z");
+    expect(result.end.getFullYear()).toBe(2026);
+    expect(result.end.getMonth()).toBe(2);
+    expect(result.end.getDate()).toBe(25);
+    expect(result.end.getHours()).toBe(19);
+    expect(result.end.getMinutes()).toBe(30);
   });
 
   it("visit_type: first をそのままマップする", () => {
@@ -211,8 +219,8 @@ describe("transformReservation", () => {
 
 describe("transformToCreateRequest", () => {
   const baseData: Partial<Reservation> = {
-    start: new Date("2026-03-25T10:00:00Z"),
-    end: new Date("2026-03-25T10:30:00Z"),
+    start: new Date(2026, 2, 25, 19, 0, 0),
+    end: new Date(2026, 2, 25, 19, 30, 0),
     visitType: "first",
     type: "1",
     isDesignated: false,
@@ -224,7 +232,7 @@ describe("transformToCreateRequest", () => {
     expect(result.owner_id).toBe(20);
   });
 
-  it("start/end を ISO 文字列に変換する", () => {
+  it("start/end を JST 壁時計時刻として ISO 文字列に変換する", () => {
     const result = transformToCreateRequest(baseData, "1", "1");
     expect(result.start_time).toBe("2026-03-25T10:00:00.000Z");
     expect(result.end_time).toBe("2026-03-25T10:30:00.000Z");

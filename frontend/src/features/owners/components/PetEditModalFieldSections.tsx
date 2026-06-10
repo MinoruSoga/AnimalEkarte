@@ -11,6 +11,7 @@ import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/s
 import { Textarea } from "@/components/ui/textarea";
 import { PetDeceasedRecordButton } from "@/features/pets";
 import { C, STYLE } from "@/lib/design-tokens";
+import { toJSTWallDate } from "@/lib/jst-date";
 import { isOneOf } from "@/lib/type-utils";
 
 import {
@@ -219,7 +220,7 @@ export function PetIdentitySection({
           value={formData.birthDate}
           onChange={(val) => setFormData((prev) => ({ ...prev, birthDate: val }))}
           placeholder="生年月日を選択…"
-          disabledDays={{ after: new Date() }}
+          disabledDays={{ after: toJSTWallDate(new Date()) }}
         />
       </div>
     </div>

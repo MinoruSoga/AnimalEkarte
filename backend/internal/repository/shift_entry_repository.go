@@ -47,7 +47,7 @@ func (r *shiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, fil
 
 	if filter.YearMonth != "" {
 		// YYYY-MM → start/end dates
-		t, err := time.Parse("2006-01", filter.YearMonth)
+		t, err := time.ParseInLocation("2006-01", filter.YearMonth, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid year_month format: %s", filter.YearMonth))
 		}

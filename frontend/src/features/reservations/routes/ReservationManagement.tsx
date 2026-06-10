@@ -11,6 +11,7 @@ import { PermissionBadges } from "@/components/shared/PermissionBadges/Permissio
 import { ResourceReservations } from "@/types/generated/models";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { toJSTWallDate } from "@/lib/jst-date";
 import type { CalendarView, Reservation } from "../types";
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
@@ -38,7 +39,7 @@ const VIEW_NAV_NEXT: Record<CalendarView, (d: Date) => Date> = {
 };
 
 export function ReservationManagement() {
-  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [currentDate, setCurrentDate] = useState(() => toJSTWallDate(new Date()));
   const { canCreate, canEdit, canDelete } = usePermission("reservations");
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
@@ -137,7 +138,7 @@ export function ReservationManagement() {
     [appointments, doctorFilter, sourceFilter],
   );
 
-  const navigateToday = useCallback(() => setCurrentDate(new Date()), []);
+  const navigateToday = useCallback(() => setCurrentDate(toJSTWallDate(new Date())), []);
   const navigatePrevious = useCallback(
     () => setCurrentDate((prev) => VIEW_NAV_PREV[view](prev)),
     [view],

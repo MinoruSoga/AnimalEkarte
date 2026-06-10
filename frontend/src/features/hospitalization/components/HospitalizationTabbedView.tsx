@@ -1,5 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 import { memo, useState } from "react";
 import { formatDate } from "@/utils/format/date";
 
@@ -29,7 +30,7 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
     const [activeTab, setActiveTab] = useState<"daily" | "plan">("daily");
 
     // Determine the effective discharge date
-    const dischargeDate = hospitalization.endDate || new Date().toISOString().split("T")[0];
+    const dischargeDate = hospitalization.endDate || todayJSTISO();
 
     const tabItems = [
       { value: "daily", label: <span className="flex items-center"><FileText className={`${ICON.action} mr-2`} />デイリーカルテ</span> },

@@ -26,8 +26,8 @@ func toClinicSettingsResponse(s *model.ClinicSettings) clinicSettingsResponse {
 		ClosingWeekdayEnd:   s.ClosingWeekdayEnd,
 		ClosingSundayEnd:    s.ClosingSundayEnd,
 		ClosedWeekdays:      s.ClosedWeekdays,
-		CreatedAt:           s.CreatedAt,
-		UpdatedAt:           s.UpdatedAt,
+		CreatedAt:           localTime(s.CreatedAt),
+		UpdatedAt:           localTime(s.UpdatedAt),
 	}
 }
 
@@ -65,12 +65,12 @@ func toClosingSpecialPeriodResponse(p *model.ClosingSpecialPeriod) closingSpecia
 	return closingSpecialPeriodResponse{
 		ID:           p.ID,
 		ClinicID:     p.ClinicID,
-		StartDate:    p.StartDate.Format("2006-01-02"),
-		EndDate:      p.EndDate.Format("2006-01-02"),
+		StartDate:    p.StartDate.In(time.Local).Format("2006-01-02"),
+		EndDate:      p.EndDate.In(time.Local).Format("2006-01-02"),
 		AmPmBoundary: p.AmPmBoundary,
 		PmEnd:        p.PmEnd,
 		Note:         p.Note,
-		CreatedAt:    p.CreatedAt,
-		UpdatedAt:    p.UpdatedAt,
+		CreatedAt:    p.CreatedAt.In(time.Local),
+		UpdatedAt:    p.UpdatedAt.In(time.Local),
 	}
 }

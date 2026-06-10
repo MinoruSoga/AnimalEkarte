@@ -33,7 +33,7 @@ func toCheckupTypeResponse(ct *model.CheckupType) checkupTypeResponse {
 		TargetAge:   ct.TargetAge,
 		ParentID:    ct.ParentID,
 		SortOrder:   ct.SortOrder,
-		CreatedAt:   ct.CreatedAt,
-		UpdatedAt:   ct.UpdatedAt,
+		CreatedAt:   localTime(ct.CreatedAt),
+		UpdatedAt:   localTime(ct.UpdatedAt),
 	}
 }

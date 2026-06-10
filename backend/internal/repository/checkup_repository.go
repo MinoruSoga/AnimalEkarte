@@ -106,7 +106,7 @@ func (r *checkupRepository) FindByMedicalRecordID(ctx context.Context, clinicID,
 
 func (r *checkupRepository) FindAlerts(ctx context.Context, clinicID uint64, withinDays int) ([]model.Checkup, error) {
 	checkups := make([]model.Checkup, 0)
-	upperBound := time.Now().AddDate(0, 0, withinDays).Format("2006-01-02")
+	upperBound := time.Now().In(time.Local).AddDate(0, 0, withinDays).Format("2006-01-02")
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Preload("CheckupType", "deleted_at IS NULL").

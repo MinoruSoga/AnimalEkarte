@@ -65,7 +65,7 @@ func toEstimateItemResponse(item *model.EstimateItem) estimateItemResponse {
 		DiscountAmount:        item.DiscountAmount,
 		IsInsuranceApplicable: item.IsInsuranceApplicable,
 		SortOrder:             item.SortOrder,
-		CreatedAt:             item.CreatedAt,
+		CreatedAt:             localTime(item.CreatedAt),
 	}
 }
 
@@ -93,7 +93,7 @@ func toEstimateResponse(e *model.Estimate) estimateResponse {
 		Notes:           e.Notes,
 		CreatedBy:       e.CreatedBy,
 		Items:           items,
-		CreatedAt:       e.CreatedAt,
-		UpdatedAt:       e.UpdatedAt,
+		CreatedAt:       localTime(e.CreatedAt),
+		UpdatedAt:       localTime(e.UpdatedAt),
 	}
 }

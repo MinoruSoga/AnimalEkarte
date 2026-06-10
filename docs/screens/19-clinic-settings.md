@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面 of Purpose**: システムを利用する各拠点（本院・分院）の基本情報、連絡先、およびインボイス制度に対応した各種パラメータの一元管理。
-- **URLパターン**: `/settings/masters/clinics`
+- **URLパターン**: `/settings/clinic`
 - **アクセス権限**: 医院管理者権限が必要（`ResourceHospitalSettings`）
 
 ---

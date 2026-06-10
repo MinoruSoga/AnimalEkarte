@@ -38,9 +38,9 @@ func toVaccinationResponse(v *model.Vaccination) vaccinationResponse {
 		MedicalRecordID:  v.MedicalRecordID,
 		PetID:            v.PetID,
 		VaccineID:        v.VaccineID,
-		Date:             v.Date,
+		Date:             localTime(v.Date),
 		DoctorID:         v.DoctorID,
-		NextDate:         v.NextDate,
+		NextDate:         localTimePtr(v.NextDate),
 		NextScheduleType: nextScheduleType,
 		Supplemental:     v.Supplemental,
 		Lot1:             v.Lot1,
@@ -48,7 +48,7 @@ func toVaccinationResponse(v *model.Vaccination) vaccinationResponse {
 		Lot3:             v.Lot3,
 		Lot4:             v.Lot4,
 		Remarks:          v.Remarks,
-		CreatedAt:        v.CreatedAt,
-		UpdatedAt:        v.UpdatedAt,
+		CreatedAt:        localTime(v.CreatedAt),
+		UpdatedAt:        localTime(v.UpdatedAt),
 	}
 }

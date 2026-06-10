@@ -7,6 +7,7 @@ import { LIFF_MOCK } from '../lib/liff-config';
 import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
+import { formatJapaneseDate } from '../lib/jst-date';
 
 interface SlotTakenResponse {
   error: string;
@@ -32,19 +33,11 @@ function formatTime(hhmm: string): string {
 }
 
 function formatDate(dateStr: string): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  const d = new Date(Number(year), Number(month) - 1, Number(day));
-  const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
-  return `${year}年${Number(month)}月${Number(day)}日（${weekDays[d.getDay()]}）`;
+  return formatJapaneseDate(dateStr);
 }
 
 function formatDatePadded(dateStr: string): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  const d = new Date(Number(year), Number(month) - 1, Number(day));
-  const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
-  return `${year}年${month}月${day}日(${weekDays[d.getDay()]})`;
+  return formatJapaneseDate(dateStr, true);
 }
 
 /** 予約完了後に LINE トーク画面へメッセージを送信する */

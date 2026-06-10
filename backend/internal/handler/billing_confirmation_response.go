@@ -26,12 +26,12 @@ func toBillingConfirmationResponse(r *model.BillingConfirmation) billingConfirma
 		ID:              strconv.FormatUint(r.ID, 10),
 		MedicalRecordID: strconv.FormatUint(r.MedicalRecordID, 10),
 		Status:          string(r.Status),
-		ConfirmedAt:     r.ConfirmedAt,
-		ReturnedAt:      r.ReturnedAt,
+		ConfirmedAt:     localTimePtr(r.ConfirmedAt),
+		ReturnedAt:      localTimePtr(r.ReturnedAt),
 		ReturnReason:    r.ReturnReason,
 		Memo:            r.Memo,
-		CreatedAt:       r.CreatedAt,
-		UpdatedAt:       r.UpdatedAt,
+		CreatedAt:       localTime(r.CreatedAt),
+		UpdatedAt:       localTime(r.UpdatedAt),
 	}
 	if r.ConfirmedBy != nil {
 		s := strconv.FormatUint(*r.ConfirmedBy, 10)

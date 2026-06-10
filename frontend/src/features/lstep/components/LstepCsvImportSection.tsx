@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { axios } from "@/lib/axios";
+import { formatJSTDateTimeLocal } from "@/lib/jst-date";
 
 import { useGetLstepCsvImports } from "../api/get-lstep-csv-imports";
 import { CSV_STATUS_LABELS } from "./LstepAnalyticsModel";
@@ -160,13 +161,7 @@ function CsvImportHistoryTable() {
                 </span>
               </td>
               <td className={`px-3 py-2 ${C.text60} text-xs`}>
-                {new Date(item.created_at).toLocaleString("ja-JP", {
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {formatJSTDateTimeLocal(item.created_at).replace("T", " ")}
               </td>
             </tr>
           ))}

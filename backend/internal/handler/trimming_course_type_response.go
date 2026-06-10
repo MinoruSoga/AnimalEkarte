@@ -23,7 +23,7 @@ func toTrimmingCourseTypeResponse(m *model.TrimmingCourseType) trimmingCourseTyp
 		Name:      m.Name,
 		SortOrder: m.SortOrder,
 		IsActive:  m.IsActive,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+		CreatedAt: localTime(m.CreatedAt),
+		UpdatedAt: localTime(m.UpdatedAt),
 	}
 }

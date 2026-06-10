@@ -3,7 +3,9 @@ FROM golang:1.25-alpine
 WORKDIR /app
 
 # CGo（-race フラグ対応）
-RUN apk add --no-cache gcc musl-dev
+RUN apk add --no-cache gcc musl-dev tzdata
+
+ENV TZ=Asia/Tokyo
 
 # 開発ツール
 RUN go install github.com/air-verse/air@latest

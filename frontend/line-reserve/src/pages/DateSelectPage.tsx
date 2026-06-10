@@ -5,6 +5,7 @@ import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
 import { Calendar } from '../components/Calendar';
+import { formatJapaneseDate } from '../lib/jst-date';
 
 interface DateSelectPageProps {
   clinicId: string;
@@ -48,11 +49,7 @@ export function DateSelectPage({
   }, [clinicId, courseId, staffId, idToken]);
 
   const formatSelectedDate = (date: string): string => {
-    if (!date) return '';
-    const [year, month, day] = date.split('-');
-    const d = new Date(Number(year), Number(month) - 1, Number(day));
-    const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
-    return `${year}年${Number(month)}月${Number(day)}日（${weekDays[d.getDay()]}）`;
+    return formatJapaneseDate(date);
   };
 
   return (

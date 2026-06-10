@@ -191,7 +191,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
   );
 
   const formattedDate = date
-    ? new Date(date + "T00:00:00").toLocaleDateString("ja-JP", {
+    ? new Date(`${date}T00:00:00+09:00`).toLocaleDateString("ja-JP", {
+        timeZone: "Asia/Tokyo",
         month: "long",
         day: "numeric",
         weekday: "short",

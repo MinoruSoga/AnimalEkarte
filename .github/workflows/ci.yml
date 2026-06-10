@@ -61,6 +61,8 @@ jobs:
       postgres:
         image: postgres:18-alpine
         env:
+          TZ: Asia/Tokyo
+          PGTZ: Asia/Tokyo
           POSTGRES_USER: ekarte_user
           POSTGRES_PASSWORD: ekarte_password
           POSTGRES_DB: ekarte_db
@@ -227,6 +229,8 @@ jobs:
       postgres:
         image: postgres:18-alpine
         env:
+          TZ: Asia/Tokyo
+          PGTZ: Asia/Tokyo
           POSTGRES_USER: ekarte_user
           POSTGRES_PASSWORD: ekarte_password
           POSTGRES_DB: ekarte_db

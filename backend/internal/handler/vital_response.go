@@ -24,14 +24,14 @@ type vitalResponse struct {
 func toVitalResponse(v *model.VitalRecord) vitalResponse {
 	r := vitalResponse{
 		ID:              strconv.FormatUint(v.ID, 10),
-		RecordedAt:      v.RecordedAt,
+		RecordedAt:      localTime(v.RecordedAt),
 		Temperature:     v.Temperature,
 		HeartRate:       v.HeartRate,
 		RespirationRate: v.RespirationRate,
 		Weight:          v.Weight,
 		WeightUnit:      v.WeightUnit,
 		Notes:           v.Notes,
-		CreatedAt:       v.CreatedAt,
+		CreatedAt:       localTime(v.CreatedAt),
 	}
 	if v.MedicalRecordID != nil {
 		s := strconv.FormatUint(*v.MedicalRecordID, 10)

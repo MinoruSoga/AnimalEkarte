@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: 血液検査や生化学検査等における、各測定項目の名称、単位、および動物種ごとの正常値範囲（リファレンスレンジ）の定義。
-- **URLパターン**: `/settings/masters/examinations`
+- **URLパターン**: `/settings/treatment-items?tab=examination`
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---

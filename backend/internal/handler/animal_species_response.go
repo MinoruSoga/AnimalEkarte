@@ -21,7 +21,7 @@ func toAnimalSpeciesResponse(s *model.AnimalSpecies) animalSpeciesResponse {
 		Name:      s.Name,
 		IsActive:  s.IsActive,
 		SortOrder: s.SortOrder,
-		CreatedAt: s.CreatedAt,
-		UpdatedAt: s.UpdatedAt,
+		CreatedAt: localTime(s.CreatedAt),
+		UpdatedAt: localTime(s.UpdatedAt),
 	}
 }

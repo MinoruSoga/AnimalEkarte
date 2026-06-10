@@ -183,12 +183,12 @@ func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
 func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 	res := liffReservationResponse{
 		ID:        r.ID,
-		Date:      r.StartTime.Format("2006-01-02"),
-		StartTime: r.StartTime.Format("15:04"),
-		EndTime:   r.EndTime.Format("15:04"),
+		Date:      r.StartTime.In(time.Local).Format("2006-01-02"),
+		StartTime: r.StartTime.In(time.Local).Format("15:04"),
+		EndTime:   r.EndTime.In(time.Local).Format("15:04"),
 		Status:    string(r.Status),
 		Notes:     r.Notes,
-		CreatedAt: r.CreatedAt,
+		CreatedAt: r.CreatedAt.In(time.Local),
 	}
 	if r.ReservationType != nil {
 		res.CourseName = r.ReservationType.ReservationDisplayName

@@ -31,7 +31,7 @@ func toMerchandiseItemResponse(m *model.MerchandiseItem) merchandiseItemResponse
 		TaxRate:   m.TaxRate,
 		IsActive:  m.IsActive,
 		SortOrder: m.SortOrder,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+		CreatedAt: localTime(m.CreatedAt),
+		UpdatedAt: localTime(m.UpdatedAt),
 	}
 }

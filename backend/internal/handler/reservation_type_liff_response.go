@@ -45,7 +45,7 @@ func toReservationTypeLiffResponse(st *model.ReservationType) reservationTypeLif
 		ReservationImageURL:  st.ReservationImageURL,
 		ReservationDayOption: string(st.ReservationDayOption),
 		IsInternal:           st.IsInternal,
-		CreatedAt:            st.CreatedAt,
-		UpdatedAt:            st.UpdatedAt,
+		CreatedAt:            localTime(st.CreatedAt),
+		UpdatedAt:            localTime(st.UpdatedAt),
 	}
 }

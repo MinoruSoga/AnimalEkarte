@@ -47,7 +47,7 @@ func toReservationStaffResponse(staff *model.Staff, excluded []model.StaffReserv
 		ReservationComment:  staff.ReservationComment,
 		ReservationImageURL: staff.ReservationImageURL,
 		ExcludedCourses:     courses,
-		CreatedAt:           staff.CreatedAt,
-		UpdatedAt:           staff.UpdatedAt,
+		CreatedAt:           localTime(staff.CreatedAt),
+		UpdatedAt:           localTime(staff.UpdatedAt),
 	}
 }

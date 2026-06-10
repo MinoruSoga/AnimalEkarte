@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
 import type { ReservationStatus } from "@/types";
 import type { Reservation as BackendReceptionReservation } from "@/types/generated/models";
 
@@ -69,21 +69,11 @@ function optionalID(value: number | null | undefined): string {
   return value ? String(value) : "";
 }
 
-function padDatePart(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-function formatJSTDate(date: Date): string {
-  const jstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-  return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}`;
-}
-
 /** BackendReceptionReservation → ReceptionAppointment 変換 */
 export function transformReservationToReceptionAppointment(
   reservation: BackendReceptionReservation
 ) {
-  const startDate = new Date(reservation.start_time);
-  const time = format(startDate, "HH:mm");
+  const time = formatJSTTime(reservation.start_time);
   const cf = parseCustomerFields(reservation.customer_fields);
 
   const petName = reservation.pet?.name ?? cf.pets?.[0]?.name ?? "";
@@ -99,7 +89,7 @@ export function transformReservationToReceptionAppointment(
   return {
     id: String(reservation.id ?? 0),
     time,
-    visitDate: formatJSTDate(startDate),
+    visitDate: formatJSTDate(reservation.start_time),
     ownerName,
     petType,
     petName,

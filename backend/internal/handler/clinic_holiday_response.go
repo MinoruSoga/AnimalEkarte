@@ -19,9 +19,9 @@ func toClinicHolidayResponse(h *model.ClinicHoliday) clinicHolidayResponse {
 	return clinicHolidayResponse{
 		ID:        h.ID,
 		ClinicID:  h.ClinicID,
-		Date:      h.Date.Format("2006-01-02"),
+		Date:      h.Date.In(time.Local).Format("2006-01-02"),
 		Reason:    h.Reason,
-		CreatedAt: h.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: h.UpdatedAt.Format(time.RFC3339),
+		CreatedAt: h.CreatedAt.In(time.Local).Format(time.RFC3339),
+		UpdatedAt: h.UpdatedAt.In(time.Local).Format(time.RFC3339),
 	}
 }

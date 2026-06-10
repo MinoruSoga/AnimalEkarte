@@ -34,8 +34,8 @@ func toHospitalizationResponse(h *model.Hospitalization) hospitalizationResponse
 		OwnerID:              h.OwnerID,
 		PetID:                h.PetID,
 		HospitalizationType:  string(h.HospitalizationType),
-		StartDate:            h.StartDate,
-		EndDate:              h.EndDate,
+		StartDate:            localTime(h.StartDate),
+		EndDate:              localTime(h.EndDate),
 		Status:               string(h.Status),
 		CageID:               h.CageID,
 		DoctorID:             h.DoctorID,
@@ -44,8 +44,8 @@ func toHospitalizationResponse(h *model.Hospitalization) hospitalizationResponse
 		Memo:                 h.Memo,
 		OwnerRequest:         h.OwnerRequest,
 		StaffNotes:           h.StaffNotes,
-		CreatedAt:            h.CreatedAt,
-		UpdatedAt:            h.UpdatedAt,
+		CreatedAt:            localTime(h.CreatedAt),
+		UpdatedAt:            localTime(h.UpdatedAt),
 	}
 }
 

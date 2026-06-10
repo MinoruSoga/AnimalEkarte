@@ -1,6 +1,8 @@
 FROM node:24-alpine
 
-RUN npm install -g pnpm@9
+RUN apk add --no-cache tzdata && npm install -g pnpm@9
+
+ENV TZ=Asia/Tokyo
 
 WORKDIR /app
 

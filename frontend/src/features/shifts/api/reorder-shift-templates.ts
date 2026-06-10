@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 
 export async function reorderShiftTemplates(ids: number[]): Promise<void> {
-  await axios.put("/v1/shift-templates/reorder", { ids });
+  await axios.patch("/v1/shift-templates/reorder", { ids });
 }
 
 export function useReorderShiftTemplates() {

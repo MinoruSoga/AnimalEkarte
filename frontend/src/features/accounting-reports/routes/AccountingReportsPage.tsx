@@ -7,9 +7,10 @@ import { useGetMonthlyReport } from "../api/get-monthly-report";
 import { exportMonthlyCSV } from "../api/export-monthly-csv";
 import { MonthlySummaryCards } from "../components/MonthlySummaryCards";
 import { DailyBreakdownTable } from "../components/DailyBreakdownTable";
+import { toJSTWallDate } from "@/lib/jst-date";
 
 export function AccountingReportsPage() {
-  const now = new Date();
+  const now = toJSTWallDate(new Date());
   const [year, setYear] = useState<number>(now.getFullYear());
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
   const [isExporting, startExportTransition] = useTransition();

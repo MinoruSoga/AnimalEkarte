@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: トリミングにおける「基本コース」と「追加オプション」の定義、および犬種別の料金設定。
-- **URLパターン**: `/settings/masters/trimming`
+- **URLパターン**: `/settings/trimming`
 - **アクセス権限**: トリミング管理権限が必要（`ResourceMasterTrimming`）
 
 ---
@@ -33,14 +33,21 @@
 ## 技術仕様
 
 ### 使用コンポーネント
-- **`TrimmingPriceMatrix`**: コース × 品種の価格マトリックス編集部品。
+- **`TrimmingPriceMatrix`**: コース × 品種の価格マトリックス編集部品（※コースマスタ更新による価格反映を想定）。
 - **`MasterSelectModal`**: 対象となる品種の検索・選択。
 
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
 | GET | `/api/v1/masters/trimming-courses` | 基本コース一覧の取得。 |
+| POST | `/api/v1/masters/trimming-courses` | 基本コースの作成。 |
+| PATCH | `/api/v1/masters/trimming-courses/:id` | コース情報の更新。 |
+| DELETE | `/api/v1/masters/trimming-courses/:id` | コースの削除。 |
+| PATCH | `/api/v1/masters/trimming-courses/reorder` | コース表示順の一括保存。 |
 | GET | `/api/v1/masters/trimming-options` | オプション項目の一覧取得。 |
-| PATCH | `/api/v1/masters/trimming-prices` | 犬種別価格の一括更新。 |
+| POST | `/api/v1/masters/trimming-options` | オプション項目の作成。 |
+| PATCH | `/api/v1/masters/trimming-options/:id` | オプション項目の更新。 |
+| DELETE | `/api/v1/masters/trimming-options/:id` | オプション項目の削除。 |
+| PATCH | `/api/v1/masters/trimming-options/reorder` | オプション表示順の一括保存。 |
 
 ---

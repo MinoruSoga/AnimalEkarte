@@ -31,7 +31,7 @@ func NewReservationAdminRepository(db *gorm.DB) ReservationAdminRepository {
 }
 
 func (r *reservationAdminRepository) FindAllByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error) {
-	start := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	start := time.Date(year, month, 1, 0, 0, 0, 0, time.Local)
 	end := start.AddDate(0, 1, 0)
 
 	items := make([]model.Reservation, 0)
@@ -50,7 +50,8 @@ func (r *reservationAdminRepository) FindAllByMonth(ctx context.Context, clinicI
 }
 
 func (r *reservationAdminRepository) FindAllByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
-	start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	dateJST := date.In(time.Local)
+	start := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, time.Local)
 	end := start.Add(24 * time.Hour)
 
 	items := make([]model.Reservation, 0)

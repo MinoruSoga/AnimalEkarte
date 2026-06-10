@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useGetPet } from "@/hooks/use-pet";
 import { calculateBillingTotals } from "@/lib/calculations";
+import { todayJSTISO } from "@/lib/jst-date";
 
 import { getUnbilledItems } from "../api/get-unbilled-items";
 import { useGetUngroupedSameDay } from "../api/get-ungrouped-items";
@@ -46,7 +47,7 @@ export function useAccountingDetailState({
       petName: newPetData?.name ?? "ペット",
       petSpecies: newPetData?.species ?? "犬",
       status: "waiting",
-      scheduledDate: new Date().toISOString().split("T")[0],
+      scheduledDate: todayJSTISO(),
       items: stateItems,
       payment: undefined,
       totalRefundedAmount: 0,

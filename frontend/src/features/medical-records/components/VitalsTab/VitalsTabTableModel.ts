@@ -1,4 +1,5 @@
 import { C } from "@/lib/design-tokens";
+import { formatJSTWallDate, formatJSTWallTime, toJSTWallDate } from "@/lib/jst-date";
 import type { BodyWeightUnit } from "../../types";
 
 export const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`;
@@ -31,10 +32,9 @@ export function parseVitalsNumber(value: string): number | null {
 }
 
 export function formatRecordedAt(iso: string): string {
-  const d = new Date(iso);
+  const d = toJSTWallDate(iso);
   if (isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${formatJSTWallDate(d)} ${formatJSTWallTime(d)}`;
 }
 
 export function displayNum(value: number | null | undefined): string {

@@ -48,7 +48,7 @@ func (h *Handler) SetClinicHoliday(c *gin.Context) {
 		return
 	}
 
-	date, err := time.Parse("2006-01-02", req.Date)
+	date, err := time.ParseInLocation("2006-01-02", req.Date, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date: use YYYY-MM-DD"))
 		return
@@ -59,7 +59,7 @@ func (h *Handler) SetClinicHoliday(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/v1/clinic-holidays/%s", holiday.Date.Format("2006-01-02")))
+	c.Header("Location", fmt.Sprintf("/v1/clinic-holidays/%s", holiday.Date.In(time.Local).Format("2006-01-02")))
 	c.JSON(http.StatusCreated, toClinicHolidayResponse(holiday))
 }
 
@@ -72,7 +72,7 @@ func (h *Handler) DeleteClinicHoliday(c *gin.Context) {
 	}
 
 	dateStr := c.Param("date")
-	date, err := time.Parse("2006-01-02", dateStr)
+	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date: use YYYY-MM-DD"))
 		return

@@ -46,8 +46,8 @@ func toOccupationInStaffResponse(occ *model.Occupation) *occupationInStaffRespon
 		Name:      occ.Name,
 		SortOrder: occ.SortOrder,
 		IsActive:  occ.IsActive,
-		CreatedAt: occ.CreatedAt,
-		UpdatedAt: occ.UpdatedAt,
+		CreatedAt: localTime(occ.CreatedAt),
+		UpdatedAt: localTime(occ.UpdatedAt),
 	}
 }
 
@@ -65,8 +65,8 @@ func toStaffResponse(s *model.Staff) staffResponse {
 		SortOrder:              s.SortOrder,
 		Email:                  email,
 		Occupation:             toOccupationInStaffResponse(s.Occupation),
-		CreatedAt:              s.CreatedAt,
-		UpdatedAt:              s.UpdatedAt,
+		CreatedAt:              localTime(s.CreatedAt),
+		UpdatedAt:              localTime(s.UpdatedAt),
 		StaffType:              s.StaffType,
 		ReservationDisplayName: s.ReservationDisplayName,
 		ReservationVisible:     s.ReservationVisible,

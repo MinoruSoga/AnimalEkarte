@@ -46,8 +46,8 @@ func toReservationResponse(r *model.Reservation) reservationResponse {
 	return reservationResponse{
 		ID:                  r.ID,
 		ClinicID:            r.ClinicID,
-		StartTime:           r.StartTime,
-		EndTime:             r.EndTime,
+		StartTime:           localTime(r.StartTime),
+		EndTime:             localTime(r.EndTime),
 		OwnerID:             r.OwnerID,
 		PetID:               r.PetID,
 		VisitType:           string(r.VisitType),
@@ -62,13 +62,13 @@ func toReservationResponse(r *model.Reservation) reservationResponse {
 		IsStaffDelegated:    r.IsStaffDelegated,
 		CustomerFields:      r.CustomerFields,
 		ReservationRoute:    r.ReservationRoute,
-		ActualReservationAt: r.ActualReservationAt,
+		ActualReservationAt: localTimePtr(r.ActualReservationAt),
 		Owner:               toOwnerSummary(r.Owner),
 		Pet:                 toPetSummary(r.Pet),
 		ReservationType:     reservationType,
 		Doctor:              toStaffSummary(r.Doctor),
 		CreatedByStaff:      toStaffSummary(r.CreatedByStaff),
-		CreatedAt:           r.CreatedAt,
-		UpdatedAt:           r.UpdatedAt,
+		CreatedAt:           localTime(r.CreatedAt),
+		UpdatedAt:           localTime(r.UpdatedAt),
 	}
 }

@@ -62,8 +62,13 @@ describe("useReceptionModalHandlers", () => {
       result.current.handleEditAppointment(baseAppointment);
     });
 
-    expect(result.current.editingAppointment?.start?.toISOString()).toBe("2026-06-01T00:45:00.000Z");
-    expect(result.current.editingAppointment?.end?.toISOString()).toBe("2026-06-01T01:45:00.000Z");
+    expect(result.current.editingAppointment?.start?.getFullYear()).toBe(2026);
+    expect(result.current.editingAppointment?.start?.getMonth()).toBe(5);
+    expect(result.current.editingAppointment?.start?.getDate()).toBe(1);
+    expect(result.current.editingAppointment?.start?.getHours()).toBe(9);
+    expect(result.current.editingAppointment?.start?.getMinutes()).toBe(45);
+    expect(result.current.editingAppointment?.end?.getHours()).toBe(10);
+    expect(result.current.editingAppointment?.end?.getMinutes()).toBe(45);
     expect(result.current.editingAppointment?.type).toBe("1");
     expect(result.current.editingAppointment?.doctor).toBe("33");
     expect(result.current.editingAppointment?.status).toBe("checked_in");
@@ -79,7 +84,7 @@ describe("useReceptionModalHandlers", () => {
     act(() => {
       result.current.handleEditSave(
         {
-          start: new Date("2026-06-01T09:45:00+09:00"),
+          start: new Date(2026, 5, 1, 9, 45, 0),
           visitType: "revisit",
           type: "1",
           doctor: "33",
@@ -123,7 +128,7 @@ describe("useReceptionModalHandlers", () => {
     act(() => {
       result.current.handleEditSave(
         {
-          start: new Date("2026-06-01T09:45:00+09:00"),
+          start: new Date(2026, 5, 1, 9, 45, 0),
           visitType: "revisit",
           type: "一般診察",
           doctor: "担当者A",
@@ -153,7 +158,7 @@ describe("useReceptionModalHandlers", () => {
     act(() => {
       result.current.handleEditSave(
         {
-          start: new Date("2026-06-01T09:45:00+09:00"),
+          start: new Date(2026, 5, 1, 9, 45, 0),
           visitType: "revisit",
           type: "1",
           doctor: "33",
