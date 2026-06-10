@@ -462,6 +462,7 @@ def parse_timestamp_literal(value: str) -> datetime:
 def check_appointment_time_window(errors: list[str]) -> None:
     timestamp_pattern = re.compile(r"'([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9:.]+(?:\+[0-9]{2})?)'")
     violations: list[str] = []
+    day_hours: dict[str, Counter[int]] = defaultdict(Counter)
 
     for path in APPOINTMENT_TIME_FILES:
         in_appointment_insert = False
@@ -476,6 +477,8 @@ def check_appointment_time_window(errors: list[str]) -> None:
                     end = parse_timestamp_literal(timestamps[1]).astimezone(JST)
                     start_minutes = start.hour * 60 + start.minute
                     end_minutes = end.hour * 60 + end.minute
+                    day_key = f"{path.relative_to(ROOT)}:{start.date().isoformat()}"
+                    day_hours[day_key][start.hour] += 1
                     if start.date() != end.date() or start_minutes < 9 * 60 or end_minutes > 19 * 60:
                         violations.append(
                             f"{path.relative_to(ROOT)}:{line_number} "
@@ -486,6 +489,19 @@ def check_appointment_time_window(errors: list[str]) -> None:
                 in_appointment_insert = False
 
     add_result(errors, not violations, f"appointments: time outside 09:00-19:00 JST {violations[:20]}")
+
+    distribution_violations: list[str] = []
+    for day_key, hours in sorted(day_hours.items()):
+        hourly_counts = [hours.get(hour, 0) for hour in range(9, 19)]
+        spread = max(hourly_counts) - min(hourly_counts)
+        if spread > 2:
+            distribution_violations.append(f"{day_key} hourly_counts={hourly_counts}")
+
+    add_result(
+        errors,
+        not distribution_violations,
+        f"appointments: uneven daily time distribution {distribution_violations[:20]}",
+    )
 
 
 def print_summary(state: SeedState, errors: list[str]) -> None:
@@ -502,7 +518,7 @@ def print_summary(state: SeedState, errors: list[str]) -> None:
         print(tracked_counts)
         print(
             "verified: 7 masters, treatments drift fixes, CHECK equivalent, "
-            "procedure presence, FK, cross-tenant, appointment time window"
+            "procedure presence, FK, cross-tenant, appointment time window, daily distribution"
         )
 
 
