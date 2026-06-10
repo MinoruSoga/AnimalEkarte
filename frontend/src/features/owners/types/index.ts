@@ -68,4 +68,6 @@ export interface OwnerData {
   remarks: string;
   discountRate?: number;
   homePostalCode?: string;
+  /** #84: 登録先医院（新規登録時のみ指定可。未指定は現在の医院） */
+  clinicId?: string;
 }

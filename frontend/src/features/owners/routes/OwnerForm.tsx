@@ -14,6 +14,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
+import { useAuth } from "@/hooks/use-auth";
 import { C, ICON } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
@@ -56,6 +57,8 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("owners");
+  // #84: 登録先医院の選択肢（所属医院のみ）と現在の医院。複数所属時のみセレクト表示
+  const { user, currentClinicId } = useAuth();
   // BUG-372: 割引権限（値引率フィールド制御用）
   const { canEdit: canEditDiscount } = usePermission("discount");
   // 会計履歴セクションは閲覧専用なので accounting:view で出し分ける。
@@ -241,6 +244,8 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
           fieldErrors={fieldErrors}
           isEdit={isEdit}
           canEditDiscount={canEditDiscount}
+          clinicOptions={user?.clinics}
+          currentClinicId={currentClinicId}
           onChange={handleInputChange}
           onClearError={clearFieldError}
           onMembershipChange={handleMembershipChange}

@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 
@@ -63,6 +64,28 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
+	}
+
+	// #84: 登録時の医院指定 (Q11=A 所属医院のみ / Q12=A 登録フォームのみ)。
+	// req.ClinicID はユーザー入力のためここでの所属検証が唯一の防壁。
+	// 検証なしで service へ渡すとクロステナント書き込みになる。
+	// system_admin は X-Clinic-ID 検証 (middleware/auth.go) と同様に全医院を許可する。
+	if req.ClinicID != nil && *req.ClinicID != clinicID {
+		isAdmin, ok := extractIsSystemAdmin(c)
+		if !ok {
+			return
+		}
+		if !isAdmin {
+			clinicIDs, ok := extractClinicIDs(c)
+			if !ok {
+				return
+			}
+			if !slices.Contains(clinicIDs, *req.ClinicID) {
+				RespondError(c, apperrors.WrapForbidden("not assigned to this clinic"))
+				return
+			}
+		}
+		clinicID = *req.ClinicID
 	}
 
 	// BUG-372: discount_rate にゼロ以外を指定する場合は権限要

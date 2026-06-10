@@ -337,6 +337,78 @@ func TestCreateOwner(t *testing.T) {
 			},
 			wantStatus: http.StatusConflict,
 		},
+		// ---- #84: 登録時の医院指定 (clinic_id) の所属検証 ----
+		{
+			name: "creates owner in specified assigned clinic",
+			body: func() map[string]any {
+				b := validBody()
+				b["clinic_id"] = 2
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			svc: &mockOwnerService{
+				createWithPetsFn: func(_ context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error) {
+					assert.Equal(t, uint64(2), clinicID)
+					return &model.Owner{ID: 1, ClinicID: clinicID, Name: input.OwnerName}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "returns 403 when specified clinic is not assigned",
+			body: func() map[string]any {
+				b := validBody()
+				b["clinic_id"] = 99
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name: "system_admin can create owner in any clinic",
+			body: func() map[string]any {
+				b := validBody()
+				b["clinic_id"] = 99
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", true)
+			},
+			svc: &mockOwnerService{
+				createWithPetsFn: func(_ context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error) {
+					assert.Equal(t, uint64(99), clinicID)
+					return &model.Owner{ID: 1, ClinicID: clinicID, Name: input.OwnerName}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "specified clinic equal to context clinic skips assignment check",
+			body: func() map[string]any {
+				b := validBody()
+				b["clinic_id"] = 1
+				return b
+			}(),
+			// clinic_ids / is_system_admin 未設定でも JWT clinic と同一なら検証不要で通る
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOwnerService{
+				createWithPetsFn: func(_ context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return &model.Owner{ID: 1, ClinicID: clinicID, Name: input.OwnerName}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
 	}
 
 	for _, tt := range tests {

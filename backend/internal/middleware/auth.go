@@ -150,6 +150,7 @@ func Auth(secret string, isProduction bool, auditSvc service.AuditService, staff
 			}
 		}
 		c.Set("clinic_id", clinicID)
+		c.Set("clinic_ids", claims.ClinicIDs) // #84: 所属医院リスト(owner作成時の医院選択の所属検証に使用)
 
 		c.Next()
 	}

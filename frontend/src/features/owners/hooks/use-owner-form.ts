@@ -181,6 +181,8 @@ export function useOwnerForm(
         } else {
           const createData: CreateOwnerRequest = {
             ...ownerRequestPayload,
+            // #84: 登録先医院の指定（未選択時は undefined → サーバ側で現在の医院）
+            clinic_id: ownerData.clinicId ? Number(ownerData.clinicId) : undefined,
           };
           const newOwner = await createOwner(createData);
           await queryClient.invalidateQueries({ queryKey: ["owners"] });

@@ -47,6 +47,8 @@ export interface Owner {
  * @see backend/internal/handler/owner_request.go createOwnerRequest
  */
 export interface CreateOwnerRequest {
+  /** #84: 登録先医院の任意指定（所属医院のみ）。未指定時はサーバ側で現在の医院になる */
+  clinic_id?: number;
   owner_name: string;
   owner_name_kana?: string;
   birth_date?: string;
