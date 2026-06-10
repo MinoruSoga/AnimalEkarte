@@ -15,7 +15,7 @@ import (
 
 // mockMedicalRecordRepository は MedicalRecordRepository のテスト用モック実装
 type mockMedicalRecordRepository struct {
-	findAllFn func(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	findAllFn                         func(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	findByIDFn                        func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	createFn                          func(ctx context.Context, record *model.MedicalRecord) error
 	updateFieldsFn                    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
@@ -38,6 +38,10 @@ func (m *mockMedicalRecordRepository) FindByID(ctx context.Context, clinicID, id
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
 	return nil, nil
 }
 
@@ -120,6 +124,9 @@ func (m *mrMockOwnerRepo) FindAll(_ context.Context, _ []uint64, _, _ int, _ str
 func (m *mrMockOwnerRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	return m.findByIDFn(ctx, clinicID, id)
 }
+func (m *mrMockOwnerRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
+	return nil, nil
+}
 func (m *mrMockOwnerRepo) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {
 	return nil
 }
@@ -171,6 +178,9 @@ func (m *mrMockPetRepo) FindAll(_ context.Context, _ uint64, _ *uint64, _, _ int
 }
 func (m *mrMockPetRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
 	return m.findByIDFn(ctx, clinicID, id)
+}
+func (m *mrMockPetRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Pet, error) {
+	return nil, nil
 }
 func (m *mrMockPetRepo) CountByOwner(_ context.Context, _, _ uint64) (int64, error) { return 0, nil }
 func (m *mrMockPetRepo) CountLivingByOwner(_ context.Context, _, _ uint64) (int64, error) {
@@ -1322,6 +1332,9 @@ func (m *mockReservationRepoForMedicalRecord) FindByID(ctx context.Context, clin
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
+	return nil, nil
+}
+func (m *mockReservationRepoForMedicalRecord) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
 	return nil, nil
 }
 func (m *mockReservationRepoForMedicalRecord) FindAll(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {

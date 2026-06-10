@@ -107,6 +107,9 @@ func (m *mockAnalyticsOwnerRepo) FindByID(ctx context.Context, clinicID, id uint
 	}
 	return nil, nil
 }
+func (m *mockAnalyticsOwnerRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
+	return nil, nil
+}
 func (m *mockAnalyticsOwnerRepo) FindByEmail(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
 	return nil, nil
 }

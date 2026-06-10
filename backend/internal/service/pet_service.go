@@ -151,6 +151,8 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 type PetService interface {
 	List(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	// GetByIDForClinics は複数医院スコープでペットを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
 	Create(ctx context.Context, clinicID uint64, input *CreatePetInput) (*model.Pet, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -196,6 +198,15 @@ func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.P
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get pet")
+	}
+	return pet, nil
+}
+
+func (s *petService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
+	pet, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get pet for clinics", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get pet for clinics")
 	}
 	return pet, nil
 }

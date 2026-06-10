@@ -14,7 +14,7 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
-	findAllFn func(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
+	findAllFn                          func(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	createFn                           func(ctx context.Context, reservation *model.Reservation) error
 	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
@@ -32,6 +32,10 @@ func (m *mockReservationRepository) FindByID(ctx context.Context, clinicID, id u
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
+	return nil, nil
+}
+
+func (m *mockReservationRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
 	return nil, nil
 }
 

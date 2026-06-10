@@ -43,6 +43,7 @@ type CreateBillingItemInput struct {
 	AppointmentID         *uint64
 	TrimmingCourseID      *uint64
 	TrimmingOptionID      *uint64
+	MerchandiseItemID     *uint64 // #81: 個別商品指定によるキャンペーンマッチング
 	SortOrder             int
 }
 
@@ -132,9 +133,8 @@ func NewBillingItemServiceWithCampaign(repo repository.BillingItemRepository, bi
 }
 
 // resolveAutoDiscount は #81 段階2b: 明細に適用するキャンペーン/飼主割引額を算出する(best-effort)。
-// campaignRepo 未配線時は 0。会計日(billing.ScheduledDate)・明細カテゴリで該当キャンペーンを検索し、
+// campaignRepo 未配線時は 0。会計日(billing.ScheduledDate)・明細カテゴリ・個別商品IDで該当キャンペーンを検索し、
 // 飼主割引と高い方を採用する(CalculateItemCampaignDiscount)。
-// 注: CreateBillingItemInput に merchandise_item_id が無いためカテゴリ判定のみ(商品個別指定は将来対応)。
 func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *CreateBillingItemInput) int64 {
 	if s.campaignRepo == nil {
 		return 0
@@ -149,7 +149,7 @@ func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *Cre
 			ownerRate = owner.DiscountRate
 		}
 	}
-	campaign, cerr := s.campaignRepo.FindApplicableForItem(ctx, input.ClinicID, billing.ScheduledDate, model.ItemCategory(input.Category), nil)
+	campaign, cerr := s.campaignRepo.FindApplicableForItem(ctx, input.ClinicID, billing.ScheduledDate, model.ItemCategory(input.Category), input.MerchandiseItemID)
 	if cerr != nil {
 		campaign = nil // best-effort: キャンペーン検索失敗は割引なしで続行
 	}

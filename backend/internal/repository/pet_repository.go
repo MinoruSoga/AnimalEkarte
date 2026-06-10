@@ -13,6 +13,8 @@ import (
 type PetRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	// FindByIDForClinics は複数医院スコープでペットを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
 	FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
 	CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	// CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL）を返す。
@@ -79,6 +81,19 @@ func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*mod
 		Preload("AnimalSpecies").
 		Preload("Insurance", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&pet).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
+	}
+	return &pet, nil
+}
+
+func (r *petRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
+	var pet model.Pet
+	err := r.db.WithContext(ctx).
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("AnimalSpecies").
+		Preload("Insurance", "deleted_at IS NULL").
+		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&pet).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
 	}

@@ -24,6 +24,9 @@ func (m *batchMockReservationRepo) FindAll(_ context.Context, _ []uint64, _, _ i
 func (m *batchMockReservationRepo) FindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, nil
 }
+func (m *batchMockReservationRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
+	return nil, nil
+}
 func (m *batchMockReservationRepo) Create(_ context.Context, _ *model.Reservation) error { return nil }
 func (m *batchMockReservationRepo) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	if m.updateFn != nil {
@@ -81,6 +84,9 @@ func (m *batchMockMedRecordRepo) FindAll(_ context.Context, _ []uint64, _, _ *ui
 	return nil, 0, nil
 }
 func (m *batchMockMedRecordRepo) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+func (m *batchMockMedRecordRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
 	return nil, nil
 }
 func (m *batchMockMedRecordRepo) Create(_ context.Context, _ *model.MedicalRecord) error { return nil }

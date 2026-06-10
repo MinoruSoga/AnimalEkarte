@@ -263,6 +263,7 @@ type createBillingItemRequest struct {
 	AppointmentID         *uint64 `json:"appointment_id"`
 	TrimmingCourseID      *uint64 `json:"trimming_course_id"`
 	TrimmingOptionID      *uint64 `json:"trimming_option_id"`
+	MerchandiseItemID     *uint64 `json:"merchandise_item_id"`
 	SortOrder             int     `json:"sort_order"`
 }
 
@@ -284,6 +285,7 @@ func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *service.Crea
 		AppointmentID:         r.AppointmentID,
 		TrimmingCourseID:      r.TrimmingCourseID,
 		TrimmingOptionID:      r.TrimmingOptionID,
+		MerchandiseItemID:     r.MerchandiseItemID,
 		SortOrder:             r.SortOrder,
 	}
 }

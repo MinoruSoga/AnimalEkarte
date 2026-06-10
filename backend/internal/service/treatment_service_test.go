@@ -23,6 +23,9 @@ func (m *mockMedicalRecordRepoForTreatment) FindAll(_ context.Context, _ []uint6
 func (m *mockMedicalRecordRepoForTreatment) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 	return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 }
+func (m *mockMedicalRecordRepoForTreatment) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
 func (m *mockMedicalRecordRepoForTreatment) Create(_ context.Context, _ *model.MedicalRecord) error {
 	return nil
 }

@@ -18,6 +18,8 @@ type OwnerRepository interface {
 	// clinicIDs はハンドラ層で所属検証済みであること。
 	FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	// FindByIDForClinics は複数医院スコープで飼主を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error)
 	FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
 	FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error)
 	FindByNameAndPhone(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error)
@@ -90,6 +92,15 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	var owner model.Owner
 	err := r.db.WithContext(ctx).Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "deleted_at IS NULL").Preload("Pets.Owner", "deleted_at IS NULL").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&owner).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
+	}
+	return &owner, nil
+}
+
+func (r *ownerRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+	var owner model.Owner
+	err := r.db.WithContext(ctx).Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "deleted_at IS NULL").Preload("Pets.Owner", "deleted_at IS NULL").Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&owner).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}

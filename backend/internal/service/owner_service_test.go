@@ -38,6 +38,10 @@ func (m *mockOwnerRepository) FindByID(ctx context.Context, clinicID, id uint64)
 	return nil, nil
 }
 
+func (m *mockOwnerRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
+	return nil, nil
+}
+
 func (m *mockOwnerRepository) FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error) {
 	if m.findByEmailFn != nil {
 		return m.findByEmailFn(ctx, clinicID, email)

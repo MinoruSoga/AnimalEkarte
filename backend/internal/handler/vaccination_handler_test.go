@@ -72,6 +72,9 @@ func (m *mockPetService) GetByID(ctx context.Context, clinicID, id uint64) (*mod
 	}
 	return &model.Pet{ID: id}, nil
 }
+func (m *mockPetService) GetByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Pet, error) {
+	return nil, nil
+}
 func (m *mockPetService) Create(_ context.Context, _ uint64, _ *service.CreatePetInput) (*model.Pet, error) {
 	return nil, nil
 }

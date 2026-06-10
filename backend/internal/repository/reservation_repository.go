@@ -17,6 +17,8 @@ type ReservationCRUDRepository interface {
 	// FindAll は指定した複数医院 (#86 拠点横断) の予約を検索する。clinicIDs はハンドラ層で所属検証済みであること。
 	FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	// FindByIDForClinics は複数医院スコープで予約を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, reservation *model.Reservation) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -124,6 +126,23 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CreatedByStaff", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&reservation).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
+	}
+	return &reservation, nil
+}
+
+func (r *reservationRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
+	var reservation model.Reservation
+	err := dbOrTx(ctx, r.db).
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("Pet", "deleted_at IS NULL").
+		Preload("Pet.Owner", "deleted_at IS NULL").
+		Preload("Pet.AnimalSpecies").
+		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
+		Preload("CreatedByStaff", "deleted_at IS NULL").
+		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&reservation).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}

@@ -283,6 +283,10 @@ func (m *mockLiffOwnerRepository) FindByID(_ context.Context, _, _ uint64) (*mod
 	return nil, apperrors.ErrNotFound
 }
 
+func (m *mockLiffOwnerRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
+	return nil, apperrors.ErrNotFound
+}
+
 func (m *mockLiffOwnerRepository) FindByEmail(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
 	return nil, apperrors.ErrNotFound
 }
@@ -346,6 +350,10 @@ func (m *mockLiffReservationRepository) FindAll(_ context.Context, _ []uint64, _
 }
 
 func (m *mockLiffReservationRepository) FindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+	return nil, apperrors.ErrNotFound
+}
+
+func (m *mockLiffReservationRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
 	return nil, apperrors.ErrNotFound
 }
 

@@ -41,7 +41,8 @@ func (h *Handler) ListReservations(c *gin.Context) {
 
 // GetReservation godoc
 func (h *Handler) GetReservation(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
+	clinicIDs, ok := resolveAllClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -49,7 +50,7 @@ func (h *Handler) GetReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	reservation, err := h.svc.Reservation.GetByID(c.Request.Context(), clinicID, id)
+	reservation, err := h.svc.Reservation.GetByIDForClinics(c.Request.Context(), clinicIDs, id)
 	if err != nil {
 		RespondError(c, err)
 		return

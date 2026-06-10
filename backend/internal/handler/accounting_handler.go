@@ -67,7 +67,8 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 
 // GetAccounting godoc
 func (h *Handler) GetAccounting(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
+	clinicIDs, ok := resolveAllClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -76,7 +77,7 @@ func (h *Handler) GetAccounting(c *gin.Context) {
 	if !ok {
 		return
 	}
-	accounting, err := h.svc.Accounting.GetByID(c.Request.Context(), clinicID, id)
+	accounting, err := h.svc.Accounting.GetByIDForClinics(c.Request.Context(), clinicIDs, id)
 	if err != nil {
 		RespondError(c, err)
 		return

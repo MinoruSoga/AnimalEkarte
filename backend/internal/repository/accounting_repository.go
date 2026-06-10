@@ -18,6 +18,8 @@ type AccountingRepository interface {
 	// FindAllForClinics は複数医院の会計を横断検索する (#86 段階3)。clinicIDs はハンドラ層で所属検証済みであること。
 	FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	// FindByIDForClinics は複数医院スコープで会計を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
 	// LockAndFindByID は FOR UPDATE で請求を行ロック取得する（TOCTOU 防止）。トランザクション内でのみ使用。
 	LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
@@ -185,6 +187,29 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
 	}
 	// Preload した Refunds から TotalRefundedAmount を計算（FindAll と同じ算出ロジック）
+	var total int64
+	for i := range billing.Refunds {
+		total += billing.Refunds[i].Amount
+	}
+	billing.TotalRefundedAmount = total
+	return &billing, nil
+}
+
+func (r *accountingRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error) {
+	var billing model.Billing
+	err := r.db.WithContext(ctx).
+		Preload("Items", "deleted_at IS NULL").
+		Preload("Payments", "deleted_at IS NULL").
+		Preload("Payments.PaidByStaff", "deleted_at IS NULL").
+		Preload("Refunds").
+		Preload("Refunds.RefundedByStaff").
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("Pet", "deleted_at IS NULL").
+		Preload("PaymentSplits").
+		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&billing).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
+	}
 	var total int64
 	for i := range billing.Refunds {
 		total += billing.Refunds[i].Amount

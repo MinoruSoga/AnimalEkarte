@@ -76,6 +76,8 @@ type AccountingService interface {
 	// ListForClinics は複数医院の会計を横断検索する (#86 段階3)。clinicIDs はハンドラ層で所属検証済みであること。
 	ListForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	// GetByIDForClinics は複数医院スコープで会計を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error)
 	Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error)
 	// BUG-371: 論理削除（status=cancelled）。ハード削除（旧 Delete）の代替

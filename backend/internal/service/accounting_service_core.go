@@ -35,6 +35,15 @@ func (s *accountingService) GetByID(ctx context.Context, clinicID, id uint64) (*
 	return result, nil
 }
 
+func (s *accountingService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error) {
+	result, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get accounting for clinics", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get accounting for clinics")
+	}
+	return result, nil
+}
+
 func (s *accountingService) Create(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error) {
 	if input.ScheduledDate.IsZero() {
 		return nil, apperrors.WrapInvalidInput("scheduled_date is required")

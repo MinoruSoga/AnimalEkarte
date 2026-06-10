@@ -38,6 +38,10 @@ func (m *mockTrimmingReservationRepository) FindByID(ctx context.Context, clinic
 	return nil, apperrors.WrapNotFound("appointment", "0")
 }
 
+func (m *mockTrimmingReservationRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
+	return nil, nil
+}
+
 func (m *mockTrimmingReservationRepository) Create(ctx context.Context, appt *model.Reservation) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, appt)

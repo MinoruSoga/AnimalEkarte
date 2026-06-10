@@ -43,6 +43,10 @@ func (m *mockOwnerService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
+func (m *mockOwnerService) GetByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
+	return nil, nil
+}
+
 func (m *mockOwnerService) CreateWithPets(ctx context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error) {
 	return m.createWithPetsFn(ctx, clinicID, input)
 }

@@ -41,6 +41,10 @@ func (m *mockMedicalRecordService) GetByID(ctx context.Context, clinicID, id uin
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
+func (m *mockMedicalRecordService) GetByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+
 func (m *mockMedicalRecordService) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
 	if m.countByPetFn != nil {
 		return m.countByPetFn(ctx, clinicID, petID)

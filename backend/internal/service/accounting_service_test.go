@@ -39,6 +39,10 @@ func (m *mockAccountingRepository) FindByID(ctx context.Context, clinicID, id ui
 	return nil, nil
 }
 
+func (m *mockAccountingRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Billing, error) {
+	return nil, nil
+}
+
 func (m *mockAccountingRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)

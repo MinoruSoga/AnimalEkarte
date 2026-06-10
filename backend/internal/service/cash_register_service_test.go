@@ -62,7 +62,13 @@ type mockAccountingRepositoryForClose struct {
 func (m *mockAccountingRepositoryForClose) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
 	return nil, 0, nil
 }
+func (m *mockAccountingRepositoryForClose) FindAllForClinics(_ context.Context, _ []uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
+	return nil, 0, nil
+}
 func (m *mockAccountingRepositoryForClose) FindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
+	return nil, nil
+}
+func (m *mockAccountingRepositoryForClose) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Billing, error) {
 	return nil, nil
 }
 func (m *mockAccountingRepositoryForClose) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {

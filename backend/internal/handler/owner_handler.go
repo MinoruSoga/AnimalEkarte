@@ -39,7 +39,8 @@ func (h *Handler) ListOwners(c *gin.Context) {
 
 // GetOwner godoc
 func (h *Handler) GetOwner(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
+	clinicIDs, ok := resolveAllClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -47,7 +48,7 @@ func (h *Handler) GetOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
-	owner, err := h.svc.Owner.GetByID(c.Request.Context(), clinicID, id)
+	owner, err := h.svc.Owner.GetByIDForClinics(c.Request.Context(), clinicIDs, id)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -29,6 +29,8 @@ type MedicalRecordRepository interface {
 	// FindAll は指定した複数医院 (#86 拠点横断) のカルテを検索する。clinicIDs はハンドラ層で所属検証済みであること。
 	FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	// FindByIDForClinics は複数医院スコープでカルテを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -104,6 +106,23 @@ func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uin
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.AnimalSpecies").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&record).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
+	}
+	return &record, nil
+}
+
+func (r *medicalRecordRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error) {
+	var record model.MedicalRecord
+	err := r.db.WithContext(ctx).
+		Preload("Treatments", "deleted_at IS NULL").
+		Preload("Vitals").
+		Preload("Doctor", "deleted_at IS NULL").
+		Preload("EnteredByStaff", "deleted_at IS NULL").
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("Pet", "deleted_at IS NULL").
+		Preload("Pet.AnimalSpecies").
+		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&record).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
 	}

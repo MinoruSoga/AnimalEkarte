@@ -117,6 +117,9 @@ func (m *mockOwnerRepoForDelivery) FindByID(ctx context.Context, clinicID, id ui
 	}
 	return nil, nil
 }
+func (m *mockOwnerRepoForDelivery) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
+	return nil, nil
+}
 func (m *mockOwnerRepoForDelivery) FindByEmail(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
 	return nil, nil
 }
@@ -167,6 +170,9 @@ func (m *mockMedRecordRepoForDelivery) FindAll(_ context.Context, _ []uint64, _,
 	return nil, 0, nil
 }
 func (m *mockMedRecordRepoForDelivery) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+func (m *mockMedRecordRepoForDelivery) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
 	return nil, nil
 }
 func (m *mockMedRecordRepoForDelivery) Create(_ context.Context, _ *model.MedicalRecord) error {
@@ -298,6 +304,9 @@ func (m *mockPetRepoForDelivery) FindAll(_ context.Context, _ uint64, _ *uint64,
 	return nil, 0, nil
 }
 func (m *mockPetRepoForDelivery) FindByID(_ context.Context, _, _ uint64) (*model.Pet, error) {
+	return nil, nil
+}
+func (m *mockPetRepoForDelivery) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Pet, error) {
 	return nil, nil
 }
 func (m *mockPetRepoForDelivery) FindLivingByOwner(_ context.Context, _, _ uint64) ([]model.Pet, error) {

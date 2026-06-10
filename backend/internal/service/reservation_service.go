@@ -96,6 +96,8 @@ type ReservationService interface {
 	// List は指定した複数医院 (#86 拠点横断) の予約一覧を返す。clinicIDs はハンドラ層で所属検証済みであること。
 	List(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	// GetByIDForClinics は複数医院スコープで予約を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -146,6 +148,15 @@ func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation")
+	}
+	return result, nil
+}
+
+func (s *reservationService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
+	result, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation for clinics", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get reservation for clinics")
 	}
 	return result, nil
 }

@@ -38,6 +38,10 @@ func (m *mockReservationService) GetByID(ctx context.Context, clinicID, id uint6
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
+func (m *mockReservationService) GetByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
+	return nil, nil
+}
+
 func (m *mockReservationService) Create(ctx context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error) {
 	return m.createFn(ctx, input)
 }

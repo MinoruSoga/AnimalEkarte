@@ -26,6 +26,15 @@ func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model
 	return owner, nil
 }
 
+func (s *ownerService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+	owner, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get owner for clinics", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get owner for clinics")
+	}
+	return owner, nil
+}
+
 func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error) {
 	if err := validateCreateOwnerInput(input); err != nil {
 		return nil, err
