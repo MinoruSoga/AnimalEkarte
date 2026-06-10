@@ -141,18 +141,18 @@ func resolveListClinicIDs(c *gin.Context) ([]uint64, bool) {
 // system_admin は mainClinicID 単体を返す（全医院スキャン防止）。
 // 戻り値は必ず1件以上。失敗時は HTTPエラーを書いて (nil, false) を返す。
 func resolveAllClinicIDs(c *gin.Context) ([]uint64, bool) {
-	isAdmin, ok := extractIsSystemAdmin(c)
-	if !ok {
-		return nil, false
-	}
 	clinicID, ok := extractClinicID(c) // mainClinicID (always present)
 	if !ok {
 		return nil, false
 	}
-	if isAdmin {
-		return []uint64{clinicID}, true
+	// is_system_admin / clinic_ids は JWT ミドルウェアが設定する。
+	// extractIsSystemAdmin/extractClinicIDs はエラー時に 401 を書くため、
+	// フォールバックが必要なここでは直接ペークする。
+	if val, exists := c.Get("is_system_admin"); exists {
+		if isAdmin, _ := val.(bool); isAdmin {
+			return []uint64{clinicID}, true
+		}
 	}
-	// extractClinicIDs はエラー時に 401 を書くため、ここでは直接 peek する
 	if val, exists := c.Get("clinic_ids"); exists {
 		if ids, ok2 := val.([]uint64); ok2 && len(ids) > 0 {
 			return ids, true

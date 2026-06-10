@@ -110,10 +110,9 @@ func newHandlerWithOwnerSvc(svc service.OwnerService) *Handler {
 	}
 }
 
-// setClinicID は gin.Context に clinic_id + is_system_admin を設定するヘルパー
+// setClinicID は gin.Context に clinic_id を設定するヘルパー
 func setClinicID(c *gin.Context) {
 	c.Set("clinic_id", "1")
-	c.Set("is_system_admin", false)
 }
 
 // ---- ListOwners ----
