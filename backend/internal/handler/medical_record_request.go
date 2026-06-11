@@ -256,12 +256,17 @@ func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (service.Upda
 	}
 
 	var nextVisitDate *time.Time
-	if r.NextVisitRecommendedDate != nil && *r.NextVisitRecommendedDate != "" {
-		parsed, err := time.ParseInLocation("2006-01-02", *r.NextVisitRecommendedDate, time.Local)
-		if err != nil {
-			return service.UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
+	var clearNextVisit bool
+	if r.NextVisitRecommendedDate != nil {
+		if *r.NextVisitRecommendedDate == "" {
+			clearNextVisit = true // 空文字 = 明示的クリア → DB を NULL にする
+		} else {
+			parsed, err := time.ParseInLocation("2006-01-02", *r.NextVisitRecommendedDate, time.Local)
+			if err != nil {
+				return service.UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
+			}
+			nextVisitDate = &parsed
 		}
-		nextVisitDate = &parsed
 	}
 
 	var visitType *model.VisitType
@@ -274,15 +279,16 @@ func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (service.Upda
 	}
 
 	return service.UpdateMedicalRecordInput{
-		Date:                     r.Date,
-		OwnerID:                  r.OwnerID,
-		PetID:                    r.PetID,
-		DoctorID:                 r.DoctorID,
-		AppointmentID:            r.AppointmentID,
-		Status:                   status,
-		Version:                  r.Version,
-		NextVisitRecommendedDate: nextVisitDate,
-		VisitType:                visitType,
-		ActorID:                  &actorID,
+		Date:                          r.Date,
+		OwnerID:                       r.OwnerID,
+		PetID:                         r.PetID,
+		DoctorID:                      r.DoctorID,
+		AppointmentID:                 r.AppointmentID,
+		Status:                        status,
+		Version:                       r.Version,
+		NextVisitRecommendedDate:      nextVisitDate,
+		ClearNextVisitRecommendedDate: clearNextVisit,
+		VisitType:                     visitType,
+		ActorID:                       &actorID,
 	}, nil
 }

@@ -86,6 +86,7 @@ export function useMedicalRecordForm(recordId?: string) {
     setPlan,
     setAssessment,
     setVisitType,
+    setNextVisitDate,
   });
 
   // petIdを決定: 新規作成時はURLパラメータ、編集時はカルテのpetId
@@ -171,13 +172,14 @@ export function useMedicalRecordForm(recordId?: string) {
               diagnosis_2_name_id: diagnosis2NameId ?? undefined,
             };
             await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
-            // 次回来院推奨日を更新（空欄の場合は送信しない）
-            if (nextVisitDate) {
-              await updateMutation.mutateAsync({
-                id: recordId as string,
-                req: { next_recommended_visit_date: nextVisitDate } as UpdateMedicalRecordRequest,
-              });
-            }
+            // 次回来院推奨日を更新（空欄 = クリア、値あり = 設定）
+            await updateMutation.mutateAsync({
+              id: recordId as string,
+              req: {
+                next_visit_recommended_date: nextVisitDate, // "" はBEでNULLクリア
+                version: existingRecord?.version,
+              } as UpdateMedicalRecordRequest,
+            });
             break;
           }
 
@@ -251,6 +253,30 @@ export function useMedicalRecordForm(recordId?: string) {
       }
     });
   }, [visitType, recordId, existingRecord?.version, updateMutation, startSaveTransition]);
+
+  // 次回予定変更ハンドラ（ヘッダー NextVisitButton 用・即時PATCH）
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const handleNextVisitDatePatch = useCallback((newDate: string) => {
+    const prev = nextVisitDate;
+    setNextVisitDate(newDate);
+    if (!recordId) return;
+    startSaveTransition(async () => {
+      try {
+        await updateMutation.mutateAsync({
+          id: recordId,
+          req: {
+            next_visit_recommended_date: newDate, // "" = クリア
+            version: existingRecord?.version,
+          } as UpdateMedicalRecordRequest,
+        });
+        await queryClient.invalidateQueries({ queryKey: ["medical-record", recordId] });
+        toast.success(newDate ? `次回予定を ${newDate} に設定しました` : "次回予定をクリアしました");
+      } catch (error) {
+        setNextVisitDate(prev); // rollback
+        handleApiError(error, "次回予定変更");
+      }
+    });
+  }, [nextVisitDate, recordId, existingRecord?.version, updateMutation, queryClient, startSaveTransition]);
 
   // 診察日変更ハンドラ
   // existingRecord?.version のみ参照するため object 全体を dep に含めない (OCC versioning)
@@ -368,6 +394,7 @@ export function useMedicalRecordForm(recordId?: string) {
     // 次回来院推奨日
     nextVisitDate,
     handleNextVisitDateChange: setNextVisitDate,
+    handleNextVisitDatePatch,
     isNextVisitDateValid,
     handleNextVisitDateValidChange: setIsNextVisitDateValid,
     // 推奨理由: edit mode は existingRecord から、create mode は local state から

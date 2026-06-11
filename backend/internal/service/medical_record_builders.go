@@ -53,7 +53,9 @@ func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
 	if input.Status != nil {
 		fields["status"] = *input.Status
 	}
-	if input.NextVisitRecommendedDate != nil {
+	if input.ClearNextVisitRecommendedDate {
+		fields["next_visit_recommended_date"] = nil
+	} else if input.NextVisitRecommendedDate != nil {
 		fields["next_visit_recommended_date"] = *input.NextVisitRecommendedDate
 	}
 	if input.VisitType != nil {

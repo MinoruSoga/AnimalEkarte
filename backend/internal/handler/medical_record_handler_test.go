@@ -996,6 +996,81 @@ func TestCreateMedicalRecordRequest_ToServiceInput_VisitType(t *testing.T) {
 	}
 }
 
+// ---- next_visit_recommended_date clear/set tests ----
+
+// TestUpdateMedicalRecordRequest_NextVisitDate は次回来院推奨日の更新・クリア・省略を確認する。
+func TestUpdateMedicalRecordRequest_NextVisitDate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name            string
+		body            any
+		wantStatus      int
+		wantClear       bool
+		wantDatePresent bool
+	}{
+		{
+			name:            "next_visit_recommended_date='' → ClearNextVisitRecommendedDate=true",
+			body:            map[string]any{"next_visit_recommended_date": ""},
+			wantStatus:      http.StatusOK,
+			wantClear:       true,
+			wantDatePresent: false,
+		},
+		{
+			name:            "next_visit_recommended_date=valid date → set",
+			body:            map[string]any{"next_visit_recommended_date": "2030-01-15"},
+			wantStatus:      http.StatusOK,
+			wantClear:       false,
+			wantDatePresent: true,
+		},
+		{
+			name:            "next_visit_recommended_date omitted → no update (mock returns 200)",
+			body:            map[string]any{},
+			wantStatus:      http.StatusOK,
+			wantClear:       false,
+			wantDatePresent: false,
+		},
+		{
+			name:       "next_visit_recommended_date=invalid → 400",
+			body:       map[string]any{"next_visit_recommended_date": "not-a-date"},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotInput service.UpdateMedicalRecordInput
+			h := newHandlerWithMedicalRecordSvc(&mockMedicalRecordService{
+				updateFn: func(_ context.Context, _, _ uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+					gotInput = input
+					return &model.MedicalRecord{ID: 1}, nil
+				},
+			}, &mockClinicalPlanService{})
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "1"}}
+			setClinicID(c)
+			c.Set("user_id", "1")
+			h.UpdateMedicalRecord(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantStatus == http.StatusOK {
+				assert.Equal(t, tt.wantClear, gotInput.ClearNextVisitRecommendedDate)
+				if tt.wantDatePresent {
+					assert.NotNil(t, gotInput.NextVisitRecommendedDate)
+				} else {
+					assert.Nil(t, gotInput.NextVisitRecommendedDate)
+				}
+			}
+		})
+	}
+}
+
 // ---- view permission gate tests ----
 
 // TestListMedicalRecords_ViewPermissionDenied は view 権限を持たない非 system_admin が 403 を受けることを確認する。

@@ -87,6 +87,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     cancelOwnerChange,
     nextVisitDate,
     handleNextVisitDateChange,
+    handleNextVisitDatePatch,
     isNextVisitDateValid: _isNextVisitDateValid,
     handleNextVisitDateValidChange,
     recommendationReason,
@@ -276,7 +277,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         onStaffClick={handleOpenStaffModal}
         onOwnerClick={handleOpenOwnerSearch}
         onDateChange={handleChangeDate}
-        onNextVisitDateChange={handleNextVisitDateChange}
+        onNextVisitDatePatch={handleNextVisitDatePatch}
         onNextVisitDateValidChange={handleNextVisitDateValidChange}
         hasLineIntegration={hasLineIntegration}
       />

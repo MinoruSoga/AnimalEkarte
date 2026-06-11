@@ -36,7 +36,7 @@ interface MedicalRecordStickyHeaderProps {
   onStaffClick: () => void;
   onOwnerClick: () => void;
   onDateChange?: (date: string) => void;
-  onNextVisitDateChange: (date: string) => void;
+  onNextVisitDatePatch: (date: string) => void;
   onNextVisitDateValidChange: (valid: boolean) => void;
   hasLineIntegration?: boolean;
 }
@@ -56,7 +56,7 @@ export function MedicalRecordStickyHeader({
   onStaffClick,
   onOwnerClick,
   onDateChange,
-  onNextVisitDateChange,
+  onNextVisitDatePatch,
   onNextVisitDateValidChange,
   hasLineIntegration,
 }: MedicalRecordStickyHeaderProps) {
@@ -119,7 +119,7 @@ export function MedicalRecordStickyHeader({
       {!isNewRecord ? (
         <NextVisitButton
           value={nextVisitDate}
-          onChange={onNextVisitDateChange}
+          onChange={onNextVisitDatePatch}
           onValidationChange={onNextVisitDateValidChange}
           hasLineIntegration={hasLineIntegration}
           disabled={!canEdit || isFinalized}

@@ -10,16 +10,17 @@ import (
 
 // UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO
 type UpdateMedicalRecordInput struct {
-	Date                     *time.Time
-	OwnerID                  *uint64
-	PetID                    *uint64
-	DoctorID                 *uint64
-	AppointmentID            *uint64
-	Status                   *model.MedicalRecordStatus
-	Version                  *int // 楽観的ロック用: nil の場合はチェックをスキップ
-	NextVisitRecommendedDate *time.Time
-	VisitType                *model.VisitType
-	ActorID                  *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
+	Date                          *time.Time
+	OwnerID                       *uint64
+	PetID                         *uint64
+	DoctorID                      *uint64
+	AppointmentID                 *uint64
+	Status                        *model.MedicalRecordStatus
+	Version                       *int // 楽観的ロック用: nil の場合はチェックをスキップ
+	NextVisitRecommendedDate      *time.Time
+	ClearNextVisitRecommendedDate bool // true の場合 DB を NULL にクリアする
+	VisitType                     *model.VisitType
+	ActorID                       *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
 }
 
 // CreateMedicalRecordInput はカルテ作成のサービス入力 DTO

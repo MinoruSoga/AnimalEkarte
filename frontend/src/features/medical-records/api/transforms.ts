@@ -27,6 +27,7 @@ export const transformMedicalRecord = (
     doctor: record.doctor?.name ?? String(record.doctor_id ?? ""),
     status: (statusMap[record.status] ?? "作成中") as MedicalRecordStatus,
     visitType: record.visit_type != null ? fromVisitTypeValue(record.visit_type) : undefined,
+    nextVisitRecommendedDate: record.next_visit_recommended_date ?? "",
     subjective: undefined,
     objective: record.clinical_plan?.physical_exam,
     assessment: record.clinical_plan?.diagnosis_details,
