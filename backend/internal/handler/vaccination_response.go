@@ -6,6 +6,12 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// vaccineSummaryResponse は接種記録要約内で使用するワクチンの要約型
+type vaccineSummaryResponse struct {
+	ID   uint64 `json:"id"`
+	Name string `json:"name"`
+}
+
 type vaccinationResponse struct {
 	ID               uint64     `json:"id"`
 	ClinicID         uint64     `json:"clinic_id"`
@@ -24,6 +30,10 @@ type vaccinationResponse struct {
 	Remarks          string     `json:"remarks"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+	// リレーション: 一覧で飼主名/ペット名/ワクチン名/担当医を表示するため。Preload 時のみ埋まる。
+	Pet     *petSummaryResponse     `json:"pet,omitempty"`
+	Doctor  *staffSummaryResponse   `json:"doctor,omitempty"`
+	Vaccine *vaccineSummaryResponse `json:"vaccine,omitempty"`
 }
 
 func toVaccinationResponse(v *model.Vaccination) vaccinationResponse {
@@ -32,7 +42,7 @@ func toVaccinationResponse(v *model.Vaccination) vaccinationResponse {
 		s := string(*v.NextScheduleType)
 		nextScheduleType = &s
 	}
-	return vaccinationResponse{
+	resp := vaccinationResponse{
 		ID:               v.ID,
 		ClinicID:         v.ClinicID,
 		MedicalRecordID:  v.MedicalRecordID,
@@ -50,5 +60,14 @@ func toVaccinationResponse(v *model.Vaccination) vaccinationResponse {
 		Remarks:          v.Remarks,
 		CreatedAt:        localTime(v.CreatedAt),
 		UpdatedAt:        localTime(v.UpdatedAt),
+		Pet:              toPetSummary(v.Pet),
+		Doctor:           toStaffSummary(v.Doctor),
 	}
+	if v.Vaccine != nil {
+		resp.Vaccine = &vaccineSummaryResponse{
+			ID:   v.Vaccine.ID,
+			Name: v.Vaccine.Name,
+		}
+	}
+	return resp
 }

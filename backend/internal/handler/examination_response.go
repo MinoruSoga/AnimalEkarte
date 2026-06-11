@@ -6,6 +6,12 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// examTypeSummaryResponse は検査要約内で使用する検査種別の要約型
+type examTypeSummaryResponse struct {
+	ID   uint64 `json:"id"`
+	Name string `json:"name"`
+}
+
 type examinationResponse struct {
 	ID              uint64    `json:"id"`
 	ClinicID        uint64    `json:"clinic_id"`
@@ -19,10 +25,15 @@ type examinationResponse struct {
 	Status          string    `json:"status"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
+	// リレーション: 一覧で飼主名/ペット名/検査種別/担当医を表示するため。Preload 時のみ埋まる。
+	// items は検査項目明細用の別 API (GET /examinations/:id/items) で取得するため、ここには含めない。
+	Pet      *petSummaryResponse      `json:"pet,omitempty"`
+	Doctor   *staffSummaryResponse    `json:"doctor,omitempty"`
+	ExamType *examTypeSummaryResponse `json:"exam_type,omitempty"`
 }
 
 func toExaminationResponse(exam *model.Examination) examinationResponse {
-	return examinationResponse{
+	resp := examinationResponse{
 		ID:              exam.ID,
 		ClinicID:        exam.ClinicID,
 		MedicalRecordID: exam.MedicalRecordID,
@@ -35,7 +46,16 @@ func toExaminationResponse(exam *model.Examination) examinationResponse {
 		Status:          string(exam.Status),
 		CreatedAt:       localTime(exam.CreatedAt),
 		UpdatedAt:       localTime(exam.UpdatedAt),
+		Pet:             toPetSummary(exam.Pet),
+		Doctor:          toStaffSummary(exam.Doctor),
 	}
+	if exam.ExaminationType != nil {
+		resp.ExamType = &examTypeSummaryResponse{
+			ID:   exam.ExaminationType.ID,
+			Name: exam.ExaminationType.Name,
+		}
+	}
+	return resp
 }
 
 // examResultResponse は exam_results 1 行分のレスポンス。
@@ -46,6 +66,7 @@ type examResultResponse struct {
 	Name            string    `json:"name"`
 	InspectionValue string    `json:"inspection_value"`
 	NormalValue     string    `json:"normal_value"`
+	Result          string    `json:"result"`
 	Unit            string    `json:"unit"`
 	ReferenceValue  string    `json:"reference_value"`
 	RefMin          *float64  `json:"ref_min,omitempty"`
@@ -65,6 +86,7 @@ func toExamResultResponse(item *model.ExamResult) examResultResponse {
 		Name:            item.Name,
 		InspectionValue: item.InspectionValue,
 		NormalValue:     item.NormalValue,
+		Result:          item.Result,
 		Unit:            item.Unit,
 		ReferenceValue:  item.ReferenceValue,
 		RefMin:          item.RefMin,

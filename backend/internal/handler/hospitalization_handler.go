@@ -43,7 +43,7 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(hospitalizations, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(hospitalizations, toHospitalizationResponse), total, page, limit))
 }
 
 // GetHospitalization godoc
