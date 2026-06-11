@@ -88,7 +88,7 @@ export function useMedicalRecordAutoCreate({
           pet_id: selectedPet.id,
           owner_id: selectedPet.ownerId,
           visit_date: today,
-          visit_type: visitType,
+          visit_type: toVisitTypeValue(visitType),
           appointment_id: appointmentId,
           status: "draft",
           recommendation_reason: createRecommendationReason ?? "",

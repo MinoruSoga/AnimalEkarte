@@ -80,6 +80,7 @@ export function MedicalRecordStickyHeader({
           <input
             key={dateInputValue}
             type="date"
+            aria-label="診察日"
             defaultValue={dateInputValue}
             onChange={(e) => {
               if (e.target.value) onDateChange!(e.target.value);
@@ -131,7 +132,7 @@ export function MedicalRecordStickyHeader({
     <div className={`sticky top-0 z-10 ${C.bgPage}`}>
       <PatientContextHeader
         ownerName={selectedPet.ownerName}
-        petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
+        petName={selectedPet.name}
         petNumber={selectedPet.petNumber || selectedPet.id}
         weight={selectedPet.weight ?? undefined}
         status={selectedPet.status === "死亡" ? "deceased" : "alive"}

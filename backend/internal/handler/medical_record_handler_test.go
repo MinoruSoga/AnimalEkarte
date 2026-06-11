@@ -718,6 +718,42 @@ func TestUpdateMedicalRecord(t *testing.T) {
 			},
 			wantStatus: http.StatusNotFound,
 		},
+		{
+			name:     "updates visit_type=first",
+			paramID:  "1",
+			body:     map[string]any{"visit_type": "first"},
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			svc: &mockMedicalRecordService{
+				updateFn: func(_ context.Context, _, _ uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+					require.NotNil(t, input.VisitType)
+					assert.Equal(t, model.VisitTypeFirst, *input.VisitType)
+					return &model.MedicalRecord{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "updates visit_type=revisit",
+			paramID:  "1",
+			body:     map[string]any{"visit_type": "revisit"},
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			svc: &mockMedicalRecordService{
+				updateFn: func(_ context.Context, _, _ uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+					require.NotNil(t, input.VisitType)
+					assert.Equal(t, model.VisitTypeRevisit, *input.VisitType)
+					return &model.MedicalRecord{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 for invalid visit_type",
+			paramID:    "1",
+			body:       map[string]any{"visit_type": "invalid"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			svc:        &mockMedicalRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
 	}
 
 	for _, tt := range tests {

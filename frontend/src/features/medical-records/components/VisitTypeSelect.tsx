@@ -24,6 +24,7 @@ export function VisitTypeSelect({
       <span className={`text-xs ${C.text50}`}>来院種別</span>
       <Select value={value} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger
+          aria-label="来院種別"
           className={`h-8 text-sm border-none bg-transparent p-0 focus:ring-0 gap-1 ${C.text} font-medium`}
         >
           <SelectValue />

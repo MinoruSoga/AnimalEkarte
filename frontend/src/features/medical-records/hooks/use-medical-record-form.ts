@@ -33,6 +33,7 @@ import {
   formatJSTDate,
   normalizeAppointmentId,
   normalizeVisitDate,
+  toVisitTypeValue,
 } from "./use-medical-record-form-model";
 
 export function useMedicalRecordForm(recordId?: string) {
@@ -231,6 +232,7 @@ export function useMedicalRecordForm(recordId?: string) {
   // existingRecord?.version のみ参照するため object 全体を dep に含めない (OCC versioning)
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleVisitTypeChange = useCallback((newVisitType: string) => {
+    const prevVisitType = visitType;
     setVisitType(newVisitType);
     if (!recordId) return; // 新規作成時はローカルstateのみ
     startSaveTransition(async () => {
@@ -238,16 +240,17 @@ export function useMedicalRecordForm(recordId?: string) {
         await updateMutation.mutateAsync({
           id: recordId,
           req: {
-            visit_type: newVisitType,
+            visit_type: toVisitTypeValue(newVisitType),
             version: existingRecord?.version,
           } as UpdateMedicalRecordRequest,
         });
         toast.success(`来院種別を ${newVisitType} に変更しました`);
       } catch (error) {
+        setVisitType(prevVisitType); // H-1: rollback on PATCH failure
         handleApiError(error, "来院種別変更");
       }
     });
-  }, [recordId, existingRecord?.version, updateMutation, startSaveTransition]);
+  }, [visitType, recordId, existingRecord?.version, updateMutation, startSaveTransition]);
 
   // 診察日変更ハンドラ
   // existingRecord?.version のみ参照するため object 全体を dep に含めない (OCC versioning)

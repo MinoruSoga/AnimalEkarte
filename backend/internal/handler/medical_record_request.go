@@ -239,6 +239,7 @@ type updateMedicalRecordRequest struct {
 	Status                   *string    `json:"status"      binding:"omitempty,oneof=draft finalized"`
 	Version                  *int       `json:"version"`                     // 楽観的ロック用
 	NextVisitRecommendedDate *string    `json:"next_visit_recommended_date"` // "YYYY-MM-DD" or null
+	VisitType                *string    `json:"visit_type"`                  // "first" | "revisit"
 }
 
 func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (service.UpdateMedicalRecordInput, error) {
@@ -263,6 +264,15 @@ func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (service.Upda
 		nextVisitDate = &parsed
 	}
 
+	var visitType *model.VisitType
+	if r.VisitType != nil {
+		vt, err := validateEnum(*r.VisitType, model.VisitTypeFirst, model.VisitTypeRevisit)
+		if err != nil {
+			return service.UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid visit_type: " + err.Error())
+		}
+		visitType = &vt
+	}
+
 	return service.UpdateMedicalRecordInput{
 		Date:                     r.Date,
 		OwnerID:                  r.OwnerID,
@@ -272,6 +282,7 @@ func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (service.Upda
 		Status:                   status,
 		Version:                  r.Version,
 		NextVisitRecommendedDate: nextVisitDate,
+		VisitType:                visitType,
 		ActorID:                  &actorID,
 	}, nil
 }

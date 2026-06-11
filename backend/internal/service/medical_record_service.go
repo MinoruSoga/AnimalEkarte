@@ -18,6 +18,7 @@ type UpdateMedicalRecordInput struct {
 	Status                   *model.MedicalRecordStatus
 	Version                  *int // 楽観的ロック用: nil の場合はチェックをスキップ
 	NextVisitRecommendedDate *time.Time
+	VisitType                *model.VisitType
 	ActorID                  *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
 }
 
