@@ -124,6 +124,8 @@ type Services struct {
 	// FEAT-385: Lステップ CSV インポート・分析
 	LstepCsvImport LstepCsvImportService
 	LstepAnalytics LstepAnalyticsService
+	// 認証: refresh_token JTI ブラックリスト
+	TokenBlacklist TokenBlacklistService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -283,5 +285,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			repos.TrimmingOption,
 			repos.AppointmentTrimmingDetail,
 		),
+		TokenBlacklist: NewTokenBlacklistService(repos.TokenBlacklist),
 	}
 }

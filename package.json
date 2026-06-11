@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "harness:health": "node scripts/harness-health.js",
+    "harness:loop": "node scripts/harness-refinement-loop.js"
+  },
   "dependencies": {
     "@openai/codex": "^0.120.0"
   }

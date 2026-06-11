@@ -117,6 +117,8 @@ type Repositories struct {
 	LstepFriendAttributeSnapshot LstepFriendAttributeSnapshotRepository
 	// 動的タグ設定 (B/C1/C2/C3 カテゴリ)
 	LstepTagConfig LstepTagConfigRepository
+	// 認証: refresh_token JTI ブラックリスト
+	TokenBlacklist TokenBlacklistRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -213,6 +215,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		LstepCsvImport:               NewLstepCsvImportRepository(db),
 		LstepFriendAttributeSnapshot: NewLstepFriendAttributeSnapshotRepository(db),
 		LstepTagConfig:               NewLstepTagConfigRepository(db),
+		TokenBlacklist:               NewTokenBlacklistRepository(db),
 	}
 }
 
