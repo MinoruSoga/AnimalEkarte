@@ -17,6 +17,7 @@ type ReservationTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	FindAllWithChildren(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
+	FindByIDWithChildren(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 	CountUsageByReservationTypeID(ctx context.Context, clinicID, id uint64) (int64, error)
 	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	Create(ctx context.Context, reservationType *model.ReservationType) error
@@ -65,6 +66,23 @@ func (r *reservationTypeRepository) FindByID(ctx context.Context, clinicID, id u
 		Preload("Group", "deleted_at IS NULL").
 		Preload("Parent", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&st).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", id))
+	}
+	return &st, nil
+}
+
+func (r *reservationTypeRepository) FindByIDWithChildren(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+	var st model.ReservationType
+	err := dbOrTx(ctx, r.db).
+		Preload("Group", "deleted_at IS NULL").
+		Preload("Parent", "deleted_at IS NULL").
+		Preload("Children", func(db *gorm.DB) *gorm.DB {
+			return db.Where("deleted_at IS NULL").Order("sort_order ASC, name ASC")
+		}).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", id).
+		First(&st).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", id))
 	}

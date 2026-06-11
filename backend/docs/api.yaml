@@ -4181,13 +4181,13 @@ components:
         children:
           type: array
           readOnly: true
-          description: admin list では root 要素に紐づく非削除 child を返す
+          description: root 要素に紐づく非削除 child。admin list / get / create / update response で返す
           items:
             $ref: '#/components/schemas/ReservationTypes'
         clear_parent_id:
           type: boolean
           writeOnly: true
-          description: true の場合 parent_id を NULL にクリアする
+          description: true の場合 parent_id を NULL にクリアする。parent_id と同時指定不可
         reservation_display_name:
           type: string
         duration_minutes:

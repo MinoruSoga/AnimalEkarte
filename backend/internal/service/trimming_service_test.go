@@ -138,6 +138,10 @@ func (m *mockTrimmingReservationTypeRepository) FindByID(ctx context.Context, cl
 	}, nil
 }
 
+func (m *mockTrimmingReservationTypeRepository) FindByIDWithChildren(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+	return m.FindByID(ctx, clinicID, id)
+}
+
 func (m *mockTrimmingReservationTypeRepository) CountUsageByReservationTypeID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }

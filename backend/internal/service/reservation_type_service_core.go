@@ -18,7 +18,7 @@ func (s *reservationTypeService) List(ctx context.Context, clinicID uint64) ([]m
 }
 
 func (s *reservationTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
-	result, err := s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByIDWithChildren(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get reservation type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation type")
@@ -79,7 +79,12 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 		return nil, apperrors.Wrap(err, "failed to create reservation type")
 	}
 	slog.InfoContext(ctx, "reservation type created", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", st.ID))
-	return st, nil
+	created, err := s.repo.FindByIDWithChildren(ctx, clinicID, st.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation type after create", "error", err, "id", st.ID, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to get reservation type after create")
+	}
+	return created, nil
 }
 
 func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeInput) (*model.ReservationType, error) {
@@ -95,6 +100,9 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 	}
 	if err := validateMaxConcurrent(input.MaxConcurrent); err != nil {
 		return nil, err
+	}
+	if input.ClearParentID && input.ParentID != nil {
+		return nil, apperrors.WrapInvalidInput("clear_parent_id と parent_id は同時に指定できません")
 	}
 	if input.ParentID != nil && *input.ParentID == id {
 		return nil, apperrors.WrapInvalidInput("自分自身を親に設定できません")
@@ -116,10 +124,14 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.Update(ctx, clinicID, id, fields)
-	if err != nil {
+	if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		slog.ErrorContext(ctx, "failed to update reservation type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update reservation type")
+	}
+	result, err := s.repo.FindByIDWithChildren(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation type after update", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to get reservation type after update")
 	}
 	slog.InfoContext(ctx, "reservation type updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", id))
 	return result, nil

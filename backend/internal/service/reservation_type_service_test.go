@@ -18,6 +18,7 @@ type mockReservationTypeRepository struct {
 	findAllFn                     func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	findAllWithChildrenFn         func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
+	findByIDWithChildrenFn        func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 	countUsageByReservationTypeFn func(ctx context.Context, clinicID, id uint64) (int64, error)
 	countChildrenByParentIDFn     func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	createFn                      func(ctx context.Context, st *model.ReservationType) error
@@ -45,6 +46,13 @@ func (m *mockReservationTypeRepository) FindByID(ctx context.Context, clinicID, 
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
+}
+
+func (m *mockReservationTypeRepository) FindByIDWithChildren(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+	if m.findByIDWithChildrenFn != nil {
+		return m.findByIDWithChildrenFn(ctx, clinicID, id)
+	}
+	return m.FindByID(ctx, clinicID, id)
 }
 
 func (m *mockReservationTypeRepository) Create(ctx context.Context, st *model.ReservationType) error {
@@ -223,6 +231,40 @@ func TestReservationTypeService_List(t *testing.T) {
 	})
 }
 
+// ---- GetByID ----
+
+func TestReservationTypeService_GetByID(t *testing.T) {
+	t.Run("returns reservation type with children", func(t *testing.T) {
+		const (
+			clinicID uint64 = 1
+			id       uint64 = 5
+		)
+		childParentID := id
+		want := &model.ReservationType{
+			ID:       id,
+			ClinicID: clinicID,
+			Name:     "親区分",
+			Children: []model.ReservationType{
+				{ID: 6, ClinicID: clinicID, ParentID: &childParentID, Name: "子区分"},
+			},
+		}
+		repo := &mockReservationTypeRepository{
+			findByIDWithChildrenFn: func(_ context.Context, cid, rid uint64) (*model.ReservationType, error) {
+				assert.Equal(t, clinicID, cid)
+				assert.Equal(t, id, rid)
+				return want, nil
+			},
+		}
+		svc := newTestReservationTypeService(repo)
+
+		got, err := svc.GetByID(context.Background(), clinicID, id)
+
+		require.NoError(t, err)
+		assert.Equal(t, want, got)
+		assert.Len(t, got.Children, 1)
+	})
+}
+
 // ---- Create ----
 
 func TestReservationTypeService_Create(t *testing.T) {
@@ -236,10 +278,18 @@ func TestReservationTypeService_Create(t *testing.T) {
 			SortOrder:   1,
 		}
 		var captured *model.ReservationType
+		childParentID := uint64(99)
 		repo := &mockReservationTypeRepository{
 			createFn: func(_ context.Context, st *model.ReservationType) error {
 				captured = st
+				st.ID = 99
 				return nil
+			},
+			findByIDWithChildrenFn: func(_ context.Context, cid, id uint64) (*model.ReservationType, error) {
+				assert.Equal(t, clinicID, cid)
+				assert.Equal(t, uint64(99), id)
+				captured.Children = []model.ReservationType{{ID: 100, ClinicID: clinicID, ParentID: &childParentID, Name: "子区分"}}
+				return captured, nil
 			},
 		}
 		svc := newTestReservationTypeService(repo)
@@ -255,6 +305,7 @@ func TestReservationTypeService_Create(t *testing.T) {
 		assert.Equal(t, input.Description, got.Description)
 		assert.Equal(t, input.SortOrder, got.SortOrder)
 		assert.Same(t, captured, got)
+		assert.Len(t, got.Children, 1)
 	})
 
 	t.Run("propagates repository error", func(t *testing.T) {
@@ -348,7 +399,16 @@ func TestReservationTypeService_Update(t *testing.T) {
 		)
 		newName := "新しい名前"
 		newActive := false
-		updated := &model.ReservationType{ID: id, ClinicID: clinicID, Name: newName, IsActive: newActive}
+		childParentID := id
+		updated := &model.ReservationType{
+			ID:       id,
+			ClinicID: clinicID,
+			Name:     newName,
+			IsActive: newActive,
+			Children: []model.ReservationType{
+				{ID: 6, ClinicID: clinicID, ParentID: &childParentID, Name: "子区分"},
+			},
+		}
 
 		var capturedFields map[string]any
 		repo := &mockReservationTypeRepository{
@@ -356,6 +416,11 @@ func TestReservationTypeService_Update(t *testing.T) {
 				assert.Equal(t, clinicID, cid)
 				assert.Equal(t, id, rid)
 				capturedFields = fields
+				return updated, nil
+			},
+			findByIDWithChildrenFn: func(_ context.Context, cid, rid uint64) (*model.ReservationType, error) {
+				assert.Equal(t, clinicID, cid)
+				assert.Equal(t, id, rid)
 				return updated, nil
 			},
 		}
@@ -371,6 +436,19 @@ func TestReservationTypeService_Update(t *testing.T) {
 		assert.Equal(t, newName, capturedFields[colReservationTypeName])
 		assert.Equal(t, newActive, capturedFields[colReservationTypeIsActive])
 		assert.NotContains(t, capturedFields, colReservationTypeColor)
+	})
+
+	t.Run("rejects clear_parent_id and parent_id together", func(t *testing.T) {
+		parentID := uint64(10)
+		svc := newTestReservationTypeService(&mockReservationTypeRepository{})
+
+		_, err := svc.Update(context.Background(), 1, 5, &UpdateReservationTypeInput{
+			ParentID:      &parentID,
+			ClearParentID: true,
+		})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
 	})
 
 	t.Run("returns not found when record does not exist", func(t *testing.T) {
