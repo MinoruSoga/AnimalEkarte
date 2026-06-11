@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/middleware"
@@ -86,6 +87,22 @@ func (h *Handler) Login(c *gin.Context) {
 // Logout godoc
 func (h *Handler) Logout(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	// refresh_token の jti をブラックリストに登録してサーバーサイド失効させる（ベストエフォート）。
+	// 失効に失敗してもログアウト自体はブロックしない。
+	if tokenStr, err := c.Cookie(refreshTokenCookieName); err == nil && tokenStr != "" {
+		claims := &middleware.JWTClaims{}
+		if _, parseErr := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, jwt.ErrSignatureInvalid
+			}
+			return []byte(h.cfg.JWTSecret), nil
+		}); parseErr == nil && claims.ID != "" && claims.ExpiresAt != nil {
+			if revokeErr := h.svc.TokenBlacklist.RevokeToken(ctx, claims.ID, claims.ExpiresAt.Time); revokeErr != nil {
+				slog.ErrorContext(ctx, "failed to revoke refresh token on logout (best-effort)", "jti", claims.ID, "error", revokeErr)
+			}
+		}
+	}
 
 	// 監査ログ: ログアウト（ベストエフォート）
 	// extractStaffID/extractClinicID は Auth middleware が設定する user_id/clinic_id を前提とし、
@@ -183,6 +200,21 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
+	// JTI ブラックリスト照合（ログアウト済み・強制失効済みトークンを拒否）
+	if claims.ID != "" {
+		revoked, blacklistErr := h.svc.TokenBlacklist.IsRevoked(ctx, claims.ID)
+		if blacklistErr != nil {
+			// DB エラーはフェイルセーフ: 照合失敗はリフレッシュを拒否する
+			slog.ErrorContext(ctx, "token blacklist check failed", "jti", claims.ID, "error", blacklistErr)
+			RespondError(c, apperrors.WrapUnauthorized("token validation failed"))
+			return
+		}
+		if revoked {
+			RespondError(c, apperrors.WrapUnauthorized("token has been revoked"))
+			return
+		}
+	}
+
 	// staff の有効性チェック
 	staffID, parseErr := strconv.ParseUint(claims.UserID, 10, 64)
 	if parseErr != nil {
@@ -216,6 +248,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		IsSystemAdmin: claims.IsSystemAdmin,
 		ClinicIDs:     clinicIDs,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        uuid.NewString(),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -227,7 +260,16 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
+	// Token rotation: 旧 JTI をブラックリストに登録して旧トークンを失効させる（ベストエフォート）。
+	// 失効失敗は回帰させない（新トークン発行は続行）。
+	if claims.ID != "" && claims.ExpiresAt != nil {
+		if revokeErr := h.svc.TokenBlacklist.RevokeToken(ctx, claims.ID, claims.ExpiresAt.Time); revokeErr != nil {
+			slog.ErrorContext(ctx, "failed to revoke old refresh token on rotation (best-effort)", "jti", claims.ID, "error", revokeErr)
+		}
+	}
+
 	// 新しい refresh_token（7日、rotation）
+	// 新 JTI を発行してブラックリスト照合を継続可能にする。
 	refreshExpiresAt := time.Now().Add(7 * 24 * time.Hour)
 	newRefreshClaims := &middleware.JWTClaims{
 		UserID:        claims.UserID,
@@ -235,6 +277,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		IsSystemAdmin: claims.IsSystemAdmin,
 		ClinicIDs:     clinicIDs,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        uuid.NewString(),
 			ExpiresAt: jwt.NewNumericDate(refreshExpiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Subject:   "refresh",

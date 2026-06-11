@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -100,6 +101,7 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 		IsSystemAdmin: isSystemAdmin,
 		ClinicIDs:     clinicIDs,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        uuid.NewString(),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -120,6 +122,7 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 	})
 
 	// Refresh Token 発行（7日間有効、token rotation で毎回更新）
+	// jti はサーバーサイド失効（ブラックリスト照合）に使用する。
 	refreshExpiresAt := time.Now().Add(7 * 24 * time.Hour)
 	refreshClaims := &middleware.JWTClaims{
 		UserID:        strconv.FormatUint(staffID, 10),
@@ -127,6 +130,7 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 		IsSystemAdmin: isSystemAdmin,
 		ClinicIDs:     clinicIDs,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        uuid.New().String(),
 			ExpiresAt: jwt.NewNumericDate(refreshExpiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Subject:   "refresh",
