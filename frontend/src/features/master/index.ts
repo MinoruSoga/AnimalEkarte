@@ -34,4 +34,11 @@ export {
   useUpdateReservationTypeGroup,
   useDeleteReservationTypeGroup,
 } from "./api/reservation-type-groups";
+export {
+  useGetUnavailableTimes,
+  useCreateUnavailableTime,
+  useDeleteUnavailableTime,
+} from "./api/reservation-type-unavailable-times";
+export type { ReservationTypeUnavailableTime } from "./api/reservation-type-unavailable-times";
+export type { CreateUnavailableTimeRequest } from "./api/reservation-type-unavailable-times";
 export type { ReservationTypeGroup } from "./api/reservation-type-groups";

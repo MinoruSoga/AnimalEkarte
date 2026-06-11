@@ -66,11 +66,11 @@ const fetchOnDutyStaffs = async (date: string): Promise<OnDutyStaff[]> => {
   return data;
 };
 
-export const getCurrentClinicId = (): string => {
+export const getCurrentClinicId = (): string | null => {
   try {
-    return localStorage.getItem("auth_current_clinic:v1") ?? "";
+    return localStorage.getItem("auth_current_clinic:v1");
   } catch {
-    return "";
+    return null;
   }
 };
 
@@ -147,8 +147,13 @@ export function useGetReservationStaffs() {
   const clinicId = getCurrentClinicId();
   return useQuery({
     queryKey: ["clinics", clinicId, "reservation-staffs"],
-    queryFn: () => fetchReservationStaffs(clinicId),
-    enabled: clinicId !== "",
+    queryFn: () => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is required"));
+      }
+      return fetchReservationStaffs(clinicId);
+    },
+    enabled: clinicId !== null,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

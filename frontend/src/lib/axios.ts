@@ -22,6 +22,25 @@ function sanitizeNullBytes(value: unknown): unknown {
   return value;
 }
 
+function safeFromPath(path: string): string {
+  if (path === "") {
+    return "/";
+  }
+
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+
+  if (normalized.startsWith("//")) {
+    return "/";
+  }
+
+  const lowered = normalized.toLowerCase();
+  if (lowered.startsWith("javascript:") || lowered.startsWith("data:")) {
+    return "/";
+  }
+
+  return normalized;
+}
+
 function requestInterceptor(config: InternalAxiosRequestConfig) {
   config.headers ??= new Axios.AxiosHeaders() as typeof config.headers;
   config.headers.Accept = "application/json";
@@ -98,7 +117,7 @@ type RetryableConfig = InternalAxiosRequestConfig & {
 axios.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const config = error.config as RetryableConfig | undefined;
+      const config = error.config as RetryableConfig | undefined;
     if (!config) return Promise.reject(error);
 
     // --- 1. 自動リトライロジック (GETリクエストのみ) ---
@@ -130,7 +149,7 @@ axios.interceptors.response.use(
         error.response?.status === 401 &&
         window.location.pathname !== "/login"
       ) {
-        const from = encodeURIComponent(window.location.pathname + window.location.search);
+        const from = encodeURIComponent(safeFromPath(`${window.location.pathname}${window.location.search}`));
         window.location.href = `/login?from=${from}`;
       }
       return Promise.reject(error);
@@ -156,7 +175,7 @@ axios.interceptors.response.use(
     } catch (refreshError) {
       processQueue(refreshError as AxiosError);
       if (window.location.pathname !== "/login") {
-        const from = encodeURIComponent(window.location.pathname + window.location.search);
+        const from = encodeURIComponent(safeFromPath(`${window.location.pathname}${window.location.search}`));
         window.location.href = `/login?from=${from}`;
       }
       return Promise.reject(refreshError);

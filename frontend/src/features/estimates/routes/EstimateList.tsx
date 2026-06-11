@@ -149,15 +149,15 @@ export function EstimateList() {
     if (activeSorts.length > 0) {
       items.sort((a, b) => {
         for (const sort of activeSorts) {
-          let cmp = 0;
           if (sort.key === "totalAmount") {
-            cmp = a.totalAmount - b.totalAmount;
+            const cmp = a.totalAmount - b.totalAmount;
+            if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
           } else {
             const aVal = String(a[sort.key as keyof Estimate] ?? "");
             const bVal = String(b[sort.key as keyof Estimate] ?? "");
-            cmp = aVal.localeCompare(bVal, "ja");
+            const cmp = aVal.localeCompare(bVal, "ja");
+            if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
           }
-          if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
         }
         return 0;
       });

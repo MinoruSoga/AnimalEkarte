@@ -96,15 +96,16 @@ export const OwnerAccountingHistory = memo(function OwnerAccountingHistory({
     if (!accountings) return [];
     const dir = sortOrder === "asc" ? 1 : -1;
     return [...accountings].sort((a, b) => {
-      let primary = 0;
       if (sortField === "date") {
-        primary = a.scheduledDate.localeCompare(b.scheduledDate) * dir;
+        const cmp = a.scheduledDate.localeCompare(b.scheduledDate) * dir;
+        if (cmp !== 0) return cmp;
       } else if (sortField === "amount") {
-        primary = (getAccountingAmount(a) - getAccountingAmount(b)) * dir;
+        const cmp = (getAccountingAmount(a) - getAccountingAmount(b)) * dir;
+        if (cmp !== 0) return cmp;
       } else {
-        primary = (STATUS_ORDER[a.status] - STATUS_ORDER[b.status]) * dir;
+        const cmp = (STATUS_ORDER[a.status] - STATUS_ORDER[b.status]) * dir;
+        if (cmp !== 0) return cmp;
       }
-      if (primary !== 0) return primary;
       // tie-break: 受付日降順 → ID 降順（決定的に同値解消）
       if (a.scheduledDate !== b.scheduledDate) {
         return b.scheduledDate.localeCompare(a.scheduledDate);

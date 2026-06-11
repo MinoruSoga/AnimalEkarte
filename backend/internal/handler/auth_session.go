@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -9,13 +11,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+func newJti() string {
+	var bytes [16]byte
+	if _, err := rand.Read(bytes[:]); err != nil {
+		return strconv.FormatInt(time.Now().UnixNano(), 10)
+	}
+	return hex.EncodeToString(bytes[:])
+}
 
 // authenticateUser はメール/パスワードを検証してアカウントとスタッフを返す。
 // 認証失敗・アカウント無効・スタッフ無効の場合は apperrors.ErrUnauthorized ラップエラーを返す。
@@ -101,7 +110,7 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 		IsSystemAdmin: isSystemAdmin,
 		ClinicIDs:     clinicIDs,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        uuid.NewString(),
+			ID:        newJti(),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -130,7 +139,7 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 		IsSystemAdmin: isSystemAdmin,
 		ClinicIDs:     clinicIDs,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        uuid.NewString(),
+			ID:        newJti(),
 			ExpiresAt: jwt.NewNumericDate(refreshExpiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Subject:   "refresh",

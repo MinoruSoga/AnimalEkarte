@@ -15,11 +15,15 @@ async function deleteOwnerTag(
 
 export function useDeleteOwnerTag(ownerId: string) {
   const queryClient = useQueryClient();
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
 
   return useMutation({
-    mutationFn: (tagName: string) =>
-      deleteOwnerTag(clinicId, ownerId, tagName),
+    mutationFn: (tagName: string) => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+      return deleteOwnerTag(clinicId, ownerId, tagName);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["owner-line-tags", ownerId] });
       toast.success("タグを解除しました");

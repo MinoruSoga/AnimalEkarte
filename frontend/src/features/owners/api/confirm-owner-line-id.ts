@@ -14,10 +14,15 @@ async function confirmOwnerLineId(clinicId: string, ownerId: string): Promise<Ow
 
 export function useConfirmOwnerLineId(ownerId: string) {
   const queryClient = useQueryClient();
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
 
   return useMutation({
-    mutationFn: () => confirmOwnerLineId(clinicId, ownerId),
+    mutationFn: () => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+      return confirmOwnerLineId(clinicId, ownerId);
+    },
     onSuccess: (owner) => {
       queryClient.setQueryData(["owners", ownerId], owner);
       queryClient.invalidateQueries({ queryKey: ["owners", ownerId] });

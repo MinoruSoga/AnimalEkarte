@@ -2606,6 +2606,19 @@ export interface StaffReservationExclusion {
 }
 
 //////////
+// source: token_blacklist.go
+
+/**
+ * TokenBlacklist は失効済み refresh_token の JTI を記録する。
+ * ログアウト時に JTI を登録し、RefreshToken エンドポイントで照合する。
+ */
+export interface TokenBlacklist {
+  jti: string;
+  expires_at: string;
+  created_at: string;
+}
+
+//////////
 // source: treatment.go
 
 /**

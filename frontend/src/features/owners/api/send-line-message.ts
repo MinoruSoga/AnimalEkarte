@@ -26,11 +26,15 @@ async function sendLineMessage(
 
 export function useSendLineMessage(ownerId: string) {
   const queryClient = useQueryClient();
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
 
   return useMutation({
-    mutationFn: (body: LineSendRequest) =>
-      sendLineMessage(clinicId, ownerId, body),
+    mutationFn: (body: LineSendRequest) => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+      return sendLineMessage(clinicId, ownerId, body);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["line-send-history", ownerId],

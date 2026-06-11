@@ -15,7 +15,7 @@ import { Calendar as CalendarIcon, Clock, ArrowRight, ChevronDown } from "lucide
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs, useGetReservationAvailableTimes } from "@/hooks/use-reservation-types";
-import { useGetUnavailableTimes, type ReservationTypeUnavailableTime } from "@/features/master/api/reservation-type-unavailable-times";
+import { useGetUnavailableTimes, type ReservationTypeUnavailableTime } from "@/features/master";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { isOneOf } from "@/lib/type-utils";

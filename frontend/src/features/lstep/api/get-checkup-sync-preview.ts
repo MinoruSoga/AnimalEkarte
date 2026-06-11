@@ -69,18 +69,22 @@ export interface CheckupSyncPreviewResponse {
 export function useGetCheckupSyncPreview(params: CheckupSyncParams | null) {
   // clinicId 欠落時は throw せず enabled で無効化する (use-reservation-types.ts と同パターン)。
   // レンダー中の throw は ErrorBoundary 頼みになりページ全体を落とすため禁止。
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
 
   return useQuery({
-    queryKey: ["checkup-sync-preview", params],
+    queryKey: ["checkup-sync-preview", clinicId, params],
     queryFn: async () => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+
       const { data } = await axios.get<CheckupSyncPreviewResponse>(
         `/v1/clinics/${clinicId}/lstep/checkup-sync/preview`,
         { params: params ?? undefined }
       );
       return data;
     },
-    enabled: params !== null && clinicId !== "",
+    enabled: params !== null && clinicId !== null,
     staleTime: 0,
   });
 }

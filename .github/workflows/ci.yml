@@ -169,6 +169,10 @@ jobs:
         working-directory: frontend
         run: pnpm install
 
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: pnpm audit --audit-level moderate
+
       - name: Type check
         working-directory: frontend
         run: pnpm run type-check

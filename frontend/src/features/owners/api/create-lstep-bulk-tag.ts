@@ -17,10 +17,15 @@ async function createLstepBulkTag(
 
 // POST /api/clinics/:clinic_id/owners/lstep/bulk-tags
 export function useCreateLstepBulkTag() {
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
 
   return useMutation({
-    mutationFn: (body: LstepBulkTagBody) => createLstepBulkTag(clinicId, body),
+    mutationFn: (body: LstepBulkTagBody) => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+      return createLstepBulkTag(clinicId, body);
+    },
     onSuccess: (_data, variables) => {
       toast.success(`${variables.owner_ids.length}件にタグを付与しました`);
     },

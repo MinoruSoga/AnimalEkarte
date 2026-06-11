@@ -86,7 +86,7 @@ export interface LstepSettingsRequest {
 // Query key
 // ─────────────────────────────────────────────────
 
-const LSTEP_QUERY_KEY = (clinicId: string) =>
+const LSTEP_QUERY_KEY = (clinicId: string | null) =>
   ["lstep-settings", clinicId] as const;
 
 // ─────────────────────────────────────────────────
@@ -95,6 +95,9 @@ const LSTEP_QUERY_KEY = (clinicId: string) =>
 
 async function fetchLstepSettings(): Promise<LstepSettingsResponse> {
   const clinicId = getClinicId();
+  if (clinicId === null) {
+    throw new Error("clinic_id is not selected");
+  }
   const { data } = await axios.get<LstepSettingsResponse>(
     `/v1/clinics/${clinicId}/lstep-settings`,
   );
@@ -105,6 +108,9 @@ async function patchLstepSettings(
   req: LstepSettingsRequest,
 ): Promise<LstepSettingsResponse> {
   const clinicId = getClinicId();
+  if (clinicId === null) {
+    throw new Error("clinic_id is not selected");
+  }
   const { data } = await axios.patch<LstepSettingsResponse>(
     `/v1/clinics/${clinicId}/lstep-settings`,
     req,
@@ -114,6 +120,9 @@ async function patchLstepSettings(
 
 async function postLstepTest(): Promise<void> {
   const clinicId = getClinicId();
+  if (clinicId === null) {
+    throw new Error("clinic_id is not selected");
+  }
   await axios.post(
     `/v1/clinics/${clinicId}/lstep-settings/test-connection`,
   );
@@ -121,6 +130,9 @@ async function postLstepTest(): Promise<void> {
 
 async function deleteLstepSettings(): Promise<void> {
   const clinicId = getClinicId();
+  if (clinicId === null) {
+    throw new Error("clinic_id is not selected");
+  }
   await axios.delete(
     `/v1/clinics/${clinicId}/lstep-settings`,
   );
