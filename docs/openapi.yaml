@@ -426,6 +426,169 @@ paths:
       responses:
         '200': { description: OK }
 
+  /api/v1/clinics/{clinic_id}/owners/{id}/lstep/friend-attributes:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Owners, LSTEP]
+      summary: 飼主の最新友だち属性取得（クリニック別エンドポイント）
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepFriendAttribute' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/lstep-settings:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP, Hospital Settings]
+      summary: Lステップ連携設定取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepSettings' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    patch:
+      tags: [LSTEP, Hospital Settings]
+      summary: Lステップ連携設定更新
+      description: |
+        未送信フィールドは空文字や `null` を含めて受け付けます。
+        送受信される秘密情報はマスクされており、更新時に未送信なら既存値を保持します。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LstepSettingsPatchRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepSettings' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    delete:
+      tags: [LSTEP, Hospital Settings]
+      summary: Lステップ連携設定削除
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: No Content }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /api/v1/clinics/{clinic_id}/lstep-settings/test-connection:
+    post:
+      tags: [LSTEP, Hospital Settings]
+      summary: Lステップ接続テスト
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepConnectionTest' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/lstep-settings:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP, Hospital Settings]
+      summary: Lステップ連携設定取得（スタッフ所属ベース）
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepSettings' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    patch:
+      tags: [LSTEP, Hospital Settings]
+      summary: Lステップ連携設定更新（スタッフ所属ベース）
+      description: |
+        未送信フィールドは空文字や `null` を含めて受け付けます。
+        秘密情報はマスクレスポンス。
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LstepSettingsPatchRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepSettings' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    delete:
+      tags: [LSTEP, Hospital Settings]
+      summary: Lステップ連携設定削除（スタッフ所属ベース）
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: No Content }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/lstep-settings/test-connection:
+    post:
+      tags: [LSTEP, Hospital Settings]
+      summary: Lステップ接続テスト（スタッフ所属ベース）
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepConnectionTest' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
   /api/v1/clinics/{clinic_id}/lstep/checkup-sync/preview:
     parameters:
       - $ref: '#/components/parameters/XClinicIDHeader'
@@ -576,6 +739,626 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
+  /api/v1/lstep/trigger-priorities:
+    get:
+      tags: [LSTEP]
+      summary: 配信トリガー優先順位取得
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepTriggerPriorities' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    patch:
+      tags: [LSTEP]
+      summary: 配信トリガー優先順位更新
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LstepTriggerPrioritiesPatchRequest' }
+      responses:
+        '200': { description: OK }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/lstep/trigger-priorities:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: 配信トリガー優先順位取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepTriggerPriorities' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    patch:
+      tags: [LSTEP]
+      summary: 配信トリガー優先順位更新
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LstepTriggerPrioritiesPatchRequest' }
+      responses:
+        '200': { description: OK }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/lstep/analytics/delivery-stats:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: 月次配信統計
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: year_month
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\\d{4}-\\d{2}$' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepMonthlyDeliveryStats' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/lstep/analytics/visit-conversion:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: 月次配信後来院率集計
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: year_month
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\\d{4}-\\d{2}$' }
+        - name: days
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 30 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepVisitConversion' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/lstep/csv-imports:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: 友だち属性CSVインポート履歴一覧
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LstepCsvImport' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/line-reservation-settings:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LINE, Reservations]
+      summary: LINE予約設定取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LineReservationSetting' }
+        '204':
+          description: 設定が未作成
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    put:
+      tags: [LINE, Reservations]
+      summary: LINE予約設定更新
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LineReservationSettingRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LineReservationSetting' }
+        '201':
+          description: Created
+          headers:
+            Location:
+              description: 作成された予約設定の URI。
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LineReservationSetting' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/lstep/csv-imports/friend-attributes:
+    post:
+      tags: [LSTEP]
+      summary: 友だち属性CSVインポート
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              description: 作成されたCSVインポートの相対 URI。
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepCsvImport' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/lstep-tag-code-mappings:
+    get:
+      tags: [LSTEP]
+      summary: タグコード紐付け一覧
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LstepTagCodeMapping' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/lstep-tag-code-mappings:
+    get:
+      tags: [LSTEP]
+      summary: タグコード紐付け一覧
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LstepTagCodeMapping' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/clinics/{clinic_id}/lstep-tag-code-mappings/{tag_name}:
+    put:
+      tags: [LSTEP]
+      summary: タグ別コード紐付け更新
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: tag_name
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LstepTagCodeMappingsPutRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LstepTagCodeMapping' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/lstep-tag-code-mappings/{tag_name}:
+    put:
+      tags: [LSTEP]
+      summary: タグ別コード紐付け更新
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: tag_name
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LstepTagCodeMappingsPutRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LstepTagCodeMapping' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/lstep-tag-config/auto-managed-prefixes:
+    get:
+      tags: [LSTEP]
+      summary: 自動管理プレフィックス一覧
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LstepAutoManagedPrefix' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [LSTEP]
+      summary: 自動管理プレフィックス作成
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LstepAutoManagedPrefixCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              description: 作成されたプレフィックスの URI。
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepAutoManagedPrefix' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/lstep-tag-config/auto-managed-prefixes/{id}:
+    delete:
+      tags: [LSTEP]
+      summary: 自動管理プレフィックス削除
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: No Content }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: リソースが存在しない }
+
+  /api/v1/lstep-tag-config/condition-tag-mappings:
+    get:
+      tags: [LSTEP]
+      summary: 条件別タグマッピング一覧
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LstepConditionTagMapping' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [LSTEP]
+      summary: 条件別タグマッピング作成
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LstepConditionTagMappingCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              description: 作成されたマッピングの URI。
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepConditionTagMapping' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/lstep-tag-config/condition-tag-mappings/{id}:
+    delete:
+      tags: [LSTEP]
+      summary: 条件別タグマッピング削除
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: No Content }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: リソースが存在しない }
+
+  /api/v1/lstep-tag-config/send-purpose-tag-prefixes:
+    get:
+      tags: [LSTEP]
+      summary: 送信目的別タグプレフィックス一覧
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LstepSendPurposeTagPrefix' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [LSTEP]
+      summary: 送信目的別タグプレフィックス作成
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LstepSendPurposeTagPrefixCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              description: 作成されたタグプレフィックスの URI。
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepSendPurposeTagPrefix' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/lstep-tag-config/send-purpose-tag-prefixes/{id}:
+    delete:
+      tags: [LSTEP]
+      summary: 送信目的別タグプレフィックス削除
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: No Content }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: リソースが存在しない }
+
+  /api/v1/lstep/delivery-monitor/summary:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: 配信ステータス集計取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: 集計開始日（YYYY-MM-DD）。未指定時は本日
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: false
+          description: 集計終了日（YYYY-MM-DD）。未指定時は本日
+          schema: { type: string, format: date }
+        - name: trigger_type
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepDeliverySummary' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/lstep/delivery-monitor/logs:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [LSTEP]
+      summary: 配信実行ログ一覧取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: 集計開始日（YYYY-MM-DD）。未指定時は本日
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: false
+          description: 集計終了日（YYYY-MM-DD）。未指定時は本日
+          schema: { type: string, format: date }
+        - name: trigger_type
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/LstepDeliveryLog' }
+                  total: { type: integer }
+                  page: { type: integer }
+                  per_page: { type: integer }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
   /api/v1/clinics/{clinic_id}/lstep/delivery-monitor/summary:
     parameters:
       - $ref: '#/components/parameters/XClinicIDHeader'
@@ -588,12 +1371,33 @@ paths:
           in: path
           required: true
           schema: { type: integer }
+        - name: from
+          in: query
+          required: false
+          description: 集計開始日（YYYY-MM-DD）。未指定時は本日
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: false
+          description: 集計終了日（YYYY-MM-DD）。未指定時は本日
+          schema: { type: string, format: date }
+        - name: trigger_type
+          in: query
+          required: false
+          schema: { type: string }
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LstepDeliverySummary' }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
 
   /api/v1/clinics/{clinic_id}/lstep/delivery-monitor/logs:
     parameters:
@@ -607,25 +1411,105 @@ paths:
           in: path
           required: true
           schema: { type: integer }
+        - name: from
+          in: query
+          required: false
+          description: 集計開始日（YYYY-MM-DD）。未指定時は本日
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: false
+          description: 集計終了日（YYYY-MM-DD）。未指定時は本日
+          schema: { type: string, format: date }
+        - name: trigger_type
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
         - name: page
           in: query
           schema: { type: integer, default: 1 }
-        - name: limit
+        - name: per_page
           in: query
-          schema: { type: integer, default: 50 }
+          schema: { type: integer, default: 20 }
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items: { $ref: '#/components/schemas/LstepDeliveryLog' }
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/LstepDeliveryLog' }
+                  total: { type: integer }
+                  page: { type: integer }
+                  per_page: { type: integer }
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/lstep/tag-summary:
+    get:
+      tags: [LSTEP]
+      summary: タグ別飼い主数集計取得
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepTagSummary' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/v1/lstep/owners:
+    get:
+      tags: [LSTEP]
+      summary: タグ別飼い主一覧取得
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema: { type: string }
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - name: format
+          in: query
+          required: false
+          schema: { type: string, enum: [json, csv], default: json }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LstepTagOwnerList' }
+            text/csv:
+              description: CSVデータ
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
 
   /api/v1/clinics/{clinic_id}/lstep/tag-summary:
     parameters:
@@ -675,7 +1559,7 @@ paths:
         - name: page
           in: query
           schema: { type: integer, default: 1 }
-        - name: limit
+        - name: per_page
           in: query
           schema: { type: integer, default: 20 }
       responses:
@@ -686,6 +1570,11 @@ paths:
               schema: { $ref: '#/components/schemas/LstepTagOwnerList' }
             text/csv:
               description: CSVデータ
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
@@ -1914,20 +2803,24 @@ components:
     LstepDeliverySummary:
       type: object
       properties:
-        scheduled_count: { type: integer }
-        fired_count: { type: integer }
-        excluded_count: { type: integer }
-        failed_count: { type: integer }
-        suppressed_count: { type: integer }
+        scheduled: { type: integer }
+        fired: { type: integer }
+        excluded: { type: integer }
+        failed: { type: integer }
+        suppressed_by_priority: { type: integer }
+        excluded_reason_breakdown:
+          type: object
+          additionalProperties: { type: integer }
 
     LstepDeliveryLog:
       type: object
       properties:
         id: { type: string }
         trigger_type: { type: string }
+        owner_id: { type: string }
         owner_name: { type: string }
         scheduled_at: { type: string, format: date-time }
-        status: { type: string, enum: [scheduled, fired, excluded, failed, suppressed] }
+        status: { type: string, enum: [scheduled, fired, excluded, failed] }
         fired_at: { type: string, format: date-time, nullable: true }
         exclusion_reason: { type: string, nullable: true }
 
@@ -1970,6 +2863,355 @@ components:
           type: array
           items: { type: string }
         reason: { type: string, nullable: true }
+
+    LstepSettings:
+      type: object
+      properties:
+        lstep_api_key_masked: { type: string }
+        lstep_base_url: { type: string }
+        line_channel_access_token_masked: { type: string }
+        line_channel_secret_masked: { type: string }
+        liff_id: { type: string }
+        line_account_name: { type: string }
+        is_configured: { type: boolean }
+        last_updated_at: { type: string, format: date-time, nullable: true }
+        is_sync_enabled: { type: boolean }
+        sync_enabled_at: { type: string, format: date-time, nullable: true }
+        cpm_version: { type: string }
+        dormant_prevention_180_days: { type: integer }
+        dormant_prevention_210_days: { type: integer }
+        dormant_prevention_240_days: { type: integer }
+        dormant_prevention_365_days: { type: integer }
+        cpm_v2_coming_threshold: { type: integer }
+        cpm_v2_good_threshold: { type: integer }
+        cpm_v2_family_threshold: { type: integer }
+        cpm_v2_noah_threshold: { type: integer }
+        cpm_v1_dormant_days: { type: integer }
+        cpm_v1_noah_days: { type: integer }
+        cpm_v1_noah_annual_visits: { type: integer }
+        cpm_v1_noah_ltv: { type: integer }
+        cpm_v1_core_days: { type: integer }
+        cpm_v1_core_annual_visits: { type: integer }
+        cpm_v1_core_ltv: { type: integer }
+        cpm_v1_spot_min_amount: { type: integer }
+        cpm_v1_spot_inactive_days: { type: integer }
+        cpm_v1_growing_max_days: { type: integer }
+        cpm_v1_growing_min_visits: { type: integer }
+        cpm_v1_growing_max_visits: { type: integer }
+        cpm_v1_ltv_break_low: { type: integer }
+        health_prevention_lookback_days: { type: integer }
+        vaccine_deadline_days: { type: integer }
+
+    LstepSettingsPatchRequest:
+      type: object
+      properties:
+        lstep_api_key: { type: string }
+        lstep_base_url: { type: string }
+        line_channel_access_token: { type: string }
+        line_channel_secret: { type: string }
+        liff_id: { type: string }
+        line_account_name: { type: string }
+        is_sync_enabled: { type: boolean, nullable: true }
+        cpm_version: { type: string }
+        dormant_prevention_180_days: { type: integer }
+        dormant_prevention_210_days: { type: integer }
+        dormant_prevention_240_days: { type: integer }
+        dormant_prevention_365_days: { type: integer }
+        cpm_v2_coming_threshold: { type: integer }
+        cpm_v2_good_threshold: { type: integer }
+        cpm_v2_family_threshold: { type: integer }
+        cpm_v2_noah_threshold: { type: integer }
+        cpm_v1_dormant_days: { type: integer }
+        cpm_v1_noah_days: { type: integer }
+        cpm_v1_noah_annual_visits: { type: integer }
+        cpm_v1_noah_ltv: { type: integer }
+        cpm_v1_core_days: { type: integer }
+        cpm_v1_core_annual_visits: { type: integer }
+        cpm_v1_core_ltv: { type: integer }
+        cpm_v1_spot_min_amount: { type: integer }
+        cpm_v1_spot_inactive_days: { type: integer }
+        cpm_v1_growing_max_days: { type: integer }
+        cpm_v1_growing_min_visits: { type: integer }
+        cpm_v1_growing_max_visits: { type: integer }
+        cpm_v1_ltv_break_low: { type: integer }
+        health_prevention_lookback_days: { type: integer }
+        vaccine_deadline_days: { type: integer }
+
+    LstepConnectionTest:
+      type: object
+      properties:
+        lstep_ok: { type: boolean }
+        lstep_error: { type: string, nullable: true }
+        line_ok: { type: boolean }
+        line_error: { type: string, nullable: true }
+
+    LstepTriggerPriorityItem:
+      type: object
+      properties:
+        trigger_type: { type: string }
+        priority: { type: integer, minimum: 1 }
+
+    LstepTriggerPriorities:
+      type: object
+      properties:
+        clinic_id: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/LstepTriggerPriorityItem' }
+
+    LstepTriggerPrioritiesPatchRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/LstepTriggerPriorityItem' }
+
+    LstepTagCodeMapping:
+      type: object
+      properties:
+        id: { type: integer }
+        clinic_id: { type: integer }
+        tag_name: { type: string }
+        code_type: { type: string }
+        codes:
+          type: array
+          items: { type: string }
+        species_scope: { type: string, nullable: true }
+        age_min: { type: integer, nullable: true }
+
+    LstepTagCodeMappingPutEntry:
+      type: object
+      required: [code_type, codes]
+      properties:
+        code_type: { type: string }
+        codes:
+          type: array
+          minItems: 1
+          items: { type: string }
+        species_scope: { type: string, nullable: true }
+        age_min: { type: integer, nullable: true }
+
+    LstepTagCodeMappingsPutRequest:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/LstepTagCodeMappingPutEntry' }
+
+    LstepAutoManagedPrefix:
+      type: object
+      properties:
+        id: { type: integer }
+        prefix: { type: string }
+        category: { type: string }
+        description: { type: string, nullable: true }
+
+    LstepAutoManagedPrefixCreateRequest:
+      type: object
+      required: [prefix, category]
+      properties:
+        prefix: { type: string }
+        category: { type: string }
+        description: { type: string, nullable: true }
+
+    LstepConditionTagMapping:
+      type: object
+      properties:
+        id: { type: integer }
+        condition_code: { type: string }
+        tag_name: { type: string }
+        description: { type: string, nullable: true }
+
+    LstepConditionTagMappingCreateRequest:
+      type: object
+      required: [condition_code, tag_name]
+      properties:
+        condition_code: { type: string }
+        tag_name: { type: string }
+        description: { type: string, nullable: true }
+
+    LstepSendPurposeTagPrefix:
+      type: object
+      properties:
+        id: { type: integer }
+        purpose: { type: string }
+        tag_prefix: { type: string }
+        description: { type: string, nullable: true }
+
+    LstepSendPurposeTagPrefixCreateRequest:
+      type: object
+      required: [purpose, tag_prefix]
+      properties:
+        purpose: { type: string }
+        tag_prefix: { type: string }
+        description: { type: string, nullable: true }
+
+    LstepCsvImport:
+      type: object
+      properties:
+        id: { type: string }
+        clinic_id: { type: integer }
+        csv_type: { type: string }
+        file_name: { type: string }
+        uploaded_by_user_id: { type: string, nullable: true }
+        row_count: { type: integer }
+        success_count: { type: integer }
+        error_count: { type: integer }
+        status: { type: string }
+        error_log: { type: object, additionalProperties: true, nullable: true }
+        imported_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    LstepMonthlyDeliveryStatsRow:
+      type: object
+      properties:
+        trigger_type: { type: string }
+        status: { type: string }
+        count: { type: integer }
+
+    LstepMonthlyDeliveryStats:
+      type: object
+      properties:
+        year_month: { type: string }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/LstepMonthlyDeliveryStatsRow' }
+
+    LstepVisitConversionRow:
+      type: object
+      properties:
+        trigger_type: { type: string }
+        delivered_count: { type: integer }
+        visited_count: { type: integer }
+        visit_rate: { type: number, format: double }
+
+    LstepVisitConversion:
+      type: object
+      properties:
+        year_month: { type: string }
+        days: { type: integer }
+        delivered_count: { type: integer }
+        visited_count: { type: integer }
+        visit_rate: { type: number, format: double }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/LstepVisitConversionRow' }
+
+    LstepFriendAttribute:
+      type: object
+      properties:
+        id: { type: string }
+        line_user_id: { type: string }
+        display_name: { type: string, nullable: true }
+        registered_at: { type: string, format: date-time, nullable: true }
+        tags: { type: object, additionalProperties: true, nullable: true }
+        scenarios: { type: object, additionalProperties: true, nullable: true }
+        traffic_source: { type: string, nullable: true }
+        block_status: { type: string, nullable: true }
+        last_message_at: { type: string, format: date-time, nullable: true }
+        snapshot_taken_at: { type: string, format: date-time }
+        csv_import_id: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    LineReservationSetting:
+      type: object
+      properties:
+        id: { type: integer }
+        clinic_id: { type: integer }
+        status: { type: string }
+        header_text: { type: string }
+        reservation_notice: { type: string }
+        cancel_notice: { type: string }
+        privacy_policy: { type: string }
+        closed_weekdays:
+          type: array
+          items: { type: integer }
+          nullable: true
+        closed_dates:
+          type: array
+          items: { type: string }
+          nullable: true
+        national_holiday_closed: { type: boolean }
+        business_hours:
+          type: object
+          additionalProperties: true
+        business_hours_by_weekday:
+          type: object
+          additionalProperties: true
+          nullable: true
+        break_hours:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        daily_limit: { type: integer, nullable: true }
+        monthly_limit: { type: integer, nullable: true }
+        booking_window_max_days: { type: integer }
+        booking_window_min_days: { type: integer }
+        calendar_months: { type: integer }
+        phone_number: { type: string }
+        notification_email: { type: string }
+        request_example: { type: string }
+        time_slot_mode: { type: string }
+        time_slot_interval_minutes: { type: integer }
+        no_staff_mode: { type: string }
+        show_no_staff_option: { type: boolean }
+        additional_fields:
+          type: object
+          additionalProperties: true
+        line_channel_id: { type: string }
+        liff_id: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    LineReservationSettingRequest:
+      type: object
+      properties:
+        status: { type: string }
+        header_text: { type: string }
+        reservation_notice: { type: string }
+        cancel_notice: { type: string }
+        privacy_policy: { type: string }
+        closed_weekdays:
+          type: object
+          additionalProperties: true
+        closed_dates:
+          type: object
+          additionalProperties: true
+        national_holiday_closed: { type: boolean }
+        business_hours:
+          type: object
+          additionalProperties: true
+        business_hours_by_weekday:
+          type: object
+          additionalProperties: true
+        break_hours:
+          type: object
+          additionalProperties: true
+        daily_limit: { type: integer, nullable: true }
+        monthly_limit: { type: integer, nullable: true }
+        booking_window_max_days: { type: integer }
+        booking_window_min_days: { type: integer }
+        calendar_months: { type: integer }
+        phone_number: { type: string }
+        notification_email: { type: string }
+        request_example: { type: string }
+        time_slot_mode: { type: string }
+        time_slot_interval_minutes: { type: integer }
+        no_staff_mode: { type: string }
+        show_no_staff_option: { type: boolean }
+        additional_fields:
+          type: object
+          additionalProperties: true
+        line_channel_id: { type: string }
+        line_channel_secret: { type: string }
+        liff_id: { type: string }
+        line_access_token: { type: string }
 
     CashRegisterPreview:
       type: object

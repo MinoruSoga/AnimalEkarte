@@ -9,7 +9,7 @@
   - ページ編集: `/line-reservation/page-editor`
   - 予約枠: `/line-reservation/slots`
 - **アクセス権限**:
-  - 基本設定・ページ編集: `ResourceReservations`（画面遷移）／`ResourceHospitalSettings`（API: GET/PUT line-reservation-settings）
+  - 基本設定・ページ編集: `ResourceReservations`（画面遷移）／`ResourceHospitalSettings`（API: GET/PUT `/api/v1/clinics/:clinic_id/line-reservation-settings`）
   - 予約枠: `ResourceMasterReservationType`（API が予約区分マスタ配下のため BE と同一リソースでガード）
 
 ---

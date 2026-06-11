@@ -35,6 +35,7 @@
 
 | マスタ名 | 仕様書 | 概要 |
 |:---|:---|:---|
+| **トリミングコース種別** | [master-trimming-course-type.md](./master-trimming-course-type.md) | シャンプー・カット等、コースカテゴリの分類を管理。 |
 | **トリミング** | [master-trimming.md](./master-trimming.md) | コース・オプションの定義と、犬種別の料金表。 |
 | **予約区分** | [master-reservation-type.md](./master-reservation-type.md) | 診察、手術等の予約枠と LINE 公開設定。 |
 | **シフトパターン**| [master-shift-template.md](./master-shift-template.md) | よく使う勤務時間と休憩時間のテンプレート。 |
@@ -48,6 +49,7 @@
 | **締め時間** | [closing-time-settings.md](./closing-time-settings.md) | AM/PM 境界、日界、休診日の管理。 |
 | **支払方法** | [payment-methods.md](./payment-methods.md) | 現金、カード、QR 等の決済手段。 |
 | **保険** | [master-insurance.md](./master-insurance.md) | 窓口精算に対応するペット保険の負担率設定。 |
+| **割引キャンペーン** | [master-campaigns.md](./master-campaigns.md) | 会計割引ルールの期間・対象カテゴリ/商品設定。 |
 | **販売商品** | [master-merchandise.md](./master-merchandise.md) | 療法食、ケア用品等の販売品。 |
 | **LINE ページ** | [master-pages.md](./master-pages.md) | 飼い主向け予約画面の案内文言カスタマイズ。 |
 
