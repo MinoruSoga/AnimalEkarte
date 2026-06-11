@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -46,40 +45,6 @@ func (m *mockAvailableSlotRepository) Delete(ctx context.Context, clinicID, id u
 	return nil
 }
 
-func TestReservationService_Create_RejectsUnavailableStartSlot(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation) // Monday
-	end := start.Add(60 * time.Minute)
-	repo := &mockReservationRepository{
-		createFn: func(_ context.Context, _ *model.Reservation) error {
-			t.Fatal("reservation must not be created outside available slots")
-			return nil
-		},
-	}
-	availableSlotRepo := &mockAvailableSlotRepository{
-		findAllFn: func(_ context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error) {
-			assert.Equal(t, uint64(1), clinicID)
-			assert.Equal(t, uint64(5), reservationTypeID)
-			dayOfWeek := int8(1)
-			return []model.ReservationTypeAvailableSlot{
-				{ReservationTypeID: 5, AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &dayOfWeek, StartTime: "09:45", IsActive: true},
-				{ReservationTypeID: 5, AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &dayOfWeek, StartTime: "12:30", IsActive: true},
-			}, nil
-		},
-	}
-	svc := NewReservationServiceWithAvailability(repo, nil, nil, nil, availableSlotRepo)
-
-	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
-		ClinicID:          1,
-		StartTime:         start,
-		EndTime:           end,
-		ReservationTypeID: 5,
-	})
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
-}
-
 func TestFilterApplicableAvailableSlots_WeeklyAndSpecific(t *testing.T) {
 	monday := int8(1)
 	tuesday := int8(2)
@@ -98,25 +63,56 @@ func TestFilterApplicableAvailableSlots_WeeklyAndSpecific(t *testing.T) {
 	assert.Equal(t, "14:00", result[1].StartTime)
 }
 
-func TestFilterTimeSlotsByAvailableSlots(t *testing.T) {
+// TestMergeAvailableTimeSlots: 予約可能枠は加算モード（ホワイトリストなし）を検証する。
+// 営業時間内の登録時刻は重複追加されず、営業時間外の登録時刻は追加される。
+func TestMergeAvailableTimeSlots(t *testing.T) {
 	monday := int8(1)
-	date := time.Date(2026, 6, 1, 0, 0, 0, 0, jstLocation)
+	date := time.Date(2026, 6, 1, 0, 0, 0, 0, jstLocation) // Monday
 
-	result := filterTimeSlotsByAvailableSlots(
-		[]TimeSlot{
+	t.Run("営業時間外の時刻のみ追加される", func(t *testing.T) {
+		slots := []TimeSlot{
 			{StartTime: "0900", EndTime: "1000"},
 			{StartTime: "0945", EndTime: "1045"},
-			{StartTime: "1230", EndTime: "1330"},
-		},
-		[]model.ReservationTypeAvailableSlot{
+		}
+		availableSlots := []model.ReservationTypeAvailableSlot{
+			// 0945 は既存スロットと重複 → 追加されない
 			{AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &monday, StartTime: "09:45", IsActive: true},
-			{AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &monday, StartTime: "12:30", IsActive: true},
-		},
-		date,
-	)
+			// 0800 は営業時間外 → 追加される
+			{AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &monday, StartTime: "08:00", IsActive: true},
+		}
+		result := mergeAvailableTimeSlots(slots, availableSlots, date, 60)
 
-	assert.Equal(t, []TimeSlot{
-		{StartTime: "0945", EndTime: "1045"},
-		{StartTime: "1230", EndTime: "1330"},
-	}, result)
+		assert.Len(t, result, 3)
+		assert.Equal(t, "0800", result[0].StartTime)
+		assert.Equal(t, "0900", result[1].StartTime) // end = 0800 + 60min = 0900
+		assert.Equal(t, "0900", result[0].EndTime)
+		assert.Equal(t, "0945", result[2].StartTime)
+	})
+
+	t.Run("該当日に枠なしでもスロットはブロックされない", func(t *testing.T) {
+		tuesday := int8(2)
+		slots := []TimeSlot{
+			{StartTime: "0900", EndTime: "1000"},
+			{StartTime: "0945", EndTime: "1045"},
+		}
+		// 火曜日登録の枠を月曜日に適用 → 該当なし → slots がそのまま返る
+		availableSlots := []model.ReservationTypeAvailableSlot{
+			{AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &tuesday, StartTime: "10:00", IsActive: true},
+		}
+		result := mergeAvailableTimeSlots(slots, availableSlots, date, 60)
+
+		assert.Equal(t, slots, result)
+	})
+
+	t.Run("有効でない枠は無視される", func(t *testing.T) {
+		slots := []TimeSlot{
+			{StartTime: "0900", EndTime: "1000"},
+		}
+		availableSlots := []model.ReservationTypeAvailableSlot{
+			{AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &monday, StartTime: "08:00", IsActive: false},
+		}
+		result := mergeAvailableTimeSlots(slots, availableSlots, date, 60)
+
+		assert.Equal(t, slots, result)
+	})
 }

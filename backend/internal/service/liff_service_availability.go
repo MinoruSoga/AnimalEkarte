@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"sort"
 	"strings"
 	"time"
 
@@ -54,7 +55,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		}
 		if hasActiveAvailableSlots(availableSlots) {
 			slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
-				return filterTimeSlotsByAvailableSlots(slots, availableSlots, date)
+				return mergeAvailableTimeSlots(slots, availableSlots, date, course.DurationMinutes)
 			}
 		}
 	}
@@ -215,20 +216,39 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 	if !hasActiveAvailableSlots(availableSlots) {
 		return result, nil
 	}
-	return filterTimeSlotsByAvailableSlots(result, availableSlots, date), nil
+	return mergeAvailableTimeSlots(result, availableSlots, date, course.DurationMinutes), nil
 }
 
-func filterTimeSlotsByAvailableSlots(slots []TimeSlot, availableSlots []model.ReservationTypeAvailableSlot, date time.Time) []TimeSlot {
+// mergeAvailableTimeSlots は営業時間から生成されたスロットに、
+// 予約可能枠テーブルに登録された時刻を加算して返す（ホワイトリストではなく加算モード）。
+// 既に営業時間に含まれている時刻は重複追加しない。
+func mergeAvailableTimeSlots(slots []TimeSlot, availableSlots []model.ReservationTypeAvailableSlot, date time.Time, durationMinutes int) []TimeSlot {
 	applicableSlots := filterApplicableAvailableSlots(availableSlots, date)
-	allowedStarts := make(map[string]struct{}, len(applicableSlots))
-	for i := range applicableSlots {
-		allowedStarts[strings.ReplaceAll(applicableSlots[i].StartTime, ":", "")] = struct{}{}
+	if len(applicableSlots) == 0 {
+		return slots
 	}
-	filtered := make([]TimeSlot, 0, len(slots))
-	for i := range slots {
-		if _, ok := allowedStarts[slots[i].StartTime]; ok {
-			filtered = append(filtered, slots[i])
+	existingStarts := make(map[string]struct{}, len(slots))
+	for _, s := range slots {
+		existingStarts[s.StartTime] = struct{}{}
+	}
+	result := make([]TimeSlot, len(slots), len(slots)+len(applicableSlots))
+	copy(result, slots)
+	for _, as := range applicableSlots {
+		startNorm := strings.ReplaceAll(as.StartTime, ":", "")
+		if _, exists := existingStarts[startNorm]; exists {
+			continue
 		}
+		startMin, err := minutesSinceMidnight(startNorm)
+		if err != nil {
+			continue
+		}
+		result = append(result, TimeSlot{
+			StartTime: startNorm,
+			EndTime:   minutesToHHMM(startMin + durationMinutes),
+		})
 	}
-	return filtered
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].StartTime < result[j].StartTime
+	})
+	return result
 }

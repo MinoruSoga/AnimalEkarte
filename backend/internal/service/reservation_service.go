@@ -175,7 +175,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	}
 	enforceBookingConstraints := shouldEnforceReservationBookingConstraints(input.Status, input.ReservationRoute)
 	if enforceBookingConstraints {
-		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 			return nil, err
 		}
 	}
@@ -412,7 +412,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		if input.ReservationTypeID != nil {
 			resolvedReservationTypeID = *input.ReservationTypeID
 		}
-		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
 			return nil, err
 		}
 	}

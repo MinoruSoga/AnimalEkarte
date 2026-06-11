@@ -151,7 +151,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, err
 	}
 	if shouldEnforceReservationBookingConstraints(status, input.ReservationRoute) {
-		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, s.availableSlot, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 			return nil, err
 		}
 	} else if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
@@ -266,7 +266,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		if resolvedEnd.IsZero() {
 			resolvedEnd = appt.EndTime
 		}
-		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, s.availableSlot, clinicID, appt.ReservationTypeID, resolvedStart, resolvedEnd); err != nil {
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, clinicID, appt.ReservationTypeID, resolvedStart, resolvedEnd); err != nil {
 			return nil, err
 		}
 	}

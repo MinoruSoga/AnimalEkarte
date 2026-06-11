@@ -11,7 +11,6 @@ import (
 func validateReservationTypeAvailableTime(
 	ctx context.Context,
 	unavailableRepo repository.ReservationTypeUnavailableTimeRepository,
-	availableSlotRepo repository.ReservationTypeAvailableSlotRepository,
 	clinicID, reservationTypeID uint64,
 	start, end time.Time,
 ) error {
@@ -34,22 +33,6 @@ func validateReservationTypeAvailableTime(
 			if startTime < applicable[i].EndTime && endTime > applicable[i].StartTime {
 				return apperrors.WrapInvalidInput("選択した時間はこの予約区分の予約不可時間に含まれています")
 			}
-		}
-	}
-
-	if availableSlotRepo != nil {
-		availableSlots, err := availableSlotRepo.FindAll(ctx, clinicID, reservationTypeID)
-		if err != nil {
-			return apperrors.Wrap(err, "failed to get available reservation type slots")
-		}
-		if hasActiveAvailableSlots(availableSlots) {
-			applicable := filterApplicableAvailableSlots(availableSlots, start)
-			for i := range applicable {
-				if applicable[i].StartTime == startTime {
-					return nil
-				}
-			}
-			return apperrors.WrapInvalidInput("選択した時間はこの予約区分の予約可能枠に含まれていません")
 		}
 	}
 	return nil
