@@ -112,8 +112,8 @@ describe("PatientContextHeader", () => {
         petName={longPet}
       />,
     );
-    // Tooltip の role="tooltip" 要素に完全な名前が含まれる
-    const tooltips = screen.getAllByRole("tooltip");
+    // Tooltip の role="tooltip" 要素に完全な名前が含まれる（portal で常時 DOM に存在、非表示時は aria-hidden=true）
+    const tooltips = screen.getAllByRole("tooltip", { hidden: true });
     const ownerTooltip = tooltips.find((el) => el.textContent === longOwner);
     const petTooltip = tooltips.find((el) => el.textContent === longPet);
     expect(ownerTooltip).toBeInTheDocument();

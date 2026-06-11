@@ -40,4 +40,27 @@ describe("NextVisitButton", () => {
     // NextVisitDateField のラベルが表示される
     expect(screen.getByText("次回来院推奨日")).toBeInTheDocument();
   });
+
+  it("tooltip が DOM に存在し value なしで「次回予定を追加」テキストを持つ", () => {
+    render(
+      <NextVisitButton
+        value=""
+        onChange={vi.fn()}
+        onValidationChange={vi.fn()}
+      />,
+    );
+    // portal で常時 DOM に存在、非表示時は aria-hidden=true のため { hidden: true } で取得
+    expect(screen.getByRole("tooltip", { hidden: true })).toHaveTextContent("次回予定を追加");
+  });
+
+  it("value がある場合 tooltip は「次回予定を変更」テキストを持つ", () => {
+    render(
+      <NextVisitButton
+        value="2025-01-15"
+        onChange={vi.fn()}
+        onValidationChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("tooltip", { hidden: true })).toHaveTextContent("次回予定を変更");
+  });
 });
