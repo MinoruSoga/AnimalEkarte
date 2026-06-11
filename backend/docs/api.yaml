@@ -4162,11 +4162,47 @@ components:
         group_id:
           type: integer
           format: int64
+          nullable: true
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親予約区分ID。NULL はルートノード
+        parent:
+          type: object
+          readOnly: true
+          nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+        children:
+          type: array
+          readOnly: true
+          description: admin list では root 要素に紐づく非削除 child を返す
+          items:
+            $ref: '#/components/schemas/ReservationTypes'
+        clear_parent_id:
+          type: boolean
+          writeOnly: true
+          description: true の場合 parent_id を NULL にクリアする
         reservation_display_name:
           type: string
         duration_minutes:
           type: integer
           format: int32
+        max_concurrent:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          description: 同一開始時刻の最大同時受付件数。NULL は無制限
+        clear_max_concurrent:
+          type: boolean
+          writeOnly: true
+          description: true の場合 max_concurrent を NULL にクリアする
         short_name:
           type: string
         show_short_name:
