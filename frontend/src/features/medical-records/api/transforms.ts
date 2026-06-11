@@ -25,7 +25,7 @@ export const transformMedicalRecord = (
     chiefComplaint: record.inquiry?.chief_complaint ?? "",
     doctor: record.doctor?.name ?? String(record.doctor_id ?? ""),
     status: (statusMap[record.status] ?? "作成中") as MedicalRecordStatus,
-    visitType: undefined,
+    visitType: record.visit_type ?? undefined,
     subjective: undefined,
     objective: record.clinical_plan?.physical_exam,
     assessment: record.clinical_plan?.diagnosis_details,

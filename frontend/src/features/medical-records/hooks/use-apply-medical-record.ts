@@ -8,6 +8,7 @@ interface UseApplyMedicalRecordArgs {
   setTreatmentPolicy: (value: string) => void;
   setPlan: (value: string) => void;
   setAssessment: (value: string) => void;
+  setVisitType?: (value: string) => void;
 }
 
 export function useApplyMedicalRecord({
@@ -16,6 +17,7 @@ export function useApplyMedicalRecord({
   setTreatmentPolicy,
   setPlan,
   setAssessment,
+  setVisitType,
 }: UseApplyMedicalRecordArgs) {
   const [prevExistingRecord, setPrevExistingRecord] = useState(existingRecord);
 
@@ -25,5 +27,6 @@ export function useApplyMedicalRecord({
     if (existingRecord.plan) setPlan(existingRecord.plan);
     if (existingRecord.assessment) setAssessment(existingRecord.assessment);
     if (existingRecord.notes) setTreatmentPolicy(existingRecord.notes);
+    if (existingRecord.visitType && setVisitType) setVisitType(existingRecord.visitType);
   }
 }

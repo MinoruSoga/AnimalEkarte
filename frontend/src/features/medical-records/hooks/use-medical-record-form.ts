@@ -84,6 +84,7 @@ export function useMedicalRecordForm(recordId?: string) {
     setTreatmentPolicy,
     setPlan,
     setAssessment,
+    setVisitType,
   });
 
   // petIdを決定: 新規作成時はURLパラメータ、編集時はカルテのpetId
@@ -226,6 +227,26 @@ export function useMedicalRecordForm(recordId?: string) {
     });
   };
 
+  // 来院種別変更ハンドラ（即時PATCH）
+  const handleVisitTypeChange = useCallback((newVisitType: string) => {
+    setVisitType(newVisitType);
+    if (!recordId) return; // 新規作成時はローカルstateのみ
+    startSaveTransition(async () => {
+      try {
+        await updateMutation.mutateAsync({
+          id: recordId,
+          req: {
+            visit_type: newVisitType,
+            version: existingRecord?.version,
+          } as UpdateMedicalRecordRequest,
+        });
+        toast.success(`来院種別を ${newVisitType} に変更しました`);
+      } catch (error) {
+        handleApiError(error, "来院種別変更");
+      }
+    });
+  }, [recordId, existingRecord?.version, updateMutation, startSaveTransition]);
+
   // 診察日変更ハンドラ
   // existingRecord?.version のみ参照するため object 全体を dep に含めない (OCC versioning)
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
@@ -328,6 +349,8 @@ export function useMedicalRecordForm(recordId?: string) {
     visitCount: existingRecord?.visitCount,
     // 担当医変更
     handleChangeDoctor,
+    // 来院種別変更
+    handleVisitTypeChange,
     // 診察日
     recordDate: existingRecord?.date,
     handleChangeDate,
