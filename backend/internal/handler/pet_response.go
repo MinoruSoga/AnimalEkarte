@@ -107,8 +107,10 @@ func toPetListResponse(p *model.Pet) petListResponse {
 
 // petSummaryResponse はネストされたレスポンスで使用するペットの要約型
 type petSummaryResponse struct {
-	ID   uint64 `json:"id"`
-	Name string `json:"name"`
+	ID        uint64   `json:"id"`
+	Name      string   `json:"name"`
+	PetNumber string   `json:"pet_number"`
+	Weight    *float64 `json:"weight,omitempty"`
 	// Status は死亡ペット判定（入院一覧/詳細の petIsDeceased）向け。alive/deceased。
 	Status        string                        `json:"status,omitempty"`
 	AnimalSpecies *animalSpeciesSummaryResponse `json:"animal_species,omitempty"`
@@ -128,10 +130,12 @@ func toPetSummary(p *model.Pet) *petSummaryResponse {
 		return nil
 	}
 	resp := &petSummaryResponse{
-		ID:     p.ID,
-		Name:   p.Name,
-		Status: string(p.Status),
-		Owner:  toOwnerSummary(p.Owner),
+		ID:        p.ID,
+		Name:      p.Name,
+		PetNumber: p.PetNumber,
+		Weight:    p.Weight,
+		Status:    string(p.Status),
+		Owner:     toOwnerSummary(p.Owner),
 	}
 	if p.AnimalSpecies != nil {
 		resp.AnimalSpecies = &animalSpeciesSummaryResponse{
