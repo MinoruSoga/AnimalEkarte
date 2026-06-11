@@ -2,7 +2,10 @@
   "mcpServers": {
     "github": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github@2025.4.8"]
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github@2025.4.8"
+      ]
     },
     "chrome-devtools": {
       "type": "stdio",
@@ -14,14 +17,6 @@
       ],
       "env": {}
     },
-    "context7-mcp": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp@2.1.4"
-      ],
-      "env": {}
-    },
     "postgresql": {
       "command": "npx",
       "args": [
@@ -30,10 +25,6 @@
         "postgresql://${DB_USER:-ekarte_user}:${DB_PASSWORD:-ekarte_password}@localhost:5434/${DB_NAME:-ekarte_db}"
       ],
       "env": {}
-    },
-    "figma": {
-      "type": "sse",
-      "url": "http://127.0.0.1:3845/sse"
     }
   }
 }

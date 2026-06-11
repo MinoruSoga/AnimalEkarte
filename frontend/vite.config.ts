@@ -37,6 +37,58 @@ function liffDevPlugin(): Plugin {
   };
 }
 
+const manualChunkGroups = [
+  // React core
+  ['vendor-react', ['react', 'react-dom', 'react-router']],
+  // Data fetching
+  ['vendor-query', ['@tanstack/react-query', 'axios']],
+  // Radix UI primitives in use
+  [
+    'vendor-radix',
+    [
+      '@radix-ui/react-alert-dialog',
+      '@radix-ui/react-checkbox',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-label',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-radio-group',
+      '@radix-ui/react-scroll-area',
+      '@radix-ui/react-select',
+      '@radix-ui/react-separator',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-switch',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-toggle-group',
+    ],
+  ],
+  // Animation and DnD
+  ['vendor-motion', ['motion']],
+  ['vendor-dnd', ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities']],
+  // Date handling
+  ['vendor-date', ['date-fns']],
+  // Charts
+  ['vendor-charts', ['recharts']],
+  // Icons
+  ['vendor-icons', ['lucide-react']],
+  // Misc utilities
+  ['vendor-misc', ['sonner', 'clsx', 'tailwind-merge', 'cmdk']],
+  // LIFF SDK
+  ['vendor-liff', ['@line/liff']],
+] as const;
+
+function resolveManualChunk(id: string): string | undefined {
+  if (!id.includes('node_modules')) return undefined;
+
+  for (const [chunkName, packageNames] of manualChunkGroups) {
+    if (packageNames.some((packageName) => id.includes(`/node_modules/${packageName}/`))) {
+      return chunkName;
+    }
+  }
+
+  return undefined;
+}
+
 export default defineConfig({
   plugins: [react(), tailwindcss(), lineReserveDevPlugin(), liffDevPlugin()],
   resolve: {
@@ -65,43 +117,7 @@ export default defineConfig({
         liff: resolve(__dirname, 'liff/index.html'),
       },
       output: {
-        manualChunks: {
-          // React コア
-          'vendor-react': ['react', 'react-dom', 'react-router'],
-          // データフェッチ
-          'vendor-query': ['@tanstack/react-query', 'axios'],
-          // Radix UI プリミティブ群（使用中パッケージのみ）
-          'vendor-radix': [
-            '@radix-ui/react-alert-dialog',
-            '@radix-ui/react-checkbox',
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-label',
-            '@radix-ui/react-popover',
-            '@radix-ui/react-radio-group',
-            '@radix-ui/react-scroll-area',
-            '@radix-ui/react-select',
-            '@radix-ui/react-separator',
-            '@radix-ui/react-slot',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-toggle-group',
-          ],
-          // アニメーション・DnD（重量ライブラリを隔離）
-          'vendor-motion': ['motion/react'],
-          'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
-          // 日付操作
-          'vendor-date': ['date-fns'],
-          // グラフ（recharts + d3 依存で重量級。遅延ロードされる消費側と
-          // 共有できるよう独立チャンクに隔離してキャッシュ効率を上げる）
-          'vendor-charts': ['recharts'],
-          // アイコン（全体で最大の外部 JS 資産になりやすい）
-          'vendor-icons': ['lucide-react'],
-          // その他ユーティリティ
-          'vendor-misc': ['sonner', 'clsx', 'tailwind-merge', 'cmdk'],
-          // LIFF SDK（liff バンドルに集約）
-          'vendor-liff': ['@line/liff'],
-        },
+        manualChunks: resolveManualChunk,
       },
     },
   },

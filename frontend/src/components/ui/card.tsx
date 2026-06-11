@@ -49,53 +49,12 @@ function CardTitle({ className, ref, ...props }: CardTitleProps) {
   );
 }
 
-interface CardDescriptionProps
-  extends React.HTMLAttributes<HTMLParagraphElement> {
-  ref?: React.Ref<HTMLParagraphElement>;
-}
-
-function CardDescription({ className, ref, ...props }: CardDescriptionProps) {
-  return (
-    <p
-      ref={ref}
-      data-slot="card-description"
-      className={cn("text-muted-foreground", className)}
-      {...props}
-    />
-  );
-}
-
-function CardAction({ className, ref, ...props }: CardProps) {
-  return (
-    <div
-      ref={ref}
-      data-slot="card-action"
-      className={cn(
-        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
 function CardContent({ className, ref, ...props }: CardProps) {
   return (
     <div
       ref={ref}
       data-slot="card-content"
       className={cn("px-6 [&:last-child]:pb-6", className)}
-      {...props}
-    />
-  );
-}
-
-function CardFooter({ className, ref, ...props }: CardProps) {
-  return (
-    <div
-      ref={ref}
-      data-slot="card-footer"
-      className={cn("flex items-center px-6 pb-6 [.border-t]:pt-6", className)}
       {...props}
     />
   );
