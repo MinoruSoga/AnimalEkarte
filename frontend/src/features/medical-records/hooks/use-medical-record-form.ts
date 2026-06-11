@@ -227,6 +227,8 @@ export function useMedicalRecordForm(recordId?: string) {
   };
 
   // 診察日変更ハンドラ
+  // existingRecord?.version のみ参照するため object 全体を dep に含めない (OCC versioning)
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleChangeDate = useCallback((newDate: string) => {
     if (!recordId) return;
     startSaveTransition(async () => {
