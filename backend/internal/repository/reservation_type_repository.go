@@ -61,7 +61,10 @@ func (r *reservationTypeRepository) FindAllWithChildren(ctx context.Context, cli
 
 func (r *reservationTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	var st model.ReservationType
-	err := dbOrTx(ctx, r.db).Preload("Group", "deleted_at IS NULL").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&st).Error
+	err := dbOrTx(ctx, r.db).
+		Preload("Group", "deleted_at IS NULL").
+		Preload("Parent", "deleted_at IS NULL").
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&st).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", id))
 	}
