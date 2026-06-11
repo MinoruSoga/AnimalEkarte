@@ -75,15 +75,12 @@ describe("ReservationTypeTree", () => {
     const user = userEvent.setup();
     render(<ReservationTypeTree types={types} selectedId={null} onSelect={vi.fn()} />);
 
-    // 初期は折りたたみ (子が非表示)
     expect(screen.queryByText("初診コース")).not.toBeInTheDocument();
 
-    // 親をクリックで展開
     await user.click(screen.getByRole("button", { name: /LINEコース/ }));
     expect(screen.getByText("初診コース")).toBeInTheDocument();
     expect(screen.getByText("再診コース")).toBeInTheDocument();
 
-    // 再クリックで折りたたみ
     await user.click(screen.getByRole("button", { name: /LINEコース/ }));
     expect(screen.queryByText("初診コース")).not.toBeInTheDocument();
   });
@@ -93,7 +90,6 @@ describe("ReservationTypeTree", () => {
     const user = userEvent.setup();
     render(<ReservationTypeTree types={types} selectedId={null} onSelect={onSelect} />);
 
-    // 親を展開してから子をクリック
     await user.click(screen.getByRole("button", { name: /LINEコース/ }));
     await user.click(screen.getByRole("button", { name: /初診コース/ }));
 
@@ -114,12 +110,11 @@ describe("ReservationTypeTree", () => {
   it("selected leaf の親が初期展開状態になる", () => {
     render(<ReservationTypeTree types={types} selectedId="2" onSelect={vi.fn()} />);
 
-    // 親が展開されているので子が表示される
     expect(screen.getByText("初診コース")).toBeInTheDocument();
     expect(screen.getByText("再診コース")).toBeInTheDocument();
   });
 
-  it("inactive leaf に「（無効）」が表示される", async () => {
+  it("inactive leaf に「（無効）」が独立要素として表示される", async () => {
     const user = userEvent.setup();
     const inactiveChild = makeType({
       id: "5",
@@ -135,7 +130,8 @@ describe("ReservationTypeTree", () => {
     render(<ReservationTypeTree types={typesWithInactive} selectedId={null} onSelect={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: /LINEコース/ }));
-    expect(screen.getByText(/（無効）/)).toBeInTheDocument();
+    // exact match: （無効） は名前 span とは別の独立した span に存在する
+    expect(screen.getByText("（無効）")).toBeInTheDocument();
   });
 
   it("root-only leaf が選択可能で onSelect を呼ぶ", async () => {
@@ -151,9 +147,74 @@ describe("ReservationTypeTree", () => {
   it("root-only leaf は親の展開なしで直接表示される", () => {
     render(<ReservationTypeTree types={types} selectedId={null} onSelect={vi.fn()} />);
 
-    // root leaf は常に表示
     expect(screen.getByText("一般診療")).toBeInTheDocument();
-    // 子 leaf は展開前は非表示
     expect(screen.queryByText("初診コース")).not.toBeInTheDocument();
+  });
+
+  it("親ノードに「グループ」badge が表示される", () => {
+    render(<ReservationTypeTree types={types} selectedId={null} onSelect={vi.fn()} />);
+
+    expect(screen.getByText("グループ")).toBeInTheDocument();
+  });
+
+  it("親ノードの aria-expanded が開閉で切り替わる", async () => {
+    const user = userEvent.setup();
+    render(<ReservationTypeTree types={types} selectedId={null} onSelect={vi.fn()} />);
+
+    const parentBtn = screen.getByRole("button", { name: /LINEコース/ });
+    expect(parentBtn).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(parentBtn);
+    expect(parentBtn).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(parentBtn);
+    expect(parentBtn).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("子 leaf 選択時に aria-current が true になる", () => {
+    // selectedId="2" なら親が自動展開 → 初診コースが表示される
+    render(<ReservationTypeTree types={types} selectedId="2" onSelect={vi.fn()} />);
+
+    const selectedBtn = screen.getByRole("button", { name: /初診コース/ });
+    expect(selectedBtn).toHaveAttribute("aria-current", "true");
+
+    const otherBtn = screen.getByRole("button", { name: /再診コース/ });
+    expect(otherBtn).not.toHaveAttribute("aria-current");
+  });
+
+  it("inactive leaf はクリック可能で onSelect が呼ばれる", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    const inactiveRoot = makeType({
+      id: "20",
+      name: "停止中の区分",
+      isLeaf: true,
+      depth: 0,
+      isActive: false,
+    });
+
+    render(
+      <ReservationTypeTree types={[inactiveRoot]} selectedId={null} onSelect={onSelect} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "停止中の区分（無効）" }));
+    expect(onSelect).toHaveBeenCalledWith("20");
+  });
+
+  it("子コンテナに role=group が付く", async () => {
+    const user = userEvent.setup();
+    render(<ReservationTypeTree types={types} selectedId={null} onSelect={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: /LINEコース/ }));
+
+    const group = screen.getByRole("group", { name: "LINEコース" });
+    expect(group).toBeInTheDocument();
+  });
+
+  it("root-only leaf には role=group コンテナが付かない", () => {
+    render(<ReservationTypeTree types={types} selectedId={null} onSelect={vi.fn()} />);
+
+    const rootBtn = screen.getByRole("button", { name: /一般診療/ });
+    expect(rootBtn.closest('[role="group"]')).toBeNull();
   });
 });
