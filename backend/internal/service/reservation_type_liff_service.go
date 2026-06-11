@@ -200,6 +200,14 @@ func (s *reservationTypeLiffService) Delete(ctx context.Context, clinicID, id ui
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to get reservation course")
 	}
+	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check reservation course children", "error", err, "id", id, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to check reservation course children")
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("この予約コースには子予約区分が登録されているため削除できません")
+	}
 	exists, err := s.resRepo.ExistsByReservationTypeID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check reservation dependency", "error", err, "id", id, "clinic_id", clinicID)

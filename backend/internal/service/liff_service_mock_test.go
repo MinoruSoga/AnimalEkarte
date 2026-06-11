@@ -56,6 +56,10 @@ func (m *mockLiffTypeRepository) FindByID(ctx context.Context, clinicID, id uint
 	return nil, apperrors.ErrNotFound
 }
 
+func (m *mockLiffTypeRepository) CountChildrenByParentID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func (m *mockLiffTypeRepository) Create(_ context.Context, _ *model.ReservationType) error {
 	return nil
 }

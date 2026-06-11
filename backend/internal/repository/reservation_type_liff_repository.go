@@ -15,6 +15,7 @@ import (
 type ReservationTypeLiffRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
+	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	Create(ctx context.Context, st *model.ReservationType) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -48,6 +49,18 @@ func (r *reservationTypeLiffRepository) FindByID(ctx context.Context, clinicID, 
 		return nil, apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))
 	}
 	return &st, nil
+}
+
+func (r *reservationTypeLiffRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.ReservationType{}).
+		Scopes(clinicScope(clinicID)).
+		Where("parent_id = ? AND deleted_at IS NULL", parentID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", parentID))
+	}
+	return count, nil
 }
 
 func (r *reservationTypeLiffRepository) Create(ctx context.Context, st *model.ReservationType) error {

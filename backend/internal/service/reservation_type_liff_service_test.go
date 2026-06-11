@@ -16,6 +16,7 @@ import (
 type mockReservationTypeLiffRepository struct {
 	findAllFn       func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
+	countChildrenFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	createFn        func(ctx context.Context, st *model.ReservationType) error
 	updateFieldsFn  func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
 	deleteFn        func(ctx context.Context, clinicID, id uint64) error
@@ -28,6 +29,13 @@ func (m *mockReservationTypeLiffRepository) FindAll(ctx context.Context, clinicI
 
 func (m *mockReservationTypeLiffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockReservationTypeLiffRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenFn != nil {
+		return m.countChildrenFn(ctx, clinicID, parentID)
+	}
+	return 0, nil
 }
 
 func (m *mockReservationTypeLiffRepository) Create(ctx context.Context, st *model.ReservationType) error {
@@ -262,6 +270,26 @@ func TestReservationTypeLiffService_Delete_InUse_Returns409(t *testing.T) {
 			return true, nil
 		},
 	}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	err := svc.Delete(context.Background(), 1, 1)
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+}
+
+func TestReservationTypeLiffService_Delete_WithChildren_Returns409(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1, Name: "親コース", IsActive: true}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+		countChildrenFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			return 2, nil
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
 	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
 
 	err := svc.Delete(context.Background(), 1, 1)
