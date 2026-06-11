@@ -4,10 +4,6 @@ import { Slot } from "@radix-ui/react-slot";
 import { cn } from "./utils";
 import { badgeVariants, type BadgeVariantsProps } from "./badge-variants";
 
-// Re-export for compatibility
-// eslint-disable-next-line react-refresh/only-export-components
-export { badgeVariants };
-
 function Badge({
   className,
   variant,

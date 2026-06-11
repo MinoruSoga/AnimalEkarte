@@ -273,7 +273,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                 }}
                 disabled={isCalendarDateDisabled}
                 onMonthChange={handleMonthChange}
-                initialFocus
+                autoFocus
               />
             </PopoverContent>
           </Popover>

@@ -315,8 +315,8 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                 locale={ja}
                 className="rounded-md"
                 captionLayout="dropdown"
-                fromYear={2020}
-                toYear={toJSTWallDate(new Date()).getFullYear() + 2}
+                startMonth={new Date(2020, 0)}
+                endMonth={new Date(toJSTWallDate(new Date()).getFullYear() + 2, 11)}
                 classNames={{
                   months: "relative flex flex-col",
                   month_caption: "flex justify-center items-center h-9 w-full",

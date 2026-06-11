@@ -104,9 +104,6 @@ function CardFooter({ className, ref, ...props }: CardProps) {
 export {
   Card,
   CardHeader,
-  CardFooter,
   CardTitle,
-  CardAction,
-  CardDescription,
   CardContent,
 };

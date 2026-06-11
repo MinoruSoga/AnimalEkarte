@@ -12,7 +12,7 @@ type EstimateStatus =
   | typeof EstimateStatusApproved
   | typeof EstimateStatusRejected;
 
-export function transformEstimateItem(item: BackendEstimateItem) {
+function transformEstimateItem(item: BackendEstimateItem) {
   return {
     id: String(item.id ?? 0),
     estimateId: String(item.estimate_id ?? 0),

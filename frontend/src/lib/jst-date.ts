@@ -59,10 +59,6 @@ export function jstWallDateToISOString(date: Date): string {
   return instant.toISOString();
 }
 
-export function jstWallDateToOffsetISOString(date: Date): string {
-  return `${formatJSTWallDate(date)}T${formatJSTWallTime(date)}:${padDatePart(date.getSeconds())}.${String(date.getMilliseconds()).padStart(3, "0")}+09:00`;
-}
-
 export function jstDateStartISOString(date: string): string {
   return `${date}T00:00:00+09:00`;
 }
