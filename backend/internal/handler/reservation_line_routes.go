@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/middleware"
@@ -58,15 +60,21 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 }
 
 // RegisterLiffRoutes はLIFF公開APIのルートを登録する（LINE IDトークン認証）。
-func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
+// ctx はレートリミッタークリーンアップゴルーチンのライフタイム管理に使用する。
+func (h *Handler) RegisterLiffRoutes(ctx context.Context, r *gin.Engine) {
 	liffAuth := middleware.LiffAuth(h.repos.LineCustomerMgr, h.repos.LineReservationSetting)
+
+	// LIFF公開エンドポイントへのレートリミット（IPアドレスベース）
+	// /link: 10回/分（アカウント紐付けは高頻度アクセス不要）
+	// /settings, /my-reservations: 30回/分（読み取り系は余裕を持たせる）
+	liffRateLimitStore := middleware.NewRateLimitStore(ctx)
 
 	liff := r.Group("/api/liff/:clinicId")
 
-	// 設定は認証不要（トップページ表示用）
-	liff.GET("/settings", h.GetLiffSettings)
-	// BE-021: LINE User ID 紐付け（link_token + line_id_token で自己認証）
-	liff.POST("/link", h.LinkLiffAccount)
+	// 設定は認証不要（トップページ表示用）— 30回/分
+	liff.GET("/settings", middleware.LiffRateLimit(liffRateLimitStore, 30), h.GetLiffSettings)
+	// BE-021: LINE User ID 紐付け（link_token + line_id_token で自己認証）— 10回/分
+	liff.POST("/link", middleware.LiffRateLimit(liffRateLimitStore, 10), h.LinkLiffAccount)
 
 	// 以下は LINE IDトークン認証が必要
 	authed := liff.Group("")
@@ -80,6 +88,6 @@ func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
 	authed.GET("/available-dates", h.GetLiffAvailableDates)
 	authed.GET("/available-times", h.GetLiffAvailableTimes)
 	authed.POST("/reservations", h.CreateLiffReservation)
-	authed.GET("/my-reservations", h.GetLiffMyReservations)
+	authed.GET("/my-reservations", middleware.LiffRateLimit(liffRateLimitStore, 30), h.GetLiffMyReservations)
 	authed.DELETE("/my-reservations/:id", h.CancelLiffReservation)
 }
