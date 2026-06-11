@@ -42,7 +42,7 @@ export function AggregationSearchFilter({ params, onParamsChange }: AggregationS
       <Search className={STYLE.searchIcon} />
       <Input
         className={STYLE.searchInput}
-        placeholder="飼い主名を検索..."
+        placeholder="飼主名を検索..."
         value={params.search ?? ""}
         onChange={(e) => onParamsChange({ search: e.target.value || undefined, page: 1 })}
       />

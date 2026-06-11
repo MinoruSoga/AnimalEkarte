@@ -94,7 +94,7 @@ export function CheckupSyncPreviewTable({
                   aria-label="送信可能対象をすべて選択"
                 />
               </th>
-              <th className={`${STYLE.tableHeaderCell} text-left px-4`}>飼い主名</th>
+              <th className={`${STYLE.tableHeaderCell} text-left px-4`}>飼主名</th>
               <th className={`${STYLE.tableHeaderCell} text-left px-4`}>ペット名</th>
               <th className={`${STYLE.tableHeaderCell} text-left px-4`}>最終来院日</th>
               <th className={`${STYLE.tableHeaderCell} text-left px-4 w-32`}>LINE連携</th>

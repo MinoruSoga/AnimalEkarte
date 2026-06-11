@@ -36,17 +36,17 @@ export const SORT_OPTIONS_BY_TAB: Record<AggregationTab, SortOption[]> = {
     { value: "period_visit_count", label: "期間内来院回数" },
     { value: "last_visit_date", label: "最終来院日" },
     { value: "days_since_last_visit", label: "経過日数" },
-    { value: "owner_name", label: "飼い主名" },
+    { value: "owner_name", label: "飼主名" },
   ],
   visit: [
     { value: "period_visit_count", label: "期間内来院回数" },
     { value: "last_visit_date", label: "最終来院日" },
-    { value: "owner_name", label: "飼い主名" },
+    { value: "owner_name", label: "飼主名" },
   ],
   last_visit: [
     { value: "last_visit_date", label: "最終来院日" },
     { value: "days_since_last_visit", label: "経過日数" },
-    { value: "owner_name", label: "飼い主名" },
+    { value: "owner_name", label: "飼主名" },
   ],
 };
 

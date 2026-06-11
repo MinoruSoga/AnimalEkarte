@@ -77,7 +77,7 @@ const CSV_COLUMNS: Record<AggregationTab, CsvColumnDef[]> = {
     { header: "last_visit_date", getValue: (o) => o.last_visit_date ?? "" },
     { header: "first_visit_date", getValue: (o) => o.first_visit_date ?? "" },
   ],
-  // 仕様書 §4.3 表示項目に合わせる: 飼い主名 / 最終来院日 / 経過日数 / 分類 / 累計来院回数 / 年間来院回数 / 累計診療費
+  // 仕様書 §4.3 表示項目に合わせる: 飼主名 / 最終来院日 / 経過日数 / 分類 / 累計来院回数 / 年間来院回数 / 累計診療費
   // 画面 (TAB_SPECIFIC_COLUMNS.last_visit) と1対1で揃えること。drift 防止。
   last_visit: [
     ...CSV_COMMON_COLUMNS,

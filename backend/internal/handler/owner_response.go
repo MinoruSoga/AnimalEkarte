@@ -6,10 +6,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ownerSummaryResponse はネストされたレスポンスで使用するオーナーの要約型
+// ownerSummaryResponse はネストされたレスポンスで使用するオーナーの要約型。
+// BUG-374 同様: フロントの generated/models.Owner.name を期待するため json:"name" に統一。
 type ownerSummaryResponse struct {
 	ID        uint64 `json:"id"`
-	OwnerName string `json:"owner_name"`
+	OwnerName string `json:"name"`
 }
 
 // toOwnerSummary は *model.Owner を *ownerSummaryResponse に変換する。nilの場合はnilを返す。

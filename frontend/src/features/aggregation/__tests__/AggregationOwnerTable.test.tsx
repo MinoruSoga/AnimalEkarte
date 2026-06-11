@@ -174,7 +174,7 @@ describe('AggregationOwnerTable', () => {
       { wrapper: createWrapper() }
     );
 
-    expect(screen.getByText('飼い主名')).toBeInTheDocument();
+    expect(screen.getByText('飼主名')).toBeInTheDocument();
     expect(screen.getByText('最終来院日')).toBeInTheDocument();
 
     rerender(
@@ -188,7 +188,7 @@ describe('AggregationOwnerTable', () => {
       />
     );
 
-    expect(screen.getByText('飼い主名')).toBeInTheDocument();
+    expect(screen.getByText('飼主名')).toBeInTheDocument();
   });
 
   it('should render correct badge colors for different last_visit_bucket values', () => {
@@ -270,7 +270,7 @@ describe('AggregationOwnerTable', () => {
     expect(screen.getByText('2026-04-20')).toBeInTheDocument();
   });
 
-  // 仕様書 §4.3 表示項目: 飼い主名 / 最終来院日 / 経過日数 / 分類 / 累計来院回数 / 年間来院回数 / 累計診療費
+  // 仕様書 §4.3 表示項目: 飼主名 / 最終来院日 / 経過日数 / 分類 / 累計来院回数 / 年間来院回数 / 累計診療費
   it('should render all spec §4.3 columns in last_visit tab', () => {
     render(
       <AggregationOwnerTable
@@ -285,7 +285,7 @@ describe('AggregationOwnerTable', () => {
     );
 
     // ヘッダ列が仕様通り 7 個（チェックボックス除く）揃っている
-    expect(screen.getByText('飼い主名')).toBeInTheDocument();
+    expect(screen.getByText('飼主名')).toBeInTheDocument();
     expect(screen.getByText('最終来院日')).toBeInTheDocument();
     expect(screen.getByText('経過日数')).toBeInTheDocument();
     expect(screen.getByText('分類')).toBeInTheDocument();

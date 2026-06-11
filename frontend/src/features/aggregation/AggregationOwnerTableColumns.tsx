@@ -61,7 +61,7 @@ function formatDaysSince(days: number | null | undefined): string {
 
 const OWNER_NAME_COLUMN: AggregationOwnerColumn = {
   key: "owner_name",
-  label: "飼い主名",
+  label: "飼主名",
   render: (owner) => (
     <Link
       to={`/owners/${owner.owner_id}`}

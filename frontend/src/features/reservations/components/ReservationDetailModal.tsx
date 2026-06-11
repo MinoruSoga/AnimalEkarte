@@ -185,7 +185,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                   ) : null}
                 </span>
               </InfoRow>
-              <InfoRow label="飼い主名">
+              <InfoRow label="飼主名">
                 {reservation.ownerName}
               </InfoRow>
               {reservation.petId ? (
