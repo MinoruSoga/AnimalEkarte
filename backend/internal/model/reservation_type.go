@@ -56,6 +56,7 @@ type ReservationType struct {
 	// LINE予約用フィールド
 	ReservationDisplayName string               `gorm:"not null;default:''"                    json:"reservation_display_name"`
 	DurationMinutes        int                  `gorm:"not null;default:15"                        json:"duration_minutes"`
+	MaxConcurrent          *int                 `gorm:"check:max_concurrent > 0"                   json:"max_concurrent"`
 	ShortName              string               `gorm:"not null;default:''"                    json:"short_name"`
 	ShowShortName          bool                 `gorm:"not null;default:false"                     json:"show_short_name"`
 	ReservationVisible     bool                 `gorm:"not null;default:true"                      json:"reservation_visible"`
@@ -70,6 +71,11 @@ type ReservationType struct {
 	// グループ（カレンダー凡例用）
 	GroupID *uint64               `gorm:"index"              json:"group_id"`
 	Group   *ReservationTypeGroup `gorm:"foreignKey:GroupID" json:"group,omitempty"`
+
+	// 親子階層（2階層想定。設定継承なし）
+	ParentID *uint64           `gorm:"index"               json:"parent_id"`
+	Parent   *ReservationType  `gorm:"foreignKey:ParentID" json:"parent,omitempty"`
+	Children []ReservationType `gorm:"foreignKey:ParentID" json:"children,omitempty"`
 
 	// Relations（BE-115）
 	UnavailableTimes  []ReservationTypeUnavailableTime `gorm:"foreignKey:ReservationTypeID" json:"unavailable_times,omitempty"`

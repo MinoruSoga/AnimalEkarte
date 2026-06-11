@@ -16,8 +16,10 @@ import (
 // mockReservationTypeRepository は ReservationTypeRepository のテスト用モック実装
 type mockReservationTypeRepository struct {
 	findAllFn                     func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
+	findAllWithChildrenFn         func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 	countUsageByReservationTypeFn func(ctx context.Context, clinicID, id uint64) (int64, error)
+	countChildrenByParentIDFn     func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	createFn                      func(ctx context.Context, st *model.ReservationType) error
 	updateFn                      func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
@@ -29,6 +31,13 @@ func (m *mockReservationTypeRepository) FindAll(ctx context.Context, clinicID ui
 		return m.findAllFn(ctx, clinicID)
 	}
 	return []model.ReservationType{}, nil
+}
+
+func (m *mockReservationTypeRepository) FindAllWithChildren(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
+	if m.findAllWithChildrenFn != nil {
+		return m.findAllWithChildrenFn(ctx, clinicID)
+	}
+	return m.FindAll(ctx, clinicID)
 }
 
 func (m *mockReservationTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
@@ -62,6 +71,13 @@ func (m *mockReservationTypeRepository) Delete(ctx context.Context, clinicID, id
 func (m *mockReservationTypeRepository) CountUsageByReservationTypeID(ctx context.Context, clinicID, id uint64) (int64, error) {
 	if m.countUsageByReservationTypeFn != nil {
 		return m.countUsageByReservationTypeFn(ctx, clinicID, id)
+	}
+	return 0, nil
+}
+
+func (m *mockReservationTypeRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn != nil {
+		return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
 	}
 	return 0, nil
 }
@@ -253,6 +269,59 @@ func TestReservationTypeService_Create(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+
+	t.Run("returns 400 when max_concurrent is not positive", func(t *testing.T) {
+		maxConcurrent := 0
+		svc := newTestReservationTypeService(&mockReservationTypeRepository{})
+
+		_, err := svc.Create(context.Background(), 1, &CreateReservationTypeInput{
+			Name:          "診察",
+			MaxConcurrent: &maxConcurrent,
+		})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("rejects non-root parent", func(t *testing.T) {
+		parentID := uint64(2)
+		grandParentID := uint64(1)
+		repo := &mockReservationTypeRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+				return &model.ReservationType{ID: id, ClinicID: clinicID, ParentID: &grandParentID}, nil
+			},
+		}
+		svc := newTestReservationTypeService(repo)
+
+		_, err := svc.Create(context.Background(), 1, &CreateReservationTypeInput{
+			Name:     "子区分",
+			ParentID: &parentID,
+		})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("rejects parent outside clinic as not found", func(t *testing.T) {
+		parentID := uint64(99)
+		repo := &mockReservationTypeRepository{
+			findByIDFn: func(_ context.Context, _ uint64, id uint64) (*model.ReservationType, error) {
+				if id == parentID {
+					return nil, apperrors.WrapNotFound("reservation_type", "99")
+				}
+				return &model.ReservationType{ID: id}, nil
+			},
+		}
+		svc := newTestReservationTypeService(repo)
+
+		_, err := svc.Create(context.Background(), 1, &CreateReservationTypeInput{
+			Name:     "子区分",
+			ParentID: &parentID,
+		})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
 }
 
 // ---- Update ----
@@ -318,6 +387,45 @@ func TestReservationTypeService_Update(t *testing.T) {
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("rejects self parent", func(t *testing.T) {
+		const id uint64 = 5
+		parentID := id
+		svc := newTestReservationTypeService(&mockReservationTypeRepository{})
+
+		_, err := svc.Update(context.Background(), 1, id, &UpdateReservationTypeInput{ParentID: &parentID})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("returns 400 when update max_concurrent is not positive", func(t *testing.T) {
+		maxConcurrent := 0
+		svc := newTestReservationTypeService(&mockReservationTypeRepository{})
+
+		_, err := svc.Update(context.Background(), 1, 5, &UpdateReservationTypeInput{MaxConcurrent: &maxConcurrent})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("rejects moving parent with children under another parent", func(t *testing.T) {
+		parentID := uint64(10)
+		repo := &mockReservationTypeRepository{
+			countChildrenByParentIDFn: func(_ context.Context, _ uint64, parentID uint64) (int64, error) {
+				if parentID == 5 {
+					return 1, nil
+				}
+				return 0, nil
+			},
+		}
+		svc := newTestReservationTypeService(repo)
+
+		_, err := svc.Update(context.Background(), 1, 5, &UpdateReservationTypeInput{ParentID: &parentID})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
 }
 
 // ---- Delete ----
@@ -354,6 +462,20 @@ func TestReservationTypeService_Delete(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("子予約区分がある親は削除できない", func(t *testing.T) {
+		repo := &mockReservationTypeRepository{
+			countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+				return 1, nil
+			},
+		}
+		svc := newTestReservationTypeService(repo)
+
+		err := svc.Delete(context.Background(), 1, 2)
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
 	})
 
 	t.Run("使用中の予約種別は削除できない", func(t *testing.T) {

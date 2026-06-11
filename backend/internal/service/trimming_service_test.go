@@ -91,6 +91,10 @@ func (m *mockTrimmingReservationRepository) CountConflicts(_ context.Context, _ 
 	return 0, nil
 }
 
+func (m *mockTrimmingReservationRepository) CountByTypeAndStartTime(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (int64, error) {
+	return 0, nil
+}
+
 func (m *mockTrimmingReservationRepository) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
 	return 0, nil
 }
@@ -119,6 +123,10 @@ func (m *mockTrimmingReservationTypeRepository) FindAll(_ context.Context, _ uin
 	return nil, nil
 }
 
+func (m *mockTrimmingReservationTypeRepository) FindAllWithChildren(_ context.Context, _ uint64) ([]model.ReservationType, error) {
+	return nil, nil
+}
+
 func (m *mockTrimmingReservationTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
@@ -131,6 +139,10 @@ func (m *mockTrimmingReservationTypeRepository) FindByID(ctx context.Context, cl
 }
 
 func (m *mockTrimmingReservationTypeRepository) CountUsageByReservationTypeID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockTrimmingReservationTypeRepository) CountChildrenByParentID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 

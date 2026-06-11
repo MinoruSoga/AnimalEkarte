@@ -106,6 +106,7 @@ type ReservationService interface {
 
 type reservationService struct {
 	repo                 repository.ReservationRepository
+	typeRepo             reservationTypeFinder
 	tx                   repository.Transactor
 	reservationStaffRepo repository.ReservationStaffRepository
 	unavailableTimeRepo  repository.ReservationTypeUnavailableTimeRepository
@@ -121,12 +122,17 @@ func NewReservationService(repo repository.ReservationRepository, tx repository.
 }
 
 func NewReservationServiceWithAvailability(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationService {
+	return NewReservationServiceWithAvailabilityAndType(repo, nil, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo...)
+}
+
+func NewReservationServiceWithAvailabilityAndType(repo repository.ReservationRepository, typeRepo reservationTypeFinder, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationService {
 	var slotRepo repository.ReservationTypeAvailableSlotRepository
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
 	}
 	return &reservationService{
 		repo:                 repo,
+		typeRepo:             typeRepo,
 		tx:                   tx,
 		reservationStaffRepo: reservationStaffRepo,
 		unavailableTimeRepo:  unavailableTimeRepo,
@@ -205,6 +211,9 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if enforceBookingConstraints {
 			if err := checkSlotConflict(ctx, s.repo, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime, nil); err != nil {
+				return err
+			}
+			if err := checkReservationTypeCapacity(ctx, s.repo, s.typeRepo, reservation.ClinicID, reservation.ReservationTypeID, reservation.StartTime, nil); err != nil {
 				return err
 			}
 		}
@@ -353,6 +362,10 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		}
 
 		resolvedStart, resolvedEnd, resolvedDoctorID := resolveUpdateParams(current, input)
+		resolvedReservationTypeID := current.ReservationTypeID
+		if input.ReservationTypeID != nil {
+			resolvedReservationTypeID = *input.ReservationTypeID
+		}
 
 		if input.StartTime != nil || input.EndTime != nil {
 			if err := validateTimeRange(resolvedStart, resolvedEnd); err != nil {
@@ -361,6 +374,9 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		}
 
 		if err := checkSlotConflict(ctx, s.repo, clinicID, resolvedDoctorID, resolvedStart, resolvedEnd, &id); err != nil {
+			return err
+		}
+		if err := checkReservationTypeCapacity(ctx, s.repo, s.typeRepo, clinicID, resolvedReservationTypeID, resolvedStart, &id); err != nil {
 			return err
 		}
 
@@ -421,8 +437,8 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	// 時刻・医師の変更がある場合のみ競合チェックが必要
-	needsConflictCheck := input.StartTime != nil || input.EndTime != nil || input.DoctorID != nil
+	// 時刻・医師・予約区分の変更がある場合のみ競合チェックが必要
+	needsConflictCheck := input.StartTime != nil || input.EndTime != nil || input.DoctorID != nil || input.ReservationTypeID != nil
 
 	var updated *model.Reservation
 	if !needsConflictCheck {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -16,12 +17,14 @@ import (
 type mockReservationRepository struct {
 	findAllFn                          func(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	lockAndFindByIDFn                  func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	createFn                           func(ctx context.Context, reservation *model.Reservation) error
 	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
 	countOnDutyDoctorsFn               func(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
 	countConflictsFn                   func(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
+	countByTypeAndStartTimeFn          func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -66,7 +69,10 @@ func (m *mockReservationRepository) CountMedicalRecordsByReservationID(ctx conte
 	return 0, nil
 }
 
-func (m *mockReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+func (m *mockReservationRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
+	if m.lockAndFindByIDFn != nil {
+		return m.lockAndFindByIDFn(ctx, clinicID, id)
+	}
 	return nil, nil
 }
 
@@ -84,6 +90,13 @@ func (m *mockReservationRepository) CountOnDutyDoctors(ctx context.Context, clin
 func (m *mockReservationRepository) CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error) {
 	if m.countConflictsFn != nil {
 		return m.countConflictsFn(ctx, clinicID, start, end, excludeID)
+	}
+	return 0, nil
+}
+
+func (m *mockReservationRepository) CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
+	if m.countByTypeAndStartTimeFn != nil {
+		return m.countByTypeAndStartTimeFn(ctx, clinicID, reservationTypeID, startTime, excludeID)
 	}
 	return 0, nil
 }
@@ -421,6 +434,50 @@ func TestReservationService_Create(t *testing.T) {
 	}
 }
 
+func TestReservationService_Create_RejectsFullReservationTypeCapacity(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
+	maxConcurrent := 2
+	createCalled := false
+	repo := &mockReservationRepository{
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			return 3, nil
+		},
+		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+			return 0, nil
+		},
+		countByTypeAndStartTimeFn: func(_ context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(9), reservationTypeID)
+			assert.Equal(t, start, startTime)
+			assert.Nil(t, excludeID)
+			return 2, nil
+		},
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			createCalled = true
+			return nil
+		},
+	}
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, typeRepo, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 9,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "expected conflict but got: %v", err)
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+}
+
 func TestReservationService_Create_RejectsIncapableStaff(t *testing.T) {
 	now := time.Now()
 	doctorID := uint64(10)
@@ -614,6 +671,67 @@ func TestReservationService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReservationService_Update_RejectsFullReservationTypeCapacity(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
+	nextStart := start.Add(time.Hour)
+	maxConcurrent := 2
+	updateCalled := false
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:                id,
+				ClinicID:          clinicID,
+				ReservationTypeID: 9,
+				StartTime:         start,
+				EndTime:           start.Add(30 * time.Minute),
+				Status:            model.ReservationStatusPending,
+			}, nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:                id,
+				ClinicID:          clinicID,
+				ReservationTypeID: 9,
+				StartTime:         start,
+				EndTime:           start.Add(30 * time.Minute),
+				Status:            model.ReservationStatusPending,
+			}, nil
+		},
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			return 3, nil
+		},
+		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+			return 0, nil
+		},
+		countByTypeAndStartTimeFn: func(_ context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(9), reservationTypeID)
+			assert.Equal(t, nextStart, startTime)
+			require.NotNil(t, excludeID)
+			assert.Equal(t, uint64(1), *excludeID)
+			return 2, nil
+		},
+		updateFieldsFn: func(_ context.Context, _ uint64, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			return &model.Reservation{}, nil
+		},
+	}
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, typeRepo, &mockTransactor{}, nil, nil)
+	nextEnd := nextStart.Add(30 * time.Minute)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{StartTime: &nextStart, EndTime: &nextEnd})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "expected conflict but got: %v", err)
+	assert.Nil(t, result)
+	assert.False(t, updateCalled)
 }
 
 // Q7: キャンセル(status=cancelled)への更新時は repo.Delete でソフトデリートし、

@@ -9,7 +9,7 @@ import (
 )
 
 func (s *reservationTypeService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
-	items, err := s.repo.FindAll(ctx, clinicID)
+	items, err := s.repo.FindAllWithChildren(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list reservation types", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list reservation types")
@@ -29,6 +29,12 @@ func (s *reservationTypeService) GetByID(ctx context.Context, clinicID, id uint6
 func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeInput) (*model.ReservationType, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
+	}
+	if err := validateMaxConcurrent(input.MaxConcurrent); err != nil {
+		return nil, err
+	}
+	if err := s.validateReservationTypeParent(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
 	}
 	reservationDayOption := model.ReservationDayOption(input.ReservationDayOption)
 	if reservationDayOption == "" {
@@ -55,8 +61,10 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 		Description:            input.Description,
 		SortOrder:              input.SortOrder,
 		Category:               category,
+		ParentID:               input.ParentID,
 		ReservationDisplayName: input.ReservationDisplayName,
 		DurationMinutes:        durationMinutes,
+		MaxConcurrent:          input.MaxConcurrent,
 		ShortName:              input.ShortName,
 		ShowShortName:          input.ShowShortName,
 		ReservationVisible:     reservationVisible,
@@ -85,6 +93,25 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
+	if err := validateMaxConcurrent(input.MaxConcurrent); err != nil {
+		return nil, err
+	}
+	if input.ParentID != nil && *input.ParentID == id {
+		return nil, apperrors.WrapInvalidInput("自分自身を親に設定できません")
+	}
+	if input.ParentID != nil {
+		childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to count reservation type children", "error", err, "id", id, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(err, "failed to count reservation type children")
+		}
+		if childCount > 0 {
+			return nil, apperrors.WrapInvalidInput("子予約区分を持つ予約区分は子階層に移動できません")
+		}
+	}
+	if err := s.validateReservationTypeParent(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
+	}
 	fields := buildReservationTypeUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
@@ -101,6 +128,14 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find reservation type")
+	}
+	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check reservation type children", "error", err, "id", id, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to check reservation type children")
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("この予約区分には子予約区分が登録されているため削除できません")
 	}
 	count, err := s.repo.CountUsageByReservationTypeID(ctx, clinicID, id)
 	if err != nil {
@@ -127,5 +162,27 @@ func (s *reservationTypeService) Reorder(ctx context.Context, clinicID uint64, i
 		return apperrors.Wrap(err, "failed to reorder reservation types")
 	}
 	slog.InfoContext(ctx, "reservation type reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
+	return nil
+}
+
+func validateMaxConcurrent(maxConcurrent *int) error {
+	if maxConcurrent != nil && *maxConcurrent <= 0 {
+		return apperrors.WrapInvalidInput("max_concurrent は1以上で指定してください")
+	}
+	return nil
+}
+
+func (s *reservationTypeService) validateReservationTypeParent(ctx context.Context, clinicID uint64, parentID *uint64) error {
+	if parentID == nil {
+		return nil
+	}
+	parent, err := s.repo.FindByID(ctx, clinicID, *parentID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find parent reservation type", "error", err, "parent_id", *parentID, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to find parent reservation type")
+	}
+	if parent.ParentID != nil {
+		return apperrors.WrapInvalidInput("親予約区分にはルートノードのみ指定できます")
+	}
 	return nil
 }

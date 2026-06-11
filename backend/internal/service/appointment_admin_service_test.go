@@ -238,6 +238,55 @@ func TestReservationAdminService_Create(t *testing.T) {
 	}
 }
 
+func TestReservationAdminService_Create_RejectsFullReservationTypeCapacity(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
+	maxConcurrent := 2
+	createCalled := false
+	resRepo := &mockReservationRepository{
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			return 3, nil
+		},
+		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+			return 0, nil
+		},
+		countByTypeAndStartTimeFn: func(_ context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(9), reservationTypeID)
+			assert.Equal(t, start, startTime)
+			assert.Nil(t, excludeID)
+			return 2, nil
+		},
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			createCalled = true
+			return nil
+		},
+	}
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
+		},
+	}
+	svc := NewReservationAdminServiceWithAvailabilityAndType(
+		&mockReservationAdminRepository{},
+		resRepo,
+		typeRepo,
+		&mockTransactor{},
+		nil,
+		nil,
+	)
+
+	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 9,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "expected conflict but got: %v", err)
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+}
+
 func TestReservationAdminService_Create_RejectsExcludedStaff(t *testing.T) {
 	now := time.Now()
 	doctorID := uint64(10)

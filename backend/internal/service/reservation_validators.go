@@ -60,13 +60,14 @@ type CreateReservationInput struct {
 }
 
 type reservationValidators struct {
-	tx   repository.Transactor
-	repo repository.ReservationRepository
+	tx       repository.Transactor
+	repo     repository.ReservationRepository
+	typeRepo reservationTypeFinder
 }
 
 // NewReservationValidators はバリデーターを初期化して返す。
-func NewReservationValidators(tx repository.Transactor, repo repository.ReservationRepository) ReservationValidators {
-	return &reservationValidators{tx: tx, repo: repo}
+func NewReservationValidators(tx repository.Transactor, repo repository.ReservationRepository, typeRepo reservationTypeFinder) ReservationValidators {
+	return &reservationValidators{tx: tx, repo: repo, typeRepo: typeRepo}
 }
 
 func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error) {
@@ -121,6 +122,16 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 				return &ReservationLimitError{
 					Code:         "SLOT_TAKEN",
 					Message:      "選択された時間枠は既に予約が入っています。別の時間をお選びください。",
+					RedirectStep: 5,
+				}
+			}
+			return err
+		}
+		if err := checkReservationTypeCapacity(ctx, v.repo, v.typeRepo, input.ClinicID, input.ReservationTypeID, startDT, nil); err != nil {
+			if errors.Is(err, apperrors.ErrConflict) {
+				return &ReservationLimitError{
+					Code:         "SLOT_TAKEN",
+					Message:      "選択された時間枠は満員です。別の時間をお選びください。",
 					RedirectStep: 5,
 				}
 			}

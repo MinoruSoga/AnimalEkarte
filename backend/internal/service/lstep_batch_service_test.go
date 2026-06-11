@@ -47,6 +47,9 @@ func (m *batchMockReservationRepo) CountOnDutyDoctors(_ context.Context, _ uint6
 func (m *batchMockReservationRepo) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
 	return 0, nil
 }
+func (m *batchMockReservationRepo) CountByTypeAndStartTime(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (int64, error) {
+	return 0, nil
+}
 func (m *batchMockReservationRepo) ExistsByReservationTypeID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }

@@ -53,10 +53,30 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
 			return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get available slots")
 		}
-		if hasActiveAvailableSlots(availableSlots) {
+		if hasActiveAvailableSlots(availableSlots) || course.MaxConcurrent != nil {
 			slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
-				return mergeAvailableTimeSlots(slots, availableSlots, date, course.DurationMinutes)
+				merged := mergeAvailableTimeSlots(slots, availableSlots, date, course.DurationMinutes)
+				if course.MaxConcurrent == nil {
+					return merged
+				}
+				// TODO: 日付一覧取得時の capacity チェックは N+1 になるため将来バッチ取得に改善する
+				filtered, err := filterSlotsByCapacity(ctx, merged, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
+				if err != nil {
+					slog.WarnContext(ctx, "failed to filter by capacity in dates, skipping", "error", err)
+					return merged
+				}
+				return filtered
 			}
+		}
+	} else if course.MaxConcurrent != nil {
+		slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
+			// TODO: 日付一覧取得時の capacity チェックは N+1 になるため将来バッチ取得に改善する
+			filtered, err := filterSlotsByCapacity(ctx, slots, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
+			if err != nil {
+				slog.WarnContext(ctx, "failed to filter by capacity in dates, skipping", "error", err)
+				return slots
+			}
+			return filtered
 		}
 	}
 
@@ -205,18 +225,24 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		slog.ErrorContext(ctx, "failed to generate time slots", "error", err)
 		return nil, apperrors.Wrap(err, "failed to generate time slots")
 	}
-	if s.availableSlotRepo == nil {
-		return result, nil
+	if s.availableSlotRepo != nil {
+		availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
+			return nil, apperrors.Wrap(err, "failed to get available slots")
+		}
+		if hasActiveAvailableSlots(availableSlots) {
+			result = mergeAvailableTimeSlots(result, availableSlots, date, course.DurationMinutes)
+		}
 	}
-	availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get available slots", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get available slots")
+	if course.MaxConcurrent != nil {
+		result, err = filterSlotsByCapacity(ctx, result, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to filter slots by capacity", "error", err)
+			return nil, apperrors.Wrap(err, "failed to filter slots by capacity")
+		}
 	}
-	if !hasActiveAvailableSlots(availableSlots) {
-		return result, nil
-	}
-	return mergeAvailableTimeSlots(result, availableSlots, date, course.DurationMinutes), nil
+	return result, nil
 }
 
 // mergeAvailableTimeSlots は営業時間から生成されたスロットに、
@@ -251,4 +277,35 @@ func mergeAvailableTimeSlots(slots []TimeSlot, availableSlots []model.Reservatio
 		return result[i].StartTime < result[j].StartTime
 	})
 	return result
+}
+
+// filterSlotsByCapacity は max_concurrent に達したスロットを除外する。
+func filterSlotsByCapacity(
+	ctx context.Context,
+	slots []TimeSlot,
+	repo reservationTypeCapacityCounter,
+	clinicID, typeID uint64,
+	date time.Time,
+	maxConcurrent int,
+) ([]TimeSlot, error) {
+	result := make([]TimeSlot, 0, len(slots))
+	dateJST := date.In(jstLocation)
+	for _, slot := range slots {
+		startMin, err := minutesSinceMidnight(slot.StartTime)
+		if err != nil {
+			continue
+		}
+		startTime := time.Date(
+			dateJST.Year(), dateJST.Month(), dateJST.Day(),
+			startMin/60, startMin%60, 0, 0, jstLocation,
+		)
+		count, err := repo.CountByTypeAndStartTime(ctx, clinicID, typeID, startTime, nil)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to count reservations")
+		}
+		if count < int64(maxConcurrent) {
+			result = append(result, slot)
+		}
+	}
+	return result, nil
 }

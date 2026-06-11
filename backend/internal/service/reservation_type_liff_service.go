@@ -15,6 +15,7 @@ const (
 	colReservationTypeLiffDescription          = "description"
 	colReservationTypeLiffSortOrder            = "sort_order"
 	colReservationTypeLiffDurationMinutes      = "duration_minutes"
+	colReservationTypeLiffMaxConcurrent        = "max_concurrent"
 	colReservationTypeLiffShortName            = "short_name"
 	colReservationTypeLiffShowShortName        = "show_short_name"
 	colReservationTypeLiffReservationVisible   = "reservation_visible"
@@ -39,6 +40,11 @@ func buildReservationTypeLiffUpdate(input *UpdateReservationTypeLiffInput) map[s
 	}
 	if input.DurationMinutes != nil {
 		fields[colReservationTypeLiffDurationMinutes] = *input.DurationMinutes
+	}
+	if input.ClearMaxConcurrent {
+		fields[colReservationTypeLiffMaxConcurrent] = nil
+	} else if input.MaxConcurrent != nil {
+		fields[colReservationTypeLiffMaxConcurrent] = *input.MaxConcurrent
 	}
 	if input.ShortName != nil {
 		fields[colReservationTypeLiffShortName] = *input.ShortName
@@ -68,6 +74,7 @@ type CreateReservationTypeLiffInput struct {
 	Description          string
 	SortOrder            int
 	DurationMinutes      int
+	MaxConcurrent        *int
 	ShortName            string
 	ShowShortName        bool
 	ReservationVisible   bool
@@ -83,6 +90,8 @@ type UpdateReservationTypeLiffInput struct {
 	Description          *string
 	SortOrder            *int
 	DurationMinutes      *int
+	MaxConcurrent        *int
+	ClearMaxConcurrent   bool
 	ShortName            *string
 	ShowShortName        *bool
 	ReservationVisible   *bool
@@ -121,6 +130,9 @@ func (s *reservationTypeLiffService) List(ctx context.Context, clinicID uint64) 
 }
 
 func (s *reservationTypeLiffService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeLiffInput) (*model.ReservationType, error) {
+	if err := validateMaxConcurrent(input.MaxConcurrent); err != nil {
+		return nil, err
+	}
 	dayOption := model.ReservationDayOption(input.ReservationDayOption)
 	if dayOption == "" {
 		dayOption = model.DayOptionNone
@@ -133,6 +145,7 @@ func (s *reservationTypeLiffService) Create(ctx context.Context, clinicID uint64
 		Description:          input.Description,
 		SortOrder:            input.SortOrder,
 		DurationMinutes:      input.DurationMinutes,
+		MaxConcurrent:        input.MaxConcurrent,
 		ShortName:            input.ShortName,
 		ShowShortName:        input.ShowShortName,
 		ReservationVisible:   input.ReservationVisible,
@@ -159,6 +172,9 @@ func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id ui
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to get reservation course", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation course")
+	}
+	if err := validateMaxConcurrent(input.MaxConcurrent); err != nil {
+		return nil, err
 	}
 	fields := buildReservationTypeLiffUpdate(input)
 	if len(fields) == 0 {

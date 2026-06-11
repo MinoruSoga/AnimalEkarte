@@ -17,6 +17,14 @@ type mockAvailableSlotRepository struct {
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
+type mockCapacityCounter struct {
+	countFn func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
+}
+
+func (m mockCapacityCounter) CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
+	return m.countFn(ctx, clinicID, reservationTypeID, startTime, excludeID)
+}
+
 func (m *mockAvailableSlotRepository) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error) {
 	if m.findAllFn != nil {
 		return m.findAllFn(ctx, clinicID, reservationTypeID)
@@ -114,5 +122,39 @@ func TestMergeAvailableTimeSlots(t *testing.T) {
 		result := mergeAvailableTimeSlots(slots, availableSlots, date, 60)
 
 		assert.Equal(t, slots, result)
+	})
+}
+
+func TestFilterSlotsByCapacity(t *testing.T) {
+	date := time.Date(2026, 6, 1, 0, 0, 0, 0, jstLocation)
+	slots := []TimeSlot{
+		{StartTime: "0900", EndTime: "0930"},
+		{StartTime: "1000", EndTime: "1030"},
+	}
+
+	t.Run("上限未満のスロットは含まれる", func(t *testing.T) {
+		result, err := filterSlotsByCapacity(context.Background(), slots, mockCapacityCounter{
+			countFn: func(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (int64, error) {
+				return 1, nil
+			},
+		}, 1, 2, date, 2)
+
+		assert.NoError(t, err)
+		assert.Equal(t, slots, result)
+	})
+
+	t.Run("上限以上のスロットは除外される", func(t *testing.T) {
+		result, err := filterSlotsByCapacity(context.Background(), slots, mockCapacityCounter{
+			countFn: func(_ context.Context, _, _ uint64, start time.Time, _ *uint64) (int64, error) {
+				if start.Hour() == 9 {
+					return 2, nil
+				}
+				return 0, nil
+			},
+		}, 1, 2, date, 2)
+
+		assert.NoError(t, err)
+		assert.Len(t, result, 1)
+		assert.Equal(t, "1000", result[0].StartTime)
 	})
 }

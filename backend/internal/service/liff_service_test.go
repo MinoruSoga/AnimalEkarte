@@ -155,6 +155,57 @@ func TestLiffService_GetCourses(t *testing.T) {
 		assert.Equal(t, uint64(3), got[1].ID)
 	})
 
+	t.Run("子を持つ親ノードは除外し葉ノードを返す", func(t *testing.T) {
+		parentID := uint64(10)
+		svc := newLiffSvc(
+			&mockLiffSettingRepository{},
+			&mockLiffTypeRepository{
+				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
+					return []model.ReservationType{
+						{ID: parentID, Name: "トリミング", IsInternal: false, ReservationVisible: true},
+						{ID: 11, ParentID: &parentID, Name: "シャンプー", IsInternal: false, ReservationVisible: true},
+					}, nil
+				},
+			},
+			&mockLiffStaffRepository{},
+			&mockLiffScheduleRepository{},
+			&mockLiffAdminRepository{},
+			&mockLiffCustomerRepository{},
+			&mockLiffValidators{},
+			nil,
+		)
+
+		got, err := svc.GetCourses(ctx, 3)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, uint64(11), got[0].ID)
+	})
+
+	t.Run("非表示の子でも親ノードは構造上の葉として扱わない", func(t *testing.T) {
+		parentID := uint64(20)
+		svc := newLiffSvc(
+			&mockLiffSettingRepository{},
+			&mockLiffTypeRepository{
+				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
+					return []model.ReservationType{
+						{ID: parentID, Name: "トリミング", IsInternal: false, ReservationVisible: true},
+						{ID: 21, ParentID: &parentID, Name: "非公開シャンプー", IsInternal: false, ReservationVisible: false},
+					}, nil
+				},
+			},
+			&mockLiffStaffRepository{},
+			&mockLiffScheduleRepository{},
+			&mockLiffAdminRepository{},
+			&mockLiffCustomerRepository{},
+			&mockLiffValidators{},
+			nil,
+		)
+
+		got, err := svc.GetCourses(ctx, 3)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+
 	t.Run("全件が内部メニューのとき空スライスを返す", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},

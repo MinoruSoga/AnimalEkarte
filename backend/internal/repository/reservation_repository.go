@@ -35,6 +35,8 @@ type ReservationSlotRepository interface {
 	CountOnDutyDoctors(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
 	// CountConflicts は時間枠の競合予約数を SELECT FOR UPDATE で返す。
 	CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
+	// CountByTypeAndStartTime は同一予約区分・同一開始時刻の予約件数を返す。
+	CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 }
 
 // ReservationQueryRepository はクロスフィーチャーのクエリ・依存チェック（6 メソッド）。
@@ -298,6 +300,20 @@ func (r *reservationRepository) CountConflicts(ctx context.Context, clinicID uin
 		return 0, apperrors.Wrap(err, "lock reservations for capacity check")
 	}
 	return int64(len(existing)), nil
+}
+
+func (r *reservationRepository) CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
+	var count int64
+	q := dbOrTx(ctx, r.db).Model(&model.Reservation{}).
+		Where("clinic_id = ? AND reservation_type_id = ? AND start_time = ? AND status NOT IN ('cancelled') AND deleted_at IS NULL",
+			clinicID, reservationTypeID, startTime)
+	if excludeID != nil {
+		q = q.Where("id != ?", *excludeID)
+	}
+	if err := q.Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "reservation", "")
+	}
+	return count, nil
 }
 
 // CountByCustomerAndDateRange は顧客・期間での予約件数を返す。

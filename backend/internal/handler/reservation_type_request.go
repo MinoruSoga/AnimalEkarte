@@ -9,11 +9,13 @@ type createReservationTypeRequest struct {
 	Description string  `json:"description"`
 	SortOrder   int     `json:"sort_order"`
 	GroupID     *uint64 `json:"group_id"`
+	ParentID    *uint64 `json:"parent_id"`
 	Category    string  `json:"category"    binding:"omitempty,oneof=general trimming"`
 
 	// LINE予約用フィールド
 	ReservationDisplayName string `json:"reservation_display_name"`
 	DurationMinutes        *int   `json:"duration_minutes"`
+	MaxConcurrent          *int   `json:"max_concurrent"`
 	ShortName              string `json:"short_name"`
 	ShowShortName          bool   `json:"show_short_name"`
 	ReservationVisible     *bool  `json:"reservation_visible"`
@@ -31,9 +33,11 @@ func (r *createReservationTypeRequest) toServiceInput() *service.CreateReservati
 		Description:            r.Description,
 		SortOrder:              r.SortOrder,
 		GroupID:                r.GroupID,
+		ParentID:               r.ParentID,
 		Category:               r.Category,
 		ReservationDisplayName: r.ReservationDisplayName,
 		DurationMinutes:        r.DurationMinutes,
+		MaxConcurrent:          r.MaxConcurrent,
 		ShortName:              r.ShortName,
 		ShowShortName:          r.ShowShortName,
 		ReservationVisible:     r.ReservationVisible,
@@ -45,18 +49,22 @@ func (r *createReservationTypeRequest) toServiceInput() *service.CreateReservati
 }
 
 type updateReservationTypeRequest struct {
-	Name         *string `json:"name"`
-	Color        *string `json:"color"`
-	IsActive     *bool   `json:"is_active"`
-	Description  *string `json:"description"`
-	SortOrder    *int    `json:"sort_order"`
-	GroupID      *uint64 `json:"group_id"`
-	ClearGroupID bool    `json:"clear_group_id"`
-	Category     *string `json:"category"    binding:"omitempty,oneof=general trimming"`
+	Name          *string `json:"name"`
+	Color         *string `json:"color"`
+	IsActive      *bool   `json:"is_active"`
+	Description   *string `json:"description"`
+	SortOrder     *int    `json:"sort_order"`
+	GroupID       *uint64 `json:"group_id"`
+	ClearGroupID  bool    `json:"clear_group_id"`
+	ParentID      *uint64 `json:"parent_id"`
+	ClearParentID bool    `json:"clear_parent_id"`
+	Category      *string `json:"category"    binding:"omitempty,oneof=general trimming"`
 
 	// LINE予約用フィールド
 	ReservationDisplayName *string `json:"reservation_display_name"`
 	DurationMinutes        *int    `json:"duration_minutes"`
+	MaxConcurrent          *int    `json:"max_concurrent"`
+	ClearMaxConcurrent     bool    `json:"clear_max_concurrent"`
 	ShortName              *string `json:"short_name"`
 	ShowShortName          *bool   `json:"show_short_name"`
 	ReservationVisible     *bool   `json:"reservation_visible"`
@@ -75,9 +83,13 @@ func (r *updateReservationTypeRequest) toServiceInput() *service.UpdateReservati
 		SortOrder:              r.SortOrder,
 		GroupID:                r.GroupID,
 		ClearGroupID:           r.ClearGroupID,
+		ParentID:               r.ParentID,
+		ClearParentID:          r.ClearParentID,
 		Category:               r.Category,
 		ReservationDisplayName: r.ReservationDisplayName,
 		DurationMinutes:        r.DurationMinutes,
+		MaxConcurrent:          r.MaxConcurrent,
+		ClearMaxConcurrent:     r.ClearMaxConcurrent,
 		ShortName:              r.ShortName,
 		ShowShortName:          r.ShowShortName,
 		ReservationVisible:     r.ReservationVisible,

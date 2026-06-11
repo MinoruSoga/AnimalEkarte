@@ -26,6 +26,7 @@ type LiffService interface {
 type liffService struct {
 	settingRepo         repository.LineReservationSettingRepository
 	typeLiffRepo        repository.ReservationTypeLiffRepository
+	typeRepo            reservationTypeFinder
 	staffRepo           repository.ReservationStaffRepository
 	scheduleRepo        repository.ReservationScheduleRepository
 	adminRepo           repository.ReservationAdminRepository
@@ -61,16 +62,57 @@ func NewLiffService(
 	trimmingOptionRepo repository.TrimmingOptionRepository,
 	trimmingDetailRepo repository.AppointmentTrimmingDetailRepository,
 ) LiffService {
+	return NewLiffServiceWithType(
+		settingRepo,
+		typeLiffRepo,
+		nil,
+		staffRepo,
+		scheduleRepo,
+		adminRepo,
+		customerRepo,
+		ownerRepo,
+		tx,
+		reservationRepo,
+		notifier,
+		unavailableTimeRepo,
+		availableSlotRepo,
+		occupationRepo,
+		trimmingCourseRepo,
+		trimmingOptionRepo,
+		trimmingDetailRepo,
+	)
+}
+
+func NewLiffServiceWithType(
+	settingRepo repository.LineReservationSettingRepository,
+	typeLiffRepo repository.ReservationTypeLiffRepository,
+	typeRepo reservationTypeFinder,
+	staffRepo repository.ReservationStaffRepository,
+	scheduleRepo repository.ReservationScheduleRepository,
+	adminRepo repository.ReservationAdminRepository,
+	customerRepo repository.LineCustomerRepository,
+	ownerRepo repository.OwnerRepository,
+	tx repository.Transactor,
+	reservationRepo repository.ReservationRepository,
+	notifier ReservationNotifier,
+	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo repository.ReservationTypeAvailableSlotRepository,
+	occupationRepo repository.ReservationTypeOccupationRepository,
+	trimmingCourseRepo repository.TrimmingCourseRepository,
+	trimmingOptionRepo repository.TrimmingOptionRepository,
+	trimmingDetailRepo repository.AppointmentTrimmingDetailRepository,
+) LiffService {
 	return &liffService{
 		settingRepo:         settingRepo,
 		typeLiffRepo:        typeLiffRepo,
+		typeRepo:            typeRepo,
 		staffRepo:           staffRepo,
 		scheduleRepo:        scheduleRepo,
 		adminRepo:           adminRepo,
 		reservationRepo:     reservationRepo,
 		customerRepo:        customerRepo,
 		ownerRepo:           ownerRepo,
-		validators:          NewReservationValidators(tx, reservationRepo),
+		validators:          NewReservationValidators(tx, reservationRepo, typeRepo),
 		notifier:            notifier,
 		unavailableTimeRepo: unavailableTimeRepo,
 		availableSlotRepo:   availableSlotRepo,

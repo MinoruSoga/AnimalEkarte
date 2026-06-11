@@ -1364,6 +1364,9 @@ func (m *mockReservationRepoForMedicalRecord) CountOnDutyDoctors(_ context.Conte
 func (m *mockReservationRepoForMedicalRecord) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
 	return 0, nil
 }
+func (m *mockReservationRepoForMedicalRecord) CountByTypeAndStartTime(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (int64, error) {
+	return 0, nil
+}
 func (m *mockReservationRepoForMedicalRecord) ExistsByReservationTypeID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }

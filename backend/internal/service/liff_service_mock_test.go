@@ -400,6 +400,10 @@ func (m *mockLiffReservationRepository) CountConflicts(_ context.Context, _ uint
 	return 0, nil
 }
 
+func (m *mockLiffReservationRepository) CountByTypeAndStartTime(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (int64, error) {
+	return 0, nil
+}
+
 func (m *mockLiffReservationRepository) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
 	return 0, nil
 }
