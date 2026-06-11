@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { http, HttpResponse } from "msw";
+import { MemoryRouter } from "react-router";
 import { server } from "@/testing/mocks/node";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { ReservationTypeAvailableSlotsCalendar } from "./ReservationTypeAvailableSlotsCalendar";
@@ -14,7 +15,9 @@ function createWrapper() {
     defaultOptions: { queries: { retry: false } },
   });
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </MemoryRouter>
   );
 }
 
@@ -59,7 +62,7 @@ function renderCalendar() {
 }
 
 describe("ReservationTypeAvailableSlotsCalendar", () => {
-  it("月グリッドに特定日枠と毎週枠を表示する", async () => {
+  it("週グリッドに特定日枠と毎週枠を表示する", async () => {
     server.use(
       http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
         HttpResponse.json(SLOTS),
@@ -68,16 +71,30 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
 
     renderCalendar();
 
-    expect(await screen.findByText("2026年 6月")).toBeInTheDocument();
+    expect(await screen.findByText("2026年 6月1日 - 6月7日")).toBeInTheDocument();
 
-    // 特定日枠は該当日セルにのみ表示
+    const cell = await screen.findByRole("button", { name: "2026年6月1日" });
+    expect(await within(cell).findByText("09:45")).toBeInTheDocument();
+    expect(screen.queryByText("14:00")).not.toBeInTheDocument();
+  });
+
+  it("次週に切り替えると該当週の特定日枠を表示する", async () => {
+    server.use(
+      http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
+        HttpResponse.json(SLOTS),
+      ),
+    );
+
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await user.click(await screen.findByRole("button", { name: "次の週" }));
+    await user.click(screen.getByRole("button", { name: "次の週" }));
+
+    expect(screen.getByText("2026年 6月15日 - 6月21日")).toBeInTheDocument();
     const cell = await screen.findByRole("button", { name: "2026年6月15日" });
     expect(await within(cell).findByText("14:00")).toBeInTheDocument();
-
-    // 毎週(月曜)枠は 6月の全月曜セルに表示される(6/1,8,15,22,29)
-    await waitFor(() => {
-      expect(screen.getAllByText("09:45").length).toBeGreaterThanOrEqual(5);
-    });
+    expect(within(cell).getByText("09:45")).toBeInTheDocument();
   });
 
   it("日付クリックで編集パネルが開き、特定日枠を削除できる", async () => {
@@ -97,6 +114,9 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
 
     const user = userEvent.setup();
     renderCalendar();
+
+    await user.click(await screen.findByRole("button", { name: "次の週" }));
+    await user.click(screen.getByRole("button", { name: "次の週" }));
 
     const cell = await screen.findByRole("button", { name: "2026年6月15日" });
     await user.click(cell);
@@ -128,6 +148,9 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     const user = userEvent.setup();
     renderCalendar();
 
+    await user.click(await screen.findByRole("button", { name: "次の週" }));
+    await user.click(screen.getByRole("button", { name: "次の週" }));
+
     const cell = await screen.findByRole("button", { name: "2026年6月20日" });
     await user.click(cell);
 
@@ -143,7 +166,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     });
   });
 
-  it("前の月・次の月ナビで表示月が切り替わり、今日ボタンで当月に戻る", async () => {
+  it("前の週・次の週ナビで表示週が切り替わり、今日ボタンで当週に戻る", async () => {
     server.use(
       http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
         HttpResponse.json([]),
@@ -153,22 +176,29 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     const user = userEvent.setup();
     renderCalendar();
 
-    expect(await screen.findByText("2026年 6月")).toBeInTheDocument();
+    expect(await screen.findByText("2026年 6月1日 - 6月7日")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "次の月" }));
-    expect(screen.getByText("2026年 7月")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "次の週" }));
+    expect(screen.getByText("2026年 6月8日 - 6月14日")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "前の月" }));
-    await user.click(screen.getByRole("button", { name: "前の月" }));
-    expect(screen.getByText("2026年 5月")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "前の週" }));
+    await user.click(screen.getByRole("button", { name: "前の週" }));
+    expect(screen.getByText("2026年 5月25日 - 5月31日")).toBeInTheDocument();
 
-    // 「今日」は実行時の当月へ戻る（テスト実行日に依存しないよう動的に算出）
+    // 「今日」は実行時の当週へ戻る（月曜始まりで動的に算出）
     await user.click(screen.getByRole("button", { name: "今日" }));
-    const currentMonthLabel = format(toJSTWallDate(new Date()), "yyyy年 M月", { locale: ja });
-    expect(screen.getByText(currentMonthLabel)).toBeInTheDocument();
+    const today = toJSTWallDate(new Date());
+    const dow = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    const daysFromMonday = dow === 0 ? 6 : dow - 1;
+    const currentWeekStart = new Date(today);
+    currentWeekStart.setDate(today.getDate() - daysFromMonday);
+    const currentWeekEnd = new Date(currentWeekStart);
+    currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
+    const currentWeekLabel = `${format(currentWeekStart, "yyyy年 M月d日", { locale: ja })} - ${format(currentWeekEnd, "M月d日", { locale: ja })}`;
+    expect(screen.getByText(currentWeekLabel)).toBeInTheDocument();
   });
 
-  it("枠が5件以上の日は4件まで表示し残りを「他 N 件」に省略する", async () => {
+  it("週表示では日別の枠を省略せず表示する", async () => {
     const weeklySlots = ["09:00", "10:00", "11:00", "12:00", "13:00"].map((startTime, i) => ({
       id: i + 1,
       clinic_id: 1,
@@ -186,12 +216,127 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
       ),
     );
 
+    const user = userEvent.setup();
     renderCalendar();
+
+    await user.click(await screen.findByRole("button", { name: "次の週" }));
+    await user.click(screen.getByRole("button", { name: "次の週" }));
 
     const cell = await screen.findByRole("button", { name: "2026年6月15日" });
     expect(await within(cell).findByText("12:00")).toBeInTheDocument();
-    expect(within(cell).queryByText("13:00")).not.toBeInTheDocument();
-    expect(within(cell).getByText("他 1 件")).toBeInTheDocument();
+    expect(within(cell).getByText("13:00")).toBeInTheDocument();
+  });
+
+  it("同一日・同一 start_time で追加ボタンが disabled になる", async () => {
+    const specificSlots = [
+      {
+        id: 10,
+        clinic_id: 1,
+        reservation_type_id: 5,
+        available_type: "specific",
+        specific_date: "2026-06-15",
+        start_time: "09:00",
+        is_active: true,
+        created_at: "2026-05-29T00:00:00Z",
+        updated_at: "2026-05-29T00:00:00Z",
+      },
+    ];
+    server.use(
+      http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
+        HttpResponse.json(specificSlots),
+      ),
+    );
+
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await user.click(await screen.findByRole("button", { name: "次の週" }));
+    await user.click(screen.getByRole("button", { name: "次の週" }));
+
+    const cell = await screen.findByRole("button", { name: "2026年6月15日" });
+    await user.click(cell);
+
+    // デフォルト start_time は 09:00 → 既存と同じなので disabled
+    await waitFor(() => {
+      expect(screen.getByText("この時刻は既に登録済みです")).toBeInTheDocument();
+    });
+    const addButton = screen.getByRole("button", { name: /追加/ });
+    expect(addButton).toBeDisabled();
+  });
+
+  it("同一日・異なる start_time では disabled にならない", async () => {
+    const specificSlots = [
+      {
+        id: 11,
+        clinic_id: 1,
+        reservation_type_id: 5,
+        available_type: "specific",
+        specific_date: "2026-06-15",
+        start_time: "10:00",
+        is_active: true,
+        created_at: "2026-05-29T00:00:00Z",
+        updated_at: "2026-05-29T00:00:00Z",
+      },
+    ];
+    server.use(
+      http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
+        HttpResponse.json(specificSlots),
+      ),
+    );
+
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await user.click(await screen.findByRole("button", { name: "次の週" }));
+    await user.click(screen.getByRole("button", { name: "次の週" }));
+
+    const cell = await screen.findByRole("button", { name: "2026年6月15日" });
+    await user.click(cell);
+
+    // デフォルト start_time は 09:00 → 既存 (10:00) と異なるので disabled にならない
+    await waitFor(() => {
+      expect(screen.queryByText("この時刻は既に登録済みです")).not.toBeInTheDocument();
+    });
+    const addButton = screen.getByRole("button", { name: /追加/ });
+    expect(addButton).not.toBeDisabled();
+  });
+
+  it("weekly slot と同じ start_time でも specific 追加は許可される（disabled にならない）", async () => {
+    const weeklySlots = [
+      {
+        id: 20,
+        clinic_id: 1,
+        reservation_type_id: 5,
+        available_type: "weekly",
+        day_of_week: 1, // 月曜
+        start_time: "09:00",
+        is_active: true,
+        created_at: "2026-05-29T00:00:00Z",
+        updated_at: "2026-05-29T00:00:00Z",
+      },
+    ];
+    server.use(
+      http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
+        HttpResponse.json(weeklySlots),
+      ),
+    );
+
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await user.click(await screen.findByRole("button", { name: "次の週" }));
+    await user.click(screen.getByRole("button", { name: "次の週" }));
+
+    // 2026-06-15 は月曜
+    const cell = await screen.findByRole("button", { name: "2026年6月15日" });
+    await user.click(cell);
+
+    // weekly の 09:00 があるが specific は別管理 → disabled にならない
+    await waitFor(() => {
+      expect(screen.queryByText("この時刻は既に登録済みです")).not.toBeInTheDocument();
+    });
+    const addButton = screen.getByRole("button", { name: /追加/ });
+    expect(addButton).not.toBeDisabled();
   });
 
   it("編集パネルの毎週枠は読み取り専用で、削除ボタンは特定日枠のみに表示する", async () => {
@@ -203,6 +348,9 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
 
     const user = userEvent.setup();
     renderCalendar();
+
+    await user.click(await screen.findByRole("button", { name: "次の週" }));
+    await user.click(screen.getByRole("button", { name: "次の週" }));
 
     const cell = await screen.findByRole("button", { name: "2026年6月15日" });
     await user.click(cell);

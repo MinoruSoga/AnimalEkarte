@@ -10,10 +10,23 @@ import type {
 } from "@/types/reservation-type";
 
 // ─────────────────────────────────────────────────
+// Raw type (make codegen 実行後は ModelReservationType に parent_id/children が追加されれば削除可)
+// ─────────────────────────────────────────────────
+
+interface ReservationTypeRaw extends ModelReservationType {
+  parent_id?: number;
+  parent?: { id: number; name: string };
+  children?: ReservationTypeRaw[];
+}
+
+// ─────────────────────────────────────────────────
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformReservationType(data: ModelReservationType) {
+function transformReservationType(
+  data: ReservationTypeRaw,
+  parentData?: { id: string; name: string },
+) {
   const groupId = data.group_id ?? data.group?.id;
 
   return {
@@ -38,6 +51,12 @@ function transformReservationType(data: ModelReservationType) {
     reservationDayOption: data.reservation_day_option ?? "none",
     isInternal: data.is_internal ?? false,
     category: data.category ?? "general",
+    // 階層ツリー用フィールド
+    parentId: parentData?.id,
+    parentName: parentData?.name,
+    isLeaf: (data.children?.length ?? 0) === 0,
+    depth: parentData ? 1 : 0,
+    childIds: data.children?.map((c) => String(c.id)) ?? [],
   };
 }
 
@@ -62,8 +81,18 @@ const SERVICE_TYPES_QUERY_KEY = ["masters", "reservation-types"] as const;
 // ─────────────────────────────────────────────────
 
 export async function listReservationTypes(): Promise<ReservationType[]> {
-  const { data } = await axios.get<ModelReservationType[]>("/v1/masters/reservation-types");
-  return data.map(transformReservationType);
+  const { data } = await axios.get<ReservationTypeRaw[]>("/v1/masters/reservation-types");
+  // BE は root-only tree response を返す（parent_id IS NULL のルートのみ、children 埋め込み）
+  const result: ReservationType[] = [];
+  for (const root of data) {
+    result.push(transformReservationType(root, undefined));
+    for (const child of root.children ?? []) {
+      result.push(
+        transformReservationType(child, { id: String(root.id), name: root.name }),
+      );
+    }
+  }
+  return result;
 }
 
 export async function createReservationType(
