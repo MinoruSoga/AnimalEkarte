@@ -4928,6 +4928,169 @@ components:
         updated_at:
           type: string
           format: date-time
+    ReservationTypeLiff:
+      type: object
+      description: LINE予約管理API用の予約区分レスポンス。parent_id は参照専用で、階層変更は master API で行う。
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        color:
+          type: string
+        category:
+          type: string
+          enum:
+            - general
+            - trimming
+        is_active:
+          type: boolean
+        description:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+          description: 親予約区分ID。LINE予約管理APIでは参照のみで変更不可
+        duration_minutes:
+          type: integer
+          format: int32
+        max_concurrent:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          description: 同一開始時刻の最大同時受付件数。NULL は無制限
+        short_name:
+          type: string
+        show_short_name:
+          type: boolean
+        reservation_visible:
+          type: boolean
+        reservation_comment:
+          type: string
+        reservation_image_url:
+          type: string
+        reservation_day_option:
+          type: string
+          enum:
+            - none
+            - saturday
+            - weekday
+            - anyday
+        is_internal:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateReservationTypeLiffRequest:
+      type: object
+      required: [name]
+      description: LINE予約管理API用の予約区分作成リクエスト。parent_id は指定不可
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+        description:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+        duration_minutes:
+          type: integer
+          format: int32
+        max_concurrent:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          description: 同一開始時刻の最大同時受付件数。NULL は無制限
+        short_name:
+          type: string
+        show_short_name:
+          type: boolean
+        reservation_visible:
+          type: boolean
+        reservation_comment:
+          type: string
+        reservation_day_option:
+          type: string
+          enum:
+            - none
+            - saturday
+            - weekday
+            - anyday
+        is_internal:
+          type: boolean
+    UpdateReservationTypeLiffRequest:
+      type: object
+      description: LINE予約管理API用の予約区分更新リクエスト。parent_id / clear_parent_id は指定不可
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+        description:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+        duration_minutes:
+          type: integer
+          format: int32
+        max_concurrent:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          description: 同一開始時刻の最大同時受付件数。NULL は無制限
+        clear_max_concurrent:
+          type: boolean
+          description: true の場合 max_concurrent を NULL にクリアする
+        short_name:
+          type: string
+        show_short_name:
+          type: boolean
+        reservation_visible:
+          type: boolean
+        reservation_comment:
+          type: string
+        reservation_day_option:
+          type: string
+          enum:
+            - none
+            - saturday
+            - weekday
+            - anyday
+        is_internal:
+          type: boolean
+    PatchReservationTypeLiffStatusRequest:
+      type: object
+      required: [is_active]
+      properties:
+        is_active:
+          type: boolean
+    PatchReservationTypeLiffSortOrderRequest:
+      type: object
+      required: [direction]
+      properties:
+        direction:
+          type: string
+          enum:
+            - up
+            - down
     LineCustomer:
       type: object
       description: line_customers schema
@@ -13039,6 +13202,255 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/reservation-types:
+    get:
+      operationId: listReservationTypeLiffs
+      summary: LINE予約管理用 予約区分一覧
+      description: parent_id は参照専用。階層変更は master API で行う。
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 予約区分一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservationTypeLiff'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createReservationTypeLiff
+      summary: LINE予約管理用 予約区分作成
+      description: max_concurrent を設定可能。parent_id は指定不可。
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationTypeLiffRequest'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /v1/clinics/1/reservation-types/1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationTypeLiff'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/reservation-types/{id}:
+    put:
+      operationId: updateReservationTypeLiff
+      summary: LINE予約管理用 予約区分更新
+      description: max_concurrent / clear_max_concurrent を設定可能。parent_id / clear_parent_id は指定不可。
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReservationTypeLiffRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationTypeLiff'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteReservationTypeLiff
+      summary: LINE予約管理用 予約区分削除
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/reservation-types/{id}/status:
+    patch:
+      operationId: patchReservationTypeLiffStatus
+      summary: LINE予約管理用 予約区分ステータス更新
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchReservationTypeLiffStatusRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationTypeLiff'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/reservation-types/{id}/sort-order:
+    patch:
+      operationId: patchReservationTypeLiffSortOrder
+      summary: LINE予約管理用 予約区分並び順更新
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchReservationTypeLiffSortOrderRequest'
+      responses:
+        '204':
+          description: 並び順更新成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/reservation-types/{id}/image:
+    post:
+      operationId: uploadReservationTypeLiffImage
+      summary: LINE予約管理用 予約区分画像アップロード
+      description: 現在は未実装
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '501':
+          description: 未実装
   /line/reservation-settings:
     get:
       tags:
