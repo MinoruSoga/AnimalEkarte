@@ -154,11 +154,12 @@ export function TreatmentPlanMaster() {
   );
 
   // 子を持つ root かどうか (true → parentId セレクタ非表示)
+  const selectedItemId = selectedItem?.id;
   const hasChildren = useMemo(
     () =>
-      selectedItem != null &&
-      activeTabData.some((item) => item.parentId === selectedItem.id),
-    [activeTabData, selectedItem?.id],
+      selectedItemId != null &&
+      activeTabData.some((item) => item.parentId === selectedItemId),
+    [activeTabData, selectedItemId],
   );
 
   const startSaveTransition = useCallback((cb: () => void) => {
