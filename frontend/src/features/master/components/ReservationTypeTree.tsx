@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { ChevronDown, ChevronRight, Circle } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
 import type { ReservationType } from "../api/reservation-types";
@@ -14,28 +14,20 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
   const childLeaves = types.filter((t) => t.isLeaf && t.depth === 1);
   const rootLeaves = types.filter((t) => t.isLeaf && t.depth === 0);
 
-  // 初期展開: selectedId の parentId を持つ親ノードを open にする
-  const [openedIds, setOpenedIds] = useState<Set<string>>(() => {
-    if (!selectedId) return new Set<string>();
-    const selected = types.find((t) => t.id === selectedId);
-    if (selected?.parentId) return new Set([selected.parentId]);
-    return new Set<string>();
-  });
+  // ユーザーが手動で開いた親ID のみを state として持つ
+  const [openedIds, setOpenedIds] = useState<Set<string>>(new Set<string>());
 
-  // selectedId が変わったとき、その leaf の parentId の親を open に追加
-  useEffect(() => {
-    if (!selectedId) return;
-    const selected = types.find((t) => t.id === selectedId);
-    const parentId = selected?.parentId;
-    if (parentId) {
-      setOpenedIds((prev) => {
-        if (prev.has(parentId)) return prev;
-        const next = new Set(prev);
-        next.add(parentId);
-        return next;
-      });
-    }
+  // 選択中 leaf の parentId を render 時に導出（effect 不要）
+  const selectedParentId = useMemo(() => {
+    if (!selectedId) return undefined;
+    return types.find((t) => t.id === selectedId)?.parentId;
   }, [selectedId, types]);
+
+  // 実効展開 Set = ユーザー開閉 + 選択中親（常に展開）
+  const effectiveOpenedIds = useMemo(() => {
+    if (selectedParentId) return new Set([...openedIds, selectedParentId]);
+    return openedIds;
+  }, [openedIds, selectedParentId]);
 
   function toggleOpen(id: string) {
     setOpenedIds((prev) => {
@@ -52,7 +44,7 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
   return (
     <div className="py-2">
       {parentNodes.map((parent) => {
-        const isOpen = openedIds.has(parent.id);
+        const isOpen = effectiveOpenedIds.has(parent.id);
         const leaves = childLeaves.filter((c) => c.parentId === parent.id);
 
         return (
