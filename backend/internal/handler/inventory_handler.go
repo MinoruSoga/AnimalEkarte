@@ -29,7 +29,7 @@ func (h *Handler) ListInventory(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(items, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(items, toInventoryResponse), total, page, limit))
 }
 
 // GetInventory godoc

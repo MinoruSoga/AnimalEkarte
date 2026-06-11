@@ -42,7 +42,7 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(vaccinations, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(vaccinations, toVaccinationResponse), total, page, limit))
 }
 
 // GetVaccination godoc
