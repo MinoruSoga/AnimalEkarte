@@ -13,7 +13,7 @@ import type {
 // Raw type (make codegen 実行後は ModelReservationType に parent_id/children が追加されれば削除可)
 // ─────────────────────────────────────────────────
 
-interface ReservationTypeRaw extends ModelReservationType {
+interface ReservationTypeRaw extends Omit<ModelReservationType, 'parent' | 'children'> {
   parent_id?: number;
   parent?: { id: number; name: string };
   children?: ReservationTypeRaw[];

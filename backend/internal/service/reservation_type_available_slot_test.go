@@ -10,47 +10,12 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type mockAvailableSlotRepository struct {
-	findAllFn  func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeAvailableSlot, error)
-	createFn   func(ctx context.Context, slot *model.ReservationTypeAvailableSlot) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
-}
-
 type mockCapacityCounter struct {
 	countFn func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 }
 
 func (m mockCapacityCounter) CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
 	return m.countFn(ctx, clinicID, reservationTypeID, startTime, excludeID)
-}
-
-func (m *mockAvailableSlotRepository) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error) {
-	if m.findAllFn != nil {
-		return m.findAllFn(ctx, clinicID, reservationTypeID)
-	}
-	return nil, nil
-}
-
-func (m *mockAvailableSlotRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeAvailableSlot, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, id)
-	}
-	return &model.ReservationTypeAvailableSlot{ID: id}, nil
-}
-
-func (m *mockAvailableSlotRepository) Create(ctx context.Context, slot *model.ReservationTypeAvailableSlot) error {
-	if m.createFn != nil {
-		return m.createFn(ctx, slot)
-	}
-	return nil
-}
-
-func (m *mockAvailableSlotRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	if m.deleteFn != nil {
-		return m.deleteFn(ctx, clinicID, id)
-	}
-	return nil
 }
 
 func TestFilterApplicableAvailableSlots_WeeklyAndSpecific(t *testing.T) {

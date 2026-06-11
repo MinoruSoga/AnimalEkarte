@@ -259,8 +259,8 @@ func mergeAvailableTimeSlots(slots []TimeSlot, availableSlots []model.Reservatio
 	}
 	result := make([]TimeSlot, len(slots), len(slots)+len(applicableSlots))
 	copy(result, slots)
-	for _, as := range applicableSlots {
-		startNorm := strings.ReplaceAll(as.StartTime, ":", "")
+	for i := range applicableSlots {
+		startNorm := strings.ReplaceAll(applicableSlots[i].StartTime, ":", "")
 		if _, exists := existingStarts[startNorm]; exists {
 			continue
 		}
