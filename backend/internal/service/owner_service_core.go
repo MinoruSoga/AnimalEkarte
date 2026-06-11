@@ -155,11 +155,11 @@ func (s *ownerService) wrapOwnerUpdateError(ctx context.Context, clinicID, id ui
 	return apperrors.Wrap(err, wrapMessage)
 }
 
-func (s *ownerService) reloadOwner(ctx context.Context, clinicID, id uint64, logMessage, wrapMessage string) (*model.Owner, error) {
+func (s *ownerService) reloadOwner(ctx context.Context, clinicID, id uint64, logMessage string) (*model.Owner, error) {
 	owner, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, logMessage, "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, wrapMessage)
+		return nil, apperrors.Wrap(err, "failed to reload owner")
 	}
 	return owner, nil
 }

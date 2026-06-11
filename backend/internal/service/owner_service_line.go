@@ -63,5 +63,5 @@ func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64, a
 			slog.WarnContext(ctx, "audit log failed for line id confirm", "error", logErr, "owner_id", id)
 		}
 	}
-	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after line id confirmation", "failed to reload owner")
+	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after line id confirmation")
 }

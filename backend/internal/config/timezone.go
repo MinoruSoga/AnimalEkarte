@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 	"time"
-	_ "time/tzdata"
+	_ "time/tzdata" // tzdata をバイナリに埋め込み、zoneinfo を持たない実行環境でも JST を解決できるようにする
 )
 
 const JapanTimeZone = "Asia/Tokyo"

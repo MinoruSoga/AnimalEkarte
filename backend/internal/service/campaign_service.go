@@ -104,9 +104,9 @@ func campaignTargetItemIDValues(targets []model.CampaignTargetItem) []uint64 {
 	return itemIDs
 }
 
-func resolveCampaignPeriod(current *model.Campaign, input *UpdateCampaignInput) (time.Time, time.Time, bool) {
-	start, end := current.StartDate, current.EndDate
-	hasPeriodUpdate := input.StartDate != nil || input.EndDate != nil
+func resolveCampaignPeriod(current *model.Campaign, input *UpdateCampaignInput) (start, end time.Time, hasPeriodUpdate bool) {
+	start, end = current.StartDate, current.EndDate
+	hasPeriodUpdate = input.StartDate != nil || input.EndDate != nil
 	if input.StartDate != nil {
 		start = *input.StartDate
 	}
