@@ -47,7 +47,8 @@ function runFormAction(action: (payload: FormData) => void) {
 
 vi.mock("@/hooks/use-pet", () => ({ useGetPet: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })) }));
 vi.mock("@/hooks/use-owner", () => ({ useGetOwner: vi.fn(() => noData) }));
-vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: () => noData }));
+const mockUseGetMedicalRecord = vi.fn(() => noData);
+vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: (...args: unknown[]) => mockUseGetMedicalRecord(...args) }));
 vi.mock("../api/create-medical-record", () => ({ useCreateMedicalRecord: vi.fn(() => noMutation) }));
 vi.mock("@/features/reservations/api/create-reservation", () => ({ useCreateReservation: vi.fn(() => noMutation) }));
 vi.mock("@/features/reservations/api/get-reservations", () => ({
@@ -89,6 +90,7 @@ describe("useMedicalRecordForm", () => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
     mockLocationState = null;
+    mockUseGetMedicalRecord.mockReturnValue(noData);
     // デフォルト: pet データなし
     vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false, isError: false });
     // デフォルト: owner データなし
@@ -195,6 +197,34 @@ describe("useMedicalRecordForm", () => {
     it("isCreating の初期値は false", () => {
       const { result } = renderHook(() => useMedicalRecordForm("10"));
       expect(result.current.isCreating).toBe(false);
+    });
+
+    it("既存レコードに visitType がある場合、state に反映される", async () => {
+      const loadedRecord = {
+        data: {
+          id: "10",
+          visitType: "初診",
+          chiefComplaint: "",
+          plan: "",
+          assessment: "",
+          notes: "",
+          version: 1,
+        },
+        isLoading: false,
+        isError: false,
+      };
+      // まずローディング状態で renderHook し、その後データ到着をシミュレートする
+      // 初回レンダー時に data が存在すると prevExistingRecord === existingRecord になり
+      // useApplyMedicalRecord の差分検出が動かないため、async loading パターンを模倣する
+      mockUseGetMedicalRecord.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+      const { result, rerender } = renderHook(() => useMedicalRecordForm("10"));
+
+      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.visitType).toBe("初診");
+      });
     });
   });
 
