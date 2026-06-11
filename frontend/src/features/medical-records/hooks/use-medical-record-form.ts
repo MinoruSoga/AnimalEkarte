@@ -228,6 +228,8 @@ export function useMedicalRecordForm(recordId?: string) {
   };
 
   // 来院種別変更ハンドラ（即時PATCH）
+  // existingRecord?.version のみ参照するため object 全体を dep に含めない (OCC versioning)
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleVisitTypeChange = useCallback((newVisitType: string) => {
     setVisitType(newVisitType);
     if (!recordId) return; // 新規作成時はローカルstateのみ
