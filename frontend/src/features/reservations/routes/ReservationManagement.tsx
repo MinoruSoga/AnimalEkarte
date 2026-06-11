@@ -2,7 +2,6 @@ import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { useSearchParams } from "react-router";
 import { useClinicScope } from "@/hooks/use-clinic-scope";
-import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
 import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 
 import { CalendarIcon, Plus } from "lucide-react";
@@ -59,8 +58,7 @@ export function ReservationManagement() {
     }, { replace: true });
   }, [setSearchParams]);
 
-  // #86: 拠点横断表示
-  const { assignedClinics, selectedClinicIds, isMultiClinic, handleToggleClinic } = useClinicScope();
+  const { selectedClinicIds, isMultiClinic } = useClinicScope();
 
   const { activeEntries, colorMap: dynamicColorMap } = useReservationTypeColorMap();
 
@@ -171,13 +169,6 @@ export function ReservationManagement() {
             ) : null}
           </div>
         }
-      />
-
-      {/* #86: 拠点横断フィルター — 複数所属医院がある場合のみ表示 */}
-      <ClinicScopeFilter
-        clinics={assignedClinics}
-        selectedIds={selectedClinicIds}
-        onToggle={handleToggleClinic}
       />
 
       <ReservationManagementCalendar
