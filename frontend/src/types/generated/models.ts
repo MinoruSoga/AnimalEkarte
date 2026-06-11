@@ -2329,6 +2329,7 @@ export interface ReservationType {
    */
   reservation_display_name: string;
   duration_minutes: number /* int */;
+  max_concurrent?: number /* int */;
   short_name: string;
   show_short_name: boolean;
   reservation_visible: boolean;
@@ -2345,6 +2346,12 @@ export interface ReservationType {
    */
   group_id?: number /* uint64 */;
   group?: ReservationTypeGroup;
+  /**
+   * 親子階層（2階層想定。設定継承なし）
+   */
+  parent_id?: number /* uint64 */;
+  parent?: ReservationType;
+  children?: ReservationType[];
   /**
    * Relations（BE-115）
    */

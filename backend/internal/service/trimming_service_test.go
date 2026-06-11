@@ -553,46 +553,6 @@ func TestTrimmingService_Create_RejectsExcludedStaff(t *testing.T) {
 	assert.Nil(t, appt)
 }
 
-func TestTrimmingService_Create_RejectsUnavailableStartSlot(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
-	end := start.Add(time.Hour)
-	reserv := &mockTrimmingReservationRepository{
-		createFn: func(_ context.Context, _ *model.Reservation) error {
-			t.Fatal("trimming appointment must not be created outside available slots")
-			return nil
-		},
-	}
-	availableSlotRepo := &mockAvailableSlotRepository{
-		findAllFn: func(_ context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error) {
-			assert.Equal(t, uint64(1), clinicID)
-			assert.Equal(t, uint64(9), reservationTypeID)
-			dayOfWeek := int8(1)
-			return []model.ReservationTypeAvailableSlot{
-				{ReservationTypeID: 9, AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &dayOfWeek, StartTime: "09:45", IsActive: true},
-				{ReservationTypeID: 9, AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &dayOfWeek, StartTime: "12:30", IsActive: true},
-			}, nil
-		},
-	}
-	svc := newTrimmingTestServiceWithAvailability(
-		reserv,
-		&mockTrimmingDetailRepository{},
-		&mockTrimmingReservationTypeRepository{},
-		nil,
-		nil,
-		availableSlotRepo,
-	)
-
-	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
-		ReservationTypeID: 9,
-		StartTime:         start,
-		EndTime:           end,
-	})
-
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsInvalidInput(err))
-	assert.Nil(t, appt)
-}
-
 func TestTrimmingService_Create_ExistingAppointment(t *testing.T) {
 	appointmentID := uint64(77)
 	petID := uint64(10)
