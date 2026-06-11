@@ -22,7 +22,7 @@ import {
   MedicalRecordPrintArea,
 } from "../components/MedicalRecordFormActions";
 import { OwnerSearchModal, StaffSelectionModal, VitalsModal } from "./MedicalRecordLazyModals";
-import { MEDICAL_RECORD_TAB_ITEMS, VISIT_TYPE_OPTIONS } from "./MedicalRecordFormModel";
+import { MEDICAL_RECORD_TAB_ITEMS } from "./MedicalRecordFormModel";
 import { useMedicalRecordDirtyFields } from "./useMedicalRecordDirtyFields";
 import { useMedicalRecordPostSave } from "./useMedicalRecordPostSave";
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
@@ -78,9 +78,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setDiagnosis2NameId,
     ownerDiscountRate,
     visitType,
-    setVisitType,
     visitCount,
     handleChangeDoctor,
+    handleVisitTypeChange,
     pendingOwnerChange,
     requestOwnerChange,
     confirmOwnerChange,
@@ -218,13 +218,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setIsStaffModalOpen(open);
   }, []);
 
-  const handleVisitTypeCycle = useCallback(() => {
-    setVisitType((prev) => {
-      const idx = VISIT_TYPE_OPTIONS.indexOf(prev as typeof VISIT_TYPE_OPTIONS[number]);
-      return VISIT_TYPE_OPTIONS[(idx + 1) % VISIT_TYPE_OPTIONS.length];
-    });
-  }, [setVisitType]);
-
   const handleOpenStaffModal = useCallback(() => {
     setIsStaffModalOpen(true);
   }, []);
@@ -278,10 +271,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         tabs={MEDICAL_RECORD_TAB_ITEMS}
         recordDate={recordDate}
         recordStatus={currentRecord?.status}
-        onVisitTypeClick={handleVisitTypeCycle}
+        nextVisitDate={nextVisitDate}
+        onVisitTypeChange={handleVisitTypeChange}
         onStaffClick={handleOpenStaffModal}
         onOwnerClick={handleOpenOwnerSearch}
         onDateChange={handleChangeDate}
+        onNextVisitDateChange={handleNextVisitDateChange}
+        onNextVisitDateValidChange={handleNextVisitDateValidChange}
+        hasLineIntegration={hasLineIntegration}
       />
       <MedicalRecordTabsArea
         activeTab={activeTab}
