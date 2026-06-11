@@ -105,22 +105,28 @@ export function PatientContextHeader({
       </div>
 
       {/* Patient Info */}
-      <div className="flex flex-col gap-0.5 mr-3">
-        <div className="flex items-baseline gap-2">
+      <div className="flex flex-col gap-0.5 mr-3 min-w-0">
+        <div className="flex items-baseline gap-2 min-w-0">
           {onOwnerClick ? (
-            <button
-              type="button"
-              onClick={onOwnerClick}
-              className={`text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer`}
-            >
-              {ownerName}
-            </button>
+            <Tooltip content={ownerName} className="min-w-0 max-w-[200px]">
+              <button
+                type="button"
+                onClick={onOwnerClick}
+                className={`text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer truncate w-full`}
+              >
+                {ownerName}
+              </button>
+            </Tooltip>
           ) : (
-            <span className={`text-base font-medium ${C.text}`}>{ownerName}</span>
+            <Tooltip content={ownerName} className="min-w-0 max-w-[200px]">
+              <span className={`text-base font-medium ${C.text} truncate w-full`}>{ownerName}</span>
+            </Tooltip>
           )}
-          <span className={`text-base font-medium ${isDeceased ? C.text60 : C.text}`}>
-            {petName}
-          </span>
+          <Tooltip content={petName} className="min-w-0 max-w-[160px]">
+            <span className={`text-base font-medium ${isDeceased ? C.text60 : C.text} truncate w-full`}>
+              {petName}
+            </span>
+          </Tooltip>
           {isDeceased ? (
             <span
               className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase tracking-wider ml-1`}
@@ -129,7 +135,7 @@ export function PatientContextHeader({
             </span>
           ) : null}
         </div>
-        <div className={`flex items-center gap-3 text-sm ${C.text60}`}>
+        <div className={`flex items-center flex-wrap gap-x-3 gap-y-0.5 text-sm ${C.text60}`}>
           {petNumber ? (
             <span
               className={`font-mono text-[11px] px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4 tracking-wide`}
@@ -183,7 +189,7 @@ export function PatientContextHeader({
       {contextControls ? (
         <>
           <div className={`self-stretch w-px ${C.bgLight} mx-1`} aria-hidden="true" />
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1">
+          <div className="flex items-center gap-2 min-w-0 overflow-x-auto flex-1 pb-1">
             {contextControls}
           </div>
         </>

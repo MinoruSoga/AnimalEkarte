@@ -25,8 +25,9 @@ const baseProps = {
 describe("PatientContextHeader", () => {
   it("飼主名・ペット名・ペット番号が表示される", () => {
     render(<PatientContextHeader {...baseProps} />);
-    expect(screen.getByText("田中 太郎")).toBeInTheDocument();
-    expect(screen.getByText("ポチ")).toBeInTheDocument();
+    // Tooltip が同テキストを2箇所レンダリングするため getAllByText を使用
+    expect(screen.getAllByText("田中 太郎").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("ポチ").length).toBeGreaterThan(0);
     expect(screen.getByText("#0001")).toBeInTheDocument();
   });
 
@@ -84,5 +85,38 @@ describe("PatientContextHeader", () => {
     const ownerButton = screen.getByRole("button", { name: "田中 太郎" });
     await userEvent.click(ownerButton);
     expect(onOwnerClick).toHaveBeenCalledOnce();
+  });
+
+  it("長い飼主名が DOM に保持される（Tooltip で全文確認可能）", () => {
+    const longOwnerName = "非常に長い飼主名前サンプル田中山田鈴木佐藤伊藤渡辺一二三四五六";
+    render(<PatientContextHeader {...baseProps} ownerName={longOwnerName} />);
+    // Tooltip が同テキストを2箇所レンダリングするため getAllByText を使用
+    const elements = screen.getAllByText(longOwnerName);
+    expect(elements.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("長いペット名が DOM に保持される（Tooltip で全文確認可能）", () => {
+    const longPetName = "非常に長いペット名ポチタロウジロウハナコモモチャコロ";
+    render(<PatientContextHeader {...baseProps} petName={longPetName} />);
+    const elements = screen.getAllByText(longPetName);
+    expect(elements.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("長い飼主名・ペット名でも Tooltip の content として完全な名前が保持される", () => {
+    const longOwner = "超長飼主名前テスト一二三四五六七八九十";
+    const longPet = "超長ペット名テスト一二三四五六七八九十";
+    render(
+      <PatientContextHeader
+        {...baseProps}
+        ownerName={longOwner}
+        petName={longPet}
+      />,
+    );
+    // Tooltip の role="tooltip" 要素に完全な名前が含まれる
+    const tooltips = screen.getAllByRole("tooltip");
+    const ownerTooltip = tooltips.find((el) => el.textContent === longOwner);
+    const petTooltip = tooltips.find((el) => el.textContent === longPet);
+    expect(ownerTooltip).toBeInTheDocument();
+    expect(petTooltip).toBeInTheDocument();
   });
 });

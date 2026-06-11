@@ -100,18 +100,18 @@ export function MedicalRecordStickyHeader({
           type="button"
           variant="ghost"
           size="sm"
-          className={`h-8 shrink-0 text-sm gap-1 px-2 ${C.hoverBgPage} ${C.text} border-none`}
+          className={`h-8 shrink-0 text-sm gap-1 px-2 max-w-[160px] ${C.hoverBgPage} ${C.text} border-none`}
           onClick={onStaffClick}
           aria-label={`担当医: ${staffName}`}
         >
-          <span className={`text-xs ${C.text50} mr-0.5`}>担当医</span>
-          {staffName}
-          <ChevronDown className={`${ICON.sm} ${C.text40}`} aria-hidden="true" />
+          <span className={`text-xs ${C.text50} mr-0.5 shrink-0`}>担当医</span>
+          <span className="truncate">{staffName}</span>
+          <ChevronDown className={`${ICON.sm} ${C.text40} shrink-0`} aria-hidden="true" />
         </Button>
       ) : (
-        <div className="flex flex-col gap-0 shrink-0">
+        <div className="flex flex-col gap-0 shrink-0 max-w-[160px]">
           <span className={`text-xs ${C.text50}`}>担当医</span>
-          <span className={`h-8 flex items-center text-sm ${C.text}`}>{staffName}</span>
+          <span className={`h-8 flex items-center text-sm ${C.text} truncate`}>{staffName}</span>
         </div>
       )}
 
