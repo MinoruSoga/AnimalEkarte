@@ -19,6 +19,11 @@
 - **LINE 予約連携**:
     - **ページに表示**: オンにすると飼い主向け LIFF アプリの選択肢に出現。
     - **所要時間（LINE）**: 院内用とは別に、LINE 予約時専用の所要時間を設定可能。
+- **予約可能枠**: 予約可能な開始時刻（毎週／特定日）をリスト形式で追加・削除。「カレンダーで編集」リンクから [LINE予約枠カレンダーページ](../28-line-reservation.md)（`/line-reservation/slots?typeId=:id`）へ遷移し、月カレンダーで日別に編集できる。
+- **予約不可時間**: 予約を受け付けない時間帯（毎週／特定日）を時間範囲で登録。
+- **対応職種**: この予約区分を担当できる職種を紐付け（1 件以上紐付けると、担当可能スタッフが勤務する日のみ予約可能になる）。
+
+> ⚠️ **予約可能枠のホワイトリスト挙動**: 予約可能枠を 1 件でも登録すると、その予約区分は登録された開始時刻のみ予約可能になり、枠のない日は予約不可になる。詳細は [LINE予約設定 §4](../28-line-reservation.md) を参照。
 
 ---
 
@@ -44,5 +49,8 @@
 |:---|:---|:---|
 | GET | `/api/v1/masters/reservation-types` | 有効な予約区分一覧の取得。 |
 | PATCH | `/api/v1/masters/reservation-types/:id` | 名称、時間、色の更新。 |
+| GET / POST / DELETE | `/api/v1/masters/reservation-types/:id/available-slots[/:slotId]` | 予約可能枠の取得・追加・削除。 |
+| GET / POST / DELETE | `/api/v1/masters/reservation-types/:id/unavailable-times[/:timeId]` | 予約不可時間の取得・追加・削除。 |
+| GET / POST / DELETE | `/api/v1/masters/reservation-types/:id/occupations[/:occupationId]` | 対応職種の取得・紐付け・解除。 |
 
 ---
