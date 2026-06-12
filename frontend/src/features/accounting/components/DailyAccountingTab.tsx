@@ -1,4 +1,5 @@
 import { useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router";
 import { Printer } from "lucide-react";
 
@@ -35,10 +36,6 @@ const MEDICAL_CATEGORIES = new Set(["examination", "test", "procedure", "medicin
 const EMPTY_CLINIC_NAME_MAP = new Map<string, string>();
 
 // ── ヘルパー ─────────────────────────────────────────────────────
-function todayISO(): string {
-  return todayJSTISO();
-}
-
 function formatReceiptNo(billingId: string): string {
   return billingId.padStart(8, "0");
 }
@@ -205,9 +202,8 @@ interface DailyPrintAreaProps {
 function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
   const hospitalTotal = totals.medical + totals.surgery + totals.rv + totals.food + totals.goods;
   const trimmingTotal = totals.trimming + totals.hotel;
-  const grandTotal = hospitalTotal + trimmingTotal;
 
-  return (
+  return createPortal(
     <div
       hidden
       className="bg-white"
@@ -357,12 +353,13 @@ function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             </td>
             <td className="border border-gray-400 px-1 py-1 text-[9pt]" />
             <td className="border border-gray-400 px-1 py-1 text-right text-[10pt] font-bold">
-              ¥{grandTotal.toLocaleString()}
+              ¥{totals.total.toLocaleString()}
             </td>
           </tr>
         </tfoot>
       </table>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -380,7 +377,7 @@ export function DailyAccountingTab({
 }: DailyAccountingTabProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const isMultiClinic = selectedClinicIds !== undefined && selectedClinicIds.length > 1;
-  const selectedDate = searchParams.get("daily_date") ?? todayISO();
+  const selectedDate = searchParams.get("daily_date") ?? todayJSTISO();
 
   const handleDateChange = useCallback((next: string) => {
     setSearchParams((prev) => {
