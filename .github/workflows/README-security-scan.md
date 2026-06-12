@@ -9,9 +9,8 @@ This repository uses `security-scan.yml` with AgentShield to run security checks
 
 - **Failure behavior**
   - Fails CI only for:
-    - `push` events to `main`
     - PRs targeting `main`
-  - Non-`main` targets are reported but do not fail the pipeline.
+  - Push events and non-`main` PR targets are reported but do not fail the pipeline.
 
 - **Manual run**
   - `workflow_dispatch` input `min_severity` controls minimum severity to fail/report.

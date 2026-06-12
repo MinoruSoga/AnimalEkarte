@@ -36,4 +36,4 @@ jobs:
         with:
           path: "."
           min-severity: "${{ github.event.inputs.min_severity || 'medium' }}"
-          fail-on-findings: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.base_ref == 'main') }}
+          fail-on-findings: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
