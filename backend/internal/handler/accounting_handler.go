@@ -141,7 +141,33 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	updated, err := h.svc.Accounting.Update(ctx, input.toServiceInput(id, clinicID, staffID))
+
+	// #115: 締め後編集チェック
+	existing, err := h.svc.Accounting.GetByID(ctx, clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	isClosed, err := h.svc.CashRegister.IsDateClosed(ctx, clinicID, existing.ScheduledDate)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	if isClosed {
+		if !h.hasPermission(c, string(model.ResourceAccountingPostCloseEdit), "edit") {
+			RespondError(c, apperrors.WrapForbidden("レジ締め済み期間の会計編集には accounting-post-close-edit:edit 権限が必要です"))
+			return
+		}
+		if input.PostCloseReason == nil || *input.PostCloseReason == "" {
+			RespondError(c, apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です"))
+			return
+		}
+	}
+
+	serviceInput := input.toServiceInput(id, clinicID, staffID)
+	serviceInput.IsPostClose = isClosed
+
+	updated, err := h.svc.Accounting.Update(ctx, serviceInput)
 	if err != nil {
 		RespondError(c, err)
 		return

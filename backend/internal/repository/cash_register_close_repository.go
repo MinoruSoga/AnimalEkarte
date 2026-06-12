@@ -18,6 +18,8 @@ type CashRegisterCloseRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	FindByDateAndPeriod(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error)
+	// #115: 指定日に1件以上のレジ締めレコードが存在するか確認する。
+	HasCloseOnDate(ctx context.Context, clinicID uint64, date time.Time) (bool, error)
 }
 
 type cashRegisterCloseRepository struct{ db *gorm.DB }
@@ -73,6 +75,19 @@ func (r *cashRegisterCloseRepository) FindByID(ctx context.Context, clinicID, id
 		return nil, apperrors.FromGORM(err, "cash_register_close", fmt.Sprintf("%d", id))
 	}
 	return &c, nil
+}
+
+func (r *cashRegisterCloseRepository) HasCloseOnDate(ctx context.Context, clinicID uint64, date time.Time) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.CashRegisterClose{}).
+		Scopes(clinicScope(clinicID)).
+		Where("close_date = ?", date.Format("2006-01-02")).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.Wrap(err, "failed to check close on date")
+	}
+	return count > 0, nil
 }
 
 func (r *cashRegisterCloseRepository) FindByDateAndPeriod(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error) {

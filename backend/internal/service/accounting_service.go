@@ -63,6 +63,9 @@ type UpdateAccountingInput struct {
 	ChangeAmount    *int64
 	// PaymentSplits: 混在支払い内訳（nil = 単一支払い、従来互換）
 	PaymentSplits []PaymentSplitInput
+	// #115: 締め後編集フィールド
+	PostCloseReason *string // 締め後編集理由（締め済み期間に編集する場合は必須）
+	IsPostClose     bool    // ハンドラがレジ締め済み判定を注入する
 }
 
 // ClinicDailySummary は拠点別日次集計結果 (#86 段階3 論点4=2 拠点別集計)。

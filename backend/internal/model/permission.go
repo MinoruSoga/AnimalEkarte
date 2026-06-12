@@ -50,6 +50,9 @@ const (
 
 	// #118: 会計キャンセル専用権限（ResourceAccounting "delete" から分離）
 	ResourceAccountingCancel Resource = "accounting-cancel"
+
+	// #115: 締め後編集専用権限（レジ締め済み期間の会計を特定権限で遡り編集）
+	ResourceAccountingPostCloseEdit Resource = "accounting-post-close-edit"
 )
 
 // AllResources は全リソース一覧（is_system_admin=true 全権限バイパス用）
@@ -86,6 +89,7 @@ var AllResources = []Resource{
 	ResourceLstepAnalytics,
 	ResourceManualEdit,
 	ResourceAccountingCancel,
+	ResourceAccountingPostCloseEdit,
 }
 
 // IsValidResource は指定されたリソース名が有効かどうかを判定する（BUG-146）

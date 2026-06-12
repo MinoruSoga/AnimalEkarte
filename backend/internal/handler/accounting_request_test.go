@@ -291,6 +291,34 @@ func TestUpdateAccountingRequest_ToServiceInput_NilPaymentSplits(t *testing.T) {
 	}
 }
 
+// TestUpdateAccountingRequest_PostCloseReason verifies PostCloseReason propagates to service input (#115)
+func TestUpdateAccountingRequest_PostCloseReason(t *testing.T) {
+	reason := "締め後修正: 入力誤りのため"
+	req := updateAccountingRequest{
+		PostCloseReason: &reason,
+	}
+
+	input := req.toServiceInput(1, 2, 3)
+
+	if input.PostCloseReason == nil {
+		t.Fatal("PostCloseReason = nil, want non-nil pointer")
+	}
+	if *input.PostCloseReason != reason {
+		t.Fatalf("PostCloseReason = %q, want %q", *input.PostCloseReason, reason)
+	}
+}
+
+// TestUpdateAccountingRequest_PostCloseReasonNil verifies nil PostCloseReason stays nil
+func TestUpdateAccountingRequest_PostCloseReasonNil(t *testing.T) {
+	req := updateAccountingRequest{}
+
+	input := req.toServiceInput(1, 2, 3)
+
+	if input.PostCloseReason != nil {
+		t.Fatalf("PostCloseReason = %v, want nil", input.PostCloseReason)
+	}
+}
+
 func TestPaymentSplitRequest_ToServiceInput(t *testing.T) {
 	paymentMethodID := uint64(8)
 	req := paymentSplitRequest{

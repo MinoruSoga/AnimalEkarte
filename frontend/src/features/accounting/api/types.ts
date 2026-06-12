@@ -68,4 +68,5 @@ export interface UpdateAccountingRequest {
   payment_splits?: PaymentSplitRequest[];
   completed_at?: string | null;
   memo?: string;
+  post_close_reason?: string; // #115: レジ締め済み期間の遡り編集理由
 }

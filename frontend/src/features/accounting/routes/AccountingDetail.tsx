@@ -21,7 +21,8 @@ import { useAccountingDetailState } from "./useAccountingDetailState";
 import { useAccountingItemActions } from "./useAccountingItemActions";
 import { useAccountingSettlementActions } from "./useAccountingSettlementActions";
 import type { AccountingItem } from "../types";
-import { ResourceAccounting, ResourceAccountingCancel } from "@/types/generated/models";
+import { ResourceAccounting, ResourceAccountingCancel, ResourceAccountingPostCloseEdit } from "@/types/generated/models";
+import { useGetCashRegisterCloses } from "@/features/cash-register";
 
 interface AccountingDetailProps {
   invoiceRegistrationNumber?: string;
@@ -62,6 +63,9 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     fetchedAccounting,
   });
 
+  // #115: 締め後編集理由
+  const [postCloseReason, setPostCloseReason] = useState("");
+
   // 追加アイテム用State
   const [newItemOpen, setNewItemOpen] = useState(false);
   const [isRefunding, startRefundTransition] = useTransition();
@@ -90,6 +94,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     queryClient,
     navigate,
     setCompletedPayment,
+    postCloseReason,
   });
 
   // clinic 情報（AccountingDocument に props 注入）
@@ -97,7 +102,21 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const { canEdit, canCreate, canDelete } = usePermission("accounting");
   // #118: キャンセルボタン用の専用権限（accounting-cancel の edit = キャンセル可否）
   const { canEdit: canCancelAccounting } = usePermission(ResourceAccountingCancel);
+  // #115: 締め後編集専用権限
+  const { canEdit: canPostCloseEdit } = usePermission(ResourceAccountingPostCloseEdit);
   const canSubmit = id ? canEdit : canCreate;
+
+  // #115: billing の scheduled_date が締め済みか確認
+  const scheduledDateStr = accounting?.scheduledDate ? accounting.scheduledDate.slice(0, 10) : null;
+  const scheduledYear = scheduledDateStr ? parseInt(scheduledDateStr.slice(0, 4), 10) : undefined;
+  const scheduledMonth = scheduledDateStr ? parseInt(scheduledDateStr.slice(5, 7), 10) : undefined;
+  const { data: closesData } = useGetCashRegisterCloses(
+    scheduledYear && scheduledMonth ? { year: scheduledYear, month: scheduledMonth, limit: 100 } : undefined,
+    Boolean(scheduledYear && scheduledMonth),
+  );
+  const isScheduledDateClosed = Boolean(
+    scheduledDateStr && closesData?.data.some((c) => c.closeDate?.slice(0, 10) === scheduledDateStr),
+  );
   const clinicForDocument = useMemo(() => {
     const baseClinic = user?.clinic ?? null;
     if (!baseClinic) return null;
@@ -181,6 +200,23 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               onRefund={handleRefund}
             />
           </fieldset>
+
+          {/* #115: 締め後編集理由入力（レジ締め済み期間かつ編集権限あり） */}
+          {isScheduledDateClosed && canSubmit && canPostCloseEdit ? (
+            <div className="px-4 pb-4">
+              <label htmlFor="postCloseReason" className="block text-sm font-semibold text-red-600 mb-1">
+                ⚠ レジ締め済み期間の編集 — 修正理由（必須）
+              </label>
+              <textarea
+                id="postCloseReason"
+                value={postCloseReason}
+                onChange={(e) => setPostCloseReason(e.target.value)}
+                className="w-full border rounded p-2 text-sm resize-none"
+                rows={2}
+                placeholder="例: 入力金額の誤りのため修正"
+              />
+            </div>
+          ) : null}
 
           <AccountingDocumentPreviewDialog
             open={previewOpen}

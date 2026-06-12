@@ -208,6 +208,8 @@ type updateAccountingRequest struct {
 	ChangeAmount    *int64   `json:"change_amount"`
 	// PaymentSplits: 混在支払い内訳（nil = 従来単一支払い互換）
 	PaymentSplits []paymentSplitRequest `json:"payment_splits" binding:"max=50,dive"`
+	// #115: 締め後編集理由（レジ締め済み期間の会計を編集する場合は必須）
+	PostCloseReason *string `json:"post_close_reason"`
 }
 
 func (r *updateAccountingRequest) toServiceInput(id, clinicID, staffID uint64) *service.UpdateAccountingInput {
@@ -236,6 +238,7 @@ func (r *updateAccountingRequest) toServiceInput(id, clinicID, staffID uint64) *
 		Status:            billingStatusPtr(r.Status),
 		PaymentMethod:     paymentMethodPtr(r.PaymentMethod),
 		PaymentSplits:     toPaymentSplitInputs(r.PaymentSplits),
+		PostCloseReason:   r.PostCloseReason,
 	}
 }
 

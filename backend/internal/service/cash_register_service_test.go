@@ -20,6 +20,7 @@ type mockCashRegisterCloseRepository struct {
 	findAllFn             func(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
 	findByIDFn            func(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	findByDateAndPeriodFn func(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error)
+	hasCloseOnDateFn      func(ctx context.Context, clinicID uint64, date time.Time) (bool, error)
 }
 
 func (m *mockCashRegisterCloseRepository) Create(ctx context.Context, c *model.CashRegisterClose) error {
@@ -48,6 +49,13 @@ func (m *mockCashRegisterCloseRepository) FindByDateAndPeriod(ctx context.Contex
 		return m.findByDateAndPeriodFn(ctx, clinicID, date, period)
 	}
 	return nil, nil
+}
+
+func (m *mockCashRegisterCloseRepository) HasCloseOnDate(ctx context.Context, clinicID uint64, date time.Time) (bool, error) {
+	if m.hasCloseOnDateFn != nil {
+		return m.hasCloseOnDateFn(ctx, clinicID, date)
+	}
+	return false, nil
 }
 
 // ---- モック: AccountingRepository（GetCloseAggregate 用追加スタブ） ----
@@ -528,6 +536,58 @@ func TestCashRegisterService_Close(t *testing.T) {
 			if tt.checkResult != nil {
 				tt.checkResult(t, got)
 			}
+		})
+	}
+}
+
+// TestCashRegisterService_IsDateClosed は #115 締め後編集チェックをテストする。
+func TestCashRegisterService_IsDateClosed(t *testing.T) {
+	date := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name             string
+		hasCloseOnDateFn func(ctx context.Context, clinicID uint64, d time.Time) (bool, error)
+		wantClosed       bool
+		wantErr          bool
+	}{
+		{
+			name: "正常: 締め済み → true",
+			hasCloseOnDateFn: func(_ context.Context, _ uint64, _ time.Time) (bool, error) {
+				return true, nil
+			},
+			wantClosed: true,
+		},
+		{
+			name: "正常: 未締め → false",
+			hasCloseOnDateFn: func(_ context.Context, _ uint64, _ time.Time) (bool, error) {
+				return false, nil
+			},
+			wantClosed: false,
+		},
+		{
+			name: "エラー: リポジトリエラー → wrappedエラーを返す",
+			hasCloseOnDateFn: func(_ context.Context, _ uint64, _ time.Time) (bool, error) {
+				return false, errors.New("db error")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			closeRepo := &mockCashRegisterCloseRepository{
+				hasCloseOnDateFn: tt.hasCloseOnDateFn,
+			}
+			svc := newCashRegisterService(closeRepo, &mockAccountingRepositoryForClose{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+
+			got, err := svc.IsDateClosed(context.Background(), 1, date)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantClosed, got)
 		})
 	}
 }

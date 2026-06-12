@@ -146,6 +146,31 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	slog.InfoContext(ctx, "accounting updated",
 		slog.Uint64("billing_id", accounting.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
+
+	// #115: 締め後編集監査ログ（ベストエフォート）
+	if input.IsPostClose && s.auditSvc != nil {
+		billingID := input.ID
+		aType := "system"
+		if input.StaffID != nil {
+			aType = "staff"
+		}
+		meta := map[string]any{}
+		if input.PostCloseReason != nil {
+			meta["reason"] = *input.PostCloseReason
+		}
+		if logErr := s.auditSvc.LogEntry(ctx, &AuditLogInput{
+			ClinicID:   &input.ClinicID,
+			ActorID:    input.StaffID,
+			ActorType:  aType,
+			Action:     "post_close_edit",
+			Resource:   "billing",
+			ResourceID: &billingID,
+			Metadata:   meta,
+		}); logErr != nil {
+			slog.ErrorContext(ctx, "audit log failed for post_close_edit", "error", logErr, "billing_id", input.ID)
+		}
+	}
+
 	if input.Status != nil && *input.Status == model.BillingStatusCompleted {
 		if err := s.completeAccountingAppointments(ctx, input.ClinicID, accounting); err != nil {
 			return nil, apperrors.Wrap(err, "failed to complete accounting appointments during update")

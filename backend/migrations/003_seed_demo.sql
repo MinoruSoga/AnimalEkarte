@@ -3450,6 +3450,20 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (6, 'accounting-cancel', true, false, false, false)
 ON CONFLICT DO NOTHING;
 
+-- =============================================================================
+-- #115: accounting-post-close-edit 権限シード（レジ締め済み期間の遡り編集）
+-- 執行グループ(1,3,5): can_edit=true（締め後遡り編集可）
+-- 一般グループ(2,4,6): can_edit=false（不可）
+-- =============================================================================
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    (1, 'accounting-post-close-edit', true, false, true,  false),
+    (2, 'accounting-post-close-edit', true, false, false, false),
+    (3, 'accounting-post-close-edit', true, false, true,  false),
+    (4, 'accounting-post-close-edit', true, false, false, false),
+    (5, 'accounting-post-close-edit', true, false, true,  false),
+    (6, 'accounting-post-close-edit', true, false, false, false)
+ON CONFLICT DO NOTHING;
+
 
 -- -----------------------------------------------------------------------------
 -- 13g. 最終拡充データ（複数クリニックのアクティビティ・統計用）
