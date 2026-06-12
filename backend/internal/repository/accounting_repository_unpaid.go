@@ -9,6 +9,24 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// MonthlyUnpaidOwnerPet は飼主+ペット単位の月次未納繰越集約結果。#114
+type MonthlyUnpaidOwnerPet struct {
+	OwnerID            uint64  `json:"owner_id"`
+	OwnerName          string  `json:"owner_name"`
+	PetID              *uint64 `json:"pet_id,omitempty"`
+	PetName            string  `json:"pet_name"`
+	PrevMonthCarryover int64   `json:"prev_month_carryover"`
+	CurrentMonthUnpaid int64   `json:"current_month_unpaid"`
+	NextMonthCarryover int64   `json:"next_month_carryover"`
+}
+
+// MonthlyUnpaidSummary は月次未納繰越のサマリー情報。#114
+type MonthlyUnpaidSummary struct {
+	PrevMonthCarryover int64 `json:"prev_month_carryover"`
+	CurrentMonthUnpaid int64 `json:"current_month_unpaid"`
+	NextMonthCarryover int64 `json:"next_month_carryover"`
+}
+
 // UnpaidOwnerAggregate は飼主単位の未納集約結果
 // BUG-370
 type UnpaidOwnerAggregate struct {
@@ -84,4 +102,67 @@ func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID u
 		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}
 	return aggregates, totalOwners, summary, nil
+}
+
+// FindMonthlyUnpaidCarryover は対象月の未納繰越（前月繰越・当月未払い・次月繰越）を
+// 飼主+ペット単位で返す。#114
+// firstDay: YYYY-MM-01, lastDay: YYYY-MM-DD（月末）
+func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
+	items := make([]MonthlyUnpaidOwnerPet, 0)
+	var summary MonthlyUnpaidSummary
+	var total int64
+
+	// status=waiting かつ scheduled_date <= lastDay の billing が集計対象。
+	// 前月繰越(< firstDay) + 当月未払い(firstDay〜lastDay) = 次月繰越(<= lastDay)。
+	base := r.db.WithContext(ctx).
+		Table("billings").
+		Joins("JOIN owners ON owners.id = billings.owner_id AND owners.deleted_at IS NULL").
+		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
+		Where("billings.status = ?", model.BillingStatusWaiting).
+		Where("billings.scheduled_date <= ?", lastDay)
+
+	// サマリー取得（3列一括 CASE WHEN）
+	if err := base.Session(&gorm.Session{}).
+		Select(`
+			COALESCE(SUM(CASE WHEN billings.scheduled_date < ? THEN billings.total_amount ELSE 0 END), 0) AS prev_month_carryover,
+			COALESCE(SUM(CASE WHEN billings.scheduled_date >= ? AND billings.scheduled_date <= ? THEN billings.total_amount ELSE 0 END), 0) AS current_month_unpaid,
+			COALESCE(SUM(billings.total_amount), 0) AS next_month_carryover
+		`, firstDay, firstDay, lastDay).
+		Scan(&summary).Error; err != nil {
+		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
+	}
+
+	// ページネーション用件数（飼主+ペットの組み合わせ数）
+	if err := r.db.WithContext(ctx).Raw(`
+		SELECT COUNT(*) FROM (
+			SELECT 1 FROM billings
+			WHERE billings.clinic_id = ? AND billings.deleted_at IS NULL
+			  AND billings.status = ? AND billings.scheduled_date <= ?
+			GROUP BY billings.owner_id, billings.pet_id
+		) sub
+	`, clinicID, model.BillingStatusWaiting, lastDay).Scan(&total).Error; err != nil {
+		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
+	}
+
+	// 飼主+ペット単位集約（CASE WHEN で3列同時集計）
+	if err := base.Session(&gorm.Session{}).
+		Joins("LEFT JOIN pets ON pets.id = billings.pet_id AND pets.deleted_at IS NULL").
+		Select(`
+			billings.owner_id AS owner_id,
+			owners.name AS owner_name,
+			billings.pet_id AS pet_id,
+			COALESCE(pets.name, '') AS pet_name,
+			COALESCE(SUM(CASE WHEN billings.scheduled_date < ? THEN billings.total_amount ELSE 0 END), 0) AS prev_month_carryover,
+			COALESCE(SUM(CASE WHEN billings.scheduled_date >= ? AND billings.scheduled_date <= ? THEN billings.total_amount ELSE 0 END), 0) AS current_month_unpaid,
+			COALESCE(SUM(billings.total_amount), 0) AS next_month_carryover
+		`, firstDay, firstDay, lastDay).
+		Group("billings.owner_id, owners.name, billings.pet_id, COALESCE(pets.name, '')").
+		Order("owners.name ASC, COALESCE(pets.name, '') ASC").
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Scan(&items).Error; err != nil {
+		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
+	}
+
+	return items, total, summary, nil
 }

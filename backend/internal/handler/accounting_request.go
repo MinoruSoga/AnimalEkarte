@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/url"
+	"strconv"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -87,6 +88,38 @@ type dailySummaryQuery struct {
 
 func newDailySummaryQuery(values url.Values) dailySummaryQuery {
 	return dailySummaryQuery{Date: values.Get("date")}
+}
+
+// #114: 月次未納繰越集計クエリ
+type monthlyUnpaidQuery struct {
+	Year  string
+	Month string
+}
+
+func newMonthlyUnpaidQuery(values url.Values) monthlyUnpaidQuery {
+	return monthlyUnpaidQuery{
+		Year:  values.Get("year"),
+		Month: values.Get("month"),
+	}
+}
+
+// parse は year/month を検証して int に変換する。
+func (q monthlyUnpaidQuery) parse() (int, int, error) {
+	if q.Year == "" {
+		return 0, 0, apperrors.WrapInvalidInput("year is required")
+	}
+	if q.Month == "" {
+		return 0, 0, apperrors.WrapInvalidInput("month is required")
+	}
+	year, err := strconv.Atoi(q.Year)
+	if err != nil || year < 2000 || year > 2100 {
+		return 0, 0, apperrors.WrapInvalidInput("year must be a valid year (2000-2100)")
+	}
+	month, err := strconv.Atoi(q.Month)
+	if err != nil || month < 1 || month > 12 {
+		return 0, 0, apperrors.WrapInvalidInput("month must be between 1 and 12")
+	}
+	return year, month, nil
 }
 
 // toServiceFilters は #120: start_date/end_date を必須パラメータとして検証する。

@@ -10,6 +10,24 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// GetMonthlyUnpaidCarryover は対象月の未納繰越（前月繰越・当月未払い・次月繰越）を
+// 飼主+ペット単位で返す。#114
+func (s *accountingService) GetMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, year, month int, page, limit int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
+	if month < 1 || month > 12 {
+		return nil, 0, repository.MonthlyUnpaidSummary{}, apperrors.WrapInvalidInput("month must be between 1 and 12")
+	}
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst).Format("2006-01-02")
+	lastDay := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, jst).Format("2006-01-02")
+
+	items, total, summary, err := s.repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay, lastDay, page, limit)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get monthly unpaid carryover", "error", err)
+		return nil, 0, summary, apperrors.Wrap(err, "failed to get monthly unpaid carryover")
+	}
+	return items, total, summary, nil
+}
+
 // #120: start_date/end_date 2引数
 func (s *accountingService) ListUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error) {
 	result, total, err := s.repo.FindUnpaidByBilling(ctx, clinicID, startDate, endDate, page, limit)

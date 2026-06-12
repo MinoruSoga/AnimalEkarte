@@ -31,10 +31,11 @@ export interface UnpaidByOwnerResponse {
 }
 
 // #120: start_date/end_date 必須。両方揃うまでクエリは発火しない
+// groupBy に "monthly" を含めることで月次モード時に enabled=false が正しく機能する
 interface UnpaidQueryParams {
   startDate: string;
   endDate: string;
-  groupBy: "owner" | "billing";
+  groupBy: "owner" | "billing" | "monthly";
   page: number;
   limit: number;
 }
@@ -95,6 +96,59 @@ export const useGetUnpaidByBilling = (params: UnpaidQueryParams) => {
       };
     },
     enabled: params.groupBy === "billing" && !!params.startDate && !!params.endDate,
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
+  });
+};
+
+// #114: 月次未納繰越集計
+
+export interface MonthlyUnpaidOwnerPet {
+  owner_id: number;
+  owner_name: string;
+  pet_id?: number;
+  pet_name: string;
+  prev_month_carryover: number;
+  current_month_unpaid: number;
+  next_month_carryover: number;
+}
+
+export interface MonthlyUnpaidSummary {
+  prev_month_carryover: number;
+  current_month_unpaid: number;
+  next_month_carryover: number;
+}
+
+export interface MonthlyUnpaidResponse {
+  data: MonthlyUnpaidOwnerPet[];
+  total: number;
+  page: number;
+  limit: number;
+  summary: MonthlyUnpaidSummary;
+}
+
+interface MonthlyUnpaidQueryParams {
+  year: number;
+  month: number;
+  page: number;
+  limit: number;
+}
+
+export const useGetUnpaidMonthly = (params: MonthlyUnpaidQueryParams) => {
+  return useQuery({
+    queryKey: ["accounting", "unpaid", "monthly", params] as const,
+    queryFn: async (): Promise<MonthlyUnpaidResponse> => {
+      const { data } = await axios.get<MonthlyUnpaidResponse>("/v1/accountings/unpaid-monthly", {
+        params: {
+          year: params.year,
+          month: params.month,
+          page: params.page,
+          limit: params.limit,
+        },
+      });
+      return data;
+    },
+    enabled: params.year > 0 && params.month >= 1 && params.month <= 12,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });

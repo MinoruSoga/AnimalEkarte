@@ -33,6 +33,8 @@ type AccountingRepository interface {
 	// BUG-370 / #120: 未納者一覧（startDate〜endDate の BETWEEN）
 	FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
 	FindUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
+	// #114: 月次未納繰越集計（firstDay=YYYY-MM-01, lastDay=YYYY-MM-DD 月末）
+	FindMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error)
 	// BUG-368: レジ締め日次集計
 	GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error)
 	// FEAT-368: 集計・締め機能

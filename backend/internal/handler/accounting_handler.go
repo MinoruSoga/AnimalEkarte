@@ -217,6 +217,34 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 	}
 }
 
+// GetUnpaidMonthlySummary は月次未納繰越集計を返す。#114
+// GET /v1/accountings/unpaid-monthly?year=YYYY&month=MM&page=N&limit=N
+func (h *Handler) GetUnpaidMonthlySummary(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	year, month, err := newMonthlyUnpaidQuery(c.Request.URL.Query()).parse()
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	ctx := c.Request.Context()
+	items, total, summary, err := h.svc.Accounting.GetMonthlyUnpaidCarryover(ctx, clinicID, year, month, page, limit)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toMonthlyUnpaidCarryoverResponse(items, total, page, limit, summary))
+}
+
 // GetDailySummary はレジ締め日次集計を返す。BUG-368
 // GET /v1/accountings/daily-summary?date=YYYY-MM-DD[&clinic_ids=1,2]
 // clinic_ids が複数の場合は per_clinic 配列を追加で返す (#86 段階3 論点4=2)。

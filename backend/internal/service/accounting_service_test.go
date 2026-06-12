@@ -25,6 +25,8 @@ type mockAccountingRepository struct {
 	// #120: start_date/end_date 2引数バリアント
 	findUnpaidByBillingFn func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
 	findUnpaidByOwnerFn   func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error)
+	// #114: 月次未納繰越集計
+	findMonthlyUnpaidCarryoverFn func(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error)
 }
 
 func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
@@ -126,7 +128,101 @@ func (m *mockAccountingRepository) FindOwnersByAnnualRevenue(_ context.Context, 
 	return nil, nil
 }
 
+// #114: 月次未納繰越集計 mock
+func (m *mockAccountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
+	if m.findMonthlyUnpaidCarryoverFn != nil {
+		return m.findMonthlyUnpaidCarryoverFn(ctx, clinicID, firstDay, lastDay, page, limit)
+	}
+	return nil, 0, repository.MonthlyUnpaidSummary{}, nil
+}
+
 func ptrString(v string) *string { return &v }
+
+// TestAccountingService_GetMonthlyUnpaidCarryover は月次未納繰越集計サービスメソッドのテスト。#114
+func TestAccountingService_GetMonthlyUnpaidCarryover(t *testing.T) {
+	petID := uint64(3)
+	tests := []struct {
+		name        string
+		year        int
+		month       int
+		mockFn      func(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error)
+		wantSummary repository.MonthlyUnpaidSummary
+		wantTotal   int64
+		wantLen     int
+		wantErr     bool
+	}{
+		{
+			name:  "正常: firstDay/lastDay が正しく計算されデータが返る",
+			year:  2026,
+			month: 6,
+			mockFn: func(_ context.Context, _ uint64, firstDay, lastDay string, _, _ int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
+				if firstDay != "2026-06-01" || lastDay != "2026-06-30" {
+					t.Errorf("want firstDay=2026-06-01 lastDay=2026-06-30, got firstDay=%s lastDay=%s", firstDay, lastDay)
+				}
+				items := []repository.MonthlyUnpaidOwnerPet{
+					{OwnerID: 1, OwnerName: "田中", PetID: &petID, PetName: "ポチ", PrevMonthCarryover: 10000, CurrentMonthUnpaid: 5000, NextMonthCarryover: 15000},
+					{OwnerID: 2, OwnerName: "鈴木", PetID: nil, PetName: "", PrevMonthCarryover: 0, CurrentMonthUnpaid: 3000, NextMonthCarryover: 3000},
+				}
+				return items, 2, repository.MonthlyUnpaidSummary{PrevMonthCarryover: 10000, CurrentMonthUnpaid: 8000, NextMonthCarryover: 18000}, nil
+			},
+			wantSummary: repository.MonthlyUnpaidSummary{PrevMonthCarryover: 10000, CurrentMonthUnpaid: 8000, NextMonthCarryover: 18000},
+			wantTotal:   2,
+			wantLen:     2,
+		},
+		{
+			name:  "正常: 1月（firstDay=01-01, lastDay=01-31）",
+			year:  2026,
+			month: 1,
+			mockFn: func(_ context.Context, _ uint64, firstDay, lastDay string, _, _ int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
+				if firstDay != "2026-01-01" || lastDay != "2026-01-31" {
+					t.Errorf("want firstDay=2026-01-01 lastDay=2026-01-31, got firstDay=%s lastDay=%s", firstDay, lastDay)
+				}
+				return nil, 0, repository.MonthlyUnpaidSummary{}, nil
+			},
+			wantSummary: repository.MonthlyUnpaidSummary{},
+			wantTotal:   0,
+			wantLen:     0,
+		},
+		{
+			name:    "エラー: month=0 は ErrInvalidInput",
+			year:    2026,
+			month:   0,
+			wantErr: true,
+		},
+		{
+			name:    "エラー: month=13 は ErrInvalidInput",
+			year:    2026,
+			month:   13,
+			wantErr: true,
+		},
+		{
+			name:  "エラー: リポジトリエラーを伝播する",
+			year:  2026,
+			month: 6,
+			mockFn: func(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
+				return nil, 0, repository.MonthlyUnpaidSummary{}, errors.New("db error")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockAccountingRepository{findMonthlyUnpaidCarryoverFn: tt.mockFn}
+			svc := NewAccountingService(mock, nil, nil, nil)
+
+			items, total, summary, err := svc.GetMonthlyUnpaidCarryover(context.Background(), 1, tt.year, tt.month, 1, 20)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantTotal, total)
+			assert.Len(t, items, tt.wantLen)
+			assert.Equal(t, tt.wantSummary, summary)
+		})
+	}
+}
 
 func TestAccountingService_List(t *testing.T) {
 	now := time.Now()
