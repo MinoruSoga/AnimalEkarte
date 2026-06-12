@@ -28,16 +28,16 @@ type UnpaidSummary struct {
 	OwnerCount   int64 `json:"owner_count"`
 }
 
-// FindUnpaidByBilling は未納 (status=waiting かつ scheduled_date < baseDate) の billings を
-// 会計単位で返す。BUG-370 AC-5
-func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error) {
+// FindUnpaidByBilling は未納 (status=waiting かつ scheduled_date BETWEEN startDate AND endDate) の billings を
+// 会計単位で返す。#120
+func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error) {
 	billings := make([]model.Billing, 0)
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&model.Billing{}).
 		Scopes(clinicScope(clinicID)).
 		Where("status = ?", model.BillingStatusWaiting).
-		Where("scheduled_date < ?", baseDate)
+		Where("scheduled_date BETWEEN ? AND ?", startDate, endDate)
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
@@ -51,9 +51,9 @@ func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID
 	return billings, total, nil
 }
 
-// FindUnpaidByOwner は未納を飼主単位で集約する。BUG-370 AC-4
+// FindUnpaidByOwner は未納を飼主単位で集約する。#120
 // GROUP BY owner_id で 1 クエリで取得（N+1 回避）。
-func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error) {
+func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error) {
 	aggregates := make([]UnpaidOwnerAggregate, 0)
 	var totalOwners int64
 	var summary UnpaidSummary
@@ -63,7 +63,7 @@ func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID u
 		Joins("JOIN owners ON owners.id = billings.owner_id AND owners.deleted_at IS NULL").
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusWaiting).
-		Where("billings.scheduled_date < ?", baseDate)
+		Where("billings.scheduled_date BETWEEN ? AND ?", startDate, endDate)
 
 	// サマリー取得（売掛金総額・件数・飼主数）
 	if err := base.Session(&gorm.Session{}).

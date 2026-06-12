@@ -64,41 +64,66 @@ func TestListAccountingQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 	}
 }
 
+// #120: start_date/end_date 必須テスト
 func TestListUnpaidBillingsQuery_ToServiceFilters(t *testing.T) {
 	filters, err := (&listUnpaidBillingsQuery{
-		BaseDate: "2026-05-28",
-		GroupBy:  "billing",
-	}).toServiceFilters("2026-05-01")
+		StartDate: "2026-01-01",
+		EndDate:   "2026-01-31",
+		GroupBy:   "billing",
+	}).toServiceFilters()
 	if err != nil {
 		t.Fatalf("toServiceFilters returned error: %v", err)
 	}
 
-	if filters.BaseDate != "2026-05-28" {
-		t.Fatalf("BaseDate = %q, want 2026-05-28", filters.BaseDate)
+	if filters.StartDate != "2026-01-01" {
+		t.Fatalf("StartDate = %q, want 2026-01-01", filters.StartDate)
+	}
+	if filters.EndDate != "2026-01-31" {
+		t.Fatalf("EndDate = %q, want 2026-01-31", filters.EndDate)
 	}
 	if filters.GroupBy != "billing" {
 		t.Fatalf("GroupBy = %q, want billing", filters.GroupBy)
 	}
 }
 
-func TestListUnpaidBillingsQuery_ToServiceFilters_Defaults(t *testing.T) {
-	filters, err := (&listUnpaidBillingsQuery{}).toServiceFilters("2026-05-01")
+func TestListUnpaidBillingsQuery_ToServiceFilters_DefaultGroupBy(t *testing.T) {
+	filters, err := (&listUnpaidBillingsQuery{
+		StartDate: "2026-01-01",
+		EndDate:   "2026-01-31",
+	}).toServiceFilters()
 	if err != nil {
 		t.Fatalf("toServiceFilters returned error: %v", err)
 	}
 
-	if filters.BaseDate != "2026-05-01" {
-		t.Fatalf("BaseDate = %q, want default", filters.BaseDate)
-	}
 	if filters.GroupBy != "owner" {
 		t.Fatalf("GroupBy = %q, want owner", filters.GroupBy)
 	}
 }
 
-func TestListUnpaidBillingsQuery_ToServiceFilters_InvalidBaseDate(t *testing.T) {
-	filters, err := (&listUnpaidBillingsQuery{BaseDate: "2026/05/28"}).toServiceFilters("2026-05-01")
+func TestListUnpaidBillingsQuery_ToServiceFilters_MissingStartDate(t *testing.T) {
+	_, err := (&listUnpaidBillingsQuery{EndDate: "2026-01-31"}).toServiceFilters()
 	if err == nil {
-		t.Fatal("toServiceFilters returned nil error")
+		t.Fatal("toServiceFilters returned nil error for missing start_date")
+	}
+	if !apperrors.IsInvalidInput(err) {
+		t.Fatalf("error = %v, want invalid input", err)
+	}
+}
+
+func TestListUnpaidBillingsQuery_ToServiceFilters_MissingEndDate(t *testing.T) {
+	_, err := (&listUnpaidBillingsQuery{StartDate: "2026-01-01"}).toServiceFilters()
+	if err == nil {
+		t.Fatal("toServiceFilters returned nil error for missing end_date")
+	}
+	if !apperrors.IsInvalidInput(err) {
+		t.Fatalf("error = %v, want invalid input", err)
+	}
+}
+
+func TestListUnpaidBillingsQuery_ToServiceFilters_InvalidDate(t *testing.T) {
+	filters, err := (&listUnpaidBillingsQuery{StartDate: "2026/01/01", EndDate: "2026-01-31"}).toServiceFilters()
+	if err == nil {
+		t.Fatal("toServiceFilters returned nil error for invalid date format")
 	}
 	if filters != (listUnpaidBillingsFilters{}) {
 		t.Fatalf("filters = %#v, want zero value", filters)

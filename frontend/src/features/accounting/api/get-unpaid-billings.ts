@@ -30,8 +30,10 @@ export interface UnpaidByOwnerResponse {
   summary: UnpaidSummary;
 }
 
+// #120: start_date/end_date 必須。両方揃うまでクエリは発火しない
 interface UnpaidQueryParams {
-  baseDate: string;
+  startDate: string;
+  endDate: string;
   groupBy: "owner" | "billing";
   page: number;
   limit: number;
@@ -43,7 +45,8 @@ export const useGetUnpaidByOwner = (params: UnpaidQueryParams) => {
     queryFn: async (): Promise<UnpaidByOwnerResponse> => {
       const { data } = await axios.get<UnpaidByOwnerResponse>("/v1/accountings/unpaid", {
         params: {
-          base_date: params.baseDate,
+          start_date: params.startDate,
+          end_date: params.endDate,
           group_by: "owner",
           page: params.page,
           limit: params.limit,
@@ -51,7 +54,7 @@ export const useGetUnpaidByOwner = (params: UnpaidQueryParams) => {
       });
       return data;
     },
-    enabled: params.groupBy === "owner",
+    enabled: params.groupBy === "owner" && !!params.startDate && !!params.endDate,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
@@ -77,7 +80,8 @@ export const useGetUnpaidByBilling = (params: UnpaidQueryParams) => {
     queryFn: async (): Promise<UnpaidByBillingResponse> => {
       const { data } = await axios.get<BackendUnpaidByBillingResponse>("/v1/accountings/unpaid", {
         params: {
-          base_date: params.baseDate,
+          start_date: params.startDate,
+          end_date: params.endDate,
           group_by: "billing",
           page: params.page,
           limit: params.limit,
@@ -90,7 +94,7 @@ export const useGetUnpaidByBilling = (params: UnpaidQueryParams) => {
         limit: data.limit,
       };
     },
-    enabled: params.groupBy === "billing",
+    enabled: params.groupBy === "billing" && !!params.startDate && !!params.endDate,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });

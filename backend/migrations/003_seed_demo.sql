@@ -3436,6 +3436,20 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (6, 'master-payment-method', true, false, false, false)
 ON CONFLICT DO NOTHING;
 
+-- =============================================================================
+-- #118: accounting-cancel 権限シード（会計キャンセル専用権限）
+-- 執行グループ(1,3,5): can_edit=true（キャンセル可）
+-- 一般グループ(2,4,6): can_edit=false（キャンセル不可）
+-- =============================================================================
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    (1, 'accounting-cancel', true, false, true,  false),
+    (2, 'accounting-cancel', true, false, false, false),
+    (3, 'accounting-cancel', true, false, true,  false),
+    (4, 'accounting-cancel', true, false, false, false),
+    (5, 'accounting-cancel', true, false, true,  false),
+    (6, 'accounting-cancel', true, false, false, false)
+ON CONFLICT DO NOTHING;
+
 
 -- -----------------------------------------------------------------------------
 -- 13g. 最終拡充データ（複数クリニックのアクティビティ・統計用）

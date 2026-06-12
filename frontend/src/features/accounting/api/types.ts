@@ -49,7 +49,7 @@ export interface PaymentSplitRequest {
   payment_method_id?: number;
   amount: number;
   received_amount?: number;
-  change_amount?: number;
+  change_amount: number; // #119: required — cash: received-amount, non-cash: 0
 }
 
 export interface UpdateAccountingRequest {

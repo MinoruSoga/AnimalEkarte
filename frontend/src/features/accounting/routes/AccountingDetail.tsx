@@ -95,6 +95,8 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   // clinic 情報（AccountingDocument に props 注入）
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("accounting");
+  // #118: キャンセルボタン用の専用権限（accounting-cancel の edit = キャンセル可否）
+  const { canEdit: canCancelAccounting } = usePermission("accounting-cancel");
   const canSubmit = id ? canEdit : canCreate;
   const clinicForDocument = useMemo(() => {
     const baseClinic = user?.clinic ?? null;
@@ -142,7 +144,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
           headerAction={
             <AccountingHeaderActions
               status={accounting.status}
-              canDelete={canDelete}
+              canDelete={canCancelAccounting}
               isCancelling={isCancelling}
               onPrint={handlePrint}
               onCancelClick={() => setCancelConfirmOpen(true)}

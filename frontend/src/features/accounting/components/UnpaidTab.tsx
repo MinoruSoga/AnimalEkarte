@@ -8,7 +8,6 @@ import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
-import { todayJSTISO } from "@/lib/jst-date";
 import { paths } from "@/config/paths";
 import { formatCurrency } from "@/utils/format/number";
 
@@ -20,9 +19,9 @@ import {
 
 type GroupBy = "owner" | "billing";
 
-function daysSince(isoDate: string, baseDate: string): number {
+function daysSince(isoDate: string, refDate: string): number {
   const from = new Date(`${isoDate}T00:00:00+09:00`);
-  const to = new Date(`${baseDate}T00:00:00+09:00`);
+  const to = new Date(`${refDate}T00:00:00+09:00`);
   const diff = Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
   return Math.max(0, diff);
 }
@@ -32,14 +31,27 @@ export function UnpaidTab() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const groupBy: GroupBy = (searchParams.get("group_by") as GroupBy) === "billing" ? "billing" : "owner";
-  const baseDate = searchParams.get("reference_date") || todayJSTISO();
+  // #120: start_date/end_date 必須 — 両方揃うまでクエリは発火しない
+  const startDate = searchParams.get("start_date") ?? "";
+  const endDate = searchParams.get("end_date") ?? "";
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  const handleBaseDateChange = useCallback((next: string) => {
+  const handleStartDateChange = useCallback((next: string) => {
     setSearchParams((prev) => {
       const p = new URLSearchParams(prev);
-      p.set("reference_date", next);
+      if (next) p.set("start_date", next);
+      else p.delete("start_date");
+      return p;
+    }, { replace: true });
+    setPage(1);
+  }, [setSearchParams]);
+
+  const handleEndDateChange = useCallback((next: string) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      if (next) p.set("end_date", next);
+      else p.delete("end_date");
       return p;
     }, { replace: true });
     setPage(1);
@@ -54,8 +66,8 @@ export function UnpaidTab() {
     setPage(1);
   }, [setSearchParams]);
 
-  const ownerQuery = useGetUnpaidByOwner({ baseDate, groupBy, page, limit });
-  const billingQuery = useGetUnpaidByBilling({ baseDate, groupBy, page, limit });
+  const ownerQuery = useGetUnpaidByOwner({ startDate, endDate, groupBy, page, limit });
+  const billingQuery = useGetUnpaidByBilling({ startDate, endDate, groupBy, page, limit });
 
   const summary = ownerQuery.data?.summary;
   const isLoading = groupBy === "owner" ? ownerQuery.isLoading : billingQuery.isLoading;
@@ -65,15 +77,25 @@ export function UnpaidTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 基準日 + 表示単位 */}
+      {/* 期間絞り込み + 表示単位 */}
       <div className="flex items-end gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="baseDate" className={`text-sm ${C.text60}`}>基準日</Label>
+          <Label htmlFor="startDate" className={`text-sm ${C.text60}`}>開始日</Label>
           <Input
-            id="baseDate"
+            id="startDate"
             type="date"
-            value={baseDate}
-            onChange={(e) => handleBaseDateChange(e.target.value)}
+            value={startDate}
+            onChange={(e) => handleStartDateChange(e.target.value)}
+            className="h-9 text-sm"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="endDate" className={`text-sm ${C.text60}`}>終了日</Label>
+          <Input
+            id="endDate"
+            type="date"
+            value={endDate}
+            onChange={(e) => handleEndDateChange(e.target.value)}
             className="h-9 text-sm"
           />
         </div>
@@ -142,7 +164,7 @@ export function UnpaidTab() {
                     <TableCell>{row.oldest_scheduled}</TableCell>
                     <TableCell>{row.latest_scheduled}</TableCell>
                     <TableCell className="text-right">
-                      {daysSince(row.oldest_scheduled, baseDate)}日
+                      {daysSince(row.oldest_scheduled, endDate)}日
                     </TableCell>
                   </TableRow>
                 ))}
@@ -183,7 +205,7 @@ export function UnpaidTab() {
                         {formatCurrency(total)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {b.scheduledDate ? `${daysSince(b.scheduledDate, baseDate)}日` : "-"}
+                        {b.scheduledDate ? `${daysSince(b.scheduledDate, endDate)}日` : "-"}
                       </TableCell>
                     </TableRow>
                   );

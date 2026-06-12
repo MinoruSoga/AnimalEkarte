@@ -1999,6 +1999,7 @@ export const ResourceHospitalization: Resource = "hospitalization";
 export const ResourceTrimming: Resource = "trimming";
 export const ResourceExaminations: Resource = "examinations";
 export const ResourceAccounting: Resource = "accounting";
+export const ResourceAccountingCancel: Resource = "accounting-cancel"; // #118: 会計キャンセル専用権限
 export const ResourceVaccinations: Resource = "vaccinations";
 export const ResourceCheckups: Resource = "checkups";
 export const ResourceInventory: Resource = "inventory";

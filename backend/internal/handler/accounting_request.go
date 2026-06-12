@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"time"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -61,20 +62,23 @@ func (q *listAccountingQuery) toServiceFilters() (listAccountingFilters, error) 
 }
 
 type listUnpaidBillingsQuery struct {
-	BaseDate string
-	GroupBy  string
+	StartDate string
+	EndDate   string
+	GroupBy   string
 }
 
 func newListUnpaidBillingsQuery(values url.Values) listUnpaidBillingsQuery {
 	return listUnpaidBillingsQuery{
-		BaseDate: values.Get("base_date"),
-		GroupBy:  values.Get("group_by"),
+		StartDate: values.Get("start_date"),
+		EndDate:   values.Get("end_date"),
+		GroupBy:   values.Get("group_by"),
 	}
 }
 
 type listUnpaidBillingsFilters struct {
-	BaseDate string
-	GroupBy  string
+	StartDate string
+	EndDate   string
+	GroupBy   string
 }
 
 type dailySummaryQuery struct {
@@ -85,14 +89,20 @@ func newDailySummaryQuery(values url.Values) dailySummaryQuery {
 	return dailySummaryQuery{Date: values.Get("date")}
 }
 
-func (q listUnpaidBillingsQuery) toServiceFilters(defaultBaseDate string) (listUnpaidBillingsFilters, error) {
-	baseDate := defaultBaseDate
-	parsedBaseDate, err := parseOptionalDateQueryFilter(q.BaseDate, "base_date")
-	if err != nil {
+// toServiceFilters は #120: start_date/end_date を必須パラメータとして検証する。
+// どちらか欠けた場合は ErrInvalidInput を返す（フォールバックなし）。
+func (q listUnpaidBillingsQuery) toServiceFilters() (listUnpaidBillingsFilters, error) {
+	if q.StartDate == "" {
+		return listUnpaidBillingsFilters{}, apperrors.WrapInvalidInput("start_date is required")
+	}
+	if q.EndDate == "" {
+		return listUnpaidBillingsFilters{}, apperrors.WrapInvalidInput("end_date is required")
+	}
+	if _, err := parseOptionalDateQueryFilter(q.StartDate, "start_date"); err != nil {
 		return listUnpaidBillingsFilters{}, err
 	}
-	if parsedBaseDate != nil {
-		baseDate = *parsedBaseDate
+	if _, err := parseOptionalDateQueryFilter(q.EndDate, "end_date"); err != nil {
+		return listUnpaidBillingsFilters{}, err
 	}
 
 	groupBy := q.GroupBy
@@ -101,8 +111,9 @@ func (q listUnpaidBillingsQuery) toServiceFilters(defaultBaseDate string) (listU
 	}
 
 	return listUnpaidBillingsFilters{
-		BaseDate: baseDate,
-		GroupBy:  groupBy,
+		StartDate: q.StartDate,
+		EndDate:   q.EndDate,
+		GroupBy:   groupBy,
 	}, nil
 }
 

@@ -80,11 +80,11 @@ type AccountingService interface {
 	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error)
 	Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error)
-	// BUG-371: 論理削除（status=cancelled）。ハード削除（旧 Delete）の代替
-	Cancel(ctx context.Context, clinicID, id uint64) error
-	// BUG-370: 月末未納者一覧
-	ListUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
-	ListUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error)
+	// BUG-371 / #118: 論理削除（status=cancelled）。actorID で監査ログを記録する。
+	Cancel(ctx context.Context, clinicID, id uint64, actorID *uint64) error
+	// BUG-370 / #120: 未納者一覧（startDate〜endDate の BETWEEN）
+	ListUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
+	ListUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error)
 	// BUG-368: レジ締め日次集計
 	GetDailySummary(ctx context.Context, clinicID uint64, dateStr string) (*repository.DailySummaryResult, error)
 	// GetDailySummaryForClinics は複数医院の拠点別日次集計を返す (#86 段階3 論点4=2)。
@@ -95,8 +95,9 @@ type accountingService struct {
 	repo       repository.AccountingRepository
 	tagSyncSvc LstepTagSyncService
 	transactor repository.Transactor
+	auditSvc   AuditService
 }
 
-func NewAccountingService(repo repository.AccountingRepository, tagSyncSvc LstepTagSyncService, transactor repository.Transactor) AccountingService {
-	return &accountingService{repo: repo, tagSyncSvc: tagSyncSvc, transactor: transactor}
+func NewAccountingService(repo repository.AccountingRepository, tagSyncSvc LstepTagSyncService, transactor repository.Transactor, auditSvc AuditService) AccountingService {
+	return &accountingService{repo: repo, tagSyncSvc: tagSyncSvc, transactor: transactor, auditSvc: auditSvc}
 }
