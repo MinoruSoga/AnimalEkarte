@@ -20,10 +20,11 @@ import {
 type GroupBy = "owner" | "billing";
 
 function daysSince(isoDate: string, refDate: string): number {
+  if (!refDate) return 0;
   const from = new Date(`${isoDate}T00:00:00+09:00`);
   const to = new Date(`${refDate}T00:00:00+09:00`);
-  const diff = Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
-  return Math.max(0, diff);
+  if (isNaN(from.getTime()) || isNaN(to.getTime())) return 0;
+  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
 export function UnpaidTab() {

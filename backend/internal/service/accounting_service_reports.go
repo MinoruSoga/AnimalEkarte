@@ -44,6 +44,7 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, act
 
 	fields := map[string]any{"status": model.BillingStatusCancelled}
 	if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to cancel accounting", "error", err, "billing_id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to cancel accounting")
 	}
 

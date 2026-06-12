@@ -21,7 +21,7 @@ import { useAccountingDetailState } from "./useAccountingDetailState";
 import { useAccountingItemActions } from "./useAccountingItemActions";
 import { useAccountingSettlementActions } from "./useAccountingSettlementActions";
 import type { AccountingItem } from "../types";
-import { ResourceAccounting } from "@/types/generated/models";
+import { ResourceAccounting, ResourceAccountingCancel } from "@/types/generated/models";
 
 interface AccountingDetailProps {
   invoiceRegistrationNumber?: string;
@@ -96,7 +96,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("accounting");
   // #118: キャンセルボタン用の専用権限（accounting-cancel の edit = キャンセル可否）
-  const { canEdit: canCancelAccounting } = usePermission("accounting-cancel");
+  const { canEdit: canCancelAccounting } = usePermission(ResourceAccountingCancel);
   const canSubmit = id ? canEdit : canCreate;
   const clinicForDocument = useMemo(() => {
     const baseClinic = user?.clinic ?? null;
