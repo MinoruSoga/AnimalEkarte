@@ -12,6 +12,12 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { toJSTWallDate } from "@/lib/jst-date";
 import type { CalendarView, Reservation } from "../types";
+
+/** #116: キャンセル済み予約をカレンダーから非表示にする */
+export function filterCalendarAppointments(appointments: Reservation[]): Reservation[] {
+  return appointments.filter((a) => a.status !== "cancelled");
+}
+
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
     default: m.ReservationFormModal,
@@ -124,7 +130,7 @@ export function ReservationManagement() {
 
   const filteredAppointments = useMemo(
     () => {
-      let result = appointments;
+      let result = filterCalendarAppointments(appointments);
       if (doctorFilter !== "all") {
         result = result.filter((a) => a.doctor === doctorFilter);
       }
