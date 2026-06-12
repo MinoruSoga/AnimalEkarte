@@ -2452,6 +2452,96 @@ ON CONFLICT DO NOTHING;
 
 
 -- =============================================================================
+-- STG 2026-06-12 反映分: prodData/ekarte-stg_6-12 差分
+-- 002/003/既存004 と重複しない、migration seed として必要最小限の STG 固有データのみ追加。
+-- dump 全量再現ではなく、自動生成デモ予約やトリガー生成マスタは既存 seed を優先する。
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- owners
+-- -----------------------------------------------------------------------------
+INSERT INTO owners ("id", "clinic_id", "name", "name_kana", "birth_date", "company", "postal_code", "address1", "address2", "home_postal_code", "home_address1", "home_address2", "phone", "company_phone", "email", "remarks", "is_dangerous", "discount_rate", "membership_type", "line_user_id", "lstep_opt_out", "lstep_opt_out_at", "lstep_opt_out_reason", "line_followed_at", "line_blocked_at", "line_id_confirmed_by", "line_id_confirmed_at", "delivery_excluded", "delivery_excluded_reason", "is_transferred", "transfer_at", "delivery_caution", "delivery_caution_reason", "created_at", "updated_at", "deleted_at") VALUES
+(61, 2, '林　文明', 'はやし　ふみあき', NULL, '', '', '', '', '', '山梨県甲府市城東3−４−15', '', '0552334126', '055−233ｰ4126', '', '代表', 'f', 0.00, 'member', NULL, 'f', NULL, NULL, NULL, NULL, NULL, NULL, 'f', NULL, 'f', NULL, 'f', NULL, '2026-06-10 07:26:02.330787+00', '2026-06-10 07:26:55.187765+00', NULL)
+ON CONFLICT DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- pets
+-- -----------------------------------------------------------------------------
+INSERT INTO pets ("id", "clinic_id", "owner_id", "pet_number", "name", "name_kana", "animal_species_id", "gender", "status", "birth_date", "breed", "color", "weight", "neutered_date", "acquisition_type", "danger_level", "food", "environment", "phone", "last_visit", "insurance_id", "remarks", "deceased_at", "deceased_reason", "created_at", "updated_at", "deleted_at") VALUES
+(82, 2, 61, '61-1', 'アーク', '', 1, 'female', 'alive', NULL, 'ゴールデンレトリバー', 'クリーム', NULL, NULL, 'purchased', 'high', '', '完全室内飼い', '', NULL, NULL, '他の犬噛んじゃうので注意', NULL, NULL, '2026-06-10 07:26:02.596745+00', '2026-06-10 07:26:49.785192+00', NULL)
+ON CONFLICT DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- lstep_csv_imports
+-- -----------------------------------------------------------------------------
+INSERT INTO lstep_csv_imports ("id", "clinic_id", "csv_type", "file_name", "uploaded_by_user_id", "row_count", "success_count", "error_count", "status", "error_log", "imported_at", "created_at") VALUES
+('754a180c-d449-4488-87df-ead5e89178cb', 1, 'friend_attribute', 'invalid_data_test.csv', 1, 10, 0, 0, 'failed', NULL, '2026-06-04 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00'),
+('7fc707e1-b52b-4d6a-ad26-b8c540cc263a', 1, 'friend_attribute', 'new_members_20260521.csv', 1, 50, 48, 0, 'completed', NULL, '2026-06-03 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00'),
+('fb2714c8-5f94-4de2-8525-e88f55323097', 1, 'friend_attribute', 'owners_export_20260520.csv', 1, 100, 100, 0, 'completed', NULL, '2026-06-02 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00')
+ON CONFLICT DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- appointments
+-- -----------------------------------------------------------------------------
+INSERT INTO appointments ("id", "clinic_id", "start_time", "end_time", "owner_id", "pet_id", "visit_type", "reservation_type_id", "doctor_id", "is_designated", "status", "notes", "source", "created_by", "is_staff_delegated", "customer_fields", "reservation_route", "actual_reservation_at", "created_at", "updated_at", "deleted_at", "line_customer_id") VALUES
+(1689, 2, '2026-06-10 07:30:00+00', '2026-06-10 07:45:00+00', 61, 82, 'revisit', 27, NULL, 'f', 'in_consultation', '', 'manual', 1, 'f', '{}', 'record_shortcut', NULL, '2026-06-10 07:30:00.795202+00', '2026-06-10 07:30:00.795202+00', NULL, NULL)
+ON CONFLICT DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- hospitalizations
+-- -----------------------------------------------------------------------------
+INSERT INTO hospitalizations ("id", "clinic_id", "owner_id", "pet_id", "hospitalization_type", "start_date", "end_date", "status", "cage_id", "doctor_id", "memo", "owner_request", "staff_notes", "insurance_company_name", "insurance_number", "created_at", "updated_at", "deleted_at") VALUES
+(1049, 1, 56, 66, 'hotel', '2026-06-30', '2026-07-02', 'reserved', 6, 4, 'ペットホテル預かりデモ', 'ご飯持ち込みあり', '自動生成データ', NULL, NULL, '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1050, 1, 3, 4, 'hotel', '2026-06-08', '2026-06-15', 'reserved', 3, NULL, '怖がり', '排泄は外へ', '怖がりなので優しく
+', NULL, NULL, '2026-06-08 09:18:53.211154+00', '2026-06-08 09:18:53.211154+00', NULL)
+ON CONFLICT DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- appointment_trimming_details
+-- -----------------------------------------------------------------------------
+INSERT INTO appointment_trimming_details ("id", "clinic_id", "appointment_id", "course_id", "style_request", "body_weight", "bw_unit", "body_temperature", "used_shampoo", "used_ribbon", "remarks", "style_image", "completed_image", "created_at", "updated_at") VALUES
+(1046, 1, 1666, 3, 'サマーカット希望', 16.40, 'Kg', NULL, '', '', '', '', '', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00'),
+(1047, 1, 1667, 5, 'サマーカット希望', 12.70, 'Kg', NULL, '', '', '', '', '', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00')
+ON CONFLICT DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- medical_records
+-- -----------------------------------------------------------------------------
+INSERT INTO medical_records ("id", "clinic_id", "record_no", "date", "owner_id", "pet_id", "doctor_id", "appointment_id", "status", "version", "entered_by", "next_visit_recommended_date", "recommendation_reason", "visit_type", "created_at", "updated_at", "deleted_at") VALUES
+(1000, 1, 'REC-11000', '2026-05-30', 60, 70, 1, 1002, 'draft', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1001, 1, 'REC-11001', '2026-05-30', 46, 56, 2, 1003, 'finalized', 1, NULL, NULL, NULL, 'first', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1002, 1, 'REC-11002', '2026-05-30', 19, 22, 4, 1005, 'finalized', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1003, 1, 'REC-11003', '2026-05-30', 18, 20, 1, 1006, 'draft', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1004, 1, 'REC-11004', '2026-05-30', 39, 71, 4, 1009, 'draft', 1, NULL, NULL, NULL, 'first', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1005, 1, 'REC-11005', '2026-05-30', 2, 3, 3, 1012, 'draft', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1006, 1, 'REC-11006', '2026-05-30', 52, 62, 4, 1013, 'draft', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1007, 1, 'REC-11007', '2026-05-30', 58, 68, 2, 1015, 'finalized', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1008, 1, 'REC-11008', '2026-05-30', 51, 61, 3, 1016, 'finalized', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1009, 1, 'REC-11009', '2026-05-30', 53, 63, 4, 1017, 'finalized', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1010, 1, 'REC-11010', '2026-05-30', 1, 2, 2, 1019, 'finalized', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1011, 1, 'REC-11011', '2026-05-31', 57, 67, 2, 1023, 'finalized', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1012, 1, 'REC-11012', '2026-05-31', 9, 11, 1, 1030, 'draft', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1013, 1, 'REC-11013', '2026-05-31', 8, 10, 3, 1032, 'draft', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1014, 1, 'REC-11014', '2026-05-31', 12, 14, 4, 1033, 'finalized', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1015, 1, 'REC-11015', '2026-05-31', 21, 26, 1, 1038, 'finalized', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1016, 1, 'REC-11016', '2026-05-31', 10, 81, 2, 1039, 'draft', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1017, 1, 'REC-11017', '2026-05-31', 60, 70, 3, 1040, 'finalized', 1, NULL, NULL, NULL, 'revisit', '2026-06-05 07:16:03.868459+00', '2026-06-05 07:16:03.868459+00', NULL),
+(1018, 1, 'MR-20260608-1-3CBns8', '2026-06-08', 54, 64, 3, 1198, 'draft', 1, NULL, NULL, NULL, 'revisit', '2026-06-08 04:37:30.147661+00', '2026-06-08 04:37:30.147661+00', NULL),
+(1019, 1, 'MR-20260608-1-T1y7fZ', '2026-06-08', 10, 12, 2, 1197, 'draft', 1, NULL, NULL, NULL, 'revisit', '2026-06-08 04:45:08.788976+00', '2026-06-08 04:45:08.788976+00', NULL),
+(1020, 1, 'MR-20260610-1-1ur6fc', '2026-06-10', 42, 52, 2, 1240, 'draft', 1, NULL, NULL, NULL, 'revisit', '2026-06-10 04:32:38.012277+00', '2026-06-10 04:32:38.012277+00', NULL),
+(1021, 2, 'MR-20260610-2-xUGwUn', '2026-06-10', 61, 82, NULL, 1689, 'draft', 1, 1, NULL, NULL, 'revisit', '2026-06-10 07:30:01.017359+00', '2026-06-10 07:30:01.017359+00', NULL),
+(1022, 1, 'MR-20260611-1-3Ytvoc', '2026-06-11', 18, 20, 2, 1261, 'draft', 1, NULL, NULL, NULL, 'revisit', '2026-06-11 08:52:52.711715+00', '2026-06-11 08:52:52.711715+00', NULL)
+ON CONFLICT DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- exams
+-- -----------------------------------------------------------------------------
+INSERT INTO exams ("id", "medical_record_id", "clinic_id", "pet_id", "date", "exam_type_id", "doctor_id", "status", "result_summary", "machine", "created_at", "updated_at", "deleted_at") VALUES
+(17, NULL, 2, 82, '2026-06-10', 12, 34, 'pending', '', '', '2026-06-10 07:37:44.558404+00', '2026-06-10 07:37:44.558404+00', NULL)
+ON CONFLICT DO NOTHING;
+
+
+-- =============================================================================
 -- シーケンスリセット
 -- =============================================================================
 
@@ -2468,6 +2558,7 @@ SELECT setval(pg_get_serial_sequence('lstep_delivery_trigger_log', 'id'), (SELEC
 SELECT setval(pg_get_serial_sequence('lstep_friend_attribute_snapshots', 'id'), (SELECT COALESCE(MAX(id), 1) FROM lstep_friend_attribute_snapshots));
 SELECT setval(pg_get_serial_sequence('line_send_logs', 'id'), (SELECT COALESCE(MAX(id), 1) FROM line_send_logs));
 SELECT setval(pg_get_serial_sequence('staff_reservation_exclusions', 'id'), (SELECT COALESCE(MAX(id), 1) FROM staff_reservation_exclusions));
+SELECT setval(pg_get_serial_sequence('staff_reservation_capabilities', 'id'), (SELECT COALESCE(MAX(id), 1) FROM staff_reservation_capabilities));
 SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT COALESCE(MAX(id), 1) FROM appointments));
 SELECT setval(pg_get_serial_sequence('appointment_trimming_details', 'id'), (SELECT COALESCE(MAX(id), 1) FROM appointment_trimming_details));
 SELECT setval(pg_get_serial_sequence('appointment_trimming_options', 'id'), (SELECT COALESCE(MAX(id), 1) FROM appointment_trimming_options));
