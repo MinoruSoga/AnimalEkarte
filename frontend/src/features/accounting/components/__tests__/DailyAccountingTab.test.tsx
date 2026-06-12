@@ -133,8 +133,9 @@ describe("DailyAccountingTab", () => {
     await waitFor(() => {
       expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
     });
-    expect(screen.getByText("田中太郎")).toBeInTheDocument();
-    expect(screen.getByText("ポチ")).toBeInTheDocument();
+    const table = screen.getByTestId("daily-accounting-table");
+    expect(within(table).getByText("田中太郎")).toBeInTheDocument();
+    expect(within(table).getByText("ポチ")).toBeInTheDocument();
   });
 
   it("診療・外科の金額が行に表示される", async () => {
@@ -241,5 +242,222 @@ describe("DailyAccountingTab", () => {
     // paymentSplits.length > 1 のとき method ラベルを " / " 区切りで結合して表示する
     // DailyAccountingTab の PAYMENT_METHOD_LABELS: credit_card → "カード"
     expect(within(table).getByText(/現金.*カード|カード.*現金/)).toBeInTheDocument();
+  });
+
+  // ── #117: 新規テスト ──────────────────────────────────────────────
+
+  it("#117: vaccine カテゴリの金額がRV列に表示される", async () => {
+    server.use(
+      http.get("*/v1/accountings", () =>
+        HttpResponse.json({
+          data: [
+            makeAccounting({
+              items: [
+                {
+                  id: 3,
+                  billing_id: 1,
+                  category: "vaccine",
+                  name: "狂犬病ワクチン",
+                  unit_price: 4000,
+                  quantity: 1,
+                  tax_rate: 0.1,
+                  tax_type: "excluded",
+                  tax_amount: 400,
+                  subtotal: 4000,
+                  is_insurance_applicable: false,
+                  source: "manual",
+                },
+              ],
+            }),
+          ],
+          total: 1,
+          page: 1,
+          limit: 50,
+        }),
+      ),
+    );
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    const table = screen.getByTestId("daily-accounting-table");
+    // RV列ヘッダーが存在する
+    expect(within(table).getByText("RV")).toBeInTheDocument();
+    // vaccine の金額が表示される（ボディ＋フッターで1件以上）
+    expect(within(table).getAllByText("¥4,000").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("#117: trimming カテゴリの金額がトリミング列に表示される", async () => {
+    server.use(
+      http.get("*/v1/accountings", () =>
+        HttpResponse.json({
+          data: [
+            makeAccounting({
+              items: [
+                {
+                  id: 4,
+                  billing_id: 1,
+                  category: "trimming",
+                  name: "シャンプーカット",
+                  unit_price: 6000,
+                  quantity: 1,
+                  tax_rate: 0.1,
+                  tax_type: "excluded",
+                  tax_amount: 600,
+                  subtotal: 6000,
+                  is_insurance_applicable: false,
+                  source: "trimming",
+                },
+              ],
+            }),
+          ],
+          total: 1,
+          page: 1,
+          limit: 50,
+        }),
+      ),
+    );
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    const table = screen.getByTestId("daily-accounting-table");
+    expect(within(table).getByText("トリミング")).toBeInTheDocument();
+    expect(within(table).getAllByText("¥6,000").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("#117: hotel カテゴリの金額がホテル列に表示される", async () => {
+    server.use(
+      http.get("*/v1/accountings", () =>
+        HttpResponse.json({
+          data: [
+            makeAccounting({
+              items: [
+                {
+                  id: 5,
+                  billing_id: 1,
+                  category: "hotel",
+                  name: "ペットホテル",
+                  unit_price: 3000,
+                  quantity: 2,
+                  tax_rate: 0.1,
+                  tax_type: "excluded",
+                  tax_amount: 600,
+                  subtotal: 6000,
+                  is_insurance_applicable: false,
+                  source: "manual",
+                },
+              ],
+            }),
+          ],
+          total: 1,
+          page: 1,
+          limit: 50,
+        }),
+      ),
+    );
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    const table = screen.getByTestId("daily-accounting-table");
+    expect(within(table).getByText("ホテル")).toBeInTheDocument();
+    expect(within(table).getAllByText("¥6,000").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("#117: 領収No列が billing.id のゼロ埋め8桁で表示される", async () => {
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    const table = screen.getByTestId("daily-accounting-table");
+    // billing.id = 1 → "00000001"
+    expect(within(table).getByText("00000001")).toBeInTheDocument();
+  });
+
+  it("#117: データあり時に印刷ボタンが表示される", async () => {
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-print-button")).toBeInTheDocument();
+    });
+  });
+
+  it("#117: データなし時は印刷ボタンが表示されない", async () => {
+    server.use(
+      http.get("*/v1/accountings", () =>
+        HttpResponse.json({ data: [], total: 0, page: 1, limit: 50 }),
+      ),
+    );
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-empty")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("daily-print-button")).not.toBeInTheDocument();
+  });
+
+  it("#117: 印刷エリアが DOM に存在する（rows > 0 時）", async () => {
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    // hidden class でスクリーン非表示だが DOM に存在する
+    expect(document.querySelector('[data-testid="daily-print-area"]')).not.toBeNull();
+  });
+
+  it("#117: フッターに RV / トリミング / ホテル の合計が表示される", async () => {
+    server.use(
+      http.get("*/v1/accountings", () =>
+        HttpResponse.json({
+          data: [
+            makeAccounting({
+              items: [
+                {
+                  id: 6,
+                  billing_id: 1,
+                  category: "vaccine",
+                  name: "ワクチン",
+                  unit_price: 5000,
+                  quantity: 1,
+                  tax_rate: 0.1,
+                  tax_type: "excluded",
+                  tax_amount: 500,
+                  subtotal: 5000,
+                  is_insurance_applicable: false,
+                  source: "manual",
+                },
+                {
+                  id: 7,
+                  billing_id: 1,
+                  category: "trimming",
+                  name: "カット",
+                  unit_price: 4000,
+                  quantity: 1,
+                  tax_rate: 0.1,
+                  tax_type: "excluded",
+                  tax_amount: 400,
+                  subtotal: 4000,
+                  is_insurance_applicable: false,
+                  source: "trimming",
+                },
+              ],
+            }),
+          ],
+          total: 1,
+          page: 1,
+          limit: 50,
+        }),
+      ),
+    );
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    const table = screen.getByTestId("daily-accounting-table");
+    // フッター行に各合計が表示されることを確認
+    const footer = table.querySelector("tfoot");
+    expect(footer).not.toBeNull();
+    // vaccine 5000, trimming 4000 がそれぞれのフッター列に表示される
+    expect(within(footer!).getByText("¥5,000")).toBeInTheDocument();
+    expect(within(footer!).getByText("¥4,000")).toBeInTheDocument();
   });
 });
