@@ -14,10 +14,12 @@ import {
 } from "@/components/ui/table";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { C } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 import { formatCurrency } from "@/utils/format/number";
 
 import { useGetAccountings } from "../api/get-accountings";
 import { useGetDailySummary } from "../api/get-daily-summary";
+import type { ClinicDailySummaryItem, DailySummary, PerClinicDailySummaryResponse } from "../api/get-daily-summary";
 import type { Accounting, AccountingItem } from "../types";
 
 // ── 定数 ────────────────────────────────────────────────────────
@@ -28,11 +30,11 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 };
 
 const MEDICAL_CATEGORIES = new Set(["examination", "test", "procedure", "medicine"]);
+const EMPTY_CLINIC_NAME_MAP = new Map<string, string>();
 
 // ── ヘルパー ─────────────────────────────────────────────────────
 function todayISO(): string {
-  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  return jst.toISOString().slice(0, 10);
+  return todayJSTISO();
 }
 
 interface CategoryBreakdown {
@@ -92,9 +94,24 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
   );
 }
 
+function isSingleSummary(data: DailySummary | PerClinicDailySummaryResponse): data is DailySummary {
+  return "billing_count" in data;
+}
+
 // ── メインコンポーネント ──────────────────────────────────────────
-export function DailyAccountingTab() {
+interface DailyAccountingTabProps {
+  /** 拠点横断表示 (#86 段階3): 2件以上の場合に拠点別集計を表示する。 */
+  selectedClinicIds?: string[];
+  /** clinicId → 医院名（所属医院由来） */
+  clinicNameById?: Map<string, string>;
+}
+
+export function DailyAccountingTab({
+  selectedClinicIds,
+  clinicNameById = EMPTY_CLINIC_NAME_MAP,
+}: DailyAccountingTabProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const isMultiClinic = selectedClinicIds !== undefined && selectedClinicIds.length > 1;
   const selectedDate = searchParams.get("daily_date") ?? todayISO();
 
   const handleDateChange = useCallback((next: string) => {
@@ -108,9 +125,13 @@ export function DailyAccountingTab() {
   const { data: accountings = [], isLoading, isError } = useGetAccountings({
     startDate: selectedDate,
     endDate: selectedDate,
+    clinicIds: selectedClinicIds,
   });
 
-  const { data: summary } = useGetDailySummary(selectedDate);
+  const { data: summaryRaw } = useGetDailySummary(selectedDate, selectedClinicIds);
+  const summary = summaryRaw && isSingleSummary(summaryRaw) ? summaryRaw : null;
+  const perClinicSummaries: ClinicDailySummaryItem[] =
+    summaryRaw && !isSingleSummary(summaryRaw) ? summaryRaw.per_clinic : [];
 
   const rows = useMemo<RowData[]>(() => {
     return accountings
@@ -173,6 +194,28 @@ export function DailyAccountingTab() {
             ))}
           </div>
         ) : null}
+        {perClinicSummaries.length > 0 ? (
+          <div className="flex flex-col gap-2" data-testid="daily-summary-per-clinic">
+            {perClinicSummaries.map((cs) => (
+              <div key={cs.clinic_id} className={`rounded-lg border ${C.borderLight} px-3 py-2 ${C.bgWhite}`}>
+                <p className={`text-xs font-medium ${C.text60} mb-1.5`}>
+                  {clinicNameById.get(String(cs.clinic_id)) ?? `拠点 ${cs.clinic_id}`}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <SummaryCard label="会計件数" value={`${cs.summary.billing_count}件`} />
+                  <SummaryCard label="売上合計" value={formatCurrency(cs.summary.grand_total)} />
+                  {cs.summary.payment_totals.map((pt) => (
+                    <SummaryCard
+                      key={pt.method}
+                      label={PAYMENT_METHOD_LABELS[pt.method] ?? pt.method}
+                      value={formatCurrency(pt.total)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {isLoading ? <LoadingFallback /> : null}
@@ -191,6 +234,9 @@ export function DailyAccountingTab() {
             <Table>
               <TableHeader>
                 <TableRow className={`${C.bgPage30}`}>
+                  {isMultiClinic ? (
+                    <TableHead className={`text-xs ${C.text60} whitespace-nowrap w-[100px]`}>拠点</TableHead>
+                  ) : null}
                   <TableHead className={`text-xs ${C.text60} whitespace-nowrap`}>飼主名</TableHead>
                   <TableHead className={`text-xs ${C.text60} whitespace-nowrap`}>ペット名</TableHead>
                   <TableHead className={`text-right text-xs ${C.text60} whitespace-nowrap`}>診療</TableHead>
@@ -207,6 +253,11 @@ export function DailyAccountingTab() {
               <TableBody>
                 {rows.map(({ accounting: a, breakdown, subtotal, tax, discount, total }) => (
                   <TableRow key={a.id} className={`border-b ${C.borderLight}`}>
+                    {isMultiClinic ? (
+                      <TableCell className={`text-sm ${C.text60} py-2 whitespace-nowrap`}>
+                        {clinicNameById.get(a.clinicId) ?? a.clinicId}
+                      </TableCell>
+                    ) : null}
                     <TableCell className={`text-sm ${C.text} py-2 font-medium whitespace-nowrap`}>
                       {a.ownerName}
                     </TableCell>
@@ -249,7 +300,7 @@ export function DailyAccountingTab() {
               </TableBody>
               <TableFooter>
                 <TableRow className={`font-bold border-t-2 ${C.borderLight}`}>
-                  <TableCell colSpan={2} className="py-2 text-sm">合計（{rows.length}件）</TableCell>
+                  <TableCell colSpan={isMultiClinic ? 3 : 2} className="py-2 text-sm">合計（{rows.length}件）</TableCell>
                   <TableCell className="text-right text-sm font-mono py-2">
                     {totals.medical > 0 ? formatCurrency(totals.medical) : "-"}
                   </TableCell>

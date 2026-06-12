@@ -33,16 +33,13 @@ func (h *Handler) ListPets(c *gin.Context) {
 		return
 	}
 
-	petResponses := make([]petListResponse, 0, len(pets))
-	for i := range pets {
-		petResponses = append(petResponses, toPetListResponse(&pets[i]))
-	}
-	c.JSON(http.StatusOK, newPaginatedResponse(petResponses, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(pets, toPetListResponse), total, page, limit))
 }
 
 // GetPet godoc
 func (h *Handler) GetPet(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
+	clinicIDs, ok := resolveAllClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -50,7 +47,7 @@ func (h *Handler) GetPet(c *gin.Context) {
 	if !ok {
 		return
 	}
-	pet, err := h.svc.Pet.GetByID(c.Request.Context(), clinicID, id)
+	pet, err := h.svc.Pet.GetByIDForClinics(c.Request.Context(), clinicIDs, id)
 	if err != nil {
 		RespondError(c, err)
 		return

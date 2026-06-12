@@ -17,10 +17,12 @@ export function transformAccountingItem(item: BackendAccountingItem) {
     name: item.name,
     unitPrice,
     quantity,
+    discountRate: item.discount_rate ?? 0,
+    discountAmount: item.discount_amount ?? 0,
     taxType: item.tax_type ?? "excluded",
     taxRate,
     taxAmount: item.tax_amount ?? 0,
-    subtotal: item.subtotal ?? Math.round(unitPrice * quantity),
+    subtotal: item.subtotal ?? Math.max(Math.round(unitPrice * quantity) - (item.discount_amount ?? 0), 0),
     isInsuranceApplicable: item.is_insurance_applicable,
     source: item.source as "medical_record" | "manual" | "hospitalization" | "trimming",
     treatmentId: item.treatment_id ? String(item.treatment_id) : undefined,
@@ -90,6 +92,7 @@ export function transformToAccounting(data: BackendAccounting) {
   const splits = data.payment_splits;
   return {
     id: String(data.id ?? 0),
+    clinicId: String(data.clinic_id),
     medicalRecordId: data.medical_record_id ? String(data.medical_record_id) : undefined,
     ownerId: String(data.owner_id ?? 0),
     ownerName: data.owner?.name ?? "",

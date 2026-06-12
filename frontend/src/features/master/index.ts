@@ -8,10 +8,12 @@ export { InsuranceSettings } from "./routes/InsuranceSettings";
 export { InterviewTemplateSettings } from "./routes/InterviewTemplateSettings";
 export { OccupationSettings } from "./routes/OccupationSettings";
 export { PaymentMethodSettings } from "./routes/PaymentMethodSettings";
+export { CampaignSettings } from "./routes/CampaignSettings";
 export { PermissionGroupSettings } from "./routes/PermissionGroupSettings";
 export { MedicineSettings } from "./routes/MedicineSettings";
 export { MerchandiseItemSettings } from "./routes/MerchandiseItemSettings";
 export { ReservationTypeSettings } from "./routes/ReservationTypeSettings";
+export { LineReservationSlotsSettings } from "./routes/LineReservationSlotsSettings";
 export { StaffSettings } from "./routes/StaffSettings";
 export { TreatmentPlanMaster } from "./routes/TreatmentPlanMaster";
 export { TrimmingSettings } from "./routes/TrimmingSettings";
@@ -32,4 +34,11 @@ export {
   useUpdateReservationTypeGroup,
   useDeleteReservationTypeGroup,
 } from "./api/reservation-type-groups";
+export {
+  useGetUnavailableTimes,
+  useCreateUnavailableTime,
+  useDeleteUnavailableTime,
+} from "./api/reservation-type-unavailable-times";
+export type { ReservationTypeUnavailableTime } from "./api/reservation-type-unavailable-times";
+export type { CreateUnavailableTimeRequest } from "./api/reservation-type-unavailable-times";
 export type { ReservationTypeGroup } from "./api/reservation-type-groups";

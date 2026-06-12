@@ -34,7 +34,7 @@ func toLineCustomerResponse(rc *model.LineCustomer) lineCustomerResponse {
 		AdditionalFields: json.RawMessage(rc.AdditionalFields),
 		OwnerID:          rc.OwnerID,
 		OwnerName:        ownerName,
-		CreatedAt:        rc.CreatedAt,
-		UpdatedAt:        rc.UpdatedAt,
+		CreatedAt:        localTime(rc.CreatedAt),
+		UpdatedAt:        localTime(rc.UpdatedAt),
 	}
 }

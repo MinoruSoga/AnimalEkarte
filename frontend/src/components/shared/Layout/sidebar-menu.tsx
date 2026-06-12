@@ -103,6 +103,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
         subItems: [
           { label: "基本設定", path: paths.lineReservation.settings.getHref(), resource: ResourceReservations },
           { label: "ページ編集", path: paths.lineReservation.pageEditor.getHref(), resource: ResourceReservations },
+          { label: "予約枠", path: paths.lineReservation.slots.getHref(), resource: ResourceMasterReservationType },
         ],
       },
     ],

@@ -9,6 +9,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { jstDateStartISOString, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 import type { ExaminationRecord } from "../api/transforms";
 
 const EXAM_STATUS_ITEMS = (
@@ -120,8 +121,8 @@ function ExaminationFormFieldsBase({
         <Label className={`text-sm ${C.text60}`}>検査日</Label>
         <NotionDatePicker
           value={formData.date ? formData.date.split("T")[0] : ""}
-          onChange={(value) => onSetFormData({ date: value ? `${value}T00:00:00Z` : new Date().toISOString() })}
-          disabledDays={{ after: new Date() }}
+          onChange={(value) => onSetFormData({ date: value ? jstDateStartISOString(value) : jstDateStartISOString(todayJSTISO()) })}
+          disabledDays={{ after: toJSTWallDate(new Date()) }}
         />
       </div>
 

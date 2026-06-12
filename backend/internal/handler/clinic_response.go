@@ -43,7 +43,7 @@ func toClinicResponse(c *model.Clinic) clinicResponse {
 		IsActive:           c.IsActive,
 		StandardTaxRate:    c.StandardTaxRate,
 		ReducedTaxRate:     c.ReducedTaxRate,
-		CreatedAt:          c.CreatedAt,
-		UpdatedAt:          c.UpdatedAt,
+		CreatedAt:          localTime(c.CreatedAt),
+		UpdatedAt:          localTime(c.UpdatedAt),
 	}
 }

@@ -15,7 +15,7 @@ import (
 
 // mockOwnerRepository は OwnerRepository のテスト用モック実装
 type mockOwnerRepository struct {
-	findAllFn            func(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
+	findAllFn            func(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 	findByEmailFn        func(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
 	findByPhoneFn        func(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error)
@@ -27,14 +27,18 @@ type mockOwnerRepository struct {
 	updateLineUserIDFn   func(ctx context.Context, clinicID, id uint64, lineUserID *string) error
 }
 
-func (m *mockOwnerRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
-	return m.findAllFn(ctx, clinicID, page, limit, search)
+func (m *mockOwnerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error) {
+	return m.findAllFn(ctx, clinicIDs, page, limit, search)
 }
 
 func (m *mockOwnerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
+	return nil, nil
+}
+
+func (m *mockOwnerRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
 	return nil, nil
 }
 
@@ -186,13 +190,13 @@ func TestOwnerService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockOwnerRepository{
-				findAllFn: func(_ context.Context, _ uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+				findAllFn: func(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
 					return tt.repoOwners, tt.repoTotal, tt.repoErr
 				},
 			}
 			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
 
-			owners, total, err := svc.List(context.Background(), tt.clinicID, tt.page, tt.limit, tt.search)
+			owners, total, err := svc.List(context.Background(), []uint64{tt.clinicID}, tt.page, tt.limit, tt.search)
 
 			if tt.wantErr {
 				assert.Error(t, err)

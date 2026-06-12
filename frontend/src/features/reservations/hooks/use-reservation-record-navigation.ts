@@ -2,18 +2,9 @@ import { useCallback, useState } from "react";
 import type { NavigateFunction } from "react-router";
 
 import { paths } from "@/config/paths";
+import { formatJSTWallDate } from "@/lib/jst-date";
 
 import type { Reservation } from "../types";
-
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
-
-function formatJSTDate(date: Date): string {
-  const jstDate = new Date(date.getTime() + JST_OFFSET_MS);
-  const year = jstDate.getUTCFullYear();
-  const month = String(jstDate.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(jstDate.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 function isHospitalizationReservation(type: string): boolean {
   return type.includes("入院") || type.includes("ホテル");
@@ -51,7 +42,7 @@ export function useReservationRecordNavigation({
   const handleCreateRecord = useCallback(
     (reservation: Reservation) => {
       const targetPath = resolveRecordPath(reservation);
-      const visitDate = formatJSTDate(reservation.start);
+      const visitDate = formatJSTWallDate(reservation.start);
 
       const queryParams = new URLSearchParams();
       if (reservation.petId) {

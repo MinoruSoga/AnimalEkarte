@@ -53,7 +53,7 @@ func toMedicineResponse(m *model.Medicine) medicineResponse {
 		TaxRate:         m.TaxRate,
 		SortOrder:       m.SortOrder,
 		IsNonInsurance:  m.IsNonInsurance,
-		CreatedAt:       m.CreatedAt,
-		UpdatedAt:       m.UpdatedAt,
+		CreatedAt:       localTime(m.CreatedAt),
+		UpdatedAt:       localTime(m.UpdatedAt),
 	}
 }

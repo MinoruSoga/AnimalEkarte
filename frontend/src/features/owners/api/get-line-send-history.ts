@@ -27,10 +27,15 @@ async function getLineSendHistory(
 }
 
 export function useGetLineSendHistory(ownerId: string) {
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
   return useQuery({
     queryKey: ["line-send-history", ownerId],
-    queryFn: () => getLineSendHistory(clinicId, ownerId),
+    queryFn: () => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+      return getLineSendHistory(clinicId, ownerId);
+    },
     enabled: !!ownerId && !!clinicId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.SHORT,

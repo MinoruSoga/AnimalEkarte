@@ -58,6 +58,11 @@ func run() int {
 	logger.Init(logger.Config{Level: slog.LevelInfo, Format: "json", Output: os.Stdout})
 	log := slog.Default()
 
+	if err := config.ConfigureTimeZone(); err != nil {
+		log.Error("timezone configuration failed", slog.String("error", err.Error()))
+		return 1
+	}
+
 	cfg := config.Load()
 	if err := cfg.Validate(); err != nil {
 		log.Error("config validation failed", slog.String("error", err.Error()))

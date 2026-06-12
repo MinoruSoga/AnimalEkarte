@@ -65,9 +65,19 @@ type UpdateAccountingInput struct {
 	PaymentSplits []PaymentSplitInput
 }
 
+// ClinicDailySummary は拠点別日次集計結果 (#86 段階3 論点4=2 拠点別集計)。
+type ClinicDailySummary struct {
+	ClinicID uint64
+	Summary  *repository.DailySummaryResult
+}
+
 type AccountingService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	// ListForClinics は複数医院の会計を横断検索する (#86 段階3)。clinicIDs はハンドラ層で所属検証済みであること。
+	ListForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	// GetByIDForClinics は複数医院スコープで会計を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error)
 	Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error)
 	// BUG-371: 論理削除（status=cancelled）。ハード削除（旧 Delete）の代替
@@ -77,6 +87,8 @@ type AccountingService interface {
 	ListUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error)
 	// BUG-368: レジ締め日次集計
 	GetDailySummary(ctx context.Context, clinicID uint64, dateStr string) (*repository.DailySummaryResult, error)
+	// GetDailySummaryForClinics は複数医院の拠点別日次集計を返す (#86 段階3 論点4=2)。
+	GetDailySummaryForClinics(ctx context.Context, clinicIDs []uint64, dateStr string) ([]ClinicDailySummary, error)
 }
 
 type accountingService struct {

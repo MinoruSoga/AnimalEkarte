@@ -63,7 +63,7 @@ type closeCashRegisterRequest struct {
 }
 
 func (r closeCashRegisterRequest) toServiceInput(staffID uint64) (service.CloseRegisterInput, error) {
-	date, err := time.Parse(cashRegisterDateLayout, r.Date)
+	date, err := time.ParseInLocation(cashRegisterDateLayout, r.Date, time.Local)
 	if err != nil {
 		return service.CloseRegisterInput{}, fmt.Errorf("date は YYYY-MM-DD 形式で指定してください")
 	}

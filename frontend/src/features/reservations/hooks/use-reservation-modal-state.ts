@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { addHours } from "date-fns";
 
+import { toJSTWallDate } from "@/lib/jst-date";
+
 import type { Reservation, ReservationFormData } from "../types";
 
 interface UseReservationModalStateArgs {
@@ -64,7 +66,7 @@ export function useReservationModalState({
     const isNewReservationEntry = searchParams.get("newReservation") === "1";
 
     if (isReceptionEntry && !isFormOpenRef.current) {
-      const start = roundUpToNextQuarterHour(new Date());
+      const start = roundUpToNextQuarterHour(toJSTWallDate(new Date()));
 
       const stub: ReservationFormData = {
         start,
@@ -83,7 +85,7 @@ export function useReservationModalState({
     // 受付予約ボードの「新規追加」起点: 通常の新規予約（confirmed → 受付予約カラム）。
     // 受付 walk-in と異なり reservationRoute は強制せずモーダルで選択させる。
     if (isNewReservationEntry && !isFormOpenRef.current) {
-      const start = roundUpToNextQuarterHour(new Date());
+      const start = roundUpToNextQuarterHour(toJSTWallDate(new Date()));
 
       const stub: ReservationFormData = {
         start,
@@ -98,7 +100,7 @@ export function useReservationModalState({
     }
 
     if (petId && !isFormOpenRef.current) {
-      const now = new Date();
+      const now = toJSTWallDate(new Date());
       now.setMinutes(0, 0, 0);
       const start = addHours(now, 1);
 

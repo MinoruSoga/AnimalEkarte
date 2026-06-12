@@ -182,7 +182,7 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	if dateStr == "" {
 		return nil, apperrors.WrapInvalidInput("date クエリパラメータは必須です")
 	}
-	date, err := time.Parse("2006-01-02", dateStr)
+	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("date は YYYY-MM-DD 形式で指定してください")
 	}
@@ -237,7 +237,7 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 		pmName := paymentMethodNameForClose(d.PaymentMethodID, payMethodNames)
 		details = append(details, CloseBillingDetail{
 			BillingID:         d.BillingID,
-			PaidAt:            d.PaidAt.Format(time.RFC3339),
+			PaidAt:            d.PaidAt.In(time.Local).Format(time.RFC3339),
 			OwnerName:         d.OwnerName,
 			PetName:           d.PetName,
 			IsHospitalization: d.IsHospitalization,
@@ -254,10 +254,10 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	taxSummary := buildTaxBreakdown(agg.TaxBreakdown)
 
 	return &CashRegisterPreview{
-		Date:            date.Format("2006-01-02"),
+		Date:            date.In(time.Local).Format("2006-01-02"),
 		Period:          period,
-		PeriodStart:     agg.PeriodStart.Format(time.RFC3339),
-		PeriodEnd:       agg.PeriodEnd.Format(time.RFC3339),
+		PeriodStart:     agg.PeriodStart.In(time.Local).Format(time.RFC3339),
+		PeriodEnd:       agg.PeriodEnd.In(time.Local).Format(time.RFC3339),
 		IsAlreadyClosed: isAlreadyClosed,
 		IsHoliday:       agg.Schedule != nil && agg.Schedule.IsHoliday,
 		Aggregate: CloseAggregateSummary{

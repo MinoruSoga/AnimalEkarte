@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
+import { formatJSTDate } from "@/lib/jst-date";
 import type { PaymentMethod } from "@/types/generated/models";
 
 import { useGetRefunds } from "../api/get-refunds";
@@ -184,7 +185,7 @@ export const RefundSection = memo(function RefundSection({
               {refunds.map((r) => (
                 <tr key={r.id} className="border-b last:border-0">
                   <td className={`px-3 py-2 font-mono text-xs ${C.text50}`}>
-                    {new Date(r.refundedAt).toLocaleDateString("ja-JP")}
+                    {formatJSTDate(r.refundedAt)}
                   </td>
                   <td className={`px-3 py-2 text-xs ${C.text50}`}>
                     {r.refundedByName || "-"}

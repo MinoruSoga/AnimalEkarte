@@ -86,7 +86,7 @@ func (h *Handler) ListCashRegisterCloses(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(closes, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(closes, toCashRegisterCloseResponse), total, page, limit))
 }
 
 // GetCashRegisterClose godoc

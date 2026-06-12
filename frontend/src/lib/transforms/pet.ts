@@ -1,4 +1,5 @@
 import type { Pet as BackendPet } from "@/types/generated/models";
+import { jstDateStartISOString } from "@/lib/jst-date";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
 
 const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
@@ -56,6 +57,13 @@ const DANGER_LEVEL_MAP: Record<string, string> = {
  */
 export const transformBackendPetToFrontend = (p: BackendPet) => ({
   id: String(p.id ?? 0),
+  // #86: 拠点横断一覧での医院名表示用。飼主の所属医院を優先し、無ければペット自身の clinic_id
+  clinicId:
+    p.owner?.clinic_id != null
+      ? String(p.owner.clinic_id)
+      : p.clinic_id != null
+        ? String(p.clinic_id)
+        : undefined,
   ownerId: String(p.owner_id ?? 0),
   ownerNumber: p.owner?.id,
   ownerName: p.owner?.name ?? "",
@@ -135,11 +143,11 @@ export const transformCreatePetRequest = (data: PetFormInput & {
   breed: data.breed,
   color: data.color,
   gender: data.gender ? (PET_GENDER_REVERSE_MAP[data.gender] ?? data.gender) : undefined,
-  birth_date: data.birthDate ? `${data.birthDate}T00:00:00Z` : undefined,
+  birth_date: data.birthDate ? jstDateStartISOString(data.birthDate) : undefined,
   weight: data.weight ? parseFloat(data.weight) : undefined,
   food: data.food,
   environment: data.environment,
-  neutered_date: data.neuteredDate ? `${data.neuteredDate}T00:00:00Z` : undefined,
+  neutered_date: data.neuteredDate ? jstDateStartISOString(data.neuteredDate) : undefined,
   acquisition_type: data.acquisitionType ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType) : undefined,
   danger_level: data.dangerLevel ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel) : undefined,
   status: data.status,
@@ -159,11 +167,11 @@ export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequest 
   breed: data.breed,
   color: data.color,
   gender: data.gender ? (PET_GENDER_REVERSE_MAP[data.gender] ?? data.gender) : undefined,
-  birth_date: data.birthDate ? `${data.birthDate}T00:00:00Z` : undefined,
+  birth_date: data.birthDate ? jstDateStartISOString(data.birthDate) : undefined,
   weight: data.weight ? parseFloat(data.weight) : undefined,
   food: data.food,
   environment: data.environment,
-  neutered_date: data.neuteredDate ? `${data.neuteredDate}T00:00:00Z` : undefined,
+  neutered_date: data.neuteredDate ? jstDateStartISOString(data.neuteredDate) : undefined,
   acquisition_type: data.acquisitionType ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType) : undefined,
   danger_level: data.dangerLevel ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel) : undefined,
   status: data.status,

@@ -1,0 +1,39 @@
+name: Security Scan
+
+on:
+  pull_request:
+    branches: [main, staging, production]
+  push:
+    branches: [main, staging]
+  workflow_dispatch:
+    inputs:
+      min_severity:
+        description: "Minimum severity to fail/report."
+        type: choice
+        options:
+          - doc
+          - low
+          - medium
+          - high
+          - critical
+        required: false
+        default: medium
+
+permissions:
+  contents: read
+
+jobs:
+  agentshield:
+    name: AgentShield
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Run AgentShield
+        uses: affaan-m/agentshield@v1
+        with:
+          path: "."
+          min-severity: "${{ github.event.inputs.min_severity || 'medium' }}"
+          fail-on-findings: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}

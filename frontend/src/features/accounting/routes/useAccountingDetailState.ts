@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { useAuth } from "@/hooks/use-auth";
 import { useGetPet } from "@/hooks/use-pet";
 import { calculateBillingTotals } from "@/lib/calculations";
+import { todayJSTISO } from "@/lib/jst-date";
 
 import { getUnbilledItems } from "../api/get-unbilled-items";
 import { useGetUngroupedSameDay } from "../api/get-ungrouped-items";
@@ -23,6 +25,7 @@ export function useAccountingDetailState({
   locationState,
   fetchedAccounting,
 }: UseAccountingDetailStateArgs) {
+  const { currentClinicId } = useAuth();
   const newPetId = useMemo(() => {
     if (accountingId) return "";
     return new URLSearchParams(locationSearch).get("petId") ?? "";
@@ -37,18 +40,19 @@ export function useAccountingDetailState({
     const stateItems = locationState?.accountingItems ?? [];
     return {
       id: "acc_new",
+      clinicId: currentClinicId ?? "",
       ownerId: newPetData?.ownerId ?? "",
       ownerName: newPetData?.ownerName ?? "飼い主様",
       petId: newPetId,
       petName: newPetData?.name ?? "ペット",
       petSpecies: newPetData?.species ?? "犬",
       status: "waiting",
-      scheduledDate: new Date().toISOString().split("T")[0],
+      scheduledDate: todayJSTISO(),
       items: stateItems,
       payment: undefined,
       totalRefundedAmount: 0,
     };
-  }, [accountingId, fetchedAccounting, locationState, newPetData, newPetId]);
+  }, [accountingId, currentClinicId, fetchedAccounting, locationState, newPetData, newPetId]);
 
   const baseItems = useMemo(() => baseAccounting?.items ?? [], [baseAccounting]);
 

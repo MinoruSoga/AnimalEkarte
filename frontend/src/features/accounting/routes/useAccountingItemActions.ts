@@ -20,7 +20,7 @@ interface UseAccountingItemActionsParams {
   setNewItemOpen: Dispatch<SetStateAction<boolean>>;
   startAddItemTransition: (callback: () => void) => void;
   startDeleteItemTransition: (callback: () => void) => void;
-  startTaxUpdateTransition: (callback: () => void) => void;
+  startItemUpdateTransition: (callback: () => void) => void;
 }
 
 export function useAccountingItemActions({
@@ -31,7 +31,7 @@ export function useAccountingItemActions({
   setNewItemOpen,
   startAddItemTransition,
   startDeleteItemTransition,
-  startTaxUpdateTransition,
+  startItemUpdateTransition,
 }: UseAccountingItemActionsParams) {
   const handleAddItem = useCallback(
     (name: string, price: string, category: string, taxRate?: number) => {
@@ -45,6 +45,8 @@ export function useAccountingItemActions({
         name,
         unitPrice,
         quantity: qty,
+        discountRate: 0,
+        discountAmount: 0,
         taxType: "excluded" as TaxType,
         taxRate: rate,
         taxAmount: Math.round(unitPrice * qty * rate),
@@ -112,7 +114,7 @@ export function useAccountingItemActions({
   const handleUpdateItemTax = useCallback(
     (itemId: string, taxType: TaxType, taxRate: number) => {
       if (!accountingId) return;
-      startTaxUpdateTransition(async () => {
+      startItemUpdateTransition(async () => {
         try {
           await updateBillingItem(itemId, { tax_type: taxType, tax_rate: taxRate });
           queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
@@ -121,12 +123,28 @@ export function useAccountingItemActions({
         }
       });
     },
-    [accountingId, queryClient, startTaxUpdateTransition],
+    [accountingId, queryClient, startItemUpdateTransition],
+  );
+
+  const handleUpdateItemDiscount = useCallback(
+    (itemId: string, discountAmount: number) => {
+      if (!accountingId) return;
+      startItemUpdateTransition(async () => {
+        try {
+          await updateBillingItem(itemId, { discount_amount: discountAmount });
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
+        } catch (error) {
+          handleApiError(error, "割引の更新");
+        }
+      });
+    },
+    [accountingId, queryClient, startItemUpdateTransition],
   );
 
   return {
     handleAddItem,
     handleDeleteItem,
     handleUpdateItemTax,
+    handleUpdateItemDiscount,
   };
 }

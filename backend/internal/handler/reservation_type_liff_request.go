@@ -8,6 +8,7 @@ type createReservationTypeLiffRequest struct {
 	Description          string `json:"description"`
 	SortOrder            int    `json:"sort_order"`
 	DurationMinutes      int    `json:"duration_minutes"`
+	MaxConcurrent        *int   `json:"max_concurrent"`
 	ShortName            string `json:"short_name"`
 	ShowShortName        bool   `json:"show_short_name"`
 	ReservationVisible   bool   `json:"reservation_visible"`
@@ -23,6 +24,7 @@ func (r *createReservationTypeLiffRequest) toServiceInput() *service.CreateReser
 		Description:          r.Description,
 		SortOrder:            r.SortOrder,
 		DurationMinutes:      r.DurationMinutes,
+		MaxConcurrent:        r.MaxConcurrent,
 		ShortName:            r.ShortName,
 		ShowShortName:        r.ShowShortName,
 		ReservationVisible:   r.ReservationVisible,
@@ -38,6 +40,8 @@ type updateReservationTypeLiffRequest struct {
 	Description          *string `json:"description"`
 	SortOrder            *int    `json:"sort_order"`
 	DurationMinutes      *int    `json:"duration_minutes"`
+	MaxConcurrent        *int    `json:"max_concurrent"`
+	ClearMaxConcurrent   bool    `json:"clear_max_concurrent"`
 	ShortName            *string `json:"short_name"`
 	ShowShortName        *bool   `json:"show_short_name"`
 	ReservationVisible   *bool   `json:"reservation_visible"`
@@ -53,6 +57,8 @@ func (r *updateReservationTypeLiffRequest) toServiceInput() *service.UpdateReser
 		Description:          r.Description,
 		SortOrder:            r.SortOrder,
 		DurationMinutes:      r.DurationMinutes,
+		MaxConcurrent:        r.MaxConcurrent,
+		ClearMaxConcurrent:   r.ClearMaxConcurrent,
 		ShortName:            r.ShortName,
 		ShowShortName:        r.ShowShortName,
 		ReservationVisible:   r.ReservationVisible,

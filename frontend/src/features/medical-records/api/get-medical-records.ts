@@ -17,6 +17,8 @@ export interface MedicalRecordFilters {
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
   petId?: string;
+  /** #86: 拠点横断表示。複数医院IDをカンマ区切りで送信。未指定=現在の医院のみ */
+  clinicIds?: string[];
 }
 
 export const getMedicalRecords = async (
@@ -26,6 +28,7 @@ export const getMedicalRecords = async (
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
   if (filters?.petId) params.pet_id = filters.petId;
+  if (filters?.clinicIds && filters.clinicIds.length > 1) params.clinic_ids = filters.clinicIds.join(",");
   const { data } = await axios.get<MedicalRecordsListResponse>("/v1/medical-records", { params });
   return data.data.map(transformMedicalRecord);
 };

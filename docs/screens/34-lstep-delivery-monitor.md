@@ -48,7 +48,8 @@
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
+| GET | `/api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary` | 期間別配信サマリ（scheduled/fired/failed 等）を取得。 |
 | GET | `/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs` | 配信ログ履歴の取得。 |
-| GET | `/api/v1/lstep/trigger-priorities` | 現在の優先順位設定の参照。 |
+| GET | `/api/v1/clinics/:clinic_id/lstep/trigger-priorities` | 現在の優先順位設定の参照。 |
 
 ---

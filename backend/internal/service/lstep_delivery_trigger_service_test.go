@@ -108,13 +108,16 @@ type mockOwnerRepoForDelivery struct {
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 }
 
-func (m *mockOwnerRepoForDelivery) FindAll(_ context.Context, _ uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+func (m *mockOwnerRepoForDelivery) FindAll(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockOwnerRepoForDelivery) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
+	return nil, nil
+}
+func (m *mockOwnerRepoForDelivery) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
 	return nil, nil
 }
 func (m *mockOwnerRepoForDelivery) FindByEmail(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
@@ -163,10 +166,13 @@ type mockMedRecordRepoForDelivery struct {
 	findOwnersByNextVisitRecFn  func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 }
 
-func (m *mockMedRecordRepoForDelivery) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+func (m *mockMedRecordRepoForDelivery) FindAll(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockMedRecordRepoForDelivery) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+func (m *mockMedRecordRepoForDelivery) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
 	return nil, nil
 }
 func (m *mockMedRecordRepoForDelivery) Create(_ context.Context, _ *model.MedicalRecord) error {
@@ -212,6 +218,10 @@ func (m *mockMedRecordRepoForDelivery) FindOwnersByNextVisitRecommended(ctx cont
 
 func (m *mockMedRecordRepoForDelivery) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
+}
+
+func (m *mockMedRecordRepoForDelivery) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
+	return nil
 }
 
 // ---- TagCacheRepository モック（delivery trigger 用）----
@@ -294,6 +304,9 @@ func (m *mockPetRepoForDelivery) FindAll(_ context.Context, _ uint64, _ *uint64,
 	return nil, 0, nil
 }
 func (m *mockPetRepoForDelivery) FindByID(_ context.Context, _, _ uint64) (*model.Pet, error) {
+	return nil, nil
+}
+func (m *mockPetRepoForDelivery) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Pet, error) {
 	return nil, nil
 }
 func (m *mockPetRepoForDelivery) FindLivingByOwner(_ context.Context, _, _ uint64) ([]model.Pet, error) {

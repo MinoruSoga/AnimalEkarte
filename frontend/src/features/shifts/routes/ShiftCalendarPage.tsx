@@ -8,16 +8,22 @@ import { usePermission } from "@/hooks/use-permission";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useGetClinicHolidays } from "../api/clinic-holidays";
 import type { ClinicHoliday } from "../api/clinic-holidays";
+import { todayJSTISO } from "@/lib/jst-date";
 
 const ClinicHolidayModal = lazy(() =>
   import("../components/ClinicHolidayModal/ClinicHolidayModal").then((m) => ({ default: m.ClinicHolidayModal }))
 );
 
 function getInitialYearMonth(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
+  return todayJSTISO().slice(0, 7);
+}
+
+function shiftYearMonth(value: string, delta: number): string {
+  const [year, month] = value.split("-").map(Number);
+  const zeroBased = year * 12 + (month - 1) + delta;
+  const nextYear = Math.floor(zeroBased / 12);
+  const nextMonth = (zeroBased % 12) + 1;
+  return `${nextYear}-${String(nextMonth).padStart(2, "0")}`;
 }
 
 interface HolidayModalState {
@@ -42,19 +48,11 @@ export function ShiftCalendarPage() {
   const holidaysQuery = useGetClinicHolidays(yearMonth);
 
   const handlePrevMonth = useCallback(() => {
-    setYearMonth((prev) => {
-      const [year, month] = prev.split("-").map(Number);
-      const date = new Date(year, month - 2, 1);
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    });
+    setYearMonth((prev) => shiftYearMonth(prev, -1));
   }, []);
 
   const handleNextMonth = useCallback(() => {
-    setYearMonth((prev) => {
-      const [year, month] = prev.split("-").map(Number);
-      const date = new Date(year, month, 1);
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    });
+    setYearMonth((prev) => shiftYearMonth(prev, 1));
   }, []);
 
   const handleStaffChange = useCallback((staffId: string) => {

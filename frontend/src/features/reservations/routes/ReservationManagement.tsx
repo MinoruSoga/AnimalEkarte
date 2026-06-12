@@ -1,6 +1,7 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { useSearchParams } from "react-router";
+import { useClinicScope } from "@/hooks/use-clinic-scope";
 import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 
 import { CalendarIcon, Plus } from "lucide-react";
@@ -9,6 +10,7 @@ import { PermissionBadges } from "@/components/shared/PermissionBadges/Permissio
 import { ResourceReservations } from "@/types/generated/models";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { toJSTWallDate } from "@/lib/jst-date";
 import type { CalendarView, Reservation } from "../types";
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
@@ -36,7 +38,7 @@ const VIEW_NAV_NEXT: Record<CalendarView, (d: Date) => Date> = {
 };
 
 export function ReservationManagement() {
-  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [currentDate, setCurrentDate] = useState(() => toJSTWallDate(new Date()));
   const { canCreate, canEdit, canDelete } = usePermission("reservations");
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
@@ -55,6 +57,8 @@ export function ReservationManagement() {
       return params;
     }, { replace: true });
   }, [setSearchParams]);
+
+  const { selectedClinicIds, isMultiClinic } = useClinicScope();
 
   const { activeEntries, colorMap: dynamicColorMap } = useReservationTypeColorMap();
 
@@ -81,7 +85,12 @@ export function ReservationManagement() {
     petSelectConfirmOpen,
     setPetSelectConfirmOpen,
     handlePetSelectConfirm,
-  } = useReservationManagement();
+  } = useReservationManagement({
+    currentDate,
+    view,
+    days,
+    clinicIds: isMultiClinic ? selectedClinicIds : undefined,
+  });
 
   // BUG-069: Reservation → ReservationFormData 変換を行うラッパー
   // handleOpenForm は ReservationFormData を期待するが、詳細モーダルからは Reservation が来る
@@ -127,7 +136,7 @@ export function ReservationManagement() {
     [appointments, doctorFilter, sourceFilter],
   );
 
-  const navigateToday = useCallback(() => setCurrentDate(new Date()), []);
+  const navigateToday = useCallback(() => setCurrentDate(toJSTWallDate(new Date())), []);
   const navigatePrevious = useCallback(
     () => setCurrentDate((prev) => VIEW_NAV_PREV[view](prev)),
     [view],

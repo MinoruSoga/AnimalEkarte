@@ -2,8 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "alwaysThinkingEnabled": false,
   "attribution": {
-    "enabled": true,
-    "format": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+    "enabled": false
   },
   "outputStyle": "senior-engineer",
   "env": {
@@ -14,7 +13,6 @@
     "ENABLE_CLAUDEAI_MCP_SERVERS": "false"
   },
   "teammateMode": "in-process",
-  "enableAllProjectMcpServers": true,
   "permissions": {
     "deny": [
       "Bash(npm:*)",
@@ -62,15 +60,10 @@
     ],
     "allow": [
       "Bash(make:*)",
-      "Bash(make up:*)",
-      "Bash(make down:*)",
-      "Bash(make logs:*)",
-      "Bash(make db:*)",
-      "Bash(make codegen:*)",
-      "Bash(docker ps:*)",
-      "Bash(docker logs:*)",
-      "Bash(docker images:*)",
-      "Bash(docker inspect:*)",
+      "Bash(docker ps)",
+      "Bash(docker logs)",
+      "Bash(docker images)",
+      "Bash(docker inspect)",
       "Bash(docker compose exec:*)",
       "Bash(docker compose logs:*)",
       "Bash(gh:*)",
@@ -89,7 +82,6 @@
       "Bash(git fetch:*)",
       "Bash(git pull:*)",
       "Bash(git remote:*)",
-      "Bash(docker compose up:*)",
       "Bash(ls:*)",
       "Bash(pwd:*)",
       "Bash(wc:*)",
@@ -117,6 +109,8 @@
     "ask": [
       "Bash(rm:*)",
       "Bash(make clean:*)",
+      "Bash(make db:*)",
+      "Bash(docker compose up:*)",
       "Bash(docker compose down:*)",
       "Bash(docker stop:*)",
       "Bash(docker rm:*)",
@@ -244,6 +238,16 @@
           }
         ],
         "description": "Log PR URL after gh pr create"
+      },
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness-state.js"
+          }
+        ],
+        "description": "Track changed files during harness iterations (no-op when harness is not active)"
       }
     ],
     "PreCompact": [

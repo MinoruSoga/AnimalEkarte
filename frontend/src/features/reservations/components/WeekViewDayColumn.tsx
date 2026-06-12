@@ -3,6 +3,7 @@ import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } fro
 import { isSameDay } from "date-fns";
 
 import { C, PALETTE } from "@/lib/design-tokens";
+import { toJSTWallDate } from "@/lib/jst-date";
 import type { Reservation } from "@/types";
 
 import { AppointmentCard } from "./WeekViewAppointmentCard";
@@ -33,8 +34,8 @@ export const DayColumn = memo(function DayColumn({
   minWidth,
 }: DayColumnProps) {
   const layoutStyles = useMemo(() => calculateEventLayout(appointments), [appointments]);
-  const isToday = isSameDay(date, new Date());
-  const now = new Date();
+  const now = toJSTWallDate(new Date());
+  const isToday = isSameDay(date, now);
   const currentTimeTop = ((now.getHours() * 60 + now.getMinutes()) / 60) * HOUR_HEIGHT;
 
   const computeTimeFromY = useCallback(

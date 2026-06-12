@@ -1,7 +1,12 @@
 export { ReservationManagement } from "./routes/ReservationManagement";
 export { ReservationRouteSelect } from "./components/ReservationRouteSelect";
+export { useCreateReservation } from "./api/create-reservation";
 export { useGetReservation } from "./api/get-reservation";
+export { useGetReservations } from "./api/get-reservations";
 export { useUpdateReservation } from "./api/update-reservation";
+export { transformToCreateRequest } from "./api/transforms";
+export type { CreateReservationRequest } from "./api/types";
+export type { Reservation } from "./api/transforms";
+export type { ReservationFilters } from "./api/get-reservations";
 export type { ReservationRoute } from "./constants/reservation-route";
 export type { NewOwnerFormData } from "./types";
-export type { Reservation } from "./api/transforms";

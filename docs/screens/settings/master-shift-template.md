@@ -45,6 +45,9 @@
 |:---|:---|:---|
 | GET | `/api/v1/shift-templates` | 登録済みテンプレートの取得。 |
 | POST | `/api/v1/shift-templates` | 新規パターンの作成。 |
-| PUT | `/api/v1/shift-templates/reorder` | 全体の表示順序の更新。 |
+| PATCH | `/api/v1/shift-templates/reorder` | 全体の表示順序の更新。 |
+| GET | `/api/v1/shift-templates/:id` | テンプレート詳細の取得。 |
+| PATCH | `/api/v1/shift-templates/:id` | テンプレート情報の更新。 |
+| DELETE | `/api/v1/shift-templates/:id` | テンプレートの削除。 |
 
 ---

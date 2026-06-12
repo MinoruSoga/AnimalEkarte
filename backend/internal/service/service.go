@@ -74,6 +74,7 @@ type Services struct {
 	ClosingSettings     ClosingSettingsService
 	PaymentMethodMaster PaymentMethodMasterService
 	TrimmingCourseType  TrimmingCourseTypeService
+	Campaign            CampaignService
 	CashRegister        CashRegisterService
 	AccountingReport    AccountingReportService
 
@@ -123,6 +124,8 @@ type Services struct {
 	// FEAT-385: Lステップ CSV インポート・分析
 	LstepCsvImport LstepCsvImportService
 	LstepAnalytics LstepAnalyticsService
+	// 認証: refresh_token JTI ブラックリスト
+	TokenBlacklist TokenBlacklistService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -175,7 +178,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		AnimalSpecies:         NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
 		Owner:                 NewOwnerService(repos.Owner, lstepTagSyncSvc, auditSvc),
 		Pet:                   NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepTagSyncSvc),
-		Reservation:           NewReservationServiceWithAvailability(repos.Reservation, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
+		Reservation:           NewReservationServiceWithAvailabilityAndType(repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
 		MedicalRecord:         NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, nil, auditSvc, lstepTagSyncSvc),
 		MedicalRecordAddendum: NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, auditSvc),
 		Hospitalization:       NewHospitalizationService(repos),
@@ -237,13 +240,14 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Estimate:                       NewEstimateService(repos.Estimate),
 		ManualArticle:                  NewManualArticleService(repos.ManualArticle),
 		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
-		BillingItem:                    NewBillingItemService(repos.BillingItem, repos.Accounting, repos.Treatment, tx),
+		BillingItem:                    NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.Campaign, repos.Owner),
 		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditSvc, tx),
 		PasswordReset:                  NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
 		// FEAT-368: 集計・締め機能
 		ClosingSettings:           closingSettingsSvc,
 		PaymentMethodMaster:       NewPaymentMethodMasterService(repos.PaymentMethodMaster),
 		TrimmingCourseType:        NewTrimmingCourseTypeService(repos.TrimmingCourseType),
+		Campaign:                  NewCampaignService(repos.Campaign),
 		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster),
 		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday),
 		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting),
@@ -252,7 +256,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ReservationStaffCore:      resStaffSvc,
 		ReservationStaffExclusion: resStaffSvc,
 		ReservationSchedule:       NewReservationScheduleService(repos.ReservationSchedule),
-		ReservationAdmin:          NewReservationAdminServiceWithAvailability(repos.ReservationAdmin, repos.Reservation, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
+		ReservationAdmin:          NewReservationAdminServiceWithAvailabilityAndType(repos.ReservationAdmin, repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
 		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr),
 		Prescription:              NewPrescriptionService(repos.Prescription, repos.MedicalRecord, lstepTagSyncSvc),
 		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache, repos.LstepTagConfig, lstepSettingsSvc),
@@ -262,9 +266,10 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		LstepTag:                  NewLstepTagService(lstepSettingsSvc, repos.Owner, repos.LstepTagCache, auditSvc, repos.LstepTagConfig),
 		LstepTagCodeMapping:       NewLstepTagCodeMappingService(repos.LstepTagCodeMapping),
 		LstepTagConfig:            NewLstepTagConfigService(repos.LstepTagConfig),
-		Liff: NewLiffService(
+		Liff: NewLiffServiceWithType(
 			repos.LineReservationSetting,
 			repos.ReservationTypeLiff,
+			repos.ReservationType,
 			repos.ReservationStaff,
 			repos.ReservationSchedule,
 			repos.ReservationAdmin,
@@ -280,5 +285,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			repos.TrimmingOption,
 			repos.AppointmentTrimmingDetail,
 		),
+		TokenBlacklist: NewTokenBlacklistService(repos.TokenBlacklist),
 	}
 }

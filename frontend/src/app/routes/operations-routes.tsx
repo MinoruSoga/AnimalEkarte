@@ -5,6 +5,7 @@ import { RequirePermission } from "@/components/shared/RequirePermission";
 import {
   ResourceHospitalSettings,
   ResourceLstepAnalytics,
+  ResourceMasterReservationType,
   ResourceReservations,
 } from "@/types/generated/models";
 
@@ -77,6 +78,27 @@ export const operationsRoutes: RouteObject[] = [
         lazy: async () => {
           const { LineReservationPageEditor } = await import("@/features/line-reservation");
           return { Component: LineReservationPageEditor };
+        },
+      },
+    ],
+  },
+  {
+    // LINE予約枠（日別の予約可能開始時刻）。
+    // API が /v1/masters/reservation-types 配下のため、権限は BE と同じ
+    // ResourceMasterReservationType でガードする（ResourceReservations ではない）。
+    path: "/line-reservation/slots",
+    element: (
+      <RequirePermission resource={ResourceMasterReservationType}>
+        <Outlet />
+      </RequirePermission>
+    ),
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        lazy: async () => {
+          const { LineReservationSlotsSettings } = await import("@/features/master");
+          return { Component: LineReservationSlotsSettings };
         },
       },
     ],

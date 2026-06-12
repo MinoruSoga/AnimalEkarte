@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: 血液検査や生化学検査等における、各測定項目の名称、単位、および動物種ごとの正常値範囲（リファレンスレンジ）の定義。
-- **URLパターン**: `/settings/masters/examinations`
+- **URLパターン**: `/settings/treatment-items?tab=examination`
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---
@@ -41,8 +41,8 @@
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
-| GET | `/api/v1/masters/examinations` | 定義済み項目の一覧取得。 |
-| PATCH | `/api/v1/masters/examinations/:id` | 基準値や属性の更新。 |
-| PUT | `/api/v1/masters/examinations/reorder` | 並び順の一括保存。 |
+| GET | `/api/v1/masters/examination-types` | 定義済み項目の一覧取得。 |
+| PATCH | `/api/v1/masters/examination-types/:id` | 基準値や属性の更新。 |
+| PATCH | `/api/v1/masters/examination-types/reorder` | 並び順の一括保存。 |
 
 ---

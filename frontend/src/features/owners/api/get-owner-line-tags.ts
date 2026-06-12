@@ -21,11 +21,16 @@ async function getOwnerLineTags(
 }
 
 export function useGetOwnerLineTags(ownerId: string) {
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
   return useQuery({
     queryKey: ["owner-line-tags", ownerId],
-    queryFn: () => getOwnerLineTags(clinicId, ownerId),
-    enabled: !!ownerId && !!clinicId,
+    queryFn: () => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+      return getOwnerLineTags(clinicId, ownerId);
+    },
+    enabled: !!ownerId && clinicId !== null,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });

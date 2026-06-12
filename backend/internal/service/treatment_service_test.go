@@ -17,11 +17,14 @@ import (
 
 type mockMedicalRecordRepoForTreatment struct{}
 
-func (m *mockMedicalRecordRepoForTreatment) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+func (m *mockMedicalRecordRepoForTreatment) FindAll(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockMedicalRecordRepoForTreatment) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 	return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+}
+func (m *mockMedicalRecordRepoForTreatment) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
 }
 func (m *mockMedicalRecordRepoForTreatment) Create(_ context.Context, _ *model.MedicalRecord) error {
 	return nil
@@ -65,6 +68,10 @@ func (m *mockMedicalRecordRepoForTreatment) FindOwnersByNextVisitRecommended(_ c
 
 func (m *mockMedicalRecordRepoForTreatment) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
+}
+
+func (m *mockMedicalRecordRepoForTreatment) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
+	return nil
 }
 
 // ---- Treatment モック ----

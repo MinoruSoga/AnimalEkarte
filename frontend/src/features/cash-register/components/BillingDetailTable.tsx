@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { C, STYLE } from "@/lib/design-tokens";
+import { formatJSTTime } from "@/lib/jst-date";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 import { CATEGORY_LABELS } from "../constants";
 
@@ -37,7 +38,7 @@ export const BillingDetailTable = memo(function BillingDetailTable({
               className={`border-b ${C.borderLight} ${STYLE.tableRow}`}
             >
               <td className={`px-3 py-2 ${C.text60} whitespace-nowrap`}>
-                {detail.paidAt ? new Date(detail.paidAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                {detail.paidAt ? formatJSTTime(detail.paidAt) : "—"}
               </td>
               <td className={`px-3 py-2 ${C.text}`}>
                 <div>{detail.ownerName}</div>

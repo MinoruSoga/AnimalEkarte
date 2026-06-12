@@ -2,6 +2,9 @@
 import { type ReactNode, useState, useCallback, useDeferredValue, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
+// Auth
+import { useClinicScope } from "@/hooks/use-clinic-scope";
+
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
@@ -25,6 +28,7 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Pagination } from "@/components/shared/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
+import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/use-pagination";
@@ -77,10 +81,20 @@ const MEDICAL_RECORD_SORT_PROPERTIES: SortProperty[] = [
   { key: "status", label: "ステータス" },
 ];
 
+const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
+
 export function MedicalRecords() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
+  const {
+    assignedClinics,
+    selectedClinicIds,
+    isMultiClinic,
+    clinicNameById,
+    currentClinicId,
+    handleToggleClinic,
+  } = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
@@ -93,8 +107,9 @@ export function MedicalRecords() {
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
+      clinicIds: isMultiClinic ? selectedClinicIds : undefined,
     };
-  }, [activeFilters]);
+  }, [activeFilters, isMultiClinic, selectedClinicIds]);
 
   const { data: filteredRecords, allRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch, apiFilters, activeFilters);
 
@@ -162,6 +177,8 @@ export function MedicalRecords() {
     );
   }, [navigate]);
 
+  const showClinicColumn = isMultiClinic;
+
   // js-cache-function-results: directionFor/toggleSort に依存するカラム定義をメモ化
   const COLUMNS = useMemo<{ header: ReactNode; className?: string; align?: "left" | "center" | "right" }[]>(() => [
     {
@@ -188,8 +205,9 @@ export function MedicalRecords() {
       header: <SortableHeader label="ステータス" direction={directionFor("status")} onToggle={() => toggleSort("status")} />,
       className: "w-[100px]",
     },
+    ...(showClinicColumn ? [{ header: "医院", className: "w-[120px] hidden lg:table-cell" }] : []),
     { header: "操作", className: "w-[100px]", align: "right" as const },
-  ], [directionFor, toggleSort]);
+  ], [directionFor, toggleSort, showClinicColumn]);
 
   if (isLoading) return <LoadingFallback />;
   if (isError) return <ErrorFallback />;
@@ -210,6 +228,13 @@ export function MedicalRecords() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4 flex-1 min-h-0">
+        {/* #86: 拠点横断フィルター — 複数所属医院がある場合のみ表示 */}
+        <ClinicScopeFilter
+          clinics={assignedClinics}
+          selectedIds={selectedClinicIds}
+          onToggle={handleToggleClinic}
+        />
+
         {/* Search */}
         <NotionFilter
           properties={filterProperties}
@@ -230,10 +255,12 @@ export function MedicalRecords() {
             columns={COLUMNS}
             data={paginatedData}
             emptyMessage="カルテデータが見つかりません"
-            renderRow={(r) => (
+            renderRow={(r) => {
+              const isOtherClinic = showClinicColumn && r.clinicId !== currentClinicId;
+              return (
               <DataTableRow
                 key={r.id}
-                onClick={() => handleNavigateToForm(r.id)}
+                onClick={isOtherClinic ? undefined : () => handleNavigateToForm(r.id)}
               >
                 <TableCell className={STYLE.tableCellMono}>{r.date}</TableCell>
                 <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
@@ -273,8 +300,15 @@ export function MedicalRecords() {
                     {r.status}
                   </StatusBadge>
                 </TableCell>
+                {showClinicColumn ? (
+                  <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`} data-testid="mr-row-clinic">
+                    <span className={isOtherClinic ? `text-xs ${C.text40}` : "text-xs"}>
+                      {r.clinicId ? (clinicNameById.get(r.clinicId) ?? r.clinicId) : "—"}
+                    </span>
+                  </TableCell>
+                ) : null}
                 <TableCell className="text-right py-2.5">
-                  {(canEdit || canDelete) ? (
+                  {(canEdit || canDelete) && !isOtherClinic ? (
                     <RowActionDropdown
                       actions={[
                         ...(canEdit ? [{
@@ -297,7 +331,8 @@ export function MedicalRecords() {
                   ) : null}
                 </TableCell>
               </DataTableRow>
-            )}
+            );
+            }}
           />
         </FilteringIndicator>
 

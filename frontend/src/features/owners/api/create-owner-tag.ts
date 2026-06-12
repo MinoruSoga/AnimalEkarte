@@ -21,11 +21,15 @@ async function createOwnerTag(
 
 export function useCreateOwnerTag(ownerId: string) {
   const queryClient = useQueryClient();
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
 
   return useMutation({
-    mutationFn: (body: CreateOwnerTagBody) =>
-      createOwnerTag(clinicId, ownerId, body),
+    mutationFn: (body: CreateOwnerTagBody) => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+      return createOwnerTag(clinicId, ownerId, body);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["owner-line-tags", ownerId] });
       toast.success("タグを付与しました");

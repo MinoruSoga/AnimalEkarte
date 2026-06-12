@@ -23,8 +23,9 @@ import (
 // ---- mock OwnerService ----
 
 type mockOwnerService struct {
-	listFn                    func(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
+	listFn                    func(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	getByIDFn                 func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	getByIDForClinicsFn       func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error)
 	createWithPetsFn          func(ctx context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error)
 	updateFn                  func(ctx context.Context, clinicID, id uint64, input *service.UpdateOwnerInput) (*model.Owner, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
@@ -35,12 +36,19 @@ type mockOwnerService struct {
 	confirmLineIDFn           func(ctx context.Context, clinicID, id uint64, actorUserID *uint64) (*model.Owner, error)
 }
 
-func (m *mockOwnerService) List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
-	return m.listFn(ctx, clinicID, page, limit, search)
+func (m *mockOwnerService) List(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error) {
+	return m.listFn(ctx, clinicIDs, page, limit, search)
 }
 
 func (m *mockOwnerService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	return m.getByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockOwnerService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+	if m.getByIDForClinicsFn != nil {
+		return m.getByIDForClinicsFn(ctx, clinicIDs, id)
+	}
+	return nil, nil
 }
 
 func (m *mockOwnerService) CreateWithPets(ctx context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error) {
@@ -125,7 +133,7 @@ func TestListOwners(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
-				listFn: func(_ context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
+				listFn: func(_ context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error) {
 					return []model.Owner{{ID: 1, Name: "田中太郎"}}, 1, nil
 				},
 			},
@@ -137,7 +145,7 @@ func TestListOwners(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
-				listFn: func(_ context.Context, _ uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
 					return []model.Owner{}, 0, nil
 				},
 			},
@@ -163,7 +171,7 @@ func TestListOwners(t *testing.T) {
 			query:    "page=1&limit=10&search=田中",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
-				listFn: func(_ context.Context, _ uint64, _, _ int, search string) ([]model.Owner, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, _, _ int, search string) ([]model.Owner, int64, error) {
 					assert.Equal(t, "田中", search)
 					return []model.Owner{}, 0, nil
 				},
@@ -175,11 +183,73 @@ func TestListOwners(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
-				listFn: func(_ context.Context, _ uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
 					return nil, 0, fmt.Errorf("unexpected db failure")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
+		},
+		// ---- #86: 拠点横断一覧 (clinic_ids クエリ) の所属検証 ----
+		{
+			name:     "defaults to current clinic when clinic_ids absent",
+			query:    "page=1&limit=10",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOwnerService{
+				listFn: func(_ context.Context, clinicIDs []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
+					return []model.Owner{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:  "passes requested clinic_ids when all assigned",
+			query: "page=1&limit=10&clinic_ids=1,2",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			svc: &mockOwnerService{
+				listFn: func(_ context.Context, clinicIDs []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+					assert.Equal(t, []uint64{1, 2}, clinicIDs)
+					return []model.Owner{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:  "returns 403 when clinic_ids contains unassigned clinic",
+			query: "page=1&limit=10&clinic_ids=1,99",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:  "system_admin can list any clinic_ids",
+			query: "page=1&limit=10&clinic_ids=99",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", true)
+			},
+			svc: &mockOwnerService{
+				listFn: func(_ context.Context, clinicIDs []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+					assert.Equal(t, []uint64{99}, clinicIDs)
+					return []model.Owner{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 for malformed clinic_ids",
+			query:      "page=1&limit=10&clinic_ids=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusBadRequest,
 		},
 	}
 
@@ -220,8 +290,8 @@ func TestGetOwner(t *testing.T) {
 			paramID:  "42",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
-				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Owner, error) {
-					assert.Equal(t, uint64(1), clinicID)
+				getByIDForClinicsFn: func(_ context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
 					assert.Equal(t, uint64(42), id)
 					return &model.Owner{ID: 42, Name: "佐藤花子"}, nil
 				},
@@ -248,7 +318,7 @@ func TestGetOwner(t *testing.T) {
 			paramID:  "999",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				getByIDForClinicsFn: func(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
 					return nil, apperrors.WrapNotFound("owner", "999")
 				},
 			},
@@ -336,6 +406,78 @@ func TestCreateOwner(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusConflict,
+		},
+		// ---- #84: 登録時の医院指定 (clinic_id) の所属検証 ----
+		{
+			name: "creates owner in specified assigned clinic",
+			body: func() map[string]any {
+				b := validBody()
+				b["clinic_id"] = 2
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			svc: &mockOwnerService{
+				createWithPetsFn: func(_ context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error) {
+					assert.Equal(t, uint64(2), clinicID)
+					return &model.Owner{ID: 1, ClinicID: clinicID, Name: input.OwnerName}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "returns 403 when specified clinic is not assigned",
+			body: func() map[string]any {
+				b := validBody()
+				b["clinic_id"] = 99
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name: "system_admin can create owner in any clinic",
+			body: func() map[string]any {
+				b := validBody()
+				b["clinic_id"] = 99
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", true)
+			},
+			svc: &mockOwnerService{
+				createWithPetsFn: func(_ context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error) {
+					assert.Equal(t, uint64(99), clinicID)
+					return &model.Owner{ID: 1, ClinicID: clinicID, Name: input.OwnerName}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "specified clinic equal to context clinic skips assignment check",
+			body: func() map[string]any {
+				b := validBody()
+				b["clinic_id"] = 1
+				return b
+			}(),
+			// clinic_ids / is_system_admin 未設定でも JWT clinic と同一なら検証不要で通る
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockOwnerService{
+				createWithPetsFn: func(_ context.Context, clinicID uint64, input *service.CreateOwnerInput) (*model.Owner, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return &model.Owner{ID: 1, ClinicID: clinicID, Name: input.OwnerName}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
 		},
 	}
 

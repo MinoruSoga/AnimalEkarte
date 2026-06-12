@@ -104,21 +104,6 @@ function TableCell({ className, ref, ...props }: TableCellProps) {
   );
 }
 
-interface TableCaptionProps
-  extends React.HTMLAttributes<HTMLTableCaptionElement> {
-  ref?: React.Ref<HTMLTableCaptionElement>;
-}
-
-function TableCaption({ className, ref, ...props }: TableCaptionProps) {
-  return (
-    <caption
-      ref={ref}
-      className={cn("mt-2 text-sm text-muted-foreground", className)}
-      {...props}
-    />
-  );
-}
-
 export {
   Table,
   TableHeader,
@@ -127,5 +112,4 @@ export {
   TableHead,
   TableRow,
   TableCell,
-  TableCaption,
 };

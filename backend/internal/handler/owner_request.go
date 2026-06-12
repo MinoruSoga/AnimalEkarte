@@ -58,6 +58,10 @@ func (r *createPetForOwnerRequest) toServiceInput() service.CreatePetForOwnerInp
 
 // createOwnerRequest は飼主作成のバインド struct
 type createOwnerRequest struct {
+	// ClinicID は登録先医院の任意指定 (#84 Q12=A: 登録フォームでのみ医院指定可)。
+	// 未指定時は JWT/X-Clinic-ID 由来の clinic_id を使用する。
+	// 指定時はハンドラで所属医院 (clinic_ids) との一致を必ず検証すること。
+	ClinicID       *uint64                    `json:"clinic_id"`
 	OwnerName      string                     `json:"owner_name"       binding:"required"`
 	OwnerNameKana  string                     `json:"owner_name_kana"`
 	BirthDate      *jsonDate                  `json:"birth_date"`

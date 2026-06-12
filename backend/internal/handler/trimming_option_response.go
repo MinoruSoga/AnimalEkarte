@@ -31,7 +31,7 @@ func toTrimmingOptionResponse(o *model.TrimmingOption) trimmingOptionResponse {
 		Duration:     o.Duration,
 		IsCombinable: o.IsCombinable,
 		SortOrder:    o.SortOrder,
-		CreatedAt:    o.CreatedAt,
-		UpdatedAt:    o.UpdatedAt,
+		CreatedAt:    localTime(o.CreatedAt),
+		UpdatedAt:    localTime(o.UpdatedAt),
 	}
 }

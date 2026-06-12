@@ -38,7 +38,7 @@ func toLstepCsvImportResponse(m *model.LstepCsvImport) lstepCsvImportResponse {
 		SuccessCount: m.SuccessCount,
 		ErrorCount:   m.ErrorCount,
 		Status:       m.Status,
-		CreatedAt:    m.CreatedAt.Format(time.RFC3339),
+		CreatedAt:    m.CreatedAt.In(time.Local).Format(time.RFC3339),
 	}
 	if m.UploadedByUserID != nil {
 		s := strconv.FormatUint(*m.UploadedByUserID, 10)
@@ -48,7 +48,7 @@ func toLstepCsvImportResponse(m *model.LstepCsvImport) lstepCsvImportResponse {
 		r.ErrorLog = json.RawMessage(m.ErrorLog)
 	}
 	if m.ImportedAt != nil {
-		s := m.ImportedAt.Format(time.RFC3339)
+		s := m.ImportedAt.In(time.Local).Format(time.RFC3339)
 		r.ImportedAt = &s
 	}
 	return r

@@ -47,7 +47,7 @@ func (s *ownerService) UpdateDeliveryExclusion(ctx context.Context, clinicID, id
 		}
 	}
 
-	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after delivery exclusion update", "failed to reload owner")
+	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after delivery exclusion update")
 }
 
 func (s *ownerService) UpdateDeliveryCaution(ctx context.Context, clinicID, id uint64, input UpdateDeliveryCautionInput) (*model.Owner, error) {
@@ -81,7 +81,7 @@ func (s *ownerService) UpdateDeliveryCaution(ctx context.Context, clinicID, id u
 		}
 	}
 
-	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after delivery caution update", "failed to reload owner")
+	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after delivery caution update")
 }
 
 func (s *ownerService) UpdateTransferStatus(ctx context.Context, clinicID, id uint64, input UpdateTransferStatusInput) (*model.Owner, error) {
@@ -116,5 +116,5 @@ func (s *ownerService) UpdateTransferStatus(ctx context.Context, clinicID, id ui
 		}
 	}
 
-	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after transfer status update", "failed to reload owner")
+	return s.reloadOwner(ctx, clinicID, id, "failed to reload owner after transfer status update")
 }

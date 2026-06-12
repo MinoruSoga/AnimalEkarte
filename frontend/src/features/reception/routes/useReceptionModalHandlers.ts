@@ -4,6 +4,12 @@ import { addHours } from "date-fns";
 import { toast } from "sonner";
 
 import { useUpdateReservation } from "@/features/reservations";
+import {
+  buildJSTWallDateTime,
+  formatJSTWallDate,
+  formatJSTWallTime,
+  jstWallDateToISOString,
+} from "@/lib/jst-date";
 import type { Pet, Reservation } from "@/types";
 
 import type { ReceptionAppointment } from "../api/types";
@@ -12,24 +18,6 @@ interface UseReceptionModalHandlersParams {
   advanceStatus: (appointment: ReceptionAppointment) => unknown;
   cancelAppointment: (appointmentId: string) => unknown;
   updateAppointment: (appointment: ReceptionAppointment) => unknown;
-}
-
-function padDatePart(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-function formatJSTDate(date: Date): string {
-  const jstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-  return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}`;
-}
-
-function formatJSTTime(date: Date): string {
-  const jstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-  return `${padDatePart(jstDate.getUTCHours())}:${padDatePart(jstDate.getUTCMinutes())}`;
-}
-
-function buildAppointmentDateTime(visitDate: string, time: string): Date {
-  return new Date(`${visitDate}T${time}:00+09:00`);
 }
 
 function optionalNumericID(value: string | undefined): number | undefined {
@@ -83,7 +71,7 @@ export function useReceptionModalHandlers({
 
   const handleEditAppointment = useCallback((appointment: ReceptionAppointment) => {
     selectedAppointmentRef.current = appointment;
-    const start = buildAppointmentDateTime(appointment.visitDate, appointment.time);
+    const start = buildJSTWallDateTime(appointment.visitDate, appointment.time);
 
     const reservationFormData: Partial<Reservation> = {
       id: appointment.id,
@@ -113,8 +101,8 @@ export function useReceptionModalHandlers({
 
       const updatedAppointment: ReceptionAppointment = {
         id: editingAppointmentId,
-        time: formatJSTTime(data.start),
-        visitDate: formatJSTDate(data.start),
+        time: formatJSTWallTime(data.start),
+        visitDate: formatJSTWallDate(data.start),
         ownerName: selectedPets[0]?.ownerName || data.ownerName || "",
         petName: selectedPets[0]?.name || data.petName || "",
         petType: selectedPets[0]?.species || "犬",
@@ -136,8 +124,8 @@ export function useReceptionModalHandlers({
         {
           id: editingAppointmentId,
           req: {
-            start_time: data.start.toISOString(),
-            end_time: (data.end ?? addHours(data.start, 1)).toISOString(),
+            start_time: jstWallDateToISOString(data.start),
+            end_time: jstWallDateToISOString(data.end ?? addHours(data.start, 1)),
             pet_id: optionalNumericID(resolvedPetId),
             owner_id: optionalNumericID(resolvedOwnerId),
             visit_type: data.visitType || "first",

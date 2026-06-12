@@ -28,7 +28,7 @@ func toCashRegisterCloseResponse(r *model.CashRegisterClose) cashRegisterCloseRe
 	return cashRegisterCloseResponse{
 		ID:                r.ID,
 		ClinicID:          r.ClinicID,
-		CloseDate:         r.CloseDate,
+		CloseDate:         localTime(r.CloseDate),
 		Period:            r.Period,
 		TheoreticalCash:   r.TheoreticalCash,
 		ActualCash:        r.ActualCash,
@@ -36,9 +36,9 @@ func toCashRegisterCloseResponse(r *model.CashRegisterClose) cashRegisterCloseRe
 		CategoryBreakdown: r.CategoryBreakdown,
 		Memo:              r.Memo,
 		ClosedBy:          r.ClosedBy,
-		ClosedAt:          r.ClosedAt,
-		CreatedAt:         r.CreatedAt,
-		UpdatedAt:         r.UpdatedAt,
+		ClosedAt:          localTime(r.ClosedAt),
+		CreatedAt:         localTime(r.CreatedAt),
+		UpdatedAt:         localTime(r.UpdatedAt),
 	}
 }
 

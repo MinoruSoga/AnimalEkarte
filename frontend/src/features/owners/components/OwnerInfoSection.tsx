@@ -4,10 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE } from "@/lib/design-tokens";
+import { toJSTWallDate } from "@/lib/jst-date";
+import type { ClinicMembership } from "@/types/auth";
 import { MEMBERSHIP_TYPE_VALUES, type MembershipType, type OwnerData } from "../types";
 
 interface MembershipTypeButtonsProps {
@@ -46,6 +49,10 @@ interface OwnerInfoSectionProps {
   fieldErrors: Record<string, string>;
   isEdit: boolean;
   canEditDiscount: boolean;
+  /** #84: 登録先医院の選択肢（ユーザー所属医院）。2件以上かつ新規登録時のみセレクトを表示 */
+  clinicOptions?: ClinicMembership[];
+  /** #84: 未選択時に表示する現在の医院ID */
+  currentClinicId?: string | null;
   onChange: (field: string, value: string | boolean | number) => void;
   onClearError: (field: string) => void;
   onMembershipChange: (type: MembershipType) => void;
@@ -57,11 +64,15 @@ export const OwnerInfoSection = memo(function OwnerInfoSection({
   fieldErrors,
   isEdit,
   canEditDiscount,
+  clinicOptions,
+  currentClinicId,
   onChange,
   onClearError,
   onMembershipChange,
   onPostalCodeLookup,
 }: OwnerInfoSectionProps) {
+  // #84 Q12=A: 医院指定は登録フォームのみ。単一所属ユーザーには表示しない
+  const showClinicSelect = !isEdit && (clinicOptions?.length ?? 0) >= 2;
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div className="space-y-1.5">
@@ -80,6 +91,27 @@ export const OwnerInfoSection = memo(function OwnerInfoSection({
           </p>
         )}
       </div>
+
+      {showClinicSelect ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="clinicId" className={`text-sm ${C.text60}`}>登録先医院</Label>
+          <Select
+            value={ownerData.clinicId ?? currentClinicId ?? ""}
+            onValueChange={(value) => onChange("clinicId", value)}
+          >
+            <SelectTrigger id="clinicId" data-testid="owner-clinic-select" className={STYLE.formInput}>
+              <SelectValue placeholder="医院を選択" />
+            </SelectTrigger>
+            <SelectContent>
+              {clinicOptions?.map((membership) => (
+                <SelectItem key={membership.clinicId} value={membership.clinicId}>
+                  {membership.clinicName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
 
       <div className="space-y-1.5">
         <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>郵便番号</Label>
@@ -252,7 +284,7 @@ export const OwnerInfoSection = memo(function OwnerInfoSection({
           value={ownerData.birthDate}
           onChange={(value) => onChange("birthDate", value)}
           placeholder="生年月日を選択…"
-          disabledDays={{ after: new Date() }}
+          disabledDays={{ after: toJSTWallDate(new Date()) }}
         />
       </div>
 

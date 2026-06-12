@@ -26,7 +26,7 @@ export interface UpdateTriggerPrioritiesRequest {
 // Query key
 // ─────────────────────────────────────────────────
 
-const TRIGGER_PRIORITY_QUERY_KEY = (clinicId: string) =>
+const TRIGGER_PRIORITY_QUERY_KEY = (clinicId: string | null) =>
   ["trigger-priorities", clinicId] as const;
 
 // ─────────────────────────────────────────────────
@@ -35,6 +35,9 @@ const TRIGGER_PRIORITY_QUERY_KEY = (clinicId: string) =>
 
 async function fetchTriggerPriorities(): Promise<TriggerPriorityListResponse> {
   const clinicId = getClinicId();
+  if (clinicId === null) {
+    throw new Error("clinic_id is not selected");
+  }
   const { data } = await axios.get<TriggerPriorityListResponse>(
     `/v1/clinics/${clinicId}/lstep/trigger-priorities`,
   );
@@ -45,6 +48,9 @@ async function patchTriggerPriorities(
   req: UpdateTriggerPrioritiesRequest,
 ): Promise<void> {
   const clinicId = getClinicId();
+  if (clinicId === null) {
+    throw new Error("clinic_id is not selected");
+  }
   await axios.patch(`/v1/clinics/${clinicId}/lstep/trigger-priorities`, req);
 }
 

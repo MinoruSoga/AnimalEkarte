@@ -129,7 +129,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterLstepAnalyticsRoutes(protected)
 
 	// LIFF公開API（JWT認証なし・LINE IDトークン認証）
-	h.RegisterLiffRoutes(r)
+	h.RegisterLiffRoutes(ctx, r)
 
 	// BE-021: LINE Webhook（JWT認証なし・HMAC-SHA256署名検証）
 	r.POST("/api/line/webhook", h.ReceiveLineWebhook)

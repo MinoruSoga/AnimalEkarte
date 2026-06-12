@@ -1,3 +1,5 @@
+import { todayJSTISO } from "@/lib/jst-date";
+
 export interface AddCheckupFormState {
   checkup_type_id: string;
   date: string;
@@ -15,7 +17,7 @@ const EMPTY_ADD_FORM: AddCheckupFormState = {
 };
 
 function todayISODate(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayJSTISO();
 }
 
 export function makeDefaultCheckupAddForm(): AddCheckupFormState {

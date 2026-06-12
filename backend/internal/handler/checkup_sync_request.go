@@ -49,14 +49,14 @@ func (q *checkupSyncPreviewQuery) toServiceInput() (*service.PreviewCheckupSyncI
 	}
 
 	if q.LastVisitBefore != "" {
-		t, err := time.Parse("2006-01-02", q.LastVisitBefore)
+		t, err := time.ParseInLocation("2006-01-02", q.LastVisitBefore, time.Local)
 		if err != nil {
 			return nil, fmt.Errorf("last_visit_before は YYYY-MM-DD 形式で指定してください")
 		}
 		input.LastVisitBefore = &t
 	}
 	if q.LastVisitAfter != "" {
-		t, err := time.Parse("2006-01-02", q.LastVisitAfter)
+		t, err := time.ParseInLocation("2006-01-02", q.LastVisitAfter, time.Local)
 		if err != nil {
 			return nil, fmt.Errorf("last_visit_after は YYYY-MM-DD 形式で指定してください")
 		}
@@ -103,14 +103,14 @@ func (q *checkupSyncPreviewQuery) toServiceInput() (*service.PreviewCheckupSyncI
 		input.MinAnnualVisitCount = &v
 	}
 	if q.LastCheckupBefore != "" {
-		t, err := time.Parse("2006-01-02", q.LastCheckupBefore)
+		t, err := time.ParseInLocation("2006-01-02", q.LastCheckupBefore, time.Local)
 		if err != nil {
 			return nil, fmt.Errorf("last_checkup_before は YYYY-MM-DD 形式で指定してください")
 		}
 		input.LastCheckupBefore = &t
 	}
 	if q.LastCheckupAfter != "" {
-		t, err := time.Parse("2006-01-02", q.LastCheckupAfter)
+		t, err := time.ParseInLocation("2006-01-02", q.LastCheckupAfter, time.Local)
 		if err != nil {
 			return nil, fmt.Errorf("last_checkup_after は YYYY-MM-DD 形式で指定してください")
 		}

@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { paths } from "@/config/paths";
+import { toJSTWallDate } from "@/lib/jst-date";
 import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
 import { useGetStaffs } from "@/hooks/use-staffs";
 import { ResourceCheckups } from "@/types/generated/models";
@@ -87,7 +88,7 @@ export function CheckupForm() {
                 id="checkup-date"
                 value={form.date}
                 onChange={setDate}
-                disabledDays={{ after: new Date() }}
+                disabledDays={{ after: toJSTWallDate(new Date()) }}
               />
               <FormFieldError message={fieldErrors.date} />
             </div>

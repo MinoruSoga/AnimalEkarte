@@ -30,8 +30,7 @@ func toUnavailableTimeResponse(t *model.ReservationTypeUnavailableTime) unavaila
 		EndTime:           t.EndTime,
 	}
 	if t.SpecificDate != nil {
-		// DATE 型は UTC 午前0時で格納される
-		s := t.SpecificDate.UTC().Format("2006-01-02")
+		s := t.SpecificDate.In(time.Local).Format("2006-01-02")
 		resp.SpecificDate = &s
 	}
 	return resp
@@ -61,7 +60,7 @@ func toAvailableSlotResponse(slot *model.ReservationTypeAvailableSlot) available
 		IsActive:          slot.IsActive,
 	}
 	if slot.SpecificDate != nil {
-		s := slot.SpecificDate.UTC().Format("2006-01-02")
+		s := slot.SpecificDate.In(time.Local).Format("2006-01-02")
 		resp.SpecificDate = &s
 	}
 	return resp
@@ -89,7 +88,7 @@ func toReservationTypeOccupationResponse(o *model.ReservationTypeOccupation) res
 		ClinicID:          o.ClinicID,
 		ReservationTypeID: o.ReservationTypeID,
 		OccupationID:      o.OccupationID,
-		CreatedAt:         o.CreatedAt,
+		CreatedAt:         localTime(o.CreatedAt),
 	}
 	if o.Occupation != nil {
 		resp.Occupation = &occupationSummary{
@@ -111,12 +110,16 @@ type reservationTypeResponse struct {
 	SortOrder   int                           `json:"sort_order"`
 	GroupID     *uint64                       `json:"group_id,omitempty"`
 	Group       *groupSummary                 `json:"group,omitempty"`
+	ParentID    *uint64                       `json:"parent_id,omitempty"`
+	Parent      *reservationTypeSummary       `json:"parent,omitempty"`
+	Children    []reservationTypeResponse     `json:"children,omitempty"`
 	CreatedAt   time.Time                     `json:"created_at"`
 	UpdatedAt   time.Time                     `json:"updated_at"`
 
 	// LINE予約用フィールド
 	ReservationDisplayName string                     `json:"reservation_display_name"`
 	DurationMinutes        int                        `json:"duration_minutes"`
+	MaxConcurrent          *int                       `json:"max_concurrent,omitempty"`
 	ShortName              string                     `json:"short_name"`
 	ShowShortName          bool                       `json:"show_short_name"`
 	ReservationVisible     bool                       `json:"reservation_visible"`
@@ -132,6 +135,11 @@ type groupSummary struct {
 	Color string `json:"color"`
 }
 
+type reservationTypeSummary struct {
+	ID   uint64 `json:"id"`
+	Name string `json:"name"`
+}
+
 func toReservationTypeResponse(st *model.ReservationType) reservationTypeResponse {
 	resp := reservationTypeResponse{
 		ID:                     st.ID,
@@ -143,10 +151,12 @@ func toReservationTypeResponse(st *model.ReservationType) reservationTypeRespons
 		Description:            st.Description,
 		SortOrder:              st.SortOrder,
 		GroupID:                st.GroupID,
-		CreatedAt:              st.CreatedAt,
-		UpdatedAt:              st.UpdatedAt,
+		ParentID:               st.ParentID,
+		CreatedAt:              localTime(st.CreatedAt),
+		UpdatedAt:              localTime(st.UpdatedAt),
 		ReservationDisplayName: st.ReservationDisplayName,
 		DurationMinutes:        st.DurationMinutes,
+		MaxConcurrent:          st.MaxConcurrent,
 		ShortName:              st.ShortName,
 		ShowShortName:          st.ShowShortName,
 		ReservationVisible:     st.ReservationVisible,
@@ -160,6 +170,18 @@ func toReservationTypeResponse(st *model.ReservationType) reservationTypeRespons
 			ID:    st.Group.ID,
 			Name:  st.Group.Name,
 			Color: st.Group.Color,
+		}
+	}
+	if st.Parent != nil {
+		resp.Parent = &reservationTypeSummary{
+			ID:   st.Parent.ID,
+			Name: st.Parent.Name,
+		}
+	}
+	if len(st.Children) > 0 {
+		resp.Children = make([]reservationTypeResponse, 0, len(st.Children))
+		for i := range st.Children {
+			resp.Children = append(resp.Children, toReservationTypeResponse(&st.Children[i]))
 		}
 	}
 	return resp

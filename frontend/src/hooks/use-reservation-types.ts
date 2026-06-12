@@ -19,8 +19,8 @@ interface ReservationTypeRaw {
   sort_order: number;
   is_internal: boolean;
   category: string;
-  group_id: number | null;
-  group: ReservationTypeGroupSummary | null;
+  group_id?: number | null;
+  group?: ReservationTypeGroupSummary | null;
 }
 
 // フロントエンド用にグループ化したデータ
@@ -66,11 +66,11 @@ const fetchOnDutyStaffs = async (date: string): Promise<OnDutyStaff[]> => {
   return data;
 };
 
-export const getCurrentClinicId = (): string => {
+export const getCurrentClinicId = (): string | null => {
   try {
-    return localStorage.getItem("auth_current_clinic:v1") ?? "";
+    return localStorage.getItem("auth_current_clinic:v1");
   } catch {
-    return "";
+    return null;
   }
 };
 
@@ -113,7 +113,8 @@ export function useGetReservationTypesGrouped() {
       const active = data.filter((t) => t.is_active);
       const map = new Map<string, GroupedReservationTypes>();
       for (const t of active) {
-        const key = t.group_id != null ? String(t.group_id) : "__other__";
+        const groupId = t.group_id ?? t.group?.id ?? null;
+        const key = groupId != null ? String(groupId) : "__other__";
         const label = t.group?.name ?? "その他";
         if (!map.has(key)) map.set(key, { label, types: [] });
         const entry = map.get(key);
@@ -146,8 +147,13 @@ export function useGetReservationStaffs() {
   const clinicId = getCurrentClinicId();
   return useQuery({
     queryKey: ["clinics", clinicId, "reservation-staffs"],
-    queryFn: () => fetchReservationStaffs(clinicId),
-    enabled: clinicId !== "",
+    queryFn: () => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is required"));
+      }
+      return fetchReservationStaffs(clinicId);
+    },
+    enabled: clinicId !== null,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

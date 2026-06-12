@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // BUG-368: レジ締め日次集計レスポンス
@@ -47,6 +48,27 @@ func toDailySummaryResponse(s *repository.DailySummaryResult) dailySummaryRespon
 		BillingCount:   s.BillingCount,
 		GrandTotal:     s.GrandTotal,
 	}
+}
+
+// clinicDailySummaryResponse は拠点別日次集計レスポンス (#86 段階3 論点4=2)。
+type clinicDailySummaryResponse struct {
+	ClinicID uint64               `json:"clinic_id"`
+	Summary  dailySummaryResponse `json:"summary"`
+}
+
+type dailySummaryForClinicsResponse struct {
+	PerClinic []clinicDailySummaryResponse `json:"per_clinic"`
+}
+
+func toDailySummaryForClinicsResponse(items []service.ClinicDailySummary) dailySummaryForClinicsResponse {
+	perClinic := make([]clinicDailySummaryResponse, 0, len(items))
+	for _, item := range items {
+		perClinic = append(perClinic, clinicDailySummaryResponse{
+			ClinicID: item.ClinicID,
+			Summary:  toDailySummaryResponse(item.Summary),
+		})
+	}
+	return dailySummaryForClinicsResponse{PerClinic: perClinic}
 }
 
 // BUG-370: 月末未納者一覧レスポンス
@@ -131,8 +153,8 @@ func toRefundResponse(r *model.BillingRefund) refundResponse {
 		RefundedBy:     r.RefundedBy,
 		RefundedByName: staffName,
 		PaymentMethod:  paymentMethod,
-		RefundedAt:     r.RefundedAt,
-		CreatedAt:      r.CreatedAt,
+		RefundedAt:     localTime(r.RefundedAt),
+		CreatedAt:      localTime(r.CreatedAt),
 	}
 }
 
@@ -143,6 +165,8 @@ type billingItemResponse struct {
 	Name                  string    `json:"name"`
 	UnitPrice             int64     `json:"unit_price"`
 	Quantity              float64   `json:"quantity"`
+	DiscountRate          float64   `json:"discount_rate"`
+	DiscountAmount        int64     `json:"discount_amount"`
 	Subtotal              int64     `json:"subtotal"`
 	TaxType               string    `json:"tax_type"`
 	TaxRate               float64   `json:"tax_rate"`
@@ -231,7 +255,8 @@ type accountingResponse struct {
 }
 
 func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
-	subtotal := int64(float64(item.UnitPrice) * item.Quantity)
+	// #85: subtotal は割引後（単価×数量 − 割引額）。負値は 0 クランプ。
+	subtotal := max(int64(float64(item.UnitPrice)*item.Quantity)-item.DiscountAmount, 0)
 	taxAmount := item.CalculateTaxAmount()
 	return billingItemResponse{
 		ID:                    item.ID,
@@ -240,6 +265,8 @@ func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
 		Name:                  item.Name,
 		UnitPrice:             item.UnitPrice,
 		Quantity:              item.Quantity,
+		DiscountRate:          item.DiscountRate,
+		DiscountAmount:        item.DiscountAmount,
 		Subtotal:              subtotal,
 		TaxType:               string(item.TaxType),
 		TaxRate:               item.TaxRate,
@@ -251,7 +278,7 @@ func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
 		TrimmingCourseID:      item.TrimmingCourseID,
 		TrimmingOptionID:      item.TrimmingOptionID,
 		SortOrder:             item.SortOrder,
-		CreatedAt:             item.CreatedAt,
+		CreatedAt:             localTime(item.CreatedAt),
 	}
 }
 
@@ -276,8 +303,8 @@ func toPaymentResponse(p *model.Payment) paymentResponse {
 		Method:          string(p.Method),
 		PaidBy:          p.PaidBy,
 		PaidByName:      staffName,
-		CreatedAt:       p.CreatedAt,
-		UpdatedAt:       p.UpdatedAt,
+		CreatedAt:       localTime(p.CreatedAt),
+		UpdatedAt:       localTime(p.UpdatedAt),
 	}
 }
 
@@ -297,7 +324,7 @@ func toPaymentSplitResponse(s *model.PaymentSplit) paymentSplitResponse {
 		ChangeAmount:    s.ChangeAmount,
 		PaidBy:          s.PaidBy,
 		PaidByName:      staffName,
-		CreatedAt:       s.CreatedAt,
+		CreatedAt:       localTime(s.CreatedAt),
 	}
 }
 
@@ -350,14 +377,14 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 		TotalRefundedAmount: b.TotalRefundedAmount,
 		HasInsurance:        b.HasInsurance,
 		Status:              string(b.Status),
-		ScheduledDate:       b.ScheduledDate,
-		CompletedAt:         b.CompletedAt,
+		ScheduledDate:       localTime(b.ScheduledDate),
+		CompletedAt:         localTimePtr(b.CompletedAt),
 		Memo:                b.Memo,
 		Items:               items,
 		Payments:            payments,
 		PaymentSplits:       splits,
 		Refunds:             refunds,
-		CreatedAt:           b.CreatedAt,
-		UpdatedAt:           b.UpdatedAt,
+		CreatedAt:           localTime(b.CreatedAt),
+		UpdatedAt:           localTime(b.UpdatedAt),
 	}
 }

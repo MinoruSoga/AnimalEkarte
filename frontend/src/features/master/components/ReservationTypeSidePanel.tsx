@@ -184,14 +184,24 @@ export const CategorySidePanel = memo(function CategorySidePanel({
 
       {item !== null ? (
         <>
-          <ReservationTypeAvailableSlotsSection
-            clinicId={item.clinicId}
-            reservationTypeId={item.id}
-          />
-          <ReservationTypeUnavailableTimesSection
-            clinicId={item.clinicId}
-            reservationTypeId={item.id}
-          />
+          {item.isLeaf ? (
+            <>
+              <ReservationTypeAvailableSlotsSection
+                clinicId={item.clinicId}
+                reservationTypeId={item.id}
+              />
+              <ReservationTypeUnavailableTimesSection
+                clinicId={item.clinicId}
+                reservationTypeId={item.id}
+              />
+            </>
+          ) : (
+            <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
+              <p className={`text-xs ${C.text40}`}>
+                子予約区分ごとに予約枠を設定してください
+              </p>
+            </div>
+          )}
           <ReservationTypeOccupationsSection
             clinicId={item.clinicId}
             reservationTypeId={item.id}

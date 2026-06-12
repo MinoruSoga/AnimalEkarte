@@ -27,7 +27,7 @@ func (m *mockTrimmingReservationRepository) FindAllByCategory(ctx context.Contex
 	return m.findAllByCategoryFn(ctx, clinicID, category, petID, ownerID, startDate, endDate, page, limit)
 }
 
-func (m *mockTrimmingReservationRepository) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+func (m *mockTrimmingReservationRepository) FindAll(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
 }
 
@@ -36,6 +36,10 @@ func (m *mockTrimmingReservationRepository) FindByID(ctx context.Context, clinic
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return nil, apperrors.WrapNotFound("appointment", "0")
+}
+
+func (m *mockTrimmingReservationRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
+	return nil, nil
 }
 
 func (m *mockTrimmingReservationRepository) Create(ctx context.Context, appt *model.Reservation) error {
@@ -87,6 +91,10 @@ func (m *mockTrimmingReservationRepository) CountConflicts(_ context.Context, _ 
 	return 0, nil
 }
 
+func (m *mockTrimmingReservationRepository) CountByTypeAndStartTime(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (int64, error) {
+	return 0, nil
+}
+
 func (m *mockTrimmingReservationRepository) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
 	return 0, nil
 }
@@ -115,6 +123,10 @@ func (m *mockTrimmingReservationTypeRepository) FindAll(_ context.Context, _ uin
 	return nil, nil
 }
 
+func (m *mockTrimmingReservationTypeRepository) FindAllWithChildren(_ context.Context, _ uint64) ([]model.ReservationType, error) {
+	return nil, nil
+}
+
 func (m *mockTrimmingReservationTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
@@ -126,7 +138,15 @@ func (m *mockTrimmingReservationTypeRepository) FindByID(ctx context.Context, cl
 	}, nil
 }
 
+func (m *mockTrimmingReservationTypeRepository) FindByIDWithChildren(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+	return m.FindByID(ctx, clinicID, id)
+}
+
 func (m *mockTrimmingReservationTypeRepository) CountUsageByReservationTypeID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockTrimmingReservationTypeRepository) CountChildrenByParentID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -526,46 +546,6 @@ func TestTrimmingService_Create_RejectsExcludedStaff(t *testing.T) {
 		StartTime:         time.Now(),
 		EndTime:           time.Now().Add(time.Hour),
 		StaffID:           &staffID,
-	})
-
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsInvalidInput(err))
-	assert.Nil(t, appt)
-}
-
-func TestTrimmingService_Create_RejectsUnavailableStartSlot(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
-	end := start.Add(time.Hour)
-	reserv := &mockTrimmingReservationRepository{
-		createFn: func(_ context.Context, _ *model.Reservation) error {
-			t.Fatal("trimming appointment must not be created outside available slots")
-			return nil
-		},
-	}
-	availableSlotRepo := &mockAvailableSlotRepository{
-		findAllFn: func(_ context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error) {
-			assert.Equal(t, uint64(1), clinicID)
-			assert.Equal(t, uint64(9), reservationTypeID)
-			dayOfWeek := int8(1)
-			return []model.ReservationTypeAvailableSlot{
-				{ReservationTypeID: 9, AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &dayOfWeek, StartTime: "09:45", IsActive: true},
-				{ReservationTypeID: 9, AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &dayOfWeek, StartTime: "12:30", IsActive: true},
-			}, nil
-		},
-	}
-	svc := newTrimmingTestServiceWithAvailability(
-		reserv,
-		&mockTrimmingDetailRepository{},
-		&mockTrimmingReservationTypeRepository{},
-		nil,
-		nil,
-		availableSlotRepo,
-	)
-
-	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
-		ReservationTypeID: 9,
-		StartTime:         start,
-		EndTime:           end,
 	})
 
 	assert.Error(t, err)

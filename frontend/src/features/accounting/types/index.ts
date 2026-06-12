@@ -55,10 +55,12 @@ export interface AccountingItem {
   name: string;
   unitPrice: number;
   quantity: number;
+  discountRate: number;   // #85: 項目別割引率(%)。入力補助、実控除は discountAmount
+  discountAmount: number; // #85: 項目別割引額(円)。実際の控除額
   taxType: TaxType;
   taxRate: number;
   taxAmount: number; // BE が計算して返す
-  subtotal: number;  // unit_price × quantity（税抜）
+  subtotal: number;  // (unit_price × quantity − 割引額)（税抜・割引後 #85）
   isInsuranceApplicable: boolean;
   source: "medical_record" | "manual" | "hospitalization" | "trimming";
   treatmentId?: string;
@@ -109,6 +111,7 @@ export interface Refund {
 /** @see {@link import("@/types/generated/models").Billing} */
 export interface Accounting {
   id: string;
+  clinicId: string;
   medicalRecordId?: string;
   ownerId: string;
   ownerName: string;

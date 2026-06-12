@@ -39,6 +39,7 @@ type ReservationAdminService interface {
 type reservationAdminService struct {
 	repo                 repository.ReservationAdminRepository
 	resRepo              repository.ReservationRepository
+	typeRepo             reservationTypeFinder
 	tx                   repository.Transactor
 	reservationStaffRepo repository.ReservationStaffRepository
 	unavailableTimeRepo  repository.ReservationTypeUnavailableTimeRepository
@@ -54,6 +55,10 @@ func NewReservationAdminService(repo repository.ReservationAdminRepository, resR
 }
 
 func NewReservationAdminServiceWithAvailability(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationAdminService {
+	return NewReservationAdminServiceWithAvailabilityAndType(repo, resRepo, nil, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo...)
+}
+
+func NewReservationAdminServiceWithAvailabilityAndType(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, typeRepo reservationTypeFinder, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationAdminService {
 	var slotRepo repository.ReservationTypeAvailableSlotRepository
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
@@ -61,6 +66,7 @@ func NewReservationAdminServiceWithAvailability(repo repository.ReservationAdmin
 	return &reservationAdminService{
 		repo:                 repo,
 		resRepo:              resRepo,
+		typeRepo:             typeRepo,
 		tx:                   tx,
 		reservationStaffRepo: reservationStaffRepo,
 		unavailableTimeRepo:  unavailableTimeRepo,
@@ -69,7 +75,7 @@ func NewReservationAdminServiceWithAvailability(repo repository.ReservationAdmin
 }
 
 func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Reservation, error) {
-	t, err := time.Parse("2006-01", yearMonth)
+	t, err := time.ParseInLocation("2006-01", yearMonth, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM format for month view")
 	}
@@ -97,7 +103,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate staff capability")
 	}
-	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate available time")
 	}
 
@@ -114,6 +120,9 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if err := checkSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
 			return apperrors.Wrap(err, "failed to check slot conflict")
+		}
+		if err := checkReservationTypeCapacity(ctx, s.resRepo, s.typeRepo, clinicID, input.ReservationTypeID, input.StartTime, nil); err != nil {
+			return apperrors.Wrap(err, "failed to check reservation type capacity")
 		}
 
 		ra := &model.Reservation{

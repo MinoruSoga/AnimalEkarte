@@ -44,8 +44,10 @@
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
-| GET | `/api/v1/masters/merchandise` | 販売商品の一覧取得。 |
-| POST | `/api/v1/masters/merchandise` | 新商品の登録。 |
-| PATCH | `/api/v1/masters/merchandise/:id` | 価格・在庫連携設定の変更。 |
+| GET | `/api/v1/masters/merchandise-items` | 販売商品の一覧取得。 |
+| POST | `/api/v1/masters/merchandise-items` | 新商品の登録。 |
+| PATCH | `/api/v1/masters/merchandise-items/:id` | 価格・在庫連携設定の変更。 |
+| DELETE | `/api/v1/masters/merchandise-items/:id` | 商品の削除。 |
+| PATCH | `/api/v1/masters/merchandise-items/reorder` | 表示順の一括保存。 |
 
 ---

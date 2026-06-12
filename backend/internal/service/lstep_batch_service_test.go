@@ -18,10 +18,13 @@ type batchMockReservationRepo struct {
 	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 }
 
-func (m *batchMockReservationRepo) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+func (m *batchMockReservationRepo) FindAll(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
 }
 func (m *batchMockReservationRepo) FindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+	return nil, nil
+}
+func (m *batchMockReservationRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
 	return nil, nil
 }
 func (m *batchMockReservationRepo) Create(_ context.Context, _ *model.Reservation) error { return nil }
@@ -42,6 +45,9 @@ func (m *batchMockReservationRepo) CountOnDutyDoctors(_ context.Context, _ uint6
 	return 1, nil
 }
 func (m *batchMockReservationRepo) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+	return 0, nil
+}
+func (m *batchMockReservationRepo) CountByTypeAndStartTime(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (int64, error) {
 	return 0, nil
 }
 func (m *batchMockReservationRepo) ExistsByReservationTypeID(_ context.Context, _, _ uint64) (bool, error) {
@@ -77,10 +83,13 @@ type batchMockMedRecordRepo struct {
 	findDormantFn func(ctx context.Context, clinicID uint64, minDays int) ([]repository.DormantOwnerEntry, error)
 }
 
-func (m *batchMockMedRecordRepo) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+func (m *batchMockMedRecordRepo) FindAll(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 	return nil, 0, nil
 }
 func (m *batchMockMedRecordRepo) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+func (m *batchMockMedRecordRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
 	return nil, nil
 }
 func (m *batchMockMedRecordRepo) Create(_ context.Context, _ *model.MedicalRecord) error { return nil }
@@ -118,6 +127,10 @@ func (m *batchMockMedRecordRepo) FindOwnersByNextVisitRecommended(_ context.Cont
 
 func (m *batchMockMedRecordRepo) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
+}
+
+func (m *batchMockMedRecordRepo) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
+	return nil
 }
 
 // batchMockTagSyncSvc は batch テスト専用 LstepTagSyncService モック

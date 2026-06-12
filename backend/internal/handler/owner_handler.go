@@ -11,7 +11,8 @@ import (
 
 // ListOwners godoc
 func (h *Handler) ListOwners(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
+	clinicIDs, ok := resolveListClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -22,22 +23,19 @@ func (h *Handler) ListOwners(c *gin.Context) {
 	}
 	query := newListOwnersQuery(c.Request.URL.Query())
 
-	owners, total, err := h.svc.Owner.List(c.Request.Context(), clinicID, page, limit, query.Search)
+	owners, total, err := h.svc.Owner.List(c.Request.Context(), clinicIDs, page, limit, query.Search)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 
-	ownerResponses := make([]ownerResponse, 0, len(owners))
-	for i := range owners {
-		ownerResponses = append(ownerResponses, toOwnerResponse(&owners[i]))
-	}
-	c.JSON(http.StatusOK, newPaginatedResponse(ownerResponses, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(owners, toOwnerResponse), total, page, limit))
 }
 
 // GetOwner godoc
 func (h *Handler) GetOwner(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
+	clinicIDs, ok := resolveAllClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -45,7 +43,7 @@ func (h *Handler) GetOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
-	owner, err := h.svc.Owner.GetByID(c.Request.Context(), clinicID, id)
+	owner, err := h.svc.Owner.GetByIDForClinics(c.Request.Context(), clinicIDs, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -63,6 +61,17 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
+	}
+
+	// #84: 登録時の医院指定 (Q11=A 所属医院のみ / Q12=A 登録フォームのみ)。
+	// req.ClinicID はユーザー入力のためここでの所属検証が唯一の防壁。
+	// 検証なしで service へ渡すとクロステナント書き込みになる。
+	// system_admin は X-Clinic-ID 検証 (middleware/auth.go) と同様に全医院を許可する。
+	if req.ClinicID != nil && *req.ClinicID != clinicID {
+		if !authorizeClinicIDs(c, []uint64{*req.ClinicID}) {
+			return
+		}
+		clinicID = *req.ClinicID
 	}
 
 	// BUG-372: discount_rate にゼロ以外を指定する場合は権限要

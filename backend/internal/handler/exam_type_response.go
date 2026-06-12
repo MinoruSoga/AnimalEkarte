@@ -41,7 +41,7 @@ func toExamTypeItemResponse(item *model.ExamTypeField) examTypeItemResponse {
 		NormalValue:     item.NormalValue,
 		Unit:            item.Unit,
 		SortOrder:       item.SortOrder,
-		CreatedAt:       item.CreatedAt,
+		CreatedAt:       localTime(item.CreatedAt),
 	}
 }
 
@@ -61,7 +61,7 @@ func toExaminationTypeResponse(et *model.ExaminationType) examTypeResponse {
 		SortOrder:      et.SortOrder,
 		IsNonInsurance: et.IsNonInsurance,
 		Items:          items,
-		CreatedAt:      et.CreatedAt,
-		UpdatedAt:      et.UpdatedAt,
+		CreatedAt:      localTime(et.CreatedAt),
+		UpdatedAt:      localTime(et.UpdatedAt),
 	}
 }

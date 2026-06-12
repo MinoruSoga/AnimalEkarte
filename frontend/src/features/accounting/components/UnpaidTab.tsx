@@ -8,6 +8,7 @@ import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 import { paths } from "@/config/paths";
 import { formatCurrency } from "@/utils/format/number";
 
@@ -19,16 +20,9 @@ import {
 
 type GroupBy = "owner" | "billing";
 
-function todayISO(): string {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
-
 function daysSince(isoDate: string, baseDate: string): number {
-  const from = new Date(isoDate);
-  const to = new Date(baseDate);
+  const from = new Date(`${isoDate}T00:00:00+09:00`);
+  const to = new Date(`${baseDate}T00:00:00+09:00`);
   const diff = Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
   return Math.max(0, diff);
 }
@@ -38,7 +32,7 @@ export function UnpaidTab() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const groupBy: GroupBy = (searchParams.get("group_by") as GroupBy) === "billing" ? "billing" : "owner";
-  const baseDate = searchParams.get("reference_date") || todayISO();
+  const baseDate = searchParams.get("reference_date") || todayJSTISO();
   const [page, setPage] = useState(1);
   const limit = 20;
 

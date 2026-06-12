@@ -35,7 +35,7 @@ func toVaccineResponse(v *model.Vaccine) vaccineResponse {
 		InventoryID: v.InventoryID,
 		ParentID:    v.ParentID,
 		SortOrder:   v.SortOrder,
-		CreatedAt:   v.CreatedAt,
-		UpdatedAt:   v.UpdatedAt,
+		CreatedAt:   localTime(v.CreatedAt),
+		UpdatedAt:   localTime(v.UpdatedAt),
 	}
 }

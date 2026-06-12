@@ -22,7 +22,7 @@ import {
   MedicalRecordPrintArea,
 } from "../components/MedicalRecordFormActions";
 import { OwnerSearchModal, StaffSelectionModal, VitalsModal } from "./MedicalRecordLazyModals";
-import { MEDICAL_RECORD_TAB_ITEMS, VISIT_TYPE_OPTIONS } from "./MedicalRecordFormModel";
+import { MEDICAL_RECORD_TAB_ITEMS } from "./MedicalRecordFormModel";
 import { useMedicalRecordDirtyFields } from "./useMedicalRecordDirtyFields";
 import { useMedicalRecordPostSave } from "./useMedicalRecordPostSave";
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
@@ -78,19 +78,22 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setDiagnosis2NameId,
     ownerDiscountRate,
     visitType,
-    setVisitType,
     visitCount,
     handleChangeDoctor,
+    handleVisitTypeChange,
     pendingOwnerChange,
     requestOwnerChange,
     confirmOwnerChange,
     cancelOwnerChange,
     nextVisitDate,
     handleNextVisitDateChange,
+    handleNextVisitDatePatch,
     isNextVisitDateValid: _isNextVisitDateValid,
     handleNextVisitDateValidChange,
     recommendationReason,
     setRecommendationReason,
+    recordDate,
+    handleChangeDate,
     } = useMedicalRecordForm(recordId);
 
     useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
@@ -216,13 +219,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setIsStaffModalOpen(open);
   }, []);
 
-  const handleVisitTypeCycle = useCallback(() => {
-    setVisitType((prev) => {
-      const idx = VISIT_TYPE_OPTIONS.indexOf(prev as typeof VISIT_TYPE_OPTIONS[number]);
-      return VISIT_TYPE_OPTIONS[(idx + 1) % VISIT_TYPE_OPTIONS.length];
-    });
-  }, [setVisitType]);
-
   const handleOpenStaffModal = useCallback(() => {
     setIsStaffModalOpen(true);
   }, []);
@@ -274,9 +270,16 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         canEdit={canEdit}
         isNewRecord={isNewRecord}
         tabs={MEDICAL_RECORD_TAB_ITEMS}
-        onVisitTypeClick={handleVisitTypeCycle}
+        recordDate={recordDate}
+        recordStatus={currentRecord?.status}
+        nextVisitDate={nextVisitDate}
+        onVisitTypeChange={handleVisitTypeChange}
         onStaffClick={handleOpenStaffModal}
         onOwnerClick={handleOpenOwnerSearch}
+        onDateChange={handleChangeDate}
+        onNextVisitDatePatch={handleNextVisitDatePatch}
+        onNextVisitDateValidChange={handleNextVisitDateValidChange}
+        hasLineIntegration={hasLineIntegration}
       />
       <MedicalRecordTabsArea
         activeTab={activeTab}
@@ -395,6 +398,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       isNewRecord={isNewRecord}
       recordId={recordId}
       doctorName={staffName}
+      recordDate={recordDate}
       pet={{
         name: selectedPet.name,
         species: selectedPet.species,

@@ -37,7 +37,7 @@ func toProcedureResponse(p *model.Procedure) procedureResponse {
 		TaxType:     string(p.TaxType),
 		TaxRate:     p.TaxRate,
 		SortOrder:   p.SortOrder,
-		CreatedAt:   p.CreatedAt,
-		UpdatedAt:   p.UpdatedAt,
+		CreatedAt:   localTime(p.CreatedAt),
+		UpdatedAt:   localTime(p.UpdatedAt),
 	}
 }

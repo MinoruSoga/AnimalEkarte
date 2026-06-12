@@ -4,8 +4,7 @@ import type { NavigateFunction } from "react-router";
 import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { MedicalRecord, Pet, Reservation } from "@/types";
-import type { CreateReservationRequest } from "@/features/reservations/api/types";
-import type { Reservation as ReservationUI } from "@/features/reservations/api/transforms";
+import type { CreateReservationRequest, Reservation as ReservationUI } from "@/features/reservations";
 
 import type { CreateMedicalRecordRequest } from "../api/types";
 import type { RecommendationReason } from "../constants/recommendation-reason";
@@ -88,7 +87,7 @@ export function useMedicalRecordAutoCreate({
           pet_id: selectedPet.id,
           owner_id: selectedPet.ownerId,
           visit_date: today,
-          visit_type: visitType,
+          visit_type: toVisitTypeValue(visitType),
           appointment_id: appointmentId,
           status: "draft",
           recommendation_reason: createRecommendationReason ?? "",

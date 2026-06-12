@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { formatJSTWallDate } from "@/lib/jst-date";
 
 const WEEK_DAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -20,7 +21,7 @@ interface DailyDateNavProps {
 function addDays(dateStr: string, days: number): string {
     const d = new Date(dateStr + "T00:00:00");
     d.setDate(d.getDate() + days);
-    return d.toISOString().split("T")[0];
+    return formatJSTWallDate(d);
 }
 
 export function DailyDateNav({

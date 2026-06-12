@@ -85,6 +85,7 @@ type Repositories struct {
 	ClosingSpecialPeriod ClosingSpecialPeriodRepository
 	PaymentMethodMaster  PaymentMethodMasterRepository
 	TrimmingCourseType   TrimmingCourseTypeRepository
+	Campaign             CampaignRepository
 	CashRegisterClose    CashRegisterCloseRepository
 	// LSTEP / LINE連携
 	LstepSettings     LstepSettingsRepository
@@ -116,6 +117,8 @@ type Repositories struct {
 	LstepFriendAttributeSnapshot LstepFriendAttributeSnapshotRepository
 	// 動的タグ設定 (B/C1/C2/C3 カテゴリ)
 	LstepTagConfig LstepTagConfigRepository
+	// 認証: refresh_token JTI ブラックリスト
+	TokenBlacklist TokenBlacklistRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -192,6 +195,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		ClosingSpecialPeriod: NewClosingSpecialPeriodRepository(db),
 		PaymentMethodMaster:  NewPaymentMethodMasterRepository(db),
 		TrimmingCourseType:   NewTrimmingCourseTypeRepository(db),
+		Campaign:             NewCampaignRepository(db),
 		CashRegisterClose:    NewCashRegisterCloseRepository(db),
 		// LSTEP / LINE連携
 		LstepSettings:                NewLstepSettingsRepository(db),
@@ -211,6 +215,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		LstepCsvImport:               NewLstepCsvImportRepository(db),
 		LstepFriendAttributeSnapshot: NewLstepFriendAttributeSnapshotRepository(db),
 		LstepTagConfig:               NewLstepTagConfigRepository(db),
+		TokenBlacklist:               NewTokenBlacklistRepository(db),
 	}
 }
 

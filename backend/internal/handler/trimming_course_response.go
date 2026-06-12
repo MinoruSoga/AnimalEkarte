@@ -38,7 +38,7 @@ func toTrimmingCourseResponse(c *model.TrimmingCourse) trimmingCourseResponse {
 		CourseTypeID: c.CourseTypeID,
 		Duration:     c.Duration,
 		SortOrder:    c.SortOrder,
-		CreatedAt:    c.CreatedAt,
-		UpdatedAt:    c.UpdatedAt,
+		CreatedAt:    localTime(c.CreatedAt),
+		UpdatedAt:    localTime(c.UpdatedAt),
 	}
 }

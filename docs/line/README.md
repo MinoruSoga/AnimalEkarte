@@ -1,7 +1,7 @@
 # LINE・Lステップ連携 統合ドキュメント (LINE Integration Hub)
 
 > **Animal Ekarte**: 飼い主向け予約体験と CRM 戦略の統合
-> **最新更新**: 2026-05-21
+> **最新更新**: 2026-06-11
 
 ---
 
@@ -39,6 +39,7 @@
 |:---|:---|
 | **連携設定** | `/settings/integrations/lstep` |
 | **文言編集** | `/line-reservation/page-editor` |
+| **タグ管理** | `/settings/lstep/tags` |
 | **分析レポート** | `/lstep/analytics` |
 | **対象者抽出** | `/lstep/checkup-sync` |
 

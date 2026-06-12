@@ -30,11 +30,15 @@ async function unlinkOwnerLine(
 
 export function useUpdateOwnerLine(ownerId: string) {
   const queryClient = useQueryClient();
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
 
   return useMutation({
-    mutationFn: (body: UpdateOwnerLineBody) =>
-      updateOwnerLine(clinicId, ownerId, body),
+    mutationFn: (body: UpdateOwnerLineBody) => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+      return updateOwnerLine(clinicId, ownerId, body);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["owner-line-tags", ownerId] });
       toast.success("LINE IDを設定しました");
@@ -47,10 +51,15 @@ export function useUpdateOwnerLine(ownerId: string) {
 
 export function useDeleteOwnerLine(ownerId: string) {
   const queryClient = useQueryClient();
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
 
   return useMutation({
-    mutationFn: () => unlinkOwnerLine(clinicId, ownerId),
+    mutationFn: () => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+      return unlinkOwnerLine(clinicId, ownerId);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["owner-line-tags", ownerId] });
       toast.success("LINE連携を解除しました");

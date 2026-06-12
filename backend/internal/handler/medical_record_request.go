@@ -167,7 +167,7 @@ func (r *createMedicalRecordRequest) recordDate() (time.Time, error) {
 	case r.Date != nil:
 		return *r.Date, nil
 	case r.VisitDate != nil && *r.VisitDate != "":
-		parsed, err := time.Parse("2006-01-02", *r.VisitDate)
+		parsed, err := time.ParseInLocation("2006-01-02", *r.VisitDate, time.Local)
 		if err != nil {
 			return time.Time{}, apperrors.WrapInvalidInput("invalid visit_date format (expected YYYY-MM-DD)")
 		}
@@ -181,7 +181,7 @@ func (r *createMedicalRecordRequest) nextVisitDate(recordDate time.Time) (*time.
 	if r.NextVisitRecommendedDate == nil || *r.NextVisitRecommendedDate == "" {
 		return nil, nil
 	}
-	parsed, err := time.Parse("2006-01-02", *r.NextVisitRecommendedDate)
+	parsed, err := time.ParseInLocation("2006-01-02", *r.NextVisitRecommendedDate, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
 	}
@@ -239,6 +239,7 @@ type updateMedicalRecordRequest struct {
 	Status                   *string    `json:"status"      binding:"omitempty,oneof=draft finalized"`
 	Version                  *int       `json:"version"`                     // 楽観的ロック用
 	NextVisitRecommendedDate *string    `json:"next_visit_recommended_date"` // "YYYY-MM-DD" or null
+	VisitType                *string    `json:"visit_type"`                  // "first" | "revisit"
 }
 
 func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (service.UpdateMedicalRecordInput, error) {
@@ -255,23 +256,39 @@ func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (service.Upda
 	}
 
 	var nextVisitDate *time.Time
-	if r.NextVisitRecommendedDate != nil && *r.NextVisitRecommendedDate != "" {
-		parsed, err := time.Parse("2006-01-02", *r.NextVisitRecommendedDate)
-		if err != nil {
-			return service.UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
+	var clearNextVisit bool
+	if r.NextVisitRecommendedDate != nil {
+		if *r.NextVisitRecommendedDate == "" {
+			clearNextVisit = true // 空文字 = 明示的クリア → DB を NULL にする
+		} else {
+			parsed, err := time.ParseInLocation("2006-01-02", *r.NextVisitRecommendedDate, time.Local)
+			if err != nil {
+				return service.UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
+			}
+			nextVisitDate = &parsed
 		}
-		nextVisitDate = &parsed
+	}
+
+	var visitType *model.VisitType
+	if r.VisitType != nil {
+		vt, err := validateEnum(*r.VisitType, model.VisitTypeFirst, model.VisitTypeRevisit)
+		if err != nil {
+			return service.UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid visit_type: " + err.Error())
+		}
+		visitType = &vt
 	}
 
 	return service.UpdateMedicalRecordInput{
-		Date:                     r.Date,
-		OwnerID:                  r.OwnerID,
-		PetID:                    r.PetID,
-		DoctorID:                 r.DoctorID,
-		AppointmentID:            r.AppointmentID,
-		Status:                   status,
-		Version:                  r.Version,
-		NextVisitRecommendedDate: nextVisitDate,
-		ActorID:                  &actorID,
+		Date:                          r.Date,
+		OwnerID:                       r.OwnerID,
+		PetID:                         r.PetID,
+		DoctorID:                      r.DoctorID,
+		AppointmentID:                 r.AppointmentID,
+		Status:                        status,
+		Version:                       r.Version,
+		NextVisitRecommendedDate:      nextVisitDate,
+		ClearNextVisitRecommendedDate: clearNextVisit,
+		VisitType:                     visitType,
+		ActorID:                       &actorID,
 	}, nil
 }

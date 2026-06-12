@@ -1,5 +1,13 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { clinics: [{ clinicId: "1", clinicName: "ノア動物病院", isMain: true }] },
+    currentClinicId: "1",
+    hasPermission: () => true,
+  }),
+}));
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";

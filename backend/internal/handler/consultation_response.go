@@ -37,7 +37,7 @@ func toConsultationResponse(c *model.Consultation) consultationResponse {
 		TaxType:       c.TaxType,
 		TaxRate:       c.TaxRate,
 		SortOrder:     c.SortOrder,
-		CreatedAt:     c.CreatedAt,
-		UpdatedAt:     c.UpdatedAt,
+		CreatedAt:     localTime(c.CreatedAt),
+		UpdatedAt:     localTime(c.UpdatedAt),
 	}
 }

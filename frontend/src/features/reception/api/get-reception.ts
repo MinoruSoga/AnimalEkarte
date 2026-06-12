@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { axios } from "@/lib/axios";
+import { todayJSTISO } from "@/lib/jst-date";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformReservationsToReceptionColumns } from "./transforms";
 import type { Reservation as BackendReceptionReservation } from "@/types/generated/models";
@@ -15,14 +15,14 @@ interface ReservationsResponse {
 
 /** 今日の日付を YYYY-MM-DD 形式で返す */
 export function todayISO(): string {
-  return format(new Date(), "yyyy-MM-dd");
+  return todayJSTISO();
 }
 
 /** 指定日の予約を当日受付用カラム配列として取得 */
 export async function getReception(date: string): Promise<ReceptionColumn[]> {
   const { data } = await axios.get<ReservationsResponse>(
     "/v1/reservations",
-    { params: { date } }
+    { params: { date, limit: 100 } },
   );
   return transformReservationsToReceptionColumns(data.data);
 }

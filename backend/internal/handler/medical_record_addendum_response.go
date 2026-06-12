@@ -26,7 +26,7 @@ func toMedicalRecordAddendumResponse(a *model.MedicalRecordAddendum) MedicalReco
 		BeforeText:      a.BeforeText,
 		AfterText:       a.AfterText,
 		Reason:          a.Reason,
-		CreatedAt:       a.CreatedAt,
+		CreatedAt:       localTime(a.CreatedAt),
 	}
 }
 

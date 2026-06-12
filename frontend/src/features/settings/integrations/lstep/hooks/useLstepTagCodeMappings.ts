@@ -33,7 +33,7 @@ export interface PutTagCodeMappingsRequest {
 // Query key
 // ─────────────────────────────────────────────────
 
-const MAPPINGS_QUERY_KEY = (clinicId: string) =>
+const MAPPINGS_QUERY_KEY = (clinicId: string | null) =>
   ["lstep-tag-code-mappings", clinicId] as const;
 
 // ─────────────────────────────────────────────────
@@ -42,6 +42,9 @@ const MAPPINGS_QUERY_KEY = (clinicId: string) =>
 
 async function fetchTagCodeMappings(): Promise<TagCodeMappingItem[]> {
   const clinicId = getClinicId();
+  if (clinicId === null) {
+    throw new Error("clinic_id is not selected");
+  }
   const { data } = await axios.get<TagCodeMappingItem[]>(
     `/v1/clinics/${clinicId}/lstep-tag-code-mappings`,
   );
@@ -53,6 +56,9 @@ async function putTagCodeMappingsForTag(params: {
   req: PutTagCodeMappingsRequest;
 }): Promise<TagCodeMappingItem[]> {
   const clinicId = getClinicId();
+  if (clinicId === null) {
+    throw new Error("clinic_id is not selected");
+  }
   const { data } = await axios.put<TagCodeMappingItem[]>(
     `/v1/clinics/${clinicId}/lstep-tag-code-mappings/${encodeURIComponent(params.tagName)}`,
     params.req,

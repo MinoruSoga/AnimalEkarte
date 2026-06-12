@@ -151,6 +151,8 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 type PetService interface {
 	List(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	// GetByIDForClinics は複数医院スコープでペットを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
 	Create(ctx context.Context, clinicID uint64, input *CreatePetInput) (*model.Pet, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -196,6 +198,15 @@ func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.P
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get pet")
+	}
+	return pet, nil
+}
+
+func (s *petService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
+	pet, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get pet for clinics", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get pet for clinics")
 	}
 	return pet, nil
 }
@@ -270,36 +281,21 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	if err := s.updatePetFields(ctx, clinicID, id, fields, "failed to update pet", "failed to update pet"); err != nil {
-		return nil, err
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		slog.ErrorContext(ctx, "failed to update pet", "error", err)
+		return nil, apperrors.Wrap(err, "failed to update pet")
 	}
 
 	slog.InfoContext(ctx, "pet updated",
 		slog.Uint64("pet_id", id),
 		slog.Uint64("clinic_id", clinicID))
 
-	pet, err := s.reloadPet(ctx, clinicID, id, "failed to get updated pet", "failed to get updated pet")
-	if err != nil {
-		return nil, err
-	}
-	s.syncLstepTags(ctx, clinicID, pet.OwnerID)
-	return pet, nil
-}
-
-func (s *petService) updatePetFields(ctx context.Context, clinicID, id uint64, fields map[string]any, logMessage, wrapMessage string) error {
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, logMessage, "error", err)
-		return apperrors.Wrap(err, wrapMessage)
-	}
-	return nil
-}
-
-func (s *petService) reloadPet(ctx context.Context, clinicID, id uint64, logMessage, wrapMessage string) (*model.Pet, error) {
 	pet, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, logMessage, "error", err)
-		return nil, apperrors.Wrap(err, wrapMessage)
+		slog.ErrorContext(ctx, "failed to get updated pet", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get updated pet")
 	}
+	s.syncLstepTags(ctx, clinicID, pet.OwnerID)
 	return pet, nil
 }
 

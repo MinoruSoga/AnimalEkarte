@@ -14,7 +14,7 @@ func filterApplicableUnavailableTimes(times []model.ReservationTypeUnavailableTi
 	for i := range times {
 		switch times[i].UnavailableType {
 		case model.UnavailableTypeSpecific:
-			if times[i].SpecificDate != nil && times[i].SpecificDate.UTC().Format("2006-01-02") == dateStr {
+			if times[i].SpecificDate != nil && times[i].SpecificDate.In(jstLocation).Format("2006-01-02") == dateStr {
 				specific = append(specific, times[i])
 			}
 		case model.UnavailableTypeWeekly:

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { PrimaryButton } from '../components/PrimaryButton';
 import type { ReservationFlow } from '../types/models';
+import { formatJapaneseDate } from '../lib/jst-date';
 
 interface CompletePageProps {
   reservationId: number;
@@ -16,14 +17,7 @@ function extractConfirmationNumber(notes: string): string | null {
 }
 
 function formatDate(dateStr: string): string {
-  if (!dateStr) return '';
-  const d = new Date(dateStr + 'T00:00:00');
-  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const w = weekdays[d.getDay()];
-  return `${y}年${m}月${day}日(${w})`;
+  return formatJapaneseDate(dateStr, true);
 }
 
 function formatTime(startTime: string, endTime: string): string {

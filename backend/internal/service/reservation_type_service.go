@@ -18,11 +18,13 @@ type CreateReservationTypeInput struct {
 	Description string
 	SortOrder   int
 	GroupID     *uint64
+	ParentID    *uint64
 	Category    string
 
 	// LINE予約用フィールド
 	ReservationDisplayName string
 	DurationMinutes        *int
+	MaxConcurrent          *int
 	ShortName              string
 	ShowShortName          bool
 	ReservationVisible     *bool
@@ -34,18 +36,22 @@ type CreateReservationTypeInput struct {
 
 // UpdateReservationTypeInput はサービス種別更新のための入力データ（ポインタ型でゼロ値を区別する）
 type UpdateReservationTypeInput struct {
-	Name         *string
-	Color        *string
-	IsActive     *bool
-	Description  *string
-	SortOrder    *int
-	GroupID      *uint64
-	ClearGroupID bool // true のとき group_id を NULL にクリアする
-	Category     *string
+	Name          *string
+	Color         *string
+	IsActive      *bool
+	Description   *string
+	SortOrder     *int
+	GroupID       *uint64
+	ClearGroupID  bool // true のとき group_id を NULL にクリアする
+	ParentID      *uint64
+	ClearParentID bool // true のとき parent_id を NULL にクリアする
+	Category      *string
 
 	// LINE予約用フィールド
 	ReservationDisplayName *string
 	DurationMinutes        *int
+	MaxConcurrent          *int
+	ClearMaxConcurrent     bool // true のとき max_concurrent を NULL にクリアする
 	ShortName              *string
 	ShowShortName          *bool
 	ReservationVisible     *bool

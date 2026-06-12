@@ -1,13 +1,14 @@
 -- =============================================================================
 -- Animal Ekarte - 統合スキーマ定義 v22.1 (consolidated)
 -- PostgreSQL 18
--- テーブル数: 96 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル を統合)
+-- テーブル数: 103 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル + #81キャンペーンテーブル を統合)
 -- 統合内容:
 --   002: マスタシードデータ
 --   003: デモシードデータ
 --   004: ステージングシードデータ
 --   005: clinic_integrations テーブル
 --   006: shared_files テーブル
+--   006b: token_blacklist テーブル
 --   007: owners.line_user_id カラム + インデックス
 --   008: lstep_tag_cache テーブル
 --   009: pets.deceased_at/deceased_reason, owners.lstep_opt_out* カラム
@@ -15,6 +16,7 @@
 --   011: prescriptions テーブル
 --   012: pet_chronic_conditions テーブル
 --   013: line_send_logs テーブル
+--   007a: payment_splits.clinic_id FK
 --   014: reservation_status ENUM に no_show 追加
 --   015: owners.line_followed_at/line_blocked_at カラム
 --   016: line_link_tokens テーブル
@@ -90,6 +92,7 @@ CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected');
 CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'returned');
 CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other', 'vaccine', 'trimming', 'hotel', 'training');
 CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization', 'trimming');
+CREATE TYPE campaign_discount_type AS ENUM ('rate', 'amount');
 
 -- 予約・会計・入院関連
 CREATE TYPE visit_type AS ENUM ('first', 'revisit');
@@ -385,7 +388,25 @@ CREATE INDEX idx_line_link_tokens_owner ON line_link_tokens (clinic_id, owner_id
 COMMENT ON TABLE line_link_tokens IS 'LINE User ID 紐付け用の一時トークン（24時間有効、1回限り使用）。（016 統合）';
 
 -- ------------------------------------
--- 7c. lstep_migration_progress（Lステップ一括同期進捗: 017 統合）
+-- 7c. token_blacklist（refresh_token JTI ブラックリスト: 006b 統合）
+-- ------------------------------------
+CREATE TABLE token_blacklist (
+    jti        TEXT        NOT NULL PRIMARY KEY,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE token_blacklist IS
+    'ログアウト・失効済み refresh_token の JTI ブラックリスト';
+COMMENT ON COLUMN token_blacklist.jti IS
+    'JWT ID クレーム (uuid v4)。PRIMARY KEY なので一意性は保証される';
+COMMENT ON COLUMN token_blacklist.expires_at IS
+    '元 refresh_token の有効期限。これ以降は照合対象から除外してよい（バッチ削除の目安）';
+
+CREATE INDEX idx_token_blacklist_expires_at ON token_blacklist(expires_at);
+
+-- ------------------------------------
+-- 7d. lstep_migration_progress（Lステップ一括同期進捗: 017 統合）
 -- ------------------------------------
 CREATE TABLE lstep_migration_progress (
     id            BIGSERIAL    PRIMARY KEY,
@@ -406,7 +427,7 @@ CREATE INDEX idx_lstep_migration_progress_clinic_id
 COMMENT ON TABLE lstep_migration_progress IS '既存飼い主データ一括同期の進捗管理テーブル（017 統合）';
 
 -- ------------------------------------
--- 7d. lstep_settings（Lステップ同期設定: ext-007 統合）
+-- 7e. lstep_settings（Lステップ同期設定: ext-007 統合）
 -- ------------------------------------
 CREATE TABLE lstep_settings (
     id               BIGSERIAL    PRIMARY KEY,
@@ -422,7 +443,7 @@ CREATE INDEX idx_lstep_settings_clinic_id ON lstep_settings (clinic_id);
 COMMENT ON TABLE lstep_settings IS 'クリニックごとのLステップ同期設定（ext-007 統合）';
 
 -- ------------------------------------
--- 7e. lstep_sync_error_counters（Lステップ同期エラーカウンター: ext-008 統合）
+-- 7f. lstep_sync_error_counters（Lステップ同期エラーカウンター: ext-008 統合）
 -- ------------------------------------
 CREATE TABLE lstep_sync_error_counters (
     id            BIGSERIAL    PRIMARY KEY,
@@ -439,7 +460,7 @@ CREATE INDEX idx_lstep_sync_error_counters_clinic_owner ON lstep_sync_error_coun
 COMMENT ON TABLE lstep_sync_error_counters IS 'Lステップ同期APIの連続失敗回数を記録するカウンター（ext-008 統合）';
 
 -- ------------------------------------
--- 7f. lstep_tag_code_mappings（Lステップタグコードマッピング: ext-010 統合）
+-- 7g. lstep_tag_code_mappings（Lステップタグコードマッピング: ext-010 統合）
 -- ------------------------------------
 CREATE TABLE lstep_tag_code_mappings (
     id            BIGSERIAL    PRIMARY KEY,
@@ -461,7 +482,7 @@ CREATE UNIQUE INDEX idx_lstep_tag_code_mappings_clinic_tag_type
 COMMENT ON TABLE lstep_tag_code_mappings IS 'Lステップタグ → 診療コード の対応マスタ（ext-010 統合）';
 
 -- ------------------------------------
--- 7f-2. lstep_trigger_priorities（Q23 配信衝突優先順位: mig-008 統合）
+-- 7g-2. lstep_trigger_priorities（Q23 配信衝突優先順位: mig-008 統合）
 -- ------------------------------------
 CREATE TABLE lstep_trigger_priorities (
     id           BIGSERIAL PRIMARY KEY,
@@ -480,7 +501,7 @@ COMMENT ON TABLE lstep_trigger_priorities IS 'Q23 配信トリガー優先順位
 COMMENT ON COLUMN lstep_trigger_priorities.priority IS '小さいほど優先 (1=最優先)。同日複数トリガー発火時、MIN(priority) のみ実配信';
 
 -- ------------------------------------
--- 7g. lstep_delivery_trigger_log（Lステップ配信トリガーログ: ext-012 統合）
+-- 7h. lstep_delivery_trigger_log（Lステップ配信トリガーログ: ext-012 統合）
 -- ------------------------------------
 CREATE TABLE lstep_delivery_trigger_log (
     id               BIGSERIAL    PRIMARY KEY,
@@ -510,7 +531,7 @@ COMMENT ON COLUMN lstep_delivery_trigger_log.suppressed_by_priority IS 'Q23 優�
 COMMENT ON COLUMN lstep_delivery_trigger_log.suppression_reason IS '抑制理由 (例: "owner_id=42 already triggered by dormant_365d at 2026-05-11")';
 
 -- ------------------------------------
--- 7h. lstep_csv_imports（Lステップ CSV インポート: ext-017 統合）
+-- 7i. lstep_csv_imports（Lステップ CSV インポート: ext-017 統合）
 -- ------------------------------------
 CREATE TABLE lstep_csv_imports (
     id                  uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -533,7 +554,7 @@ CREATE INDEX idx_lstep_csv_imports_clinic_imported
 COMMENT ON TABLE lstep_csv_imports IS 'Lステップ友だち属性CSVのインポート履歴（ext-017 統合）';
 
 -- ------------------------------------
--- 7i. lstep_friend_attribute_snapshots（Lステップ友だち属性スナップショット: ext-018 統合）
+-- 7j. lstep_friend_attribute_snapshots（Lステップ友だち属性スナップショット: ext-018 統合）
 -- ------------------------------------
 CREATE TABLE lstep_friend_attribute_snapshots (
     id                BIGSERIAL    PRIMARY KEY,
@@ -561,7 +582,7 @@ CREATE INDEX idx_lstep_friend_attribute_snapshots_clinic_taken
 COMMENT ON TABLE lstep_friend_attribute_snapshots IS 'Lステップ友だちの属性スナップショット（CSVインポート経由、ext-018 統合）';
 
 -- ------------------------------------
--- 7j. lstep_auto_managed_prefixes（自動管理タグプレフィックス: mig-010 統合）
+-- 7k. lstep_auto_managed_prefixes（自動管理タグプレフィックス: mig-010 統合）
 -- B / C1 / C2 / C3 カテゴリのプレフィックスをコード固定から DB 管理へ移行
 -- ------------------------------------
 CREATE TABLE lstep_auto_managed_prefixes (
@@ -578,7 +599,7 @@ CREATE INDEX idx_lstep_auto_managed_prefixes_category ON lstep_auto_managed_pref
 COMMENT ON TABLE lstep_auto_managed_prefixes IS 'Lステップ自動管理タグプレフィックス (B / C1 / C2 / C3、mig-010 統合)';
 
 -- ------------------------------------
--- 7k. lstep_condition_tag_mappings（慢性疾患コード→タグ名マッピング: mig-010 統合）
+-- 7l. lstep_condition_tag_mappings（慢性疾患コード→タグ名マッピング: mig-010 統合）
 -- ------------------------------------
 CREATE TABLE lstep_condition_tag_mappings (
     id             BIGSERIAL    PRIMARY KEY,
@@ -592,7 +613,7 @@ CREATE TABLE lstep_condition_tag_mappings (
 COMMENT ON TABLE lstep_condition_tag_mappings IS '慢性疾患コード→Lステップタグ名マッピング (mig-010 統合)';
 
 -- ------------------------------------
--- 7l. lstep_send_purpose_tag_prefixes（LINE送信目的→タグプレフィックスマッピング: mig-010 統合）
+-- 7m. lstep_send_purpose_tag_prefixes（LINE送信目的→タグプレフィックスマッピング: mig-010 統合）
 -- ------------------------------------
 CREATE TABLE lstep_send_purpose_tag_prefixes (
     id          BIGSERIAL    PRIMARY KEY,
@@ -774,6 +795,8 @@ CREATE TABLE reservation_types (
     reservation_visible      boolean     NOT NULL DEFAULT true,
     reservation_comment      text        NOT NULL DEFAULT '',
     reservation_image_url    text        NOT NULL DEFAULT '',
+    parent_id               bigint               REFERENCES reservation_types(id) ON DELETE RESTRICT,
+    max_concurrent          integer              CHECK (max_concurrent > 0),
     reservation_day_option   text                        NOT NULL DEFAULT 'none',
     is_internal              boolean                     NOT NULL DEFAULT false,
     category                 reservation_type_category   NOT NULL DEFAULT 'general',
@@ -783,6 +806,13 @@ CREATE TABLE reservation_types (
 );
 
 CREATE INDEX idx_reservation_types_group_id ON reservation_types(group_id);
+COMMENT ON COLUMN reservation_types.parent_id IS
+  '親予約区分ID。NULL はルートノード（トップレベル）';
+COMMENT ON COLUMN reservation_types.max_concurrent IS
+  '同一開始時刻の最大同時受付件数。NULL は無制限（従来動作）';
+CREATE INDEX idx_reservation_types_parent
+  ON reservation_types(parent_id)
+  WHERE parent_id IS NOT NULL AND deleted_at IS NULL;
 
 -- ------------------------------------
 -- 16b. reservation_type_available_slots（予約区分予約可能開始時刻）
@@ -1830,6 +1860,8 @@ CREATE TABLE billing_items (
     appointment_id          bigint                 REFERENCES appointments(id) ON DELETE SET NULL,
     trimming_course_id      bigint                 REFERENCES trimming_courses(id) ON DELETE SET NULL,
     trimming_option_id      bigint                 REFERENCES trimming_options(id) ON DELETE SET NULL,
+    discount_rate           numeric(5,2)           NOT NULL DEFAULT 0,
+    discount_amount         bigint                 NOT NULL DEFAULT 0,
     sort_order              integer                DEFAULT 0,
     created_at              timestamptz   NOT NULL DEFAULT now(),
     updated_at              timestamptz   NOT NULL DEFAULT now(),
@@ -1893,7 +1925,11 @@ CREATE TABLE payment_splits (
     received_amount   bigint       NOT NULL DEFAULT 0,
     change_amount     bigint       NOT NULL DEFAULT 0,
     paid_by           bigint       REFERENCES staffs(id),
-    created_at        timestamptz  NOT NULL DEFAULT now()
+    created_at        timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT fk_payment_splits_clinic_id
+    FOREIGN KEY (clinic_id)
+    REFERENCES clinics (id)
+    ON DELETE RESTRICT
 );
 
 CREATE INDEX idx_payment_splits_clinic_billing ON payment_splits(clinic_id, billing_id);
@@ -2418,6 +2454,8 @@ COMMENT ON TABLE staff_notes IS 'スタッフノート';
 COMMENT ON TABLE appointment_trimming_options IS 'トリミング予約オプション適用';
 COMMENT ON TABLE billings IS '会計';
 COMMENT ON TABLE billing_items IS '会計明細';
+COMMENT ON COLUMN billing_items.discount_rate   IS '#85: 項目別割引率(%)';
+COMMENT ON COLUMN billing_items.discount_amount IS '#85: 項目別割引額(円)';
 COMMENT ON TABLE payments IS '支払い情報';
 COMMENT ON TABLE billing_refunds IS '返金レコード（Stripe モデル）';
 COMMENT ON TABLE shift_entries IS 'スタッフシフト';
@@ -2440,6 +2478,7 @@ COMMENT ON TABLE medical_record_addenda               IS 'カルテテキスト�
 COMMENT ON TABLE pet_chronic_conditions               IS '慢性疾患フラグ管理テーブル（012 統合）';
 COMMENT ON TABLE line_send_logs                       IS 'LINE送信ログ（013 統合）';
 COMMENT ON TABLE line_link_tokens                     IS 'LINE User ID 紐付け用の一時トークン（016 統合）';
+COMMENT ON TABLE token_blacklist                      IS 'ログアウト・失効済み refresh_token の JTI ブラックリスト（006b 統合）';
 COMMENT ON TABLE lstep_csv_imports                    IS 'Lステップ友だち属性CSVのインポート履歴（ext-017 統合）';
 COMMENT ON TABLE lstep_friend_attribute_snapshots     IS 'Lステップ友だちの属性スナップショット（ext-018 統合）';
 COMMENT ON TABLE lstep_migration_progress             IS '既存飼い主データ一括同期の進捗管理テーブル（017 統合）';
@@ -2757,3 +2796,46 @@ CREATE TABLE manual_article_versions (
 CREATE INDEX idx_manual_article_versions_article ON manual_article_versions(article_id, edited_at DESC);
 
 COMMENT ON TABLE manual_article_versions IS 'マニュアル編集履歴（編集ごとに過去版を保持）';
+
+-- ------------------------------------
+-- #81: キャンペーン割引マスタ
+-- ------------------------------------
+CREATE TABLE campaigns (
+    id              BIGSERIAL              PRIMARY KEY,
+    clinic_id       bigint                 NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name            text                   NOT NULL DEFAULT '',
+    start_date      date                   NOT NULL,
+    end_date        date                   NOT NULL,
+    discount_type   campaign_discount_type NOT NULL DEFAULT 'rate',
+    discount_value  numeric(12,2)          NOT NULL DEFAULT 0,
+    is_active       boolean                NOT NULL DEFAULT true,
+    sort_order      integer                NOT NULL DEFAULT 0,
+    created_at      timestamptz            NOT NULL DEFAULT now(),
+    updated_at      timestamptz            NOT NULL DEFAULT now(),
+    deleted_at      timestamptz,
+    CONSTRAINT chk_campaigns_period CHECK (end_date >= start_date)
+);
+
+CREATE TABLE campaign_target_categories (
+    id          BIGSERIAL     PRIMARY KEY,
+    campaign_id bigint        NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    category    item_category NOT NULL,
+    CONSTRAINT uq_campaign_target_categories UNIQUE (campaign_id, category)
+);
+
+CREATE TABLE campaign_target_items (
+    id                  BIGSERIAL PRIMARY KEY,
+    campaign_id         bigint    NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    merchandise_item_id bigint    NOT NULL REFERENCES merchandise_items(id) ON DELETE CASCADE,
+    CONSTRAINT uq_campaign_target_items UNIQUE (campaign_id, merchandise_item_id)
+);
+
+CREATE INDEX idx_campaigns_clinic         ON campaigns(clinic_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_campaigns_clinic_period  ON campaigns(clinic_id, start_date, end_date) WHERE deleted_at IS NULL;
+CREATE INDEX idx_campaign_target_categories_campaign ON campaign_target_categories(campaign_id);
+CREATE INDEX idx_campaign_target_items_campaign      ON campaign_target_items(campaign_id);
+CREATE INDEX idx_campaign_target_items_merchandise   ON campaign_target_items(merchandise_item_id);
+
+COMMENT ON TABLE campaigns IS '#81: 割引キャンペーンマスタ(期間・割引種別/値)';
+COMMENT ON TABLE campaign_target_categories IS '#81: キャンペーン対象カテゴリ(Q1=D カテゴリ単位指定)';
+COMMENT ON TABLE campaign_target_items IS '#81: キャンペーン対象商品(Q1=D 個別商品指定)';

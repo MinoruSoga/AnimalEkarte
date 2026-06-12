@@ -50,8 +50,8 @@ func toTreatmentResponse(t *model.Treatment) treatmentResponse {
 		DiscountRate:    t.DiscountRate,
 		DiscountAmount:  t.DiscountAmount,
 		SortOrder:       t.SortOrder,
-		CreatedAt:       t.CreatedAt,
-		UpdatedAt:       t.UpdatedAt,
+		CreatedAt:       localTime(t.CreatedAt),
+		UpdatedAt:       localTime(t.UpdatedAt),
 	}
 }
 

@@ -27,7 +27,7 @@ describe('AggregationFilterPanel', () => {
       />
     );
 
-    expect(screen.getByPlaceholderText('飼い主名を検索...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('飼主名を検索...')).toBeInTheDocument();
   });
 
   it('should render revenue-specific filters', () => {
@@ -109,7 +109,7 @@ describe('AggregationFilterPanel', () => {
       />
     );
 
-    const searchInput = screen.getByPlaceholderText('飼い主名を検索...');
+    const searchInput = screen.getByPlaceholderText('飼主名を検索...');
     await user.type(searchInput, '田中');
 
     await waitFor(() => {

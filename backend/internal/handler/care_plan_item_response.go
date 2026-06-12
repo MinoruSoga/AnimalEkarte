@@ -44,8 +44,8 @@ func toCarePlanItemResponse(item *model.CarePlanItem) carePlanItemResponse {
 		UnitPrice:         item.UnitPrice,
 		Category:          item.Category,
 		SortOrder:         item.SortOrder,
-		CreatedAt:         item.CreatedAt,
-		UpdatedAt:         item.UpdatedAt,
+		CreatedAt:         localTime(item.CreatedAt),
+		UpdatedAt:         localTime(item.UpdatedAt),
 	}
 	if item.MedicineID != nil {
 		s := strconv.FormatUint(*item.MedicineID, 10)

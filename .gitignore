@@ -93,3 +93,5 @@ tables.txt
 
 # Codegraph index (生成キャッシュ・ランタイム成果物。57MB の SQLite DB / socket / daemon ログ)
 .codegraph/
+.env.staging
+.env.local

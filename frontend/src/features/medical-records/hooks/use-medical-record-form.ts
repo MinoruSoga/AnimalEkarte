@@ -8,8 +8,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
-import { useCreateReservation } from "@/features/reservations/api/create-reservation";
-import { useGetReservations } from "@/features/reservations/api/get-reservations";
+import { useCreateReservation, useGetReservations } from "@/features/reservations";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
@@ -33,6 +32,7 @@ import {
   formatJSTDate,
   normalizeAppointmentId,
   normalizeVisitDate,
+  toVisitTypeValue,
 } from "./use-medical-record-form-model";
 
 export function useMedicalRecordForm(recordId?: string) {
@@ -84,6 +84,8 @@ export function useMedicalRecordForm(recordId?: string) {
     setTreatmentPolicy,
     setPlan,
     setAssessment,
+    setVisitType,
+    setNextVisitDate,
   });
 
   // petIdを決定: 新規作成時はURLパラメータ、編集時はカルテのpetId
@@ -169,13 +171,14 @@ export function useMedicalRecordForm(recordId?: string) {
               diagnosis_2_name_id: diagnosis2NameId ?? undefined,
             };
             await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
-            // 次回来院推奨日を更新（空欄の場合は送信しない）
-            if (nextVisitDate) {
-              await updateMutation.mutateAsync({
-                id: recordId as string,
-                req: { next_recommended_visit_date: nextVisitDate } as UpdateMedicalRecordRequest,
-              });
-            }
+            // 次回来院推奨日を更新（空欄 = クリア、値あり = 設定）
+            await updateMutation.mutateAsync({
+              id: recordId as string,
+              req: {
+                next_visit_recommended_date: nextVisitDate, // "" はBEでNULLクリア
+                version: existingRecord?.version,
+              } as UpdateMedicalRecordRequest,
+            });
             break;
           }
 
@@ -225,6 +228,76 @@ export function useMedicalRecordForm(recordId?: string) {
       }
     });
   };
+
+  // 来院種別変更ハンドラ（即時PATCH）
+  // existingRecord?.version のみ参照するため object 全体を dep に含めない (OCC versioning)
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const handleVisitTypeChange = useCallback((newVisitType: string) => {
+    const prevVisitType = visitType;
+    setVisitType(newVisitType);
+    if (!recordId) return; // 新規作成時はローカルstateのみ
+    startSaveTransition(async () => {
+      try {
+        await updateMutation.mutateAsync({
+          id: recordId,
+          req: {
+            visit_type: toVisitTypeValue(newVisitType),
+            version: existingRecord?.version,
+          } as UpdateMedicalRecordRequest,
+        });
+        toast.success(`来院種別を ${newVisitType} に変更しました`);
+      } catch (error) {
+        setVisitType(prevVisitType); // H-1: rollback on PATCH failure
+        handleApiError(error, "来院種別変更");
+      }
+    });
+  }, [visitType, recordId, existingRecord?.version, updateMutation, startSaveTransition]);
+
+  // 次回予定変更ハンドラ（ヘッダー NextVisitButton 用・即時PATCH）
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const handleNextVisitDatePatch = useCallback((newDate: string) => {
+    const prev = nextVisitDate;
+    setNextVisitDate(newDate);
+    if (!recordId) return;
+    startSaveTransition(async () => {
+      try {
+        await updateMutation.mutateAsync({
+          id: recordId,
+          req: {
+            next_visit_recommended_date: newDate, // "" = クリア
+            version: existingRecord?.version,
+          } as UpdateMedicalRecordRequest,
+        });
+        await queryClient.invalidateQueries({ queryKey: ["medical-record", recordId] });
+        toast.success(newDate ? `次回予定を ${newDate} に設定しました` : "次回予定をクリアしました");
+      } catch (error) {
+        setNextVisitDate(prev); // rollback
+        handleApiError(error, "次回予定変更");
+      }
+    });
+  }, [nextVisitDate, recordId, existingRecord?.version, updateMutation, queryClient, startSaveTransition]);
+
+  // 診察日変更ハンドラ
+  // existingRecord?.version のみ参照するため object 全体を dep に含めない (OCC versioning)
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const handleChangeDate = useCallback((newDate: string) => {
+    if (!recordId) return;
+    startSaveTransition(async () => {
+      try {
+        await updateMutation.mutateAsync({
+          id: recordId,
+          req: {
+            date: `${newDate}T00:00:00+09:00`,
+            version: existingRecord?.version,
+          } as UpdateMedicalRecordRequest,
+        });
+        await queryClient.invalidateQueries({ queryKey: ["medical-record", recordId] });
+        toast.success(`診察日を ${newDate} に変更しました`);
+      } catch (error) {
+        handleApiError(error, "診察日変更");
+      }
+    });
+  }, [recordId, existingRecord?.version, updateMutation, queryClient, startSaveTransition]);
 
   const {
     pendingOwnerChange,
@@ -306,6 +379,11 @@ export function useMedicalRecordForm(recordId?: string) {
     visitCount: existingRecord?.visitCount,
     // 担当医変更
     handleChangeDoctor,
+    // 来院種別変更
+    handleVisitTypeChange,
+    // 診察日
+    recordDate: existingRecord?.date,
+    handleChangeDate,
     // 飼主変更
     pendingOwnerChange,
     requestOwnerChange,
@@ -315,6 +393,7 @@ export function useMedicalRecordForm(recordId?: string) {
     // 次回来院推奨日
     nextVisitDate,
     handleNextVisitDateChange: setNextVisitDate,
+    handleNextVisitDatePatch,
     isNextVisitDateValid,
     handleNextVisitDateValidChange: setIsNextVisitDateValid,
     // 推奨理由: edit mode は existingRecord から、create mode は local state から

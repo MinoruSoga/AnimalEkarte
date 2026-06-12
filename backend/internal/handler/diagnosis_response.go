@@ -25,8 +25,8 @@ func toDiagnosisTypeResponse(c *model.DiagnosisType) diagnosisTypeResponse {
 		IsActive:    c.IsActive,
 		Description: c.Description,
 		SortOrder:   c.SortOrder,
-		CreatedAt:   c.CreatedAt,
-		UpdatedAt:   c.UpdatedAt,
+		CreatedAt:   localTime(c.CreatedAt),
+		UpdatedAt:   localTime(c.UpdatedAt),
 	}
 }
 
@@ -51,7 +51,7 @@ func toDiagnosisNameResponse(n *model.DiagnosisName) diagnosisNameResponse {
 		Description:     n.Description,
 		DiagnosisTypeID: n.DiagnosisTypeID,
 		SortOrder:       n.SortOrder,
-		CreatedAt:       n.CreatedAt,
-		UpdatedAt:       n.UpdatedAt,
+		CreatedAt:       localTime(n.CreatedAt),
+		UpdatedAt:       localTime(n.UpdatedAt),
 	}
 }

@@ -42,7 +42,7 @@ LIFF アプリ内の主要な 4 つのフェーズを個別に編集可能です
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
-| GET | `/api/v1/line-reservation-settings/pages` | 現行のページ設定一括取得。 |
-| PATCH | `/api/v1/line-reservation-settings/pages/:id` | 特定セクションの文言更新。 |
+| GET | `/api/v1/clinics/:clinic_id/line-reservation-settings` | LINE予約設定（文言含む）を取得。 |
+| PUT | `/api/v1/clinics/:clinic_id/line-reservation-settings` | LINE予約ページ文言を含む設定更新。 |
 
 ---

@@ -15,7 +15,9 @@ type reservationTypeLiffResponse struct {
 	IsActive             bool      `json:"is_active"`
 	Description          string    `json:"description"`
 	SortOrder            int       `json:"sort_order"`
+	ParentID             *uint64   `json:"parent_id,omitempty"`
 	DurationMinutes      int       `json:"duration_minutes"`
+	MaxConcurrent        *int      `json:"max_concurrent,omitempty"`
 	ShortName            string    `json:"short_name"`
 	ShowShortName        bool      `json:"show_short_name"`
 	ReservationVisible   bool      `json:"reservation_visible"`
@@ -37,7 +39,9 @@ func toReservationTypeLiffResponse(st *model.ReservationType) reservationTypeLif
 		IsActive:             st.IsActive,
 		Description:          st.Description,
 		SortOrder:            st.SortOrder,
+		ParentID:             st.ParentID,
 		DurationMinutes:      st.DurationMinutes,
+		MaxConcurrent:        st.MaxConcurrent,
 		ShortName:            st.ShortName,
 		ShowShortName:        st.ShowShortName,
 		ReservationVisible:   st.ReservationVisible,
@@ -45,7 +49,7 @@ func toReservationTypeLiffResponse(st *model.ReservationType) reservationTypeLif
 		ReservationImageURL:  st.ReservationImageURL,
 		ReservationDayOption: string(st.ReservationDayOption),
 		IsInternal:           st.IsInternal,
-		CreatedAt:            st.CreatedAt,
-		UpdatedAt:            st.UpdatedAt,
+		CreatedAt:            localTime(st.CreatedAt),
+		UpdatedAt:            localTime(st.UpdatedAt),
 	}
 }

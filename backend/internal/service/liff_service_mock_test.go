@@ -56,6 +56,10 @@ func (m *mockLiffTypeRepository) FindByID(ctx context.Context, clinicID, id uint
 	return nil, apperrors.ErrNotFound
 }
 
+func (m *mockLiffTypeRepository) CountChildrenByParentID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func (m *mockLiffTypeRepository) Create(_ context.Context, _ *model.ReservationType) error {
 	return nil
 }
@@ -275,11 +279,15 @@ type mockLiffOwnerRepository struct {
 	findByNameAndPhoneFn func(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error)
 }
 
-func (m *mockLiffOwnerRepository) FindAll(_ context.Context, _ uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+func (m *mockLiffOwnerRepository) FindAll(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
 	return nil, 0, nil
 }
 
 func (m *mockLiffOwnerRepository) FindByID(_ context.Context, _, _ uint64) (*model.Owner, error) {
+	return nil, apperrors.ErrNotFound
+}
+
+func (m *mockLiffOwnerRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
 	return nil, apperrors.ErrNotFound
 }
 
@@ -341,11 +349,15 @@ type mockLiffReservationRepository struct {
 	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 }
 
-func (m *mockLiffReservationRepository) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+func (m *mockLiffReservationRepository) FindAll(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
 }
 
 func (m *mockLiffReservationRepository) FindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+	return nil, apperrors.ErrNotFound
+}
+
+func (m *mockLiffReservationRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
 	return nil, apperrors.ErrNotFound
 }
 
@@ -389,6 +401,10 @@ func (m *mockLiffReservationRepository) CountOnDutyDoctors(_ context.Context, _ 
 }
 
 func (m *mockLiffReservationRepository) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockLiffReservationRepository) CountByTypeAndStartTime(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (int64, error) {
 	return 0, nil
 }
 

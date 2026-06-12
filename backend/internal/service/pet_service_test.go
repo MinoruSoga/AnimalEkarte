@@ -35,6 +35,10 @@ func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 	return nil, nil
 }
 
+func (m *mockPetRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Pet, error) {
+	return nil, nil
+}
+
 func (m *mockPetRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	if m.countByOwnerFn != nil {
 		return m.countByOwnerFn(ctx, clinicID, ownerID)

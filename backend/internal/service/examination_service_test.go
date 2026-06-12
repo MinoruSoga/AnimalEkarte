@@ -77,7 +77,11 @@ func (m *mockMedicalRecordRepositoryForExam) FindByID(ctx context.Context, clini
 	return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 }
 
-func (m *mockMedicalRecordRepositoryForExam) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (m *mockMedicalRecordRepositoryForExam) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
 	return nil, 0, nil
 }
 
@@ -139,6 +143,10 @@ func (m *mockMedicalRecordRepositoryForExam) FindOwnersByPetAgeRange(ctx context
 
 func (m *mockMedicalRecordRepositoryForExam) FindLastVisitDateByOwner(ctx context.Context, clinicID, ownerID uint64) (*time.Time, error) {
 	return nil, nil
+}
+
+func (m *mockMedicalRecordRepositoryForExam) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
+	return nil
 }
 
 func TestExaminationService_List(t *testing.T) {

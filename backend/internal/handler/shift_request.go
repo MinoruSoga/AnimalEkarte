@@ -39,7 +39,7 @@ func (q onDutyStaffsQuery) toDate() (time.Time, error) {
 	if q.Date == "" {
 		return time.Time{}, fmt.Errorf("date query parameter is required (YYYY-MM-DD)")
 	}
-	date, err := time.Parse(shiftDateLayout, q.Date)
+	date, err := time.ParseInLocation(shiftDateLayout, q.Date, time.Local)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("invalid date format: expected YYYY-MM-DD")
 	}
@@ -86,7 +86,7 @@ type createShiftRequest struct {
 }
 
 func (r *createShiftRequest) toServiceInput() (*service.CreateShiftEntryInput, error) {
-	date, err := time.Parse(shiftDateLayout, r.Date)
+	date, err := time.ParseInLocation(shiftDateLayout, r.Date, time.Local)
 	if err != nil {
 		return nil, fmt.Errorf("invalid date: use YYYY-MM-DD")
 	}

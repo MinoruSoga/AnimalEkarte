@@ -37,7 +37,7 @@ func toInventoryResponse(item *model.InventoryItem) inventoryResponse {
 		Supplier:      item.Supplier,
 		LastRestocked: item.LastRestocked,
 		Status:        string(item.Status),
-		CreatedAt:     item.CreatedAt,
-		UpdatedAt:     item.UpdatedAt,
+		CreatedAt:     localTime(item.CreatedAt),
+		UpdatedAt:     localTime(item.UpdatedAt),
 	}
 }

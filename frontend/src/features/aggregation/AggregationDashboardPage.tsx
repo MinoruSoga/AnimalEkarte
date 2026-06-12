@@ -6,6 +6,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { Button } from "@/components/ui/button";
 import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 import { useGetOwnerAggregations, type AggregationParams, type AggregationOwner } from "./api/get-aggregations";
 import { AggregationFilterPanel } from "./AggregationFilterPanel";
 import { AggregationOwnerTable } from "./AggregationOwnerTable";
@@ -18,7 +19,7 @@ export const DEFAULT_AGGREGATION_TAB: AggregationTab = "revenue";
 
 const AGGREGATION_TABS: readonly AggregationTab[] = ["revenue", "visit", "last_visit"] as const;
 
-const CURRENT_YEAR = new Date().getFullYear();
+const CURRENT_YEAR = Number(todayJSTISO().slice(0, 4));
 
 const TAB_DEFAULT_PARAMS: Record<AggregationTab, AggregationParams> = {
   revenue: {
@@ -76,7 +77,7 @@ const CSV_COLUMNS: Record<AggregationTab, CsvColumnDef[]> = {
     { header: "last_visit_date", getValue: (o) => o.last_visit_date ?? "" },
     { header: "first_visit_date", getValue: (o) => o.first_visit_date ?? "" },
   ],
-  // 仕様書 §4.3 表示項目に合わせる: 飼い主名 / 最終来院日 / 経過日数 / 分類 / 累計来院回数 / 年間来院回数 / 累計診療費
+  // 仕様書 §4.3 表示項目に合わせる: 飼主名 / 最終来院日 / 経過日数 / 分類 / 累計来院回数 / 年間来院回数 / 累計診療費
   // 画面 (TAB_SPECIFIC_COLUMNS.last_visit) と1対1で揃えること。drift 防止。
   last_visit: [
     ...CSV_COMMON_COLUMNS,
@@ -216,7 +217,7 @@ export function AggregationDashboardPage() {
     // 誤操作防止: 選択 0 件のときは早期 return（disabled 属性と二重で防御）
     if (selectedCount === 0) return;
     const csv = buildCsvContent(selectedOwners, activeTab);
-    const date = new Date().toISOString().slice(0, 10);
+    const date = todayJSTISO();
     downloadCsv(csv, `aggregation-${activeTab}-${date}.csv`);
   }, [selectedCount, selectedOwners, activeTab]);
 

@@ -14,8 +14,11 @@ import (
 // ReservationCRUDRepository はコア CRUD 操作（5 メソッド）。
 // reservation_service / trimming_service / liff_service で使用。
 type ReservationCRUDRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
+	// FindAll は指定した複数医院 (#86 拠点横断) の予約を検索する。clinicIDs はハンドラ層で所属検証済みであること。
+	FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	// FindByIDForClinics は複数医院スコープで予約を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, reservation *model.Reservation) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -32,6 +35,8 @@ type ReservationSlotRepository interface {
 	CountOnDutyDoctors(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
 	// CountConflicts は時間枠の競合予約数を SELECT FOR UPDATE で返す。
 	CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
+	// CountByTypeAndStartTime は同一予約区分・同一開始時刻の予約件数を返す。
+	CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 }
 
 // ReservationQueryRepository はクロスフィーチャーのクエリ・依存チェック（6 メソッド）。
@@ -70,15 +75,25 @@ func NewReservationRepository(db *gorm.DB) ReservationRepository {
 	return &reservationRepository{db: db}
 }
 
-func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
+func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
 	reservations := make([]model.Reservation, 0)
 	var total int64
 
-	q := dbOrTx(ctx, r.db).Model(&model.Reservation{}).Scopes(clinicScope(clinicID))
-	if date != nil {
+	// フェイルセーフ: 検証バグ等で空スライスが渡っても全件露出させない
+	if len(clinicIDs) == 0 {
+		return reservations, 0, nil
+	}
+
+	q := dbOrTx(ctx, r.db).Model(&model.Reservation{}).Scopes(clinicScopeIn(clinicIDs))
+	switch {
+	case date != nil:
+		// 単日フィルタ（当日受付など）
 		start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 		end := start.Add(24 * time.Hour)
 		q = q.Where("start_time >= ? AND start_time < ?", start, end)
+	case startDate != nil && endDate != nil:
+		// 期間レンジフィルタ（予約管理カレンダーの表示中の週/月）。endDate は排他的上限
+		q = q.Where("start_time >= ? AND start_time < ?", *startDate, *endDate)
 	}
 	if status != nil {
 		q = q.Where("status = ?", *status)
@@ -95,7 +110,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
-	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("ReservationType", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
+	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("ReservationType", "deleted_at IS NULL").Preload("ReservationType.Group", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
@@ -103,6 +118,15 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 }
 
 func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
+	return r.findReservationByID(ctx, clinicScope(clinicID), id)
+}
+
+func (r *reservationRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
+	return r.findReservationByID(ctx, clinicScopeIn(clinicIDs), id)
+}
+
+// findReservationByID は scope（単一/複数クリニック）を受け取り予約を1件取得する共通実装。
+func (r *reservationRepository) findReservationByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.Reservation, error) {
 	var reservation model.Reservation
 	err := dbOrTx(ctx, r.db).
 		Preload("Owner", "deleted_at IS NULL").
@@ -110,9 +134,10 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		Preload("Pet.Owner", "deleted_at IS NULL").
 		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("ReservationType.Group", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CreatedByStaff", "deleted_at IS NULL").
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&reservation).Error
+		Scopes(scope).Where("id = ?", id).First(&reservation).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}
@@ -275,6 +300,20 @@ func (r *reservationRepository) CountConflicts(ctx context.Context, clinicID uin
 		return 0, apperrors.Wrap(err, "lock reservations for capacity check")
 	}
 	return int64(len(existing)), nil
+}
+
+func (r *reservationRepository) CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
+	var count int64
+	q := dbOrTx(ctx, r.db).Model(&model.Reservation{}).
+		Where("clinic_id = ? AND reservation_type_id = ? AND start_time = ? AND status NOT IN ('cancelled') AND deleted_at IS NULL",
+			clinicID, reservationTypeID, startTime)
+	if excludeID != nil {
+		q = q.Where("id != ?", *excludeID)
+	}
+	if err := q.Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "reservation", "")
+	}
+	return count, nil
 }
 
 // CountByCustomerAndDateRange は顧客・期間での予約件数を返す。

@@ -4,8 +4,9 @@
 - **画面の目的**: Lステップ（LINE公式アカウント拡張ツール）との高度な連携設定、自動配信タグの管理、およびマーケティング施策の効果分析。
 - **URLパターン**: 
   - 連携設定: `/settings/integrations/lstep`
-  - タグ管理: `/lstep/tags`
+  - タグ管理: `/settings/lstep/tags`
   - 健診対象者抽出: `/lstep/checkup-sync`
+  - 分析レポート: `/lstep/analytics`
 - **アクセス権限**: 外部連携管理権限が必要（`ResourceHospitalSettings`）
 
 ---
@@ -46,9 +47,30 @@
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
-| GET | `/api/v1/lstep-settings` | 連携設定と判定閾値の取得。 |
-| GET | `/api/v1/lstep/tags/summary` | 現在のタグ保有者数の統計取得。 |
-| POST | `/api/v1/lstep/checkup-sync` | 指定条件の対象者へのタグ一括付与。 |
-| GET | `/api/v1/lstep/analytics/conversion` | 来院転換データの集計。 |
+| GET | `/api/v1/clinics/:clinic_id/lstep-settings` | 連携設定と判定閾値の取得。 |
+| PATCH | `/api/v1/clinics/:clinic_id/lstep-settings` | 連携設定の更新。 |
+| DELETE | `/api/v1/clinics/:clinic_id/lstep-settings` | 連携設定の削除。 |
+| POST | `/api/v1/clinics/:clinic_id/lstep-settings/test-connection` | 接続テスト。 |
+| GET | `/api/v1/clinics/:clinic_id/lstep/trigger-priorities` | 配信トリガー優先順位の参照。 |
+| PATCH | `/api/v1/clinics/:clinic_id/lstep/trigger-priorities` | 配信トリガー優先順位の更新。 |
+| GET | `/api/v1/clinics/:clinic_id/lstep/tag-summary` | 現在のタグ保有者数の統計取得。 |
+| GET | `/api/v1/clinics/:clinic_id/lstep/owners` | 指定タグの飼主一覧取得（タグ管理）。 |
+| GET | `/api/v1/clinics/:clinic_id/lstep/checkup-sync/preview` | 健診対象者抽出条件のプレビュー取得。 |
+| POST | `/api/v1/clinics/:clinic_id/lstep/checkup-sync` | 指定条件の対象者へのタグ一括付与。 |
+| GET | `/api/v1/clinics/:clinic_id/lstep-tag-code-mappings` | タグ名ごとの外部コード紐付け取得。 |
+| PUT | `/api/v1/clinics/:clinic_id/lstep-tag-code-mappings/:tag_name` | タグ別コード紐付け更新。 |
+| GET | `/api/v1/lstep-tag-config/auto-managed-prefixes` | 自動管理プレフィックス一覧取得。 |
+| POST | `/api/v1/lstep-tag-config/auto-managed-prefixes` | 自動管理プレフィックス追加。 |
+| DELETE | `/api/v1/lstep-tag-config/auto-managed-prefixes/:id` | 自動管理プレフィックス削除。 |
+| GET | `/api/v1/lstep-tag-config/condition-tag-mappings` | 条件別タグマッピング一覧取得。 |
+| POST | `/api/v1/lstep-tag-config/condition-tag-mappings` | 条件別タグマッピング追加。 |
+| DELETE | `/api/v1/lstep-tag-config/condition-tag-mappings/:id` | 条件別タグマッピング削除。 |
+| GET | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes` | 送信目的別タグプレフィックス一覧取得。 |
+| POST | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes` | 送信目的別タグプレフィックス追加。 |
+| DELETE | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes/:id` | 送信目的別タグプレフィックス削除。 |
+| GET | `/api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats?year_month=YYYY-MM` | 月次配信統計の取得。 |
+| GET | `/api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion?year_month=YYYY-MM&days=<任意（1以上、未指定時30）` | 来院転換データの集計。 |
+| GET | `/api/v1/clinics/:clinic_id/lstep/csv-imports?limit=N` | 友だち属性 CSV インポート履歴の取得。 |
+| POST | `/api/v1/clinics/:clinic_id/lstep/csv-imports/friend-attributes` | 友だち属性 CSV のアップロード。 |
 
 ---

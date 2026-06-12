@@ -12,40 +12,62 @@ import (
 )
 
 type listReservationQuery struct {
-	Date    string
-	Status  string
-	PetID   string
-	OwnerID string
-	Source  string
+	Date      string
+	StartDate string
+	EndDate   string
+	Status    string
+	PetID     string
+	OwnerID   string
+	Source    string
 }
 
 func newListReservationQuery(values url.Values) listReservationQuery {
 	return listReservationQuery{
-		Date:    values.Get("date"),
-		Status:  values.Get("status"),
-		PetID:   values.Get("pet_id"),
-		OwnerID: values.Get("owner_id"),
-		Source:  values.Get("source"),
+		Date:      values.Get("date"),
+		StartDate: values.Get("start_date"),
+		EndDate:   values.Get("end_date"),
+		Status:    values.Get("status"),
+		PetID:     values.Get("pet_id"),
+		OwnerID:   values.Get("owner_id"),
+		Source:    values.Get("source"),
 	}
 }
 
 type listReservationFilters struct {
-	Date    *time.Time
-	Status  *string
-	Source  *string
-	PetID   *uint64
-	OwnerID *uint64
+	Date      *time.Time
+	StartDate *time.Time
+	EndDate   *time.Time
+	Status    *string
+	Source    *string
+	PetID     *uint64
+	OwnerID   *uint64
 }
 
 func (q *listReservationQuery) toServiceFilters() (listReservationFilters, error) {
 	var filters listReservationFilters
 
 	if q.Date != "" {
-		t, err := time.Parse("2006-01-02", q.Date)
+		t, err := time.ParseInLocation("2006-01-02", q.Date, time.Local)
 		if err != nil {
 			return listReservationFilters{}, fmt.Errorf("invalid date format, use YYYY-MM-DD")
 		}
 		filters.Date = &t
+	}
+	if q.StartDate != "" {
+		t, err := time.ParseInLocation("2006-01-02", q.StartDate, time.Local)
+		if err != nil {
+			return listReservationFilters{}, fmt.Errorf("invalid start_date format, use YYYY-MM-DD")
+		}
+		filters.StartDate = &t
+	}
+	if q.EndDate != "" {
+		t, err := time.ParseInLocation("2006-01-02", q.EndDate, time.Local)
+		if err != nil {
+			return listReservationFilters{}, fmt.Errorf("invalid end_date format, use YYYY-MM-DD")
+		}
+		// end_date は当日を含めるため翌日 0 時を排他的上限とする
+		end := t.AddDate(0, 0, 1)
+		filters.EndDate = &end
 	}
 	if q.Status != "" {
 		filters.Status = &q.Status
@@ -96,7 +118,7 @@ func (q reservationAvailableTimesQuery) toServiceFilters() (reservationAvailable
 	if err != nil {
 		return reservationAvailableTimesFilters{}, err
 	}
-	date, err := time.Parse("2006-01-02", q.Date)
+	date, err := time.ParseInLocation("2006-01-02", q.Date, time.Local)
 	if err != nil {
 		return reservationAvailableTimesFilters{}, apperrors.WrapInvalidInput("invalid date: must be YYYY-MM-DD")
 	}

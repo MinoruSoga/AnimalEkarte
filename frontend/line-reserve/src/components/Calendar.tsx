@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { AvailableDate } from '../types/models';
+import { addDaysISO, getJSTToday, parseISODate } from '../lib/jst-date';
 
 interface CalendarProps {
   availableDates: AvailableDate[];
@@ -18,19 +19,15 @@ function formatDate(year: number, month: number, day: number): string {
 
 export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow }: CalendarProps) {
   const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return getJSTToday();
   }, []);
 
   const maxDate = useMemo(() => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + bookingWindow);
-    return d;
+    return parseISODate(addDaysISO(formatDate(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()), bookingWindow));
   }, [today, bookingWindow]);
 
-  const [viewYear, setViewYear] = useState<number>(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState<number>(today.getMonth()); // 0-based
+  const [viewYear, setViewYear] = useState<number>(today.getUTCFullYear());
+  const [viewMonth, setViewMonth] = useState<number>(today.getUTCMonth()); // 0-based
 
   const availableSet = useMemo(() => {
     return new Set(
@@ -55,21 +52,21 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
   }, [availableDates]);
 
   const daysInMonth = useMemo(() => {
-    return new Date(viewYear, viewMonth + 1, 0).getDate();
+    return new Date(Date.UTC(viewYear, viewMonth + 1, 0)).getUTCDate();
   }, [viewYear, viewMonth]);
 
   const firstDayOfWeek = useMemo(() => {
-    return new Date(viewYear, viewMonth, 1).getDay(); // 0=日
+    return new Date(Date.UTC(viewYear, viewMonth, 1)).getUTCDay(); // 0=日
   }, [viewYear, viewMonth]);
 
   const canGoPrev = useMemo(() => {
-    const prevMonth = new Date(viewYear, viewMonth - 1, 1);
-    const todayMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const prevMonth = new Date(Date.UTC(viewYear, viewMonth - 1, 1));
+    const todayMonthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
     return prevMonth >= todayMonthStart;
   }, [viewYear, viewMonth, today]);
 
   const canGoNext = useMemo(() => {
-    const nextMonthStart = new Date(viewYear, viewMonth + 1, 1);
+    const nextMonthStart = new Date(Date.UTC(viewYear, viewMonth + 1, 1));
     return nextMonthStart <= maxDate;
   }, [viewYear, viewMonth, maxDate]);
 
@@ -160,7 +157,7 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
           const dayOfWeek = (firstDayOfWeek + cell.day - 1) % 7;
           const isAvailable = availableSet.has(dateStr);
           const isSelected = dateStr === selectedDate;
-          const cellDate = new Date(viewYear, viewMonth, cell.day);
+          const cellDate = new Date(Date.UTC(viewYear, viewMonth, cell.day));
           const isPast = cellDate < today;
           const isBeyondWindow = cellDate > maxDate;
           const isDisabled = !isAvailable || isPast || isBeyondWindow;

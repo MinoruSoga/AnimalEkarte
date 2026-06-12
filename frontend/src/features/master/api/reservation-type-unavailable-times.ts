@@ -47,7 +47,10 @@ export type CreateUnavailableTimeRequest = {
 // Query keys
 // ─────────────────────────────────────────────────
 
-const unavailableTimesKey = (clinicId: string, reservationTypeId: string) => [
+const unavailableTimesKey = (
+  clinicId: string | null,
+  reservationTypeId: string,
+) => [
   "masters",
   "clinics",
   clinicId,
@@ -93,11 +96,11 @@ async function deleteUnavailableTime(
 // Query hooks
 // ─────────────────────────────────────────────────
 
-export function useGetUnavailableTimes(clinicId: string, reservationTypeId: string) {
+export function useGetUnavailableTimes(clinicId: string | null, reservationTypeId: string) {
   return useQuery({
     queryKey: unavailableTimesKey(clinicId, reservationTypeId),
     queryFn: () => getUnavailableTimes(reservationTypeId),
-    enabled: clinicId !== "" && reservationTypeId !== "",
+    enabled: clinicId !== null && reservationTypeId !== "",
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

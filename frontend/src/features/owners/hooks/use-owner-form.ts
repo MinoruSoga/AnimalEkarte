@@ -1,22 +1,14 @@
-// React/Framework
 import { useState, useCallback, useActionState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-
-// External
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
-
-// Internal - shared (feature 間 import 禁止のため @/features/pets は使用不可)
 import { transformCreatePetRequest, transformUpdatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
-import type { CreateOwnerRequest, UpdateOwnerRequest } from "@/types/owner";
-import type { Owner } from "@/types/owner";
+import type { CreateOwnerRequest, UpdateOwnerRequest, Owner } from "@/types/owner";
 import type { Pet } from "@/types";
 import type { PetMutations } from "@/types/pet";
 import type { OwnerData, PetFormData, MembershipType } from "../types";
-
-// feature 内
 import { createOwner } from "../api/create-owner";
 import { updateOwner } from "../api/update-owner";
 
@@ -147,7 +139,6 @@ export function useOwnerForm(
         errors.discountRate = "値引率は0〜100の範囲で入力してください";
       }
 
-
       if (Object.keys(errors).length > 0) {
         return { success: false, fieldErrors: errors, timestamp: Date.now() };
       }
@@ -181,6 +172,8 @@ export function useOwnerForm(
         } else {
           const createData: CreateOwnerRequest = {
             ...ownerRequestPayload,
+            // #84: 登録先医院の指定（未選択時は undefined → サーバ側で現在の医院）
+            clinic_id: ownerData.clinicId ? Number(ownerData.clinicId) : undefined,
           };
           const newOwner = await createOwner(createData);
           await queryClient.invalidateQueries({ queryKey: ["owners"] });
@@ -315,16 +308,13 @@ export function useOwnerForm(
         }
       );
     } else {
-      if (!id) {
-        if (!petData.animalSpeciesId) {
-          return;
-        }
-        const tempId = `temp-${Date.now()}`;
-        setPets(prev => [...prev, { ...petData, id: tempId, isPending: true }]);
+      if (!petData.animalSpeciesId) {
         return;
       }
 
-      if (!petData.animalSpeciesId) {
+      if (!id) {
+        const tempId = `temp-${Date.now()}`;
+        setPets(prev => [...prev, { ...petData, id: tempId, isPending: true }]);
         return;
       }
 
@@ -383,34 +373,34 @@ export function useOwnerForm(
       });
     }
   };
-// rerender-functional-setstate: setManualErrors は stable setter のため useCallback で安定化可能
-const clearFieldError = useCallback((field: string) => {
-  setManualErrors((prev) => {
-    if (!prev[field]) return prev;
-    const next = { ...prev };
-    delete next[field];
-    return next;
-  });
-}, []);
 
-return {
-  isEdit,
-  isLoading: isPending,
-  ownerData,
-  setOwnerData,
-  pets,
-  setPets,
-  petModalOpen,
-  setPetModalOpen,
-  editingPet,
-  handleAddPet,
-  handleEditPet,
-  handleDeletePet,
-  handleSavePet,
-  formAction,
-  formState,
-  fieldErrors: manualErrors,
-  clearFieldError,
-};
+  const clearFieldError = useCallback((field: string) => {
+    setManualErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
+  return {
+    isEdit,
+    isLoading: isPending,
+    ownerData,
+    setOwnerData,
+    pets,
+    setPets,
+    petModalOpen,
+    setPetModalOpen,
+    editingPet,
+    handleAddPet,
+    handleEditPet,
+    handleDeletePet,
+    handleSavePet,
+    formAction,
+    formState,
+    fieldErrors: manualErrors,
+    clearFieldError,
+  };
 }
 

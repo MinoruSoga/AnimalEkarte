@@ -99,6 +99,8 @@ type BillingItem struct {
 	Name                  string         `gorm:"not null;default:''"                            json:"name"`
 	UnitPrice             int64          `gorm:"not null;default:0"                             json:"unit_price"`
 	Quantity              float64        `gorm:"type:numeric(10,1);not null;default:1"          json:"quantity"`
+	DiscountRate          float64        `gorm:"type:numeric(5,2);not null;default:0"           json:"discount_rate"`
+	DiscountAmount        int64          `gorm:"not null;default:0"                             json:"discount_amount"`
 	TaxType               TaxType        `gorm:"type:tax_type;not null;default:excluded"        json:"tax_type"`
 	TaxRate               float64        `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
 	IsInsuranceApplicable bool           `gorm:"default:false"                                  json:"is_insurance_applicable"`
@@ -117,12 +119,14 @@ type BillingItem struct {
 func (BillingItem) TableName() string { return "billing_items" }
 
 // CalculateTaxAmount は課税区分に応じた税額（円）を計算する。
+// #85: 課税ベースは割引後（単価 × 数量 − 割引額）。既存の課税ベース(単価×数量)から
+// 割引額を引いた額に税率を適用する（外税なら実質「税抜額に割引」、内税なら税込額から割引）。
 //
-//	外税: 税額 = 単価 × 数量 × 税率
-//	内税: 税額 = 単価 × 数量 × 税率 ÷ (1 + 税率)
+//	外税: 税額 = (単価 × 数量 − 割引額) × 税率
+//	内税: 税額 = (単価 × 数量 − 割引額) × 税率 ÷ (1 + 税率)
 //	非課税: 税額 = 0
 func (item *BillingItem) CalculateTaxAmount() int64 {
-	subtotal := float64(item.UnitPrice) * item.Quantity
+	subtotal := max(float64(item.UnitPrice)*item.Quantity-float64(item.DiscountAmount), 0)
 	switch item.TaxType {
 	case TaxTypeExcluded:
 		return int64(math.Round(subtotal * item.TaxRate))

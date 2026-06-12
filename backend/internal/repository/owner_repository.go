@@ -14,8 +14,12 @@ import (
 )
 
 type OwnerRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
+	// FindAll は指定した複数医院 (#86 拠点横断) の飼主を検索する。
+	// clinicIDs はハンドラ層で所属検証済みであること。
+	FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	// FindByIDForClinics は複数医院スコープで飼主を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error)
 	FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
 	FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error)
 	FindByNameAndPhone(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error)
@@ -45,12 +49,17 @@ func NewOwnerRepository(db *gorm.DB) OwnerRepository {
 	return &ownerRepository{db: db}
 }
 
-func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
+func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error) {
 	owners := make([]model.Owner, 0)
 	var total int64
 
+	// フェイルセーフ: 検証バグ等で空スライスが渡っても全件露出させない
+	if len(clinicIDs) == 0 {
+		return owners, 0, nil
+	}
+
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.Owner{}).Scopes(clinicScope(clinicID))
+		q := r.db.WithContext(ctx).Model(&model.Owner{}).Scopes(clinicScopeIn(clinicIDs))
 		if search != "" {
 			pattern := "%" + escapeLike(search) + "%"
 			// BUG-375: name_kana はひらがな⇔カタカナ正規化して比較
@@ -81,8 +90,22 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 }
 
 func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
+	return r.findOwnerByID(ctx, clinicScope(clinicID), id)
+}
+
+func (r *ownerRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+	return r.findOwnerByID(ctx, clinicScopeIn(clinicIDs), id)
+}
+
+// findOwnerByID は scope（単一/複数クリニック）を受け取り飼主を1件取得する共通実装。
+func (r *ownerRepository) findOwnerByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "deleted_at IS NULL").Preload("Pets.Owner", "deleted_at IS NULL").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&owner).Error
+	err := r.db.WithContext(ctx).
+		Preload("Pets", "deleted_at IS NULL").
+		Preload("Pets.AnimalSpecies").
+		Preload("Pets.Insurance", "deleted_at IS NULL").
+		Preload("Pets.Owner", "deleted_at IS NULL").
+		Scopes(scope).Where("id = ?", id).First(&owner).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}

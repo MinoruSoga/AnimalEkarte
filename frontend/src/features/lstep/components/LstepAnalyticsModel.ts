@@ -1,15 +1,15 @@
 import { PALETTE } from "@/lib/design-tokens";
+import { todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 
 import type { DeliveryStatsRow } from "../api/get-lstep-delivery-stats";
 
 export function currentYearMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return todayJSTISO().slice(0, 7);
 }
 
 export function generateMonthOptions(count = 12): { value: string; label: string }[] {
   const options: { value: string; label: string }[] = [];
-  const now = new Date();
+  const now = toJSTWallDate(new Date());
   for (let i = 0; i < count; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;

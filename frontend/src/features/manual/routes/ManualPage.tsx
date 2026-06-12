@@ -78,6 +78,16 @@ export function ManualPage() {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [params.category, params.slug]);
 
+  // 取説ページの印刷時だけ、アプリ全体の固定高レイアウトを解除するためのスコープ。
+  useEffect(() => {
+    document.documentElement.classList.add("manual-print-mode");
+    document.body.classList.add("manual-print-mode");
+    return () => {
+      document.documentElement.classList.remove("manual-print-mode");
+      document.body.classList.remove("manual-print-mode");
+    };
+  }, []);
+
   // URL 未指定時は当該ビューモードの先頭記事へリダイレクト
   if (!params.category || !params.slug) {
     const fallback =

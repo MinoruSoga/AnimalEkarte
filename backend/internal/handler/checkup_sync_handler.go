@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -76,11 +77,11 @@ func toCheckupSyncPreviewOwnerResponse(o *service.CheckupSyncPreviewOwner) check
 		AnnualVisitCount:    o.AnnualVisitCount,
 	}
 	if o.LastVisitDate != nil {
-		s := o.LastVisitDate.Format("2006-01-02")
+		s := o.LastVisitDate.In(time.Local).Format("2006-01-02")
 		r.LastVisitDate = &s
 	}
 	if o.LastCheckupDate != nil {
-		s := o.LastCheckupDate.Format("2006-01-02")
+		s := o.LastCheckupDate.In(time.Local).Format("2006-01-02")
 		r.LastCheckupDate = &s
 	}
 	return r

@@ -363,7 +363,7 @@ describe('AggregationDashboardPage', () => {
       expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
     });
 
-    // revenue タブ: 年間診療費 / 期間内来院回数 / 最終来院日 / 経過日数 / 飼い主名
+    // revenue タブ: 年間診療費 / 期間内来院回数 / 最終来院日 / 経過日数 / 飼主名
     let sortSelect = screen.getByRole('combobox', { name: /並び替え/ });
     await user.click(sortSelect);
     expect(await screen.findByRole('option', { name: '年間診療費' })).toBeInTheDocument();
@@ -384,7 +384,7 @@ describe('AggregationDashboardPage', () => {
     await user.click(sortSelect);
     expect(await screen.findByRole('option', { name: '経過日数' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: '最終来院日' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: '飼い主名' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '飼主名' })).toBeInTheDocument();
     // last_visit には「年間診療費」「期間内来院回数」を出さない (仕様 §4.3)
     expect(screen.queryByRole('option', { name: '年間診療費' })).not.toBeInTheDocument();
     expect(screen.queryByRole('option', { name: '期間内来院回数' })).not.toBeInTheDocument();

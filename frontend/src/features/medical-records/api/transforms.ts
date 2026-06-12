@@ -1,4 +1,5 @@
 import { formatDate } from "@/utils/format/date";
+import { fromVisitTypeValue } from "../routes/MedicalRecordFormModel";
 import type { BackendMedicalRecord } from "./types";
 import type { InterviewHistoryItem } from "../types";
 import type { RecommendationReason } from "../constants/recommendation-reason";
@@ -25,7 +26,8 @@ export const transformMedicalRecord = (
     chiefComplaint: record.inquiry?.chief_complaint ?? "",
     doctor: record.doctor?.name ?? String(record.doctor_id ?? ""),
     status: (statusMap[record.status] ?? "作成中") as MedicalRecordStatus,
-    visitType: undefined,
+    visitType: record.visit_type != null ? fromVisitTypeValue(record.visit_type) : undefined,
+    nextVisitRecommendedDate: record.next_visit_recommended_date ?? "",
     subjective: undefined,
     objective: record.clinical_plan?.physical_exam,
     assessment: record.clinical_plan?.diagnosis_details,
@@ -39,6 +41,7 @@ export const transformMedicalRecord = (
     visitCount: record.visit_count,
     version: record.version ?? 1,
     recommendationReason: (record.recommendation_reason ?? null) as RecommendationReason | null,
+    clinicId: record.clinic_id ? String(record.clinic_id) : undefined,
   };
 };
 

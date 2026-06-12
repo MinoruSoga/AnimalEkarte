@@ -39,21 +39,21 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 		ID:            r.ID,
 		ClinicID:      r.ClinicID,
 		RecordNo:      r.RecordNo,
-		Date:          r.Date,
+		Date:          localTime(r.Date),
 		OwnerID:       r.OwnerID,
 		PetID:         r.PetID,
 		DoctorID:      r.DoctorID,
 		AppointmentID: r.AppointmentID,
 		Status:        string(r.Status),
 		VisitCount:    visitCount,
-		CreatedAt:     r.CreatedAt,
-		UpdatedAt:     r.UpdatedAt,
+		CreatedAt:     localTime(r.CreatedAt),
+		UpdatedAt:     localTime(r.UpdatedAt),
 		Owner:         toOwnerSummary(r.Owner),
 		Pet:           toPetSummary(r.Pet),
 		Doctor:        toStaffSummary(r.Doctor),
 	}
 	if r.NextVisitRecommendedDate != nil {
-		s := r.NextVisitRecommendedDate.Format("2006-01-02")
+		s := r.NextVisitRecommendedDate.In(time.Local).Format("2006-01-02")
 		resp.NextVisitRecommendedDate = &s
 	}
 	resp.RecommendationReason = r.RecommendationReason

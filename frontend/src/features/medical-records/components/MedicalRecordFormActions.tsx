@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatJSTDate } from "@/lib/jst-date";
 import { MedicalRecordPrintView } from "./MedicalRecordPrintView";
 import type { Treatment } from "../types";
 
@@ -114,6 +115,7 @@ interface MedicalRecordPrintAreaProps {
   isNewRecord: boolean;
   recordId?: string;
   doctorName: string;
+  recordDate?: string;
   pet: {
     name: string;
     species?: string;
@@ -136,6 +138,7 @@ export function MedicalRecordPrintArea({
   isNewRecord,
   recordId,
   doctorName,
+  recordDate,
   pet,
   clinic,
   chiefComplaint,
@@ -153,7 +156,7 @@ export function MedicalRecordPrintArea({
       </style>
       <MedicalRecordPrintView
         recordNo={recordId}
-        date={new Date().toLocaleDateString("ja-JP")}
+        date={recordDate ?? formatJSTDate(new Date())}
         doctorName={doctorName}
         pet={pet}
         clinic={{

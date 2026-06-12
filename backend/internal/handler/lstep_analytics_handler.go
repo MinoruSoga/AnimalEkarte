@@ -94,16 +94,16 @@ func toLstepFriendAttributeResponse(m *model.LstepFriendAttributeSnapshot) lstep
 		DisplayName:     m.DisplayName,
 		TrafficSource:   m.TrafficSource,
 		BlockStatus:     m.BlockStatus,
-		SnapshotTakenAt: m.SnapshotTakenAt.Format(time.RFC3339),
-		CreatedAt:       m.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:       m.UpdatedAt.Format(time.RFC3339),
+		SnapshotTakenAt: m.SnapshotTakenAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:       m.CreatedAt.In(time.Local).Format(time.RFC3339),
+		UpdatedAt:       m.UpdatedAt.In(time.Local).Format(time.RFC3339),
 	}
 	if m.RegisteredAt != nil {
-		s := m.RegisteredAt.Format(time.RFC3339)
+		s := m.RegisteredAt.In(time.Local).Format(time.RFC3339)
 		r.RegisteredAt = &s
 	}
 	if m.LastMessageAt != nil {
-		s := m.LastMessageAt.Format(time.RFC3339)
+		s := m.LastMessageAt.In(time.Local).Format(time.RFC3339)
 		r.LastMessageAt = &s
 	}
 	if len(m.Tags) > 0 {

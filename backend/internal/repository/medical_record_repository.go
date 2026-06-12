@@ -26,11 +26,16 @@ type DormantOwnerEntry struct {
 }
 
 type MedicalRecordRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	// FindAll は指定した複数医院 (#86 拠点横断) のカルテを検索する。clinicIDs はハンドラ層で所属検証済みであること。
+	FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	// FindByIDForClinics は複数医院スコープでカルテを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	// DeleteDraftByAppointmentID は予約に紐づく draft カルテを論理削除する (#83 Q10)
+	DeleteDraftByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) error
 	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
 	CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error)
 	// FindOwnerVisitSummary は飼い主の初回/最終診療日・年間来院数を集計して返す（Lステップ同期用）。
@@ -58,11 +63,15 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
-func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
 	records := make([]model.MedicalRecord, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Scopes(clinicScope(clinicID))
+	// フェイルセーフ: 検証バグ等で空スライスが渡っても全件露出させない
+	if len(clinicIDs) == 0 {
+		return []model.MedicalRecord{}, 0, nil
+	}
+	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Scopes(clinicScopeIn(clinicIDs))
 	if petID != nil {
 		q = q.Where("pet_id = ?", *petID)
 	}
@@ -87,6 +96,15 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 }
 
 func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+	return r.findMedicalRecordByID(ctx, clinicScope(clinicID), id)
+}
+
+func (r *medicalRecordRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error) {
+	return r.findMedicalRecordByID(ctx, clinicScopeIn(clinicIDs), id)
+}
+
+// findMedicalRecordByID は scope（単一/複数クリニック）を受け取りカルテを1件取得する共通実装。
+func (r *medicalRecordRepository) findMedicalRecordByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
 	err := r.db.WithContext(ctx).
 		Preload("Treatments", "deleted_at IS NULL").
@@ -96,7 +114,7 @@ func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uin
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.AnimalSpecies").
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&record).Error
+		Scopes(scope).Where("id = ?", id).First(&record).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
 	}
@@ -137,6 +155,19 @@ func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint6
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+// DeleteDraftByAppointmentID は予約(appointment_id)に紐づく draft カルテを論理削除する (#83 Q10)。
+// draft 以外(診察開始済み等)は削除しない。削除対象なし(RowsAffected 0)は正常としエラーにしない。
+func (r *medicalRecordRepository) DeleteDraftByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) error {
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("appointment_id = ? AND status = ?", appointmentID, model.MedicalRecordStatusDraft).
+		Delete(&model.MedicalRecord{}).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("appointment:%d", appointmentID))
 	}
 	return nil
 }
@@ -210,7 +241,7 @@ func (r *medicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, cli
 		AnnualCount  int64
 	}
 	var result row
-	oneYearAgo := time.Now().AddDate(-1, 0, 0)
+	oneYearAgo := time.Now().In(time.Local).AddDate(-1, 0, 0)
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
 		Scopes(clinicScope(clinicID)).
@@ -233,7 +264,7 @@ func (r *medicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, cli
 
 // FindOwnersByFirstVisitDate は初回来院日（MIN(date)）が targetDate と一致する飼い主IDリストを返す（FEAT-383）。
 func (r *medicalRecordRepository) FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	target := targetDate.Format("2006-01-02")
+	target := targetDate.In(time.Local).Format("2006-01-02")
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).
@@ -256,7 +287,7 @@ func (r *medicalRecordRepository) FindOwnersByFirstVisitDate(ctx context.Context
 
 // FindOwnersByLastVisitDays は最終来院日が asOf から exactDays 日前の飼い主IDリストを返す（FEAT-383）。
 func (r *medicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error) {
-	target := asOf.AddDate(0, 0, -exactDays).Format("2006-01-02")
+	target := asOf.In(time.Local).AddDate(0, 0, -exactDays).Format("2006-01-02")
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).
@@ -281,7 +312,7 @@ func (r *medicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Context,
 // NOTE: P4 規約逸脱 (GORM Scopes 未使用) だが clinic_id を WHERE 句に二重指定して横テナント漏洩を防ぐ。
 // リファクタ時に clinic_id WHERE のいずれか一方を削除しないこと (M-5 / AUDIT-2026-05-06 参照)。
 func (r *medicalRecordRepository) FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	target := targetDate.Format("2006-01-02")
+	target := targetDate.In(time.Local).Format("2006-01-02")
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	// 飼い主ごとに最新カルテ（MAX(id)）を取得し、その next_visit_recommended_date が targetDate のものを抽出。
@@ -309,7 +340,7 @@ func (r *medicalRecordRepository) FindOwnersByNextVisitRecommended(ctx context.C
 
 // FindDormantOwnerEntries は最終来院から minDaysSince 日以上経過した飼い主一覧を返す（バッチ処理用）。
 func (r *medicalRecordRepository) FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]DormantOwnerEntry, error) {
-	cutoff := time.Now().AddDate(0, 0, -minDaysSince)
+	cutoff := time.Now().In(time.Local).AddDate(0, 0, -minDaysSince)
 	type row struct {
 		OwnerID     uint64
 		LastVisitAt time.Time
@@ -326,7 +357,7 @@ func (r *medicalRecordRepository) FindDormantOwnerEntries(ctx context.Context, c
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d dormant", clinicID))
 	}
-	now := time.Now()
+	now := time.Now().In(time.Local)
 	entries := make([]DormantOwnerEntry, 0, len(rows))
 	for _, r := range rows {
 		entries = append(entries, DormantOwnerEntry{

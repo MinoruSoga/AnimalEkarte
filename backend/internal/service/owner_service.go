@@ -130,8 +130,11 @@ type UpdateTransferStatusInput struct {
 // --- Interface ---
 
 type OwnerService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
+	// List は指定した複数医院 (#86 拠点横断) の飼主一覧を返す。clinicIDs はハンドラ層で所属検証済みであること。
+	List(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	// GetByIDForClinics は複数医院スコープで飼主を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error)
 	CreateWithPets(ctx context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateOwnerInput) (*model.Owner, error)
 	Delete(ctx context.Context, clinicID, id uint64) error

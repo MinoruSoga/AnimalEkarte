@@ -14,7 +14,7 @@ type DocumentPaymentInfo = Pick<
   "totalAmount" | "insuranceAmount" | "billingAmount" | "receivedAmount" | "changeAmount"
 >;
 
-interface ClinicInfo {
+export interface ClinicInfo {
   name?: string;
   postalCode?: string;
   address?: string;
@@ -56,8 +56,8 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
     const stdItems = accounting.items.filter(i => approxEqual(i.taxRate, standardRate));
     const redItems = accounting.items.filter(i => approxEqual(i.taxRate, reducedRate));
 
-    const stdBase = stdItems.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
-    const redBase = redItems.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
+    const stdBase = stdItems.reduce((sum, i) => sum + Math.max(i.unitPrice * i.quantity - i.discountAmount, 0), 0);
+    const redBase = redItems.reduce((sum, i) => sum + Math.max(i.unitPrice * i.quantity - i.discountAmount, 0), 0);
 
     return {
       standardBase: stdBase,
@@ -126,11 +126,14 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                     {isReduced ? <span className="mr-1">※</span> : null}{item.name}
                   </div>
                   {item.category ? <span className={`text-xs ${C.text50}`}>{item.category}</span> : null}
+                  {item.discountAmount > 0 ? (
+                    <span className={`block text-xs ${C.text50}`}>割引 −¥{item.discountAmount.toLocaleString()}</span>
+                  ) : null}
                 </td>
                 <td className="py-2 text-right text-xs">{ratePercent}%{isReduced ? "※" : ""}</td>
                 <td className="py-2 text-right">¥{item.unitPrice.toLocaleString()}</td>
                 <td className="py-2 text-center">{item.quantity}</td>
-                <td className="py-2 text-right">¥{(item.unitPrice * item.quantity).toLocaleString()}</td>
+                <td className="py-2 text-right">¥{Math.max(item.unitPrice * item.quantity - item.discountAmount, 0).toLocaleString()}</td>
               </tr>
             );
           })}

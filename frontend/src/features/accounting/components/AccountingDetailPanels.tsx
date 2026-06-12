@@ -4,22 +4,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { C, ICON } from "@/lib/design-tokens";
 import type { PaymentMethod, TaxType } from "@/types/generated/models";
 import type { Accounting } from "../types";
-import { AccountingDocument } from "./AccountingDocument";
+import { AccountingDocument, type ClinicInfo } from "./AccountingDocument";
 import { InsuranceCard } from "./InsuranceCard";
 import { ItemListCard } from "./ItemListCard";
 import { PaymentCard, type PaymentSplitDraft } from "./PaymentCard";
 import { RefundSection } from "./RefundSection";
-
-interface ClinicInfo {
-  name?: string;
-  postalCode?: string;
-  address?: string;
-  phoneNumber?: string;
-  registrationNumber?: string;
-  invoiceRegistrationNumber?: string;
-  standardTaxRate?: number;
-  reducedTaxRate?: number;
-}
 
 interface AccountingHeaderActionsProps {
   status: Accounting["status"];
@@ -138,6 +127,7 @@ interface AccountingDetailColumnsProps {
   onAddItem: (name: string, price: string, category: string, taxRate?: number) => void;
   onDeleteItem: (itemId: string) => void;
   onUpdateItemTax: (itemId: string, taxType: TaxType, taxRate: number) => void;
+  onUpdateItemDiscount: (itemId: string, discountAmount: number) => void;
   onUseInsuranceChange: (enabled: boolean) => void;
   onInsuranceRatioChange: (ratio: string) => void;
   onSplitsChange: (splits: PaymentSplitDraft[]) => void;
@@ -160,6 +150,7 @@ export function AccountingDetailColumns({
   onAddItem,
   onDeleteItem,
   onUpdateItemTax,
+  onUpdateItemDiscount,
   onUseInsuranceChange,
   onInsuranceRatioChange,
   onSplitsChange,
@@ -179,6 +170,7 @@ export function AccountingDetailColumns({
           onDeleteItem={onDeleteItem}
           accountingId={accountingId}
           onUpdateItemTax={onUpdateItemTax}
+          onUpdateItemDiscount={onUpdateItemDiscount}
           canEdit={canEdit}
           canDelete={canDelete}
         />

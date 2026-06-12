@@ -1,6 +1,9 @@
-import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { ChevronDown } from "lucide-react";
+import { PatientContextHeader } from "@/components/shared/PatientContextHeader";
 import { UnifiedTabsContent, UnifiedTabsList } from "@/components/shared/UnifiedTabs";
-import { C, LAYOUT } from "@/lib/design-tokens";
+import { Button } from "@/components/ui/button";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 import type { Pet } from "@/types";
 import { CheckupsTab } from "./CheckupsTab/CheckupsTab";
 import { MedicalRecordBillCheck } from "./MedicalRecordBillCheck";
@@ -13,6 +16,8 @@ import { MedicalRecordTreatment } from "./MedicalRecordTreatment";
 import { MedicalRecordVaccination } from "./MedicalRecordVaccination";
 import { NextVisitDateField } from "./NextVisitDateField";
 import { RecommendationReasonSelect } from "./RecommendationReasonSelect";
+import { VisitTypeSelect } from "./VisitTypeSelect";
+import { NextVisitButton } from "./NextVisitButton";
 import type { RecommendationReason } from "../constants/recommendation-reason";
 import type { InterviewHistoryItem } from "../types";
 
@@ -24,9 +29,16 @@ interface MedicalRecordStickyHeaderProps {
   canEdit: boolean;
   isNewRecord: boolean;
   tabs: { value: string; label: string }[];
-  onVisitTypeClick: () => void;
+  recordDate?: string;
+  recordStatus?: string;
+  nextVisitDate: string;
+  onVisitTypeChange: (value: string) => void;
   onStaffClick: () => void;
   onOwnerClick: () => void;
+  onDateChange?: (date: string) => void;
+  onNextVisitDatePatch: (date: string) => void;
+  onNextVisitDateValidChange: (valid: boolean) => void;
+  hasLineIntegration?: boolean;
 }
 
 export function MedicalRecordStickyHeader({
@@ -37,34 +49,101 @@ export function MedicalRecordStickyHeader({
   canEdit,
   isNewRecord,
   tabs,
-  onVisitTypeClick,
+  recordDate,
+  recordStatus,
+  nextVisitDate,
+  onVisitTypeChange,
   onStaffClick,
   onOwnerClick,
+  onDateChange,
+  onNextVisitDatePatch,
+  onNextVisitDateValidChange,
+  hasLineIntegration,
 }: MedicalRecordStickyHeaderProps) {
-  return (
-    <div className={`sticky top-0 z-10 ${C.bgPage}`}>
-      <PatientInfoCard
-        ownerName={selectedPet.ownerName}
-        petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
-        petNumber={selectedPet.petNumber || selectedPet.id}
-        weight={selectedPet.weight || "-"}
-        status={selectedPet.status === "死亡" ? "deceased" : "alive"}
-        staffName={staffName}
-        staffLabel="担当医: "
-        reservationType={visitType}
-        reservationTypeLabel="来院種別"
-        onReservationTypeClick={onVisitTypeClick}
-        onStaffClick={canEdit ? onStaffClick : undefined}
-        onOwnerClick={!isNewRecord ? onOwnerClick : undefined}
-        petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
-        insuranceName={selectedPet.insuranceName || "保険情報未登録"}
-        insuranceDetails={selectedPet.insuranceDetails || "-"}
-        nextVisitDate="-"
-        nextVisitContent="-"
-        visitCount={visitCount}
-        sticky={false}
+  const isFinalized = recordStatus === "確定済";
+  const canEditDate = canEdit && !isFinalized && !!onDateChange && !isNewRecord;
+  const dateInputValue = recordDate ? recordDate.replace(/\//g, "-") : undefined;
+
+  const contextControls = (
+    <>
+      {/* 来院種別 */}
+      <VisitTypeSelect
+        value={visitType}
+        onChange={onVisitTypeChange}
+        disabled={!canEdit}
       />
 
+      {/* 診察日 */}
+      <div className="flex flex-col gap-0 shrink-0 min-w-[110px]">
+        <span className={`text-xs ${C.text50}`}>診察日</span>
+        {canEditDate ? (
+          <input
+            key={dateInputValue}
+            type="date"
+            aria-label="診察日"
+            defaultValue={dateInputValue}
+            onChange={(e) => {
+              if (e.target.value) onDateChange!(e.target.value);
+            }}
+            className={`h-8 text-sm ${C.text} bg-transparent rounded px-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-current`}
+          />
+        ) : (
+          <span className={`h-8 flex items-center text-sm ${C.text}`}>
+            {isNewRecord ? todayJSTISO() : (recordDate ?? "-")}
+          </span>
+        )}
+      </div>
+
+      {/* 担当医 */}
+      {canEdit ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={`h-8 shrink-0 text-sm gap-1 px-2 max-w-[160px] ${C.hoverBgPage} ${C.text} border-none`}
+          onClick={onStaffClick}
+          aria-label={`担当医: ${staffName}`}
+        >
+          <span className={`text-xs ${C.text50} mr-0.5 shrink-0`}>担当医</span>
+          <span className="truncate">{staffName}</span>
+          <ChevronDown className={`${ICON.sm} ${C.text40} shrink-0`} aria-hidden="true" />
+        </Button>
+      ) : (
+        <div className="flex flex-col gap-0 shrink-0 max-w-[160px]">
+          <span className={`text-xs ${C.text50}`}>担当医</span>
+          <span className={`h-8 flex items-center text-sm ${C.text} truncate`}>{staffName}</span>
+        </div>
+      )}
+
+      {/* 次回予定 */}
+      {!isNewRecord ? (
+        <NextVisitButton
+          value={nextVisitDate}
+          onChange={onNextVisitDatePatch}
+          onValidationChange={onNextVisitDateValidChange}
+          hasLineIntegration={hasLineIntegration}
+          disabled={!canEdit || isFinalized}
+        />
+      ) : null}
+    </>
+  );
+
+  return (
+    <div className={`sticky top-0 z-10 ${C.bgPage}`}>
+      <PatientContextHeader
+        ownerName={selectedPet.ownerName}
+        petName={selectedPet.name}
+        petNumber={selectedPet.petNumber || selectedPet.id}
+        weight={selectedPet.weight ?? undefined}
+        status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+        birthDate={selectedPet.birthDate ?? undefined}
+        species={selectedPet.species}
+        insuranceName={selectedPet.insuranceName ?? undefined}
+        insuranceDetails={selectedPet.insuranceDetails ?? undefined}
+        visitCount={visitCount}
+        onOwnerClick={!isNewRecord ? onOwnerClick : undefined}
+        contextControls={contextControls}
+      />
       <div className={`flex shrink-0 overflow-x-auto ${C.bgPage}`}>
         <UnifiedTabsList items={tabs} />
       </div>

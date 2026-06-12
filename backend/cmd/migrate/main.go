@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
+
 	_ "github.com/lib/pq"
 )
 
@@ -26,6 +28,10 @@ func main() {
 // run はマイグレーション処理全体を実行し、エラーを返す。
 // defer が os.Exit に打ち消されないよう main から分離している。
 func run(logger *slog.Logger) error {
+	if err := config.ConfigureTimeZone(); err != nil {
+		return fmt.Errorf("timezone configuration failed: %w", err)
+	}
+
 	// 環境変数から DB 接続情報を取得
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
@@ -54,8 +60,8 @@ func run(logger *slog.Logger) error {
 
 	// PostgreSQL 接続文字列を構築
 	connStr := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		dbHost, dbPort, dbUser, dbPassword, dbName, sslMode,
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
+		dbHost, dbPort, dbUser, dbPassword, dbName, sslMode, config.JapanTimeZone,
 	)
 
 	// DB に接続

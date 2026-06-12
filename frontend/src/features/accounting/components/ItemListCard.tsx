@@ -1,5 +1,5 @@
 import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
@@ -16,9 +17,89 @@ import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSele
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import type { TaxType } from "@/types/generated/models";
 
+import { useGetBillingItemDiscountSuggestions } from "../api/get-discount-suggestions";
+
 import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
 import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
 import type { AccountingItem, ItemCategory } from "../types";
+
+interface DiscountCellProps {
+  item: AccountingItem;
+  canEdit: boolean;
+  accountingId: string | undefined;
+  onUpdateItemDiscount: ((itemId: string, discountAmount: number) => void) | undefined;
+}
+
+function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: DiscountCellProps) {
+  const [open, setOpen] = useState(false);
+  const { data: suggestions = [], isFetching } = useGetBillingItemDiscountSuggestions(
+    accountingId !== undefined ? item.id : undefined,
+    open,
+  );
+
+  if (accountingId === undefined || onUpdateItemDiscount === undefined || !canEdit) {
+    return (
+      <span className={`text-sm ${C.text50}`}>
+        {item.discountAmount > 0 ? `¥${item.discountAmount.toLocaleString()}` : "-"}
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 justify-center">
+      <Input
+        type="number"
+        min={0}
+        defaultValue={item.discountAmount}
+        onBlur={(e) => onUpdateItemDiscount(item.id, Math.max(0, parseInt(e.target.value, 10) || 0))}
+        className="w-20 text-right h-8"
+      />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            title="割引候補を表示"
+            className={`h-8 w-6 flex items-center justify-center rounded ${C.text50} ${C.hoverBgLight} transition-colors shrink-0`}
+          >
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-64 p-2">
+          {isFetching ? (
+            <p className={`text-xs ${C.text50} py-2 text-center`}>読み込み中...</p>
+          ) : suggestions.length === 0 ? (
+            <p className={`text-xs ${C.text50} py-2 text-center`}>適用可能な割引はありません</p>
+          ) : (
+            <ul className="space-y-0.5">
+              {suggestions.map((s, i) => (
+                <li key={s.campaign_id ?? `owner-${i}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdateItemDiscount(item.id, s.amount);
+                      setOpen(false);
+                    }}
+                    className={`w-full text-left px-2 py-1.5 rounded text-xs ${C.hoverBgLight} transition-colors`}
+                  >
+                    <span className="font-medium">{s.name}</span>
+                    <span className={`ml-1 ${C.text50}`}>
+                      {s.discount_type === "rate"
+                        ? `${s.discount_value}%`
+                        : `¥${s.discount_value.toLocaleString()}`}
+                    </span>
+                    <span className={`float-right font-mono ${C.textRedIcon}`}>
+                      -¥{s.amount.toLocaleString()}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
 
 const CATEGORY_LABELS: Record<ItemCategory, string> = {
   examination: "診察",
@@ -43,6 +124,17 @@ const MERCHANDISE_CATEGORY_SELECT_ITEMS = MERCHANDISE_CATEGORY_OPTIONS.map((o) =
   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
 ));
 
+function getManualPriceError(value: string): string | null {
+  const priceNum = parseInt(value, 10);
+  if (isNaN(priceNum) || priceNum < 0) {
+    return "単価は0以上の整数で入力してください";
+  }
+  if (priceNum > 999999999) {
+    return "単価は999,999,999円以下で入力してください";
+  }
+  return null;
+}
+
 interface ItemListCardProps {
   items: AccountingItem[];
   subtotal: number;
@@ -54,6 +146,7 @@ interface ItemListCardProps {
   onDeleteItem: (id: string) => void;
   accountingId?: string;
   onUpdateItemTax?: (itemId: string, taxType: TaxType, taxRate: number) => void;
+  onUpdateItemDiscount?: (itemId: string, discountAmount: number) => void;
   canEdit: boolean;
   canDelete: boolean;
 }
@@ -69,6 +162,7 @@ export const ItemListCard = memo(function ItemListCard({
   onDeleteItem,
   accountingId,
   onUpdateItemTax,
+  onUpdateItemDiscount,
   canEdit,
   canDelete,
 }: ItemListCardProps) {
@@ -101,6 +195,23 @@ export const ItemListCard = memo(function ItemListCard({
     [onAddItem],
   );
 
+  const handleAddManualItem = useCallback(() => {
+    const name = manualName.trim();
+    if (!name || !manualPrice) return;
+
+    const priceError = getManualPriceError(manualPrice);
+    if (priceError !== null) {
+      setManualPriceError(priceError);
+      return;
+    }
+
+    setManualPriceError("");
+    onAddItem(name, manualPrice, "other");
+    setManualName("");
+    setManualPrice("");
+    onNewItemOpenChange(false);
+  }, [manualName, manualPrice, onAddItem, onNewItemOpenChange]);
+
   const itemRows = useMemo(
     () =>
       items.map((item) => (
@@ -130,6 +241,14 @@ export const ItemListCard = memo(function ItemListCard({
             <div className="flex items-center justify-center gap-2">
               {item.quantity}
             </div>
+          </TableCell>
+          <TableCell className="text-center">
+            <DiscountCell
+              item={item}
+              canEdit={canEdit}
+              accountingId={accountingId}
+              onUpdateItemDiscount={onUpdateItemDiscount}
+            />
           </TableCell>
           <TableCell className="text-center">
             {accountingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
@@ -173,7 +292,7 @@ export const ItemListCard = memo(function ItemListCard({
           </TableCell>
         </TableRow>
       )),
-    [items, accountingId, onDeleteItem, onUpdateItemTax, canEdit, canDelete],
+    [items, accountingId, onDeleteItem, onUpdateItemTax, onUpdateItemDiscount, canEdit, canDelete],
   );
 
   return (
@@ -307,23 +426,7 @@ export const ItemListCard = memo(function ItemListCard({
                     type="button"
                     className="w-full"
                     disabled={!manualName.trim() || !manualPrice}
-                    onClick={() => {
-                      if (!manualName.trim() || !manualPrice) return;
-                      const priceNum = parseInt(manualPrice, 10);
-                      if (isNaN(priceNum) || priceNum < 0) {
-                        setManualPriceError("単価は0以上の整数で入力してください");
-                        return;
-                      }
-                      if (priceNum > 999999999) {
-                        setManualPriceError("単価は999,999,999円以下で入力してください");
-                        return;
-                      }
-                      setManualPriceError("");
-                      onAddItem(manualName.trim(), manualPrice, "other");
-                      setManualName("");
-                      setManualPrice("");
-                      onNewItemOpenChange(false);
-                    }}
+                    onClick={handleAddManualItem}
                   >
                     追加する
                   </Button>
@@ -341,6 +444,7 @@ export const ItemListCard = memo(function ItemListCard({
               <TableHead>項目名</TableHead>
               <TableHead className="text-right w-[90px]">単価</TableHead>
               <TableHead className="text-center w-[60px]">数量</TableHead>
+              <TableHead className="text-center w-[90px]">割引</TableHead>
               <TableHead className="w-[100px] text-center">課税区分</TableHead>
               <TableHead className="text-center w-[70px]">税率</TableHead>
               <TableHead className="text-right w-[80px]">税額</TableHead>

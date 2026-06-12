@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatJSTDateTimeLocal, jstDateTimeLocalToISOString } from "@/lib/jst-date";
 import type { BodyWeightUnit, UpdateVitalInput, Vital } from "../../types";
 
 import {
@@ -78,7 +79,7 @@ interface VitalsEditRowProps {
 function buildEditRowForm(vital: Vital) {
   return {
     recorded_at: vital.recorded_at
-      ? new Date(vital.recorded_at).toISOString().slice(0, 16)
+      ? formatJSTDateTimeLocal(vital.recorded_at)
       : "",
     temperature: vital.temperature != null ? String(vital.temperature) : "",
     heart_rate: vital.heart_rate != null ? String(vital.heart_rate) : "",
@@ -110,7 +111,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
     if (!form.recorded_at) {
       errors.recorded_at = "記録日時は必須です";
     } else {
-      const recordedDate = new Date(form.recorded_at);
+      const recordedDate = new Date(jstDateTimeLocalToISOString(form.recorded_at));
       if (recordedDate > new Date()) {
         errors.recorded_at = "未来の日時は入力できません";
       }
@@ -125,9 +126,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
     }
     setEditFormErrors({});
 
-    const recordedDate = new Date(form.recorded_at);
     onSave(vital.id, {
-      recorded_at: recordedDate.toISOString(),
+      recorded_at: jstDateTimeLocalToISOString(form.recorded_at),
       temperature: temp,
       heart_rate: parseVitalsNumber(form.heart_rate),
       respiration_rate: parseVitalsNumber(form.respiration_rate),

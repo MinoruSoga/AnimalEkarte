@@ -240,7 +240,7 @@ func TestGetLineSendLogs(t *testing.T) {
 				assert.Equal(t, uint64(2), resp.Items[1].ID)
 				assert.Equal(t, "failed", resp.Items[1].Status)
 				assert.NotNil(t, resp.Items[1].ErrorMessage)
-				assert.Equal(t, "2026-01-15T10:00:00Z", resp.Items[0].SentAt)
+				assert.Equal(t, "2026-01-15T19:00:00+09:00", resp.Items[0].SentAt)
 			},
 		},
 		{

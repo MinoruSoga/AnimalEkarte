@@ -23,8 +23,8 @@ type scheduleEntryResponse struct {
 	WorkEnd   *string                   `json:"work_end,omitempty"`
 	Note      string                    `json:"note"`
 	Breaks    []shiftEntryBreakResponse `json:"breaks"`
-	CreatedAt time.Time                 `json:"created_at"`
-	UpdatedAt time.Time                 `json:"updated_at"`
+	CreatedAt string                    `json:"created_at"`
+	UpdatedAt string                    `json:"updated_at"`
 }
 
 func toScheduleEntryResponse(e *service.ScheduleEntry) scheduleEntryResponse {
@@ -36,14 +36,14 @@ func toScheduleEntryResponse(e *service.ScheduleEntry) scheduleEntryResponse {
 		ID:        e.Entry.ID,
 		ClinicID:  e.Entry.ClinicID,
 		StaffID:   e.Entry.StaffID,
-		Date:      e.Entry.Date.Format("2006-01-02"),
+		Date:      e.Entry.Date.In(time.Local).Format("2006-01-02"),
 		ShiftType: string(e.Entry.ShiftType),
 		WorkStart: e.Entry.StartTime,
 		WorkEnd:   e.Entry.EndTime,
 		Note:      e.Entry.Notes,
 		Breaks:    breaks,
-		CreatedAt: e.Entry.CreatedAt,
-		UpdatedAt: e.Entry.UpdatedAt,
+		CreatedAt: e.Entry.CreatedAt.In(time.Local).Format(time.RFC3339),
+		UpdatedAt: e.Entry.UpdatedAt.In(time.Local).Format(time.RFC3339),
 	}
 }
 

@@ -48,7 +48,7 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 
 	// 同日同ペットのカルテ存在チェック（重複防止）
 	dateStr := reservation.StartTime.Format("2006-01-02")
-	_, total, err := s.repo.FindAll(ctx, clinicID, reservation.PetID, nil, &dateStr, &dateStr, 1, 1)
+	_, total, err := s.repo.FindAll(ctx, []uint64{clinicID}, reservation.PetID, nil, &dateStr, &dateStr, 1, 1)
 	if err != nil {
 		slog.WarnContext(ctx, "autoCreateFromReservation: failed to check existing records",
 			slog.Uint64("reservation_id", reservation.ID),
@@ -85,6 +85,16 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 
 	// サブテーブル（inquiry, clinical_plan）を空レコードで作成（best-effort）
 	s.CreateSubRecords(ctx, clinicID, record.ID, CreateSubRecordsInput{})
+}
+
+// DeleteDraftFromReservation は予約キャンセル時に、その予約に紐づく draft カルテを論理削除する (#83 Q10、best-effort)。
+// 診察開始済み(draft 以外)のカルテは削除しない。失敗してもキャンセル処理は止めない。
+func (s *medicalRecordService) DeleteDraftFromReservation(ctx context.Context, clinicID, reservationID uint64) {
+	if err := s.repo.DeleteDraftByAppointmentID(ctx, clinicID, reservationID); err != nil {
+		slog.WarnContext(ctx, "failed to delete draft medical record on reservation cancel (best-effort)",
+			slog.Uint64("reservation_id", reservationID),
+			slog.String("error", err.Error()))
+	}
 }
 
 // resolveVisitTypeFromAppointment は AppointmentID 経由で Reservation.VisitType を取得する。

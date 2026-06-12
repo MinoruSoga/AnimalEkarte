@@ -14,20 +14,34 @@ interface ReservationsListResponse {
 
 export interface ReservationFilters {
   date?: string;
+  /** 期間レンジ取得の開始日 (YYYY-MM-DD)。endDate とセットで使う（予約管理カレンダー） */
+  startDate?: string;
+  /** 期間レンジ取得の終了日 (YYYY-MM-DD、当日を含む)。startDate とセットで使う */
+  endDate?: string;
   status?: string;
   source?: string;
   petId?: string;
   ownerId?: string;
   enabled?: boolean;
+  /** #86: 拠点横断表示。複数医院IDをカンマ区切りで送信。未指定=現在の医院のみ */
+  clinicIds?: string[];
 }
 
 function buildReservationParams(filters?: ReservationFilters): Record<string, string | number> {
   const params: Record<string, string | number> = { page: 1, limit: 100 };
   if (filters?.date) params.date = filters.date;
+  // 期間レンジ指定時は表示期間の全予約を取得するため limit を引き上げる。
+  // (BUG #82: limit=100 + start_time ASC で当日の予約が古い予約に押し出され予約管理に出ない問題の修正)
+  if (filters?.startDate && filters?.endDate) {
+    params.start_date = filters.startDate;
+    params.end_date = filters.endDate;
+    params.limit = 1000;
+  }
   if (filters?.status) params.status = filters.status;
   if (filters?.source) params.source = filters.source;
   if (filters?.petId) params.pet_id = filters.petId;
   if (filters?.ownerId) params.owner_id = filters.ownerId;
+  if (filters?.clinicIds && filters.clinicIds.length > 1) params.clinic_ids = filters.clinicIds.join(",");
   return params;
 }
 

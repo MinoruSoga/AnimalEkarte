@@ -29,7 +29,7 @@ func NewReservationScheduleRepository(db *gorm.DB) ReservationScheduleRepository
 }
 
 func (r *reservationScheduleRepository) FindAllByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error) {
-	t, err := time.Parse("2006-01", month)
+	t, err := time.ParseInLocation("2006-01", month, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("month must be YYYY-MM format")
 	}

@@ -1,12 +1,10 @@
 import { C } from "@/lib/design-tokens";
+import { formatJSTDate } from "@/lib/jst-date";
 import type { LstepSettingsResponse } from "./hooks/useLstepSettings";
 
 function formatSyncDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("ja-JP", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const [year, month, day] = formatJSTDate(iso).split("-");
+  return `${Number(year)}年${Number(month)}月${Number(day)}日`;
 }
 
 interface LstepSettingsStatusHeaderProps {

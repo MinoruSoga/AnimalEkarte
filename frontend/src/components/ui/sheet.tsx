@@ -16,12 +16,6 @@ function SheetTrigger({
   return <DialogPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
 }
 
-function SheetClose({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="sheet-close" {...props} />;
-}
-
 function SheetPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
@@ -104,16 +98,6 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="sheet-footer"
-      className={cn("flex flex-col-reverse gap-2 p-4 border-t sm:flex-row sm:justify-end", className)}
-      {...props}
-    />
-  );
-}
-
 function SheetTitle({
   className,
   ...props
@@ -127,28 +111,10 @@ function SheetTitle({
   );
 }
 
-function SheetDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
-  return (
-    <DialogPrimitive.Description
-      data-slot="sheet-description"
-      className={cn("text-muted-foreground text-sm", className)}
-      {...props}
-    />
-  );
-}
-
 export {
   Sheet,
-  SheetClose,
   SheetContent,
-  SheetDescription,
-  SheetFooter,
   SheetHeader,
-  SheetOverlay,
-  SheetPortal,
   SheetTitle,
   SheetTrigger,
 };

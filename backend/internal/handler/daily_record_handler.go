@@ -49,7 +49,7 @@ func (h *Handler) GetDailyRecord(c *gin.Context) {
 	}
 
 	dateStr := c.Param("date")
-	date, err := time.Parse("2006-01-02", dateStr)
+	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
 		return
@@ -83,7 +83,7 @@ func (h *Handler) CreateDailyRecord(c *gin.Context) {
 		return
 	}
 
-	date, err := time.Parse("2006-01-02", req.Date)
+	date, err := time.ParseInLocation("2006-01-02", req.Date, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
 		return
@@ -94,7 +94,7 @@ func (h *Handler) CreateDailyRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", record.HospitalizationID, record.Date.Format("2006-01-02")))
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", record.HospitalizationID, record.Date.In(time.Local).Format("2006-01-02")))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 
@@ -111,7 +111,7 @@ func (h *Handler) AddVitalRecord(c *gin.Context) {
 	}
 
 	dateStr := c.Param("date")
-	date, err := time.Parse("2006-01-02", dateStr)
+	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
 		return
@@ -134,7 +134,7 @@ func (h *Handler) AddVitalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.Format("2006-01-02")))
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.In(time.Local).Format("2006-01-02")))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 
@@ -151,7 +151,7 @@ func (h *Handler) AddCareLog(c *gin.Context) {
 	}
 
 	dateStr := c.Param("date")
-	date, err := time.Parse("2006-01-02", dateStr)
+	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
 		return
@@ -174,7 +174,7 @@ func (h *Handler) AddCareLog(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.Format("2006-01-02")))
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.In(time.Local).Format("2006-01-02")))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 
@@ -191,7 +191,7 @@ func (h *Handler) AddStaffNote(c *gin.Context) {
 	}
 
 	dateStr := c.Param("date")
-	date, err := time.Parse("2006-01-02", dateStr)
+	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
 		return
@@ -214,7 +214,7 @@ func (h *Handler) AddStaffNote(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.Format("2006-01-02")))
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.In(time.Local).Format("2006-01-02")))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 

@@ -159,11 +159,11 @@ func (s *closingSettingsService) UpdateStandard(ctx context.Context, clinicID ui
 }
 
 func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
-	startDate, err := time.Parse("2006-01-02", input.StartDate)
+	startDate, err := time.ParseInLocation("2006-01-02", input.StartDate, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
 	}
-	endDate, err := time.Parse("2006-01-02", input.EndDate)
+	endDate, err := time.ParseInLocation("2006-01-02", input.EndDate, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
 	}
@@ -226,7 +226,7 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 	endDate := current.EndDate
 	var parsedStart, parsedEnd *time.Time
 	if input.StartDate != nil {
-		t, err := time.Parse("2006-01-02", *input.StartDate)
+		t, err := time.ParseInLocation("2006-01-02", *input.StartDate, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
 		}
@@ -234,7 +234,7 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 		startDate = t
 	}
 	if input.EndDate != nil {
-		t, err := time.Parse("2006-01-02", *input.EndDate)
+		t, err := time.ParseInLocation("2006-01-02", *input.EndDate, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
 		}

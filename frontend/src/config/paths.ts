@@ -227,6 +227,7 @@ export const paths = {
     getHref: () => "/line-reservation",
     settings: { path: "/line-reservation/settings", getHref: () => "/line-reservation/settings" },
     pageEditor: { path: "/line-reservation/page-editor", getHref: () => "/line-reservation/page-editor" },
+    slots: { path: "/line-reservation/slots", getHref: () => "/line-reservation/slots" },
   },
 
   lstep: {

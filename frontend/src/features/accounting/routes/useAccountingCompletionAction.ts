@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
+import { jstDateStartISOString, jstNowISOString } from "@/lib/jst-date";
 
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
@@ -103,8 +104,8 @@ export function useAccountingCompletionAction({
             pet_id: Number(accounting.petId),
             owner_id: Number(accounting.ownerId),
             scheduled_date: accounting.scheduledDate
-              ? `${accounting.scheduledDate}T00:00:00Z`
-              : new Date().toISOString(),
+              ? jstDateStartISOString(accounting.scheduledDate)
+              : jstNowISOString(),
             subtotal: calculation.subtotal,
             tax_total: calculation.taxTotal,
             total_amount: calculation.totalAmount,
@@ -140,7 +141,7 @@ export function useAccountingCompletionAction({
             change_amount: totalChange,
             payment_method: repMethod,
             payment_splits: builtSplits,
-            completed_at: new Date().toISOString(),
+            completed_at: jstNowISOString(),
           });
           queryClient.invalidateQueries({ queryKey: ["accountings"] });
           toast.success("会計を登録・完了しました");
@@ -158,7 +159,7 @@ export function useAccountingCompletionAction({
             change_amount: totalChange,
             payment_method: repMethod,
             payment_splits: builtSplits,
-            completed_at: new Date().toISOString(),
+            completed_at: jstNowISOString(),
           });
           setCompletedPayment(paymentInfo);
           queryClient.invalidateQueries({ queryKey: ["accountings"] });

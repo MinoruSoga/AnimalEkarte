@@ -25,7 +25,7 @@ func toOccupationResponse(occ *model.Occupation) occupationResponse {
 		Description: occ.Description,
 		IsActive:    occ.IsActive,
 		SortOrder:   occ.SortOrder,
-		CreatedAt:   occ.CreatedAt,
-		UpdatedAt:   occ.UpdatedAt,
+		CreatedAt:   localTime(occ.CreatedAt),
+		UpdatedAt:   localTime(occ.UpdatedAt),
 	}
 }

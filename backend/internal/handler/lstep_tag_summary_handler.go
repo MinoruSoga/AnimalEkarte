@@ -52,7 +52,7 @@ func toTagSummaryResponse(r service.TagSummaryResponse) tagSummaryResponse {
 	return tagSummaryResponse{
 		Tags:                 items,
 		TotalOwnersWithLstep: r.TotalOwnersWithLstep,
-		AsOf:                 r.AsOf.Format(time.RFC3339),
+		AsOf:                 r.AsOf.In(time.Local).Format(time.RFC3339),
 	}
 }
 
@@ -104,7 +104,7 @@ func (h *Handler) SearchLstepOwnersByTag(c *gin.Context) {
 		return
 	}
 	if query.isCSV() {
-		date := time.Now().Format("2006-01-02")
+		date := time.Now().In(time.Local).Format("2006-01-02")
 		filename := fmt.Sprintf("lstep-%s-%s.csv", query.TagName, date)
 		c.Header("Content-Type", "text/csv; charset=utf-8")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))

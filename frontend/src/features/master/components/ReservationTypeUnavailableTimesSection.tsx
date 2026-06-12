@@ -2,7 +2,6 @@ import { useActionState, useCallback, useMemo, useState } from "react";
 import { Trash2, Plus, Clock } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { handleApiError } from "@/lib/handle-api-error";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import {
   useGetUnavailableTimes,
@@ -99,15 +98,13 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
       };
       await createMutation.mutateAsync(req);
       setForm(DEFAULT_FORM);
-    } catch (error) {
-      handleApiError(error, "予約不可時間の追加");
+    } catch {
+      // エラー通知は useCreateUnavailableTime の onError に一本化（二重トースト防止）
     }
   }, null);
 
   const handleDelete = useCallback((id: number) => {
-    deleteMutation.mutate(id, {
-      onError: (error) => handleApiError(error, "削除"),
-    });
+    deleteMutation.mutate(id);
   }, [deleteMutation]);
 
   const itemList = useMemo(() => items.map((item) => {

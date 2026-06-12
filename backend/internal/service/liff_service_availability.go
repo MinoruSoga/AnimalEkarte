@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"sort"
 	"strings"
 	"time"
 
@@ -52,10 +53,30 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
 			return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get available slots")
 		}
-		if hasActiveAvailableSlots(availableSlots) {
+		if hasActiveAvailableSlots(availableSlots) || course.MaxConcurrent != nil {
 			slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
-				return filterTimeSlotsByAvailableSlots(slots, availableSlots, date)
+				merged := mergeAvailableTimeSlots(slots, availableSlots, date, course.DurationMinutes)
+				if course.MaxConcurrent == nil {
+					return merged
+				}
+				// TODO: 日付一覧取得時の capacity チェックは N+1 になるため将来バッチ取得に改善する
+				filtered, err := filterSlotsByCapacity(ctx, merged, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
+				if err != nil {
+					slog.WarnContext(ctx, "failed to filter by capacity in dates, skipping", "error", err)
+					return merged
+				}
+				return filtered
 			}
+		}
+	} else if course.MaxConcurrent != nil {
+		slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
+			// TODO: 日付一覧取得時の capacity チェックは N+1 になるため将来バッチ取得に改善する
+			filtered, err := filterSlotsByCapacity(ctx, slots, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
+			if err != nil {
+				slog.WarnContext(ctx, "failed to filter by capacity in dates, skipping", "error", err)
+				return slots
+			}
+			return filtered
 		}
 	}
 
@@ -204,31 +225,87 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		slog.ErrorContext(ctx, "failed to generate time slots", "error", err)
 		return nil, apperrors.Wrap(err, "failed to generate time slots")
 	}
-	if s.availableSlotRepo == nil {
-		return result, nil
-	}
-	availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get available slots", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get available slots")
-	}
-	if !hasActiveAvailableSlots(availableSlots) {
-		return result, nil
-	}
-	return filterTimeSlotsByAvailableSlots(result, availableSlots, date), nil
-}
-
-func filterTimeSlotsByAvailableSlots(slots []TimeSlot, availableSlots []model.ReservationTypeAvailableSlot, date time.Time) []TimeSlot {
-	applicableSlots := filterApplicableAvailableSlots(availableSlots, date)
-	allowedStarts := make(map[string]struct{}, len(applicableSlots))
-	for i := range applicableSlots {
-		allowedStarts[strings.ReplaceAll(applicableSlots[i].StartTime, ":", "")] = struct{}{}
-	}
-	filtered := make([]TimeSlot, 0, len(slots))
-	for i := range slots {
-		if _, ok := allowedStarts[slots[i].StartTime]; ok {
-			filtered = append(filtered, slots[i])
+	if s.availableSlotRepo != nil {
+		availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
+			return nil, apperrors.Wrap(err, "failed to get available slots")
+		}
+		if hasActiveAvailableSlots(availableSlots) {
+			result = mergeAvailableTimeSlots(result, availableSlots, date, course.DurationMinutes)
 		}
 	}
-	return filtered
+	if course.MaxConcurrent != nil {
+		result, err = filterSlotsByCapacity(ctx, result, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to filter slots by capacity", "error", err)
+			return nil, apperrors.Wrap(err, "failed to filter slots by capacity")
+		}
+	}
+	return result, nil
+}
+
+// mergeAvailableTimeSlots は営業時間から生成されたスロットに、
+// 予約可能枠テーブルに登録された時刻を加算して返す（ホワイトリストではなく加算モード）。
+// 既に営業時間に含まれている時刻は重複追加しない。
+func mergeAvailableTimeSlots(slots []TimeSlot, availableSlots []model.ReservationTypeAvailableSlot, date time.Time, durationMinutes int) []TimeSlot {
+	applicableSlots := filterApplicableAvailableSlots(availableSlots, date)
+	if len(applicableSlots) == 0 {
+		return slots
+	}
+	existingStarts := make(map[string]struct{}, len(slots))
+	for _, s := range slots {
+		existingStarts[s.StartTime] = struct{}{}
+	}
+	result := make([]TimeSlot, len(slots), len(slots)+len(applicableSlots))
+	copy(result, slots)
+	for i := range applicableSlots {
+		startNorm := strings.ReplaceAll(applicableSlots[i].StartTime, ":", "")
+		if _, exists := existingStarts[startNorm]; exists {
+			continue
+		}
+		startMin, err := minutesSinceMidnight(startNorm)
+		if err != nil {
+			continue
+		}
+		result = append(result, TimeSlot{
+			StartTime: startNorm,
+			EndTime:   minutesToHHMM(startMin + durationMinutes),
+		})
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].StartTime < result[j].StartTime
+	})
+	return result
+}
+
+// filterSlotsByCapacity は max_concurrent に達したスロットを除外する。
+func filterSlotsByCapacity(
+	ctx context.Context,
+	slots []TimeSlot,
+	repo reservationTypeCapacityCounter,
+	clinicID, typeID uint64,
+	date time.Time,
+	maxConcurrent int,
+) ([]TimeSlot, error) {
+	result := make([]TimeSlot, 0, len(slots))
+	dateJST := date.In(jstLocation)
+	for _, slot := range slots {
+		startMin, err := minutesSinceMidnight(slot.StartTime)
+		if err != nil {
+			continue
+		}
+		startTime := time.Date(
+			dateJST.Year(), dateJST.Month(), dateJST.Day(),
+			startMin/60, startMin%60, 0, 0, jstLocation,
+		)
+		count, err := repo.CountByTypeAndStartTime(ctx, clinicID, typeID, startTime, nil)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to count reservations")
+		}
+		if count < int64(maxConcurrent) {
+			result = append(result, slot)
+		}
+	}
+	return result, nil
 }

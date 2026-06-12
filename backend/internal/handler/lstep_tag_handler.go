@@ -45,7 +45,7 @@ func toLstepTagsResponse(r *service.OwnerTagsResult) lstepTagsResponse {
 		IsLinked:    r.IsLinked,
 		LstepOptOut: r.LstepOptOut,
 		Tags:        tags,
-		FetchedAt:   r.FetchedAt,
+		FetchedAt:   localTime(r.FetchedAt),
 	}
 }
 

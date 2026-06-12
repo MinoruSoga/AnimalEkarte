@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -163,6 +164,57 @@ func TestValidateBusinessRules(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing.T) {
+	date := dateInDays(3)
+	startDT, err := toDateTime(date, "1000")
+	assert.NoError(t, err)
+	maxConcurrent := 2
+	createCalled := false
+	repo := &mockReservationRepository{
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			return 3, nil
+		},
+		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+			return 0, nil
+		},
+		countByTypeAndStartTimeFn: func(_ context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(9), reservationTypeID)
+			assert.Equal(t, startDT, startTime)
+			assert.Nil(t, excludeID)
+			return 2, nil
+		},
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			createCalled = true
+			return nil
+		},
+	}
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
+		},
+	}
+	validators := NewReservationValidators(&mockTransactor{}, repo, typeRepo)
+
+	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
+		ClinicID:          1,
+		CustomerID:        2,
+		ReservationTypeID: 9,
+		Date:              date,
+		StartTime:         "1000",
+		EndTime:           "1015",
+		Settings:          newSettingForValidation(),
+	})
+
+	limitErr, ok := IsReservationLimitError(err)
+	assert.True(t, ok, "expected ReservationLimitError but got: %v", err)
+	assert.Equal(t, "SLOT_TAKEN", limitErr.Code)
+	assert.Equal(t, "選択された時間枠は満員です。別の時間をお選びください。", limitErr.Message)
+	assert.Equal(t, 5, limitErr.RedirectStep)
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
 }
 
 // firstWeekday は今日から数えて最初に指定曜日になる日を返す（minDays=2 を満たすため最低 2 日は先にする）。

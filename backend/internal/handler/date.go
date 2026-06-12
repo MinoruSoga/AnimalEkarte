@@ -19,7 +19,7 @@ func (d *jsonDate) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	// YYYY-MM-DD を優先
-	if t, err := time.Parse("2006-01-02", s); err == nil {
+	if t, err := time.ParseInLocation("2006-01-02", s, time.Local); err == nil {
 		d.Time = t
 		return nil
 	}

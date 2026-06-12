@@ -28,8 +28,8 @@ func toClinicalPlanResponse(p *model.ClinicalPlan) clinicalPlanResponse {
 		PhysicalExam:     p.PhysicalExam,
 		DiagnosisDetails: p.DiagnosisDetails,
 		TreatmentPolicy:  p.TreatmentPolicy,
-		CreatedAt:        p.CreatedAt,
-		UpdatedAt:        p.UpdatedAt,
+		CreatedAt:        localTime(p.CreatedAt),
+		UpdatedAt:        localTime(p.UpdatedAt),
 	}
 	if p.DiagnosisTypeID != nil {
 		s := strconv.FormatUint(*p.DiagnosisTypeID, 10)

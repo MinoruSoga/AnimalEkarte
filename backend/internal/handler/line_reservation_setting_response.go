@@ -71,7 +71,7 @@ func toLineReservationSettingResponse(s *model.LineReservationSetting) lineReser
 		AdditionalFields:        json.RawMessage(s.AdditionalFields),
 		LineChannelID:           s.LineChannelID,
 		LiffID:                  s.LiffID,
-		CreatedAt:               s.CreatedAt,
-		UpdatedAt:               s.UpdatedAt,
+		CreatedAt:               localTime(s.CreatedAt),
+		UpdatedAt:               localTime(s.UpdatedAt),
 	}
 }

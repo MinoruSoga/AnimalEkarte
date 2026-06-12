@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { addWeeks, addYears, format } from "date-fns";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { jstDateStartISOString, todayJSTISO } from "@/lib/jst-date";
 import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
@@ -165,10 +166,10 @@ export function useVaccinationForm(id?: string) {
 
       try {
         if (isEdit && id) {
-          const toRFC3339 = (d: string) => d ? `${d}T00:00:00Z` : undefined;
+          const toRFC3339 = (d: string) => d ? jstDateStartISOString(d) : undefined;
           const req: UpdateVaccinationRequest = {
             date: toRFC3339(formData.date),
-            next_date: formData.nextDate ? `${formData.nextDate}T00:00:00Z` : null,
+            next_date: formData.nextDate ? jstDateStartISOString(formData.nextDate) : null,
             lot1: formData.lot1 || undefined,
             lot2: formData.lot2 || undefined,
             lot3: formData.lot3 || undefined,
@@ -184,8 +185,8 @@ export function useVaccinationForm(id?: string) {
             medical_record_id: null,
             pet_id: Number(pet.id),
             vaccine_id: Number(formData.vaccineId),
-            date: formData.date ? `${formData.date}T00:00:00Z` : new Date().toISOString(),
-            next_date: formData.nextDate ? `${formData.nextDate}T00:00:00Z` : null,
+            date: jstDateStartISOString(formData.date || todayJSTISO()),
+            next_date: formData.nextDate ? jstDateStartISOString(formData.nextDate) : null,
             lot1: formData.lot1 || undefined,
             lot2: formData.lot2 || undefined,
             lot3: formData.lot3 || undefined,

@@ -11,6 +11,7 @@ const (
 	colReservationTypeCategory            = "category"
 	colReservationTypeReservationDispName = "reservation_display_name"
 	colReservationTypeDurationMinutes     = "duration_minutes"
+	colReservationTypeMaxConcurrent       = "max_concurrent"
 	colReservationTypeShortName           = "short_name"
 	colReservationTypeShowShortName       = "show_short_name"
 	colReservationTypeReservationVisible  = "reservation_visible"
@@ -19,6 +20,7 @@ const (
 	colReservationTypeIsInternal          = "is_internal"
 	colReservationTypeReservationImageURL = "reservation_image_url"
 	colReservationTypeGroupID             = "group_id"
+	colReservationTypeParentID            = "parent_id"
 )
 
 // buildReservationTypeUpdate は UpdateReservationTypeInput から nil でないフィールドのみ map に変換する
@@ -48,6 +50,11 @@ func buildReservationTypeUpdate(input *UpdateReservationTypeInput) map[string]an
 	if input.DurationMinutes != nil {
 		fields[colReservationTypeDurationMinutes] = *input.DurationMinutes
 	}
+	if input.ClearMaxConcurrent {
+		fields[colReservationTypeMaxConcurrent] = nil
+	} else if input.MaxConcurrent != nil {
+		fields[colReservationTypeMaxConcurrent] = *input.MaxConcurrent
+	}
 	if input.ShortName != nil {
 		fields[colReservationTypeShortName] = *input.ShortName
 	}
@@ -73,6 +80,11 @@ func buildReservationTypeUpdate(input *UpdateReservationTypeInput) map[string]an
 		fields[colReservationTypeGroupID] = nil
 	} else if input.GroupID != nil {
 		fields[colReservationTypeGroupID] = *input.GroupID
+	}
+	if input.ClearParentID {
+		fields[colReservationTypeParentID] = nil
+	} else if input.ParentID != nil {
+		fields[colReservationTypeParentID] = *input.ParentID
 	}
 	return fields
 }

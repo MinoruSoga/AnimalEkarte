@@ -21,6 +21,8 @@ export interface AccountingFilters {
    * Backend: GET /api/v1/accountings?owner_id=...
    */
   ownerId?: string;
+  /** 拠点横断表示 (#86 段階3): 2件以上の場合に clinic_ids クエリパラメータとして送信する。 */
+  clinicIds?: string[];
 }
 
 export const getAccountings = async (
@@ -30,6 +32,7 @@ export const getAccountings = async (
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
   if (filters?.ownerId) params.owner_id = filters.ownerId;
+  if (filters?.clinicIds && filters.clinicIds.length > 1) params.clinic_ids = filters.clinicIds.join(",");
   const { data } = await axios.get<AccountingsListResponse>("/v1/accountings", { params });
   return data.data.map(transformToAccounting);
 };

@@ -60,13 +60,13 @@ func toVitalRecordResponse(vr *model.VitalRecord) vitalRecordResponse {
 	r := vitalRecordResponse{
 		ID:              strconv.FormatUint(vr.ID, 10),
 		DailyRecordID:   dailyRecordID,
-		Time:            vr.RecordedAt.Format("15:04:05"),
+		Time:            localTime(vr.RecordedAt).Format("15:04:05"),
 		Temperature:     vr.Temperature,
 		HeartRate:       vr.HeartRate,
 		RespirationRate: vr.RespirationRate,
 		Weight:          vr.Weight,
 		Notes:           vr.Notes,
-		CreatedAt:       vr.CreatedAt,
+		CreatedAt:       localTime(vr.CreatedAt),
 	}
 	if vr.StaffID != nil {
 		s := strconv.FormatUint(*vr.StaffID, 10)
@@ -79,12 +79,12 @@ func toCareLogResponse(cr *model.CareLog) careLogResponse {
 	r := careLogResponse{
 		ID:            strconv.FormatUint(cr.ID, 10),
 		DailyRecordID: strconv.FormatUint(cr.DailyRecordID, 10),
-		Time:          cr.Time.Format("15:04:05"),
+		Time:          localTime(cr.Time).Format("15:04:05"),
 		Type:          string(cr.Type),
 		Status:        string(cr.Status),
 		Value:         cr.Value,
 		Notes:         cr.Notes,
-		CreatedAt:     cr.CreatedAt,
+		CreatedAt:     localTime(cr.CreatedAt),
 	}
 	if cr.StaffID != nil {
 		s := strconv.FormatUint(*cr.StaffID, 10)
@@ -97,9 +97,9 @@ func toStaffNoteResponse(sn *model.StaffNote) staffNoteResponse {
 	r := staffNoteResponse{
 		ID:            strconv.FormatUint(sn.ID, 10),
 		DailyRecordID: strconv.FormatUint(sn.DailyRecordID, 10),
-		Time:          sn.Time.Format("15:04:05"),
+		Time:          localTime(sn.Time).Format("15:04:05"),
 		Content:       sn.Content,
-		CreatedAt:     sn.CreatedAt,
+		CreatedAt:     localTime(sn.CreatedAt),
 	}
 	if sn.StaffID != nil {
 		s := strconv.FormatUint(*sn.StaffID, 10)
@@ -127,9 +127,9 @@ func toDailyRecordResponse(dr *model.DailyRecord) dailyRecordResponse {
 	return dailyRecordResponse{
 		ID:                strconv.FormatUint(dr.ID, 10),
 		HospitalizationID: strconv.FormatUint(dr.HospitalizationID, 10),
-		Date:              dr.Date,
-		CreatedAt:         dr.CreatedAt,
-		UpdatedAt:         dr.UpdatedAt,
+		Date:              localTime(dr.Date),
+		CreatedAt:         localTime(dr.CreatedAt),
+		UpdatedAt:         localTime(dr.UpdatedAt),
 		VitalRecords:      vitals,
 		CareLogs:          careLogs,
 		StaffNotes:        staffNotes,

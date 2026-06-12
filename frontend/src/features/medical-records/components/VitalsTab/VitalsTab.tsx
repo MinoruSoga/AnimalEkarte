@@ -7,6 +7,7 @@ import { ErrorFallback } from "@/components/shared/DataStates";
 import { usePermission } from "@/hooks/use-permission";
 import { C, ICON } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
+import { jstDateTimeLocalToISOString } from "@/lib/jst-date";
 import {
   useCreateVital,
   useDeleteVital,
@@ -100,7 +101,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
     setAddFormErrors({});
 
     const input: CreateVitalInput = {
-      recorded_at: new Date(addForm.recorded_at).toISOString(),
+      recorded_at: jstDateTimeLocalToISOString(addForm.recorded_at),
       temperature,
       heart_rate: heartRate,
       respiration_rate: respiratoryRate,

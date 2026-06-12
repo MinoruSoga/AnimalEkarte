@@ -22,20 +22,28 @@ import (
 // ---- mock ReservationService ----
 
 type mockReservationService struct {
-	listFn                   func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
+	listFn                   func(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	getByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	getByIDForClinicsFn      func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error)
 	createFn                 func(ctx context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error)
 	updateFn                 func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.Reservation, error)
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
 	updateReservationRouteFn func(ctx context.Context, clinicID, id uint64, input service.UpdateReservationRouteInput) (*model.Reservation, error)
 }
 
-func (m *mockReservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
-	return m.listFn(ctx, clinicID, page, limit, date, status, source, petID, ownerID)
+func (m *mockReservationService) List(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
+	return m.listFn(ctx, clinicIDs, page, limit, date, startDate, endDate, status, source, petID, ownerID)
 }
 
 func (m *mockReservationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	return m.getByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockReservationService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
+	if m.getByIDForClinicsFn != nil {
+		return m.getByIDForClinicsFn(ctx, clinicIDs, id)
+	}
+	return nil, nil
 }
 
 func (m *mockReservationService) Create(ctx context.Context, input *service.CreateManualReservationInput) (*model.Reservation, error) {
@@ -121,7 +129,7 @@ func TestListReservations(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				listFn: func(_ context.Context, _ uint64, _, _ int, date *time.Time, status, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, _, _ int, date, _, _ *time.Time, status, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
 					assert.Nil(t, date)
 					assert.Nil(t, status)
 					return []model.Reservation{{ID: 1, Notes: "初診"}}, 1, nil
@@ -135,11 +143,31 @@ func TestListReservations(t *testing.T) {
 			query:    "page=1&limit=10&date=2026-03-24",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				listFn: func(_ context.Context, _ uint64, _, _ int, date *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, _, _ int, date, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
 					require.NotNil(t, date)
 					assert.Equal(t, 2026, date.Year())
 					assert.Equal(t, time.March, date.Month())
 					assert.Equal(t, 24, date.Day())
+					return []model.Reservation{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "allows large limit for calendar range",
+			query:    "page=1&limit=1000&start_date=2026-03-22&end_date=2026-03-28",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationService{
+				listFn: func(_ context.Context, _ []uint64, _ int, limit int, _, startDate, endDate *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+					assert.Equal(t, 1000, limit)
+					require.NotNil(t, startDate)
+					require.NotNil(t, endDate)
+					assert.Equal(t, 2026, startDate.Year())
+					assert.Equal(t, time.March, startDate.Month())
+					assert.Equal(t, 22, startDate.Day())
+					assert.Equal(t, 2026, endDate.Year())
+					assert.Equal(t, time.March, endDate.Month())
+					assert.Equal(t, 29, endDate.Day())
 					return []model.Reservation{}, 0, nil
 				},
 			},
@@ -171,7 +199,7 @@ func TestListReservations(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				listFn: func(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
 					return nil, 0, fmt.Errorf("db error")
 				},
 			},
@@ -213,8 +241,8 @@ func TestGetReservation(t *testing.T) {
 			paramID:  "3",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
-					assert.Equal(t, uint64(1), clinicID)
+				getByIDForClinicsFn: func(_ context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
 					assert.Equal(t, uint64(3), id)
 					return &model.Reservation{ID: 3, Notes: "再診"}, nil
 				},
@@ -241,7 +269,7 @@ func TestGetReservation(t *testing.T) {
 			paramID:  "999",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				getByIDForClinicsFn: func(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
 					return nil, apperrors.WrapNotFound("reservation", "999")
 				},
 			},
@@ -608,7 +636,11 @@ func TestUpdateReservation_AutoCreateMedicalRecord(t *testing.T) {
 					assert.Equal(t, tt.reservation.ID, id)
 					require.NotNil(t, input.Status)
 					assert.Equal(t, model.ReservationStatusCheckedIn, *input.Status)
-					return tt.reservation, nil
+					// #83 Q9: shouldAutoCreate は更新後の reservation.Status で判定するため、
+					// 更新後ステータス(checked_in)を反映した予約を返す。
+					updated := *tt.reservation
+					updated.Status = *input.Status
+					return &updated, nil
 				},
 			}
 			medicalRecordSvc := &mockMedicalRecordService{

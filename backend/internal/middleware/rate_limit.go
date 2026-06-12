@@ -81,9 +81,11 @@ func (s *RateLimitStore) getLimiter(ip string, rps rate.Limit, burst int) *rate.
 
 // RateLimit は指定されたレートでIPアドレスごとにレート制限を行う
 // rps: requests per second, burst: バースト許容量
+// c.ClientIP() を使用することで TRUSTED_PROXY_CIDR 設定を尊重し、
+// X-Forwarded-For ヘッダーの偽装による IP スプーフィングを防止する
 func RateLimit(store *RateLimitStore, rps rate.Limit, burst int) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ip := getClientIP(c)
+		ip := c.ClientIP()
 		limiter := store.getLimiter(ip, rps, burst)
 
 		if !limiter.Allow() {
@@ -95,23 +97,8 @@ func RateLimit(store *RateLimitStore, rps rate.Limit, burst int) gin.HandlerFunc
 	}
 }
 
-// getClientIP はクライアントのIPアドレスを取得する
-// X-Forwarded-For (プロキシ経由)、X-Real-IP (Nginx)、接続元IPを順に確認
-func getClientIP(c *gin.Context) string {
-	if xForwardedFor := c.GetHeader("X-Forwarded-For"); xForwardedFor != "" {
-		// X-Forwarded-Forはカンマ区切りの複数IPが含まれることがある
-		// 最初のIP（元のクライアント）を使用する
-		for i := 0; i < len(xForwardedFor); i++ {
-			if xForwardedFor[i] == ',' {
-				return xForwardedFor[:i]
-			}
-		}
-		return xForwardedFor
-	}
-
-	if xRealIP := c.GetHeader("X-Real-IP"); xRealIP != "" {
-		return xRealIP
-	}
-
-	return c.ClientIP()
+// LiffRateLimit は LIFF エンドポイント向けのレートリミッター
+// 指定された requests/minute を requests/second に変換して RateLimit に委譲する
+func LiffRateLimit(store *RateLimitStore, requestsPerMinute int) gin.HandlerFunc {
+	return RateLimit(store, rate.Limit(requestsPerMinute)/60.0, requestsPerMinute)
 }

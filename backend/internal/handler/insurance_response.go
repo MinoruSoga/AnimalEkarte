@@ -29,7 +29,7 @@ func toInsuranceResponse(ins *model.Insurance) insuranceResponse {
 		CoverageRate: ins.CoverageRate,
 		ContactPhone: ins.ContactPhone,
 		SortOrder:    ins.SortOrder,
-		CreatedAt:    ins.CreatedAt,
-		UpdatedAt:    ins.UpdatedAt,
+		CreatedAt:    localTime(ins.CreatedAt),
+		UpdatedAt:    localTime(ins.UpdatedAt),
 	}
 }

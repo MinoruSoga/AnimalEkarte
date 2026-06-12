@@ -6,9 +6,11 @@ import { useNavigate, useSearchParams } from "react-router";
 // Components
 import { UnpaidTab } from "../components/UnpaidTab";
 import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
+import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
+import { useClinicScope } from "@/hooks/use-clinic-scope";
 
 // External
 import { Plus, CreditCard } from "lucide-react";
@@ -39,14 +41,24 @@ const TABS = [
   { value: "unpaid", label: "未納者一覧" },
 ] as const;
 
+const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
+
 export function AccountingList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit } = usePermission("accounting");
 
+  // #86 段階3: 拠点横断表示
+  const {
+    assignedClinics,
+    selectedClinicIds,
+    isMultiClinic,
+    clinicNameById,
+    handleToggleClinic,
+  } = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
+
   const tabParam = searchParams.get("tab");
   const activeTab = tabParam === "unpaid" ? "unpaid" : tabParam === "daily" ? "daily" : "list";
-  const tabItems = TABS;
   const handleTabChange = useCallback((tab: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -84,8 +96,9 @@ export function AccountingList() {
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
+      clinicIds: isMultiClinic ? selectedClinicIds : undefined,
     };
-  }, [activeFilters]);
+  }, [activeFilters, isMultiClinic, selectedClinicIds]);
 
   const { data: accountings = [], isLoading, isError } = useGetAccountings(apiFilters);
 
@@ -209,13 +222,23 @@ export function AccountingList() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
+        {assignedClinics.length > 1 ? (
+          <ClinicScopeFilter
+            clinics={assignedClinics}
+            selectedIds={selectedClinicIds}
+            onToggle={handleToggleClinic}
+          />
+        ) : null}
         <UnifiedTabs
-          items={tabItems}
+          items={TABS}
           value={activeTab}
           onValueChange={handleTabChange}
         >
           <UnifiedTabsContent value="daily" className="mt-4">
-            <DailyAccountingTab />
+            <DailyAccountingTab
+              selectedClinicIds={isMultiClinic ? selectedClinicIds : undefined}
+              clinicNameById={clinicNameById}
+            />
           </UnifiedTabsContent>
           <UnifiedTabsContent value="unpaid" className="mt-4">
             <UnpaidTab />
@@ -240,6 +263,8 @@ export function AccountingList() {
                 onEdit={handleEdit}
                 onMedicalRecordOpen={handleMedicalRecordOpen}
                 onPageChange={handlePageChange}
+                showClinicColumn={isMultiClinic}
+                clinicNameById={clinicNameById}
               />
             ) : null}
           </UnifiedTabsContent>

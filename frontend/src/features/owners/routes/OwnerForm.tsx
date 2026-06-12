@@ -1,12 +1,7 @@
-// React/Framework
 import { useState, lazy, Suspense, useCallback, useEffect } from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
-
-// External
 import { User, Receipt } from "lucide-react";
 import { toast } from "sonner";
-
-// Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -14,17 +9,19 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
+import { useAuth } from "@/hooks/use-auth";
 import { C, ICON } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
-
-// Relative
 import { OwnerInfoSection } from "../components/OwnerInfoSection";
 import { OwnerPetsSection } from "../components/OwnerPetsSection";
 import { useOwnerForm } from "../hooks/use-owner-form";
 import type { PetMutations } from "@/types/pet";
-import type { OwnerData } from "../types";
+import type { OwnerData, MembershipType } from "../types";
+import type { OwnerLoaderData } from "../loaders";
+import { ResourceOwners } from "@/types/generated/models";
+
 // Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)
 const PetEditModal = lazy(() =>
   import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
@@ -33,9 +30,6 @@ const PetEditModal = lazy(() =>
 const OwnerAccountingHistory = lazy(() =>
   import("@/features/accounting").then(m => ({ default: m.OwnerAccountingHistory }))
 );
-import type { MembershipType } from "../types";
-import type { OwnerLoaderData } from "../loaders";
-import { ResourceOwners } from "@/types/generated/models";
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
 const OWNER_FIELD_ID_MAP: Record<string, string> = {
@@ -56,6 +50,8 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("owners");
+  // #84: 登録先医院の選択肢（所属医院のみ）と現在の医院。複数所属時のみセレクト表示
+  const { user, currentClinicId } = useAuth();
   // BUG-372: 割引権限（値引率フィールド制御用）
   const { canEdit: canEditDiscount } = usePermission("discount");
   // 会計履歴セクションは閲覧専用なので accounting:view で出し分ける。
@@ -228,106 +224,92 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
       >
         <NavigationBlocker when={isDirty && !isLoading} />
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
+          <div className={`mb-4 rounded-lg ${C.bgWhite} p-4 border ${C.borderMedium}`}>
+            <h2 className={`mb-3 text-sm font-bold ${C.text} flex items-center gap-2`}>
+              <User className={`${ICON.action} ${C.text60}`} />
+              飼主情報
+            </h2>
+            <OwnerInfoSection
+              ownerData={ownerData}
+              fieldErrors={fieldErrors}
+              isEdit={isEdit}
+              canEditDiscount={canEditDiscount}
+              clinicOptions={user?.clinics}
+              currentClinicId={currentClinicId}
+              onChange={handleInputChange}
+              onClearError={clearFieldError}
+              onMembershipChange={handleMembershipChange}
+              onPostalCodeLookup={handlePostalCodeLookup}
+            />
+          </div>
 
-      {/* Owner Information Form */}
-      {/* rerender-memo: OwnerInfoSection はペット操作・モーダル開閉では再レンダーしない */}
-      <div className={`mb-4 rounded-lg ${C.bgWhite} p-4 border ${C.borderMedium}`}>
-        <h2 className={`mb-3 text-sm font-bold ${C.text} flex items-center gap-2`}>
-          <User className={`${ICON.action} ${C.text60}`} />
-          飼主情報
-        </h2>
-        <OwnerInfoSection
-          ownerData={ownerData}
-          fieldErrors={fieldErrors}
-          isEdit={isEdit}
-          canEditDiscount={canEditDiscount}
-          onChange={handleInputChange}
-          onClearError={clearFieldError}
-          onMembershipChange={handleMembershipChange}
-          onPostalCodeLookup={handlePostalCodeLookup}
-        />
-      </div>
-
-      <OwnerPetsSection
-        pets={pets}
-        ownerId={ownerId}
-        canEdit={canEdit}
-        canCreate={canCreate}
-        canDelete={canDelete}
-        onAddPet={handleAddPet}
-        onEditPet={handleEditPet}
-        onDeleteRequest={handleDeletePetRequest}
-      />
-
+          <OwnerPetsSection
+            pets={pets}
+            ownerId={ownerId}
+            canEdit={canEdit}
+            canCreate={canCreate}
+            canDelete={canDelete}
+            onAddPet={handleAddPet}
+            onEditPet={handleEditPet}
+            onDeleteRequest={handleDeletePetRequest}
+          />
         </fieldset>
 
-      {/* 会計履歴セクション（編集モード + accounting:view 権限保有時のみ表示） */}
-      {/*
-       * 過去の会計を一覧し、各行から /accounting/:id 詳細へ遷移できる。
-       * 完了済の会計には「明細兼領収書」リンクを出し、詳細ページの
-       * 既存プレビュー＆印刷導線を再利用する形で再表示・再印刷を実現する。
-       * 専用の再発行 API は新設しない。
-       *
-       * 権限制御: accounting:view を持たないユーザーには、見出しを含む
-       * セクション全体を表示しない。OwnerAccountingHistory 自体は権限を
-       * 意識しない閲覧コンポーネントで、出し分けは呼び出し側 (OwnerForm) の責務。
-       */}
-      {isEdit && ownerId && canViewAccounting ? (
-        <div className="mb-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
-              <Receipt className={`${ICON.action} ${C.text60}`} />
-              会計履歴
-            </h2>
+        {/* 会計履歴セクション（編集モード + accounting:view 権限保有時のみ表示） */}
+        {isEdit && ownerId && canViewAccounting ? (
+          <div className="mb-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
+                <Receipt className={`${ICON.action} ${C.text60}`} />
+                会計履歴
+              </h2>
+            </div>
+            <Suspense fallback={null}>
+              <OwnerAccountingHistory ownerId={ownerId} />
+            </Suspense>
           </div>
-          <Suspense fallback={null}>
-            <OwnerAccountingHistory ownerId={ownerId} />
-          </Suspense>
-        </div>
-      ) : null}
+        ) : null}
 
-      {/* LINE連携セクション（編集モードのみ・app層から注入） */}
-      {isEdit && lineSection ? (
-        <div className={`mt-6 p-4 rounded-lg border ${C.borderLight}`}>
-          {lineSection}
-        </div>
-      ) : null}
+        {/* LINE連携セクション（編集モードのみ・app層から注入） */}
+        {isEdit && lineSection ? (
+          <div className={`mt-6 p-4 rounded-lg border ${C.borderLight}`}>
+            {lineSection}
+          </div>
+        ) : null}
 
-      <Suspense fallback={null}>
-        <PetEditModal
-          key={editingPet?.id ?? "new"}
-          open={petModalOpen}
-          onOpenChange={setPetModalOpen}
-          ownerName={ownerData.ownerName || "新規飼主"}
-          petData={editingPet ?? undefined}
-          onSave={handleSavePet}
-          onChangeOwner={handlePetChangeOwner}
+        <Suspense fallback={null}>
+          <PetEditModal
+            key={editingPet?.id ?? "new"}
+            open={petModalOpen}
+            onOpenChange={setPetModalOpen}
+            ownerName={ownerData.ownerName || "新規飼主"}
+            petData={editingPet ?? undefined}
+            onSave={handleSavePet}
+            onChangeOwner={handlePetChangeOwner}
+          />
+        </Suspense>
+
+        <ConfirmDialog
+          open={!!deletePetTarget}
+          onClose={() => setDeletePetTarget(null)}
+          onConfirm={handleConfirmDeletePet}
+          title="ペットを削除しますか？"
+          description={`ペット「${deletePetTarget?.name}」を削除します。この操作は取り消すことができません。`}
+          confirmLabel="削除"
+          cancelLabel="キャンセル"
+          variant="destructive"
         />
-      </Suspense>
 
-      {/* Delete Pet Confirm Dialog */}
-      <ConfirmDialog
-        open={!!deletePetTarget}
-        onClose={() => setDeletePetTarget(null)}
-        onConfirm={handleConfirmDeletePet}
-        title="ペットを削除しますか？"
-        description={`ペット「${deletePetTarget?.name}」を削除します。この操作は取り消すことができません。`}
-        confirmLabel="削除"
-        cancelLabel="キャンセル"
-        variant="destructive"
-      />
-
-      {/* BUG-373: 飼主変更 確認ダイアログ (discount_rate/membership_type 不一致時のみ表示) */}
-      <ConfirmDialog
-        open={!!pendingOwnerChange}
-        onClose={() => setPendingOwnerChange(null)}
-        onConfirm={handleConfirmOwnerChange}
-        title="飼主変更の確認"
-        description="飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。変更を続行してよろしいですか?"
-        confirmLabel="続行"
-        cancelLabel="キャンセル"
-      />
-    </PageLayout>
+        <ConfirmDialog
+          open={!!pendingOwnerChange}
+          onClose={() => setPendingOwnerChange(null)}
+          onConfirm={handleConfirmOwnerChange}
+          title="飼主変更の確認"
+          description="飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。変更を続行してよろしいですか?"
+          confirmLabel="続行"
+          cancelLabel="キャンセル"
+        />
+      </PageLayout>
     </form>
   );
 }

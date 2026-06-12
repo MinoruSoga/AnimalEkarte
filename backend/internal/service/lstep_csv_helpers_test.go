@@ -146,7 +146,7 @@ func TestSplitMultiValue(t *testing.T) {
 
 func TestParseCsvTime(t *testing.T) {
 	mustParseTime := func(layout, value string) *time.Time {
-		parsed, err := time.Parse(layout, value)
+		parsed, err := time.ParseInLocation(layout, value, time.Local)
 		if err != nil {
 			panic(err)
 		}

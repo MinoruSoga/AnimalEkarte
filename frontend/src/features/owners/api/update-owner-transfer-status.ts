@@ -22,11 +22,15 @@ async function updateOwnerTransferStatus(
 
 export function useUpdateOwnerTransferStatus(ownerId: string) {
   const queryClient = useQueryClient();
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
 
   return useMutation({
-    mutationFn: (body: UpdateOwnerTransferStatusBody) =>
-      updateOwnerTransferStatus(clinicId, ownerId, body),
+    mutationFn: (body: UpdateOwnerTransferStatusBody) => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+      return updateOwnerTransferStatus(clinicId, ownerId, body);
+    },
     onSuccess: (owner, variables) => {
       queryClient.setQueryData(["owners", ownerId], owner);
       queryClient.invalidateQueries({ queryKey: ["owners", ownerId] });

@@ -11,7 +11,7 @@ afterEach(() => {
 
 describe("todayISODate / addDaysISO", () => {
   it("A: vi.setSystemTime で固定した日付を yyyy-mm-dd で返す", () => {
-    vi.setSystemTime(new Date(2026, 4, 6, 12, 0, 0)); // 2026-05-06 12:00 local
+    vi.setSystemTime(new Date("2026-05-06T03:00:00.000Z")); // 2026-05-06 12:00 JST
     expect(todayISODate()).toBe("2026-05-06");
   });
 

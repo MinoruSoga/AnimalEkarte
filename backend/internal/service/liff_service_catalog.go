@@ -60,18 +60,28 @@ func (s *liffService) GetTrimmingOptions(ctx context.Context, clinicID uint64) (
 	return result, nil
 }
 
-// GetCourses はLIFF向け公開コース一覧を返す（is_internal=false && reservation_visible=true）。
+// GetCourses はLIFF向け公開コース一覧を返す（公開中の葉ノードのみ）。
 func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	all, err := s.typeLiffRepo.FindAll(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get courses", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get courses")
 	}
+	hasChildren := make(map[uint64]struct{}, len(all))
+	for i := range all {
+		if all[i].ParentID != nil {
+			hasChildren[*all[i].ParentID] = struct{}{}
+		}
+	}
 	result := make([]model.ReservationType, 0, len(all))
 	for i := range all {
-		if !all[i].IsInternal && all[i].ReservationVisible {
-			result = append(result, all[i])
+		if all[i].IsInternal || !all[i].ReservationVisible {
+			continue
 		}
+		if _, isParent := hasChildren[all[i].ID]; isParent {
+			continue
+		}
+		result = append(result, all[i])
 	}
 	return result, nil
 }

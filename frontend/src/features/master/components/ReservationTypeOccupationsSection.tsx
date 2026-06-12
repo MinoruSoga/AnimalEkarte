@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { X, Briefcase } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { handleApiError } from "@/lib/handle-api-error";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { useGetAllOccupations } from "../api/occupations";
 import {
@@ -38,17 +37,14 @@ export function ReservationTypeOccupationsSection({ clinicId, reservationTypeId 
     [allOccupations, linkedOccupationIds],
   );
 
+  // エラー通知は use-reservation-type-occupations 側の onError に一本化（二重トースト防止）
   const handleLink = useCallback((value: string) => {
     if (value === PLACEHOLDER) return;
-    linkMutation.mutate(Number(value), {
-      onError: (error) => handleApiError(error, "職種の紐付け"),
-    });
+    linkMutation.mutate(Number(value));
   }, [linkMutation]);
 
   const handleUnlink = useCallback((id: number) => {
-    unlinkMutation.mutate(id, {
-      onError: (error) => handleApiError(error, "職種の解除"),
-    });
+    unlinkMutation.mutate(id);
   }, [unlinkMutation]);
 
   const linkedBadges = useMemo(() => linked.map((item) => (

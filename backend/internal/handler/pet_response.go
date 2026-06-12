@@ -107,9 +107,15 @@ func toPetListResponse(p *model.Pet) petListResponse {
 
 // petSummaryResponse はネストされたレスポンスで使用するペットの要約型
 type petSummaryResponse struct {
-	ID            uint64                        `json:"id"`
-	Name          string                        `json:"name"`
+	ID        uint64   `json:"id"`
+	Name      string   `json:"name"`
+	PetNumber string   `json:"pet_number"`
+	Weight    *float64 `json:"weight,omitempty"`
+	// Status は死亡ペット判定（入院一覧/詳細の petIsDeceased）向け。alive/deceased。
+	Status        string                        `json:"status,omitempty"`
 	AnimalSpecies *animalSpeciesSummaryResponse `json:"animal_species,omitempty"`
+	// Owner は飼主名を必要とする一覧（トリミング/予約等）向け。Pet.Owner を Preload した場合のみ埋まる。
+	Owner *ownerSummaryResponse `json:"owner,omitempty"`
 }
 
 // animalSpeciesSummaryResponse はペット要約内で使用する種別の要約型
@@ -124,8 +130,12 @@ func toPetSummary(p *model.Pet) *petSummaryResponse {
 		return nil
 	}
 	resp := &petSummaryResponse{
-		ID:   p.ID,
-		Name: p.Name,
+		ID:        p.ID,
+		Name:      p.Name,
+		PetNumber: p.PetNumber,
+		Weight:    p.Weight,
+		Status:    string(p.Status),
+		Owner:     toOwnerSummary(p.Owner),
 	}
 	if p.AnimalSpecies != nil {
 		resp.AnimalSpecies = &animalSpeciesSummaryResponse{
@@ -165,8 +175,8 @@ func toPetResponse(p *model.Pet) petResponse {
 		LastVisit:       p.LastVisit,
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
-		CreatedAt:       p.CreatedAt,
-		UpdatedAt:       p.UpdatedAt,
+		CreatedAt:       localTime(p.CreatedAt),
+		UpdatedAt:       localTime(p.UpdatedAt),
 	}
 	if p.Owner != nil {
 		resp.Owner = &petOwnerNested{

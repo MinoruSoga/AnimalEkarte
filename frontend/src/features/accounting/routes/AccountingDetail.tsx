@@ -1,18 +1,9 @@
-// React/Framework
 import { useState, useMemo, memo, useTransition } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
-
-// External
 import { useQueryClient } from "@tanstack/react-query";
-
-// Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-
-// Shared Hooks
 import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
-
-// Relative
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -29,12 +20,8 @@ import { useAccountingCompletionAction } from "./useAccountingCompletionAction";
 import { useAccountingDetailState } from "./useAccountingDetailState";
 import { useAccountingItemActions } from "./useAccountingItemActions";
 import { useAccountingSettlementActions } from "./useAccountingSettlementActions";
-
-// Types
 import type { AccountingItem } from "../types";
 import { ResourceAccounting } from "@/types/generated/models";
-
-// ── メインコンポーネント ──────────────────────────────────
 
 interface AccountingDetailProps {
   invoiceRegistrationNumber?: string;
@@ -45,7 +32,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const [, startTaxUpdateTransition] = useTransition();
+  const [, startItemUpdateTransition] = useTransition();
   const [, startAddItemTransition] = useTransition();
   const [, startDeleteItemTransition] = useTransition();
 
@@ -119,7 +106,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   // rerender-dependencies: user?.clinic（オブジェクト）の代わりに user（安定参照）を deps に使用
   }, [user, invoiceRegistrationNumber]);
 
-  const { handleAddItem, handleDeleteItem, handleUpdateItemTax } = useAccountingItemActions({
+  const { handleAddItem, handleDeleteItem, handleUpdateItemTax, handleUpdateItemDiscount } = useAccountingItemActions({
     accountingId: id,
     baseItems,
     queryClient,
@@ -127,7 +114,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     setNewItemOpen,
     startAddItemTransition,
     startDeleteItemTransition,
-    startTaxUpdateTransition,
+    startItemUpdateTransition,
   });
 
   const { handleCancelConfirm, handlePrint, handleRefund } = useAccountingSettlementActions({
@@ -145,85 +132,84 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
 
   return (
     <>
-    <form ref={formRef} action={formAction}>
-      <PageLayout
-        className="print:hidden"
-        title="会計精算"
-        resource={ResourceAccounting}
-        description={`受付No: ${accounting.id} | ${accounting.ownerName}様 - ${accounting.petName}ちゃん`}
-        onBack={() => navigate(paths.accounting.getHref())}
-        headerAction={
-          <AccountingHeaderActions
-            status={accounting.status}
-            canDelete={canDelete}
-            isCancelling={isCancelling}
-            onPrint={handlePrint}
-            onCancelClick={() => setCancelConfirmOpen(true)}
+      <form ref={formRef} action={formAction}>
+        <PageLayout
+          className="print:hidden"
+          title="会計精算"
+          resource={ResourceAccounting}
+          description={`受付No: ${accounting.id} | ${accounting.ownerName}様 - ${accounting.petName}ちゃん`}
+          onBack={() => navigate(paths.accounting.getHref())}
+          headerAction={
+            <AccountingHeaderActions
+              status={accounting.status}
+              canDelete={canDelete}
+              isCancelling={isCancelling}
+              onPrint={handlePrint}
+              onCancelClick={() => setCancelConfirmOpen(true)}
+            />
+          }
+        >
+          <ReadOnlyAccountingBanner show={Boolean(id && !canEdit)} />
+          <UngroupedItemsWarningBanner
+            show={Boolean(!id && ungroupedSummary?.hasUngrouped)}
+            medicalRecordCount={ungroupedSummary?.medicalRecordCount ?? 0}
+            trimmingCount={ungroupedSummary?.trimmingCount ?? 0}
           />
-        }
-      >
-        <ReadOnlyAccountingBanner show={Boolean(id && !canEdit)} />
-        <UngroupedItemsWarningBanner
-          show={Boolean(!id && ungroupedSummary?.hasUngrouped)}
-          medicalRecordCount={ungroupedSummary?.medicalRecordCount ?? 0}
-          trimmingCount={ungroupedSummary?.trimmingCount ?? 0}
-        />
-        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
-        <AccountingDetailColumns
-          accounting={accounting}
-          calculation={calculation}
-          accountingId={id}
-          hasInsurance={hasInsurance}
-          insuranceRatio={insuranceRatio}
-          paymentSplits={paymentSplits}
-          newItemOpen={newItemOpen}
-          isRefunding={isRefunding}
-          canEdit={canEdit}
-          canCreate={canCreate}
-          canDelete={canDelete}
-          onNewItemOpenChange={setNewItemOpen}
-          onAddItem={handleAddItem}
-          onDeleteItem={handleDeleteItem}
-          onUpdateItemTax={handleUpdateItemTax}
-          onUseInsuranceChange={setHasInsurance}
-          onInsuranceRatioChange={setInsuranceRatio}
-          onSplitsChange={setPaymentSplits}
-          onRefund={handleRefund}
-        />
-        </fieldset>
+          <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
+            <AccountingDetailColumns
+              accounting={accounting}
+              calculation={calculation}
+              accountingId={id}
+              hasInsurance={hasInsurance}
+              insuranceRatio={insuranceRatio}
+              paymentSplits={paymentSplits}
+              newItemOpen={newItemOpen}
+              isRefunding={isRefunding}
+              canEdit={canEdit}
+              canCreate={canCreate}
+              canDelete={canDelete}
+              onNewItemOpenChange={setNewItemOpen}
+              onAddItem={handleAddItem}
+              onDeleteItem={handleDeleteItem}
+              onUpdateItemTax={handleUpdateItemTax}
+              onUpdateItemDiscount={handleUpdateItemDiscount}
+              onUseInsuranceChange={setHasInsurance}
+              onInsuranceRatioChange={setInsuranceRatio}
+              onSplitsChange={setPaymentSplits}
+              onRefund={handleRefund}
+            />
+          </fieldset>
 
-        <AccountingDocumentPreviewDialog
-          open={previewOpen}
-          accounting={accounting}
-          clinic={clinicForDocument}
-          onOpenChange={setPreviewOpen}
-        />
+          <AccountingDocumentPreviewDialog
+            open={previewOpen}
+            accounting={accounting}
+            clinic={clinicForDocument}
+            onOpenChange={setPreviewOpen}
+          />
 
-        {/* BUG-371: 精算済修正の確認モーダル */}
-        <ConfirmDialog
-          open={editConfirmOpen}
-          onClose={() => setEditConfirmOpen(false)}
-          title="精算済みの会計を修正します"
-          description="この操作は会計データに変更を加えます。よろしいですか?"
-          confirmLabel="修正する"
-          cancelLabel="キャンセル"
-          onConfirm={confirmCompletedEdit}
-        />
+          <ConfirmDialog
+            open={editConfirmOpen}
+            onClose={() => setEditConfirmOpen(false)}
+            title="精算済みの会計を修正します"
+            description="この操作は会計データに変更を加えます。よろしいですか?"
+            confirmLabel="修正する"
+            cancelLabel="キャンセル"
+            onConfirm={confirmCompletedEdit}
+          />
 
-        {/* BUG-371: 会計キャンセル確認モーダル */}
-        <ConfirmDialog
-          open={cancelConfirmOpen}
-          onClose={() => setCancelConfirmOpen(false)}
-          title="この会計をキャンセルします"
-          description="元に戻せません。キャンセルされた会計はステータスが「cancelled」になります。"
-          confirmLabel="キャンセルする"
-          cancelLabel="戻る"
-          variant="destructive"
-          isPending={isCancelling}
-          onConfirm={handleCancelConfirm}
-        />
-      </PageLayout>
-    </form>
+          <ConfirmDialog
+            open={cancelConfirmOpen}
+            onClose={() => setCancelConfirmOpen(false)}
+            title="この会計をキャンセルします"
+            description="元に戻せません。キャンセルされた会計はステータスが「cancelled」になります。"
+            confirmLabel="キャンセルする"
+            cancelLabel="戻る"
+            variant="destructive"
+            isPending={isCancelling}
+            onConfirm={handleCancelConfirm}
+          />
+        </PageLayout>
+      </form>
 
       <AccountingPrintArea accounting={accounting} clinic={clinicForDocument} />
     </>

@@ -431,6 +431,8 @@ export const C = {
   /* ── Tailwind utility backgrounds (FG1 compliance) ── */
   /** Tailwind gray-100 background — skeleton loading placeholder */
   bgGray100:      "bg-gray-100",
+  /** Tailwind gray-800 background — tooltip dark background */
+  bgTooltip:      "bg-gray-800",
 
   /* ── Tailwind utility borders (FG1 compliance) ── */
   /** Tailwind blue-400 border — selected state borders */

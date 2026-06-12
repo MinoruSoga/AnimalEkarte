@@ -53,25 +53,27 @@ export function useSortableData<T extends object>(
     sorted.sort((a, b) => {
       for (const sort of activeSorts) {
         const key = sort.key;
-        let cmp = 0;
 
         if (getSortValue) {
           const aVal = getSortValue(a, key);
           const bVal = getSortValue(b, key);
           if (typeof aVal === "number" && typeof bVal === "number") {
-            cmp = aVal - bVal;
+            const cmp = aVal - bVal;
+            if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
           } else {
-            cmp = String(aVal).localeCompare(String(bVal), "ja");
+            const cmp = String(aVal).localeCompare(String(bVal), "ja");
+            if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
           }
         } else if (numericKeys?.includes(key)) {
-          cmp = Number((a as Record<string, unknown>)[key] ?? 0) - Number((b as Record<string, unknown>)[key] ?? 0);
+          const cmp =
+            Number((a as Record<string, unknown>)[key] ?? 0) - Number((b as Record<string, unknown>)[key] ?? 0);
+          if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
         } else {
           const aVal = String((a as Record<string, unknown>)[key] ?? "");
           const bVal = String((b as Record<string, unknown>)[key] ?? "");
-          cmp = aVal.localeCompare(bVal, "ja");
+          const cmp = aVal.localeCompare(bVal, "ja");
+          if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
         }
-
-        if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
       }
       return 0;
     });

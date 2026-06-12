@@ -250,17 +250,17 @@ ORDER BY %s
 
 // calculateDateRange は year/from/to/period_preset から集計期間を決定する。
 func (r *ltvRepository) calculateDateRange(params *FindOwnerLTVParams) (fromDate, toDate *time.Time, err error) {
-	now := time.Now()
+	now := time.Now().In(time.Local)
 	currentYear := now.Year()
 
 	// from/to が明示的に指定されている場合はそれを優先（優先度1）
 	if params.From != nil && params.To != nil {
 		// YYYY-MM-DD 形式をパース（エラーを明示的に処理）
-		from, err := time.Parse("2006-01-02", *params.From)
+		from, err := time.ParseInLocation("2006-01-02", *params.From, time.Local)
 		if err != nil {
 			return nil, nil, apperrors.Wrap(err, fmt.Sprintf("invalid From date format: %s (expected YYYY-MM-DD)", *params.From))
 		}
-		to, err := time.Parse("2006-01-02", *params.To)
+		to, err := time.ParseInLocation("2006-01-02", *params.To, time.Local)
 		if err != nil {
 			return nil, nil, apperrors.Wrap(err, fmt.Sprintf("invalid To date format: %s (expected YYYY-MM-DD)", *params.To))
 		}
@@ -269,8 +269,8 @@ func (r *ltvRepository) calculateDateRange(params *FindOwnerLTVParams) (fromDate
 
 	// year が指定されている場合（優先度2）（AGG-BE-001）
 	if params.Year != nil {
-		from := time.Date(*params.Year, 1, 1, 0, 0, 0, 0, time.UTC)
-		to := time.Date(*params.Year, 12, 31, 23, 59, 59, 0, time.UTC)
+		from := time.Date(*params.Year, 1, 1, 0, 0, 0, 0, time.Local)
+		to := time.Date(*params.Year, 12, 31, 23, 59, 59, 0, time.Local)
 		return &from, &to, nil
 	}
 

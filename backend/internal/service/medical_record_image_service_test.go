@@ -29,8 +29,12 @@ func (m *mockMedicalRecordRepositoryForImage) FindByID(ctx context.Context, clin
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
+func (m *mockMedicalRecordRepositoryForImage) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+
 // Stub other methods to satisfy interface (not used in these tests)
-func (m *mockMedicalRecordRepositoryForImage) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+func (m *mockMedicalRecordRepositoryForImage) FindAll(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockMedicalRecordRepositoryForImage) Create(_ context.Context, _ *model.MedicalRecord) error {
@@ -68,6 +72,10 @@ func (m *mockMedicalRecordRepositoryForImage) FindOwnersByNextVisitRecommended(_
 }
 func (m *mockMedicalRecordRepositoryForImage) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
+}
+
+func (m *mockMedicalRecordRepositoryForImage) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
+	return nil
 }
 
 func (m *mockMedicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {

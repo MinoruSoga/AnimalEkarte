@@ -8,8 +8,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *ownerService) List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
-	owners, total, err := s.repo.FindAll(ctx, clinicID, page, limit, search)
+func (s *ownerService) List(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error) {
+	owners, total, err := s.repo.FindAll(ctx, clinicIDs, page, limit, search)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list owners", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list owners")
@@ -22,6 +22,15 @@ func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get owner", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get owner")
+	}
+	return owner, nil
+}
+
+func (s *ownerService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+	owner, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get owner for clinics", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get owner for clinics")
 	}
 	return owner, nil
 }
@@ -87,7 +96,8 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, s.wrapOwnerUpdateError(ctx, clinicID, id, err, "failed to update owner", "failed to update owner")
+		slog.ErrorContext(ctx, "failed to update owner", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to update owner")
 	}
 
 	slog.InfoContext(ctx, "owner updated",
@@ -95,7 +105,12 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		slog.Uint64("clinic_id", clinicID))
 
 	// DB の最新状態を返す
-	return s.reloadOwner(ctx, clinicID, id, "failed to get updated owner", "failed to get updated owner")
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get updated owner", "error", err, "id", id, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to get updated owner")
+	}
+	return owner, nil
 }
 
 func (s *ownerService) ensureOwnerEmailUnique(ctx context.Context, clinicID, currentOwnerID uint64, email string) error {
@@ -140,11 +155,11 @@ func (s *ownerService) wrapOwnerUpdateError(ctx context.Context, clinicID, id ui
 	return apperrors.Wrap(err, wrapMessage)
 }
 
-func (s *ownerService) reloadOwner(ctx context.Context, clinicID, id uint64, logMessage, wrapMessage string) (*model.Owner, error) {
+func (s *ownerService) reloadOwner(ctx context.Context, clinicID, id uint64, logMessage string) (*model.Owner, error) {
 	owner, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, logMessage, "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, wrapMessage)
+		return nil, apperrors.Wrap(err, "failed to reload owner")
 	}
 	return owner, nil
 }

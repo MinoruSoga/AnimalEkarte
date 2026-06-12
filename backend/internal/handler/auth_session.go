@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -15,6 +17,14 @@ import (
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+func newJti() string {
+	var bytes [16]byte
+	if _, err := rand.Read(bytes[:]); err != nil {
+		return strconv.FormatInt(time.Now().UnixNano(), 10)
+	}
+	return hex.EncodeToString(bytes[:])
+}
 
 // authenticateUser はメール/パスワードを検証してアカウントとスタッフを返す。
 // 認証失敗・アカウント無効・スタッフ無効の場合は apperrors.ErrUnauthorized ラップエラーを返す。
@@ -100,6 +110,7 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 		IsSystemAdmin: isSystemAdmin,
 		ClinicIDs:     clinicIDs,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        newJti(),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -120,6 +131,7 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 	})
 
 	// Refresh Token 発行（7日間有効、token rotation で毎回更新）
+	// jti はサーバーサイド失効（ブラックリスト照合）に使用する。
 	refreshExpiresAt := time.Now().Add(7 * 24 * time.Hour)
 	refreshClaims := &middleware.JWTClaims{
 		UserID:        strconv.FormatUint(staffID, 10),
@@ -127,6 +139,7 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 		IsSystemAdmin: isSystemAdmin,
 		ClinicIDs:     clinicIDs,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        newJti(),
 			ExpiresAt: jwt.NewNumericDate(refreshExpiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Subject:   "refresh",

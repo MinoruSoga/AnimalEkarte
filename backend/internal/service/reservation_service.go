@@ -93,8 +93,11 @@ func buildReservationUpdate(input *UpdateReservationInput) map[string]any {
 }
 
 type ReservationService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
+	// List は指定した複数医院 (#86 拠点横断) の予約一覧を返す。clinicIDs はハンドラ層で所属検証済みであること。
+	List(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	// GetByIDForClinics は複数医院スコープで予約を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
+	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -103,6 +106,7 @@ type ReservationService interface {
 
 type reservationService struct {
 	repo                 repository.ReservationRepository
+	typeRepo             reservationTypeFinder
 	tx                   repository.Transactor
 	reservationStaffRepo repository.ReservationStaffRepository
 	unavailableTimeRepo  repository.ReservationTypeUnavailableTimeRepository
@@ -118,12 +122,17 @@ func NewReservationService(repo repository.ReservationRepository, tx repository.
 }
 
 func NewReservationServiceWithAvailability(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationService {
+	return NewReservationServiceWithAvailabilityAndType(repo, nil, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo...)
+}
+
+func NewReservationServiceWithAvailabilityAndType(repo repository.ReservationRepository, typeRepo reservationTypeFinder, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationService {
 	var slotRepo repository.ReservationTypeAvailableSlotRepository
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
 	}
 	return &reservationService{
 		repo:                 repo,
+		typeRepo:             typeRepo,
 		tx:                   tx,
 		reservationStaffRepo: reservationStaffRepo,
 		unavailableTimeRepo:  unavailableTimeRepo,
@@ -131,8 +140,8 @@ func NewReservationServiceWithAvailability(repo repository.ReservationRepository
 	}
 }
 
-func (s *reservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
-	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit, date, status, source, petID, ownerID)
+func (s *reservationService) List(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
+	items, total, err := s.repo.FindAll(ctx, clinicIDs, page, limit, date, startDate, endDate, status, source, petID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list reservations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list reservations")
@@ -145,6 +154,15 @@ func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation")
+	}
+	return result, nil
+}
+
+func (s *reservationService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
+	result, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get reservation for clinics", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get reservation for clinics")
 	}
 	return result, nil
 }
@@ -163,7 +181,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	}
 	enforceBookingConstraints := shouldEnforceReservationBookingConstraints(input.Status, input.ReservationRoute)
 	if enforceBookingConstraints {
-		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 			return nil, err
 		}
 	}
@@ -193,6 +211,9 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if enforceBookingConstraints {
 			if err := checkSlotConflict(ctx, s.repo, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime, nil); err != nil {
+				return err
+			}
+			if err := checkReservationTypeCapacity(ctx, s.repo, s.typeRepo, reservation.ClinicID, reservation.ReservationTypeID, reservation.StartTime, nil); err != nil {
 				return err
 			}
 		}
@@ -341,6 +362,10 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		}
 
 		resolvedStart, resolvedEnd, resolvedDoctorID := resolveUpdateParams(current, input)
+		resolvedReservationTypeID := current.ReservationTypeID
+		if input.ReservationTypeID != nil {
+			resolvedReservationTypeID = *input.ReservationTypeID
+		}
 
 		if input.StartTime != nil || input.EndTime != nil {
 			if err := validateTimeRange(resolvedStart, resolvedEnd); err != nil {
@@ -349,6 +374,9 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		}
 
 		if err := checkSlotConflict(ctx, s.repo, clinicID, resolvedDoctorID, resolvedStart, resolvedEnd, &id); err != nil {
+			return err
+		}
+		if err := checkReservationTypeCapacity(ctx, s.repo, s.typeRepo, clinicID, resolvedReservationTypeID, resolvedStart, &id); err != nil {
 			return err
 		}
 
@@ -400,7 +428,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		if input.ReservationTypeID != nil {
 			resolvedReservationTypeID = *input.ReservationTypeID
 		}
-		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, s.availableSlotRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
+		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
 			return nil, err
 		}
 	}
@@ -409,32 +437,42 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	// 時刻・医師の変更がある場合のみ競合チェックが必要
-	needsConflictCheck := input.StartTime != nil || input.EndTime != nil || input.DoctorID != nil
+	// 時刻・医師・予約区分の変更がある場合のみ競合チェックが必要
+	needsConflictCheck := input.StartTime != nil || input.EndTime != nil || input.DoctorID != nil || input.ReservationTypeID != nil
 
+	var updated *model.Reservation
 	if !needsConflictCheck {
 		// 時刻・医師変更なし: トランザクション不要。リポジトリ経由で直接更新
-		updated, err := s.repo.Update(ctx, clinicID, id, fields)
+		u, err := s.repo.Update(ctx, clinicID, id, fields)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update reservation", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update reservation")
 		}
-		slog.InfoContext(ctx, "reservation updated",
-			slog.Uint64("reservation_id", id),
-			slog.Uint64("clinic_id", clinicID))
-		return updated, nil
+		updated = u
+	} else {
+		// 時刻・医師変更あり: SELECT FOR UPDATE + トランザクションで競合を防止
+		u, err := s.updateWithConflictCheck(ctx, clinicID, id, fields, input)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to update reservation", "error", err)
+			return nil, apperrors.Wrap(err, "failed to update reservation")
+		}
+		updated = u
 	}
 
-	// 時刻・医師変更あり: SELECT FOR UPDATE + トランザクションで競合を防止
-	result, err := s.updateWithConflictCheck(ctx, clinicID, id, fields, input)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to update reservation", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update reservation")
+	// Q7: キャンセルされた予約は予約管理から消す（ソフトデリート）。
+	// repo.Update 後の FindByID は deleted_at IS NULL のためレコードを返せないので、
+	// status=cancelled へ更新（updated 取得）した後に Delete でソフトデリートする。
+	if input.Status != nil && *input.Status == model.ReservationStatusCancelled {
+		if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+			slog.ErrorContext(ctx, "failed to soft-delete cancelled reservation", "error", err)
+			return nil, apperrors.Wrap(err, "failed to soft-delete cancelled reservation")
+		}
 	}
+
 	slog.InfoContext(ctx, "reservation updated",
 		slog.Uint64("reservation_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return result, nil
+	return updated, nil
 }
 func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error) {
 	if input.Route != "" {

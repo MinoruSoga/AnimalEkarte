@@ -23,8 +23,9 @@ import (
 // ---- mock MedicalRecordService ----
 
 type mockMedicalRecordService struct {
-	listFn                       func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	listFn                       func(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	getByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	getByIDForClinicsFn          func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error)
 	countByPetFn                 func(ctx context.Context, clinicID, petID uint64) (int64, error)
 	createFn                     func(ctx context.Context, clinicID uint64, input *service.CreateMedicalRecordInput) (*model.MedicalRecord, error)
 	updateFn                     func(ctx context.Context, clinicID, id uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error)
@@ -33,12 +34,19 @@ type mockMedicalRecordService struct {
 	autoCreateFromReservationFn  func(ctx context.Context, clinicID uint64, reservation *model.Reservation)
 }
 
-func (m *mockMedicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
-	return m.listFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+func (m *mockMedicalRecordService) List(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+	return m.listFn(ctx, clinicIDs, petID, ownerID, startDate, endDate, page, limit)
 }
 
 func (m *mockMedicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	return m.getByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockMedicalRecordService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error) {
+	if m.getByIDForClinicsFn != nil {
+		return m.getByIDForClinicsFn(ctx, clinicIDs, id)
+	}
+	return nil, nil
 }
 
 func (m *mockMedicalRecordService) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
@@ -90,6 +98,8 @@ func (m *mockMedicalRecordService) AutoCreateFromReservation(ctx context.Context
 		m.autoCreateFromReservationFn(ctx, clinicID, reservation)
 	}
 }
+
+func (m *mockMedicalRecordService) DeleteDraftFromReservation(_ context.Context, _, _ uint64) {}
 
 func (m *mockMedicalRecordService) UpdateRecommendationReason(ctx context.Context, clinicID, id uint64, input service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error) {
 	if m.updateRecommendationReasonFn != nil {
@@ -264,8 +274,8 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, clinicID uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
-					assert.Equal(t, uint64(1), clinicID)
+				listFn: func(_ context.Context, clinicIDs []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
 					return []model.MedicalRecord{{ID: 1, RecordNo: "MR-20260324-1-ABCDEF"}}, 1, nil
 				},
 			},
@@ -277,7 +287,7 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10&pet_id=5",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, _ uint64, petID, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, petID, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 					require.NotNil(t, petID)
 					assert.Equal(t, uint64(5), *petID)
 					return []model.MedicalRecord{}, 0, nil
@@ -304,7 +314,7 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 					return nil, 0, fmt.Errorf("db error")
 				},
 			},
@@ -345,8 +355,8 @@ func TestGetMedicalRecord(t *testing.T) {
 			paramID:  "7",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-					assert.Equal(t, uint64(1), clinicID)
+				getByIDForClinicsFn: func(_ context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
 					assert.Equal(t, uint64(7), id)
 					return &model.MedicalRecord{ID: 7}, nil
 				},
@@ -372,7 +382,7 @@ func TestGetMedicalRecord(t *testing.T) {
 			paramID:  "999",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				getByIDForClinicsFn: func(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
 					return nil, apperrors.WrapNotFound("medical_record", "999")
 				},
 			},
@@ -708,6 +718,42 @@ func TestUpdateMedicalRecord(t *testing.T) {
 			},
 			wantStatus: http.StatusNotFound,
 		},
+		{
+			name:     "updates visit_type=first",
+			paramID:  "1",
+			body:     map[string]any{"visit_type": "first"},
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			svc: &mockMedicalRecordService{
+				updateFn: func(_ context.Context, _, _ uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+					require.NotNil(t, input.VisitType)
+					assert.Equal(t, model.VisitTypeFirst, *input.VisitType)
+					return &model.MedicalRecord{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "updates visit_type=revisit",
+			paramID:  "1",
+			body:     map[string]any{"visit_type": "revisit"},
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			svc: &mockMedicalRecordService{
+				updateFn: func(_ context.Context, _, _ uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+					require.NotNil(t, input.VisitType)
+					assert.Equal(t, model.VisitTypeRevisit, *input.VisitType)
+					return &model.MedicalRecord{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 for invalid visit_type",
+			paramID:    "1",
+			body:       map[string]any{"visit_type": "invalid"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			svc:        &mockMedicalRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
 	}
 
 	for _, tt := range tests {
@@ -946,6 +992,81 @@ func TestCreateMedicalRecordRequest_ToServiceInput_VisitType(t *testing.T) {
 			input, err := req.toServiceInput(9)
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantVisitType, input.VisitType)
+		})
+	}
+}
+
+// ---- next_visit_recommended_date clear/set tests ----
+
+// TestUpdateMedicalRecordRequest_NextVisitDate は次回来院推奨日の更新・クリア・省略を確認する。
+func TestUpdateMedicalRecordRequest_NextVisitDate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name            string
+		body            any
+		wantStatus      int
+		wantClear       bool
+		wantDatePresent bool
+	}{
+		{
+			name:            "next_visit_recommended_date='' → ClearNextVisitRecommendedDate=true",
+			body:            map[string]any{"next_visit_recommended_date": ""},
+			wantStatus:      http.StatusOK,
+			wantClear:       true,
+			wantDatePresent: false,
+		},
+		{
+			name:            "next_visit_recommended_date=valid date → set",
+			body:            map[string]any{"next_visit_recommended_date": "2030-01-15"},
+			wantStatus:      http.StatusOK,
+			wantClear:       false,
+			wantDatePresent: true,
+		},
+		{
+			name:            "next_visit_recommended_date omitted → no update (mock returns 200)",
+			body:            map[string]any{},
+			wantStatus:      http.StatusOK,
+			wantClear:       false,
+			wantDatePresent: false,
+		},
+		{
+			name:       "next_visit_recommended_date=invalid → 400",
+			body:       map[string]any{"next_visit_recommended_date": "not-a-date"},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotInput service.UpdateMedicalRecordInput
+			h := newHandlerWithMedicalRecordSvc(&mockMedicalRecordService{
+				updateFn: func(_ context.Context, _, _ uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+					gotInput = input
+					return &model.MedicalRecord{ID: 1}, nil
+				},
+			}, &mockClinicalPlanService{})
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "1"}}
+			setClinicID(c)
+			c.Set("user_id", "1")
+			h.UpdateMedicalRecord(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantStatus == http.StatusOK {
+				assert.Equal(t, tt.wantClear, gotInput.ClearNextVisitRecommendedDate)
+				if tt.wantDatePresent {
+					assert.NotNil(t, gotInput.NextVisitRecommendedDate)
+				} else {
+					assert.Nil(t, gotInput.NextVisitRecommendedDate)
+				}
+			}
 		})
 	}
 }

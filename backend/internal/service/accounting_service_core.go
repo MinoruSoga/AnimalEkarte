@@ -17,11 +17,29 @@ func (s *accountingService) List(ctx context.Context, clinicID uint64, petID, ow
 	return result, total, nil
 }
 
+func (s *accountingService) ListForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
+	result, total, err := s.repo.FindAllForClinics(ctx, clinicIDs, petID, ownerID, status, startDate, endDate, page, limit)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list accounting for clinics", "error", err)
+		return nil, 0, apperrors.Wrap(err, "failed to list accounting for clinics")
+	}
+	return result, total, nil
+}
+
 func (s *accountingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get accounting")
+	}
+	return result, nil
+}
+
+func (s *accountingService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error) {
+	result, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get accounting for clinics", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get accounting for clinics")
 	}
 	return result, nil
 }

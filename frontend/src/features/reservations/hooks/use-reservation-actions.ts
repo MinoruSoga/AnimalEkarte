@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { createOwner } from "@/features/owners";
 import { createPet } from "@/features/pets";
 import { handleApiError } from "@/lib/handle-api-error";
+import { jstWallDateToISOString } from "@/lib/jst-date";
 import { getReservationStatusLabel } from "@/utils/status-helpers";
 
 import { useCreateReservation } from "../api/create-reservation";
@@ -43,8 +44,8 @@ function buildUpdatePayload(
   return {
     id: reservation.id,
     req: {
-      start_time: start.toISOString(),
-      end_time: end.toISOString(),
+      start_time: jstWallDateToISOString(start),
+      end_time: jstWallDateToISOString(end),
       visit_type: reservation.visitType,
       doctor_id: reservation.doctor ? Number(reservation.doctor) : undefined,
       is_designated: reservation.isDesignated,
@@ -111,8 +112,8 @@ export function useReservationActions({
         const updatePayload = {
           id: currentEditing.id,
           req: {
-            start_time: data.start.toISOString(),
-            end_time: data.end.toISOString(),
+            start_time: jstWallDateToISOString(data.start),
+            end_time: jstWallDateToISOString(data.end),
             visit_type: data.visitType || "first",
             reservation_type_id: data.type ? Number(data.type) : undefined,
             doctor_id: targetDoctor ? Number(targetDoctor) : undefined,

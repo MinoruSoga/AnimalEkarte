@@ -33,7 +33,10 @@ func (m *mockLineLinkOwnerRepo) FindByID(ctx context.Context, clinicID, id uint6
 	}
 	return &model.Owner{ID: id, ClinicID: clinicID}, nil
 }
-func (m *mockLineLinkOwnerRepo) FindAll(_ context.Context, _ uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+func (m *mockLineLinkOwnerRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
+	return nil, nil
+}
+func (m *mockLineLinkOwnerRepo) FindAll(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockLineLinkOwnerRepo) FindByEmail(_ context.Context, _ uint64, _ string) (*model.Owner, error) {

@@ -20,6 +20,26 @@ import {
   type ManualArticle,
 } from "../lib/manual-index";
 
+function getSafeMarkdownHref(href: unknown): string | undefined {
+  if (typeof href !== "string") return undefined;
+  const trimmed = href.trim();
+  if (trimmed === "") return undefined;
+
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(trimmed);
+    } catch {
+      return trimmed;
+    }
+  })();
+
+  const lowered = decoded.toLowerCase();
+  if (lowered.startsWith("javascript:") || lowered.startsWith("data:")) {
+    return undefined;
+  }
+  return trimmed;
+}
+
 interface ManualContentProps {
   article: ManualArticle | undefined;
 }
@@ -97,16 +117,24 @@ export function ManualContent({ article }: ManualContentProps) {
             <ol className={`list-decimal pl-6 my-3 space-y-1 ${C.text}`}>{children}</ol>
           ),
           li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`underline ${C.textBrand} hover:opacity-70`}
-            >
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) => {
+            const safeHref = getSafeMarkdownHref(href);
+            if (!safeHref) {
+              return (
+                <span className={`underline ${C.textBrand} hover:opacity-70`}>{children}</span>
+              );
+            }
+            return (
+              <a
+                href={safeHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`underline ${C.textBrand} hover:opacity-70`}
+              >
+                {children}
+              </a>
+            );
+          },
           table: ({ children }) => (
             <div className="my-4 overflow-x-auto">
               <table className={`w-full text-sm border ${C.borderDivider}`}>{children}</table>

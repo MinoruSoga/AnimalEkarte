@@ -18,8 +18,8 @@
 | **カルテ** | [診療項目](./settings/master-treatment.md)、[診断マスタ](./settings/master-diagnosis.md)、[問診テンプレート](./settings/master-interview.md)、[薬剤マスタ](./settings/master-medicine.md)、[検査項目定義](./settings/master-examinations.md) |
 | **予約・シフト** | [予約区分マスタ](./settings/master-reservation-type.md)、[シフトパターン](./settings/master-shift-template.md)、[LINE予約設定](./28-line-reservation.md) |
 | **入院・ケージ** | [入院プラン](./settings/master-hospitalization-plan.md)、[ケージマスタ](./settings/master-cage.md) |
-| **トリミング** | [トリミングマスタ](./settings/master-trimming.md) |
-| **会計・分析** | [商品マスタ](./settings/master-merchandise.md)、[保険マスタ](./settings/master-insurance.md)、[支払方法](./settings/payment-methods.md)、[締め時間設定](./settings/closing-time-settings.md) |
+| **トリミング** | [トリミングマスタ](./settings/master-trimming.md)、[トリミングコース種別](./settings/master-trimming-course-type.md) |
+| **会計・分析** | [商品マスタ](./settings/master-merchandise.md)、[保険マスタ](./settings/master-insurance.md)、[割引キャンペーン](./settings/master-campaigns.md)、[支払方法](./settings/payment-methods.md)、[締め時間設定](./settings/closing-time-settings.md) |
 | **外部連携** | [Lステップ連携設定](./31-lstep-integration.md) |
 | **スタッフ・権限** | [スタッフ管理](./settings/master-staff.md)、[権限グループ設定](./settings/master-permission-group.md) |
 

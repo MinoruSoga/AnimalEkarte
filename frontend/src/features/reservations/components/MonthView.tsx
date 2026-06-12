@@ -8,6 +8,7 @@ import { ja } from "date-fns/locale";
 
 // Internal
 import { C } from "@/lib/design-tokens";
+import { toJSTWallDate } from "@/lib/jst-date";
 import { getReservationTypeColor } from "@/utils/status-helpers";
 
 // Types
@@ -48,6 +49,7 @@ const HEADER_ROW = (
 export const MonthView = memo(function MonthView({ currentDate, appointments, onAppointmentClick, onDateClick, dynamicColorMap }: MonthViewProps) {
 
   const rows = useMemo(() => {
+    const today = toJSTWallDate(new Date());
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(monthStart);
     const startDate = startOfWeek(monthStart, { locale: ja });
@@ -70,13 +72,13 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
             key={day.toString()}
             className={`h-full min-h-[140px] ${C.bgWhite} border-b border-r ${C.borderLight} p-2 transition-colors ${C.hoverBgPage} cursor-pointer flex flex-col
               ${!isSameMonth(day, monthStart) ? `${C.bgPage30} ${C.text30}` : C.text}
-              ${isSameDay(day, new Date()) ? C.bgAccent8 : ""}
+              ${isSameDay(day, today) ? C.bgAccent8 : ""}
             `}
           >
             <div className="flex justify-between items-start mb-2">
                 <button
                   type="button"
-                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, new Date()) ? `${C.bgAccent} ${C.textWhite} shadow-sm` : `${C.hoverBgAccentLight} ${C.hoverTextAccent}`}`}
+                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgAccent} ${C.textWhite} shadow-sm` : `${C.hoverBgAccentLight} ${C.hoverTextAccent}`}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDateClick?.(cloneDay);

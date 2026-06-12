@@ -1,4 +1,5 @@
 import type { ReservationStatus } from "@/types";
+import { jstWallDateToISOString, toJSTWallDate } from "@/lib/jst-date";
 import type { BackendReservation, CreateReservationRequest } from "./types";
 import type { ReservationRoute } from "../constants/reservation-route";
 
@@ -35,8 +36,8 @@ export const transformReservation = (
 
   return {
     id: String(reservation.id ?? 0),
-    start: new Date(reservation.start_time),
-    end: new Date(reservation.end_time),
+    start: toJSTWallDate(reservation.start_time),
+    end: toJSTWallDate(reservation.end_time),
     ownerName,
     petName,
     petType,
@@ -53,6 +54,7 @@ export const transformReservation = (
     ownerId: reservation.owner_id ? String(reservation.owner_id) : reservation.owner?.id ? String(reservation.owner.id) : undefined,
     source: (reservation.source as "manual" | "line") ?? "manual",
     reservationRoute: (reservation.reservation_route ?? null) as ReservationRoute | null,
+    clinicId: reservation.clinic_id ? String(reservation.clinic_id) : undefined,
   };
 };
 
@@ -66,8 +68,8 @@ export const transformToCreateRequest = (
   return {
     pet_id: Number(petId),
     owner_id: Number(ownerId),
-    start_time: data.start ? data.start.toISOString() : "",
-    end_time: data.end ? data.end.toISOString() : "",
+    start_time: data.start ? jstWallDateToISOString(data.start) : "",
+    end_time: data.end ? jstWallDateToISOString(data.end) : "",
     visit_type: data.visitType ?? "first",
     reservation_type_id: Number(data.type ?? 0),
     doctor_id: data.doctor ? Number(data.doctor) : undefined,

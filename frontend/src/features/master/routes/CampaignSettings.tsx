@@ -1,0 +1,92 @@
+import { useCallback } from "react";
+import { Tag } from "lucide-react";
+import { usePermission } from "@/hooks/use-permission";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
+import { TableCell } from "@/components/ui/table";
+import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { RowActionButton } from "@/components/shared/RowActionButton";
+import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { C, ICON } from "@/lib/design-tokens";
+import { MASTER_STATUS_FILTER } from "../constants/styles";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
+import { CampaignSidePanel } from "../components/CampaignSidePanel";
+import type { CampaignFormData } from "../components/CampaignSidePanelModel";
+import {
+  useGetCampaigns,
+  useCreateCampaign,
+  useUpdateCampaign,
+  useDeleteCampaign,
+} from "../api/campaign";
+import type { CreateCampaignRequest, Campaign, UpdateCampaignRequest } from "../api/campaign";
+import { buildCampaignCreateRequest, buildCampaignUpdateRequest } from "./CampaignSettingsModel";
+import { ResourceAccounting } from "@/types/generated/models";
+
+// ─── Constants ───
+const COLUMNS = [
+  { header: "名称", className: "flex-1" },
+  { header: "期間", className: "w-[180px]" },
+  { header: "割引", className: "w-[100px]", align: "right" as const },
+  { header: "ステータス", className: "w-[90px]", align: "center" as const },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
+];
+
+// ─── Page ───
+export function CampaignSettings() {
+  usePermission(ResourceAccounting);
+  const { data } = useGetCampaigns();
+  const createMutation = useCreateCampaign();
+  const updateMutation = useUpdateCampaign();
+  const deleteMutation = useDeleteCampaign();
+
+  const dirty = useSidePeekDirty();
+  const crud = useMasterCRUD<Campaign>({ data, deleteMutation, entityLabel: "キャンペーン", dirtyGuard: dirty });
+  const handleDirtyChange = useCallback(
+    (isDirty: boolean) => (isDirty ? dirty.markDirty() : dirty.markClean()),
+    [dirty],
+  );
+
+  const { handleSave } = useMasterSave<
+    Campaign,
+    CampaignFormData,
+    CreateCampaignRequest,
+    UpdateCampaignRequest
+  >({
+    crud,
+    createMutation,
+    updateMutation,
+    validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
+    toCreateRequest: buildCampaignCreateRequest,
+    toUpdateRequest: buildCampaignUpdateRequest,
+  });
+
+  return (
+    <MasterCRUDPage
+      title="割引キャンペーンマスタ"
+      icon={<Tag className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceAccounting}
+      entityLabel="キャンペーン"
+      searchPlaceholder="キャンペーン名で検索..."
+      emptyMessage="キャンペーンが登録されていません"
+      crud={crud}
+      handleSave={handleSave}
+      columns={COLUMNS}
+      filterProperties={[MASTER_STATUS_FILTER]}
+      renderRow={(item, onEdit, canEdit) => (
+        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
+          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={`text-sm ${C.text50}`}>{item.startDate} 〜 {item.endDate}</TableCell>
+          <TableCell className="text-right text-sm">
+            {item.discountType === "rate" ? `${item.discountValue}%` : `¥${item.discountValue.toLocaleString()}`}
+          </TableCell>
+          <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
+          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
+        </DataTableRow>
+      )}
+      renderSidePanel={(props) => (
+        <CampaignSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />
+      )}
+    />
+  );
+}

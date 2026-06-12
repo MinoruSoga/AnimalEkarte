@@ -6,10 +6,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ownerSummaryResponse はネストされたレスポンスで使用するオーナーの要約型
+// ownerSummaryResponse はネストされたレスポンスで使用するオーナーの要約型。
+// BUG-374 同様: フロントの generated/models.Owner.name を期待するため json:"name" に統一。
 type ownerSummaryResponse struct {
 	ID        uint64 `json:"id"`
-	OwnerName string `json:"owner_name"`
+	OwnerName string `json:"name"`
 }
 
 // toOwnerSummary は *model.Owner を *ownerSummaryResponse に変換する。nilの場合はnilを返す。
@@ -51,7 +52,9 @@ type petInOwnerResponse struct {
 }
 
 type ownerResponse struct {
-	ID                     uint64               `json:"id"`
+	ID uint64 `json:"id"`
+	// ClinicID は所属医院 (#86 拠点横断一覧で医院名表示に使用)
+	ClinicID               uint64               `json:"clinic_id"`
 	OwnerName              string               `json:"owner_name"`
 	OwnerNameKana          string               `json:"owner_name_kana"`
 	BirthDate              *time.Time           `json:"birth_date,omitempty"`
@@ -92,19 +95,19 @@ func toPetInOwnerResponse(p *model.Pet) petInOwnerResponse {
 		PetNameKana:     p.NameKana,
 		Gender:          string(p.Gender),
 		Status:          string(p.Status),
-		BirthDate:       p.BirthDate,
+		BirthDate:       localTimePtr(p.BirthDate),
 		Breed:           p.Breed,
 		Color:           p.Color,
 		DangerLevel:     string(p.DangerLevel),
 		Weight:          p.Weight,
-		NeuteredDate:    p.NeuteredDate,
+		NeuteredDate:    localTimePtr(p.NeuteredDate),
 		Food:            p.Food,
 		Environment:     p.Environment,
-		LastVisit:       p.LastVisit,
+		LastVisit:       localTimePtr(p.LastVisit),
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
-		CreatedAt:       p.CreatedAt,
-		UpdatedAt:       p.UpdatedAt,
+		CreatedAt:       localTime(p.CreatedAt),
+		UpdatedAt:       localTime(p.UpdatedAt),
 	}
 	if p.AcquisitionType != nil {
 		s := string(*p.AcquisitionType)
@@ -135,9 +138,10 @@ func toOwnerResponse(o *model.Owner) ownerResponse {
 	}
 	return ownerResponse{
 		ID:                     o.ID,
+		ClinicID:               o.ClinicID,
 		OwnerName:              o.Name,
 		OwnerNameKana:          o.NameKana,
-		BirthDate:              o.BirthDate,
+		BirthDate:              localTimePtr(o.BirthDate),
 		Company:                o.Company,
 		PostalCode:             o.PostalCode,
 		Address1:               o.Address1,
@@ -152,16 +156,16 @@ func toOwnerResponse(o *model.Owner) ownerResponse {
 		IsDangerous:            o.IsDangerous,
 		DiscountRate:           o.DiscountRate,
 		MembershipType:         string(o.MembershipType),
-		LineIDConfirmedAt:      o.LineIDConfirmedAt,
+		LineIDConfirmedAt:      localTimePtr(o.LineIDConfirmedAt),
 		LineIDConfirmedBy:      o.LineIDConfirmedBy,
 		DeliveryExcluded:       o.DeliveryExcluded,
 		DeliveryExcludedReason: o.DeliveryExcludedReason,
 		DeliveryCaution:        o.DeliveryCaution,
 		DeliveryCautionReason:  o.DeliveryCautionReason,
 		IsTransferred:          o.IsTransferred,
-		TransferAt:             o.TransferAt,
+		TransferAt:             localTimePtr(o.TransferAt),
 		Pets:                   pets,
-		CreatedAt:              o.CreatedAt,
-		UpdatedAt:              o.UpdatedAt,
+		CreatedAt:              localTime(o.CreatedAt),
+		UpdatedAt:              localTime(o.UpdatedAt),
 	}
 }

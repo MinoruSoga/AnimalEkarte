@@ -36,8 +36,8 @@ func toTreatmentPlanResponse(p *model.TreatmentPlan) treatmentPlanResponse {
 		DiscountAmount:   p.DiscountAmount,
 		Subtotal:         p.Subtotal,
 		SortOrder:        p.SortOrder,
-		CreatedAt:        p.CreatedAt,
-		UpdatedAt:        p.UpdatedAt,
+		CreatedAt:        localTime(p.CreatedAt),
+		UpdatedAt:        localTime(p.UpdatedAt),
 	}
 	if p.MedicalRecordID != nil {
 		s := strconv.FormatUint(*p.MedicalRecordID, 10)

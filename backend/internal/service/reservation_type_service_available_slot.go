@@ -99,7 +99,7 @@ func validateAvailableSlotInput(input CreateAvailableSlotInput) error {
 	default:
 		return apperrors.WrapInvalidInput(fmt.Sprintf("不正な予約可能枠種別です: %s", input.AvailableType))
 	}
-	if _, err := time.Parse("15:04", input.StartTime); err != nil {
+	if _, err := time.ParseInLocation("15:04", input.StartTime, time.Local); err != nil {
 		return apperrors.WrapInvalidInput("start_time は HH:MM 形式で指定してください")
 	}
 	return nil
@@ -117,7 +117,7 @@ func validateAvailableSlotNotDuplicated(existing []model.ReservationTypeAvailabl
 			}
 		case model.AvailableSlotTypeSpecific:
 			if input.SpecificDate != nil && existing[i].SpecificDate != nil &&
-				existing[i].SpecificDate.UTC().Format("2006-01-02") == input.SpecificDate.UTC().Format("2006-01-02") {
+				existing[i].SpecificDate.In(time.Local).Format("2006-01-02") == input.SpecificDate.In(time.Local).Format("2006-01-02") {
 				return apperrors.WrapConflict("指定した予約可能枠は既に登録されています")
 			}
 		}
@@ -149,7 +149,7 @@ func filterApplicableAvailableSlots(slots []model.ReservationTypeAvailableSlot, 
 				result = append(result, slots[i])
 			}
 		case model.AvailableSlotTypeSpecific:
-			if slots[i].SpecificDate != nil && slots[i].SpecificDate.UTC().Format("2006-01-02") == dateStr {
+			if slots[i].SpecificDate != nil && slots[i].SpecificDate.In(time.Local).Format("2006-01-02") == dateStr {
 				result = append(result, slots[i])
 			}
 		}

@@ -52,11 +52,6 @@ test.describe('Master CRUD E2E Tests', () => {
       await page.waitForTimeout(300);
     }
 
-    // Check if parent category selector exists
-    const parentSelector = page.locator(
-      'label:has-text("親カテゴリ"), text=親カテゴリ'
-    ).first();
-
     // Parent selector should be visible or selectable
     const selectElements = page.locator('select, [role="combobox"], [role="listbox"]');
     const selectCount = await selectElements.count();

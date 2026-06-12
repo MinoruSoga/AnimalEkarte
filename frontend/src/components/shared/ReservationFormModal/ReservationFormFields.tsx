@@ -15,8 +15,9 @@ import { Calendar as CalendarIcon, Clock, ArrowRight, ChevronDown } from "lucide
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs, useGetReservationAvailableTimes } from "@/hooks/use-reservation-types";
-import { useGetUnavailableTimes, type ReservationTypeUnavailableTime } from "@/features/master/api/reservation-type-unavailable-times";
+import { useGetUnavailableTimes, type ReservationTypeUnavailableTime } from "@/features/master";
 import { MasterLink } from "@/components/shared/MasterLink";
+import { toJSTWallDate } from "@/lib/jst-date";
 import { isOneOf } from "@/lib/type-utils";
 import type { Reservation } from "@/types";
 
@@ -122,7 +123,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   }, [onMonthChange]);
 
   const isCalendarDateDisabled = useCallback((date: Date): boolean => {
-    if (isBefore(date, startOfDay(new Date()))) return true;
+    if (isBefore(date, startOfDay(toJSTWallDate(new Date())))) return true;
     if (holidayDates) return holidayDates.has(format(date, "yyyy-MM-dd"));
     return false;
   }, [holidayDates]);
@@ -272,7 +273,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                 }}
                 disabled={isCalendarDateDisabled}
                 onMonthChange={handleMonthChange}
-                initialFocus
+                autoFocus
               />
             </PopoverContent>
           </Popover>

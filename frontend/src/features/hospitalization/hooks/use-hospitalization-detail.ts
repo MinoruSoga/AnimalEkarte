@@ -1,6 +1,7 @@
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { jstNowISOString } from "@/lib/jst-date";
 import { useGetHospitalization } from "../api/get-hospitalization";
 import { useUpdateHospitalization } from "../api/update-hospitalization";
 import { dischargeWithBilling } from "../api/discharge-with-billing";
@@ -19,7 +20,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
     try {
       if (createAccounting) {
         const result = await dischargeWithBilling(hospitalizationId, {
-          discharge_date: new Date().toISOString(),
+          discharge_date: jstNowISOString(),
           create_accounting: true,
         });
         toast.success("退院処理が完了しました");
@@ -29,7 +30,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
         id: hospitalizationId,
         req: {
           status: "discharged",
-          end_date: new Date().toISOString(),
+          end_date: jstNowISOString(),
         },
       });
       toast.success("退院処理が完了しました");

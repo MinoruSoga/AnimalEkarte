@@ -24,11 +24,15 @@ async function updateOwnerDeliveryExclusion(
 
 export function useUpdateOwnerDeliveryExclusion(ownerId: string) {
   const queryClient = useQueryClient();
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? "";
+  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
 
   return useMutation({
-    mutationFn: (body: UpdateOwnerDeliveryExclusionBody) =>
-      updateOwnerDeliveryExclusion(clinicId, ownerId, body),
+    mutationFn: (body: UpdateOwnerDeliveryExclusionBody) => {
+      if (clinicId === null) {
+        return Promise.reject(new Error("clinic_id is not selected"));
+      }
+      return updateOwnerDeliveryExclusion(clinicId, ownerId, body);
+    },
     onSuccess: (owner, variables) => {
       queryClient.setQueryData(["owners", ownerId], owner);
       queryClient.invalidateQueries({ queryKey: ["owners", ownerId] });

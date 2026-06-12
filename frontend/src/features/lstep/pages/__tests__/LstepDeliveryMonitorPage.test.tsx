@@ -230,7 +230,7 @@ describe("LstepDeliveryMonitorPage — D: ログテーブル", () => {
     expect(screen.getByText("次回来院リマインド")).toBeInTheDocument();
   });
 
-  it("飼い主名が表示される", async () => {
+  it("飼主名が表示される", async () => {
     await renderAndWait();
     expect(screen.getByText("田中 花子")).toBeInTheDocument();
     expect(screen.getByText("山田 太郎")).toBeInTheDocument();

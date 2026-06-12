@@ -104,6 +104,8 @@ export interface BillingItem {
   name: string;
   unit_price: number /* int64 */;
   quantity: number /* float64 */;
+  discount_rate: number /* float64 */;
+  discount_amount: number /* int64 */;
   tax_type: TaxType;
   tax_rate: number /* float64 */;
   is_insurance_applicable: boolean;
@@ -351,6 +353,52 @@ export interface Cage {
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
+}
+
+//////////
+// source: campaign.go
+
+/**
+ * CampaignDiscountType はキャンペーン割引の種別（率 or 額）。
+ */
+export type CampaignDiscountType = string;
+export const CampaignDiscountTypeRate: CampaignDiscountType = "rate";
+export const CampaignDiscountTypeAmount: CampaignDiscountType = "amount";
+/**
+ * Campaign は割引キャンペーンマスタ (issue #81)。
+ * payment_methods / trimming_course_types と同型の拡張可能マスタ。
+ * Q1=D: 対象はカテゴリ単位(TargetCategories)+個別商品(TargetItems)の併用。
+ */
+export interface Campaign {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  start_date: string;
+  end_date: string;
+  discount_type: CampaignDiscountType;
+  discount_value: number /* float64 */;
+  is_active: boolean;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+  target_categories?: CampaignTargetCategory[];
+  target_items?: CampaignTargetItem[];
+}
+/**
+ * CampaignTargetCategory はキャンペーン対象カテゴリ (Q1=D)。
+ */
+export interface CampaignTargetCategory {
+  id: number /* uint64 */;
+  campaign_id: number /* uint64 */;
+  category: ItemCategory;
+}
+/**
+ * CampaignTargetItem はキャンペーン対象の個別商品 (Q1=D)。
+ */
+export interface CampaignTargetItem {
+  id: number /* uint64 */;
+  campaign_id: number /* uint64 */;
+  merchandise_item_id: number /* uint64 */;
 }
 
 //////////
@@ -2281,6 +2329,7 @@ export interface ReservationType {
    */
   reservation_display_name: string;
   duration_minutes: number /* int */;
+  max_concurrent?: number /* int */;
   short_name: string;
   show_short_name: boolean;
   reservation_visible: boolean;
@@ -2297,6 +2346,12 @@ export interface ReservationType {
    */
   group_id?: number /* uint64 */;
   group?: ReservationTypeGroup;
+  /**
+   * 親子階層（2階層想定。設定継承なし）
+   */
+  parent_id?: number /* uint64 */;
+  parent?: ReservationType;
+  children?: ReservationType[];
   /**
    * Relations（BE-115）
    */
@@ -2548,6 +2603,19 @@ export interface StaffReservationExclusion {
    */
   staff?: Staff;
   reservation_type?: ReservationType;
+}
+
+//////////
+// source: token_blacklist.go
+
+/**
+ * TokenBlacklist は失効済み refresh_token の JTI を記録する。
+ * ログアウト時に JTI を登録し、RefreshToken エンドポイントで照合する。
+ */
+export interface TokenBlacklist {
+  jti: string;
+  expires_at: string;
+  created_at: string;
 }
 
 //////////

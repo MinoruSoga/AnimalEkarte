@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: カルテの主訴、所見、指導内容の入力を効率化するための定型文テンプレートの管理。
-- **URLパターン**: `/settings/inquiry-templates`
+- **URLパターン**: `/settings/interview/templates`
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---
@@ -42,8 +42,10 @@
 ### API連携
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
-| GET | `/api/v1/masters/templates` | 登録済みテンプレートの取得。 |
-| POST | `/api/v1/masters/templates` | 新規テンプレートの保存。 |
-| PATCH | `/api/v1/masters/templates/:id` | 本文やカテゴリ、順序の更新。 |
+| GET | `/api/v1/masters/inquiry-templates` | 登録済みテンプレートの取得。 |
+| POST | `/api/v1/masters/inquiry-templates` | 新規テンプレートの保存。 |
+| PATCH | `/api/v1/masters/inquiry-templates/:id` | 本文やカテゴリ、順序の更新。 |
+| DELETE | `/api/v1/masters/inquiry-templates/:id` | テンプレートの削除。 |
+| PATCH | `/api/v1/masters/inquiry-templates/reorder` | 表示順の一括保存。 |
 
 ---

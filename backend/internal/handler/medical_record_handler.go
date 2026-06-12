@@ -12,7 +12,8 @@ import (
 
 // ListMedicalRecords godoc
 func (h *Handler) ListMedicalRecords(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
+	clinicIDs, ok := resolveListClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -30,7 +31,7 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 
 	records, total, err := h.svc.MedicalRecord.List(
 		c.Request.Context(),
-		clinicID,
+		clinicIDs,
 		filters.PetID,
 		filters.OwnerID,
 		filters.StartDate,
@@ -49,7 +50,8 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 
 // GetMedicalRecord godoc
 func (h *Handler) GetMedicalRecord(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
+	clinicIDs, ok := resolveAllClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -57,16 +59,16 @@ func (h *Handler) GetMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	record, err := h.svc.MedicalRecord.GetByID(c.Request.Context(), clinicID, id)
+	record, err := h.svc.MedicalRecord.GetByIDForClinics(c.Request.Context(), clinicIDs, id)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 
-	// Get visit count if pet_id exists
-	var visitCount int64 = 0
+	// pet_id がある場合のみ来院回数を取得する（clinicIDs[0] = mainClinicID for cross-clinic scope）
+	var visitCount int64
 	if record.PetID != nil {
-		visitCount, err = h.svc.MedicalRecord.CountByPetID(c.Request.Context(), clinicID, *record.PetID)
+		visitCount, err = h.svc.MedicalRecord.CountByPetID(c.Request.Context(), record.ClinicID, *record.PetID)
 		if err != nil {
 			RespondError(c, err)
 			return

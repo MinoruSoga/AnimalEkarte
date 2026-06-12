@@ -6,15 +6,18 @@ services:
     env_file:
       - .env.local
     environment:
+      TZ: Asia/Tokyo
+      PGTZ: Asia/Tokyo
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+    command: ["postgres", "-c", "timezone=Asia/Tokyo"]
     ports:
       - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -36,11 +39,9 @@ services:
     env_file:
       - .env.local
     environment:
+      TZ: Asia/Tokyo
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
       interval: 5s
@@ -59,6 +60,7 @@ services:
     ports:
       - "3003:3000"
     environment:
+      - TZ=Asia/Tokyo
       - VITE_API_URL=/api
     volumes:
       - ./frontend:/app
@@ -70,6 +72,8 @@ services:
   codegen:
     image: golang:1.25-alpine
     working_dir: /app
+    environment:
+      TZ: Asia/Tokyo
     volumes:
       - ./backend:/app
       - ./frontend:/frontend

@@ -13,6 +13,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /app/main ./cmd/api
 FROM alpine:3.21
 
 RUN apk --no-cache add ca-certificates tzdata
+ENV TZ=Asia/Tokyo
 WORKDIR /app
 
 COPY --from=builder /app/main .

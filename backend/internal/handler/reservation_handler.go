@@ -9,15 +9,23 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
+
+const reservationListMaxLimit = 1000
+
+func toReservationAvailableTimeResponse(slot *service.TimeSlot) liffTimeSlotResponse {
+	return liffTimeSlotResponse{StartTime: slot.StartTime, EndTime: slot.EndTime}
+}
 
 // ListReservations godoc
 func (h *Handler) ListReservations(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
+	clinicIDs, ok := resolveListClinicIDs(c)
 	if !ok {
 		return
 	}
-	page, limit, err := parsePagination(c)
+	page, limit, err := parsePaginationWithMax(c, reservationListMaxLimit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -30,17 +38,18 @@ func (h *Handler) ListReservations(c *gin.Context) {
 		return
 	}
 
-	reservations, total, err := h.svc.Reservation.List(c.Request.Context(), clinicID, page, limit, filters.Date, filters.Status, filters.Source, filters.PetID, filters.OwnerID)
+	reservations, total, err := h.svc.Reservation.List(c.Request.Context(), clinicIDs, page, limit, filters.Date, filters.StartDate, filters.EndDate, filters.Status, filters.Source, filters.PetID, filters.OwnerID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(reservations, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(reservations, toReservationResponse), total, page, limit))
 }
 
 // GetReservation godoc
 func (h *Handler) GetReservation(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
+	clinicIDs, ok := resolveAllClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -48,7 +57,7 @@ func (h *Handler) GetReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	reservation, err := h.svc.Reservation.GetByID(c.Request.Context(), clinicID, id)
+	reservation, err := h.svc.Reservation.GetByIDForClinics(c.Request.Context(), clinicIDs, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -77,11 +86,7 @@ func (h *Handler) GetReservationAvailableTimes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]liffTimeSlotResponse, 0, len(slots))
-	for _, slot := range slots {
-		resp = append(resp, liffTimeSlotResponse{StartTime: slot.StartTime, EndTime: slot.EndTime})
-	}
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mapSlice(slots, toReservationAvailableTimeResponse))
 }
 
 // CreateReservation godoc
@@ -120,6 +125,10 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 	if err != nil {
 		RespondError(c, err)
 		return
+	}
+	// #83: 予約確定(confirmed)で作成された場合はカルテを best-effort で自動作成する
+	if shouldAutoCreateMedicalRecordForReservation(reservation) && h.svc.MedicalRecord != nil {
+		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", reservation.ID))
 	c.JSON(http.StatusCreated, toReservationResponse(reservation))
@@ -163,16 +172,28 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		return
 	}
 
-	// 受付済みに変更された場合は通常カルテを best-effort で自動作成する（BE-reception-auto-create-medical-record）
-	if shouldAutoCreateMedicalRecordForReservation(svcInput.Status, reservation) && h.svc.MedicalRecord != nil {
+	// 予約確定/受付済みの場合は通常カルテを best-effort で自動作成する(#83)。owner/pet 紐付け後の遅延作成(Q9)も兼ねる。
+	if shouldAutoCreateMedicalRecordForReservation(reservation) && h.svc.MedicalRecord != nil {
 		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
+	}
+
+	// #83 Q10: キャンセルされた予約に紐づく draft カルテを論理削除する（best-effort）
+	if svcInput.Status != nil && *svcInput.Status == model.ReservationStatusCancelled && h.svc.MedicalRecord != nil {
+		h.svc.MedicalRecord.DeleteDraftFromReservation(ctx, clinicID, reservation.ID)
 	}
 
 	c.JSON(http.StatusOK, toReservationResponse(reservation))
 }
 
-func shouldAutoCreateMedicalRecordForReservation(status *model.ReservationStatus, reservation *model.Reservation) bool {
-	if status == nil || *status != model.ReservationStatusCheckedIn || reservation == nil {
+func shouldAutoCreateMedicalRecordForReservation(reservation *model.Reservation) bool {
+	if reservation == nil {
+		return false
+	}
+	// #83: 予約確定(confirmed)/受付済み(checked_in)の予約でカルテを作成する。
+	// 更新後の reservation.Status で判定するため、owner/pet 紐付けの Update でも confirmed なら作成され、
+	// owner/pet 未確定でスキップされた分が紐付け後に遅延作成される(Q9)。
+	// 同日同ペットの重複は AutoCreateFromReservation 側でスキップされるため二重作成しない。
+	if reservation.Status != model.ReservationStatusConfirmed && reservation.Status != model.ReservationStatusCheckedIn {
 		return false
 	}
 	if reservation.ReservationType != nil && reservation.ReservationType.Category == model.ReservationTypeCategoryTrimming {
