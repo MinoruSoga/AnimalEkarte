@@ -22,6 +22,9 @@ type mockAccountingRepository struct {
 	savePaymentSplitsFn func(ctx context.Context, splits []model.PaymentSplit) error
 	completeApptsFn     func(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 	getDailySummaryFn   func(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error)
+	// #120: start_date/end_date 2引数バリアント
+	findUnpaidByBillingFn func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
+	findUnpaidByOwnerFn   func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error)
 }
 
 func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
@@ -76,12 +79,18 @@ func (m *mockAccountingRepository) CompleteAccountingAppointments(ctx context.Co
 	return 0, nil
 }
 
-// BUG-370: 月末未納者一覧 repository メソッドの mock
-func (m *mockAccountingRepository) FindUnpaidByBilling(_ context.Context, _ uint64, _ string, _, _ int) ([]model.Billing, int64, error) {
+// #120: 未納者一覧 repository メソッドの mock（start_date/end_date 2引数）
+func (m *mockAccountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error) {
+	if m.findUnpaidByBillingFn != nil {
+		return m.findUnpaidByBillingFn(ctx, clinicID, startDate, endDate, page, limit)
+	}
 	return nil, 0, nil
 }
 
-func (m *mockAccountingRepository) FindUnpaidByOwner(_ context.Context, _ uint64, _ string, _, _ int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
+func (m *mockAccountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
+	if m.findUnpaidByOwnerFn != nil {
+		return m.findUnpaidByOwnerFn(ctx, clinicID, startDate, endDate, page, limit)
+	}
 	return nil, 0, repository.UnpaidSummary{}, nil
 }
 
@@ -244,7 +253,7 @@ func TestAccountingService_List(t *testing.T) {
 					return tt.repoBillings, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
 
 			billings, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -306,7 +315,7 @@ func TestAccountingService_GetByID(t *testing.T) {
 					return tt.repoBilling, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
 
 			billing, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -367,7 +376,7 @@ func TestAccountingService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
 
 			billing, err := svc.Create(context.Background(), &tt.input)
 
@@ -399,7 +408,7 @@ func TestAccountingService_Create_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewAccountingService(repo, tagSync, &mockTransactor{})
+	svc := NewAccountingService(repo, tagSync, &mockTransactor{}, &mockAccountingAuditService{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -436,7 +445,7 @@ func TestAccountingService_Create_CompletesSameDayAccountingAppointments(t *test
 			return 2, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil, &mockTransactor{})
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -472,7 +481,7 @@ func TestAccountingService_Create_PassesMedicalRecordIDToCompleteAppointments(t 
 			return 1, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil, &mockTransactor{})
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
 
 	_, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:        1,
@@ -504,7 +513,7 @@ func TestAccountingService_Create_NilMedicalRecordIDForTrimmingOnly(t *testing.T
 			return 1, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil, &mockTransactor{})
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
 
 	_, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -590,7 +599,7 @@ func TestAccountingService_Update(t *testing.T) {
 					return tt.repoRet, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
 
 			billing, err := svc.Update(context.Background(), &tt.input)
 
@@ -628,7 +637,7 @@ func TestAccountingService_Update_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewAccountingService(repo, tagSync, &mockTransactor{})
+	svc := NewAccountingService(repo, tagSync, &mockTransactor{}, &mockAccountingAuditService{})
 
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       30,
@@ -681,7 +690,7 @@ func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *test
 			return 2, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil, &mockTransactor{})
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
 
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       30,
@@ -697,37 +706,88 @@ func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *test
 	assert.Equal(t, scheduledDate, completedDate)
 }
 
-// TestAccountingService_Cancel は BUG-371: 論理削除 (status=cancelled) の挙動を検証する。
+// mockAccountingAuditService は #118 用 AuditService テストモック
+type mockAccountingAuditService struct {
+	logEntryCalled bool
+	logEntryInput  *AuditLogInput
+}
+
+func (m *mockAccountingAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
+func (m *mockAccountingAuditService) LogEntry(_ context.Context, input *AuditLogInput) error {
+	m.logEntryCalled = true
+	m.logEntryInput = input
+	return nil
+}
+func (m *mockAccountingAuditService) LogAuthLogin(_ context.Context, _ *uint64, _ *uint64, _, _, _ string) error {
+	return nil
+}
+func (m *mockAccountingAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
+	return nil
+}
+func (m *mockAccountingAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
+	return nil
+}
+func (m *mockAccountingAuditService) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
+	return nil
+}
+func (m *mockAccountingAuditService) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
+	return nil
+}
+func (m *mockAccountingAuditService) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
+	return nil
+}
+func (m *mockAccountingAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
+	return nil
+}
+
+// TestAccountingService_Cancel は BUG-371: 論理削除 (status=cancelled) + #118: audit ログ記録の挙動を検証する。
 func TestAccountingService_Cancel(t *testing.T) {
+	actorID := uint64(42)
 	tests := []struct {
-		name           string
-		clinicID       uint64
-		id             uint64
-		findByIDResult *model.Billing
-		findByIDErr    error
-		updateErr      error
-		wantErr        bool
-		wantConflict   bool
-		wantNF         bool
+		name            string
+		clinicID        uint64
+		id              uint64
+		actorID         *uint64
+		findByIDResult  *model.Billing
+		findByIDErr     error
+		updateErr       error
+		wantErr         bool
+		wantConflict    bool
+		wantNF          bool
+		wantAuditLogged bool
 	}{
 		{
-			name:           "正常: waiting → cancelled に遷移する",
-			clinicID:       1,
-			id:             10,
-			findByIDResult: &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusWaiting},
-			wantErr:        false,
+			name:            "正常: waiting → cancelled に遷移する",
+			clinicID:        1,
+			id:              10,
+			actorID:         &actorID,
+			findByIDResult:  &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusWaiting},
+			wantErr:         false,
+			wantAuditLogged: true,
 		},
 		{
-			name:           "正常: completed → cancelled に遷移する",
-			clinicID:       1,
-			id:             10,
-			findByIDResult: &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusCompleted},
-			wantErr:        false,
+			name:            "正常: completed → cancelled に遷移する",
+			clinicID:        1,
+			id:              10,
+			actorID:         &actorID,
+			findByIDResult:  &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusCompleted},
+			wantErr:         false,
+			wantAuditLogged: true,
+		},
+		{
+			name:            "正常: actorID nil でも audit ログが記録される",
+			clinicID:        1,
+			id:              10,
+			actorID:         nil,
+			findByIDResult:  &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusWaiting},
+			wantErr:         false,
+			wantAuditLogged: true,
 		},
 		{
 			name:           "異常: 既に cancelled の場合は ErrConflict",
 			clinicID:       1,
 			id:             10,
+			actorID:        &actorID,
 			findByIDResult: &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusCancelled},
 			wantErr:        true,
 			wantConflict:   true,
@@ -736,6 +796,7 @@ func TestAccountingService_Cancel(t *testing.T) {
 			name:        "異常: 存在しない場合は ErrNotFound 経由で error",
 			clinicID:    1,
 			id:          999,
+			actorID:     &actorID,
 			findByIDErr: apperrors.WrapNotFound("billing", "999"),
 			wantErr:     true,
 			wantNF:      true,
@@ -744,6 +805,7 @@ func TestAccountingService_Cancel(t *testing.T) {
 			name:           "異常: Update 失敗時はエラー伝播",
 			clinicID:       1,
 			id:             10,
+			actorID:        &actorID,
 			findByIDResult: &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusWaiting},
 			updateErr:      errors.New("db error"),
 			wantErr:        true,
@@ -766,9 +828,10 @@ func TestAccountingService_Cancel(t *testing.T) {
 					return tt.findByIDResult, nil
 				},
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{})
+			auditSvc := &mockAccountingAuditService{}
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, auditSvc)
 
-			err := svc.Cancel(context.Background(), tt.clinicID, tt.id)
+			err := svc.Cancel(context.Background(), tt.clinicID, tt.id, tt.actorID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -780,6 +843,11 @@ func TestAccountingService_Cancel(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
+				if tt.wantAuditLogged {
+					assert.True(t, auditSvc.logEntryCalled, "audit log should be called on success")
+					assert.Equal(t, "cancel", auditSvc.logEntryInput.Action)
+					assert.Equal(t, "billing", auditSvc.logEntryInput.Resource)
+				}
 			}
 		})
 	}
@@ -997,7 +1065,7 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewAccountingService(repo, nil, &mockTransactor{})
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
 
 	input := &UpdateAccountingInput{
 		ID:            1,
@@ -1106,7 +1174,7 @@ func TestAccountingService_GetDailySummary(t *testing.T) {
 			repo := &mockAccountingRepository{
 				getDailySummaryFn: tt.getDailySummaryFn,
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
 
 			got, err := svc.GetDailySummary(context.Background(), 1, tt.dateStr)
 
@@ -1122,6 +1190,121 @@ func TestAccountingService_GetDailySummary(t *testing.T) {
 			assert.NotNil(t, got)
 			if tt.checkResult != nil {
 				tt.checkResult(t, got)
+			}
+		})
+	}
+}
+
+// TestAccountingService_ListUnpaidByBilling は #120: start_date/end_date 2引数仕様を検証する。
+func TestAccountingService_ListUnpaidByBilling(t *testing.T) {
+	tests := []struct {
+		name        string
+		startDate   string
+		endDate     string
+		repoResults []model.Billing
+		repoTotal   int64
+		repoErr     error
+		wantErr     bool
+	}{
+		{
+			name:      "正常: start_date/end_date でリポジトリに渡される",
+			startDate: "2026-01-01",
+			endDate:   "2026-01-31",
+			repoResults: []model.Billing{
+				{ID: 1, ClinicID: 1, Status: model.BillingStatusWaiting},
+			},
+			repoTotal: 1,
+		},
+		{
+			name:      "正常: 結果0件でも正常",
+			startDate: "2026-02-01",
+			endDate:   "2026-02-28",
+		},
+		{
+			name:      "異常: repo エラーが伝播する",
+			startDate: "2026-01-01",
+			endDate:   "2026-01-31",
+			repoErr:   errors.New("db error"),
+			wantErr:   true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedStart, capturedEnd string
+			repo := &mockAccountingRepository{
+				findUnpaidByBillingFn: func(_ context.Context, _ uint64, start, end string, _, _ int) ([]model.Billing, int64, error) {
+					capturedStart = start
+					capturedEnd = end
+					return tt.repoResults, tt.repoTotal, tt.repoErr
+				},
+			}
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+
+			result, total, err := svc.ListUnpaidByBilling(context.Background(), 1, tt.startDate, tt.endDate, 1, 20)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.startDate, capturedStart)
+				assert.Equal(t, tt.endDate, capturedEnd)
+				assert.Len(t, result, len(tt.repoResults))
+				assert.Equal(t, tt.repoTotal, total)
+			}
+		})
+	}
+}
+
+// TestAccountingService_ListUnpaidByOwner は #120: start_date/end_date 2引数仕様を検証する。
+func TestAccountingService_ListUnpaidByOwner(t *testing.T) {
+	tests := []struct {
+		name      string
+		startDate string
+		endDate   string
+		repoAggs  []repository.UnpaidOwnerAggregate
+		repoTotal int64
+		repoErr   error
+		wantErr   bool
+	}{
+		{
+			name:      "正常: start_date/end_date でリポジトリに渡される",
+			startDate: "2026-01-01",
+			endDate:   "2026-01-31",
+			repoAggs: []repository.UnpaidOwnerAggregate{
+				{OwnerID: 1, OwnerName: "田中太郎", Count: 2, TotalAmount: 5000},
+			},
+			repoTotal: 1,
+		},
+		{
+			name:      "異常: repo エラーが伝播する",
+			startDate: "2026-01-01",
+			endDate:   "2026-01-31",
+			repoErr:   errors.New("db error"),
+			wantErr:   true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedStart, capturedEnd string
+			repo := &mockAccountingRepository{
+				findUnpaidByOwnerFn: func(_ context.Context, _ uint64, start, end string, _, _ int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
+					capturedStart = start
+					capturedEnd = end
+					return tt.repoAggs, tt.repoTotal, repository.UnpaidSummary{}, tt.repoErr
+				},
+			}
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+
+			result, total, _, err := svc.ListUnpaidByOwner(context.Background(), 1, tt.startDate, tt.endDate, 1, 20)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.startDate, capturedStart)
+				assert.Equal(t, tt.endDate, capturedEnd)
+				assert.Len(t, result, len(tt.repoAggs))
+				assert.Equal(t, tt.repoTotal, total)
 			}
 		})
 	}
