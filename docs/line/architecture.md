@@ -1,7 +1,7 @@
 # LINE連携・MA アーキテクチャ (LINE & Marketing Automation)
 
 > **Animal Ekarte**: LINE プラットフォームを活用した顧客体験の最大化
-> **最新更新**: 2026-05-21
+> **最新更新**: 2026-06-12
 
 ---
 

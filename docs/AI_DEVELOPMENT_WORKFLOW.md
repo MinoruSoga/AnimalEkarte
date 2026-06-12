@@ -1,7 +1,7 @@
 # AI エージェント協働開発ワークフロー (AI Development Workflow)
 
 > **Animal Ekarte**: 仕様駆動・AI エージェント活用による高品質開発
-> **最新更新**: 2026-05-27 | **ステータス**: 推奨手順 (Antigravity CLI / `agy` 対応)
+> **最新更新**: 2026-06-12 | **ステータス**: 推奨手順 (Antigravity CLI / `agy` 対応)
 
 ---
 
