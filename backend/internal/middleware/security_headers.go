@@ -18,7 +18,7 @@ func SecurityHeaders(isProduction bool) gin.HandlerFunc {
 		c.Header("Pragma", "no-cache")
 		if isProduction {
 			// HSTS は HTTPS 環境のみ有効にする
-			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 		}
 		c.Next()
 	}
