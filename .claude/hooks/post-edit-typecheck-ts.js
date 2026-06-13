@@ -45,9 +45,12 @@ process.stdin.on('end', () => {
       process.exit(0);
     }
 
-    // TypeScript 型チェック実行
+    // TypeScript 型チェック実行（incremental build でキャッシュ再利用）
+    const TSC_CMD =
+      'docker compose exec -T frontend npx tsc --noEmit --incremental' +
+      ' --tsBuildInfoFile /tmp/tsc-hook.tsbuildinfo 2>&1';
     try {
-      execSync('docker compose exec -T frontend npx tsc --noEmit 2>&1', {
+      execSync(TSC_CMD, {
         encoding: 'utf8',
         stdio: ['pipe', 'pipe', 'pipe'],
         timeout: 30000,
@@ -55,7 +58,15 @@ process.stdin.on('end', () => {
       // 型エラーなし
       process.exit(0);
     } catch (err) {
-      const output = err.stdout || err.message || '';
+      // タイムアウト（err.killed === true）は警告のみ、ブロックしない
+      if (err.killed) {
+        process.stderr.write(
+          '\n⏱  TypeScript 型チェックが 30 秒でタイムアウトしました（スキップ）\n' +
+          '手動確認: docker compose exec frontend npx tsc --noEmit\n\n'
+        );
+        process.exit(0);
+      }
+      const output = err.stdout || err.stderr || err.message || '';
       if (output.trim()) {
         // 型エラーあり: stderr に出力して警告（exit 0 でブロックしない）
         process.stderr.write(
