@@ -9,7 +9,7 @@ import (
 func TestRLSMigrationCoversTenantTables(t *testing.T) {
 	t.Parallel()
 
-	sql := readMigrationFile(t, "../../migrations/010_enable_rls_tenant_policies.sql")
+	sql := readMigrationFile(t, "../../migrations/005_fix_billing_refunds_delete_restrict.sql")
 
 	requiredSnippets := []string{
 		"CREATE SCHEMA IF NOT EXISTS app_private",
@@ -36,7 +36,7 @@ func TestRLSMigrationCoversTenantTables(t *testing.T) {
 func TestRLSMigrationCoversParentScopedChildTables(t *testing.T) {
 	t.Parallel()
 
-	sql := readMigrationFile(t, "../../migrations/010_enable_rls_tenant_policies.sql")
+	sql := readMigrationFile(t, "../../migrations/005_fix_billing_refunds_delete_restrict.sql")
 
 	childTables := []string{
 		"exam_type_fields",
