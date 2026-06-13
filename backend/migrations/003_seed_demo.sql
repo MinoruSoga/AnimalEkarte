@@ -1635,6 +1635,14 @@ ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
 
+-- MR id=91: Iris (pet_id=1) 2026-05-22 外来 — vital_record id=30 の参照先
+-- (vital_record id=30 は元々 medical_record_id=61 (ミケのMR) を誤参照していた)
+INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, doctor_id, status) VALUES
+    (91, 1, 'R-2026-051', '2026-05-22', 1, 1, 1, 'finalized')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
+
 -- 本日会計（計17件）
 INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo) VALUES
     -- AM (09:00-14:00)
@@ -3004,8 +3012,8 @@ SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM t
 
 -- バイタル（追加分）
 INSERT INTO vital_records (id, clinic_id, pet_id, medical_record_id, recorded_at, staff_id, temperature, heart_rate, respiration_rate, weight, weight_unit) VALUES
-    -- Pet ID 1 (Iris) 本日
-    (30, 1, 1, 61, '2026-05-22 09:00:00+09', 1, 38.5, 78, 19, 26.4, 'Kg'),
+    -- Pet ID 1 (Iris) 本日 (MR id=91 に修正: 旧 id=61 はミケのMR)
+    (30, 1, 1, 91, '2026-05-22 09:00:00+09', 1, 38.5, 78, 19, 26.4, 'Kg'),
     -- Pet ID 3 (ミケ) 本日
     (31, 1, 3, 61, '2026-05-22 09:30:00+09', 2, 38.9, 120, 26, 4.3, 'Kg'),
     -- Pet ID 6 (チョコ) 本日
@@ -3167,7 +3175,8 @@ ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('daily_records', 'id'), (SELECT MAX(id) FROM daily_records));
 
 -- 入院時のバイタルを daily_records に紐付け
-UPDATE vital_records SET daily_record_id = 3 WHERE id = 30; -- Iris 本日分
+-- id=30 (Iris) は外来MR(id=91)を使用するため daily_record_id 紐付け不要。旧行は削除済み
+-- (旧: daily_record_id=3 はジロウ入院(hospitalization_id=1)の日次記録であり Iris に割り当て不可)
 UPDATE vital_records SET daily_record_id = 5 WHERE id = 31; -- ミケ 本日分
 
 -- 見積（手術などの高額案件デモ用）
