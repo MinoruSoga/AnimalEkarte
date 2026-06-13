@@ -47,4 +47,9 @@ const (
 	// 取扱説明書（マニュアル）編集 監査アクション
 	AuditActionManualArticleUpsert = "manual_article.upsert"
 	AuditActionManualArticleDelete = "manual_article.delete"
+
+	// 会計・返金 監査アクション（#122）
+	AuditActionBillingCancel        = "billing.cancel"
+	AuditActionBillingPostCloseEdit = "billing.post_close_edit"
+	AuditActionBillingRefundCreate  = "billing_refund.create"
 )

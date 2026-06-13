@@ -81,11 +81,13 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, act
 			ClinicID:   &clinicID,
 			ActorID:    actorID,
 			ActorType:  aType,
-			Action:     "cancel",
+			Action:     model.AuditActionBillingCancel,
 			Resource:   "billing",
 			ResourceID: &billingID,
+			OldValue:   map[string]any{"status": string(existing.Status)},
+			NewValue:   map[string]any{"status": string(model.BillingStatusCancelled)},
 		}); logErr != nil {
-			slog.ErrorContext(ctx, "audit log failed for billing cancel", "error", logErr, "billing_id", id)
+			slog.WarnContext(ctx, "audit log failed for billing cancel", "error", logErr, "billing_id", id)
 		}
 	}
 

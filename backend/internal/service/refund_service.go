@@ -112,10 +112,14 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 			ClinicID:   &clinicID,
 			ActorID:    input.StaffID,
 			ActorType:  "staff",
-			Action:     "create",
+			Action:     model.AuditActionBillingRefundCreate,
 			Resource:   "billing_refund",
 			ResourceID: &refund.ID,
-			NewValue:   refund,
+			NewValue: map[string]any{
+				"amount":         refund.Amount,
+				"reason":         refund.Reason,
+				"payment_method": refund.PaymentMethod,
+			},
 		}); err != nil {
 			slog.WarnContext(txCtx, "audit log failed for refund create", "error", err, "refund_id", refund.ID)
 		}

@@ -343,6 +343,14 @@ func TestAuditService_LogClinicSwitch_SystemActor(t *testing.T) {
 	assert.Nil(t, repo.lastLogged.ActorID)
 }
 
+// TestAuditActionConstants_Billing は Issue #122 で追加した billing 系 action 定数の
+// 存在・値・{resource}.{operation} 形式を検証する。
+func TestAuditActionConstants_Billing(t *testing.T) {
+	assert.Equal(t, "billing.cancel", model.AuditActionBillingCancel)
+	assert.Equal(t, "billing.post_close_edit", model.AuditActionBillingPostCloseEdit)
+	assert.Equal(t, "billing_refund.create", model.AuditActionBillingRefundCreate)
+}
+
 // TestAuditService_LogAddendumCreate は addendum の監査ログで
 // new_value に before_text/after_text/reason が含まれることを確認する（AUDIT-H1）。
 func TestAuditService_LogAddendumCreate(t *testing.T) {

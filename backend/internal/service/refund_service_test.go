@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -242,4 +243,56 @@ func TestRefundService_Create_PaymentMethodWithinLimit(t *testing.T) {
 	if assert.NotNil(t, saved) {
 		assert.Equal(t, &method, saved.PaymentMethod)
 	}
+}
+
+// capturingAuditService は refund 監査テスト用の AuditService モック。LogEntry のみ capture する。
+type capturingAuditService struct {
+	noopAuditService
+	lastInput *AuditLogInput
+}
+
+func (c *capturingAuditService) LogEntry(_ context.Context, input *AuditLogInput) error {
+	c.lastInput = input
+	return nil
+}
+
+// TestRefundService_Create_AuditMinimalJSON は #122: NewValue が全Struct保存でなく
+// 最小JSONフィールド（amount/reason/payment_method）のみを含むことを検証する。
+func TestRefundService_Create_AuditMinimalJSON(t *testing.T) {
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return completedBillingForRefund(), nil
+		},
+	}
+	var saved *model.BillingRefund
+	refundRepo := &mockRefundRepo{
+		createFn: func(_ context.Context, r *model.BillingRefund) error {
+			saved = r
+			r.ID = 42
+			return nil
+		},
+	}
+	mockTx := &mockTransactor{withTxErr: nil}
+	auditSvc := &capturingAuditService{}
+	svc := NewRefundService(refundRepo, accountRepo, auditSvc, mockTx)
+
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{
+		StaffID: ptrUint64(1),
+		Amount:  3000,
+		Reason:  "返金テスト",
+	})
+
+	assert.NoError(t, err)
+	require.NotNil(t, auditSvc.lastInput, "audit LogEntry should be called")
+	assert.Equal(t, model.AuditActionBillingRefundCreate, auditSvc.lastInput.Action)
+	assert.Equal(t, "billing_refund", auditSvc.lastInput.Resource)
+
+	require.NotNil(t, auditSvc.lastInput.NewValue, "NewValue must not be nil")
+	newVal, ok := auditSvc.lastInput.NewValue.(map[string]any)
+	require.True(t, ok, "NewValue は map[string]any でなければならない（全Struct禁止）")
+	assert.EqualValues(t, int64(3000), newVal["amount"])
+	assert.Equal(t, "返金テスト", newVal["reason"])
+	_, hasBillingID := newVal["billing_id"]
+	assert.False(t, hasBillingID, "全Struct保存禁止: billing_id は NewValue に含まれてはいけない")
+	_ = saved
 }

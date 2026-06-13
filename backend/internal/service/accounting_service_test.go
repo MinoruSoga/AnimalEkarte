@@ -941,8 +941,10 @@ func TestAccountingService_Cancel(t *testing.T) {
 				assert.NoError(t, err)
 				if tt.wantAuditLogged {
 					assert.True(t, auditSvc.logEntryCalled, "audit log should be called on success")
-					assert.Equal(t, "cancel", auditSvc.logEntryInput.Action)
+					assert.Equal(t, model.AuditActionBillingCancel, auditSvc.logEntryInput.Action)
 					assert.Equal(t, "billing", auditSvc.logEntryInput.Resource)
+					assert.NotNil(t, auditSvc.logEntryInput.OldValue, "cancel audit: old_value に変更前 status が必要")
+					assert.NotNil(t, auditSvc.logEntryInput.NewValue, "cancel audit: new_value に変更後 status が必要")
 				}
 			}
 		})

@@ -97,6 +97,7 @@ func (m *mockEffectivePermissionService) GetEffectivePermissions(ctx context.Con
 type mockAuditServiceForPG struct {
 	logFn          func(ctx context.Context, log *model.AuditLog) error
 	logAuthLoginFn func(ctx context.Context, clinicID *uint64, staffID *uint64, action string, ipAddress string, userAgent string) error
+	lastLogEntry   *service.AuditLogInput // #122: audit 内容検証用
 }
 
 func (m *mockAuditServiceForPG) Log(ctx context.Context, log *model.AuditLog) error {
@@ -107,6 +108,7 @@ func (m *mockAuditServiceForPG) Log(ctx context.Context, log *model.AuditLog) er
 }
 
 func (m *mockAuditServiceForPG) LogEntry(ctx context.Context, input *service.AuditLogInput) error {
+	m.lastLogEntry = input // #122: capture for testing
 	if m.logFn != nil {
 		return m.logFn(ctx, &model.AuditLog{
 			ClinicID:   input.ClinicID,
@@ -157,6 +159,18 @@ func newHandlerWithPermissionGroupSvc(pgSvc service.PermissionGroupService) *Han
 		EffectivePermission: &mockEffectivePermissionService{},
 		Audit:               &mockAuditServiceForPG{},
 	}}
+}
+
+// newHandlerWithCapturingAudit は #122 監査ログ内容検証用ヘルパー。
+// AuditService も返すので logEntryInput を検証できる。
+func newHandlerWithCapturingAudit(pgSvc service.PermissionGroupService) (*Handler, *mockAuditServiceForPG) {
+	auditSvc := &mockAuditServiceForPG{}
+	h := &Handler{svc: &service.Services{
+		PermissionGroup:     pgSvc,
+		EffectivePermission: &mockEffectivePermissionService{},
+		Audit:               auditSvc,
+	}}
+	return h, auditSvc
 }
 
 // ---- TestPermissionGroupHandler_List ----
@@ -714,4 +728,143 @@ func TestPermissionGroupHandler_GetEffectivePermissions(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, rules)
 	})
+}
+
+// ---- #122: 監査ログ最小JSON検証テスト ----
+
+// TestPermissionGroupHandler_Create_AuditMinimalJSON は #122: Create 監査ログが
+// 全Struct保存でなく {"name": pg.Name} のみを含むことを検証する。
+func TestPermissionGroupHandler_Create_AuditMinimalJSON(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	pgSvc := &mockPermissionGroupService{
+		createFn: func(_ context.Context, _ uint64, input *service.CreatePermissionGroupInput) (*model.PermissionGroup, error) {
+			return &model.PermissionGroup{ID: 5, ClinicID: 1, Name: input.Name}, nil
+		},
+	}
+	h, auditSvc := newHandlerWithCapturingAudit(pgSvc)
+	body, _ := json.Marshal(map[string]any{"name": "テストグループ", "color": "#FF5733"})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	setClinicID(c)
+	c.Set("user_id", "1")
+	h.CreatePermissionGroup(c)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	require.NotNil(t, auditSvc.lastLogEntry, "audit LogEntry should be called")
+	assert.Equal(t, model.AuditActionPermissionGroupCreate, auditSvc.lastLogEntry.Action)
+	newVal, ok := auditSvc.lastLogEntry.NewValue.(map[string]any)
+	require.True(t, ok, "NewValue は map[string]any でなければならない（全Struct禁止）")
+	assert.Equal(t, "テストグループ", newVal["name"])
+	_, hasClinicID := newVal["clinic_id"]
+	assert.False(t, hasClinicID, "全Struct保存禁止: clinic_id は NewValue に含まれてはいけない")
+}
+
+// TestPermissionGroupHandler_Update_AuditWithOldValue は #122: Update 監査ログが
+// OldValue と NewValue の最小差分 {"name": ...} を含むことを検証する。
+func TestPermissionGroupHandler_Update_AuditWithOldValue(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	pgSvc := &mockPermissionGroupService{
+		getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
+			return &model.PermissionGroup{ID: id, ClinicID: clinicID, Name: "旧グループ名"}, nil
+		},
+		updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdatePermissionGroupInput) (*model.PermissionGroup, error) {
+			name := "新グループ名"
+			if input.Name != nil {
+				name = *input.Name
+			}
+			return &model.PermissionGroup{ID: id, ClinicID: clinicID, Name: name}, nil
+		},
+	}
+	h, auditSvc := newHandlerWithCapturingAudit(pgSvc)
+	body, _ := json.Marshal(map[string]any{"name": "新グループ名"})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	setClinicID(c)
+	c.Set("user_id", "1")
+	h.UpdatePermissionGroup(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	require.NotNil(t, auditSvc.lastLogEntry, "audit LogEntry should be called")
+	assert.Equal(t, model.AuditActionPermissionGroupUpdate, auditSvc.lastLogEntry.Action)
+
+	oldVal, ok := auditSvc.lastLogEntry.OldValue.(map[string]any)
+	require.True(t, ok, "OldValue は map[string]any でなければならない")
+	assert.Equal(t, "旧グループ名", oldVal["name"])
+	_, hasClinicID := oldVal["clinic_id"]
+	assert.False(t, hasClinicID, "全Struct保存禁止: clinic_id は OldValue に含まれてはいけない")
+
+	newVal, ok := auditSvc.lastLogEntry.NewValue.(map[string]any)
+	require.True(t, ok, "NewValue は map[string]any でなければならない（全Struct禁止）")
+	assert.Equal(t, "新グループ名", newVal["name"])
+}
+
+// TestPermissionGroupHandler_Delete_AuditMinimalJSON は #122: Delete 監査ログが
+// OldValue に {"name": oldPG.Name} のみを含むことを検証する。
+func TestPermissionGroupHandler_Delete_AuditMinimalJSON(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	pgSvc := &mockPermissionGroupService{
+		getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
+			return &model.PermissionGroup{ID: id, ClinicID: clinicID, Name: "管理者グループ"}, nil
+		},
+	}
+	auditSvc := &mockAuditServiceForPG{}
+	h := &Handler{svc: &service.Services{
+		PermissionGroup:     pgSvc,
+		EffectivePermission: &mockEffectivePermissionService{},
+		Audit:               auditSvc,
+	}}
+	router := gin.New()
+	router.DELETE("/permission-groups/:id", func(c *gin.Context) {
+		setClinicID(c)
+		c.Set("user_id", "1")
+		h.DeletePermissionGroup(c)
+	})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/permission-groups/1", http.NoBody)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	require.NotNil(t, auditSvc.lastLogEntry, "audit LogEntry should be called")
+	assert.Equal(t, model.AuditActionPermissionGroupDelete, auditSvc.lastLogEntry.Action)
+	oldVal, ok := auditSvc.lastLogEntry.OldValue.(map[string]any)
+	require.True(t, ok, "OldValue は map[string]any でなければならない（全Struct禁止）")
+	assert.Equal(t, "管理者グループ", oldVal["name"])
+	_, hasClinicID := oldVal["clinic_id"]
+	assert.False(t, hasClinicID, "全Struct保存禁止: clinic_id は OldValue に含まれてはいけない")
+}
+
+// TestPermissionGroupHandler_SetRules_AuditRuleCount は #122: SetPermissionGroupRules の
+// 監査ログ NewValue が {"rule_count": N} のみを含むことを検証する。
+func TestPermissionGroupHandler_SetRules_AuditRuleCount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	pgSvc := &mockPermissionGroupService{}
+	h, auditSvc := newHandlerWithCapturingAudit(pgSvc)
+	body, _ := json.Marshal(map[string]any{
+		"rules": []map[string]any{
+			{"resource": "master_permission", "can_view": true, "can_edit": false},
+			{"resource": "master_medical", "can_view": true, "can_edit": true},
+		},
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	setClinicID(c)
+	c.Set("user_id", "1")
+	h.SetPermissionGroupRules(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	require.NotNil(t, auditSvc.lastLogEntry, "audit LogEntry should be called")
+	assert.Equal(t, model.AuditActionPermissionRulesUpdate, auditSvc.lastLogEntry.Action)
+	newVal, ok := auditSvc.lastLogEntry.NewValue.(map[string]any)
+	require.True(t, ok, "NewValue は map[string]any でなければならない（全Struct禁止）")
+	assert.EqualValues(t, 2, newVal["rule_count"])
+	_, hasRules := newVal["rules"]
+	assert.False(t, hasRules, "全Struct保存禁止: rules スライス全体は NewValue に含まれてはいけない")
 }

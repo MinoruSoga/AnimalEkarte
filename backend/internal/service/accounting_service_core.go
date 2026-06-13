@@ -162,12 +162,12 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 			ClinicID:   &input.ClinicID,
 			ActorID:    input.StaffID,
 			ActorType:  aType,
-			Action:     "post_close_edit",
+			Action:     model.AuditActionBillingPostCloseEdit,
 			Resource:   "billing",
 			ResourceID: &billingID,
 			Metadata:   meta,
 		}); logErr != nil {
-			slog.ErrorContext(ctx, "audit log failed for post_close_edit", "error", logErr, "billing_id", input.ID)
+			slog.WarnContext(ctx, "audit log failed for post_close_edit", "error", logErr, "billing_id", input.ID)
 		}
 	}
 
