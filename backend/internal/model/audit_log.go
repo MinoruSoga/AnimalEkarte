@@ -28,6 +28,9 @@ func (AuditLog) TableName() string { return "audit_logs" }
 
 // 監査アクション定数
 const (
+	AuditActorTypeStaff  = "staff"
+	AuditActorTypeSystem = "system"
+
 	AuditActionPermissionGroupCreate = "permission_group.create"
 	AuditActionPermissionGroupUpdate = "permission_group.update"
 	AuditActionPermissionGroupDelete = "permission_group.delete"

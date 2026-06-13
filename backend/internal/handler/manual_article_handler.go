@@ -46,6 +46,10 @@ func (h *Handler) GetManualArticle(c *gin.Context) {
 // PUT /api/v1/manual/articles/:category/:slug
 // Requires: ResourceManualEdit, edit permission
 func (h *Handler) UpsertManualArticle(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	category := model.ManualCategory(c.Param("category"))
 	slug := c.Param("slug")
 	if slug == "" {
@@ -73,6 +77,7 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 	// 監査ログ: マニュアル編集（ベストエフォート、失敗はログ記録）
 	if staffID, ok := extractStaffID(c); ok {
 		if err := h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
+			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionManualArticleUpsert,
@@ -95,6 +100,10 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 // DELETE /api/v1/manual/articles/:category/:slug
 // Requires: ResourceManualEdit, delete permission
 func (h *Handler) DeleteManualArticle(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	category := model.ManualCategory(c.Param("category"))
 	slug := c.Param("slug")
 	if slug == "" {
@@ -117,6 +126,7 @@ func (h *Handler) DeleteManualArticle(c *gin.Context) {
 	// 監査ログ: マニュアル削除（ベストエフォート、失敗はログ記録）
 	if staffID, ok := extractStaffID(c); ok {
 		if err := h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
+			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionManualArticleDelete,

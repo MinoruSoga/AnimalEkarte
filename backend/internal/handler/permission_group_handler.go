@@ -170,6 +170,7 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 	// 監査ログ: 権限グループ削除
 	if staffID, ok := extractStaffID(c); ok {
 		auditInput := service.AuditLogInput{
+			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
 			Action:     model.AuditActionPermissionGroupDelete,
@@ -179,7 +180,6 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 			UserAgent:  c.Request.Header.Get("User-Agent"),
 		}
 		if oldPG != nil {
-			auditInput.ClinicID = &oldPG.ClinicID
 			auditInput.OldValue = map[string]any{"name": oldPG.Name}
 		}
 		if err := h.svc.Audit.LogEntry(c.Request.Context(), &auditInput); err != nil {

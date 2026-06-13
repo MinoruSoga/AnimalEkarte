@@ -2488,9 +2488,9 @@ COMMENT ON TABLE lstep_migration_progress             IS '既存飼い主デー�
 -- ------------------------------------
 CREATE TABLE audit_logs (
     id           BIGSERIAL    PRIMARY KEY,
-    clinic_id    bigint       NULL,
-    actor_id     bigint       NULL,
-    actor_type   varchar(30)  NOT NULL,
+    clinic_id    bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    actor_id     bigint       NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    actor_type   varchar(30)  NOT NULL CHECK (actor_type IN ('staff', 'system')),
     action       varchar(50)  NOT NULL,
     resource     varchar(50)  NOT NULL,
     resource_id  bigint       NULL,
@@ -2499,7 +2499,13 @@ CREATE TABLE audit_logs (
     ip_address   inet         NULL,
     user_agent   text         NULL,
     metadata     jsonb        NULL,                  -- ext-005: 追加コンテキスト情報
-    created_at   timestamptz  NOT NULL DEFAULT now()
+    created_at   timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT audit_logs_actor_consistency_check
+        CHECK (
+            (actor_type = 'system' AND actor_id IS NULL)
+            OR
+            (actor_type = 'staff' AND actor_id IS NOT NULL)
+        )
 );
 
 CREATE INDEX idx_audit_logs_clinic   ON audit_logs(clinic_id, created_at DESC);

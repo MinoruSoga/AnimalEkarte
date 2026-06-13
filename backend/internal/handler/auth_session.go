@@ -26,16 +26,47 @@ func newJti() string {
 	return hex.EncodeToString(bytes[:])
 }
 
+func auditClinicIDFromAssignments(assignments []model.StaffClinicAssignment) (uint64, bool) {
+	if len(assignments) == 0 {
+		return 0, false
+	}
+	fallback := assignments[0].ClinicID
+	for i := range assignments {
+		if assignments[i].IsMain {
+			return assignments[i].ClinicID, true
+		}
+	}
+	return fallback, true
+}
+
+func (h *Handler) auditKnownAccountLoginFailure(ctx context.Context, accountID uint64, clientIP, userAgent string) {
+	staff, err := h.svc.Staff.FindByAccountID(ctx, accountID)
+	if err != nil {
+		slog.WarnContext(ctx, "skip audit log for login failure: staff not resolved", "account_id", accountID, "error", err)
+		return
+	}
+	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(ctx, staff.ID)
+	if err != nil {
+		slog.WarnContext(ctx, "skip audit log for login failure: clinic assignments not resolved", "staff_id", staff.ID, "error", err)
+		return
+	}
+	clinicID, ok := auditClinicIDFromAssignments(assignments)
+	if !ok {
+		slog.WarnContext(ctx, "skip audit log for login failure: staff has no clinic assignments", "staff_id", staff.ID)
+		return
+	}
+	if logErr := h.svc.Audit.LogAuthLogin(ctx, &clinicID, &staff.ID, model.AuditActionAuthLoginFailure, clientIP, userAgent); logErr != nil {
+		slog.ErrorContext(ctx, "audit log failed for login failure", "staff_id", staff.ID, "clinic_id", clinicID, "error", logErr)
+	}
+}
+
 // authenticateUser はメール/パスワードを検証してアカウントとスタッフを返す。
 // 認証失敗・アカウント無効・スタッフ無効の場合は apperrors.ErrUnauthorized ラップエラーを返す。
 func (h *Handler) authenticateUser(ctx context.Context, email, password, clientIP, userAgent string) (*model.Account, *model.Staff, error) {
 	account, err := h.svc.Account.FindByEmail(ctx, email)
 	if err != nil {
 		if apperrors.IsNotFound(err) {
-			// 監査ログ: ログイン失敗（アカウント不存在）
-			if logErr := h.svc.Audit.LogAuthLogin(ctx, nil, nil, model.AuditActionAuthLoginFailure, clientIP, userAgent); logErr != nil {
-				slog.ErrorContext(ctx, "audit log failed for login failure (account not found)", "error", logErr)
-			}
+			slog.InfoContext(ctx, "skip audit log for login failure: account not found")
 			return nil, nil, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません")
 		}
 		return nil, nil, err
@@ -45,9 +76,7 @@ func (h *Handler) authenticateUser(ctx context.Context, email, password, clientI
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(password)); err != nil {
 		// 監査ログ: ログイン失敗（パスワード不正）
-		if logErr := h.svc.Audit.LogAuthLogin(ctx, nil, &account.ID, model.AuditActionAuthLoginFailure, clientIP, userAgent); logErr != nil {
-			slog.ErrorContext(ctx, "audit log failed for login failure (invalid password)", "account_id", account.ID, "error", logErr)
-		}
+		h.auditKnownAccountLoginFailure(ctx, account.ID, clientIP, userAgent)
 		return nil, nil, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません")
 	}
 	staff, err := h.svc.Staff.FindByAccountID(ctx, account.ID)
