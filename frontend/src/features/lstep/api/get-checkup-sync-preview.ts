@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { getStoredClinicId } from "@/lib/current-clinic";
 
 export type CheckupType =
   | "annual"
@@ -69,7 +70,7 @@ export interface CheckupSyncPreviewResponse {
 export function useGetCheckupSyncPreview(params: CheckupSyncParams | null) {
   // clinicId 欠落時は throw せず enabled で無効化する (use-reservation-types.ts と同パターン)。
   // レンダー中の throw は ErrorBoundary 頼みになりページ全体を落とすため禁止。
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
+  const clinicId = getStoredClinicId();
 
   return useQuery({
     queryKey: ["checkup-sync-preview", clinicId, params],

@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "@/types/auth";
 import { AuthContext } from "@/contexts/auth-context";
+import { CURRENT_CLINIC_STORAGE_KEY, getStoredClinicId } from "@/lib/current-clinic";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
@@ -14,19 +15,9 @@ export { useAuth } from "@/hooks/use-auth";
 
 /* セッション情報は httpOnly Cookie で管理するため localStorage への保存は不要。
  * 選択中のクリニック ID のみ localStorage に残す（権限情報ではないためリスク低） */
-const STORAGE_KEY_CLINIC = "auth_current_clinic:v1";
-
-function readClinicFromStorage(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_KEY_CLINIC);
-  } catch {
-    return null;
-  }
-}
-
 function saveClinicToStorage(clinicId: string): void {
   try {
-    localStorage.setItem(STORAGE_KEY_CLINIC, clinicId);
+    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, clinicId);
   } catch (error) {
     console.warn("[auth] failed to save clinic to localStorage", error);
   }
@@ -34,7 +25,7 @@ function saveClinicToStorage(clinicId: string): void {
 
 function removeClinicFromStorage(): void {
   try {
-    localStorage.removeItem(STORAGE_KEY_CLINIC);
+    localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
   } catch (error) {
     console.warn("[auth] failed to remove clinic from localStorage", error);
   }
@@ -59,7 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(initialResult?.user ?? null);
   const [currentClinicId, setCurrentClinicId] = useState<string | null>(() => {
     if (!initialResult) return null;
-    const storedClinic = readClinicFromStorage();
+    const storedClinic = getStoredClinicId();
     const validClinic = initialResult.user.clinics.some((c) => c.clinicId === storedClinic);
     return validClinic ? storedClinic : initialResult.user.mainClinicId;
   });

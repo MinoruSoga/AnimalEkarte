@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { CheckupType } from "./get-checkup-sync-preview";
 
@@ -35,10 +36,7 @@ export function useCreateCheckupSync() {
     // clinicId 欠落チェックはレンダー中 (フック本体) で throw せず mutationFn 内で行う。
     // フック本体の throw は ErrorBoundary 頼みになりページ全体を落とすため禁止。
     mutationFn: (body: CheckupSyncRequest) => {
-      const clinicId = localStorage.getItem("auth_current_clinic:v1");
-      if (!clinicId) {
-        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
-      }
+      const clinicId = requireStoredClinicId();
       return createCheckupSync(clinicId, body);
     },
     onSuccess: () => {

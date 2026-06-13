@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 
 export interface LstepTagSummaryItem {
   tag_name: string;
@@ -18,10 +19,7 @@ export function useGetLstepTagSummary() {
   return useQuery({
     queryKey: ["lstep-tag-summary"],
     queryFn: async () => {
-      const clinicId = localStorage.getItem("auth_current_clinic:v1");
-      if (!clinicId) {
-        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
-      }
+      const clinicId = requireStoredClinicId();
       const { data } = await axios.get<LstepTagSummaryResponse>(
         `/v1/clinics/${clinicId}/lstep/tag-summary`
       );

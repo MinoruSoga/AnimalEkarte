@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { axios } from "@/lib/axios";
+import { getStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
 
 interface LstepBulkTagBody {
@@ -17,7 +18,7 @@ async function createLstepBulkTag(
 
 // POST /api/clinics/:clinic_id/owners/lstep/bulk-tags
 export function useCreateLstepBulkTag() {
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
+  const clinicId = getStoredClinicId();
 
   return useMutation({
     mutationFn: (body: LstepBulkTagBody) => {

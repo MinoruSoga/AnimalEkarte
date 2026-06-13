@@ -96,7 +96,7 @@ export const OwnerInfoSection = memo(function OwnerInfoSection({
         <div className="space-y-1.5">
           <Label htmlFor="clinicId" className={`text-sm ${C.text60}`}>登録先医院</Label>
           <Select
-            value={ownerData.clinicId ?? currentClinicId ?? ""}
+            value={ownerData.clinicId ?? currentClinicId ?? undefined}
             onValueChange={(value) => onChange("clinicId", value)}
           >
             <SelectTrigger id="clinicId" data-testid="owner-clinic-select" className={STYLE.formInput}>

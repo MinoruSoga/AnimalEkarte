@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 
 interface BulkRemoveProgress {
   done: number;
@@ -25,10 +26,7 @@ export function useBulkRemoveTag(): UseBulkRemoveTagResult {
   });
 
   const bulkRemove = async (tagName: string, ownerIds: string[]): Promise<void> => {
-    const clinicId = localStorage.getItem("auth_current_clinic:v1");
-    if (!clinicId) {
-      throw new Error("クリニックが選択されていません。ページをリロードしてください。");
-    }
+    const clinicId = requireStoredClinicId();
     setProgress({ done: 0, total: ownerIds.length, isRunning: true });
 
     for (const ownerId of ownerIds) {

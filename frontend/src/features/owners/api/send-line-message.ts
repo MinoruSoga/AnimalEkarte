@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { axios } from "@/lib/axios";
+import { getStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
 
 export type LineSendType = "text" | "pdf_url" | "image_url";
@@ -26,7 +27,7 @@ async function sendLineMessage(
 
 export function useSendLineMessage(ownerId: string) {
   const queryClient = useQueryClient();
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
+  const clinicId = getStoredClinicId();
 
   return useMutation({
     mutationFn: (body: LineSendRequest) => {
