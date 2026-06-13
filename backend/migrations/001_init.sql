@@ -1940,7 +1940,7 @@ CREATE INDEX idx_payment_splits_clinic_billing ON payment_splits(clinic_id, bill
 CREATE TABLE billing_refunds (
     id           BIGSERIAL   PRIMARY KEY,
     clinic_id    bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    billing_id   bigint      NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
+    billing_id   bigint      NOT NULL REFERENCES billings(id) ON DELETE RESTRICT,
     amount       bigint      NOT NULL CHECK (amount > 0),
     reason       text        NOT NULL DEFAULT '',
     refunded_by     bigint          REFERENCES staffs(id),
