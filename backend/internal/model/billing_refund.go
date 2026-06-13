@@ -12,7 +12,7 @@ type BillingRefund struct {
 	// PaymentMethod は返金先の支払手段（nullable・ENUM）。混在会計でどの手段へ返金したか記録する。
 	// 会計の payment_splits.method と同じ ENUM 体系。混在支払いの方法別返金上限(#60 Phase 2)に使う。
 	PaymentMethod *PaymentMethod `gorm:"type:payment_method" json:"payment_method,omitempty"`
-	RefundedAt    time.Time      `gorm:"not null;autoCreateTime"  json:"refunded_at"`
+	RefundedAt    time.Time      `gorm:"not null"                 json:"refunded_at"`
 	CreatedAt     time.Time      `gorm:"autoCreateTime"           json:"created_at"`
 
 	// Relations

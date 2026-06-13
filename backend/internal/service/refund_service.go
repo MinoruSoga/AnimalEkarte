@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -96,6 +97,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 			Reason:        input.Reason,
 			RefundedBy:    input.StaffID,
 			PaymentMethod: input.PaymentMethod,
+			RefundedAt:    time.Now(),
 		}
 		if err := s.repo.Create(txCtx, refund); err != nil {
 			slog.ErrorContext(txCtx, "failed to create refund", "error", err)

@@ -40,7 +40,7 @@ func validatePetAcquisitionType(t string) error {
 	}
 	switch model.AcquisitionType(t) {
 	case model.AcquisitionTypePurchase, model.AcquisitionTypeTransfer,
-		model.AcquisitionTypeProtected, model.AcquisitionTypeOther:
+		model.AcquisitionTypeRescued, model.AcquisitionTypeOther:
 		return nil
 	default:
 		return apperrors.WrapInvalidInput(fmt.Sprintf("入手経路の値が不正です: %s", t))
