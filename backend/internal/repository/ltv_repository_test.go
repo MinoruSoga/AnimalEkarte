@@ -496,6 +496,31 @@ func TestFindOwnerLTV_AmountBasisSwitching(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, result3, 1)
 	assert.Equal(t, int64(7000), *result3[0].AnnualAmount, "net_paid_amount should be 8000 - 1000 = 7000")
+
+	// Test 4: 期間付き net_paid_amount の HAVING でも金額閾値をバインドして絞り込める
+	year := time.Now().Year()
+	minAmount := int64(6000)
+	result4, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		AmountBasis:    "net_paid_amount",
+		Year:           &year,
+		MinTotalAmount: &minAmount,
+		IncludeZero:    true,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, result4, 1)
+	assert.Equal(t, int64(7000), *result4[0].AnnualAmount)
+
+	minAmount = 7500
+	result5, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		AmountBasis:    "net_paid_amount",
+		Year:           &year,
+		MinTotalAmount: &minAmount,
+		IncludeZero:    true,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, result5, 0)
 }
 
 // TestFindOwnerLTV_OnlyCompletedBillings
