@@ -46,19 +46,19 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 			q = q.Where("pets.owner_id = ?", *ownerID)
 		}
 		if search != "" {
-			escaped := escapeLike(search)
-			pattern := "%" + escaped + "%"
-			// BUG-375: name_kana はひらがな⇔カタカナ正規化して比較。owners.name_kana も検索対象に追加
+			// NormalizeKana で検索語のカタカナをひらがなに正規化。
+			// DB 列は translate() でひらがなに正規化済みのため、双方を統一して比較する。
+			pattern := "%" + escapeLike(NormalizeKana(search)) + "%"
 			q = q.Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.deleted_at IS NULL").
 				Where(
 					`(pets.name ILIKE ? ESCAPE '\'`+
-						` OR translate(pets.name_kana, ?, ?) ILIKE translate(? ESCAPE '\', ?, ?)`+
+						` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 						` OR owners.name ILIKE ? ESCAPE '\'`+
-						` OR translate(owners.name_kana, ?, ?) ILIKE translate(? ESCAPE '\', ?, ?))`,
+						` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\')`,
 					pattern,
-					kanaSourceChars, kanaTargetChars, pattern, kanaSourceChars, kanaTargetChars,
+					kanaSourceChars, kanaTargetChars, pattern,
 					pattern,
-					kanaSourceChars, kanaTargetChars, pattern, kanaSourceChars, kanaTargetChars,
+					kanaSourceChars, kanaTargetChars, pattern,
 				)
 		}
 		return q
