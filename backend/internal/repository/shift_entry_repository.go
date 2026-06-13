@@ -156,7 +156,7 @@ func (r *shiftEntryRepository) FindOnDutyStaffs(ctx context.Context, clinicID ui
 	var staffs []model.Staff
 	dateStr := date.Format("2006-01-02")
 	// shift_entries テーブルは deleted_at カラムを持たない（論理削除なし）
-	// staffs テーブルは clinic_id を持たない（テナント非依存）。clinic フィルタは JOIN 条件の shift_entries.clinic_id で担保する。
+	// 勤務日の絞り込みは JOIN 条件の shift_entries.clinic_id で担保する。
 	err := dbOrTx(ctx, r.db).
 		Joins("JOIN shift_entries ON shift_entries.staff_id = staffs.id"+
 			" AND shift_entries.clinic_id = ?"+

@@ -124,6 +124,7 @@ func TestVitalService_Create(t *testing.T) {
 			name:            "creates vital successfully with all fields",
 			medicalRecordID: 1,
 			input: &CreateVitalInput{
+				ClinicID:        1,
 				PetID:           1,
 				RecordedAt:      recordedAt,
 				StaffID:         &staffID,
@@ -140,6 +141,7 @@ func TestVitalService_Create(t *testing.T) {
 			name:            "creates vital with temperature only",
 			medicalRecordID: 1,
 			input: &CreateVitalInput{
+				ClinicID:    1,
 				PetID:       1,
 				RecordedAt:  recordedAt,
 				Temperature: &temperature,
@@ -183,6 +185,7 @@ func TestVitalService_Create(t *testing.T) {
 			name:            "returns error when repository fails",
 			medicalRecordID: 1,
 			input: &CreateVitalInput{
+				ClinicID:    1,
 				PetID:       1,
 				RecordedAt:  recordedAt,
 				Temperature: &temperature,
@@ -195,7 +198,10 @@ func TestVitalService_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVitalRepository{
-				createFn: func(_ context.Context, _ *model.VitalRecord) error {
+				createFn: func(_ context.Context, vital *model.VitalRecord) error {
+					if tt.repoErr == nil {
+						assert.Equal(t, tt.input.ClinicID, vital.ClinicID)
+					}
 					return tt.repoErr
 				},
 			}
@@ -218,6 +224,7 @@ func TestVitalService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, vital)
+				assert.Equal(t, tt.input.ClinicID, vital.ClinicID)
 				assert.Equal(t, ptrUint64(tt.medicalRecordID), vital.MedicalRecordID)
 			}
 		})

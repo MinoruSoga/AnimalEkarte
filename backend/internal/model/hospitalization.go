@@ -108,6 +108,7 @@ func (CarePlanItem) TableName() string { return "care_plan_items" }
 
 type TreatmentPlan struct {
 	ID                uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID          uint64         `gorm:"not null"                                       json:"clinic_id"`
 	MedicalRecordID   *uint64        `                                                      json:"medical_record_id,omitempty"`
 	HospitalizationID *uint64        `                                                      json:"hospitalization_id,omitempty"`
 	TreatmentContent  string         `gorm:"not null;default:''"                            json:"treatment_content"`
@@ -166,6 +167,7 @@ const (
 
 type CareLog struct {
 	ID            uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID      uint64        `gorm:"not null"                                       json:"clinic_id"`
 	DailyRecordID uint64        `gorm:"not null"                                       json:"daily_record_id"`
 	Time          time.Time     `gorm:"type:time;not null"                             json:"time"`
 	Type          CareLogType   `gorm:"type:care_log_type;not null"                    json:"type"`

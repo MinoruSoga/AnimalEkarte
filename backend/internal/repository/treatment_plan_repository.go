@@ -25,13 +25,10 @@ func NewTreatmentPlanRepository(db *gorm.DB) TreatmentPlanRepository {
 	return &treatmentPlanRepository{db: db}
 }
 
-// clinicScopeQuery はテナント境界を適用したクエリビルダーを返す。
-// treatment_plans は clinic_id を直接持たないため、親テーブル（medical_records / hospitalizations）経由で検証する。
 func (r *treatmentPlanRepository) clinicScopeQuery(ctx context.Context, clinicID uint64) *gorm.DB {
 	return r.db.WithContext(ctx).
-		Joins("LEFT JOIN medical_records ON medical_records.id = treatment_plans.medical_record_id AND medical_records.deleted_at IS NULL").
-		Joins("LEFT JOIN hospitalizations ON hospitalizations.id = treatment_plans.hospitalization_id AND hospitalizations.deleted_at IS NULL").
-		Where("(medical_records.clinic_id = ? OR hospitalizations.clinic_id = ?)", clinicID, clinicID)
+		Model(&model.TreatmentPlan{}).
+		Scopes(clinicScope(clinicID))
 }
 
 func (r *treatmentPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {

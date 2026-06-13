@@ -84,6 +84,7 @@ func (s *dailyRecordService) AddVitalRecord(ctx context.Context, clinicID, hospi
 
 	dailyID := daily.ID
 	vr := &model.VitalRecord{
+		ClinicID:        clinicID,
 		DailyRecordID:   &dailyID,
 		RecordedAt:      input.Time,
 		Temperature:     input.Temperature,
@@ -140,6 +141,7 @@ func (s *dailyRecordService) AddCareLog(ctx context.Context, clinicID, hospitali
 	}
 
 	cr := &model.CareLog{
+		ClinicID:      clinicID,
 		DailyRecordID: daily.ID,
 		Time:          input.Time,
 		Type:          careLogType,

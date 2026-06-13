@@ -1178,6 +1178,7 @@ export interface CarePlanItem {
 }
 export interface TreatmentPlan {
   id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
   medical_record_id?: number /* uint64 */;
   hospitalization_id?: number /* uint64 */;
   treatment_content: string;
@@ -1223,6 +1224,7 @@ export const CareLogStatusPartial: CareLogStatus = "partial";
 export const CareLogStatusSkipped: CareLogStatus = "skipped";
 export interface CareLog {
   id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
   daily_record_id: number /* uint64 */;
   time: string;
   type: CareLogType;
@@ -2831,6 +2833,7 @@ export const BodyWeightUnitKg: BodyWeightUnit = "Kg";
 export const BodyWeightUnitG: BodyWeightUnit = "g";
 export interface VitalRecord {
   id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
   pet_id: number /* uint64 */;
   medical_record_id?: number /* uint64 */;
   daily_record_id?: number /* uint64 */;

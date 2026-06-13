@@ -162,7 +162,7 @@ func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []ui
 
 func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error) {
 	// clinic_id カラムを直接持つテーブルのみ汎用ループで処理。
-	// payments / vital_records は clinic_id を持たないため後述の特殊クエリで対応。
+	// payments は clinic_id を持たないため後述の特殊クエリで対応。
 	// exams.entered_by カラムは存在しないため除外。
 	checks := []struct {
 		table   string
@@ -178,6 +178,7 @@ func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, 
 		{table: "shift_entries", column: "staff_id", label: "シフト", softDel: false},
 		{table: "billing_refunds", column: "refunded_by", label: "返金", softDel: false},
 		{table: "cash_register_closes", column: "closed_by", label: "レジ締め", softDel: false},
+		{table: "vital_records", column: "staff_id", label: "バイタル記録", softDel: true},
 	}
 
 	dependencies := make([]StaffDependencyCount, 0, len(checks)+2)
@@ -210,24 +211,6 @@ func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, 
 	}
 	if paymentCount > 0 {
 		dependencies = append(dependencies, StaffDependencyCount{Label: "支払い", Count: paymentCount})
-	}
-
-	// vital_records は clinic_id を持たず、staff カラムは staff_id。
-	// medical_records または daily_records 経由で clinic_id をフィルタする。
-	var vitalCount int64
-	if err := dbOrTx(ctx, r.db).
-		Table("vital_records").
-		Where("vital_records.staff_id = ? AND vital_records.deleted_at IS NULL", staffID).
-		Where(
-			`(EXISTS (SELECT 1 FROM medical_records WHERE medical_records.id = vital_records.medical_record_id AND medical_records.clinic_id = ?)
-			OR EXISTS (SELECT 1 FROM daily_records WHERE daily_records.id = vital_records.daily_record_id AND daily_records.clinic_id = ?))`,
-			clinicID, clinicID,
-		).
-		Count(&vitalCount).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "vital_records", fmt.Sprintf("staff_id=%d", staffID))
-	}
-	if vitalCount > 0 {
-		dependencies = append(dependencies, StaffDependencyCount{Label: "バイタル記録", Count: vitalCount})
 	}
 
 	return dependencies, nil

@@ -31,8 +31,8 @@ func NewVitalRepository(db *gorm.DB) VitalRepository {
 func (r *vitalRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	vitals := make([]model.VitalRecord, 0)
 	if err := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = vital_records.medical_record_id AND medical_records.deleted_at IS NULL").
-		Where("medical_records.clinic_id = ? AND vital_records.medical_record_id = ? AND vital_records.deleted_at IS NULL", clinicID, medicalRecordID).
+		Scopes(clinicScope(clinicID)).
+		Where("vital_records.medical_record_id = ? AND vital_records.deleted_at IS NULL", medicalRecordID).
 		Order("vital_records.recorded_at ASC").
 		Find(&vitals).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "vital", "")
@@ -43,7 +43,7 @@ func (r *vitalRepository) FindByMedicalRecordID(ctx context.Context, clinicID, m
 func (r *vitalRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.VitalRecord, error) {
 	var vital model.VitalRecord
 	err := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = vital_records.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Scopes(clinicScope(clinicID)).
 		Where("vital_records.id = ? AND vital_records.deleted_at IS NULL", id).
 		First(&vital).Error
 	if err != nil {
@@ -62,8 +62,8 @@ func (r *vitalRepository) Create(ctx context.Context, vital *model.VitalRecord) 
 func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.VitalRecord{}).
-		Where("vital_records.id = ? AND vital_records.deleted_at IS NULL AND vital_records.medical_record_id IN "+
-			"(SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("vital_records.id = ? AND vital_records.deleted_at IS NULL", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "vital", fmt.Sprintf("%d", id))
@@ -76,8 +76,8 @@ func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, field
 
 func (r *vitalRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("vital_records.id = ? AND vital_records.medical_record_id IN "+
-			"(SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("vital_records.id = ?", id).
 		Delete(&model.VitalRecord{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "vital", fmt.Sprintf("%d", id))

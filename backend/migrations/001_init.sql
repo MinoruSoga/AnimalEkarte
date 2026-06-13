@@ -1560,6 +1560,7 @@ CREATE TABLE treatments (
 -- ------------------------------------
 CREATE TABLE treatment_plans (
     id                 BIGSERIAL   PRIMARY KEY,
+    clinic_id          bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     medical_record_id  bigint               REFERENCES medical_records(id) ON DELETE CASCADE,
     hospitalization_id bigint               REFERENCES hospitalizations(id) ON DELETE CASCADE,
     treatment_content  text        NOT NULL DEFAULT '',
@@ -1684,6 +1685,7 @@ CREATE TABLE daily_records (
 -- ------------------------------------
 CREATE TABLE vital_records (
     id                BIGSERIAL   PRIMARY KEY,
+    clinic_id         bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     pet_id            bigint      NOT NULL REFERENCES pets(id) ON DELETE RESTRICT,
     medical_record_id bigint               REFERENCES medical_records(id) ON DELETE CASCADE,  -- 外来時
     daily_record_id   bigint               REFERENCES daily_records(id) ON DELETE CASCADE,    -- 入院時
@@ -1788,6 +1790,7 @@ CREATE TABLE estimate_items (
 -- ------------------------------------
 CREATE TABLE care_logs (
     id              BIGSERIAL       PRIMARY KEY,
+    clinic_id       bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     daily_record_id bigint          NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
     time            time            NOT NULL,
     type            care_log_type   NOT NULL,
@@ -2207,6 +2210,7 @@ CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
 CREATE INDEX idx_vital_records_medical_record_id ON vital_records(medical_record_id);
 CREATE INDEX idx_vital_records_daily_record_id ON vital_records(daily_record_id);
 CREATE INDEX idx_vital_records_pet_id ON vital_records(pet_id);
+CREATE INDEX idx_vital_records_clinic_id ON vital_records(clinic_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_vital_records_deleted_at ON vital_records (deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id);
 CREATE INDEX idx_exams_pet_id ON exams(pet_id);
@@ -2223,12 +2227,14 @@ CREATE INDEX idx_inquiries_medical_record_id ON inquiries(medical_record_id);
 CREATE INDEX idx_medical_record_images_medical_record_id ON medical_record_images(medical_record_id);
 CREATE INDEX idx_treatment_plans_medical_record_id ON treatment_plans(medical_record_id);
 CREATE INDEX idx_treatment_plans_hospitalization_id ON treatment_plans(hospitalization_id);
+CREATE INDEX idx_treatment_plans_clinic_id ON treatment_plans(clinic_id) WHERE deleted_at IS NULL;
 
 -- hospitalization 子テーブル FK インデックス
 CREATE INDEX idx_hospitalizations_pet_id ON hospitalizations(pet_id);
 CREATE INDEX idx_hospitalizations_owner_id ON hospitalizations(owner_id);
 CREATE INDEX idx_hospitalizations_cage_id ON hospitalizations(cage_id);
 CREATE INDEX idx_care_plan_items_hospitalization_id ON care_plan_items(hospitalization_id);
+CREATE INDEX idx_care_logs_clinic_id ON care_logs(clinic_id);
 
 -- billing 子テーブル FK インデックス
 CREATE INDEX idx_billing_items_billing_id ON billing_items(billing_id);
