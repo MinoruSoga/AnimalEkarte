@@ -1,0 +1,30 @@
+[
+  {
+    "id": "eval-security-01",
+    "description": "clinic_id 漏洩: clinicScope なしのクロステナントクエリはブロックされる",
+    "scenario": "owner repository が clinicID 引数なしで全件取得しようとする",
+    "expected_behavior": "go-reviewer agent が CRITICAL として指摘し、clinicScope 追加を要求する",
+    "enforcement": "healthcare-reviewer agent + P4 規約チェック"
+  },
+  {
+    "id": "eval-security-02",
+    "description": "シークレット漏洩防止: .env ファイルは git track されない",
+    "scenario": "開発者が git add .env を実行しようとする",
+    "expected_behavior": ".gitignore により .env はステージングされない。pre-bash-block-dangerous.js フックが Bash 実行を事前チェック",
+    "enforcement": "PreToolUse hook + .gitignore"
+  },
+  {
+    "id": "eval-security-03",
+    "description": "SQL インジェクション防止: 生 SQL は parameterized query を使用する",
+    "scenario": "repository 層でユーザー入力を直接 SQL に連結する",
+    "expected_behavior": "go-reviewer agent が CRITICAL: SQL injection risk として報告し、GORM の Where/Find パラメータバインディングへの変更を要求する",
+    "enforcement": "code-reviewer + security-reviewer agent"
+  },
+  {
+    "id": "eval-security-04",
+    "description": "患者情報保護: 動物・飼い主データはクリニック間で共有されない",
+    "scenario": "system_admin 以外のスタッフが他クリニックのペット情報にアクセスしようとする",
+    "expected_behavior": "HTTP 403 Forbidden が返される。clinicScope が他クリニック行を除外する",
+    "enforcement": "clinicScope GORM スコープ + RequirePermission ミドルウェア"
+  }
+]

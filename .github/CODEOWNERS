@@ -1,0 +1,22 @@
+# CODEOWNERS — AnimalEkarte
+# 変更があったファイルに対して自動的にレビューをリクエストする
+# 詳細: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# デフォルト: すべての変更に MinoruSoga をアサイン
+* @MinoruSoga
+
+# バックエンド (Go)
+backend/ @MinoruSoga
+
+# フロントエンド (React/TypeScript)
+frontend/ @MinoruSoga
+
+# データベースマイグレーション (高リスク)
+backend/migrations/ @MinoruSoga
+
+# GitHub Actions / インフラ
+.github/ @MinoruSoga
+
+# セキュリティ関連設定
+SECURITY.md @MinoruSoga
+.claude/settings.json @MinoruSoga
