@@ -12,6 +12,7 @@ import type { Staff as ModelStaff } from "@/types/generated/models";
 type StaffModelFields = Omit<
   ModelStaff,
   | "id"
+  | "clinic_id"
   | "account_id"
   | "account"
   | "occupation"
@@ -38,10 +39,9 @@ export type UpdateStaffRequest = Partial<StaffModelFields> & {
 // ─────────────────────────────────────────────────
 
 function transformStaff(data: ModelStaff & { email?: string }) {
-  // Staff 型には clinic_id は存在しない（clinic_assignments で管理される）
-  // メインクリニック ID を clinic_assignments から取得
+  // 複数所属は clinic_assignments を正とし、なければ staffs.clinic_id を主所属として使う。
   const mainClinicAssignment = data.clinic_assignments?.find((a) => a.is_main);
-  const clinicId = mainClinicAssignment?.clinic_id ?? null;
+  const clinicId = mainClinicAssignment?.clinic_id ?? data.clinic_id ?? null;
   // API が直接 email フィールドを返す（Account Preload された場合）
   const email = data.email ?? data.account?.email ?? "";
 

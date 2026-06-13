@@ -2496,6 +2496,7 @@ export const StaffTypeTrimmer: StaffType = "trimmer";
 export const StaffTypeResource: StaffType = "resource";
 export interface Staff {
   id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
   account_id?: number /* uint64 */;
   name: string;
   is_active: boolean;

@@ -20,6 +20,7 @@ type StaffRepository interface {
 	// Create はスタッフを作成する。
 	Create(ctx context.Context, staff *model.Staff) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdatePrimaryClinicID(ctx context.Context, id, clinicID uint64) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error)
@@ -39,8 +40,6 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		// staffs テーブルに clinic_id は存在しない。
-		// staff_clinic_assignments を経由して clinic_id でフィルタ
 		q := dbOrTx(ctx, r.db).Model(&model.Staff{}).
 			Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id"+
 				" AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL", clinicID).
@@ -96,8 +95,6 @@ func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error 
 }
 
 func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	// staffs テーブルに clinic_id は存在しない。
-	// staff_clinic_assignments を経由して clinic_id でフィルタ
 	result := dbOrTx(ctx, r.db).
 		Model(&model.Staff{}).
 		Where("staffs.id = ?", id).
@@ -112,9 +109,22 @@ func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, field
 	return nil
 }
 
+func (r *staffRepository) UpdatePrimaryClinicID(ctx context.Context, id, clinicID uint64) error {
+	result := dbOrTx(ctx, r.db).
+		Model(&model.Staff{}).
+		Where("staffs.id = ? AND staffs.deleted_at IS NULL", id).
+		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)", clinicID).
+		Update("clinic_id", clinicID)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "staff", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
 func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	// staffs テーブルに clinic_id は存在しない。
-	// staff_clinic_assignments を経由して clinic_id でフィルタ
 	result := dbOrTx(ctx, r.db).
 		Model(&model.Staff{}).
 		Where("id = ?", id).
@@ -130,8 +140,6 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	// staffs テーブルに clinic_id カラムは存在しない。
-	// staff_clinic_assignments を経由して clinic_id でフィルタする。
 	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.Staff{}).

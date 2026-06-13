@@ -47,26 +47,26 @@ SELECT setval(pg_get_serial_sequence('occupations', 'id'), (SELECT MAX(id) FROM 
 -- 城東センター病院: ID 16-25（人間7名 + リソース3件）
 -- 敷島医院: ID 26-32（人間5名 + リソース2件）
 -- account_id は accounts INSERT 後に UPDATE で設定される
--- clinic_id は staff_clinic_assignments で管理される
+-- clinic_id は主所属（staff_clinic_assignments の is_main=true）を非正規化して保持する
 -- -----------------------------------------------------------------------------
-INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order, staff_type, reservation_visible) VALUES
+INSERT INTO staffs (id, clinic_id, account_id, name, is_active, license_number, occupation_id, sort_order, staff_type, reservation_visible) VALUES
     -- 八王子病院 人間スタッフ (clinic_id=1)
-    (1,  NULL, '林 文明',              true, 'V-10001', 1, 1,  'doctor',   true),
-    (2,  NULL, '山﨑 晶子',           true, 'V-10002', 1, 2,  'doctor',   true),
-    (3,  NULL, '三井 隆之',           true, 'V-10003', 1, 3,  'doctor',   true),
-    (4,  NULL, 'ノア',                 true, 'V-10004', 1, 4,  'doctor',   true),
-    (5,  NULL, '加藤 茉里',           true, '',        2, 5,  'nurse',    false),
-    (6,  NULL, '金谷 亜美',           true, '',        2, 6,  'nurse',    false),
-    (7,  NULL, '稲村 一真',           true, '',        2, 7,  'nurse',    false),
-    (8,  NULL, '安田 希恵',           true, '',        2, 8,  'nurse',    false),
-    (9,  NULL, '倉田 春香',           true, '',        2, 9,  'nurse',    false),
-    (10, NULL, '梶原 梨夢',           true, '',        2, 10, 'nurse',    false),
-    (11, NULL, '髙木 賀央里',         true, '',        2, 11, 'nurse',    false),
+    (1,  1, NULL, '林 文明',              true, 'V-10001', 1, 1,  'doctor',   true),
+    (2,  1, NULL, '山﨑 晶子',           true, 'V-10002', 1, 2,  'doctor',   true),
+    (3,  1, NULL, '三井 隆之',           true, 'V-10003', 1, 3,  'doctor',   true),
+    (4,  1, NULL, 'ノア',                 true, 'V-10004', 1, 4,  'doctor',   true),
+    (5,  1, NULL, '加藤 茉里',           true, '',        2, 5,  'nurse',    false),
+    (6,  1, NULL, '金谷 亜美',           true, '',        2, 6,  'nurse',    false),
+    (7,  1, NULL, '稲村 一真',           true, '',        2, 7,  'nurse',    false),
+    (8,  1, NULL, '安田 希恵',           true, '',        2, 8,  'nurse',    false),
+    (9,  1, NULL, '倉田 春香',           true, '',        2, 9,  'nurse',    false),
+    (10, 1, NULL, '梶原 梨夢',           true, '',        2, 10, 'nurse',    false),
+    (11, 1, NULL, '髙木 賀央里',         true, '',        2, 11, 'nurse',    false),
     -- 八王子病院 リソース（予約枠管理用）
-    (12, NULL, 'お手入れ・オゾン療法', true, '',        3, 12, 'resource', true),
-    (13, NULL, '健診・ワクチン・狂犬病', true, '',     3, 13, 'resource', true),
-    (14, NULL, 'ドッグラン(アジリティ解放)', true, '', 4, 14, 'resource', true),
-    (15, NULL, 'クイックシャンプー',   true, '',        3, 15, 'resource', true)
+    (12, 1, NULL, 'お手入れ・オゾン療法', true, '',        3, 12, 'resource', true),
+    (13, 1, NULL, '健診・ワクチン・狂犬病', true, '',     3, 13, 'resource', true),
+    (14, 1, NULL, 'ドッグラン(アジリティ解放)', true, '', 4, 14, 'resource', true),
+    (15, 1, NULL, 'クイックシャンプー',   true, '',        3, 15, 'resource', true)
 ON CONFLICT DO NOTHING;
 
 
@@ -112,38 +112,38 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('accounts', 'id'), (SELECT MAX(id) FROM accounts));
 
 -- 城東センター病院 (clinic_id=2) スタッフ
-INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order, staff_type, reservation_visible) VALUES
-    (16, NULL, '木村 健太',       true, 'V-40001', 5, 1,  'doctor',   true),
-    (17, NULL, '佐々木 美香',     true, 'V-40002', 5, 2,  'doctor',   true),
-    (18, NULL, '高橋 翔太',       true, 'V-40003', 5, 3,  'doctor',   true),
-    (19, NULL, '田村 由紀',       true, '',        6, 4,  'nurse',    false),
-    (20, NULL, '中村 大輔',       true, '',        6, 5,  'nurse',    false),
-    (21, NULL, '小林 麻衣',       true, '',        6, 6,  'nurse',    false),
-    (22, NULL, '井上 拓也',       true, '',        6, 7,  'nurse',    false),
+INSERT INTO staffs (id, clinic_id, account_id, name, is_active, license_number, occupation_id, sort_order, staff_type, reservation_visible) VALUES
+    (16, 2, NULL, '木村 健太',       true, 'V-40001', 5, 1,  'doctor',   true),
+    (17, 2, NULL, '佐々木 美香',     true, 'V-40002', 5, 2,  'doctor',   true),
+    (18, 2, NULL, '高橋 翔太',       true, 'V-40003', 5, 3,  'doctor',   true),
+    (19, 2, NULL, '田村 由紀',       true, '',        6, 4,  'nurse',    false),
+    (20, 2, NULL, '中村 大輔',       true, '',        6, 5,  'nurse',    false),
+    (21, 2, NULL, '小林 麻衣',       true, '',        6, 6,  'nurse',    false),
+    (22, 2, NULL, '井上 拓也',       true, '',        6, 7,  'nurse',    false),
     -- 城東センター病院 リソース
-    (23, NULL, '健診・ワクチン・狂犬病', true, '', 7, 8,  'resource', true),
-    (24, NULL, 'トリミング',       true, '',        7, 9,  'resource', true),
-    (25, NULL, 'クイックシャンプー', true, '',      7, 10, 'resource', true)
+    (23, 2, NULL, '健診・ワクチン・狂犬病', true, '', 7, 8,  'resource', true),
+    (24, 2, NULL, 'トリミング',       true, '',        7, 9,  'resource', true),
+    (25, 2, NULL, 'クイックシャンプー', true, '',      7, 10, 'resource', true)
 ON CONFLICT DO NOTHING;
 
 -- 敷島医院 (clinic_id=3) スタッフ
-INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order, staff_type, reservation_visible) VALUES
-    (26, NULL, '藤原 誠一',       true, 'V-50001', 9, 1,  'doctor',   true),
-    (27, NULL, '松本 さやか',     true, 'V-50002', 9, 2,  'doctor',   true),
-    (28, NULL, '石田 和也',       true, 'V-50003', 9, 3,  'doctor',   true),
-    (29, NULL, '岡本 菜々子',     true, '',        10, 4, 'nurse',    false),
-    (30, NULL, '西村 健二',       true, '',        10, 5, 'nurse',    false),
+INSERT INTO staffs (id, clinic_id, account_id, name, is_active, license_number, occupation_id, sort_order, staff_type, reservation_visible) VALUES
+    (26, 3, NULL, '藤原 誠一',       true, 'V-50001', 9, 1,  'doctor',   true),
+    (27, 3, NULL, '松本 さやか',     true, 'V-50002', 9, 2,  'doctor',   true),
+    (28, 3, NULL, '石田 和也',       true, 'V-50003', 9, 3,  'doctor',   true),
+    (29, 3, NULL, '岡本 菜々子',     true, '',        10, 4, 'nurse',    false),
+    (30, 3, NULL, '西村 健二',       true, '',        10, 5, 'nurse',    false),
     -- 敷島医院 リソース
-    (31, NULL, '健診・ワクチン・狂犬病', true, '', 11, 6, 'resource', true),
-    (32, NULL, 'トリミング',       true, '',        11, 7, 'resource', true)
+    (31, 3, NULL, '健診・ワクチン・狂犬病', true, '', 11, 6, 'resource', true),
+    (32, 3, NULL, 'トリミング',       true, '',        11, 7, 'resource', true)
 ON CONFLICT DO NOTHING;
 
 -- デモアカウント用スタッフ（frontend LoginForm の DEMO_ACCOUNTS に対応）
 -- occupation_id: 3=トリマー(八王子), 5=獣医師(城東), 9=獣医師(敷島)
-INSERT INTO staffs (id, account_id, name, is_active, occupation_id, staff_type) VALUES
-    (33, 14, 'さくら（デモ）',    true, 3, 'trimmer'),
-    (34, 15, '城東 獣医（デモ）', true, 5, 'doctor'),
-    (35, 16, '敷島 獣医（デモ）', true, 9, 'doctor')
+INSERT INTO staffs (id, clinic_id, account_id, name, is_active, occupation_id, staff_type) VALUES
+    (33, 1, 14, 'さくら（デモ）',    true, 3, 'trimmer'),
+    (34, 2, 15, '城東 獣医（デモ）', true, 5, 'doctor'),
+    (35, 3, 16, '敷島 獣医（デモ）', true, 9, 'doctor')
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));

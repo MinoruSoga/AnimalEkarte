@@ -30,6 +30,9 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	if input.ClinicID == 0 {
+		return nil, apperrors.WrapInvalidInput("clinic_id is required")
+	}
 	input.Name = strings.TrimSpace(input.Name)
 
 	staffType := model.StaffType(input.StaffType)
@@ -45,6 +48,7 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 	var staff *model.Staff
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		staff = &model.Staff{
+			ClinicID:               input.ClinicID,
 			Name:                   input.Name,
 			LicenseNumber:          input.LicenseNumber,
 			OccupationID:           input.OccupationID,

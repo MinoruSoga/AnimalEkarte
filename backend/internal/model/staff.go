@@ -18,6 +18,7 @@ const (
 
 type Staff struct {
 	ID            uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID      uint64         `gorm:"not null"                                       json:"clinic_id"`
 	AccountID     *uint64        `                                                      json:"account_id,omitempty"`
 	Name          string         `gorm:"not null"                                       json:"name"`
 	IsActive      bool           `gorm:"default:true"                                   json:"is_active"`

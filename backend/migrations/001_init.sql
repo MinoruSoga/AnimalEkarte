@@ -241,6 +241,7 @@ CREATE INDEX idx_accounts_system_admin ON accounts(is_system_admin) WHERE is_sys
 -- ------------------------------------
 CREATE TABLE staffs (
     id                    BIGSERIAL   PRIMARY KEY,
+    clinic_id             bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     account_id            bigint               REFERENCES accounts(id) ON DELETE SET NULL,
     name                  text        NOT NULL,
     is_active             boolean     NOT NULL DEFAULT true,
@@ -258,6 +259,7 @@ CREATE TABLE staffs (
 );
 
 CREATE INDEX idx_staffs_account ON staffs(account_id);
+CREATE INDEX idx_staffs_clinic ON staffs(clinic_id) WHERE deleted_at IS NULL;
 
 -- ------------------------------------
 -- 7. owners（飼主情報）

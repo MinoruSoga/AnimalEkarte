@@ -25,6 +25,9 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	if input.ClinicID == 0 {
+		return nil, apperrors.WrapInvalidInput("clinic_id is required")
+	}
 	name := strings.TrimSpace(input.Name)
 
 	// パスワードバリデーション（email が指定されている場合は必須）
@@ -74,6 +77,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 			return apperrors.Wrap(createErr, "failed to create account")
 		}
 		staff = &model.Staff{
+			ClinicID:               input.ClinicID,
 			Name:                   name,
 			LicenseNumber:          input.LicenseNumber,
 			OccupationID:           input.OccupationID,
@@ -126,6 +130,9 @@ func (s *staffService) UpdatePassword(ctx context.Context, accountID uint64, new
 
 // SetClinicAssignments はスタッフのクリニック割当をトランザクション内で差し替える。
 func (s *staffService) SetClinicAssignments(ctx context.Context, staffID uint64, clinicIDs []uint64) error {
+	if len(clinicIDs) == 0 {
+		return apperrors.WrapInvalidInput("clinic_ids must not be empty")
+	}
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if err := s.assignmentRepo.Delete(ctx, staffID); err != nil {
 			slog.ErrorContext(ctx, "failed to delete existing clinic assignments", "error", err, "staff_id", staffID)
@@ -141,6 +148,10 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, staffID uint64,
 				slog.ErrorContext(ctx, "failed to create clinic assignment", "error", err, "staff_id", staffID, "clinic_id", clinicID)
 				return apperrors.Wrap(err, "failed to create clinic assignment")
 			}
+		}
+		if err := s.repo.UpdatePrimaryClinicID(ctx, staffID, clinicIDs[0]); err != nil {
+			slog.ErrorContext(ctx, "failed to update staff primary clinic", "error", err, "staff_id", staffID, "clinic_id", clinicIDs[0])
+			return apperrors.Wrap(err, "failed to update staff primary clinic")
 		}
 		return nil
 	}); err != nil {

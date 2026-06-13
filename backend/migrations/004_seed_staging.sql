@@ -106,12 +106,13 @@ SELECT setval(pg_get_serial_sequence('accounts', 'id'), (SELECT MAX(id) FROM acc
 --    occupation 参照は STG の異動履歴の結果)。
 -- -----------------------------------------------------------------------------
 INSERT INTO staffs (
-    id, account_id, name, is_active, license_number, occupation_id,
+    id, clinic_id, account_id, name, is_active, license_number, occupation_id,
     sort_order, staff_type, reservation_visible
 ) VALUES
-    (36, 17, '青山 純子', true, '', 2, 0, 'nurse', true)
+    (36, 2, 17, '青山 純子', true, '', 2, 0, 'nurse', true)
 ON CONFLICT (id) DO UPDATE
-    SET account_id          = EXCLUDED.account_id,
+    SET clinic_id           = EXCLUDED.clinic_id,
+        account_id          = EXCLUDED.account_id,
         name                = EXCLUDED.name,
         is_active           = EXCLUDED.is_active,
         license_number      = EXCLUDED.license_number,
