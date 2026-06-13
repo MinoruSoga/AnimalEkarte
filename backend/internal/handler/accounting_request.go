@@ -104,18 +104,18 @@ func newMonthlyUnpaidQuery(values url.Values) monthlyUnpaidQuery {
 }
 
 // parse は year/month を検証して int に変換する。
-func (q monthlyUnpaidQuery) parse() (int, int, error) {
+func (q monthlyUnpaidQuery) parse() (year, month int, err error) {
 	if q.Year == "" {
 		return 0, 0, apperrors.WrapInvalidInput("year is required")
 	}
 	if q.Month == "" {
 		return 0, 0, apperrors.WrapInvalidInput("month is required")
 	}
-	year, err := strconv.Atoi(q.Year)
+	year, err = strconv.Atoi(q.Year)
 	if err != nil || year < 2000 || year > 2100 {
 		return 0, 0, apperrors.WrapInvalidInput("year must be a valid year (2000-2100)")
 	}
-	month, err := strconv.Atoi(q.Month)
+	month, err = strconv.Atoi(q.Month)
 	if err != nil || month < 1 || month > 12 {
 		return 0, 0, apperrors.WrapInvalidInput("month must be between 1 and 12")
 	}

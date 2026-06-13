@@ -215,6 +215,14 @@ export interface AuditLog {
 /**
  * 監査アクション定数
  */
+export const AuditActorTypeStaff = "staff";
+/**
+ * 監査アクション定数
+ */
+export const AuditActorTypeSystem = "system";
+/**
+ * 監査アクション定数
+ */
 export const AuditActionPermissionGroupCreate = "permission_group.create";
 /**
  * 監査アクション定数
@@ -272,6 +280,18 @@ export const AuditActionManualArticleUpsert = "manual_article.upsert";
  * 監査アクション定数
  */
 export const AuditActionManualArticleDelete = "manual_article.delete";
+/**
+ * 会計・返金 監査アクション（#122）
+ */
+export const AuditActionBillingCancel = "billing.cancel";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionBillingPostCloseEdit = "billing.post_close_edit";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionBillingRefundCreate = "billing_refund.create";
 
 //////////
 // source: billing_confirmation.go
@@ -2001,8 +2021,6 @@ export const ResourceHospitalization: Resource = "hospitalization";
 export const ResourceTrimming: Resource = "trimming";
 export const ResourceExaminations: Resource = "examinations";
 export const ResourceAccounting: Resource = "accounting";
-export const ResourceAccountingCancel: Resource = "accounting-cancel"; // #118: 会計キャンセル専用権限
-export const ResourceAccountingPostCloseEdit: Resource = "accounting-post-close-edit"; // #115: 締め後編集専用権限
 export const ResourceVaccinations: Resource = "vaccinations";
 export const ResourceCheckups: Resource = "checkups";
 export const ResourceInventory: Resource = "inventory";
@@ -2044,6 +2062,14 @@ export const ResourceLstepAnalytics: Resource = "lstep-analytics";
  * 取扱説明書（マニュアル）編集権限
  */
 export const ResourceManualEdit: Resource = "manual-edit";
+/**
+ * #118: 会計キャンセル専用権限（ResourceAccounting "delete" から分離）
+ */
+export const ResourceAccountingCancel: Resource = "accounting-cancel";
+/**
+ * #115: 締め後編集専用権限（レジ締め済み期間の会計を特定権限で遡り編集）
+ */
+export const ResourceAccountingPostCloseEdit: Resource = "accounting-post-close-edit";
 
 //////////
 // source: permission_group.go

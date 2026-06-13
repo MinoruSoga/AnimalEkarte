@@ -12,7 +12,7 @@ import (
 
 // GetMonthlyUnpaidCarryover は対象月の未納繰越（前月繰越・当月未払い・次月繰越）を
 // 飼主+ペット単位で返す。#114
-func (s *accountingService) GetMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, year, month int, page, limit int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
+func (s *accountingService) GetMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, year, month, page, limit int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
 	if month < 1 || month > 12 {
 		return nil, 0, repository.MonthlyUnpaidSummary{}, apperrors.WrapInvalidInput("month must be between 1 and 12")
 	}

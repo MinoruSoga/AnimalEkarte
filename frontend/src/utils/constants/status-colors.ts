@@ -17,6 +17,7 @@ export const RESERVATION_STATUS_COLORS = {
   accounting:      { label: "会計待ち",    dot: C.bgStatusAmberDot,   bg: C.bgStatusAmber,    text: C.textStatusAmber },
   completed:       { label: "完了",        dot: C.bgStatusGrayMedium, bg: C.bgStatusGray, text: C.textStatusGray },
   cancelled:       { label: "キャンセル",  dot: C.bgStatusRedDot,     bg: C.bgRedLight,     text: C.textNotionRed },
+  no_show:         { label: "未来院",      dot: C.bgStatusRedDot,     bg: C.bgRedLight,     text: C.textNotionRed },
 } as const;
 
 /**

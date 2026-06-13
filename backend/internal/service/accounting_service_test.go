@@ -814,7 +814,7 @@ func (m *mockAccountingAuditService) LogEntry(_ context.Context, input *AuditLog
 	m.logEntryInput = input
 	return nil
 }
-func (m *mockAccountingAuditService) LogAuthLogin(_ context.Context, _ *uint64, _ *uint64, _, _, _ string) error {
+func (m *mockAccountingAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
 	return nil
 }
 func (m *mockAccountingAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {

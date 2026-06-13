@@ -254,7 +254,7 @@ ORDER BY %s
 
 // appendAmountHaving はローカル生成した集計式だけを SQL 断片として埋め込み、
 // 動的な閾値は必ずプレースホルダでバインドする。
-func appendAmountHaving(having []string, args []any, amountExpr string, amountExprArgs []any, op string, amount int64) ([]string, []any) {
+func appendAmountHaving(having []string, args []any, amountExpr string, amountExprArgs []any, op string, amount int64) (outHaving []string, outArgs []any) {
 	having = append(having, fmt.Sprintf("%s %s ?", amountExpr, op))
 	args = append(args, amountExprArgs...)
 	args = append(args, amount)

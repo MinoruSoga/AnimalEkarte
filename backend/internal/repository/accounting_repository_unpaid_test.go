@@ -41,7 +41,7 @@ func makeOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.O
 }
 
 // makeBilling はテスト用の Billing を作成して返す。
-func makeBilling(t *testing.T, db *gorm.DB, clinicID uint64, ownerID *uint64, petID *uint64, amount int64, status model.BillingStatus, scheduledDate time.Time) *model.Billing {
+func makeBilling(t *testing.T, db *gorm.DB, clinicID uint64, ownerID, petID *uint64, amount int64, status model.BillingStatus, scheduledDate time.Time) *model.Billing {
 	t.Helper()
 	b := &model.Billing{
 		ClinicID:      clinicID,
@@ -319,12 +319,10 @@ func TestFindMonthlyUnpaidCarryover_NextMonthCarryoverEquality(t *testing.T) {
 	owner := makeOwner(t, db, clinicID, "等式検証飼主")
 	id := owner.ID
 
-	// 前月合計: 1100 + 2200 = 3300
 	makeBilling(t, db, clinicID, &id, nil, 1100, model.BillingStatusWaiting,
 		time.Date(2026, 4, 10, 0, 0, 0, 0, time.UTC))
 	makeBilling(t, db, clinicID, &id, nil, 2200, model.BillingStatusWaiting,
 		time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC))
-	// 当月合計: 4400 + 5500 = 9900
 	makeBilling(t, db, clinicID, &id, nil, 4400, model.BillingStatusWaiting,
 		time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC))
 	makeBilling(t, db, clinicID, &id, nil, 5500, model.BillingStatusWaiting,
