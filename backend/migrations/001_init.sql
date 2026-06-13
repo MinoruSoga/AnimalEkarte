@@ -348,7 +348,7 @@ CREATE INDEX idx_owners_line_id_confirmed_by
 CREATE TABLE lstep_tag_cache (
     id          BIGSERIAL    PRIMARY KEY,
     clinic_id   bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    owner_id    bigint       NOT NULL REFERENCES owners(id)  ON DELETE CASCADE,
+    owner_id    bigint       NOT NULL REFERENCES owners(id)  ON DELETE RESTRICT,
     tag_name    varchar(100) NOT NULL,
     category    varchar(20)  NOT NULL DEFAULT 'auto'
                 CHECK (category IN ('auto', 'manual')),
@@ -370,8 +370,8 @@ COMMENT ON COLUMN lstep_tag_cache.category IS 'auto=各Sync*メソッドが自�
 -- ------------------------------------
 CREATE TABLE line_link_tokens (
     id          BIGSERIAL    PRIMARY KEY,
-    clinic_id   bigint       NOT NULL REFERENCES clinics(id),
-    owner_id    bigint       NOT NULL REFERENCES owners(id),
+    clinic_id   bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id    bigint       NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
     token       varchar(64)  NOT NULL UNIQUE,
     expires_at  timestamptz  NOT NULL,
     used_at     timestamptz  NULL,
@@ -410,8 +410,8 @@ CREATE INDEX idx_token_blacklist_expires_at ON token_blacklist(expires_at);
 -- ------------------------------------
 CREATE TABLE lstep_migration_progress (
     id            BIGSERIAL    PRIMARY KEY,
-    clinic_id     bigint       NOT NULL REFERENCES clinics(id),
-    owner_id      bigint       NOT NULL REFERENCES owners(id),
+    clinic_id     bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id      bigint       NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
     status        varchar(20)  NOT NULL DEFAULT 'pending',  -- pending | success | partial | failed | skipped
     tags_added    int          NOT NULL DEFAULT 0,
     tags_failed   int          NOT NULL DEFAULT 0,
@@ -486,7 +486,7 @@ COMMENT ON TABLE lstep_tag_code_mappings IS 'Lステップタグ → 診療コ�
 -- ------------------------------------
 CREATE TABLE lstep_trigger_priorities (
     id           BIGSERIAL PRIMARY KEY,
-    clinic_id    BIGINT NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    clinic_id    BIGINT NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     trigger_type VARCHAR(64) NOT NULL,
     priority     INTEGER NOT NULL CHECK (priority >= 1),
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -1374,10 +1374,10 @@ CREATE TABLE medical_records (
 -- ------------------------------------
 CREATE TABLE prescriptions (
     id                BIGSERIAL    PRIMARY KEY,
-    clinic_id         bigint       NOT NULL REFERENCES clinics(id),
-    owner_id          bigint       NOT NULL REFERENCES owners(id),
-    pet_id            bigint                REFERENCES pets(id),
-    medical_record_id bigint                REFERENCES medical_records(id),
+    clinic_id         bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id          bigint       NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
+    pet_id            bigint                REFERENCES pets(id) ON DELETE RESTRICT,
+    medical_record_id bigint                REFERENCES medical_records(id) ON DELETE RESTRICT,
     prescribed_at     date         NOT NULL,
     duration_days     int          NOT NULL DEFAULT 0,
     deleted_at        timestamptz,

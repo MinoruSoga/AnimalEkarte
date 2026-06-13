@@ -15,6 +15,40 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+func TestEscapeLikePattern(t *testing.T) {
+	assert.Equal(t, `100\%\_\\`, escapeLikePattern(`100%_\`))
+	assert.Equal(t, `normal`, escapeLikePattern(`normal`))
+}
+
+func TestFindOwnerLTV_SearchEscapesLikeWildcards(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	literalPercentOwner := &model.Owner{
+		ClinicID: clinicID,
+		Name:     "100% literal owner",
+	}
+	similarOwner := &model.Owner{
+		ClinicID: clinicID,
+		Name:     "100X wildcard owner",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(literalPercentOwner).Error)
+	require.NoError(t, db.WithContext(ctx).Create(similarOwner).Error)
+
+	rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		Search:         "100%",
+		IncludeZero:    true,
+		IncludeNoVisit: true,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, literalPercentOwner.ID, rows[0].OwnerID)
+}
+
 // TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount
 // ISSUE-002: period_visit_count の絞り込みが total_visit_count に波及しないこと
 func TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount(t *testing.T) {
