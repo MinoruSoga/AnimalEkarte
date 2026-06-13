@@ -40,8 +40,8 @@ func makeOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.O
 	return o
 }
 
-// makeBilling はテスト用の Billing を作成して返す。
-func makeBilling(t *testing.T, db *gorm.DB, clinicID uint64, ownerID, petID *uint64, amount int64, status model.BillingStatus, scheduledDate time.Time) *model.Billing {
+// makeBilling はテスト用の Billing を作成する。
+func makeBilling(t *testing.T, db *gorm.DB, clinicID uint64, ownerID, petID *uint64, amount int64, status model.BillingStatus, scheduledDate time.Time) {
 	t.Helper()
 	b := &model.Billing{
 		ClinicID:      clinicID,
@@ -52,7 +52,6 @@ func makeBilling(t *testing.T, db *gorm.DB, clinicID uint64, ownerID, petID *uin
 		ScheduledDate: scheduledDate,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(b).Error)
-	return b
 }
 
 // makeSpeciesAndPet はテスト用の AnimalSpecies と Pet を作成して返す。

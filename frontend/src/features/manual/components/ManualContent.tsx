@@ -33,6 +33,7 @@ export function getSafeMarkdownHref(href: unknown): string | undefined {
     }
   })();
 
+  // eslint-disable-next-line no-control-regex
   const compact = decoded.replace(/[\u0000-\u001F\u007F\s]+/g, "");
   const schemeMatch = /^([a-z][a-z0-9+.-]*):/i.exec(compact);
   if (schemeMatch) {

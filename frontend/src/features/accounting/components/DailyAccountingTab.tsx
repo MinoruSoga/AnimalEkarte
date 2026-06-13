@@ -228,7 +228,7 @@ function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
       {/* ヘッダー */}
       <div className="mb-3 text-center">
         <h1 className="text-[14pt] font-bold">日次集計一覧表</h1>
-        <p className="text-[10pt]">対象日: {date}　件数: {rows.length}件</p>
+        <p className="text-[10pt]">対象日: {date} 件数: {rows.length}件</p>
       </div>
 
       {/* メインテーブル */}
