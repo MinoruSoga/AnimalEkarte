@@ -1545,56 +1545,7 @@ ON CONFLICT (id) DO NOTHING;
 
 
 -- -----------------------------------------------------------------------------
--- 12. billings / billing_items / payments
--- -----------------------------------------------------------------------------
-INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo) VALUES
-    (1, 1, 1,    NULL, 1,  1,  4300, 430, 4730, true, 'completed', '2026-04-27', '2026-04-27 10:30:00+09', 'アニコム保険適用'),
-    -- BUG-374 TC-367-04 検証用: billing_id=2 に軽減税率 8% 品目を追加したため金額再計算
-    -- 再診料 800 + 耳道洗浄 2500 (10%対象 = 3300) + ロイヤルカナン 2800 (8%対象) = 6100
-    -- tax = 330 (10%) + 224 (8%) = 554 / total = 6654
-    (2, 1, 3,    NULL, 1,  1,  6100, 554, 6654, true, 'completed', '2026-05-10', '2026-05-10 11:00:00+09', 'アニコム保険適用（Iris 耳炎治療）+ フード販売'),
-    (3, 1, 61,   NULL, 2,  3,  800,  80,  880,  true, 'waiting',   '2026-05-22', NULL,                     'アニコム保険適用。会計待ち。')
-ON CONFLICT (id) DO UPDATE SET
-    updated_at = now();
-
-SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM billings));
-
-INSERT INTO billing_items (id, billing_id, category, name, unit_price, quantity, tax_rate, is_insurance_applicable, source, sort_order) VALUES
-    (1, 1, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
-    (2, 1, 'medicine', 'アモキシシリン 50mg x 7日分', 500,  7, 0.10, true, 'medical_record', 2),
-    (3, 2, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
-    (4, 2, 'procedure','耳道洗浄',                  2500, 1, 0.10, true, 'medical_record', 2),
-    -- BUG-374 TC-367-04 検証用: 軽減税率 8% 品目を会計 billing_id=2 に追加
-    (6, 2, 'food',     'ロイヤルカナン 消化器サポート 1kg', 2800, 1, 0.08, false, 'manual', 3),
-    (5, 1, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1)
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
-
-INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insurance_name, insurance_ratio, insurance_amount, discount_amount, billing_amount, received_amount, change_amount, method, paid_by) VALUES
-    (1, 1, 4300, 430, 4730, 'アニコム損保', 0.70, 3311, 0, 1419, 1500, 81, 'cash', 1),
-    -- BUG-374 TC-367-04: billing_id=2 は軽減税率 8% 品目を含むため payment も再計算
-    -- insurance 対象は 10% 品目のみ (3300 税抜 × 1.10 = 3630) × 70% = 2541 (変更なし)
-    -- billing_amount = total(6654) - insurance(2541) = 4113、受領 4200、釣り 87
-    (2, 2, 6100, 554, 6654, 'アニコム損保', 0.70, 2541, 0, 4113, 4200, 87, 'credit_card', 1)
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
-
--- -----------------------------------------------------------------------------
--- 13. billing_refunds（返金デモデータ）
--- -----------------------------------------------------------------------------
-INSERT INTO billing_refunds (id, clinic_id, billing_id, amount, reason, refunded_by, refunded_at) VALUES
-    (1, 1, 1, 919,  '処置内容の変更に伴う部分返金',  1, '2026-04-28 10:00:00+09'),
-    (2, 1, 1, 500,  '薬剤変更による差額返金',        1, '2026-05-02 14:30:00+09'),
-    (3, 1, 2, 500,  '診察キャンセル分の返金',         1, '2026-05-11 09:00:00+09')
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) FROM billing_refunds));
-
--- -----------------------------------------------------------------------------
--- 13b. 2026-05-22 デモ会計データ（レジ締めプレビュー用、clinic_id=1）
--- AM 区分: completed_at 00:00-14:00 JST / PM 区分: 14:00-18:30 JST
+-- 11b. medical_records (ID 61-91) (12. billings の FK 制約のために先に挿入)
 -- -----------------------------------------------------------------------------
 
 -- 本日分カルテ（医師 doctor_id 1 or 2、clinic_id=1 のみ）
@@ -1642,6 +1593,60 @@ INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, d
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
+
+
+-- -----------------------------------------------------------------------------
+-- 12. billings / billing_items / payments
+-- -----------------------------------------------------------------------------
+INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo) VALUES
+    (1, 1, 1,    NULL, 1,  1,  4300, 430, 4730, true, 'completed', '2026-04-27', '2026-04-27 10:30:00+09', 'アニコム保険適用'),
+    -- BUG-374 TC-367-04 検証用: billing_id=2 に軽減税率 8% 品目を追加したため金額再計算
+    -- 再診料 800 + 耳道洗浄 2500 (10%対象 = 3300) + ロイヤルカナン 2800 (8%対象) = 6100
+    -- tax = 330 (10%) + 224 (8%) = 554 / total = 6654
+    (2, 1, 3,    NULL, 1,  1,  6100, 554, 6654, true, 'completed', '2026-05-10', '2026-05-10 11:00:00+09', 'アニコム保険適用（Iris 耳炎治療）+ フード販売'),
+    (3, 1, 6,    NULL, 2,  3,  800,  80,  880,  true, 'waiting',   '2026-05-22', NULL,                     'アニコム保険適用。会計待ち。')
+ON CONFLICT (id) DO UPDATE SET
+    updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM billings));
+
+INSERT INTO billing_items (id, billing_id, category, name, unit_price, quantity, tax_rate, is_insurance_applicable, source, sort_order) VALUES
+    (1, 1, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
+    (2, 1, 'medicine', 'アモキシシリン 50mg x 7日分', 500,  7, 0.10, true, 'medical_record', 2),
+    (3, 2, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
+    (4, 2, 'procedure','耳道洗浄',                  2500, 1, 0.10, true, 'medical_record', 2),
+    -- BUG-374 TC-367-04 検証用: 軽減税率 8% 品目を会計 billing_id=2 に追加
+    (6, 2, 'food',     'ロイヤルカナン 消化器サポート 1kg', 2800, 1, 0.08, false, 'manual', 3),
+    (5, 1, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
+
+INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insurance_name, insurance_ratio, insurance_amount, discount_amount, billing_amount, received_amount, change_amount, method, paid_by) VALUES
+    (1, 1, 4300, 430, 4730, 'アニコム損保', 0.70, 3311, 0, 1419, 1500, 81, 'cash', 1),
+    -- BUG-374 TC-367-04: billing_id=2 は軽減税率 8% 品目を含むため payment も再計算
+    -- insurance 対象 は 10% 品目のみ (3300 税抜 × 1.10 = 3630) × 70% = 2541 (変更なし)
+    -- billing_amount = total(6654) - insurance(2541) = 4113、受領 4200、釣り 87
+    (2, 2, 6100, 554, 6654, 'アニコム損保', 0.70, 2541, 0, 4113, 4200, 87, 'credit_card', 1)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
+
+-- -----------------------------------------------------------------------------
+-- 13. billing_refunds（返金デモデータ）
+-- -----------------------------------------------------------------------------
+INSERT INTO billing_refunds (id, clinic_id, billing_id, amount, reason, refunded_by, refunded_at) VALUES
+    (1, 1, 1, 919,  '処置内容の変更に伴う部分返金',  1, '2026-04-28 10:00:00+09'),
+    (2, 1, 1, 500,  '薬剤変更による差額返金',        1, '2026-05-02 14:30:00+09'),
+    (3, 1, 2, 500,  '診察キャンセル分の返金',         1, '2026-05-11 09:00:00+09')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) FROM billing_refunds));
+
+-- -----------------------------------------------------------------------------
+-- 13b. 2026-05-22 デモ会計データ（レジ締めプレビュー用、clinic_id=1）
+-- AM 区分: completed_at 00:00-14:00 JST / PM 区分: 14:00-18:30 JST
+-- -----------------------------------------------------------------------------
 
 -- 本日会計（計17件）
 INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo) VALUES
