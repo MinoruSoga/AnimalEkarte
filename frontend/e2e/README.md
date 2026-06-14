@@ -2,116 +2,117 @@
 
 ## Overview
 
-End-to-end tests for the Animal Ekarte master pages (Master CRUD) using Playwright.
+End-to-end tests for Animal Ekarte using Playwright.
 
 ### Test Coverage
 
-- **Test A**: Chief Complaint navigation from settings
-- **Test B**: Treatment Plan - Procedure tab and parent category selector
-- **Test C**: Root items with children cannot change parent
-- **Test D**: All 5 treatment plan tabs display correctly
+| File | Tests |
+|------|-------|
+| `master-crud.spec.ts` | Settings page master CRUD (A-D) |
+| `owners-search.spec.ts` | /owners kana search — login automation + ぴ→ピーター verification |
+
+## Execution Model
+
+Playwright runs in the **official `mcr.microsoft.com/playwright` Docker image**, not the project's
+Alpine-based frontend container. The Alpine container cannot run Playwright's Chromium (glibc
+dependency). The test container connects to the running frontend through the host-published
+`http://localhost:3003` port as `http://host.docker.internal:3003`.
+
+```
+┌─────────────────────────────────────┐
+│  Host / docker compose              │
+│  ┌──────────┐   ┌──────────────┐   │
+│  │ frontend │   │   backend    │   │
+│  │ :3003    │   │   :8080      │   │
+│  └──────────┘   └──────────────┘   │
+│         ▲ host.docker.internal      │
+│  ┌──────┴───────────────────────┐  │
+│  │ playwright:v1.60.0-jammy     │  │
+│  │ (Chromium 1223, glibc-based) │  │
+│  └──────────────────────────────┘  │
+└─────────────────────────────────────┘
+```
 
 ## Prerequisites
 
-### 1. Running Services
-
-Before executing E2E tests, start the development environment:
-
-```bash
-docker compose up -d frontend backend db
-```
-
-Verify that:
-- Frontend is accessible at http://localhost:3003
-- Backend API is running on http://localhost:8080
-- Database is initialized
-
-### 2. Authentication
-
-These tests assume the user is already **authenticated via a demo/seed session**.
-
-If you encounter redirect to `/login`, you need to:
-
-1. Add a Playwright auth setup (beforeEach hook) to automate login
-2. Or manually log in via the browser before running tests
-
-Current implementation does NOT include explicit login automation.
-
-### 3. Architecture Support
-
-**⚠️ Important**: Playwright E2E tests are **NOT supported on arm64 Docker environments** (Apple Silicon, etc.).
-
-- **Linux x86_64**: Fully supported ✅
-- **Linux arm64/aarch64**: Tests are automatically skipped
-- **macOS arm64**: May work with native Playwright (not Docker)
-
-If you run `pnpm test:e2e` on arm64 Docker:
-```
-✓ All tests skipped: "Playwright Chromium is not supported in this Docker arm64 runtime"
-```
-
-This is expected behavior. For CI automation, use x86_64 runners.
+The app must be reachable from the host at `http://localhost:3003`.
 
 ## Running Tests
 
-### Local Development
+### Recommended: Docker script (avoids browser version mismatch)
 
 ```bash
-# Run all E2E tests (headless)
-pnpm test:e2e
+# All tests
+./scripts/run-e2e.sh
 
-# Run with UI (interactive mode)
-pnpm test:e2e:ui
-
-# Run specific test file
-pnpm test:e2e -- e2e/master-crud.spec.ts
+# Specific file
+./scripts/run-e2e.sh e2e/owners-search.spec.ts
 ```
 
-### Environment Variables
+This script mounts only spec/config files and installs a fresh `@playwright/test@1.60.0`
+inside the playwright container. This avoids the chromium-1217 vs chromium-1223 version
+conflict caused by the host node_modules (pnpm-lock pins 1217, Docker image ships 1223).
+Override the target with `PLAYWRIGHT_TEST_BASE_URL` when needed.
 
-Customize the base URL:
+### Alternative: macOS native (if pnpm and playwright browsers are installed on host)
 
 ```bash
+cd frontend
 PLAYWRIGHT_TEST_BASE_URL=http://localhost:3003 pnpm test:e2e
 ```
 
-Default: `http://localhost:3003`
+**Note**: If you see `Executable doesn't exist at .../chromium_headless_shell-1217/...`,
+your local playwright-core (pnpm-lock) expects chromium-1217 but only 1223 is installed.
+Use the Docker script above instead.
 
-### Test Results
+### UI mode (interactive)
 
-After running tests:
-- **HTML Report**: `frontend/playwright-report/`
-- **Test Results**: `frontend/test-results/`
+```bash
+cd frontend
+pnpm test:e2e:ui
+```
 
-These directories are added to `.gitignore` and won't be committed.
+## Authentication
+
+Tests in `owners-search.spec.ts` handle login automatically via `beforeEach`:
+- Email: `admin@noavet.jp` / Password: `password` (demo seed, clinic 1)
+
+`master-crud.spec.ts` still assumes pre-authenticated state (see that file's comment).
+
+## Architecture Support
+
+| Environment | Support |
+|-------------|---------|
+| Linux x86_64 (Docker script) | ✅ Fully supported |
+| Linux arm64/aarch64 (Apple Silicon Docker) | ✅ Supported via the official Playwright image |
+| macOS arm64 (native pnpm) | ✅ Works if playwright browsers installed |
 
 ## Troubleshooting
 
-### Tests are skipped with "Chromium not supported"
+### `Executable doesn't exist at .../chromium_headless_shell-1217/...`
 
-✅ Expected on arm64 Docker. This is not an error.
+Your host's `playwright-core` (from pnpm-lock) pins Chromium 1217, but the available
+Playwright image uses Chromium 1223. Use `./scripts/run-e2e.sh` which runs in the correct
+environment with no host node_modules interference.
 
-To run E2E tests, use:
-- GitHub Actions (Linux x86_64)
-- Native x86_64 Docker on Linux
-- Local macOS with native Playwright
+### Apple Silicon / arm64
+
+Use `./scripts/run-e2e.sh`. The official Playwright Docker image can launch Chromium on
+Linux arm64, so the tests should execute rather than skip.
+
+### `connect EPERM 127.0.0.1:9222`
+
+This was a previous Chrome DevTools (CDP) connection error. The new test setup does NOT
+use CDP — Playwright launches its own Chromium. This error should not appear anymore.
 
 ### Tests fail with "Failed to navigate"
 
-1. Verify frontend is running: `curl http://localhost:3003`
-2. Verify authentication: Check if redirected to login page
-3. Check browser compatibility: Requires Chromium (installed via `playwright install chromium`)
+```bash
+curl http://localhost:3003  # verify frontend is up
+curl http://localhost:8080/health  # verify backend is up
+```
 
 ### Tests fail with "Element not found"
 
-1. Check if the UI structure has changed (e.g., button text)
-2. Update selectors in test file
-3. Run with `--ui` flag to debug: `pnpm test:e2e:ui`
-
-## Future Enhancements
-
-- [ ] Add explicit login automation (beforeEach hook)
-- [ ] Integrate into CI/CD (separate E2E job for x86_64)
-- [ ] Add API mocking for isolated component testing
-- [ ] Add visual regression testing
-- [ ] Increase test coverage (CRUD operations with data cleanup)
+Update selectors in the spec file. Run with `--reporter=html` and open
+`frontend/playwright-report/index.html` for a detailed breakdown.

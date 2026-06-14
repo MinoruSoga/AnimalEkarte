@@ -24,6 +24,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 // bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport
 import { deleteOwner } from "../api/delete-owner";
 import { usePermission } from "@/hooks/use-permission";
+import { matchesPetSearch } from "@/lib/pet-search";
 
 // bundle-dynamic-imports: PetEditModal を遅延ロード
 const PetEditModal = lazy(() =>
@@ -144,18 +145,9 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       }
     }
 
-    // テキスト検索
+    // テキスト検索 — カナ正規化済み (ひらがな↔カタカナ区別なし)
     if (deferredSearchTerm) {
-      const lowerTerm = deferredSearchTerm.toLowerCase();
-      result = result.filter((pet) => {
-        const ownerNumberStr = pet.ownerNumber?.toString() ?? "";
-        return (
-          pet.ownerName.toLowerCase().includes(lowerTerm) ||
-          ownerNumberStr.includes(deferredSearchTerm) ||
-          pet.name.toLowerCase().includes(lowerTerm) ||
-          (pet.species && pet.species.toLowerCase().includes(lowerTerm))
-        );
-      });
+      result = result.filter((pet) => matchesPetSearch(pet, deferredSearchTerm));
     }
 
     return result;

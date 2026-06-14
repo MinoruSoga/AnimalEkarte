@@ -82,6 +82,7 @@ const devAllowedHosts = [
   '127.0.0.1',
   '0.0.0.0',
   'frontend',
+  'host.docker.internal',
   'animalekarte-frontend-1',
   '.noah-karte.com',
 ];
