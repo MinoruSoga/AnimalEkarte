@@ -15,7 +15,7 @@ require (
 	github.com/lib/pq v1.11.2
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.33.0
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.21.0
 	golang.org/x/text v0.36.0
 	golang.org/x/time v0.15.0
 	gorm.io/datatypes v1.2.7
