@@ -9,7 +9,9 @@ End-to-end tests for Animal Ekarte using Playwright.
 | File | Tests |
 |------|-------|
 | `master-crud.spec.ts` | Settings page master CRUD (A-D) |
-| `owners-search.spec.ts` | /owners kana search — login automation + ぴ→ピーター verification |
+| `owners-search.spec.ts` | /owners kana search — unauthenticated redirect + ぴ/ピ→ピーター (かな非区別) |
+| `accounting-smoke.spec.ts` | /accounting タブ smoke + いりす/イリス→Iris かな非区別検索 + /accounting?tab=unpaid + /accounting/reports |
+| `reservations-smoke.spec.ts` | /reservations auth guard + カレンダーナビ smoke (cancelled filtering は unit test 担保) |
 
 ## Execution Model
 
@@ -35,7 +37,33 @@ dependency). The test container connects to the running frontend through the hos
 
 ## Prerequisites
 
+### App
+
 The app must be reachable from the host at `http://localhost:3003`.
+
+```bash
+docker compose up -d   # if not already running
+```
+
+### Seed data assumed by E2E tests
+
+| Spec | Required data | Source |
+|------|--------------|--------|
+| `owners-search.spec.ts` | pet name `ピーター` (name_kana=`ぴーたー`), owner 5 (佐藤 花子), clinic 1 | `003_seed_demo.sql` |
+| `accounting-smoke.spec.ts` | owner 1 (林 文明, はやし ふみあき) with completed billing for pet 1 (`Iris(イリス)`, name_kana=`いりす`) | `003_seed_demo.sql` |
+| `reservations-smoke.spec.ts` | admin user at clinic 1 with reservations permission | `003_seed_demo.sql` |
+| `master-crud.spec.ts` | treatment procedure items incl. `注射` (root with children) | `003_seed_demo.sql` |
+
+If seed data is missing, run:
+
+```bash
+make reset   # resets and re-applies all migrations + seeds
+```
+
+### Auth
+
+All specs use `admin@noavet.jp` / `password` (demo seed, clinic 1, `is_system_admin=true`).
+Login is handled automatically via `helpers/auth.ts`; no manual pre-auth step is needed.
 
 ## Running Tests
 
@@ -74,10 +102,38 @@ pnpm test:e2e:ui
 
 ## Authentication
 
-Tests in `owners-search.spec.ts` handle login automatically via `beforeEach`:
-- Email: `admin@noavet.jp` / Password: `password` (demo seed, clinic 1)
+All specs (except those that test unauthenticated redirect) log in automatically via
+`helpers/auth.ts:loginAsDemoAdmin`. The helper navigates to `/login`, fills the demo credentials,
+and waits for the URL to leave `/login`.
 
-`master-crud.spec.ts` still assumes pre-authenticated state (see that file's comment).
+- Email: `admin@noavet.jp` / Password: `password`
+
+`master-crud.spec.ts` shares a `BrowserContext` across all tests via `beforeAll` (same pattern
+used in `owners-search.spec.ts`, `accounting-smoke.spec.ts`, and `reservations-smoke.spec.ts`).
+
+## Coverage Notes
+
+### Reservation cancelled / no_show filter
+
+`filterCalendarAppointments` (filters out `cancelled`, keeps `no_show`) is unit-tested in:
+
+```
+frontend/src/features/reservations/routes/__tests__/ReservationManagement.filter.test.ts
+```
+
+E2E validation of this filter would require seeding appointments for the current calendar week —
+a date-dependent setup that is intentionally excluded to avoid flakiness.
+`reservations-smoke.spec.ts` provides a page-load smoke test; the filter guarantee is the unit test.
+
+### Kana non-distinction search
+
+Tested on two surfaces:
+- `/owners` — pet name `ピーター` matched by `ぴ` (hiragana) and `ピ` (katakana)
+- `/accounting` — pet name `Iris(イリス)` matched by `いりす` (hiragana) and `イリス` (katakana)
+
+Both use the shared `normalizeKana` utility (`src/lib/normalize-kana.ts`) which converts katakana
+to hiragana before comparison. The unit tests for `normalizeKana` live in
+`src/lib/normalize-kana.test.ts`.
 
 ## Architecture Support
 
