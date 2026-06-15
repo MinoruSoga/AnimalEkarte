@@ -60,6 +60,8 @@ jobs:
         # .env.local はリポジトリに含まれない。CI 用の最小限の値をインラインで生成する。
         # JWT_SECRET はデフォルト "dev-secret-change-me" が起動ブロック対象のため別値を使用。
         # GIN_MODE=debug によりリリースモード限定の INTEGRATION_ENCRYPTION_KEY 検証を回避。
+        # DB_* は $GITHUB_ENV にも書き出す: docker-compose.yml の ${DB_USER} 等の変数補間は
+        # env_file ではなくシェル環境変数 / .env ファイルを参照するため、別途エクスポートが必要。
         run: |
           cat > .env.local << 'EOF'
           DB_USER=ekarte_user
@@ -69,6 +71,9 @@ jobs:
           JWT_SECRET=ci-e2e-jwt-secret-for-testing-only
           GIN_MODE=debug
           EOF
+          echo "DB_USER=ekarte_user" >> $GITHUB_ENV
+          echo "DB_PASSWORD=ekarte_password" >> $GITHUB_ENV
+          echo "DB_NAME=ekarte_db" >> $GITHUB_ENV
 
       - name: Start app stack (db + backend + frontend)
         run: docker compose up -d db backend frontend
@@ -112,6 +117,8 @@ jobs:
       - name: Collect logs on failure
         if: failure()
         run: |
+          echo "=== db logs ==="
+          docker compose logs --tail=50 db
           echo "=== backend logs ==="
           docker compose logs --tail=200 backend
           echo "=== frontend logs ==="
