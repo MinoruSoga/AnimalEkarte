@@ -51,6 +51,38 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2.1.6
 
+      # -------------------------------------------------------
+      # Preflight: RDS 停止状態の検出と起動
+      # stopped の場合は start-db-instance を発行し Docker build と並行して起動する。
+      # 接続不可状態 (stopping/rebooting 等) は即時 fail で明確なエラーを出す。
+      # -------------------------------------------------------
+      - name: Preflight — check and start RDS if stopped
+        id: rds-preflight
+        run: |
+          DB_ID="animalekarte-stg-db"
+          REGION="${{ env.AWS_REGION }}"
+
+          DB_STATUS=$(aws rds describe-db-instances \
+            --db-instance-identifier "$DB_ID" \
+            --query 'DBInstances[0].DBInstanceStatus' \
+            --output text \
+            --region "$REGION")
+
+          echo "RDS $DB_ID status: $DB_STATUS"
+
+          if [ "$DB_STATUS" = "available" ]; then
+            echo "rds_was_stopped=false" >> "$GITHUB_OUTPUT"
+          elif [ "$DB_STATUS" = "stopped" ]; then
+            echo "::notice::RDS is stopped. Initiating start (will proceed with Docker build while RDS starts)..."
+            aws rds start-db-instance \
+              --db-instance-identifier "$DB_ID" \
+              --region "$REGION" > /dev/null
+            echo "rds_was_stopped=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::RDS is in unexpected state: $DB_STATUS — manual intervention required before deploying."
+            exit 1
+          fi
+
       - name: Build Docker image
         id: build-image
         env:
@@ -165,6 +197,18 @@ jobs:
           echo "task_definition_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
           echo "Registered: $TASK_DEF_ARN"
 
+      # -------------------------------------------------------
+      # Preflight: RDS が起動中だった場合は migration 前に available を確認する
+      # -------------------------------------------------------
+      - name: Preflight — wait for RDS to become available
+        if: steps.rds-preflight.outputs.rds_was_stopped == 'true'
+        run: |
+          echo "RDS was stopped; waiting for it to become available (up to 10 minutes)..."
+          aws rds wait db-instance-available \
+            --db-instance-identifier animalekarte-stg-db \
+            --region ${{ env.AWS_REGION }}
+          echo "RDS is now available."
+
       - name: Run database migration
         id: run-migration
         run: |
@@ -240,6 +284,40 @@ jobs:
           echo "Migration completed successfully (exit code: $EXIT_CODE)"
 
       # -------------------------------------------------------
+      # Preflight: ECS service が desiredCount=0 の場合は 1 に戻してから deploy する。
+      # desiredCount=0 のまま deploy-task-definition を実行すると、task definition は
+      # 更新されるが稼働タスクがゼロのまま "stable" と判定され API が 503 になる。
+      # -------------------------------------------------------
+      - name: Preflight — ensure ECS service has at least one desired task
+        run: |
+          CLUSTER="${{ env.ECS_CLUSTER }}"
+          SERVICE="${{ env.ECS_SERVICE }}"
+          REGION="${{ env.AWS_REGION }}"
+
+          DESIRED=$(aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$SERVICE" \
+            --query 'services[0].desiredCount' \
+            --output text \
+            --region "$REGION")
+
+          echo "ECS service desiredCount: $DESIRED"
+
+          if [ "$DESIRED" = "0" ]; then
+            echo "::notice::ECS service desiredCount is 0. Setting to 1 before deploy..."
+            aws ecs update-service \
+              --cluster "$CLUSTER" \
+              --service "$SERVICE" \
+              --desired-count 1 \
+              --region "$REGION" \
+              --query 'service.desiredCount' \
+              --output text
+            echo "desiredCount updated to 1."
+          else
+            echo "ECS service desiredCount is $DESIRED. No action needed."
+          fi
+
+      # -------------------------------------------------------
       # Deploy new API version
       # -------------------------------------------------------
       - name: Deploy to Amazon ECS
@@ -252,9 +330,25 @@ jobs:
 
       - name: Verify deployment
         run: |
-          echo "Deployment completed successfully!"
+          echo "Verifying deployment..."
+
+          RUNNING=$(aws ecs describe-services \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
+            --query 'services[0].runningCount' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+
           aws ecs describe-services \
             --cluster ${{ env.ECS_CLUSTER }} \
             --services ${{ env.ECS_SERVICE }} \
             --query 'services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount}' \
-            --output table
+            --output table \
+            --region ${{ env.AWS_REGION }}
+
+          if [ "$RUNNING" = "0" ]; then
+            echo "::error::Deployment completed but no tasks are running (runningCount=0). Check ECS service events."
+            exit 1
+          fi
+
+          echo "Deployment completed successfully. Running tasks: $RUNNING"
