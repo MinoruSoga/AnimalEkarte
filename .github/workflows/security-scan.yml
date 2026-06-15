@@ -33,7 +33,7 @@ jobs:
 
       - name: Run AgentShield
         # Pinned from refs/tags/v1 to avoid mutable third-party action tags.
-        uses: affaan-m/agentshield@0b5e1bc95a712285d6bf6289f67d6694de4cf8ef
+        uses: affaan-m/agentshield@9bbc007cf5afb562c324bbad4ce6c544420f49f6
         with:
           path: "."
           min-severity: "${{ github.event.inputs.min_severity || 'medium' }}"
