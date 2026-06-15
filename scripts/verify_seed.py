@@ -504,6 +504,65 @@ def check_appointment_time_window(errors: list[str]) -> None:
     )
 
 
+def check_no_active_trimming_appointments(errors: list[str]) -> None:
+    """Ensure no active trimming appointments were added in 004's STG diff patch section.
+
+    Trimming reservation types for clinic_id=1: reservation_type_id IN (9, 10, 11, 12).
+    Only scans the STG diff patch section (after '-- STG 差分パッチ') in 004 to prevent
+    re-introduction of trimming via snapshot sync operations (e.g. cd6c55f1 regression).
+    Pre-snapshot legacy trimming appointments in the base dump are not checked here.
+    Soft-deleted rows (deleted_at IS NOT NULL) are acceptable.
+    """
+    TRIMMING_TYPES = {9, 10, 11, 12}
+    STG_PATCH_MARKER = "-- STG 差分パッチ"
+    violations: list[str] = []
+
+    stg_file = ROOT / "backend/migrations/004_seed_staging.sql"
+    full_text = stg_file.read_text(encoding="utf-8")
+    patch_start = full_text.find(STG_PATCH_MARKER)
+    if patch_start < 0:
+        return
+    patch_text = full_text[patch_start:]
+
+    for statement in split_sql_statements(patch_text):
+        insert_index = statement.upper().find("INSERT INTO")
+        if insert_index < 0:
+            continue
+        trimmed = statement[insert_index:].strip()
+        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+        if table_match is None or table_match.group(1) != "appointments":
+            continue
+        parsed = parse_insert_statement(trimmed)
+        if parsed is None:
+            continue
+        columns = [c.strip().strip('"') for c in parsed.columns]
+        if "reservation_type_id" not in columns or "clinic_id" not in columns:
+            continue
+        res_type_idx = columns.index("reservation_type_id")
+        clinic_idx = columns.index("clinic_id")
+        deleted_at_idx = columns.index("deleted_at") if "deleted_at" in columns else None
+        id_idx = columns.index("id") if "id" in columns else None
+
+        for row in parsed.rows:
+            if len(row) <= max(res_type_idx, clinic_idx):
+                continue
+            res_type = row[res_type_idx]
+            clinic_id = row[clinic_idx]
+            deleted_at = row[deleted_at_idx] if deleted_at_idx is not None else None
+            if clinic_id == 1 and res_type in TRIMMING_TYPES and deleted_at is None:
+                appt_id = row[id_idx] if id_idx is not None else "?"
+                violations.append(
+                    f"004_seed_staging.sql STG patch: appointment id={appt_id} "
+                    f"reservation_type_id={res_type} is active trimming"
+                )
+
+    add_result(
+        errors,
+        not violations,
+        f"appointments: active trimming in STG diff patch {violations}",
+    )
+
+
 def print_summary(state: SeedState, errors: list[str]) -> None:
     tracked_counts = ", ".join(
         f"{table}={len(state.tables[table])}" for table in sorted(TRACKED_TABLES) if state.tables[table]
@@ -518,7 +577,8 @@ def print_summary(state: SeedState, errors: list[str]) -> None:
         print(tracked_counts)
         print(
             "verified: 7 masters, treatments drift fixes, CHECK equivalent, "
-            "procedure presence, FK, cross-tenant, appointment time window, daily distribution"
+            "procedure presence, FK, cross-tenant, appointment time window, daily distribution, "
+            "no active trimming appointments"
         )
 
 
@@ -533,6 +593,7 @@ def main() -> int:
     check_fk_integrity(state, errors)
     check_cross_tenant(state, errors)
     check_appointment_time_window(errors)
+    check_no_active_trimming_appointments(errors)
     print_summary(state, errors)
     return 1 if errors else 0
 
