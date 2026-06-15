@@ -10,6 +10,7 @@ import type {
 import type { ReservationTypeGroup } from "../api/reservation-type-groups";
 import type { GroupFormData } from "../components/ReservationTypeGroupSidePanel";
 import type { CategoryFormData } from "../components/ReservationTypeSidePanel";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 export function getActiveReservationTypeGroupOptions(groups: ReservationTypeGroup[]) {
   return groups
@@ -18,7 +19,7 @@ export function getActiveReservationTypeGroupOptions(groups: ReservationTypeGrou
 }
 
 export function matchesReservationTypeSearch(item: ReservationType, term: string): boolean {
-  return item.name.toLowerCase().includes(term.toLowerCase());
+  return normalizeKana(item.name).toLowerCase().includes(normalizeKana(term).toLowerCase());
 }
 
 export function buildReservationTypeGroupCreateRequest(

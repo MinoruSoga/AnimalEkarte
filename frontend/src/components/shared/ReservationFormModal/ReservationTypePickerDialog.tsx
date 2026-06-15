@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { C, ICON } from "@/lib/design-tokens";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 // --- Types ---
 export interface ReservationTypePickerItem {
@@ -126,12 +127,12 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
 
   // 検索語 + カテゴリで絞り込み、グループ構造を保持
   const filteredGroups = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+    const term = normalizeKana(searchTerm.trim()).toLowerCase();
     return groups
       .filter((g) => activeCategory === null || g.label === activeCategory)
       .map((g) => ({
         label: g.label,
-        items: term ? g.items.filter((it) => it.name.toLowerCase().includes(term)) : g.items,
+        items: term ? g.items.filter((it) => normalizeKana(it.name).toLowerCase().includes(term)) : g.items,
       }))
       .filter((g) => g.items.length > 0);
   }, [groups, activeCategory, searchTerm]);

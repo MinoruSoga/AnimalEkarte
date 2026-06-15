@@ -49,6 +49,42 @@ func TestFindOwnerLTV_SearchEscapesLikeWildcards(t *testing.T) {
 	assert.Equal(t, literalPercentOwner.ID, rows[0].OwnerID)
 }
 
+func TestFindOwnerLTV_SearchNormalizesKana(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	// カタカナ名の飼主（DB はカタカナ登録）
+	katakanaOwner := &model.Owner{ClinicID: clinicID, Name: "ヤマダタロウ"}
+	// ひらがな名の飼主
+	hiraganaOwner := &model.Owner{ClinicID: clinicID, Name: "さとうけんじ"}
+	require.NoError(t, db.WithContext(ctx).Create(katakanaOwner).Error)
+	require.NoError(t, db.WithContext(ctx).Create(hiraganaOwner).Error)
+
+	// ひらがな検索でカタカナ登録データがヒットすること
+	rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		Search:         "やまだ",
+		IncludeZero:    true,
+		IncludeNoVisit: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, katakanaOwner.ID, rows[0].OwnerID)
+
+	// カタカナ検索でひらがな登録データがヒットすること
+	rows2, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		Search:         "サトウ",
+		IncludeZero:    true,
+		IncludeNoVisit: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, rows2, 1)
+	assert.Equal(t, hiraganaOwner.ID, rows2[0].OwnerID)
+}
+
 // TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount
 // ISSUE-002: period_visit_count の絞り込みが total_visit_count に波及しないこと
 func TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount(t *testing.T) {

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { InventoryItem } from "@/types";
 import { useGetInventoryItems } from "../api/inventory";
+import { normalizeKana } from "@/lib/normalize-kana";
 type CategoryFilter = InventoryItem["category"] | "all";
 type StatusFilter = InventoryItem["status"] | "all";
 
@@ -23,12 +24,12 @@ export function useInventoryList({
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return items;
-    const lowerTerm = searchTerm.toLowerCase();
+    const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
     return items.filter(
       (item) =>
-        item.name.toLowerCase().includes(lowerTerm) ||
-        (item.location?.toLowerCase().includes(lowerTerm) ?? false) ||
-        (item.supplier?.toLowerCase().includes(lowerTerm) ?? false)
+        normalizeKana(item.name).toLowerCase().includes(normalizedTerm) ||
+        (item.location ? normalizeKana(item.location).toLowerCase().includes(normalizedTerm) : false) ||
+        (item.supplier ? normalizeKana(item.supplier).toLowerCase().includes(normalizedTerm) : false)
     );
   }, [items, searchTerm]);
 

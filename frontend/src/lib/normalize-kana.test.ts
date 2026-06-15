@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeKana } from "./normalize-kana";
+import { normalizeKana, normalizedIncludes } from "./normalize-kana";
 
 describe("normalizeKana", () => {
   it("ひらがなは変換しない", () => {
@@ -52,5 +52,31 @@ describe("normalizeKana", () => {
 
   it("ヵヶ → ゕゖ", () => {
     expect(normalizeKana("ヵヶ")).toBe("ゕゖ");
+  });
+});
+
+describe("normalizedIncludes", () => {
+  it("ひらがな検索でカタカナテキストがヒットする", () => {
+    expect(normalizedIncludes("ヤマダタロウ", "やまだ")).toBe(true);
+  });
+
+  it("カタカナ検索でひらがなテキストがヒットする", () => {
+    expect(normalizedIncludes("さとうけんじ", "サトウ")).toBe(true);
+  });
+
+  it("ひらがな検索でカタカナテキスト（不一致）がヒットしない", () => {
+    expect(normalizedIncludes("ヤマダタロウ", "さとう")).toBe(false);
+  });
+
+  it("漢字は変換なし等価比較される", () => {
+    expect(normalizedIncludes("山田太郎", "山田")).toBe(true);
+  });
+
+  it("ASCII は大文字小文字を区別しない", () => {
+    expect(normalizedIncludes("Peter", "peter")).toBe(true);
+  });
+
+  it("空文字の term は常に true", () => {
+    expect(normalizedIncludes("ヤマダ", "")).toBe(true);
   });
 });

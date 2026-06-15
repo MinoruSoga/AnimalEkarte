@@ -1,4 +1,5 @@
 import { useDeferredValue, useCallback, useMemo, useState } from "react";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 import type { SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
@@ -18,7 +19,7 @@ export function useTrimmingHistory(petId: string) {
     const filtered = petTrimmings.filter((trimming) => {
       if (
         deferredHistorySearch &&
-        !trimming.styleRequest.toLowerCase().includes(deferredHistorySearch.toLowerCase())
+        !normalizeKana(trimming.styleRequest).toLowerCase().includes(normalizeKana(deferredHistorySearch).toLowerCase())
       ) {
         return false;
       }

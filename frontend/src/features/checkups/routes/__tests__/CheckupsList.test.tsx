@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { AuthContext } from "@/contexts/auth-context";
@@ -180,5 +181,51 @@ describe("CheckupsList — C: 期限間近バッジ表示 (FEAT-372)", () => {
     await screen.findByText("ポチ");
     expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
     expect(screen.queryByText("期限間近")).not.toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// D: かな正規化テキスト検索
+// ─────────────────────────────────────────────────────────────
+
+describe("CheckupsList — D: かな正規化テキスト検索", () => {
+  it("ひらがな入力でカタカナ petName がヒットする", async () => {
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: [
+        makeCheckupRecord({ id: "1", petName: "ポチ", ownerName: "ヤマダ" }),
+        makeCheckupRecord({ id: "2", petName: "たろう", ownerName: "さとう" }),
+      ],
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetCheckups>);
+
+    const user = userEvent.setup();
+    render(<CheckupsList />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByRole("button", { name: "検索" }));
+    await user.type(screen.getByPlaceholderText("ペット名・飼主名・種別で検索..."), "ぽち");
+
+    expect(await screen.findByText("ポチ")).toBeInTheDocument();
+    expect(screen.queryByText("たろう")).not.toBeInTheDocument();
+  });
+
+  it("カタカナ入力でひらがな ownerName がヒットする", async () => {
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: [
+        makeCheckupRecord({ id: "1", petName: "ポチ", ownerName: "ヤマダ" }),
+        makeCheckupRecord({ id: "2", petName: "たろう", ownerName: "さとう" }),
+      ],
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetCheckups>);
+
+    const user = userEvent.setup();
+    render(<CheckupsList />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByRole("button", { name: "検索" }));
+    await user.type(screen.getByPlaceholderText("ペット名・飼主名・種別で検索..."), "サトウ");
+
+    expect(await screen.findByText("たろう")).toBeInTheDocument();
+    expect(screen.queryByText("ポチ")).not.toBeInTheDocument();
   });
 });

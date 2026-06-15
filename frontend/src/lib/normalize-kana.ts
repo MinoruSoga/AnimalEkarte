@@ -8,3 +8,12 @@ export function normalizeKana(s: string): string {
     String.fromCharCode(ch.charCodeAt(0) - 0x60)
   );
 }
+
+/**
+ * ひらがな・カタカナを区別しない部分一致比較。
+ * 両辺を normalizeKana + toLowerCase した上で includes する。
+ * クライアントサイドの検索フィルタで共通使用する。
+ */
+export function normalizedIncludes(text: string, term: string): boolean {
+  return normalizeKana(text).toLowerCase().includes(normalizeKana(term).toLowerCase());
+}

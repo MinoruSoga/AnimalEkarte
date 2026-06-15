@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useGetVaccinations } from "../api/get-vaccinations";
+import { normalizeKana } from "@/lib/normalize-kana";
 import type { VaccinationFilters } from "../api/get-vaccinations";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 
@@ -28,12 +29,12 @@ export function useFilterVaccinations(
     }
 
     if (!searchTerm) return result;
-    const lowerTerm = searchTerm.toLowerCase();
+    const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
     return result.filter(
       (r) =>
-        r.ownerName.toLowerCase().includes(lowerTerm) ||
-        r.petName.toLowerCase().includes(lowerTerm) ||
-        r.vaccineName.toLowerCase().includes(lowerTerm),
+        normalizeKana(r.ownerName).toLowerCase().includes(normalizedTerm) ||
+        normalizeKana(r.petName).toLowerCase().includes(normalizedTerm) ||
+        normalizeKana(r.vaccineName).toLowerCase().includes(normalizedTerm),
     );
   }, [vaccinationsData, searchTerm, activeFilters]);
 

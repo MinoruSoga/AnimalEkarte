@@ -83,8 +83,9 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	}
 
 	if params.Search != "" {
-		where += " AND o.name ILIKE ? ESCAPE '\\'"
-		whereArgs = append(whereArgs, "%"+escapeLikePattern(params.Search)+"%")
+		// translate() で DB 列のカタカナをひらがなに正規化し、NormalizeKana で検索語も統一する。
+		where += " AND translate(o.name, ?, ?) ILIKE ? ESCAPE '\\'"
+		whereArgs = append(whereArgs, kanaSourceChars, kanaTargetChars, "%"+escapeLikePattern(NormalizeKana(params.Search))+"%")
 	}
 
 	// 期間決定（AGG-BE-001/002/003）

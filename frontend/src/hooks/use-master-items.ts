@@ -4,6 +4,7 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { MasterItem } from "@/types";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -103,11 +104,11 @@ export function useMasterItems(category?: string, searchTerm?: string) {
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return categoryItems;
-    const lower = searchTerm.toLowerCase();
+    const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
     return categoryItems.filter(
       (i) =>
-        i.name.toLowerCase().includes(lower) ||
-        (i.description && i.description.toLowerCase().includes(lower)),
+        normalizeKana(i.name).toLowerCase().includes(normalizedTerm) ||
+        (i.description ? normalizeKana(i.description).toLowerCase().includes(normalizedTerm) : false),
     );
   }, [categoryItems, searchTerm]);
 

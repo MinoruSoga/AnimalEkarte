@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { DiagnosisName, DiagnosisType } from "../api/diagnosis";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 interface DataTableColumn {
   header: ReactNode;
@@ -29,8 +30,8 @@ export function filterDiagnosisTypesBySearch(
   searchTerm: string,
 ): DiagnosisType[] {
   if (!searchTerm) return items;
-  const lower = searchTerm.toLowerCase();
-  return items.filter((category) => category.name.toLowerCase().includes(lower));
+  const lower = normalizeKana(searchTerm).toLowerCase();
+  return items.filter((category) => normalizeKana(category.name).toLowerCase().includes(lower));
 }
 
 export function filterDiagnosisNamesBySearch(
@@ -38,8 +39,8 @@ export function filterDiagnosisNamesBySearch(
   searchTerm: string,
 ): DiagnosisName[] {
   if (!searchTerm) return items;
-  const lower = searchTerm.toLowerCase();
-  return items.filter((name) => name.name.toLowerCase().includes(lower));
+  const lower = normalizeKana(searchTerm).toLowerCase();
+  return items.filter((name) => normalizeKana(name.name).toLowerCase().includes(lower));
 }
 
 export function buildDiagnosisTypeNameMap(categories: DiagnosisType[] | undefined) {

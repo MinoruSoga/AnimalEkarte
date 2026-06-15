@@ -4,6 +4,7 @@ import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Lock } from "lucide-react";
 import { usePermission } from "@/hooks/use-permission";
 import { C, ICON } from "@/lib/design-tokens";
+import { normalizeKana } from "@/lib/normalize-kana";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
 import { useMasterCRUD } from "../hooks/use-master-crud";
@@ -56,8 +57,8 @@ export function PermissionGroupSettings() {
     deleteMutation,
     entityLabel: "権限グループ",
     searchFilter: (g, lower) =>
-      g.name.toLowerCase().includes(lower) ||
-      g.description.toLowerCase().includes(lower),
+      normalizeKana(g.name).toLowerCase().includes(lower) ||
+      normalizeKana(g.description).toLowerCase().includes(lower),
     activeFilterApply: (item, filters) => {
       for (const f of filters) {
         if (f.key === "status" && typeof f.value === "string") {

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 interface DataTableColumn {
   header: ReactNode;
@@ -51,6 +52,6 @@ export function filterTrimmingItems<T extends TrimmingFilterableItem>({
 
   if (!searchTerm) return filtered;
 
-  const lower = searchTerm.toLowerCase();
-  return filtered.filter((item) => item.name.toLowerCase().includes(lower));
+  const lower = normalizeKana(searchTerm).toLowerCase();
+  return filtered.filter((item) => normalizeKana(item.name).toLowerCase().includes(lower));
 }

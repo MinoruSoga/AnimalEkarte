@@ -2,6 +2,7 @@
 import { C, ICON } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 // External
 import { AlertCircle, Calendar, ClipboardCheck, Plus } from "lucide-react";
@@ -101,13 +102,13 @@ export function CheckupsList() {
   // テキスト検索はクライアントサイドで行う
   const filteredRecords = useMemo(() => {
     if (!deferredSearch) return checkups;
-    const searchQuery = deferredSearch.toLowerCase();
+    const normalizedTerm = normalizeKana(deferredSearch).toLowerCase();
     return checkups.filter(
       (c) =>
-        c.petName.toLowerCase().includes(searchQuery) ||
-        c.ownerName.toLowerCase().includes(searchQuery) ||
-        c.checkupTypeName.toLowerCase().includes(searchQuery) ||
-        c.result.toLowerCase().includes(searchQuery),
+        normalizeKana(c.petName).toLowerCase().includes(normalizedTerm) ||
+        normalizeKana(c.ownerName).toLowerCase().includes(normalizedTerm) ||
+        normalizeKana(c.checkupTypeName).toLowerCase().includes(normalizedTerm) ||
+        c.result.toLowerCase().includes(normalizedTerm),
     );
   }, [checkups, deferredSearch]);
 

@@ -21,6 +21,7 @@ import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceExaminations } from "@/types/generated/models";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
 const EXAMINATION_PRIORITY_FIELDS = ["testTypeId", "doctorId"] as const;
@@ -125,11 +126,11 @@ export function ExaminationForm() {
       result = result.filter((e) => e.id !== id);
     }
     if (deferredHistorySearch) {
-      const lower = deferredHistorySearch.toLowerCase();
+      const lower = normalizeKana(deferredHistorySearch).toLowerCase();
       result = result.filter(
         (e) =>
-          e.testType.toLowerCase().includes(lower) ||
-          (e.resultSummary ?? "").toLowerCase().includes(lower),
+          normalizeKana(e.testType).toLowerCase().includes(lower) ||
+          normalizeKana(e.resultSummary ?? "").toLowerCase().includes(lower),
       );
     }
     return [...result].sort((a, b) => {

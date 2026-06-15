@@ -14,6 +14,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { normalizeKana } from "@/lib/normalize-kana";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { useGetVaccinations } from "../api/get-vaccinations";
 
@@ -111,10 +112,10 @@ export const VaccinationForm = memo(function VaccinationForm() {
     );
 
     // キーワード検索
-    const term = historySearchTerm.toLowerCase();
+    const term = normalizeKana(historySearchTerm).toLowerCase();
     if (term) {
       result = result.filter((v) =>
-        v.vaccineName.toLowerCase().includes(term),
+        normalizeKana(v.vaccineName).toLowerCase().includes(term),
       );
     }
 

@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { normalizedIncludes } from "@/lib/normalize-kana";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
 import type { LstepTagSummaryItem } from "../api/get-lstep-tag-summary";
 
@@ -64,8 +65,7 @@ export function TagSummaryTable({
     }
 
     if (deferredSearchTerm) {
-      const lower = deferredSearchTerm.toLowerCase();
-      result = result.filter((t) => t.tag_name.toLowerCase().includes(lower));
+      result = result.filter((t) => normalizedIncludes(t.tag_name, deferredSearchTerm));
     }
 
     return result;

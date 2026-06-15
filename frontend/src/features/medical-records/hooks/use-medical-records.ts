@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useGetMedicalRecords } from "../api/get-medical-records";
 import type { MedicalRecordFilters } from "../api/get-medical-records";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 export function useFilterMedicalRecords(
   searchTerm: string,
@@ -55,15 +56,15 @@ export function useFilterMedicalRecords(
       });
     }
 
-    // テキスト検索
+    // テキスト検索（カタカナ・ひらがな非区別）
     if (!searchTerm) return result;
-    const lowerTerm = searchTerm.toLowerCase();
+    const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
     return result.filter(
       (r) =>
-        r.ownerName.toLowerCase().includes(lowerTerm) ||
-        r.petName.toLowerCase().includes(lowerTerm) ||
-        r.recordNo.toLowerCase().includes(lowerTerm) ||
-        r.chiefComplaint.toLowerCase().includes(lowerTerm),
+        normalizeKana(r.ownerName).toLowerCase().includes(normalizedTerm) ||
+        normalizeKana(r.petName).toLowerCase().includes(normalizedTerm) ||
+        r.recordNo.toLowerCase().includes(normalizedTerm) ||
+        normalizeKana(r.chiefComplaint).toLowerCase().includes(normalizedTerm),
     );
   }, [records, searchTerm, activeFilters]);
 

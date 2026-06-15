@@ -1,4 +1,5 @@
 import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
+import { normalizeKana } from "@/lib/normalize-kana";
 import { ChevronDown, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -182,8 +183,8 @@ export const ItemListCard = memo(function ItemListCard({
       result = result.filter((item) => item.category === categoryFilter);
     }
     if (deferredMerchandiseSearch) {
-      const lower = deferredMerchandiseSearch.toLowerCase();
-      result = result.filter((item) => item.name.toLowerCase().includes(lower));
+      const normalizedTerm = normalizeKana(deferredMerchandiseSearch).toLowerCase();
+      result = result.filter((item) => normalizeKana(item.name).toLowerCase().includes(normalizedTerm));
     }
     return result;
   }, [merchandiseItems, categoryFilter, deferredMerchandiseSearch]);
