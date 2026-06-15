@@ -58,6 +58,79 @@ func TestAuditService_LogEntry(t *testing.T) {
 	assert.NotNil(t, repo.lastLogged.NewValue)
 }
 
+func TestAuditService_LogEntry_Validation(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *AuditLogInput
+	}{
+		{
+			name: "clinic_id missing",
+			input: &AuditLogInput{
+				ActorID:   ptrUint64ForAuditTest(2),
+				ActorType: model.AuditActorTypeStaff,
+				Action:    "update",
+				Resource:  "permission_group",
+			},
+		},
+		{
+			name: "staff actor requires actor_id",
+			input: &AuditLogInput{
+				ClinicID:  ptrUint64ForAuditTest(1),
+				ActorType: model.AuditActorTypeStaff,
+				Action:    "update",
+				Resource:  "permission_group",
+			},
+		},
+		{
+			name: "system actor must not have actor_id",
+			input: &AuditLogInput{
+				ClinicID:  ptrUint64ForAuditTest(1),
+				ActorID:   ptrUint64ForAuditTest(2),
+				ActorType: model.AuditActorTypeSystem,
+				Action:    "batch",
+				Resource:  "owner",
+			},
+		},
+		{
+			name: "unknown actor type",
+			input: &AuditLogInput{
+				ClinicID:  ptrUint64ForAuditTest(1),
+				ActorID:   ptrUint64ForAuditTest(2),
+				ActorType: "account",
+				Action:    "update",
+				Resource:  "permission_group",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockAuditRepository{}
+			svc := NewAuditService(repo)
+
+			err := svc.LogEntry(context.Background(), tt.input)
+
+			assert.Error(t, err)
+			assert.Nil(t, repo.lastLogged, "invalid audit input must not reach repository")
+		})
+	}
+}
+
+func TestAuditService_LogAuthLogin_RequiresClinicAndStaff(t *testing.T) {
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+	staffID := uint64(2)
+
+	err := svc.LogAuthLogin(context.Background(), nil, &staffID, model.AuditActionAuthLoginFailure, "127.0.0.1", "test-agent")
+
+	assert.Error(t, err)
+	assert.Nil(t, repo.lastLogged)
+}
+
+func ptrUint64ForAuditTest(v uint64) *uint64 {
+	return &v
+}
+
 // TestAuditService_LogLstepOperation_BackwardCompat は ISSUE-010 でメソッドを追加した後でも
 // 既存の LogLstepOperation 呼び出しが互換動作（actor_type / clinic_id / metadata=nil）を維持することを検証する。
 func TestAuditService_LogLstepOperation_BackwardCompat(t *testing.T) {
@@ -341,6 +414,14 @@ func TestAuditService_LogClinicSwitch_SystemActor(t *testing.T) {
 	}
 	assert.Equal(t, "system", repo.lastLogged.ActorType)
 	assert.Nil(t, repo.lastLogged.ActorID)
+}
+
+// TestAuditActionConstants_Billing は Issue #122 で追加した billing 系 action 定数の
+// 存在・値・{resource}.{operation} 形式を検証する。
+func TestAuditActionConstants_Billing(t *testing.T) {
+	assert.Equal(t, "billing.cancel", model.AuditActionBillingCancel)
+	assert.Equal(t, "billing.post_close_edit", model.AuditActionBillingPostCloseEdit)
+	assert.Equal(t, "billing_refund.create", model.AuditActionBillingRefundCreate)
 }
 
 // TestAuditService_LogAddendumCreate は addendum の監査ログで

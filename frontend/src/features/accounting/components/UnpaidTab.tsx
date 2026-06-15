@@ -8,38 +8,68 @@ import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
-import { todayJSTISO } from "@/lib/jst-date";
 import { paths } from "@/config/paths";
 import { formatCurrency } from "@/utils/format/number";
 
 import {
   useGetUnpaidByOwner,
   useGetUnpaidByBilling,
+  useGetUnpaidMonthly,
   type UnpaidOwner,
 } from "../api/get-unpaid-billings";
 
-type GroupBy = "owner" | "billing";
+type GroupBy = "owner" | "billing" | "monthly";
 
-function daysSince(isoDate: string, baseDate: string): number {
+function daysSince(isoDate: string, refDate: string): number {
+  if (!refDate) return 0;
   const from = new Date(`${isoDate}T00:00:00+09:00`);
-  const to = new Date(`${baseDate}T00:00:00+09:00`);
-  const diff = Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
-  return Math.max(0, diff);
+  const to = new Date(`${refDate}T00:00:00+09:00`);
+  if (isNaN(from.getTime()) || isNaN(to.getTime())) return 0;
+  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+function currentJSTYearMonth(): string {
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const y = jst.getUTCFullYear();
+  const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
 }
 
 export function UnpaidTab() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const groupBy: GroupBy = (searchParams.get("group_by") as GroupBy) === "billing" ? "billing" : "owner";
-  const baseDate = searchParams.get("reference_date") || todayJSTISO();
+  const rawGroupBy = searchParams.get("group_by");
+  const groupBy: GroupBy = rawGroupBy === "billing" ? "billing" : rawGroupBy === "monthly" ? "monthly" : "owner";
+
+  // #120: start_date/end_date 必須 — 両方揃うまでクエリは発火しない
+  const startDate = searchParams.get("start_date") ?? "";
+  const endDate = searchParams.get("end_date") ?? "";
+
+  // #114: month param (YYYY-MM), default は JST 当月
+  const monthParam = searchParams.get("month") ?? currentJSTYearMonth();
+  const monthParts = monthParam.split("-").map(Number);
+  const yearNum = monthParts[0] ?? 0;
+  const monthNum = monthParts[1] ?? 0;
+
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  const handleBaseDateChange = useCallback((next: string) => {
+  const handleStartDateChange = useCallback((next: string) => {
     setSearchParams((prev) => {
       const p = new URLSearchParams(prev);
-      p.set("reference_date", next);
+      if (next) p.set("start_date", next);
+      else p.delete("start_date");
+      return p;
+    }, { replace: true });
+    setPage(1);
+  }, [setSearchParams]);
+
+  const handleEndDateChange = useCallback((next: string) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      if (next) p.set("end_date", next);
+      else p.delete("end_date");
       return p;
     }, { replace: true });
     setPage(1);
@@ -54,29 +84,73 @@ export function UnpaidTab() {
     setPage(1);
   }, [setSearchParams]);
 
-  const ownerQuery = useGetUnpaidByOwner({ baseDate, groupBy, page, limit });
-  const billingQuery = useGetUnpaidByBilling({ baseDate, groupBy, page, limit });
+  const handleMonthChange = useCallback((next: string) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      if (next) p.set("month", next);
+      else p.delete("month");
+      return p;
+    }, { replace: true });
+    setPage(1);
+  }, [setSearchParams]);
+
+  // groupBy: "monthly" のとき enabled=false になるよう型を統一
+  const ownerQuery = useGetUnpaidByOwner({ startDate, endDate, groupBy, page, limit });
+  const billingQuery = useGetUnpaidByBilling({ startDate, endDate, groupBy, page, limit });
+  const monthlyQuery = useGetUnpaidMonthly({ year: yearNum, month: monthNum, page, limit });
 
   const summary = ownerQuery.data?.summary;
-  const isLoading = groupBy === "owner" ? ownerQuery.isLoading : billingQuery.isLoading;
-  const isError = groupBy === "owner" ? ownerQuery.isError : billingQuery.isError;
+  const monthlySummary = monthlyQuery.data?.summary;
+
+  const isLoading = groupBy === "owner" ? ownerQuery.isLoading
+    : groupBy === "billing" ? billingQuery.isLoading
+    : monthlyQuery.isLoading;
+  const isError = groupBy === "owner" ? ownerQuery.isError
+    : groupBy === "billing" ? billingQuery.isError
+    : monthlyQuery.isError;
 
   const ownerRows = useMemo<UnpaidOwner[]>(() => ownerQuery.data?.data ?? [], [ownerQuery.data]);
+  const monthlyRows = useMemo(() => monthlyQuery.data?.data ?? [], [monthlyQuery.data]);
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 基準日 + 表示単位 */}
-      <div className="flex items-end gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="baseDate" className={`text-sm ${C.text60}`}>基準日</Label>
-          <Input
-            id="baseDate"
-            type="date"
-            value={baseDate}
-            onChange={(e) => handleBaseDateChange(e.target.value)}
-            className="h-9 text-sm"
-          />
-        </div>
+      {/* 期間絞り込み + 表示単位切り替え */}
+      <div className="flex items-end gap-4 flex-wrap">
+        {groupBy !== "monthly" ? (
+          <>
+            <div className="space-y-1.5">
+              <Label htmlFor="startDate" className={`text-sm ${C.text60}`}>開始日</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => handleStartDateChange(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="endDate" className={`text-sm ${C.text60}`}>終了日</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => handleEndDateChange(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+          </>
+        ) : (
+          <div className="space-y-1.5">
+            <Label htmlFor="monthPicker" className={`text-sm ${C.text60}`}>対象月</Label>
+            <Input
+              id="monthPicker"
+              type="month"
+              value={monthParam}
+              onChange={(e) => handleMonthChange(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+        )}
         <div className="flex gap-2">
           <Button
             type="button"
@@ -94,11 +168,19 @@ export function UnpaidTab() {
           >
             会計単位
           </Button>
+          <Button
+            type="button"
+            variant={groupBy === "monthly" ? "default" : "outline"}
+            size="sm"
+            onClick={() => handleGroupByChange("monthly")}
+          >
+            月次繰越
+          </Button>
         </div>
       </div>
 
-      {/* サマリーカード */}
-      {summary ? (
+      {/* 売掛金サマリーカード (owner/billing モード) */}
+      {groupBy !== "monthly" && summary ? (
         <div className={`rounded-lg border ${C.borderLight} p-4 ${C.bgWhite}`}>
           <p className={`text-xs ${C.text50} mb-1`}>売掛金総額</p>
           <p className="text-2xl font-bold">{formatCurrency(summary.total_amount)}</p>
@@ -108,9 +190,30 @@ export function UnpaidTab() {
         </div>
       ) : null}
 
+      {/* 月次繰越サマリーカード */}
+      {groupBy === "monthly" && monthlySummary ? (
+        <div className={`rounded-lg border ${C.borderLight} p-4 ${C.bgWhite}`}>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className={`text-xs ${C.text50} mb-1`}>前月繰越</p>
+              <p className="text-xl font-bold">{formatCurrency(monthlySummary.prev_month_carryover)}</p>
+            </div>
+            <div>
+              <p className={`text-xs ${C.text50} mb-1`}>当月未払い</p>
+              <p className="text-xl font-bold">{formatCurrency(monthlySummary.current_month_unpaid)}</p>
+            </div>
+            <div>
+              <p className={`text-xs ${C.text50} mb-1`}>次月繰越</p>
+              <p className="text-xl font-bold">{formatCurrency(monthlySummary.next_month_carryover)}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {isLoading ? <LoadingFallback /> : null}
       {isError ? <ErrorFallback message="データの取得に失敗しました" /> : null}
 
+      {/* 飼主単位テーブル */}
       {!isLoading && !isError && groupBy === "owner" ? (
         ownerRows.length === 0 ? (
           <p className={`text-sm ${C.text50} py-8 text-center`}>未納者はいません</p>
@@ -142,7 +245,7 @@ export function UnpaidTab() {
                     <TableCell>{row.oldest_scheduled}</TableCell>
                     <TableCell>{row.latest_scheduled}</TableCell>
                     <TableCell className="text-right">
-                      {daysSince(row.oldest_scheduled, baseDate)}日
+                      {daysSince(row.oldest_scheduled, endDate)}日
                     </TableCell>
                   </TableRow>
                 ))}
@@ -152,6 +255,7 @@ export function UnpaidTab() {
         )
       ) : null}
 
+      {/* 会計単位テーブル */}
       {!isLoading && !isError && groupBy === "billing" ? (
         (billingQuery.data?.data ?? []).length === 0 ? (
           <p className={`text-sm ${C.text50} py-8 text-center`}>未納会計はありません</p>
@@ -183,7 +287,7 @@ export function UnpaidTab() {
                         {formatCurrency(total)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {b.scheduledDate ? `${daysSince(b.scheduledDate, baseDate)}日` : "-"}
+                        {b.scheduledDate ? `${daysSince(b.scheduledDate, endDate)}日` : "-"}
                       </TableCell>
                     </TableRow>
                   );
@@ -194,8 +298,53 @@ export function UnpaidTab() {
         )
       ) : null}
 
+      {/* 月次繰越テーブル */}
+      {!isLoading && !isError && groupBy === "monthly" ? (
+        monthlyRows.length === 0 ? (
+          <p className={`text-sm ${C.text50} py-8 text-center`}>対象月の未納データがありません</p>
+        ) : (
+          <div className={`rounded-lg border ${C.borderLight} ${C.bgWhite} overflow-hidden`}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>飼主名</TableHead>
+                  <TableHead>ペット名</TableHead>
+                  <TableHead className="text-right">前月繰越</TableHead>
+                  <TableHead className="text-right">当月未払い</TableHead>
+                  <TableHead className="text-right">次月繰越</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {monthlyRows.map((row) => (
+                  <TableRow
+                    key={`${row.owner_id}-${row.pet_id ?? "none"}`}
+                    className={`cursor-pointer ${STYLE.tableRowHover}`}
+                    onClick={() => navigate(paths.owners.detail.getHref(String(row.owner_id)))}
+                  >
+                    <TableCell className="font-medium">{row.owner_name}</TableCell>
+                    <TableCell>{row.pet_name || "-"}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(row.prev_month_carryover)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(row.current_month_unpaid)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(row.next_month_carryover)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )
+      ) : null}
+
+      {/* ページネーション */}
       {(() => {
-        const data = groupBy === "owner" ? ownerQuery.data : billingQuery.data;
+        const data = groupBy === "owner" ? ownerQuery.data
+          : groupBy === "billing" ? billingQuery.data
+          : monthlyQuery.data;
         if (!data || data.total <= limit) return null;
         const total = data.total;
         const totalPages = Math.max(1, Math.ceil(total / limit));

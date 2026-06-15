@@ -1,5 +1,11 @@
 # Infra - デプロイ & インフラ構成
 
+## セキュリティ取り扱い
+
+- このファイル内の endpoint、role、bucket、network 名は operational-sensitive として扱う。外部チャット、Issue、PR、公開ログへ不用意に貼らない。
+- secrets、password、token、private key、個人情報は絶対に追加しない。必要な値は SSM Parameter Store、Vercel Secrets、または環境固有の secret manager を参照する。
+- インフラ変更は plan → 差分確認 → 明示承認 → apply の順に進める。production-impacting action は必ず停止して承認を得る。
+
 ## ステージング環境エンドポイント
 
 | サービス | URL |

@@ -2,6 +2,11 @@
 
 This repository uses `security-scan.yml` with AgentShield to run security checks.
 
+`affaan-m/agentshield` is pinned to a full commit SHA, not a mutable version tag.
+When upgrading AgentShield, resolve the target tag to its commit SHA with
+`git ls-remote https://github.com/affaan-m/agentshield.git refs/tags/<tag>^{}` and
+update the workflow intentionally.
+
 - **Triggers**
   - `push` on `main`, `staging`
   - `pull_request` targeting `main`, `staging`, `production`

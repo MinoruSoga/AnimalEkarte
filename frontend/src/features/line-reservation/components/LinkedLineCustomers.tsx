@@ -9,6 +9,7 @@ import { Link2, Link2Off, Search, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
+import { normalizeKana } from "@/lib/normalize-kana";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -154,12 +155,12 @@ function LinkSearchDialog({ unlinked, onLink, onClose, isPending }: LinkSearchDi
 
   const filtered = useMemo(
     () => {
-      const q = search.toLowerCase();
+      const q = normalizeKana(search).toLowerCase();
       if (!q) return unlinked;
       return unlinked.filter(
         (c) =>
-          c.display_name.toLowerCase().includes(q) ||
-          c.real_name.toLowerCase().includes(q),
+          normalizeKana(c.display_name).toLowerCase().includes(q) ||
+          normalizeKana(c.real_name).toLowerCase().includes(q),
       );
     },
     [unlinked, search],

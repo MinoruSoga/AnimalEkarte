@@ -3,6 +3,7 @@ import { Search, X, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { C, ICON } from "@/lib/design-tokens";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 interface MasterItem {
   id: string | number;
@@ -41,8 +42,8 @@ export const MasterSelectModal = memo(function MasterSelectModal({
 
   const filtered = useMemo(() => {
     if (!searchTerm) return items;
-    const lower = searchTerm.toLowerCase();
-    return items.filter((item) => item.name.toLowerCase().includes(lower));
+    const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
+    return items.filter((item) => normalizeKana(item.name).toLowerCase().includes(normalizedTerm));
   }, [items, searchTerm]);
 
   const handleSelect = useCallback(

@@ -1,4 +1,5 @@
 import { ICON, C } from "@/lib/design-tokens";
+import { normalizeKana } from "@/lib/normalize-kana";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { useState, useMemo, useDeferredValue, useCallback, useTransition } from "react";
 import { useNavigate } from "react-router";
@@ -134,14 +135,14 @@ export function EstimateList() {
       }
     }
 
-    // テキスト検索
+    // テキスト検索（カタカナ・ひらがな非区別）
     if (deferredSearch) {
-      const lower = deferredSearch.toLowerCase();
+      const normalizedTerm = normalizeKana(deferredSearch).toLowerCase();
       items = items.filter(
         (estimate) =>
-          estimate.title.toLowerCase().includes(lower) ||
-          (estimate.ownerName ?? "").toLowerCase().includes(lower) ||
-          estimate.estimateNo.toLowerCase().includes(lower),
+          normalizeKana(estimate.title).toLowerCase().includes(normalizedTerm) ||
+          normalizeKana(estimate.ownerName ?? "").toLowerCase().includes(normalizedTerm) ||
+          estimate.estimateNo.toLowerCase().includes(normalizedTerm),
       );
     }
 

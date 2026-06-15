@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, LAYOUT } from "@/lib/design-tokens";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 import type { Campaign, CampaignDiscountType } from "../api/campaign";
 import { useGetAllMerchandiseItems } from "../api/merchandise-items";
@@ -93,8 +94,8 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
   const filteredMerchandise = useMemo(() => {
     let result = merchandiseItems.filter((i) => i.isActive);
     if (merchandiseSearch) {
-      const lower = merchandiseSearch.toLowerCase();
-      result = result.filter((i) => i.name.toLowerCase().includes(lower));
+      const lower = normalizeKana(merchandiseSearch).toLowerCase();
+      result = result.filter((i) => normalizeKana(i.name).toLowerCase().includes(lower));
     }
     return result;
   }, [merchandiseItems, merchandiseSearch]);

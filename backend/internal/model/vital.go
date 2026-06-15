@@ -15,6 +15,7 @@ const (
 
 type VitalRecord struct {
 	ID              uint64         `gorm:"primaryKey;autoIncrement"          json:"id"`
+	ClinicID        uint64         `gorm:"not null"                          json:"clinic_id"`
 	PetID           uint64         `gorm:"not null"                          json:"pet_id"`
 	MedicalRecordID *uint64        `                                         json:"medical_record_id"`
 	DailyRecordID   *uint64        `                                         json:"daily_record_id"`

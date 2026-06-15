@@ -1,7 +1,7 @@
 # Lステップ連携 戦略仕様書 (L-Step CRM Integration)
 
 > **Animal Ekarte**: カルテデータに基づいた自動マーケティングの実現
-> **最新更新**: 2026-05-21 | **ステータス**: Production Ready
+> **最新更新**: 2026-06-12 | **ステータス**: Production Ready
 
 ---
 

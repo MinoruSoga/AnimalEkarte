@@ -19,6 +19,9 @@ import {
   ItemCategoryGoods,
   ItemCategoryOther,
   ItemCategoryTrimming,
+  ItemCategoryVaccine,
+  ItemCategoryHotel,
+  ItemCategoryTraining,
 } from "@/types/generated/models";
 import type { TaxType } from "@/types/generated/models";
 
@@ -45,7 +48,10 @@ export type ItemCategory =
   | typeof ItemCategoryFood
   | typeof ItemCategoryGoods
   | typeof ItemCategoryOther
-  | typeof ItemCategoryTrimming;
+  | typeof ItemCategoryTrimming
+  | typeof ItemCategoryVaccine
+  | typeof ItemCategoryHotel
+  | typeof ItemCategoryTraining;
 
 /** @see {@link import("@/types/generated/models").BillingItem} */
 export interface AccountingItem {

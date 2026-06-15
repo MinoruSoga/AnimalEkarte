@@ -28,6 +28,9 @@ func (AuditLog) TableName() string { return "audit_logs" }
 
 // 監査アクション定数
 const (
+	AuditActorTypeStaff  = "staff"
+	AuditActorTypeSystem = "system"
+
 	AuditActionPermissionGroupCreate = "permission_group.create"
 	AuditActionPermissionGroupUpdate = "permission_group.update"
 	AuditActionPermissionGroupDelete = "permission_group.delete"
@@ -47,4 +50,9 @@ const (
 	// 取扱説明書（マニュアル）編集 監査アクション
 	AuditActionManualArticleUpsert = "manual_article.upsert"
 	AuditActionManualArticleDelete = "manual_article.delete"
+
+	// 会計・返金 監査アクション（#122）
+	AuditActionBillingCancel        = "billing.cancel"
+	AuditActionBillingPostCloseEdit = "billing.post_close_edit"
+	AuditActionBillingRefundCreate  = "billing_refund.create"
 )

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useGetPets } from "@/hooks/use-pet";
+import { normalizedIncludes } from "@/lib/normalize-kana";
 import type { Pet } from "@/types";
 import type { PetSelectionSearchParams } from "@/components/shared/PetSelection/PetSelectionSearchForm";
 
@@ -34,17 +35,17 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
     return pets.filter((pet) => {
       if (searchParams.ownerId && !pet.ownerId.includes(searchParams.ownerId))
         return false;
-      if (searchParams.ownerName && !pet.ownerName.includes(searchParams.ownerName))
+      if (searchParams.ownerName && !normalizedIncludes(pet.ownerName, searchParams.ownerName))
         return false;
-      if (searchParams.ownerNameKana && (!pet.ownerNameKana || !pet.ownerNameKana.includes(searchParams.ownerNameKana)))
+      if (searchParams.ownerNameKana && (!pet.ownerNameKana || !normalizedIncludes(pet.ownerNameKana, searchParams.ownerNameKana)))
         return false;
       if (searchParams.phone && (!pet.phone || !pet.phone.includes(searchParams.phone)))
         return false;
       if (searchParams.address && (!pet.address || !pet.address.includes(searchParams.address)))
         return false;
-      if (searchParams.petName && !pet.name.includes(searchParams.petName))
+      if (searchParams.petName && !normalizedIncludes(pet.name, searchParams.petName))
         return false;
-      if (searchParams.petNameKana && (!pet.petNameKana || !pet.petNameKana.includes(searchParams.petNameKana)))
+      if (searchParams.petNameKana && (!pet.petNameKana || !normalizedIncludes(pet.petNameKana, searchParams.petNameKana)))
         return false;
       if (searchParams.species && !pet.species.includes(searchParams.species))
         return false;

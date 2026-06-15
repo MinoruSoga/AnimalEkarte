@@ -1,7 +1,7 @@
 # API 仕様書 (API Specification)
 
 > **Animal Ekarte**: 高信頼な動物病院バックエンド Go API
-> **バージョン**: v3.1.0 | **最新更新**: 2026-06-11 | **ステータス**: Production Ready
+> **バージョン**: v3.1.0 | **最新更新**: 2026-06-12 | **ステータス**: Production Ready
 
 ## ⚠️ OpenAPI の Single Source of Truth (SSOT) 運用方針
 

@@ -1,5 +1,6 @@
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 export interface TreatmentTabConfig {
   data: TreatmentItem[] | undefined;
@@ -59,11 +60,11 @@ export function filterTreatmentRoots({
 
   if (!searchTerm) return items;
 
-  const lower = searchTerm.toLowerCase();
+  const lower = normalizeKana(searchTerm).toLowerCase();
   return items.filter(
     (root) =>
-      root.name.toLowerCase().includes(lower) ||
-      root.children.some((child) => child.name.toLowerCase().includes(lower)),
+      normalizeKana(root.name).toLowerCase().includes(lower) ||
+      root.children.some((child) => normalizeKana(child.name).toLowerCase().includes(lower)),
   );
 }
 

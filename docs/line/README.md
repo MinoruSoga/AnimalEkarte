@@ -1,7 +1,7 @@
 # LINE・Lステップ連携 統合ドキュメント (LINE Integration Hub)
 
 > **Animal Ekarte**: 飼い主向け予約体験と CRM 戦略の統合
-> **最新更新**: 2026-06-11
+> **最新更新**: 2026-06-12
 
 ---
 
@@ -15,7 +15,7 @@
 
 ### 導入・設定
 - **[setup.md](./setup.md)**: LINE Developers Console、Messaging API、および Lステップ管理画面の初期設定手順。
-- **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、14 種の自動配信トリガー詳細。
+- **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、15 種の自動配信トリガー詳細。
 
 ### 原本・ソース
 - **[`01_曽我さん向け_カルテLステップ連携実装仕様書.md`](../../01_曽我さん向け_カルテLステップ連携実装仕様書.md)**: クライアント受領の正本仕様書。

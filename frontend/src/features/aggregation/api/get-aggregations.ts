@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 
 // Type definitions for aggregation features.
 // 仕様 §4.1〜4.3 / §5.2 の sort 値を canonical とする。
@@ -89,10 +90,7 @@ export function useGetOwnerAggregations(params: AggregationParams) {
   return useQuery({
     queryKey: ["owner-aggregations", params],
     queryFn: async () => {
-      const clinicId = localStorage.getItem("auth_current_clinic:v1");
-      if (!clinicId) {
-        throw new Error("clinic_id not found in storage");
-      }
+      const clinicId = requireStoredClinicId();
       const { data } = await axios.get<AggregationResponse>(
         `/v1/clinics/${clinicId}/owners/aggregations`,
         { params }

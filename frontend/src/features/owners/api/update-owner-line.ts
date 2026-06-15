@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { axios } from "@/lib/axios";
+import { getStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
 
 interface UpdateOwnerLineBody {
@@ -30,7 +31,7 @@ async function unlinkOwnerLine(
 
 export function useUpdateOwnerLine(ownerId: string) {
   const queryClient = useQueryClient();
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
+  const clinicId = getStoredClinicId();
 
   return useMutation({
     mutationFn: (body: UpdateOwnerLineBody) => {
@@ -51,7 +52,7 @@ export function useUpdateOwnerLine(ownerId: string) {
 
 export function useDeleteOwnerLine(ownerId: string) {
   const queryClient = useQueryClient();
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
+  const clinicId = getStoredClinicId();
 
   return useMutation({
     mutationFn: () => {

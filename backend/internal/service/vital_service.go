@@ -114,6 +114,7 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 	}
 
 	vital := &model.VitalRecord{
+		ClinicID:        input.ClinicID,
 		PetID:           input.PetID,
 		MedicalRecordID: &medicalRecordID,
 		RecordedAt:      input.RecordedAt,

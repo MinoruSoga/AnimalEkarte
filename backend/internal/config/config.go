@@ -82,6 +82,9 @@ func (c *Config) Validate() error {
 	if c.DBPass == "" || c.DBPass == "ekarte_password" {
 		return fmt.Errorf("DB_PASSWORD must be explicitly set in release mode")
 	}
+	if c.IntegrationEncryptionKey == "" {
+		return fmt.Errorf("INTEGRATION_ENCRYPTION_KEY must be explicitly set in release mode")
+	}
 	if c.SMTPHost != "" && c.SMTPPort != "465" && c.SMTPPort != "587" {
 		return fmt.Errorf("SMTP_PORT must be 465 (TLS) or 587 (STARTTLS) in release mode, got %s", c.SMTPPort)
 	}

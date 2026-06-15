@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 
 export interface LstepTagOwner {
   owner_id: string;
@@ -26,10 +27,7 @@ export function useGetLstepTagOwners(params: LstepTagOwnersParams) {
   return useQuery({
     queryKey: ["lstep-tag-owners", params],
     queryFn: async () => {
-      const clinicId = localStorage.getItem("auth_current_clinic:v1");
-      if (!clinicId) {
-        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
-      }
+      const clinicId = requireStoredClinicId();
       const { data } = await axios.get<LstepTagOwnersResponse>(
         `/v1/clinics/${clinicId}/lstep/owners`,
         { params }

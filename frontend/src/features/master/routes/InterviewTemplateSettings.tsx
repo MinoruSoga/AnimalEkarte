@@ -7,6 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { C, ICON } from "@/lib/design-tokens";
+import { normalizeKana } from "@/lib/normalize-kana";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -49,7 +50,7 @@ export function InterviewTemplateSettings() {
   const dirty = useSidePeekDirty();
   const crud = useMasterCRUD<InquiryTemplate>({
     data, deleteMutation, entityLabel: "問診テンプレート",
-    searchFilter: (item, lower) => item.title.toLowerCase().includes(lower) || item.category.toLowerCase().includes(lower),
+    searchFilter: (item, lower) => normalizeKana(item.title).toLowerCase().includes(lower) || normalizeKana(item.category).toLowerCase().includes(lower),
     dirtyGuard: dirty,
   });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);

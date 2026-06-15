@@ -2,8 +2,10 @@ package handler
 
 import (
 	"net/url"
+	"strconv"
 	"time"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -61,20 +63,23 @@ func (q *listAccountingQuery) toServiceFilters() (listAccountingFilters, error) 
 }
 
 type listUnpaidBillingsQuery struct {
-	BaseDate string
-	GroupBy  string
+	StartDate string
+	EndDate   string
+	GroupBy   string
 }
 
 func newListUnpaidBillingsQuery(values url.Values) listUnpaidBillingsQuery {
 	return listUnpaidBillingsQuery{
-		BaseDate: values.Get("base_date"),
-		GroupBy:  values.Get("group_by"),
+		StartDate: values.Get("start_date"),
+		EndDate:   values.Get("end_date"),
+		GroupBy:   values.Get("group_by"),
 	}
 }
 
 type listUnpaidBillingsFilters struct {
-	BaseDate string
-	GroupBy  string
+	StartDate string
+	EndDate   string
+	GroupBy   string
 }
 
 type dailySummaryQuery struct {
@@ -85,14 +90,52 @@ func newDailySummaryQuery(values url.Values) dailySummaryQuery {
 	return dailySummaryQuery{Date: values.Get("date")}
 }
 
-func (q listUnpaidBillingsQuery) toServiceFilters(defaultBaseDate string) (listUnpaidBillingsFilters, error) {
-	baseDate := defaultBaseDate
-	parsedBaseDate, err := parseOptionalDateQueryFilter(q.BaseDate, "base_date")
-	if err != nil {
+// #114: 月次未納繰越集計クエリ
+type monthlyUnpaidQuery struct {
+	Year  string
+	Month string
+}
+
+func newMonthlyUnpaidQuery(values url.Values) monthlyUnpaidQuery {
+	return monthlyUnpaidQuery{
+		Year:  values.Get("year"),
+		Month: values.Get("month"),
+	}
+}
+
+// parse は year/month を検証して int に変換する。
+func (q monthlyUnpaidQuery) parse() (year, month int, err error) {
+	if q.Year == "" {
+		return 0, 0, apperrors.WrapInvalidInput("year is required")
+	}
+	if q.Month == "" {
+		return 0, 0, apperrors.WrapInvalidInput("month is required")
+	}
+	year, err = strconv.Atoi(q.Year)
+	if err != nil || year < 2000 || year > 2100 {
+		return 0, 0, apperrors.WrapInvalidInput("year must be a valid year (2000-2100)")
+	}
+	month, err = strconv.Atoi(q.Month)
+	if err != nil || month < 1 || month > 12 {
+		return 0, 0, apperrors.WrapInvalidInput("month must be between 1 and 12")
+	}
+	return year, month, nil
+}
+
+// toServiceFilters は #120: start_date/end_date を必須パラメータとして検証する。
+// どちらか欠けた場合は ErrInvalidInput を返す（フォールバックなし）。
+func (q listUnpaidBillingsQuery) toServiceFilters() (listUnpaidBillingsFilters, error) {
+	if q.StartDate == "" {
+		return listUnpaidBillingsFilters{}, apperrors.WrapInvalidInput("start_date is required")
+	}
+	if q.EndDate == "" {
+		return listUnpaidBillingsFilters{}, apperrors.WrapInvalidInput("end_date is required")
+	}
+	if _, err := parseOptionalDateQueryFilter(q.StartDate, "start_date"); err != nil {
 		return listUnpaidBillingsFilters{}, err
 	}
-	if parsedBaseDate != nil {
-		baseDate = *parsedBaseDate
+	if _, err := parseOptionalDateQueryFilter(q.EndDate, "end_date"); err != nil {
+		return listUnpaidBillingsFilters{}, err
 	}
 
 	groupBy := q.GroupBy
@@ -101,8 +144,9 @@ func (q listUnpaidBillingsQuery) toServiceFilters(defaultBaseDate string) (listU
 	}
 
 	return listUnpaidBillingsFilters{
-		BaseDate: baseDate,
-		GroupBy:  groupBy,
+		StartDate: q.StartDate,
+		EndDate:   q.EndDate,
+		GroupBy:   groupBy,
 	}, nil
 }
 
@@ -146,7 +190,7 @@ type paymentSplitRequest struct {
 	PaymentMethodID *uint64 `json:"payment_method_id"`
 	Amount          int64   `json:"amount"           binding:"required,min=1"`
 	ReceivedAmount  int64   `json:"received_amount"`
-	ChangeAmount    int64   `json:"change_amount"`
+	ChangeAmount    int64   `json:"change_amount"    binding:"min=0"` // #119: required (non-negative)
 }
 
 func (r paymentSplitRequest) toServiceInput() service.PaymentSplitInput {
@@ -197,6 +241,8 @@ type updateAccountingRequest struct {
 	ChangeAmount    *int64   `json:"change_amount"`
 	// PaymentSplits: 混在支払い内訳（nil = 従来単一支払い互換）
 	PaymentSplits []paymentSplitRequest `json:"payment_splits" binding:"max=50,dive"`
+	// #115: 締め後編集理由（レジ締め済み期間の会計を編集する場合は必須）
+	PostCloseReason *string `json:"post_close_reason"`
 }
 
 func (r *updateAccountingRequest) toServiceInput(id, clinicID, staffID uint64) *service.UpdateAccountingInput {
@@ -225,6 +271,7 @@ func (r *updateAccountingRequest) toServiceInput(id, clinicID, staffID uint64) *
 		Status:            billingStatusPtr(r.Status),
 		PaymentMethod:     paymentMethodPtr(r.PaymentMethod),
 		PaymentSplits:     toPaymentSplitInputs(r.PaymentSplits),
+		PostCloseReason:   r.PostCloseReason,
 	}
 }
 

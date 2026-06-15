@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 import { formatJSTDateTimeLocal } from "@/lib/jst-date";
 
 import { useGetLstepCsvImports } from "../api/get-lstep-csv-imports";
@@ -45,10 +46,7 @@ function CsvUploadSection() {
         return { error: "CSVファイルを選択してください" };
       }
       try {
-        const clinicId = localStorage.getItem("auth_current_clinic:v1");
-        if (!clinicId) {
-          throw new Error("クリニックが選択されていません。ページをリロードしてください。");
-        }
+        const clinicId = requireStoredClinicId();
         const fd = new FormData();
         fd.append("file", file);
         await axios.post(

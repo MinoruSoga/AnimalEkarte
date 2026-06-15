@@ -1,7 +1,7 @@
 -- =============================================================================
--- Animal Ekarte - 統合スキーマ定義 v22.1 (consolidated)
+-- Animal Ekarte - 統合スキーマ定義 v23.0 (consolidated)
 -- PostgreSQL 18
--- テーブル数: 103 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル + #81キャンペーンテーブル を統合)
+-- テーブル数: 103 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル + #81キャンペーンテーブル + 新 005-007 を統合)
 -- 統合内容:
 --   002: マスタシードデータ
 --   003: デモシードデータ
@@ -47,6 +47,11 @@
 --   mig-011: clinic_settings.cpm_v2_*_threshold カラム (旧 007)
 --   mig-012: clinic_settings.cpm_v1_* カラム (旧 008)
 --   mig-013: clinic_settings.health_prevention_lookback_days / vaccine_deadline_days (旧 009)
+-- --- 後続マイグレーション統合 (新 005–007) ---
+--   新 005: RLS ポリシー (app_private スキーマ) + FK 強化 (billing_refunds/audit_logs/prescriptions/staffs/vital_records 等)
+--           ※ ALTER TABLE / ADD COLUMN は 001 の CREATE TABLE に統合済み
+--   新 006: 冗長インデックス削除 (idx_vital_records_deleted_at / idx_billing_confirmations_status)
+--   新 007: グローバル一意制約削除 (idx_shift_entries_staff_date)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -241,6 +246,7 @@ CREATE INDEX idx_accounts_system_admin ON accounts(is_system_admin) WHERE is_sys
 -- ------------------------------------
 CREATE TABLE staffs (
     id                    BIGSERIAL   PRIMARY KEY,
+    clinic_id             bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     account_id            bigint               REFERENCES accounts(id) ON DELETE SET NULL,
     name                  text        NOT NULL,
     is_active             boolean     NOT NULL DEFAULT true,
@@ -258,6 +264,7 @@ CREATE TABLE staffs (
 );
 
 CREATE INDEX idx_staffs_account ON staffs(account_id);
+CREATE INDEX idx_staffs_clinic ON staffs(clinic_id) WHERE deleted_at IS NULL;
 
 -- ------------------------------------
 -- 7. owners（飼主情報）
@@ -348,7 +355,7 @@ CREATE INDEX idx_owners_line_id_confirmed_by
 CREATE TABLE lstep_tag_cache (
     id          BIGSERIAL    PRIMARY KEY,
     clinic_id   bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    owner_id    bigint       NOT NULL REFERENCES owners(id)  ON DELETE CASCADE,
+    owner_id    bigint       NOT NULL REFERENCES owners(id)  ON DELETE RESTRICT,
     tag_name    varchar(100) NOT NULL,
     category    varchar(20)  NOT NULL DEFAULT 'auto'
                 CHECK (category IN ('auto', 'manual')),
@@ -370,8 +377,8 @@ COMMENT ON COLUMN lstep_tag_cache.category IS 'auto=各Sync*メソッドが自�
 -- ------------------------------------
 CREATE TABLE line_link_tokens (
     id          BIGSERIAL    PRIMARY KEY,
-    clinic_id   bigint       NOT NULL REFERENCES clinics(id),
-    owner_id    bigint       NOT NULL REFERENCES owners(id),
+    clinic_id   bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id    bigint       NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
     token       varchar(64)  NOT NULL UNIQUE,
     expires_at  timestamptz  NOT NULL,
     used_at     timestamptz  NULL,
@@ -410,8 +417,8 @@ CREATE INDEX idx_token_blacklist_expires_at ON token_blacklist(expires_at);
 -- ------------------------------------
 CREATE TABLE lstep_migration_progress (
     id            BIGSERIAL    PRIMARY KEY,
-    clinic_id     bigint       NOT NULL REFERENCES clinics(id),
-    owner_id      bigint       NOT NULL REFERENCES owners(id),
+    clinic_id     bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id      bigint       NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
     status        varchar(20)  NOT NULL DEFAULT 'pending',  -- pending | success | partial | failed | skipped
     tags_added    int          NOT NULL DEFAULT 0,
     tags_failed   int          NOT NULL DEFAULT 0,
@@ -486,7 +493,7 @@ COMMENT ON TABLE lstep_tag_code_mappings IS 'Lステップタグ → 診療コ�
 -- ------------------------------------
 CREATE TABLE lstep_trigger_priorities (
     id           BIGSERIAL PRIMARY KEY,
-    clinic_id    BIGINT NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    clinic_id    BIGINT NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     trigger_type VARCHAR(64) NOT NULL,
     priority     INTEGER NOT NULL CHECK (priority >= 1),
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -1374,10 +1381,10 @@ CREATE TABLE medical_records (
 -- ------------------------------------
 CREATE TABLE prescriptions (
     id                BIGSERIAL    PRIMARY KEY,
-    clinic_id         bigint       NOT NULL REFERENCES clinics(id),
-    owner_id          bigint       NOT NULL REFERENCES owners(id),
-    pet_id            bigint                REFERENCES pets(id),
-    medical_record_id bigint                REFERENCES medical_records(id),
+    clinic_id         bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id          bigint       NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
+    pet_id            bigint                REFERENCES pets(id) ON DELETE RESTRICT,
+    medical_record_id bigint                REFERENCES medical_records(id) ON DELETE RESTRICT,
     prescribed_at     date         NOT NULL,
     duration_days     int          NOT NULL DEFAULT 0,
     deleted_at        timestamptz,
@@ -1558,6 +1565,7 @@ CREATE TABLE treatments (
 -- ------------------------------------
 CREATE TABLE treatment_plans (
     id                 BIGSERIAL   PRIMARY KEY,
+    clinic_id          bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     medical_record_id  bigint               REFERENCES medical_records(id) ON DELETE CASCADE,
     hospitalization_id bigint               REFERENCES hospitalizations(id) ON DELETE CASCADE,
     treatment_content  text        NOT NULL DEFAULT '',
@@ -1682,6 +1690,7 @@ CREATE TABLE daily_records (
 -- ------------------------------------
 CREATE TABLE vital_records (
     id                BIGSERIAL   PRIMARY KEY,
+    clinic_id         bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     pet_id            bigint      NOT NULL REFERENCES pets(id) ON DELETE RESTRICT,
     medical_record_id bigint               REFERENCES medical_records(id) ON DELETE CASCADE,  -- 外来時
     daily_record_id   bigint               REFERENCES daily_records(id) ON DELETE CASCADE,    -- 入院時
@@ -1786,6 +1795,7 @@ CREATE TABLE estimate_items (
 -- ------------------------------------
 CREATE TABLE care_logs (
     id              BIGSERIAL       PRIMARY KEY,
+    clinic_id       bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     daily_record_id bigint          NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
     time            time            NOT NULL,
     type            care_log_type   NOT NULL,
@@ -1940,7 +1950,7 @@ CREATE INDEX idx_payment_splits_clinic_billing ON payment_splits(clinic_id, bill
 CREATE TABLE billing_refunds (
     id           BIGSERIAL   PRIMARY KEY,
     clinic_id    bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    billing_id   bigint      NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
+    billing_id   bigint      NOT NULL REFERENCES billings(id) ON DELETE RESTRICT,
     amount       bigint      NOT NULL CHECK (amount > 0),
     reason       text        NOT NULL DEFAULT '',
     refunded_by     bigint          REFERENCES staffs(id),
@@ -2119,10 +2129,6 @@ CREATE UNIQUE INDEX idx_estimates_clinic_estimate_no ON estimates(clinic_id, est
 -- 入院日次記録: 同一入院の同一日付は1件のみ
 CREATE UNIQUE INDEX idx_daily_records_hosp_date ON daily_records(hospitalization_id, date);
 
--- シフト: 1スタッフ1日1シフト
-CREATE UNIQUE INDEX idx_shift_entries_staff_date ON shift_entries(staff_id, date);
-
-
 -- 飼主: clinic内でemail重複不可（論理削除を除く・空文字除く）
 CREATE UNIQUE INDEX uk_owners_clinic_email ON owners(clinic_id, email) WHERE deleted_at IS NULL AND email IS NOT NULL AND email != '';
 
@@ -2205,7 +2211,7 @@ CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
 CREATE INDEX idx_vital_records_medical_record_id ON vital_records(medical_record_id);
 CREATE INDEX idx_vital_records_daily_record_id ON vital_records(daily_record_id);
 CREATE INDEX idx_vital_records_pet_id ON vital_records(pet_id);
-CREATE INDEX idx_vital_records_deleted_at ON vital_records (deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX idx_vital_records_clinic_id ON vital_records(clinic_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id);
 CREATE INDEX idx_exams_pet_id ON exams(pet_id);
 CREATE INDEX idx_exams_exam_type_id ON exams(exam_type_id);
@@ -2221,12 +2227,14 @@ CREATE INDEX idx_inquiries_medical_record_id ON inquiries(medical_record_id);
 CREATE INDEX idx_medical_record_images_medical_record_id ON medical_record_images(medical_record_id);
 CREATE INDEX idx_treatment_plans_medical_record_id ON treatment_plans(medical_record_id);
 CREATE INDEX idx_treatment_plans_hospitalization_id ON treatment_plans(hospitalization_id);
+CREATE INDEX idx_treatment_plans_clinic_id ON treatment_plans(clinic_id) WHERE deleted_at IS NULL;
 
 -- hospitalization 子テーブル FK インデックス
 CREATE INDEX idx_hospitalizations_pet_id ON hospitalizations(pet_id);
 CREATE INDEX idx_hospitalizations_owner_id ON hospitalizations(owner_id);
 CREATE INDEX idx_hospitalizations_cage_id ON hospitalizations(cage_id);
 CREATE INDEX idx_care_plan_items_hospitalization_id ON care_plan_items(hospitalization_id);
+CREATE INDEX idx_care_logs_clinic_id ON care_logs(clinic_id);
 
 -- billing 子テーブル FK インデックス
 CREATE INDEX idx_billing_items_billing_id ON billing_items(billing_id);
@@ -2254,9 +2262,6 @@ CREATE INDEX idx_estimates_owner_id ON estimates(owner_id);
 
 -- estimate_items インデックス
 CREATE INDEX idx_estimate_items_estimate_id ON estimate_items(estimate_id);
-
--- billing_confirmations インデックス
-CREATE INDEX idx_billing_confirmations_status ON billing_confirmations(status);
 
 -- -----------------------------------------------------------------------------
 -- 4.5 全文検索インデックス（pg_trgm GIN）
@@ -2488,9 +2493,9 @@ COMMENT ON TABLE lstep_migration_progress             IS '既存飼い主デー�
 -- ------------------------------------
 CREATE TABLE audit_logs (
     id           BIGSERIAL    PRIMARY KEY,
-    clinic_id    bigint       NULL,
-    actor_id     bigint       NULL,
-    actor_type   varchar(30)  NOT NULL,
+    clinic_id    bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    actor_id     bigint       NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    actor_type   varchar(30)  NOT NULL CHECK (actor_type IN ('staff', 'system')),
     action       varchar(50)  NOT NULL,
     resource     varchar(50)  NOT NULL,
     resource_id  bigint       NULL,
@@ -2499,7 +2504,13 @@ CREATE TABLE audit_logs (
     ip_address   inet         NULL,
     user_agent   text         NULL,
     metadata     jsonb        NULL,                  -- ext-005: 追加コンテキスト情報
-    created_at   timestamptz  NOT NULL DEFAULT now()
+    created_at   timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT audit_logs_actor_consistency_check
+        CHECK (
+            (actor_type = 'system' AND actor_id IS NULL)
+            OR
+            (actor_type = 'staff' AND actor_id IS NOT NULL)
+        )
 );
 
 CREATE INDEX idx_audit_logs_clinic   ON audit_logs(clinic_id, created_at DESC);
@@ -2839,3 +2850,263 @@ CREATE INDEX idx_campaign_target_items_merchandise   ON campaign_target_items(me
 COMMENT ON TABLE campaigns IS '#81: 割引キャンペーンマスタ(期間・割引種別/値)';
 COMMENT ON TABLE campaign_target_categories IS '#81: キャンペーン対象カテゴリ(Q1=D カテゴリ単位指定)';
 COMMENT ON TABLE campaign_target_items IS '#81: キャンペーン対象商品(Q1=D 個別商品指定)';
+
+-- =============================================================================
+-- 6. Row Level Security (新 005 統合 / #93)
+-- =============================================================================
+-- この定義は RLS を ENABLE するが FORCE はしない。
+-- 理由:
+--   - 現状のアプリケーション接続ユーザーは migration 実行ユーザーと同一で、テーブル owner の可能性が高い。
+--   - FORCE RLS には全 repository 呼び出しを同一 transaction/context DB に統一し、
+--     SET LOCAL app.current_clinic_ids を必ず流す改修が先に必要。
+--   - ここでは DB 直接アクセス用の非 owner ロールに対して RLS を効かせる、破壊性の低い baseline を構築する。
+--
+-- 運用時は対象 DB ロールに以下のような設定を付与する:
+--   ALTER ROLE clinic_reader_1 SET app.current_clinic_ids = '1';
+--   ALTER ROLE clinic_reader_all SET app.bypass_rls = 'on';
+
+CREATE SCHEMA IF NOT EXISTS app_private;
+
+CREATE OR REPLACE FUNCTION app_private.current_clinic_ids()
+RETURNS bigint[]
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT COALESCE(
+        string_to_array(NULLIF(current_setting('app.current_clinic_ids', true), ''), ',')::bigint[],
+        ARRAY[]::bigint[]
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION app_private.bypass_rls()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT COALESCE(NULLIF(current_setting('app.bypass_rls', true), '')::boolean, false);
+$$;
+
+CREATE OR REPLACE FUNCTION app_private.has_clinic_access(row_clinic_id bigint)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT app_private.bypass_rls()
+        OR row_clinic_id = ANY(app_private.current_clinic_ids());
+$$;
+
+CREATE OR REPLACE FUNCTION app_private.apply_rls_policy(
+    target_table regclass,
+    policy_name text,
+    using_expr text,
+    check_expr text
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', target_table);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %s', policy_name, target_table);
+    EXECUTE format(
+        'CREATE POLICY %I ON %s FOR ALL USING (%s) WITH CHECK (%s)',
+        policy_name,
+        target_table,
+        using_expr,
+        check_expr
+    );
+END;
+$$;
+
+GRANT USAGE ON SCHEMA app_private TO PUBLIC;
+GRANT EXECUTE ON FUNCTION app_private.current_clinic_ids() TO PUBLIC;
+GRANT EXECUTE ON FUNCTION app_private.bypass_rls() TO PUBLIC;
+GRANT EXECUTE ON FUNCTION app_private.has_clinic_access(bigint) TO PUBLIC;
+REVOKE ALL ON FUNCTION app_private.apply_rls_policy(regclass, text, text, text) FROM PUBLIC;
+
+-- clinic_id を直接持つ public テーブルは同一 policy で保護する。
+DO $$
+DECLARE
+    target_table regclass;
+BEGIN
+    FOR target_table IN
+        SELECT c.oid::regclass
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = c.oid
+        WHERE n.nspname = 'public'
+          AND c.relkind = 'r'
+          AND a.attname = 'clinic_id'
+          AND NOT a.attisdropped
+        ORDER BY c.relname
+    LOOP
+        PERFORM app_private.apply_rls_policy(
+            target_table,
+            'tenant_clinic_id_isolation',
+            'app_private.has_clinic_access(clinic_id)',
+            'app_private.has_clinic_access(clinic_id)'
+        );
+    END LOOP;
+END;
+$$;
+
+-- clinics は自身の id を tenant key として扱う。
+SELECT app_private.apply_rls_policy(
+    'clinics',
+    'tenant_clinics_isolation',
+    'app_private.has_clinic_access(id)',
+    'app_private.has_clinic_access(id)'
+);
+
+-- accounts は staffs.account_id 経由で tenant 境界を判定する。
+SELECT app_private.apply_rls_policy(
+    'accounts',
+    'tenant_accounts_isolation',
+    'EXISTS (SELECT 1 FROM staffs s WHERE s.account_id = accounts.id AND app_private.has_clinic_access(s.clinic_id))',
+    'EXISTS (SELECT 1 FROM staffs s WHERE s.account_id = accounts.id AND app_private.has_clinic_access(s.clinic_id))'
+);
+
+-- clinic_id を直接持たない子テーブルは、親テーブルの clinic_id 経由で保護する。
+SELECT app_private.apply_rls_policy(
+    'exam_type_fields',
+    'tenant_exam_type_fields_isolation',
+    'EXISTS (SELECT 1 FROM exam_types et WHERE et.id = exam_type_fields.exam_type_id AND app_private.has_clinic_access(et.clinic_id))',
+    'EXISTS (SELECT 1 FROM exam_types et WHERE et.id = exam_type_fields.exam_type_id AND app_private.has_clinic_access(et.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'permission_group_rules',
+    'tenant_permission_group_rules_isolation',
+    'EXISTS (SELECT 1 FROM permission_groups pg WHERE pg.id = permission_group_rules.group_id AND app_private.has_clinic_access(pg.clinic_id))',
+    'EXISTS (SELECT 1 FROM permission_groups pg WHERE pg.id = permission_group_rules.group_id AND app_private.has_clinic_access(pg.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'staff_permission_groups',
+    'tenant_staff_permission_groups_isolation',
+    'EXISTS (SELECT 1 FROM permission_groups pg WHERE pg.id = staff_permission_groups.group_id AND app_private.has_clinic_access(pg.clinic_id))',
+    'EXISTS (SELECT 1 FROM permission_groups pg WHERE pg.id = staff_permission_groups.group_id AND app_private.has_clinic_access(pg.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'appointment_trimming_options',
+    'tenant_appointment_trimming_options_isolation',
+    'EXISTS (SELECT 1 FROM appointments a WHERE a.id = appointment_trimming_options.appointment_id AND app_private.has_clinic_access(a.clinic_id))',
+    'EXISTS (SELECT 1 FROM appointments a WHERE a.id = appointment_trimming_options.appointment_id AND app_private.has_clinic_access(a.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'inquiries',
+    'tenant_inquiries_isolation',
+    'EXISTS (SELECT 1 FROM medical_records mr WHERE mr.id = inquiries.medical_record_id AND app_private.has_clinic_access(mr.clinic_id))',
+    'EXISTS (SELECT 1 FROM medical_records mr WHERE mr.id = inquiries.medical_record_id AND app_private.has_clinic_access(mr.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'clinical_plans',
+    'tenant_clinical_plans_isolation',
+    'EXISTS (SELECT 1 FROM medical_records mr WHERE mr.id = clinical_plans.medical_record_id AND app_private.has_clinic_access(mr.clinic_id))',
+    'EXISTS (SELECT 1 FROM medical_records mr WHERE mr.id = clinical_plans.medical_record_id AND app_private.has_clinic_access(mr.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'treatments',
+    'tenant_treatments_isolation',
+    'EXISTS (SELECT 1 FROM medical_records mr WHERE mr.id = treatments.medical_record_id AND app_private.has_clinic_access(mr.clinic_id))',
+    'EXISTS (SELECT 1 FROM medical_records mr WHERE mr.id = treatments.medical_record_id AND app_private.has_clinic_access(mr.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'medical_record_images',
+    'tenant_medical_record_images_isolation',
+    'EXISTS (SELECT 1 FROM medical_records mr WHERE mr.id = medical_record_images.medical_record_id AND app_private.has_clinic_access(mr.clinic_id))',
+    'EXISTS (SELECT 1 FROM medical_records mr WHERE mr.id = medical_record_images.medical_record_id AND app_private.has_clinic_access(mr.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'billing_confirmations',
+    'tenant_billing_confirmations_isolation',
+    'EXISTS (SELECT 1 FROM medical_records mr WHERE mr.id = billing_confirmations.medical_record_id AND app_private.has_clinic_access(mr.clinic_id))',
+    'EXISTS (SELECT 1 FROM medical_records mr WHERE mr.id = billing_confirmations.medical_record_id AND app_private.has_clinic_access(mr.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'exam_results',
+    'tenant_exam_results_isolation',
+    'EXISTS (SELECT 1 FROM exams e WHERE e.id = exam_results.exam_id AND app_private.has_clinic_access(e.clinic_id))',
+    'EXISTS (SELECT 1 FROM exams e WHERE e.id = exam_results.exam_id AND app_private.has_clinic_access(e.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'care_plan_items',
+    'tenant_care_plan_items_isolation',
+    'EXISTS (SELECT 1 FROM hospitalizations h WHERE h.id = care_plan_items.hospitalization_id AND app_private.has_clinic_access(h.clinic_id))',
+    'EXISTS (SELECT 1 FROM hospitalizations h WHERE h.id = care_plan_items.hospitalization_id AND app_private.has_clinic_access(h.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'estimate_items',
+    'tenant_estimate_items_isolation',
+    'EXISTS (SELECT 1 FROM estimates e WHERE e.id = estimate_items.estimate_id AND app_private.has_clinic_access(e.clinic_id))',
+    'EXISTS (SELECT 1 FROM estimates e WHERE e.id = estimate_items.estimate_id AND app_private.has_clinic_access(e.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'staff_notes',
+    'tenant_staff_notes_isolation',
+    'EXISTS (SELECT 1 FROM daily_records dr WHERE dr.id = staff_notes.daily_record_id AND app_private.has_clinic_access(dr.clinic_id))',
+    'EXISTS (SELECT 1 FROM daily_records dr WHERE dr.id = staff_notes.daily_record_id AND app_private.has_clinic_access(dr.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'billing_items',
+    'tenant_billing_items_isolation',
+    'EXISTS (SELECT 1 FROM billings b WHERE b.id = billing_items.billing_id AND app_private.has_clinic_access(b.clinic_id))',
+    'EXISTS (SELECT 1 FROM billings b WHERE b.id = billing_items.billing_id AND app_private.has_clinic_access(b.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'payments',
+    'tenant_payments_isolation',
+    'EXISTS (SELECT 1 FROM billings b WHERE b.id = payments.billing_id AND app_private.has_clinic_access(b.clinic_id))',
+    'EXISTS (SELECT 1 FROM billings b WHERE b.id = payments.billing_id AND app_private.has_clinic_access(b.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'staff_reservation_exclusions',
+    'tenant_staff_reservation_exclusions_isolation',
+    'EXISTS (SELECT 1 FROM reservation_types rt WHERE rt.id = staff_reservation_exclusions.reservation_type_id AND app_private.has_clinic_access(rt.clinic_id))',
+    'EXISTS (SELECT 1 FROM reservation_types rt WHERE rt.id = staff_reservation_exclusions.reservation_type_id AND app_private.has_clinic_access(rt.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'shift_entry_breaks',
+    'tenant_shift_entry_breaks_isolation',
+    'EXISTS (SELECT 1 FROM shift_entries se WHERE se.id = shift_entry_breaks.shift_entry_id AND app_private.has_clinic_access(se.clinic_id))',
+    'EXISTS (SELECT 1 FROM shift_entries se WHERE se.id = shift_entry_breaks.shift_entry_id AND app_private.has_clinic_access(se.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'shift_template_breaks',
+    'tenant_shift_template_breaks_isolation',
+    'EXISTS (SELECT 1 FROM shift_templates st WHERE st.id = shift_template_breaks.shift_template_id AND app_private.has_clinic_access(st.clinic_id))',
+    'EXISTS (SELECT 1 FROM shift_templates st WHERE st.id = shift_template_breaks.shift_template_id AND app_private.has_clinic_access(st.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'campaign_target_categories',
+    'tenant_campaign_target_categories_isolation',
+    'EXISTS (SELECT 1 FROM campaigns c WHERE c.id = campaign_target_categories.campaign_id AND app_private.has_clinic_access(c.clinic_id))',
+    'EXISTS (SELECT 1 FROM campaigns c WHERE c.id = campaign_target_categories.campaign_id AND app_private.has_clinic_access(c.clinic_id))'
+);
+
+SELECT app_private.apply_rls_policy(
+    'campaign_target_items',
+    'tenant_campaign_target_items_isolation',
+    'EXISTS (SELECT 1 FROM campaigns c WHERE c.id = campaign_target_items.campaign_id AND app_private.has_clinic_access(c.clinic_id))',
+    'EXISTS (SELECT 1 FROM campaigns c WHERE c.id = campaign_target_items.campaign_id AND app_private.has_clinic_access(c.clinic_id))'
+);
+
+-- 公開/システム共通/認証補助テーブルは clinic_id を持たないため RLS 対象外:
+-- companies, animal_species, token_blacklist,
+-- lstep_auto_managed_prefixes, lstep_condition_tag_mappings, lstep_send_purpose_tag_prefixes,
+-- password_reset_tokens, manual_articles, manual_article_versions

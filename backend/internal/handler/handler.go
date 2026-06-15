@@ -264,14 +264,16 @@ func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
 	accountings.GET("", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListAccountings)
 	// BUG-370: 月末未納者一覧
 	accountings.GET("/unpaid", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListUnpaidBillings)
+	// #114: 月次未納繰越集計
+	accountings.GET("/unpaid-monthly", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetUnpaidMonthlySummary)
 	// BUG-368: レジ締め日次集計
 	accountings.GET("/daily-summary", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetDailySummary)
 	accountings.GET("/:id", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetAccounting)
 	accountings.GET("/:id/refunds", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListRefunds)
 	accountings.POST("", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateAccounting)
 	accountings.PATCH("/:id", h.RequirePermission(string(model.ResourceAccounting), "edit"), h.UpdateAccounting)
-	// BUG-371: DELETE は廃止し論理削除 (POST /:id/cancel) に統合。status=cancelled に遷移させる。
-	accountings.POST("/:id/cancel", h.RequirePermission(string(model.ResourceAccounting), "delete"), h.CancelAccounting)
+	// BUG-371 / #118: DELETE は廃止し論理削除 (POST /:id/cancel) に統合。専用権限 accounting-cancel を使用する。
+	accountings.POST("/:id/cancel", h.RequirePermission(string(model.ResourceAccountingCancel), "edit"), h.CancelAccounting)
 	accountings.POST("/:id/refunds", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateRefund)
 }
 

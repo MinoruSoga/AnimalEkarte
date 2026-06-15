@@ -1,0 +1,137 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, staging]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TZ: Asia/Tokyo
+
+jobs:
+  # ──────────────────────────────────────────────
+  # 変更検出: frontend/backend どちらかが変わった時のみ実行
+  # ──────────────────────────────────────────────
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      run_e2e: ${{ steps.filter.outputs.e2e }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Path filter
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            e2e:
+              - 'frontend/**'
+              - 'backend/**'
+              - 'docker-compose.yml'
+              - 'backend/migrations/**'
+
+  # ──────────────────────────────────────────────
+  # Playwright E2E: full Docker Compose stack + Playwright Docker image
+  # PR to main はスキップ（軽量ゲートにする）。push to main と PR to staging のみ実行。
+  # ──────────────────────────────────────────────
+  e2e:
+    name: Playwright E2E
+    needs: changes
+    if: |
+      needs.changes.outputs.run_e2e == 'true' &&
+      (github.event_name != 'pull_request' || github.base_ref != 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Create CI environment file
+        # .env.local はリポジトリに含まれない。CI 用の最小限の値をインラインで生成する。
+        # JWT_SECRET はデフォルト "dev-secret-change-me" が起動ブロック対象のため別値を使用。
+        # GIN_MODE=debug によりリリースモード限定の INTEGRATION_ENCRYPTION_KEY 検証を回避。
+        # DB_* は $GITHUB_ENV にも書き出す: docker-compose.yml の ${DB_USER} 等の変数補間は
+        # env_file ではなくシェル環境変数 / .env ファイルを参照するため、別途エクスポートが必要。
+        run: |
+          cat > .env.local << 'EOF'
+          DB_USER=ekarte_user
+          DB_PASSWORD=ekarte_password
+          DB_NAME=ekarte_db
+          DB_SSL_MODE=disable
+          JWT_SECRET=ci-e2e-jwt-secret-for-testing-only
+          GIN_MODE=debug
+          EOF
+          echo "DB_USER=ekarte_user" >> $GITHUB_ENV
+          echo "DB_PASSWORD=ekarte_password" >> $GITHUB_ENV
+          echo "DB_NAME=ekarte_db" >> $GITHUB_ENV
+
+      - name: Start app stack (db + backend + frontend)
+        run: docker compose up -d db backend frontend
+
+      - name: Wait for backend health endpoint (up to 5 min)
+        run: |
+          echo "Waiting for backend /health..."
+          timeout 300 bash -c '
+            until curl -fsS http://localhost:8080/health > /dev/null 2>&1; do
+              printf "."
+              sleep 10
+            done
+          ' || (
+            echo ""
+            echo "Backend did not become healthy in time. Dumping logs:"
+            docker compose logs --tail=100 backend
+            exit 1
+          )
+          echo " backend ready"
+
+      - name: Wait for frontend (up to 90s)
+        run: |
+          echo "Waiting for frontend :3003..."
+          timeout 90 bash -c '
+            until curl -fsS -o /dev/null http://localhost:3003/ 2>&1; do
+              printf "."
+              sleep 5
+            done
+          ' || (
+            echo ""
+            echo "Frontend did not become ready. Dumping logs:"
+            docker compose logs --tail=50 frontend
+            exit 1
+          )
+          echo " frontend ready"
+
+      - name: Run Playwright E2E
+        working-directory: frontend
+        run: ./scripts/run-e2e.sh
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          echo "=== db logs ==="
+          docker compose logs --tail=50 db
+          echo "=== backend logs ==="
+          docker compose logs --tail=200 backend
+          echo "=== frontend logs ==="
+          docker compose logs --tail=100 frontend
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Stop app stack
+        if: always()
+        run: docker compose down -v

@@ -30,9 +30,11 @@ type AccountingRepository interface {
 	// CompleteAccountingAppointments は会計完了に伴い対象 appointment を完了へ進める。
 	// (1) 同日同一ペットの会計待ち(accounting)予約、(2) billing.medical_record_id 経由の診察 appointment(status 非依存)。
 	CompleteAccountingAppointments(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
-	// BUG-370: 月末未納者一覧
-	FindUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
-	FindUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
+	// BUG-370 / #120: 未納者一覧（startDate〜endDate の BETWEEN）
+	FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
+	FindUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
+	// #114: 月次未納繰越集計（firstDay=YYYY-MM-01, lastDay=YYYY-MM-DD 月末）
+	FindMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error)
 	// BUG-368: レジ締め日次集計
 	GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error)
 	// FEAT-368: 集計・締め機能

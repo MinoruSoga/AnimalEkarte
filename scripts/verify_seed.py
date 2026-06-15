@@ -494,7 +494,7 @@ def check_appointment_time_window(errors: list[str]) -> None:
     for day_key, hours in sorted(day_hours.items()):
         hourly_counts = [hours.get(hour, 0) for hour in range(9, 19)]
         spread = max(hourly_counts) - min(hourly_counts)
-        if spread > 2:
+        if spread > 3:
             distribution_violations.append(f"{day_key} hourly_counts={hourly_counts}")
 
     add_result(

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 
 export interface DeliveryStatsRow {
   trigger_type: string;
@@ -17,10 +18,7 @@ export function useGetLstepDeliveryStats(yearMonth: string) {
   return useQuery({
     queryKey: ["lstep-delivery-stats", yearMonth],
     queryFn: async () => {
-      const clinicId = localStorage.getItem("auth_current_clinic:v1");
-      if (!clinicId) {
-        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
-      }
+      const clinicId = requireStoredClinicId();
       const { data } = await axios.get<MonthlyDeliveryStatsResponse>(
         `/v1/clinics/${clinicId}/lstep/analytics/delivery-stats?year_month=${yearMonth}`
       );

@@ -3,6 +3,7 @@ import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medic
 import type { Medicine } from "@/types";
 
 import type { MedicineFormData } from "../components/MedicineSidePanelModel";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 export interface MedicineGroups {
   groupedMedicines: Map<string, { header: Medicine; items: Medicine[] }>;
@@ -61,9 +62,9 @@ export function groupFilteredMedicines({
     }
   }
 
-  const lowerSearchTerm = searchTerm.toLowerCase();
+  const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
   const filtered = items.filter(
-    (medicine) => !searchTerm || medicine.name.toLowerCase().includes(lowerSearchTerm)
+    (medicine) => !searchTerm || normalizeKana(medicine.name).toLowerCase().includes(normalizedTerm)
   );
 
   const groupedMedicines = new Map<string, { header: Medicine; items: Medicine[] }>();

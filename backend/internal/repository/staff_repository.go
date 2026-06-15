@@ -20,6 +20,7 @@ type StaffRepository interface {
 	// Create はスタッフを作成する。
 	Create(ctx context.Context, staff *model.Staff) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdatePrimaryClinicID(ctx context.Context, id, clinicID uint64) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error)
@@ -39,8 +40,6 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		// staffs テーブルに clinic_id は存在しない。
-		// staff_clinic_assignments を経由して clinic_id でフィルタ
 		q := dbOrTx(ctx, r.db).Model(&model.Staff{}).
 			Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id"+
 				" AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL", clinicID).
@@ -96,8 +95,6 @@ func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error 
 }
 
 func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	// staffs テーブルに clinic_id は存在しない。
-	// staff_clinic_assignments を経由して clinic_id でフィルタ
 	result := dbOrTx(ctx, r.db).
 		Model(&model.Staff{}).
 		Where("staffs.id = ?", id).
@@ -112,9 +109,22 @@ func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, field
 	return nil
 }
 
+func (r *staffRepository) UpdatePrimaryClinicID(ctx context.Context, id, clinicID uint64) error {
+	result := dbOrTx(ctx, r.db).
+		Model(&model.Staff{}).
+		Where("staffs.id = ? AND staffs.deleted_at IS NULL", id).
+		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)", clinicID).
+		Update("clinic_id", clinicID)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "staff", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
 func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	// staffs テーブルに clinic_id は存在しない。
-	// staff_clinic_assignments を経由して clinic_id でフィルタ
 	result := dbOrTx(ctx, r.db).
 		Model(&model.Staff{}).
 		Where("id = ?", id).
@@ -130,8 +140,6 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	// staffs テーブルに clinic_id カラムは存在しない。
-	// staff_clinic_assignments を経由して clinic_id でフィルタする。
 	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.Staff{}).
@@ -154,7 +162,7 @@ func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []ui
 
 func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error) {
 	// clinic_id カラムを直接持つテーブルのみ汎用ループで処理。
-	// payments / vital_records は clinic_id を持たないため後述の特殊クエリで対応。
+	// payments は clinic_id を持たないため後述の特殊クエリで対応。
 	// exams.entered_by カラムは存在しないため除外。
 	checks := []struct {
 		table   string
@@ -170,6 +178,7 @@ func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, 
 		{table: "shift_entries", column: "staff_id", label: "シフト", softDel: false},
 		{table: "billing_refunds", column: "refunded_by", label: "返金", softDel: false},
 		{table: "cash_register_closes", column: "closed_by", label: "レジ締め", softDel: false},
+		{table: "vital_records", column: "staff_id", label: "バイタル記録", softDel: true},
 	}
 
 	dependencies := make([]StaffDependencyCount, 0, len(checks)+2)
@@ -202,24 +211,6 @@ func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, 
 	}
 	if paymentCount > 0 {
 		dependencies = append(dependencies, StaffDependencyCount{Label: "支払い", Count: paymentCount})
-	}
-
-	// vital_records は clinic_id を持たず、staff カラムは staff_id。
-	// medical_records または daily_records 経由で clinic_id をフィルタする。
-	var vitalCount int64
-	if err := dbOrTx(ctx, r.db).
-		Table("vital_records").
-		Where("vital_records.staff_id = ? AND vital_records.deleted_at IS NULL", staffID).
-		Where(
-			`(EXISTS (SELECT 1 FROM medical_records WHERE medical_records.id = vital_records.medical_record_id AND medical_records.clinic_id = ?)
-			OR EXISTS (SELECT 1 FROM daily_records WHERE daily_records.id = vital_records.daily_record_id AND daily_records.clinic_id = ?))`,
-			clinicID, clinicID,
-		).
-		Count(&vitalCount).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "vital_records", fmt.Sprintf("staff_id=%d", staffID))
-	}
-	if vitalCount > 0 {
-		dependencies = append(dependencies, StaffDependencyCount{Label: "バイタル記録", Count: vitalCount})
 	}
 
 	return dependencies, nil

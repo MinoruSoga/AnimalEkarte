@@ -70,6 +70,7 @@ export const RESERVATION_STATUS_VALUES = [
   "accounting",
   "completed",
   "cancelled",
+  "no_show",
 ] as const;
 
 export type ReservationStatus = (typeof RESERVATION_STATUS_VALUES)[number];
@@ -82,6 +83,7 @@ export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
   accounting: "会計待ち",
   completed: "完了",
   cancelled: "キャンセル",
+  no_show: "未来院",
 };
 
 

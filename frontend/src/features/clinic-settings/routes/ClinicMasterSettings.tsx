@@ -6,6 +6,7 @@ import { NavigationBlocker } from "@/components/shared/NavigationBlocker/Navigat
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { handleApiError } from "@/lib/handle-api-error";
+import { normalizeKana } from "@/lib/normalize-kana";
 import { ResourceHospitalSettings } from "@/types/generated/models";
 import {
   ClinicDeleteDialog,
@@ -108,10 +109,10 @@ export function ClinicMasterSettings() {
   const filteredItems = useMemo(() => {
     const clinics = rawClinics ?? [];
     if (!deferredSearch) return clinics;
-    const lower = deferredSearch.toLowerCase();
+    const lower = normalizeKana(deferredSearch).toLowerCase();
     return clinics.filter(
       (clinic) =>
-        clinic.name.toLowerCase().includes(lower) ||
+        normalizeKana(clinic.name).toLowerCase().includes(lower) ||
         clinic.phoneNumber.toLowerCase().includes(lower) ||
         clinic.email.toLowerCase().includes(lower),
     );

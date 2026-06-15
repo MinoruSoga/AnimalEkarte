@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
 import { useGetLstepTagOwners } from "../api/get-lstep-tag-owners";
@@ -43,10 +44,7 @@ function buildOwnersCsv(
 }
 
 async function fetchAllOwnersForCsv(tagName: string, ownerCount: number): Promise<LstepTagOwner[]> {
-  const clinicId = localStorage.getItem("auth_current_clinic:v1");
-  if (!clinicId) {
-    throw new Error("クリニックが選択されていません。ページをリロードしてください。");
-  }
+  const clinicId = requireStoredClinicId();
   const perPage = 100;
   const totalPages = Math.max(1, Math.ceil(ownerCount / perPage));
   const owners: LstepTagOwner[] = [];

@@ -35,6 +35,7 @@ interface UseAccountingCompletionActionArgs {
   queryClient: QueryClient;
   navigate: NavigateFunction;
   setCompletedPayment: Dispatch<SetStateAction<PaymentInfo | null>>;
+  postCloseReason?: string; // #115: 締め後編集理由
 }
 
 export function useAccountingCompletionAction({
@@ -48,6 +49,7 @@ export function useAccountingCompletionAction({
   queryClient,
   navigate,
   setCompletedPayment,
+  postCloseReason,
 }: UseAccountingCompletionActionArgs) {
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
   const editConfirmedRef = useRef(false);
@@ -142,6 +144,7 @@ export function useAccountingCompletionAction({
             payment_method: repMethod,
             payment_splits: builtSplits,
             completed_at: jstNowISOString(),
+            post_close_reason: postCloseReason || undefined,
           });
           queryClient.invalidateQueries({ queryKey: ["accountings"] });
           toast.success("会計を登録・完了しました");
@@ -160,6 +163,7 @@ export function useAccountingCompletionAction({
             payment_method: repMethod,
             payment_splits: builtSplits,
             completed_at: jstNowISOString(),
+            post_close_reason: postCloseReason || undefined,
           });
           setCompletedPayment(paymentInfo);
           queryClient.invalidateQueries({ queryKey: ["accountings"] });

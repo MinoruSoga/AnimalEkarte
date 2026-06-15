@@ -1,7 +1,7 @@
 # デプロイメント・リリース準備チェックリスト (Deployment Checklist)
 
 > **Animal Ekarte**: ステージングおよび本番環境への安全な移行手順
-> **最新更新**: 2026-05-27 | **ステータス**: Production Ready (95 Tables Sync)
+> **最新更新**: 2026-06-12 | **ステータス**: Production Ready (103 Tables Sync)
 
 ---
 
@@ -30,7 +30,7 @@
   - [ ] `INTEGRATION_ENCRYPTION_KEY`: 病院別 API キー保護用の AES-256 キー。
   - [ ] `S3_SHARED_BUCKET`: 共有ファイル（LINE連携用）のバケット準備。
 - [ ] **DB マイグレーションの整合性**
-  - [ ] 全 95 テーブルのスキーマが、ローカルの `001_init.sql` と完全一致しているか。
+  - [ ] 全 103 テーブルのスキーマが、ローカルの `001_init.sql` と完全一致しているか。
   - [ ] 初期マスタデータ（`002_seed_master.sql`）の投入準備完了。
 
 ---

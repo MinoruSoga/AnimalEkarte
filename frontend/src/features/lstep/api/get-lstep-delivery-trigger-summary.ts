@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 
 export interface DeliveryTriggerSummaryResponse {
   scheduled: number;
@@ -19,10 +20,7 @@ export function useGetLstepDeliveryTriggerSummary(
   return useQuery({
     queryKey: ["lstep-delivery-trigger-summary", from, to, triggerType ?? ""],
     queryFn: async () => {
-      const clinicId = localStorage.getItem("auth_current_clinic:v1");
-      if (!clinicId) {
-        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
-      }
+      const clinicId = requireStoredClinicId();
       const params = new URLSearchParams({ from, to });
       if (triggerType) params.set("trigger_type", triggerType);
       const { data } = await axios.get<DeliveryTriggerSummaryResponse>(

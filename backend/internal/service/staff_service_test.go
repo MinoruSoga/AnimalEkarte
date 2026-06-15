@@ -20,6 +20,7 @@ type mockStaffRepository struct {
 	findByAccountIDFn   func(ctx context.Context, accountID uint64) (*model.Staff, error)
 	createFn            func(ctx context.Context, staff *model.Staff) error
 	updateFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updatePrimaryFn     func(ctx context.Context, id, clinicID uint64) error
 	deleteFn            func(ctx context.Context, clinicID, id uint64) error
 	reorderErr          error
 	countBlockingRefsFn func(ctx context.Context, clinicID, staffID uint64) ([]repository.StaffDependencyCount, error)
@@ -46,6 +47,13 @@ func (m *mockStaffRepository) Create(ctx context.Context, staff *model.Staff) er
 
 func (m *mockStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	return m.updateFn(ctx, clinicID, id, fields)
+}
+
+func (m *mockStaffRepository) UpdatePrimaryClinicID(ctx context.Context, id, clinicID uint64) error {
+	if m.updatePrimaryFn != nil {
+		return m.updatePrimaryFn(ctx, id, clinicID)
+	}
+	return nil
 }
 
 func (m *mockStaffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -443,7 +451,8 @@ func TestStaffService_Create_Success(t *testing.T) {
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		Name: "新規 スタッフ",
+		ClinicID: 1,
+		Name:     "新規 スタッフ",
 	}
 
 	staff, err := svc.Create(context.Background(), input)
@@ -451,6 +460,7 @@ func TestStaffService_Create_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, staff)
 	assert.Equal(t, "新規 スタッフ", staff.Name)
+	assert.Equal(t, uint64(1), staff.ClinicID)
 	assert.True(t, staff.IsActive)
 }
 
@@ -463,13 +473,30 @@ func TestStaffService_Create_RepositoryError(t *testing.T) {
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		Name: "エラー スタッフ",
+		ClinicID: 1,
+		Name:     "エラー スタッフ",
 	}
 
 	staff, err := svc.Create(context.Background(), input)
 
 	assert.Error(t, err)
 	assert.Nil(t, staff)
+}
+
+func TestStaffService_Create_RequiresClinicID(t *testing.T) {
+	repo := &mockStaffRepository{
+		createFn: func(_ context.Context, _ *model.Staff) error {
+			t.Fatal("repository must not be called when clinic_id is missing")
+			return nil
+		},
+	}
+	svc := newTestStaffService(repo)
+
+	staff, err := svc.Create(context.Background(), &CreateStaffInput{Name: "clinic なし"})
+
+	assert.Error(t, err)
+	assert.Nil(t, staff)
+	assert.True(t, apperrors.IsInvalidInput(err))
 }
 
 func TestStaffService_Create_DuplicateName(t *testing.T) {
@@ -481,7 +508,8 @@ func TestStaffService_Create_DuplicateName(t *testing.T) {
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		Name: "重複 スタッフ",
+		ClinicID: 1,
+		Name:     "重複 スタッフ",
 	}
 
 	staff, err := svc.Create(context.Background(), input)
@@ -489,6 +517,49 @@ func TestStaffService_Create_DuplicateName(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, staff)
 	assert.True(t, apperrors.IsAlreadyExists(err))
+}
+
+func TestStaffService_SetClinicAssignments_UpdatesPrimaryClinicID(t *testing.T) {
+	var created []model.StaffClinicAssignment
+	var primaryClinicID uint64
+	repo := &mockStaffRepository{
+		updatePrimaryFn: func(_ context.Context, id, clinicID uint64) error {
+			assert.Equal(t, uint64(10), id)
+			primaryClinicID = clinicID
+			return nil
+		},
+	}
+	assignmentRepo := &mockAssignmentForStaff{
+		createFn: func(_ context.Context, a *model.StaffClinicAssignment) error {
+			created = append(created, *a)
+			return nil
+		},
+	}
+	svc := NewStaffService(repo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+
+	err := svc.SetClinicAssignments(context.Background(), 10, []uint64{2, 4})
+
+	assert.NoError(t, err)
+	if assert.Len(t, created, 2) {
+		assert.True(t, created[0].IsMain)
+		assert.False(t, created[1].IsMain)
+	}
+	assert.Equal(t, uint64(2), primaryClinicID)
+}
+
+func TestStaffService_SetClinicAssignments_RequiresClinicIDs(t *testing.T) {
+	repo := &mockStaffRepository{
+		updatePrimaryFn: func(_ context.Context, _, _ uint64) error {
+			t.Fatal("repository must not be called when clinic_ids is empty")
+			return nil
+		},
+	}
+	svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+
+	err := svc.SetClinicAssignments(context.Background(), 10, nil)
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
 }
 
 func TestStaffService_Update(t *testing.T) {

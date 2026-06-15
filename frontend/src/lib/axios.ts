@@ -1,4 +1,5 @@
 import Axios, { type InternalAxiosRequestConfig, type AxiosError } from "axios";
+import { getStoredClinicId } from "@/lib/current-clinic";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
@@ -60,13 +61,9 @@ function requestInterceptor(config: InternalAxiosRequestConfig) {
 
   // クリニック切替: localStorage の選択クリニック ID をヘッダーで送信
   // バックエンドの auth ミドルウェアが X-Clinic-ID を優先して clinic_id コンテキストを上書きする
-  try {
-    const clinicId = localStorage.getItem("auth_current_clinic:v1");
-    if (clinicId) {
-      config.headers["X-Clinic-ID"] = clinicId;
-    }
-  } catch {
-    /* SSR / localStorage 無効環境では無視 */
+  const clinicId = getStoredClinicId();
+  if (clinicId !== null) {
+    config.headers["X-Clinic-ID"] = clinicId;
   }
 
   // BUG-067: POST/PATCH/PUT のリクエストボディから NULL バイトを除去

@@ -95,3 +95,6 @@ tables.txt
 .codegraph/
 .env.staging
 .env.local
+
+# Trash directory
+trash/

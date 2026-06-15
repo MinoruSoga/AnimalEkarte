@@ -209,6 +209,49 @@ func TestOwnerService_List(t *testing.T) {
 	}
 }
 
+// TestOwnerService_List_KanaSearch はひらがな・カタカナ検索語をリポジトリにそのまま渡すことを保証する。
+// 正規化はリポジトリ層 (NormalizeKana + translate SQL) が担うため、サービスは変換しない。
+func TestOwnerService_List_KanaSearch(t *testing.T) {
+	tests := []struct {
+		name          string
+		searchInput   string
+		wantSearchArg string // repository に渡るべき search 引数
+		repoOwners    []model.Owner
+	}{
+		{
+			name:          "ひらがな検索語をそのまま repository に渡す",
+			searchInput:   "ぴ",
+			wantSearchArg: "ぴ",
+			repoOwners:    []model.Owner{{ID: 1, ClinicID: 1, Name: "田中", NameKana: "ピーター"}},
+		},
+		{
+			name:          "カタカナ検索語をそのまま repository に渡す",
+			searchInput:   "ピーター",
+			wantSearchArg: "ピーター",
+			repoOwners:    []model.Owner{{ID: 1, ClinicID: 1, Name: "田中", NameKana: "ピーター"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedSearch string
+			repo := &mockOwnerRepository{
+				findAllFn: func(_ context.Context, _ []uint64, _, _ int, search string) ([]model.Owner, int64, error) {
+					capturedSearch = search
+					return tt.repoOwners, int64(len(tt.repoOwners)), nil
+				},
+			}
+			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+
+			owners, _, err := svc.List(context.Background(), []uint64{1}, 1, 20, tt.searchInput)
+
+			assert.NoError(t, err)
+			assert.Len(t, owners, len(tt.repoOwners))
+			assert.Equal(t, tt.wantSearchArg, capturedSearch, "service はカナ変換せずそのまま repository に渡す")
+		})
+	}
+}
+
 func TestOwnerService_GetByID(t *testing.T) {
 	tests := []struct {
 		name      string

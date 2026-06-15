@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 
 export interface VisitConversionRow {
   trigger_type: string;
@@ -22,10 +23,7 @@ export function useGetLstepVisitConversion(yearMonth: string, days = 30) {
   return useQuery({
     queryKey: ["lstep-visit-conversion", yearMonth, days],
     queryFn: async () => {
-      const clinicId = localStorage.getItem("auth_current_clinic:v1");
-      if (!clinicId) {
-        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
-      }
+      const clinicId = requireStoredClinicId();
       const { data } = await axios.get<VisitConversionSummaryResponse>(
         `/v1/clinics/${clinicId}/lstep/analytics/visit-conversion?year_month=${yearMonth}&days=${days}`
       );

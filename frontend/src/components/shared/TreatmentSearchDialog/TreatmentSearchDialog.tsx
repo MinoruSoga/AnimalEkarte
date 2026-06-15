@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { C, ICON } from "@/lib/design-tokens";
+import { normalizeKana } from "@/lib/normalize-kana";
 import {
   useGetAllConsultations,
   useGetAllProcedures,
@@ -142,10 +143,11 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
     return items;
   }, [consultations, procedures, vaccines, checkupTypes]);
 
-  // Filter items by search term and category
+  // Filter items by search term and category（カタカナ・ひらがな非区別）
   const filteredItems = useMemo(() => {
+    const normalizedTerm = searchTerm ? normalizeKana(searchTerm).toLowerCase() : "";
     return TREATMENT_MASTER.filter((item) => {
-      const matchesSearch = !searchTerm || item.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = !searchTerm || normalizeKana(item.name).toLowerCase().includes(normalizedTerm);
       const matchesCategory = !activeCategory || item.category === activeCategory;
       return matchesSearch && matchesCategory;
     });

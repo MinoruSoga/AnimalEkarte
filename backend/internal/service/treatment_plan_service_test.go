@@ -234,11 +234,15 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTreatmentPlanRepository{
-				createFn: func(_ context.Context, _ *model.TreatmentPlan) error {
+				createFn: func(_ context.Context, plan *model.TreatmentPlan) error {
+					if tt.repoErr == nil {
+						assert.Equal(t, testClinicIDTP, plan.ClinicID)
+					}
 					return tt.repoErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
 					return &model.TreatmentPlan{
+						ClinicID:          testClinicIDTP,
 						MedicalRecordID:   tt.medicalRecordID,
 						HospitalizationID: tt.hospitalizationID,
 					}, nil
@@ -254,6 +258,7 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, plan)
+				assert.Equal(t, testClinicIDTP, plan.ClinicID)
 			}
 		})
 	}

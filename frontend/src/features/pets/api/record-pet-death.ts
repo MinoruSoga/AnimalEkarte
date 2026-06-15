@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
 
 interface RecordPetDeathVariables {
@@ -14,7 +15,7 @@ export function useRecordPetDeath() {
 
   return useMutation({
     mutationFn: async ({ petId, deceasedAt, deceasedReason }: RecordPetDeathVariables) => {
-      const clinicId = localStorage.getItem("auth_current_clinic:v1");
+      const clinicId = requireStoredClinicId();
       await axios.patch(
         `/v1/clinics/${clinicId}/pets/${petId}/death`,
         {

@@ -99,7 +99,7 @@ jobs:
         run: python3 scripts/verify_seed.py
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: backend/go.sum
@@ -112,6 +112,12 @@ jobs:
         working-directory: backend
         run: go build ./...
 
+      - name: Lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.11.4
+          working-directory: backend
+
       - name: Test
         working-directory: backend
         env:
@@ -122,12 +128,6 @@ jobs:
           DB_NAME: ekarte_db
           DB_SSL_MODE: disable
         run: go test ./... -count=1 -race -timeout 120s
-
-      - name: Lint
-        uses: golangci/golangci-lint-action@v7
-        with:
-          version: v2.11.4
-          working-directory: backend
 
       - name: Schema drift check
         working-directory: backend
@@ -154,9 +154,7 @@ jobs:
         uses: actions/checkout@v6.0.2
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -203,7 +201,7 @@ jobs:
         uses: actions/checkout@v6.0.2
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: backend/go.sum

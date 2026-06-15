@@ -77,6 +77,16 @@ const manualChunkGroups = [
   ['vendor-liff', ['@line/liff']],
 ] as const;
 
+const devAllowedHosts = [
+  'localhost',
+  '127.0.0.1',
+  '0.0.0.0',
+  'frontend',
+  'host.docker.internal',
+  'animalekarte-frontend-1',
+  '.noah-karte.com',
+];
+
 function resolveManualChunk(id: string): string | undefined {
   if (!id.includes('node_modules')) return undefined;
 
@@ -99,7 +109,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 3000,
-    allowedHosts: true,
+    allowedHosts: devAllowedHosts,
     proxy: {
       '/api': {
         target: 'http://backend:8080',

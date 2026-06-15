@@ -1,0 +1,62 @@
+[
+  {
+    "id": "eval-harness-01",
+    "description": "consumer-ci-workflow: CI ワークフローが存在する場合に pass",
+    "input": {
+      "file": ".github/workflows/ci.yml",
+      "exists": true
+    },
+    "expected": {
+      "check_id": "consumer-ci-workflow",
+      "pass": true
+    }
+  },
+  {
+    "id": "eval-harness-02",
+    "description": "consumer-secret-hygiene: .gitignore に .env が含まれる場合に pass",
+    "input": {
+      "file": ".gitignore",
+      "contains": ".env"
+    },
+    "expected": {
+      "check_id": "consumer-secret-hygiene",
+      "pass": true
+    }
+  },
+  {
+    "id": "eval-harness-03",
+    "description": "github-pr-template: PR テンプレートが存在する場合に pass",
+    "input": {
+      "file": ".github/PULL_REQUEST_TEMPLATE.md",
+      "exists": true
+    },
+    "expected": {
+      "check_id": "github-pr-template",
+      "pass": true
+    }
+  },
+  {
+    "id": "eval-harness-04",
+    "description": "consumer-memory-notes: docs/adr/ に ADR が存在する場合に pass",
+    "input": {
+      "dir": "docs/adr",
+      "file_count_min": 1
+    },
+    "expected": {
+      "check_id": "consumer-memory-notes",
+      "pass": true
+    }
+  },
+  {
+    "id": "eval-harness-05",
+    "description": "consumer-hook-guardrails: settings.json に PreToolUse が含まれる場合に pass",
+    "input": {
+      "file": ".claude/settings.json",
+      "contains": "PreToolUse"
+    },
+    "expected": {
+      "check_id": "consumer-hook-guardrails",
+      "pass": true
+    }
+  }
+]

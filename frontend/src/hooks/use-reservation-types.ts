@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { getStoredClinicId } from "@/lib/current-clinic";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 // バックエンドの reservation_type_groups レスポンス型
@@ -67,11 +68,7 @@ const fetchOnDutyStaffs = async (date: string): Promise<OnDutyStaff[]> => {
 };
 
 export const getCurrentClinicId = (): string | null => {
-  try {
-    return localStorage.getItem("auth_current_clinic:v1");
-  } catch {
-    return null;
-  }
+  return getStoredClinicId();
 };
 
 const fetchReservationStaffs = async (clinicId: string): Promise<ReservationStaff[]> => {

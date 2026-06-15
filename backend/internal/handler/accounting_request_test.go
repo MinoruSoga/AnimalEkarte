@@ -64,41 +64,66 @@ func TestListAccountingQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 	}
 }
 
+// #120: start_date/end_date 必須テスト
 func TestListUnpaidBillingsQuery_ToServiceFilters(t *testing.T) {
 	filters, err := (&listUnpaidBillingsQuery{
-		BaseDate: "2026-05-28",
-		GroupBy:  "billing",
-	}).toServiceFilters("2026-05-01")
+		StartDate: "2026-01-01",
+		EndDate:   "2026-01-31",
+		GroupBy:   "billing",
+	}).toServiceFilters()
 	if err != nil {
 		t.Fatalf("toServiceFilters returned error: %v", err)
 	}
 
-	if filters.BaseDate != "2026-05-28" {
-		t.Fatalf("BaseDate = %q, want 2026-05-28", filters.BaseDate)
+	if filters.StartDate != "2026-01-01" {
+		t.Fatalf("StartDate = %q, want 2026-01-01", filters.StartDate)
+	}
+	if filters.EndDate != "2026-01-31" {
+		t.Fatalf("EndDate = %q, want 2026-01-31", filters.EndDate)
 	}
 	if filters.GroupBy != "billing" {
 		t.Fatalf("GroupBy = %q, want billing", filters.GroupBy)
 	}
 }
 
-func TestListUnpaidBillingsQuery_ToServiceFilters_Defaults(t *testing.T) {
-	filters, err := (&listUnpaidBillingsQuery{}).toServiceFilters("2026-05-01")
+func TestListUnpaidBillingsQuery_ToServiceFilters_DefaultGroupBy(t *testing.T) {
+	filters, err := (&listUnpaidBillingsQuery{
+		StartDate: "2026-01-01",
+		EndDate:   "2026-01-31",
+	}).toServiceFilters()
 	if err != nil {
 		t.Fatalf("toServiceFilters returned error: %v", err)
 	}
 
-	if filters.BaseDate != "2026-05-01" {
-		t.Fatalf("BaseDate = %q, want default", filters.BaseDate)
-	}
 	if filters.GroupBy != "owner" {
 		t.Fatalf("GroupBy = %q, want owner", filters.GroupBy)
 	}
 }
 
-func TestListUnpaidBillingsQuery_ToServiceFilters_InvalidBaseDate(t *testing.T) {
-	filters, err := (&listUnpaidBillingsQuery{BaseDate: "2026/05/28"}).toServiceFilters("2026-05-01")
+func TestListUnpaidBillingsQuery_ToServiceFilters_MissingStartDate(t *testing.T) {
+	_, err := (&listUnpaidBillingsQuery{EndDate: "2026-01-31"}).toServiceFilters()
 	if err == nil {
-		t.Fatal("toServiceFilters returned nil error")
+		t.Fatal("toServiceFilters returned nil error for missing start_date")
+	}
+	if !apperrors.IsInvalidInput(err) {
+		t.Fatalf("error = %v, want invalid input", err)
+	}
+}
+
+func TestListUnpaidBillingsQuery_ToServiceFilters_MissingEndDate(t *testing.T) {
+	_, err := (&listUnpaidBillingsQuery{StartDate: "2026-01-01"}).toServiceFilters()
+	if err == nil {
+		t.Fatal("toServiceFilters returned nil error for missing end_date")
+	}
+	if !apperrors.IsInvalidInput(err) {
+		t.Fatalf("error = %v, want invalid input", err)
+	}
+}
+
+func TestListUnpaidBillingsQuery_ToServiceFilters_InvalidDate(t *testing.T) {
+	filters, err := (&listUnpaidBillingsQuery{StartDate: "2026/01/01", EndDate: "2026-01-31"}).toServiceFilters()
+	if err == nil {
+		t.Fatal("toServiceFilters returned nil error for invalid date format")
 	}
 	if filters != (listUnpaidBillingsFilters{}) {
 		t.Fatalf("filters = %#v, want zero value", filters)
@@ -263,6 +288,80 @@ func TestUpdateAccountingRequest_ToServiceInput_NilPaymentSplits(t *testing.T) {
 	}
 	if input.PaymentMethod != nil {
 		t.Fatalf("PaymentMethod = %v, want nil", input.PaymentMethod)
+	}
+}
+
+// TestUpdateAccountingRequest_PostCloseReason verifies PostCloseReason propagates to service input (#115)
+func TestUpdateAccountingRequest_PostCloseReason(t *testing.T) {
+	reason := "締め後修正: 入力誤りのため"
+	req := updateAccountingRequest{
+		PostCloseReason: &reason,
+	}
+
+	input := req.toServiceInput(1, 2, 3)
+
+	if input.PostCloseReason == nil {
+		t.Fatal("PostCloseReason = nil, want non-nil pointer")
+	}
+	if *input.PostCloseReason != reason {
+		t.Fatalf("PostCloseReason = %q, want %q", *input.PostCloseReason, reason)
+	}
+}
+
+// TestUpdateAccountingRequest_PostCloseReasonNil verifies nil PostCloseReason stays nil
+func TestUpdateAccountingRequest_PostCloseReasonNil(t *testing.T) {
+	req := updateAccountingRequest{}
+
+	input := req.toServiceInput(1, 2, 3)
+
+	if input.PostCloseReason != nil {
+		t.Fatalf("PostCloseReason = %v, want nil", input.PostCloseReason)
+	}
+}
+
+// #114: 月次未納繰越クエリのバリデーション
+func TestMonthlyUnpaidQuery_Parse(t *testing.T) {
+	tests := []struct {
+		name      string
+		query     monthlyUnpaidQuery
+		wantYear  int
+		wantMonth int
+		wantErr   bool
+	}{
+		{name: "正常: 2026年6月", query: monthlyUnpaidQuery{Year: "2026", Month: "6"}, wantYear: 2026, wantMonth: 6},
+		{name: "正常: 2000年1月(下限)", query: monthlyUnpaidQuery{Year: "2000", Month: "1"}, wantYear: 2000, wantMonth: 1},
+		{name: "正常: 2100年12月(上限)", query: monthlyUnpaidQuery{Year: "2100", Month: "12"}, wantYear: 2100, wantMonth: 12},
+		{name: "エラー: year 欠損", query: monthlyUnpaidQuery{Month: "6"}, wantErr: true},
+		{name: "エラー: month 欠損", query: monthlyUnpaidQuery{Year: "2026"}, wantErr: true},
+		{name: "エラー: year 非数値", query: monthlyUnpaidQuery{Year: "abc", Month: "6"}, wantErr: true},
+		{name: "エラー: year=1999 (下限未満)", query: monthlyUnpaidQuery{Year: "1999", Month: "6"}, wantErr: true},
+		{name: "エラー: year=2101 (上限超)", query: monthlyUnpaidQuery{Year: "2101", Month: "6"}, wantErr: true},
+		{name: "エラー: month=0", query: monthlyUnpaidQuery{Year: "2026", Month: "0"}, wantErr: true},
+		{name: "エラー: month=13", query: monthlyUnpaidQuery{Year: "2026", Month: "13"}, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			year, month, err := tt.query.parse()
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("parse() returned nil error, want error")
+				}
+				if !apperrors.IsInvalidInput(err) {
+					t.Fatalf("error = %v, want invalid input", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parse() returned error: %v", err)
+			}
+			if year != tt.wantYear {
+				t.Fatalf("year = %d, want %d", year, tt.wantYear)
+			}
+			if month != tt.wantMonth {
+				t.Fatalf("month = %d, want %d", month, tt.wantMonth)
+			}
+		})
 	}
 }
 

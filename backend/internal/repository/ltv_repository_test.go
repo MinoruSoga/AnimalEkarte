@@ -15,6 +15,76 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+func TestEscapeLikePattern(t *testing.T) {
+	assert.Equal(t, `100\%\_\\`, escapeLikePattern(`100%_\`))
+	assert.Equal(t, `normal`, escapeLikePattern(`normal`))
+}
+
+func TestFindOwnerLTV_SearchEscapesLikeWildcards(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	literalPercentOwner := &model.Owner{
+		ClinicID: clinicID,
+		Name:     "100% literal owner",
+	}
+	similarOwner := &model.Owner{
+		ClinicID: clinicID,
+		Name:     "100X wildcard owner",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(literalPercentOwner).Error)
+	require.NoError(t, db.WithContext(ctx).Create(similarOwner).Error)
+
+	rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		Search:         "100%",
+		IncludeZero:    true,
+		IncludeNoVisit: true,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, literalPercentOwner.ID, rows[0].OwnerID)
+}
+
+func TestFindOwnerLTV_SearchNormalizesKana(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	// カタカナ名の飼主（DB はカタカナ登録）
+	katakanaOwner := &model.Owner{ClinicID: clinicID, Name: "ヤマダタロウ"}
+	// ひらがな名の飼主
+	hiraganaOwner := &model.Owner{ClinicID: clinicID, Name: "さとうけんじ"}
+	require.NoError(t, db.WithContext(ctx).Create(katakanaOwner).Error)
+	require.NoError(t, db.WithContext(ctx).Create(hiraganaOwner).Error)
+
+	// ひらがな検索でカタカナ登録データがヒットすること
+	rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		Search:         "やまだ",
+		IncludeZero:    true,
+		IncludeNoVisit: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, katakanaOwner.ID, rows[0].OwnerID)
+
+	// カタカナ検索でひらがな登録データがヒットすること
+	rows2, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		Search:         "サトウ",
+		IncludeZero:    true,
+		IncludeNoVisit: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, rows2, 1)
+	assert.Equal(t, hiraganaOwner.ID, rows2[0].OwnerID)
+}
+
 // TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount
 // ISSUE-002: period_visit_count の絞り込みが total_visit_count に波及しないこと
 func TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount(t *testing.T) {
@@ -496,6 +566,31 @@ func TestFindOwnerLTV_AmountBasisSwitching(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, result3, 1)
 	assert.Equal(t, int64(7000), *result3[0].AnnualAmount, "net_paid_amount should be 8000 - 1000 = 7000")
+
+	// Test 4: 期間付き net_paid_amount の HAVING でも金額閾値をバインドして絞り込める
+	year := time.Now().Year()
+	minAmount := int64(6000)
+	result4, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		AmountBasis:    "net_paid_amount",
+		Year:           &year,
+		MinTotalAmount: &minAmount,
+		IncludeZero:    true,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, result4, 1)
+	assert.Equal(t, int64(7000), *result4[0].AnnualAmount)
+
+	minAmount = 7500
+	result5, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		AmountBasis:    "net_paid_amount",
+		Year:           &year,
+		MinTotalAmount: &minAmount,
+		IncludeZero:    true,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, result5, 0)
 }
 
 // TestFindOwnerLTV_OnlyCompletedBillings

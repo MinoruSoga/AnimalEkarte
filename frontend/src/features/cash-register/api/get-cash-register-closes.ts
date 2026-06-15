@@ -36,10 +36,11 @@ export const getCashRegisterCloses = async (
   };
 };
 
-export const useGetCashRegisterCloses = (params?: GetCashRegisterClosesParams) =>
+export const useGetCashRegisterCloses = (params?: GetCashRegisterClosesParams, enabled = true) =>
   useQuery({
     queryKey: ["cash-register-closes", params],
     queryFn: () => getCashRegisterCloses(params),
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.STANDARD,
+    enabled,
   });

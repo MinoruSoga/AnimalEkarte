@@ -212,6 +212,35 @@ func TestLogin_SystemAdminWithoutAssignments_JWTHasMainClinicID(t *testing.T) {
 	assert.Equal(t, "3", resolvedWithID, "mainClinicID 非空時は上書きしない")
 }
 
+func TestAuditClinicIDFromAssignments(t *testing.T) {
+	t.Run("prefers main assignment", func(t *testing.T) {
+		clinicID, ok := auditClinicIDFromAssignments([]model.StaffClinicAssignment{
+			{ClinicID: 10, IsMain: false},
+			{ClinicID: 20, IsMain: true},
+		})
+
+		require.True(t, ok)
+		assert.Equal(t, uint64(20), clinicID)
+	})
+
+	t.Run("falls back to first assignment", func(t *testing.T) {
+		clinicID, ok := auditClinicIDFromAssignments([]model.StaffClinicAssignment{
+			{ClinicID: 10, IsMain: false},
+			{ClinicID: 20, IsMain: false},
+		})
+
+		require.True(t, ok)
+		assert.Equal(t, uint64(10), clinicID)
+	})
+
+	t.Run("returns false for empty assignments", func(t *testing.T) {
+		clinicID, ok := auditClinicIDFromAssignments(nil)
+
+		assert.False(t, ok)
+		assert.Equal(t, uint64(0), clinicID)
+	})
+}
+
 // TestToMeResponse_NormalStaff_AssignmentsOnly は通常スタッフが assignments のみを受け取ることを検証する。
 // allClinics に assignments 外のクリニックがあっても Clinics に含まれないことを確認（回帰防止）。
 func TestToMeResponse_NormalStaff_AssignmentsOnly(t *testing.T) {

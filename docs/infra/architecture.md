@@ -1,7 +1,7 @@
 # インフラ・システム構成書 (Infrastructure Architecture)
 
 > **Animal Ekarte**: AWS / Vercel を活用した高可用・低コストなクラウド基盤
-> **最新更新**: 2026-05-21 | **対象環境**: Staging / Production
+> **最新更新**: 2026-06-12 | **対象環境**: Staging / Production
 
 ---
 
@@ -39,7 +39,7 @@ flowchart TB
 ### 2.2 データストレージ (Storage)
 - **RDS PostgreSQL 18**: 
     - 強力な ACID トランザクションによる臨床データの完全性保護。
-    - `clinic_id` による物理隔離インデックスを全 95 テーブルに適用。
+    - `clinic_id` による物理隔離インデックスを全 103 テーブルに適用。
 - **Amazon S3**:
     - **一般アップロード (`S3_BUCKET`)**: ペット写真、検査結果（PDF）等の格納。
     - **共有ファイル (`S3_SHARED_BUCKET`)**: LINE 経由で送信される資料の一次保管。

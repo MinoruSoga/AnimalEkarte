@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { requireStoredClinicId } from "@/lib/current-clinic";
 
 export interface LstepCsvImportItem {
   id: string;
@@ -20,10 +21,7 @@ export function useGetLstepCsvImports(limit = 20) {
   return useQuery({
     queryKey: ["lstep-csv-imports", limit],
     queryFn: async () => {
-      const clinicId = localStorage.getItem("auth_current_clinic:v1");
-      if (!clinicId) {
-        throw new Error("クリニックが選択されていません。ページをリロードしてください。");
-      }
+      const clinicId = requireStoredClinicId();
       const { data } = await axios.get<LstepCsvImportItem[]>(
         `/v1/clinics/${clinicId}/lstep/csv-imports?limit=${limit}`
       );

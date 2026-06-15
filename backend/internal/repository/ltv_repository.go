@@ -83,8 +83,9 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	}
 
 	if params.Search != "" {
-		where += " AND o.name ILIKE ?"
-		whereArgs = append(whereArgs, "%"+params.Search+"%")
+		// translate() で DB 列のカタカナをひらがなに正規化し、NormalizeKana で検索語も統一する。
+		where += " AND translate(o.name, ?, ?) ILIKE ? ESCAPE '\\'"
+		whereArgs = append(whereArgs, kanaSourceChars, kanaTargetChars, "%"+escapeLikePattern(NormalizeKana(params.Search))+"%")
 	}
 
 	// 期間決定（AGG-BE-001/002/003）
@@ -122,6 +123,13 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 			amountExpr = "COALESCE(SUM(b.total_amount), 0)"
 		}
 	}
+	var amountExprArgs []any
+	if hasPeriodFilter {
+		amountExprArgs = append(amountExprArgs, fromDate, toDate)
+		if amountBasis == "net_paid_amount" {
+			amountExprArgs = append(amountExprArgs, fromDate, toDate)
+		}
+	}
 
 	// HAVING句構築
 	var having []string
@@ -129,20 +137,20 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 
 	// 全期間の会計額フィルタ（AGG-BE-001: min_amount/max_amount は期間内）
 	if params.MinTotalAmount != nil {
-		having = append(having, fmt.Sprintf("%s >= %d", amountExpr, *params.MinTotalAmount))
+		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, ">=", *params.MinTotalAmount)
 	}
 	if params.MaxTotalAmount != nil {
-		having = append(having, fmt.Sprintf("%s <= %d", amountExpr, *params.MaxTotalAmount))
+		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, "<=", *params.MaxTotalAmount)
 	}
 
 	// 来院回数フィルタ（AGG-BE-002）
 	if params.MinVisitCount != nil {
-		having = append(having, fmt.Sprintf("COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) >= %d", *params.MinVisitCount))
-		havingArgs = append(havingArgs, fromDate, toDate)
+		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) >= ?")
+		havingArgs = append(havingArgs, fromDate, toDate, *params.MinVisitCount)
 	}
 	if params.MaxVisitCount != nil {
-		having = append(having, fmt.Sprintf("COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) <= %d", *params.MaxVisitCount))
-		havingArgs = append(havingArgs, fromDate, toDate)
+		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) <= ?")
+		havingArgs = append(havingArgs, fromDate, toDate, *params.MaxVisitCount)
 	}
 
 	havingClause := ""
@@ -157,12 +165,9 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	periodFilter := ""
 	var periodFilterArgs []any
 	if fromDate != nil && toDate != nil {
-		periodFilter = fmt.Sprintf("(mr.date >= %s AND mr.date <= %s)", "?", "?")
+		periodFilter = "(mr.date >= ? AND mr.date <= ?)"
 		// amountExpr用: net_paid_amount の場合は4個、その他は2個のargs
-		periodFilterArgs = append(periodFilterArgs, fromDate, toDate)
-		if amountBasis == "net_paid_amount" {
-			periodFilterArgs = append(periodFilterArgs, fromDate, toDate)
-		}
+		periodFilterArgs = append(periodFilterArgs, amountExprArgs...)
 	}
 
 	// period_visit_count用フィルタ条件（CASE WHEN の条件部分）
@@ -246,6 +251,20 @@ ORDER BY %s
 	}
 
 	return filtered, nil
+}
+
+// appendAmountHaving はローカル生成した集計式だけを SQL 断片として埋め込み、
+// 動的な閾値は必ずプレースホルダでバインドする。
+func appendAmountHaving(having []string, args []any, amountExpr string, amountExprArgs []any, op string, amount int64) (outHaving []string, outArgs []any) {
+	having = append(having, fmt.Sprintf("%s %s ?", amountExpr, op))
+	args = append(args, amountExprArgs...)
+	args = append(args, amount)
+	return having, args
+}
+
+func escapeLikePattern(value string) string {
+	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return replacer.Replace(value)
 }
 
 // calculateDateRange は year/from/to/period_preset から集計期間を決定する。

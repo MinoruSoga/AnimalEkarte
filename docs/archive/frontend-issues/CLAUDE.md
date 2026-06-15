@@ -1,5 +1,7 @@
 # Frontend Issues
 
+> Archive-only: These instructions describe historical or ignored material. Do not treat them as active project workflow rules unless the user explicitly asks to inspect, restore, or migrate archive content.
+
 ## 概要
 
 このディレクトリのイシューは `/task-create` コマンド（`.claude/skills/task-create/`）により自動生成される。

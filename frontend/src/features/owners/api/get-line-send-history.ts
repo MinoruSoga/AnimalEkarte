@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { getStoredClinicId } from "@/lib/current-clinic";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { LineSendType } from "./send-line-message";
 
@@ -27,7 +28,7 @@ async function getLineSendHistory(
 }
 
 export function useGetLineSendHistory(ownerId: string) {
-  const clinicId = localStorage.getItem("auth_current_clinic:v1") ?? null;
+  const clinicId = getStoredClinicId();
   return useQuery({
     queryKey: ["line-send-history", ownerId],
     queryFn: () => {

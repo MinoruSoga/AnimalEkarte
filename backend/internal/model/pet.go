@@ -24,10 +24,10 @@ const (
 type AcquisitionType string
 
 const (
-	AcquisitionTypePurchase  AcquisitionType = "purchased"
-	AcquisitionTypeTransfer  AcquisitionType = "transferred"
-	AcquisitionTypeProtected AcquisitionType = "rescued"
-	AcquisitionTypeOther     AcquisitionType = "other"
+	AcquisitionTypePurchase AcquisitionType = "purchased"
+	AcquisitionTypeTransfer AcquisitionType = "transferred"
+	AcquisitionTypeRescued  AcquisitionType = "rescued"
+	AcquisitionTypeOther    AcquisitionType = "other"
 )
 
 type DangerLevel string

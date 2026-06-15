@@ -46,8 +46,9 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
       interval: 5s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 18
+      # Initial Air/Go builds can take close to 3 minutes on cold caches.
+      start_period: 3m
 
   frontend:
     build:

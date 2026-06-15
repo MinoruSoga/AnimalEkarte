@@ -230,7 +230,8 @@ func TestDailyRecordService_AddVitalRecord(t *testing.T) {
 					}
 					return &model.DailyRecord{ID: 1, HospitalizationID: tt.hospitalizationID, Date: tt.date}, nil
 				},
-				createVitalRecordFn: func(_ context.Context, _ *model.VitalRecord) error {
+				createVitalRecordFn: func(_ context.Context, vital *model.VitalRecord) error {
+					assert.Equal(t, uint64(1), vital.ClinicID)
 					return nil
 				},
 				findByHospitalizationIDAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
@@ -339,7 +340,8 @@ func TestDailyRecordService_AddCareLog(t *testing.T) {
 					}
 					return &model.DailyRecord{ID: 1, HospitalizationID: tt.hospitalizationID, Date: tt.date}, nil
 				},
-				createCareLogFn: func(_ context.Context, _ *model.CareLog) error {
+				createCareLogFn: func(_ context.Context, careLog *model.CareLog) error {
+					assert.Equal(t, uint64(1), careLog.ClinicID)
 					return nil
 				},
 				findByHospitalizationIDAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {

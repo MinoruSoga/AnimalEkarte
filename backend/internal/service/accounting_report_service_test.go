@@ -53,11 +53,14 @@ func (m *mockAccountingRepositoryForReport) CompleteAccountingAppointments(_ con
 	return 0, nil
 }
 
-func (m *mockAccountingRepositoryForReport) FindUnpaidByBilling(_ context.Context, _ uint64, _ string, _, _ int) ([]model.Billing, int64, error) {
+func (m *mockAccountingRepositoryForReport) FindUnpaidByBilling(_ context.Context, _ uint64, _, _ string, _, _ int) ([]model.Billing, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockAccountingRepositoryForReport) FindUnpaidByOwner(_ context.Context, _ uint64, _ string, _, _ int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
+func (m *mockAccountingRepositoryForReport) FindUnpaidByOwner(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
 	return nil, 0, repository.UnpaidSummary{}, nil
+}
+func (m *mockAccountingRepositoryForReport) FindMonthlyUnpaidCarryover(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
+	return nil, 0, repository.MonthlyUnpaidSummary{}, nil
 }
 func (m *mockAccountingRepositoryForReport) GetDailySummary(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
 	return &repository.DailySummaryResult{}, nil

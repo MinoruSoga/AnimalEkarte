@@ -2,6 +2,7 @@ import { useMemo, useCallback } from "react";
 import type { MutateOptions } from "@tanstack/react-query";
 import { useGetTrimmings } from "../api/get-trimmings";
 import { useDeleteTrimming } from "../api/delete-trimming";
+import { normalizeKana } from "@/lib/normalize-kana";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import type { TrimmingFilters } from "../api/get-trimmings";
 
@@ -59,10 +60,11 @@ export function useFilterTrimmingRecords(
     }
 
     // テキスト検索（日付フィルタはサーバーサイドに移行済み）
+    if (searchTerm === "") return result;
+    const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
     return result.filter((r) =>
-      searchTerm === "" ||
-      r.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.petName.toLowerCase().includes(searchTerm.toLowerCase()),
+      normalizeKana(r.ownerName).toLowerCase().includes(normalizedTerm) ||
+      normalizeKana(r.petName).toLowerCase().includes(normalizedTerm),
     );
   }, [trimmingRecords, searchTerm, activeFilters]);
 

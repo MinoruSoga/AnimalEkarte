@@ -1,5 +1,6 @@
 // React/Framework
 import { useState, useRef, useMemo, useCallback, useDeferredValue, useTransition, useEffect } from "react";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 // External
 import { toast } from "sonner";
@@ -89,7 +90,7 @@ export interface UseMasterCRUDReturn<T extends MasterEntity> {
 
 function defaultSearchFilter<T extends MasterEntity>(item: T, term: string): boolean {
   if ("name" in item && typeof item.name === "string") {
-    return item.name.toLowerCase().includes(term);
+    return normalizeKana(item.name).toLowerCase().includes(term);
   }
   return false;
 }
@@ -181,10 +182,10 @@ export function useMasterCRUD<T extends MasterEntity>({
       items = items.filter((item) => activeFilterApply(item, activeFilters));
     }
 
-    // テキスト検索
+    // テキスト検索（カタカナ・ひらがな非区別）
     if (deferredSearch) {
-      const lower = deferredSearch.toLowerCase();
-      items = items.filter((item) => searchFilter(item, lower));
+      const normalizedTerm = normalizeKana(deferredSearch).toLowerCase();
+      items = items.filter((item) => searchFilter(item, normalizedTerm));
     }
 
     // ソート

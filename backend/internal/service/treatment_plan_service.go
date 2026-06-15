@@ -120,6 +120,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 	}
 
 	plan := &model.TreatmentPlan{
+		ClinicID:          clinicID,
 		MedicalRecordID:   medicalRecordID,
 		HospitalizationID: hospitalizationID,
 		TreatmentContent:  input.TreatmentContent,

@@ -2,6 +2,7 @@
 import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback, useEffect, useMemo, useDeferredValue } from "react";
 import { useSearchParams } from "react-router";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 // External
 import { Plus, LayoutGrid, List, Building2, Calendar, PawPrint } from "lucide-react";
@@ -146,12 +147,12 @@ export function HospitalizationList() {
 
     // テキスト検索（deferredSearchTerm で遅延評価）
     if (deferredSearchTerm) {
-      const lowerTerm = deferredSearchTerm.toLowerCase();
+      const normalizedTerm = normalizeKana(deferredSearchTerm).toLowerCase();
       result = result.filter(
         (h) =>
-          h.ownerName.toLowerCase().includes(lowerTerm) ||
-          h.petName.toLowerCase().includes(lowerTerm) ||
-          h.hospitalizationNo.toLowerCase().includes(lowerTerm),
+          normalizeKana(h.ownerName).toLowerCase().includes(normalizedTerm) ||
+          normalizeKana(h.petName).toLowerCase().includes(normalizedTerm) ||
+          h.hospitalizationNo.toLowerCase().includes(normalizedTerm),
       );
     }
 

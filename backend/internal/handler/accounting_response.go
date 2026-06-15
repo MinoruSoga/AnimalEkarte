@@ -121,6 +121,58 @@ func toUnpaidByOwnerResponse(items []repository.UnpaidOwnerAggregate, total int6
 	}
 }
 
+// #114: 月次未納繰越集計レスポンス
+
+type monthlyUnpaidOwnerPetResponse struct {
+	OwnerID            uint64  `json:"owner_id"`
+	OwnerName          string  `json:"owner_name"`
+	PetID              *uint64 `json:"pet_id,omitempty"`
+	PetName            string  `json:"pet_name"`
+	PrevMonthCarryover int64   `json:"prev_month_carryover"`
+	CurrentMonthUnpaid int64   `json:"current_month_unpaid"`
+	NextMonthCarryover int64   `json:"next_month_carryover"`
+}
+
+type monthlyUnpaidSummaryResponse struct {
+	PrevMonthCarryover int64 `json:"prev_month_carryover"`
+	CurrentMonthUnpaid int64 `json:"current_month_unpaid"`
+	NextMonthCarryover int64 `json:"next_month_carryover"`
+}
+
+type monthlyUnpaidCarryoverResponse struct {
+	Data    []monthlyUnpaidOwnerPetResponse `json:"data"`
+	Total   int64                           `json:"total"`
+	Page    int                             `json:"page"`
+	Limit   int                             `json:"limit"`
+	Summary monthlyUnpaidSummaryResponse    `json:"summary"`
+}
+
+func toMonthlyUnpaidCarryoverResponse(items []repository.MonthlyUnpaidOwnerPet, total int64, page, limit int, s repository.MonthlyUnpaidSummary) monthlyUnpaidCarryoverResponse {
+	data := make([]monthlyUnpaidOwnerPetResponse, 0, len(items))
+	for _, it := range items {
+		data = append(data, monthlyUnpaidOwnerPetResponse{
+			OwnerID:            it.OwnerID,
+			OwnerName:          it.OwnerName,
+			PetID:              it.PetID,
+			PetName:            it.PetName,
+			PrevMonthCarryover: it.PrevMonthCarryover,
+			CurrentMonthUnpaid: it.CurrentMonthUnpaid,
+			NextMonthCarryover: it.NextMonthCarryover,
+		})
+	}
+	return monthlyUnpaidCarryoverResponse{
+		Data:  data,
+		Total: total,
+		Page:  page,
+		Limit: limit,
+		Summary: monthlyUnpaidSummaryResponse{
+			PrevMonthCarryover: s.PrevMonthCarryover,
+			CurrentMonthUnpaid: s.CurrentMonthUnpaid,
+			NextMonthCarryover: s.NextMonthCarryover,
+		},
+	}
+}
+
 type refundResponse struct {
 	ID             uint64    `json:"id"`
 	ClinicID       uint64    `json:"clinic_id"`

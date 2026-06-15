@@ -94,6 +94,8 @@ type CashRegisterService interface {
 	Close(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error)
 	List(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
+	// #115: 指定日にレジ締めが存在するか確認する（会計の締め後編集チェック用）。
+	IsDateClosed(ctx context.Context, clinicID uint64, date time.Time) (bool, error)
 }
 
 // periodAggregate は集計処理の共通結果型
@@ -340,6 +342,15 @@ func (s *cashRegisterService) List(ctx context.Context, clinicID uint64, startDa
 
 func (s *cashRegisterService) GetByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error) {
 	return s.closeRepo.FindByID(ctx, clinicID, id)
+}
+
+func (s *cashRegisterService) IsDateClosed(ctx context.Context, clinicID uint64, date time.Time) (bool, error) {
+	closed, err := s.closeRepo.HasCloseOnDate(ctx, clinicID, date)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check if date is closed", "error", err, "clinic_id", clinicID)
+		return false, apperrors.Wrap(err, "failed to check if date is closed")
+	}
+	return closed, nil
 }
 
 // resolvePeriodRange は period（"am"/"pm"）と DaySchedule から集計期間（JST）を返す

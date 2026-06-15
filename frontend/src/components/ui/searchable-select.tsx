@@ -3,6 +3,7 @@ import { Check, ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { C } from "@/lib/design-tokens";
+import { normalizedIncludes } from "@/lib/normalize-kana";
 import {
   Command,
   CommandEmpty,
@@ -138,8 +139,8 @@ export function SearchableSelect({
       >
         <Command
           filter={(_value, search, keywords) => {
-            const haystack = (keywords?.join(" ") ?? "").toLowerCase();
-            return haystack.includes(search.toLowerCase()) ? 1 : 0;
+            const haystack = keywords?.join(" ") ?? "";
+            return normalizedIncludes(haystack, search) ? 1 : 0;
           }}
         >
           <CommandInput placeholder={searchPlaceholder} />

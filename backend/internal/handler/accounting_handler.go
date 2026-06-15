@@ -3,7 +3,6 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -142,7 +141,33 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	updated, err := h.svc.Accounting.Update(ctx, input.toServiceInput(id, clinicID, staffID))
+
+	// #115: 締め後編集チェック
+	existing, err := h.svc.Accounting.GetByID(ctx, clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	isClosed, err := h.svc.CashRegister.IsDateClosed(ctx, clinicID, existing.ScheduledDate)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	if isClosed {
+		if !h.hasPermission(c, string(model.ResourceAccountingPostCloseEdit), "edit") {
+			RespondError(c, apperrors.WrapForbidden("レジ締め済み期間の会計編集には accounting-post-close-edit:edit 権限が必要です"))
+			return
+		}
+		if input.PostCloseReason == nil || *input.PostCloseReason == "" {
+			RespondError(c, apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です"))
+			return
+		}
+	}
+
+	serviceInput := input.toServiceInput(id, clinicID, staffID)
+	serviceInput.IsPostClose = isClosed
+
+	updated, err := h.svc.Accounting.Update(ctx, serviceInput)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -150,8 +175,9 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 	c.JSON(http.StatusOK, toAccountingResponse(updated))
 }
 
-// ListUnpaidBillings は月末未納者一覧を返す。BUG-370
-// GET /v1/accountings/unpaid?base_date=YYYY-MM-DD&group_by=owner|billing&page=N&limit=N
+// ListUnpaidBillings は未納者一覧を返す。#120
+// GET /v1/accountings/unpaid?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&group_by=owner|billing&page=N&limit=N
+// start_date / end_date は必須。欠けた場合は 400 を返す。
 func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -163,7 +189,7 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 		return
 	}
 
-	filters, err := newListUnpaidBillingsQuery(c.Request.URL.Query()).toServiceFilters(time.Now().In(time.Local).Format("2006-01-02"))
+	filters, err := newListUnpaidBillingsQuery(c.Request.URL.Query()).toServiceFilters()
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -173,16 +199,14 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 
 	switch filters.GroupBy {
 	case "billing":
-		// ListUnpaidByBilling は model.Billing スライスを返す（DBテーブル名 billings 由来）。
-		// 会計ドメイン(accounting)と DB モデル(Billing)の命名差異はここで吸収する。
-		accountings, total, err := h.svc.Accounting.ListUnpaidByBilling(ctx, clinicID, filters.BaseDate, page, limit)
+		accountings, total, err := h.svc.Accounting.ListUnpaidByBilling(ctx, clinicID, filters.StartDate, filters.EndDate, page, limit)
 		if err != nil {
 			RespondError(c, err)
 			return
 		}
 		c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(accountings, toAccountingResponse), total, page, limit))
 	case "owner":
-		aggregates, total, summary, err := h.svc.Accounting.ListUnpaidByOwner(ctx, clinicID, filters.BaseDate, page, limit)
+		aggregates, total, summary, err := h.svc.Accounting.ListUnpaidByOwner(ctx, clinicID, filters.StartDate, filters.EndDate, page, limit)
 		if err != nil {
 			RespondError(c, err)
 			return
@@ -191,6 +215,34 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 	default:
 		RespondError(c, apperrors.WrapInvalidInput("group_by must be owner or billing"))
 	}
+}
+
+// GetUnpaidMonthlySummary は月次未納繰越集計を返す。#114
+// GET /v1/accountings/unpaid-monthly?year=YYYY&month=MM&page=N&limit=N
+func (h *Handler) GetUnpaidMonthlySummary(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	year, month, err := newMonthlyUnpaidQuery(c.Request.URL.Query()).parse()
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	ctx := c.Request.Context()
+	items, total, summary, err := h.svc.Accounting.GetMonthlyUnpaidCarryover(ctx, clinicID, year, month, page, limit)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toMonthlyUnpaidCarryoverResponse(items, total, page, limit, summary))
 }
 
 // GetDailySummary はレジ締め日次集計を返す。BUG-368
@@ -223,7 +275,7 @@ func (h *Handler) GetDailySummary(c *gin.Context) {
 }
 
 // CancelAccounting は会計を論理削除（status=cancelled）する。
-// BUG-371: 旧 DeleteAccounting (ハード削除) を本メソッドに置き換え。
+// BUG-371 / #118: 旧 DeleteAccounting (ハード削除) を本メソッドに置き換え。監査ログを記録する。
 // POST /accountings/:id/cancel
 func (h *Handler) CancelAccounting(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -234,7 +286,8 @@ func (h *Handler) CancelAccounting(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.svc.Accounting.Cancel(c.Request.Context(), clinicID, id); err != nil {
+	actorID := optionalStaffID(c)
+	if err := h.svc.Accounting.Cancel(c.Request.Context(), clinicID, id, actorID); err != nil {
 		RespondError(c, err)
 		return
 	}

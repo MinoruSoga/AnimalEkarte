@@ -37,10 +37,13 @@ export function useAccountingDetailState({
     if (accountingId) {
       return fetchedAccounting ?? null;
     }
+    if (currentClinicId === null) {
+      return null;
+    }
     const stateItems = locationState?.accountingItems ?? [];
     return {
       id: "acc_new",
-      clinicId: currentClinicId ?? "",
+      clinicId: currentClinicId,
       ownerId: newPetData?.ownerId ?? "",
       ownerName: newPetData?.ownerName ?? "飼い主様",
       petId: newPetId,

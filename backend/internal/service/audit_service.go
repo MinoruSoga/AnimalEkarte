@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -54,12 +55,46 @@ type auditService struct {
 	repo repository.AuditRepository
 }
 
+func validateAuditLog(log *model.AuditLog) error {
+	if log == nil {
+		return apperrors.WrapInvalidInput("audit log is required")
+	}
+	if log.ClinicID == nil || *log.ClinicID == 0 {
+		return apperrors.WrapInvalidInput("audit log clinic_id is required")
+	}
+	if strings.TrimSpace(log.ActorType) == "" {
+		return apperrors.WrapInvalidInput("audit log actor_type is required")
+	}
+	if strings.TrimSpace(log.Action) == "" {
+		return apperrors.WrapInvalidInput("audit log action is required")
+	}
+	if strings.TrimSpace(log.Resource) == "" {
+		return apperrors.WrapInvalidInput("audit log resource is required")
+	}
+	switch log.ActorType {
+	case model.AuditActorTypeStaff:
+		if log.ActorID == nil || *log.ActorID == 0 {
+			return apperrors.WrapInvalidInput("audit log actor_id is required for staff actor")
+		}
+	case model.AuditActorTypeSystem:
+		if log.ActorID != nil {
+			return apperrors.WrapInvalidInput("audit log actor_id must be empty for system actor")
+		}
+	default:
+		return apperrors.WrapInvalidInput("audit log actor_type is invalid")
+	}
+	return nil
+}
+
 func NewAuditService(repo repository.AuditRepository) AuditService {
 	return &auditService{repo: repo}
 }
 
 // Log は監査ログを記録する
 func (s *auditService) Log(ctx context.Context, log *model.AuditLog) error {
+	if err := validateAuditLog(log); err != nil {
+		return err
+	}
 	if err := s.repo.Create(ctx, log); err != nil {
 		return apperrors.Wrap(err, "failed to create audit log")
 	}
@@ -88,7 +123,7 @@ func (s *auditService) LogAuthLogin(ctx context.Context, clinicID, staffID *uint
 	log := &model.AuditLog{
 		ClinicID:  clinicID,
 		ActorID:   staffID,
-		ActorType: "staff",
+		ActorType: model.AuditActorTypeStaff,
 		Action:    action,
 		Resource:  "auth",
 		IPAddress: ipAddress,
@@ -108,9 +143,9 @@ func (s *auditService) LogLstepOperation(ctx context.Context, clinicID uint64, a
 // metadata の JSON シリアライズに失敗した場合でも監査ログ本体（action / resource / resource_id）は保存される
 // （MarshalAuditJSON はベストエフォート: シリアライズ失敗時は nil を返す）。
 func (s *auditService) LogLstepOperationWithMetadata(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64, metadata any) error {
-	actorType := "system"
+	actorType := model.AuditActorTypeSystem
 	if actorID != nil {
-		actorType = "staff"
+		actorType = model.AuditActorTypeStaff
 	}
 	log := &model.AuditLog{
 		ClinicID:   &clinicID,
@@ -126,9 +161,9 @@ func (s *auditService) LogLstepOperationWithMetadata(ctx context.Context, clinic
 
 // LogMedicalRecordChange は医療カルテの Create/Update/Delete/Finalize 操作を監査ログに記録する（AUDIT-H1）。
 func (s *auditService) LogMedicalRecordChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error {
-	actorType := "system"
+	actorType := model.AuditActorTypeSystem
 	if actorID != nil {
-		actorType = "staff"
+		actorType = model.AuditActorTypeStaff
 	}
 	var oldJSON, newJSON []byte
 	if oldValue != nil {
@@ -152,9 +187,9 @@ func (s *auditService) LogMedicalRecordChange(ctx context.Context, clinicID uint
 
 // LogVitalChange はバイタル記録の Create/Update/Delete 操作を監査ログに記録する（AUDIT-H1）。
 func (s *auditService) LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error {
-	actorType := "system"
+	actorType := model.AuditActorTypeSystem
 	if actorID != nil {
-		actorType = "staff"
+		actorType = model.AuditActorTypeStaff
 	}
 	metadata := map[string]any{"medical_record_id": medicalRecordID}
 	var oldJSON, newJSON []byte
@@ -180,9 +215,9 @@ func (s *auditService) LogVitalChange(ctx context.Context, clinicID uint64, acto
 
 // LogClinicSwitch はクリニック切替操作を監査ログに記録する（FEAT-374 Phase 2）。
 func (s *auditService) LogClinicSwitch(ctx context.Context, actorID *uint64, fromClinicID, toClinicID uint64, ipAddress, userAgent string) error {
-	actorType := "system"
+	actorType := model.AuditActorTypeSystem
 	if actorID != nil {
-		actorType = "staff"
+		actorType = model.AuditActorTypeStaff
 	}
 	oldValue := map[string]any{"clinic_id": fromClinicID}
 	newValue := map[string]any{"clinic_id": toClinicID}
@@ -202,9 +237,9 @@ func (s *auditService) LogClinicSwitch(ctx context.Context, actorID *uint64, fro
 
 // LogAddendumCreate は医療カルテ追記の Create 操作を監査ログに記録する（AUDIT-H1）。
 func (s *auditService) LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error {
-	actorType := "system"
+	actorType := model.AuditActorTypeSystem
 	if actorID != nil {
-		actorType = "staff"
+		actorType = model.AuditActorTypeStaff
 	}
 	newValue := map[string]any{
 		"before_text":    addendum.BeforeText,

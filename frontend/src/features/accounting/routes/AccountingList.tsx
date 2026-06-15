@@ -1,5 +1,6 @@
 // React/Framework
 import { ICON, C } from "@/lib/design-tokens";
+import { normalizeKana } from "@/lib/normalize-kana";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -140,13 +141,13 @@ export function AccountingList() {
       });
     }
 
-    // テキスト検索
+    // テキスト検索（カタカナ・ひらがな非区別）
     if (deferredSearch) {
-      const lowerTerm = deferredSearch.toLowerCase();
+      const normalizedTerm = normalizeKana(deferredSearch).toLowerCase();
       result = result.filter(
         (r) =>
-          r.ownerName.toLowerCase().includes(lowerTerm) ||
-          r.petName.toLowerCase().includes(lowerTerm),
+          normalizeKana(r.ownerName).toLowerCase().includes(normalizedTerm) ||
+          normalizeKana(r.petName).toLowerCase().includes(normalizedTerm),
       );
     }
 

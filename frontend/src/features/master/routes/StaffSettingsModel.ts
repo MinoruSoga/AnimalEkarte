@@ -13,6 +13,7 @@ import type {
   UpdateStaffRequest,
 } from "../api/staffs";
 import type { StaffFormData } from "../components/StaffSidePanelModel";
+import { normalizeKana } from "@/lib/normalize-kana";
 
 export function buildStaffIds(staffs: Staff[] | undefined): string[] {
   return (staffs ?? []).map((staff) => staff.id);
@@ -52,8 +53,8 @@ export function buildStaffFilterProperties(occupations: Occupation[]): FilterPro
 
 export function searchStaff(staff: Staff, lowerSearchTerm: string): boolean {
   return (
-    staff.name.toLowerCase().includes(lowerSearchTerm) ||
-    (staff.occupationName?.toLowerCase().includes(lowerSearchTerm) ?? false)
+    normalizeKana(staff.name).toLowerCase().includes(lowerSearchTerm) ||
+    normalizeKana(staff.occupationName ?? "").toLowerCase().includes(lowerSearchTerm)
   );
 }
 
