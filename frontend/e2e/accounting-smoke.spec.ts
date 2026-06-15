@@ -44,8 +44,9 @@ test.describe('会計 smoke E2E', () => {
     await expect(searchInput).toBeVisible({ timeout: 5000 });
 
     // normalizeKana('Iris(イリス)') → 'iris(いりす)'; includes('いりす') → true
+    // .first() because seed may contain multiple Iris billing rows
     await searchInput.fill('いりす');
-    await expect(page.locator('tbody').getByText('Iris', { exact: false })).toBeVisible({
+    await expect(page.locator('tbody').getByText('Iris', { exact: false }).first()).toBeVisible({
       timeout: 5000,
     });
   });
@@ -62,8 +63,9 @@ test.describe('会計 smoke E2E', () => {
     await expect(searchInput).toBeVisible({ timeout: 5000 });
 
     // normalizeKana('イリス') → 'いりす', same match as hiragana above
+    // .first() because seed may contain multiple Iris billing rows
     await searchInput.fill('イリス');
-    await expect(page.locator('tbody').getByText('Iris', { exact: false })).toBeVisible({
+    await expect(page.locator('tbody').getByText('Iris', { exact: false }).first()).toBeVisible({
       timeout: 5000,
     });
   });
