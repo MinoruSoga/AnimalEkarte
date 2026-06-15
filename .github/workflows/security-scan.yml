@@ -32,10 +32,10 @@ jobs:
         uses: actions/checkout@v6.0.2
 
       - name: Run AgentShield
-        # Pinned from refs/tags/v1 to avoid mutable third-party action tags.
-        # continue-on-error: v1.4.0 crashes with ERR_MODULE_NOT_FOUND for 'yaml' (upstream bug).
-        continue-on-error: true
-        uses: affaan-m/agentshield@9bbc007cf5afb562c324bbad4ce6c544420f49f6
+        # Pinned to v1.3.0 SHA: v1.4.0 (9bbc007c) introduced an unbundled `yaml` import that
+        # crashes with ERR_MODULE_NOT_FOUND. v1.3.0 is the last known-good version.
+        # Upgrade when upstream fixes yaml bundling and releases a new tag.
+        uses: affaan-m/agentshield@0b5e1bc95a712285d6bf6289f67d6694de4cf8ef
         with:
           path: "."
           min-severity: "${{ github.event.inputs.min_severity || 'medium' }}"
