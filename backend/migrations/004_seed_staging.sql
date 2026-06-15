@@ -2204,6 +2204,13 @@ INSERT INTO billings ("id", "clinic_id", "medical_record_id", "hospitalization_i
 (423, 1, NULL, NULL, 1, 1, 5000, 500, 5500, 'f', 'completed', '2026-05-21', '2026-05-21 11:00:00+00', '', '2026-05-31 04:33:17.574774+00', '2026-05-31 04:33:17.574774+00', NULL)
 ON CONFLICT DO NOTHING;
 
+-- E2E: Iris (pet_id=1, owner_id=1) を会計一覧 page 1 (scheduled_date DESC, limit=20) に確実に出現させる
+-- 003_seed_demo の PL ループ末尾 (2026-06-30) より 1 日新しい 2026-07-01 を使用。
+-- かな非区別検索テスト (accounting-smoke.spec.ts) の安定動作を保証する。
+INSERT INTO billings (id, clinic_id, owner_id, pet_id, subtotal, tax_total, total_amount, status, scheduled_date, completed_at, memo)
+VALUES (2000, 1, 1, 1, 5000, 500, 5500, 'completed', '2026-07-01', '2026-07-01 10:00:00+09', 'E2E search anchor – Iris かな検索')
+ON CONFLICT DO NOTHING;
+
 -- -----------------------------------------------------------------------------
 -- billing_items
 -- -----------------------------------------------------------------------------
