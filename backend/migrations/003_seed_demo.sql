@@ -1436,40 +1436,13 @@ ON CONFLICT (id) DO UPDATE SET
 
 
 -- -----------------------------------------------------------------------------
--- 8. trimming appointments（予約ベーストリミング: 8件）
--- reservation_types の category を trimming に設定
+-- 8. trimming category update（トリミング予約はシードに含めない）
+-- reservation_types の category を trimming に設定する。
+-- 予約データは挿入しない（cd6c55f1 リグレッション修正 / 8d50d65c の削除意図を維持）
 -- -----------------------------------------------------------------------------
 UPDATE reservation_types SET category = 'trimming' WHERE clinic_id = 1 AND id IN (9, 10, 11, 12);
 
-INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_type_id, doctor_id, is_designated, status, notes) VALUES
-    (101, 1, '2025-12-20 12:00:00+09', '2025-12-20 13:30:00+09', 1,  1,  'first', 9,  6,  false, 'completed',       'サマーカット希望'),
-    (102, 1, '2025-12-25 12:00:00+09', '2025-12-25 13:30:00+09', 1,  2,  'first', 9,  12, false, 'confirmed',       'ふんわりカット'),
-    (103, 1, '2025-12-22 12:00:00+09', '2025-12-22 13:30:00+09', 2,  3,  'first', 9,  6,  false, 'in_consultation', '毛玉カット'),
-    (104, 1, '2026-03-18 09:00:00+09', '2026-03-18 10:00:00+09', 4,  6,  'first', 11, 6,  false, 'completed',       'シャンプーコース'),
-    (105, 1, '2026-03-18 11:10:00+09', '2026-03-18 12:40:00+09', 15, 17, 'first', 9,  12, false, 'completed',       '全体カット'),
-    (106, 1, '2026-03-18 13:15:00+09', '2026-03-18 14:45:00+09', 8,  10, 'first', 10, 12, false, 'confirmed',       '爪切り・ブラッシング'),
-    (107, 1, '2026-03-18 15:45:00+09', '2026-03-18 16:45:00+09', 13, 15, 'first', 11, 6,  false, 'completed',       'シャンプー'),
-    (108, 1, '2026-03-18 17:30:00+09', '2026-03-18 19:00:00+09', 4,  6,  'first', 9,  6,  false, 'confirmed',       'トリミング')
-ON CONFLICT (id) DO UPDATE SET updated_at = now();
-
-INSERT INTO appointment_trimming_details (appointment_id, clinic_id, course_id, body_weight, bw_unit, style_request) VALUES
-    (101, 1, 5, 26.5, 'Kg', 'サマーカット希望'),
-    (102, 1, 4, 15.2, 'Kg', 'ふんわりカット'),
-    (103, 1, 1, 4.2,  'Kg', '毛玉カット'),
-    (104, 1, 1, 3800, 'g',  'シャンプーコース'),
-    (105, 1, 4, 12.0, 'Kg', '全体カット'),
-    (106, 1, 2, 8.0,  'Kg', '爪切り・ブラッシング'),
-    (107, 1, 1, 5.0,  'Kg', 'シャンプー'),
-    (108, 1, 3, 3800, 'g',  'トリミング'),
-    (227, 1, 5, 3.0,  'Kg', 'サマーカット'),
-    (228, 1, 1, 4.8,  'Kg', 'シャンプーコース'),
-    (229, 1, 3, 6.2,  'Kg', 'トリミング'),
-    (246, 1, 4, 8.0,  'Kg', '全体カット'),
-    (247, 1, 1, 5.5,  'Kg', 'シャンプー'),
-    (248, 1, 3, 4.8,  'Kg', 'トリミング')
-ON CONFLICT (appointment_id) DO UPDATE SET updated_at = now();
-
-SELECT setval(pg_get_serial_sequence('appointment_trimming_details', 'id'), (SELECT MAX(id) FROM appointment_trimming_details));
+SELECT setval(pg_get_serial_sequence('appointment_trimming_details', 'id'), COALESCE((SELECT MAX(id) FROM appointment_trimming_details), 1));
 
 -- -----------------------------------------------------------------------------
 -- 9. hospitalizations（入院: 7件）
@@ -4184,14 +4157,14 @@ BEGIN
         doctor_booking_counts := array_fill(0, ARRAY[doctor_count]);
         
         -- トリミング予約の件数を 1〜2件に設定 (Max 2)
-        trimming_count := floor(random() * 2) + 1; -- 1 or 2
+        trimming_count := 0; -- トリミング予約はシードに含めないため 0 に固定
         
         -- その日の総予約予定数を決定 (最低20件〜23件)
         daily_limit := 20 + floor(random() * 4);
         
         FOR i IN 1..daily_limit LOOP
-            -- A. 1日1組限定の「同日にトリミングと一般診療を持つ飼主」の処理
-            -- i = 1 のトリミング枠でこの特別なペアのベース（トリミング予約）を登録する
+            -- A. i = 1: special owner（同日の飼主）のベース予約（一般診療）を登録する
+            -- trimming_count = 0 固定のため ELSIF ブロックは dead code
             IF i = 1 THEN
                 -- 存在する pets からランダムに1頭取得（この日の special とする。八王子病院 clinic_id = 1 に限定）
                 SELECT id, owner_id INTO special_pet_id, special_owner_id FROM pets WHERE clinic_id = 1 ORDER BY random() LIMIT 1;
@@ -4199,15 +4172,16 @@ BEGIN
                 rand_owner_id := special_owner_id;
                 -- 使用済み飼主リストに追加
                 used_owner_ids := array_append(used_owner_ids, rand_owner_id);
-                
-                is_trimming := true;
-                rand_res_type_id := 9 + (appointment_id % 4); -- トリミング(9〜12)を均等化
-                res_duration := 90;
-                
-                -- 時刻は後段の日内均等スロットで決定する
-                
-                -- トリマーをランダムに割り当て
-                rand_doctor_id := trimmer_ids[floor(random() * array_length(trimmer_ids, 1)) + 1];
+
+                is_trimming := false;
+                rand_res_type_id := 1 + ((appointment_id - 1000) % 8); -- 一般診療タイプ(1〜8)を均等化
+                res_duration := 15;
+
+                -- 一般医師をラウンドロビンで割り当て
+                doctor_idx := 1;
+                rand_doctor_id := doctor_ids[doctor_idx];
+                doctor_booking_counts[doctor_idx] := doctor_booking_counts[doctor_idx] + 1;
+                n := doctor_booking_counts[doctor_idx];
                 
             -- i = 2 のトリミング枠（もしあれば）
             ELSIF i <= trimming_count THEN
