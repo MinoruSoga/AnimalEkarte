@@ -5,7 +5,8 @@
  *
  * - .ts / .tsx ファイルの編集時のみ実行
  * - Docker 経由で tsc --noEmit を実行
- * - エラーがあっても exit 0（警告のみ、ブロックしない）
+ * - 決定論的な型エラーは exit 2 でブロック
+ * - タイムアウト等の非決定論的エラーは exit 0（警告のみ）
  * - 型エラーがある場合は stderr に出力してユーザーに通知
  */
 
@@ -68,12 +69,14 @@ process.stdin.on('end', () => {
       }
       const output = err.stdout || err.stderr || err.message || '';
       if (output.trim()) {
-        // 型エラーあり: stderr に出力して警告（exit 0 でブロックしない）
+        // 型エラーあり: stderr に出力して exit 2 でブロック
         process.stderr.write(
-          `\n⚠️  TypeScript 型エラーが検出されました:\n${output}\n` +
+          `\n🚫 TypeScript 型エラーが検出されました:\n${output}\n` +
           `修正方法: docker compose exec frontend npx tsc --noEmit\n\n`
         );
+        process.exit(2);
       }
+      // 出力なし（予期しない非ゼロ終了）: 警告のみ
       process.exit(0);
     }
   } catch {

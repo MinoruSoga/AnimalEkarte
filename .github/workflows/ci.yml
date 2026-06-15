@@ -112,6 +112,12 @@ jobs:
         working-directory: backend
         run: go build ./...
 
+      - name: Lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.11.4
+          working-directory: backend
+
       - name: Test
         working-directory: backend
         env:
@@ -122,12 +128,6 @@ jobs:
           DB_NAME: ekarte_db
           DB_SSL_MODE: disable
         run: go test ./... -count=1 -race -timeout 120s
-
-      - name: Lint
-        uses: golangci/golangci-lint-action@v7
-        with:
-          version: v2.11.4
-          working-directory: backend
 
       - name: Schema drift check
         working-directory: backend
