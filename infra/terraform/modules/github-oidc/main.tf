@@ -116,6 +116,16 @@ resource "aws_iam_role_policy" "github_ecs_deploy" {
         Resource = "*"
       },
       {
+        # RDS: preflight (start/describe) + outside-hours auto-stop (stop/describe)
+        Effect = "Allow"
+        Action = [
+          "rds:DescribeDBInstances",
+          "rds:StartDBInstance",
+          "rds:StopDBInstance"
+        ]
+        Resource = "*"
+      },
+      {
         Effect = "Allow"
         Action = [
           "iam:PassRole"
