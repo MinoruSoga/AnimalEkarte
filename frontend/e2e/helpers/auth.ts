@@ -19,19 +19,19 @@ export async function loginAsDemoAdmin(page: Page) {
   await emailInput.fill(DEMO_EMAIL);
   await page.locator('#login-password').fill(DEMO_PASSWORD);
 
-  // waitForURL + click in parallel so we don't miss a fast navigation.
-  // Use waitUntil: 'commit' so the promise resolves as soon as React Router's
-  // replaceState fires — not after the home-page lazy chunks finish loading.
-  // Default 'load' would wait for Vite to serve all home-page modules (30-50 s
-  // through Docker), making the 30 s timeout unreliable for cold contexts.
-  await Promise.all([
-    page.waitForURL((url) => !url.pathname.startsWith('/login'), {
-      timeout: 60000,
-      waitUntil: 'commit',
-    }),
-    page.getByRole('button', { name: 'ログイン' }).click(),
-  ]);
+  const loginResponsePromise = page.waitForResponse(
+    (response) => response.url().includes('/v1/login') && response.request().method() === 'POST',
+    { timeout: 60000 },
+  );
+  await page.getByRole('button', { name: 'ログイン' }).click();
+  const loginResponse = await loginResponsePromise;
+  expect(loginResponse.status()).toBe(200);
 
-  // Sanity check: confirm we actually left /login.
+  // The app uses httpOnly cookies. After the login response is committed,
+  // navigate explicitly so a fresh document restores auth from the cookie.
+  // This avoids depending on a React Router navigation event, which can be
+  // missed late in the full E2E suite even though /v1/login succeeded.
+  await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await expect(page).not.toHaveURL(/\/login/);
+  await expect(page.getByRole('heading', { name: '当日の受付' })).toBeVisible({ timeout: 60000 });
 }
