@@ -82,4 +82,23 @@ test.describe('会計フロー E2E', () => {
       await page.close();
     }
   });
+
+  test('/accounting/:id — 会計精算フォームの確定ボタンが表示される', async () => {
+    const page = await context.newPage();
+    try {
+      await page.goto('/accounting', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('tab', { name: '会計一覧' })).toBeVisible({ timeout: 30000 });
+      await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
+
+      // Click first row to navigate to detail
+      await page.locator('tbody tr').first().click();
+      await expect(page.getByRole('heading', { name: '会計精算' })).toBeVisible({ timeout: 30000 });
+      await expect(page).toHaveURL(/\/accounting\/\d+/);
+
+      const confirmButton = page.getByRole('button', { name: /会計を確定する|修正を保存する/ });
+      await expect(confirmButton).toBeVisible({ timeout: 10000 });
+    } finally {
+      await page.close();
+    }
+  });
 });

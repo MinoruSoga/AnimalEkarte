@@ -11,10 +11,12 @@ End-to-end tests for Animal Ekarte using Playwright.
 | `owners-search.spec.ts` | /owners kana search — unauthenticated redirect + ぴ/ピ→ピーター (かな非区別) |
 | `owners-flow.spec.ts` | /owners list/create/search/detail/edit 主要操作フロー |
 | `accounting-smoke.spec.ts` | /accounting タブ smoke + いりす/イリス→Iris かな非区別検索 + /accounting?tab=unpaid + /accounting/reports |
-| `accounting-flow.spec.ts` | /accounting 行クリック→詳細遷移・Iris 検索→詳細・/accounting/reports セレクタ |
+| `accounting-flow.spec.ts` | /accounting 行クリック→詳細遷移・Iris 検索→詳細・/accounting/reports セレクタ・会計精算フォーム確定ボタン表示 |
 | `reservations-smoke.spec.ts` | /reservations auth guard + カレンダーナビ smoke |
 | `clinical-smoke.spec.ts` | 受付/顧客集計/カルテ管理/入院管理/トリミング/検査/予防接種/定期健診 各ページ smoke |
-| `clinical-flows.spec.ts` | カルテ管理・トリミング管理 主要操作フロー |
+| `clinical-flows.spec.ts` | カルテ管理 一覧/検索/行クリック詳細・ペット選択画面 |
+| `medical-records-create.spec.ts` | /medical-records/new?petId=1 直接 URL アクセスで新規カルテ入力フォーム表示確認 |
+| `trimming-flow.spec.ts` | /trimming 一覧表示・新規登録ペット選択・/trimming/new?petId=1 フォーム表示 |
 | `hospitalization-flow.spec.ts` | /hospitalization 一覧リストビュー・新規登録遷移・ステータスタブ切り替え |
 | `vaccinations-flow.spec.ts` | /vaccinations 一覧表示・検索フィルタ・新規登録遷移・行クリック詳細遷移 |
 | `business-smoke.spec.ts` | 業務系ページ（ダッシュボード/CPM/在庫/日次集計等）smoke |
