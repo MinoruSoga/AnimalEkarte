@@ -5,6 +5,9 @@ import { loginAsDemoAdmin } from './helpers/auth';
 
 // Note: arm64/aarch64 runtime (e.g., Docker on Apple Silicon) will skip these tests
 // because Playwright Chromium does not run reliably in that environment.
+//
+// Design: fresh page per test within shared context to avoid Chromium
+// state accumulation across many navigations.
 
 const isArm64Runtime = process.platform === 'linux' && os.arch() === 'arm64';
 const TREATMENT_ITEMS_PATH = '/settings/treatment-items';
@@ -20,7 +23,6 @@ async function gotoTreatmentItems(page: Page, tab: string) {
 
 test.describe('Master CRUD E2E Tests', () => {
   let context: BrowserContext;
-  let page: Page;
 
   // arm64 環境では describe 全体をスキップする
   if (isArm64Runtime) {
@@ -29,8 +31,9 @@ test.describe('Master CRUD E2E Tests', () => {
 
   test.beforeAll(async ({ browser }) => {
     context = await browser.newContext();
-    page = await context.newPage();
-    await loginAsDemoAdmin(page);
+    const loginPage = await context.newPage();
+    await loginAsDemoAdmin(loginPage);
+    await loginPage.close();
   });
 
   test.afterAll(async () => {
@@ -38,75 +41,95 @@ test.describe('Master CRUD E2E Tests', () => {
   });
 
   test('A: Chief Complaint Navigation', async () => {
-    // Navigate to settings page
-    await page.goto('/settings', { waitUntil: 'domcontentloaded' });
+    const page = await context.newPage();
+    try {
+      // Navigate to settings page
+      await page.goto('/settings', { waitUntil: 'domcontentloaded' });
 
-    // Check if Chief Complaint card is visible
-    const chiefComplaintCard = page.locator('text=主訴カテゴリ').first();
-    await expect(chiefComplaintCard).toBeVisible();
+      // Check if Chief Complaint card is visible
+      const chiefComplaintCard = page.locator('text=主訴カテゴリ').first();
+      await expect(chiefComplaintCard).toBeVisible();
 
-    // Click and navigate to chief complaint page
-    await chiefComplaintCard.click();
-    await page.waitForURL('**/chief-complaint');
-    await expect(page).toHaveURL(/\/settings\/interview\/chief-complaint/);
+      // Click and navigate to chief complaint page
+      await chiefComplaintCard.click();
+      await page.waitForURL('**/chief-complaint');
+      await expect(page).toHaveURL(/\/settings\/interview\/chief-complaint/);
 
-    // Verify page content loaded
-    await expect(page.locator('body')).toContainText('主訴カテゴリ');
+      // Verify page content loaded
+      await expect(page.locator('body')).toContainText('主訴カテゴリ');
+    } finally {
+      await page.close();
+    }
   });
 
   test('B: Treatment Plan - Procedure Tab and Parent Selector', async () => {
-    // Navigate to treatment plan page
-    await gotoTreatmentItems(page, 'procedure');
+    const page = await context.newPage();
+    try {
+      // Navigate to treatment plan page
+      await gotoTreatmentItems(page, 'procedure');
 
-    // Click on 処置 (Procedure) tab
-    const procedureTab = page.getByRole('tab', { name: '処置' });
-    await expect(procedureTab).toBeVisible();
-    await expect(procedureTab).toHaveAttribute('data-state', 'active');
+      // Click on 処置 (Procedure) tab
+      const procedureTab = page.getByRole('tab', { name: '処置' });
+      await expect(procedureTab).toBeVisible();
+      await expect(procedureTab).toHaveAttribute('data-state', 'active');
 
-    // Look for parent category selector in the form/panel
-    // The selector should be visible when new item creation panel opens
-    await page.getByRole('button', { name: '新規登録' }).click();
-    await expect(page.getByText('親カテゴリ')).toBeVisible();
+      // Look for parent category selector in the form/panel
+      // The selector should be visible when new item creation panel opens
+      await page.getByRole('button', { name: '新規登録' }).click();
+      await expect(page.getByText('親カテゴリ')).toBeVisible();
 
-    // Parent selector should be visible or selectable
-    await expect(parentCategoryCombobox(page)).toBeVisible();
+      // Parent selector should be visible or selectable
+      await expect(parentCategoryCombobox(page)).toBeVisible();
+    } finally {
+      await page.close();
+    }
   });
 
   test('C: Treatment Plan - Root with Children Cannot Change Parent', async () => {
-    // Navigate to treatment plan page
-    await gotoTreatmentItems(page, 'procedure');
+    const page = await context.newPage();
+    try {
+      // Navigate to treatment plan page
+      await gotoTreatmentItems(page, 'procedure');
 
-    // Click on 処置 (Procedure) tab
-    const procedureTab = page.getByRole('tab', { name: '処置' });
-    await expect(procedureTab).toHaveAttribute('data-state', 'active');
+      // Click on 処置 (Procedure) tab
+      const procedureTab = page.getByRole('tab', { name: '処置' });
+      await expect(procedureTab).toHaveAttribute('data-state', 'active');
 
-    // Seed data has "注射" as a root category with children.
-    const rootItem = page.locator('tbody').getByText('注射', { exact: true }).first();
-    await expect(rootItem).toBeVisible();
-    await rootItem.click();
+      // Seed data has "注射" as a root category with children.
+      const rootItem = page.locator('tbody').getByText('注射', { exact: true }).first();
+      await expect(rootItem).toBeVisible();
+      await rootItem.click();
 
-    // Check for the "cannot change parent" message
-    await expect(page.getByText('子項目があるため変更できません')).toBeVisible();
+      // Check for the "cannot change parent" message
+      await expect(page.getByText('子項目があるため変更できません')).toBeVisible();
+    } finally {
+      await page.close();
+    }
   });
 
   test('D: All 5 Tabs Exist and Show Parent Selector', async () => {
-    // Navigate to treatment plan page
-    await gotoTreatmentItems(page, 'consultation');
+    const page = await context.newPage();
+    try {
+      // Navigate to treatment plan page
+      await gotoTreatmentItems(page, 'consultation');
 
-    const tabs = ['診察', '検査', '予防接種', '処置', '定期健診'];
+      const tabs = ['診察', '検査', '予防接種', '処置', '定期健診'];
 
-    for (const tabName of tabs) {
-      const tab = page.getByRole('tab', { name: tabName });
-      await expect(tab).toBeVisible(`Tab ${tabName} should be visible`);
+      for (const tabName of tabs) {
+        const tab = page.getByRole('tab', { name: tabName });
+        await expect(tab).toBeVisible(`Tab ${tabName} should be visible`);
 
-      await tab.click();
-      await expect(tab).toHaveAttribute('data-state', 'active');
+        await tab.click();
+        await expect(tab).toHaveAttribute('data-state', 'active');
 
-      // For each tab, the parent selector should be accessible in creation panel
-      await page.getByRole('button', { name: '新規登録' }).click();
-      await expect(page.getByText('親カテゴリ')).toBeVisible();
-      await expect(parentCategoryCombobox(page)).toBeVisible();
-      await page.getByRole('button', { name: '閉じる' }).click();
+        // For each tab, the parent selector should be accessible in creation panel
+        await page.getByRole('button', { name: '新規登録' }).click();
+        await expect(page.getByText('親カテゴリ')).toBeVisible();
+        await expect(parentCategoryCombobox(page)).toBeVisible();
+        await page.getByRole('button', { name: '閉じる' }).click();
+      }
+    } finally {
+      await page.close();
     }
   });
 });

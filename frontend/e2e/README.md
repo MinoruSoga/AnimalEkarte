@@ -8,10 +8,21 @@ End-to-end tests for Animal Ekarte using Playwright.
 
 | File | Tests |
 |------|-------|
-| `master-crud.spec.ts` | Settings page master CRUD (A-D) |
 | `owners-search.spec.ts` | /owners kana search — unauthenticated redirect + ぴ/ピ→ピーター (かな非区別) |
+| `owners-flow.spec.ts` | /owners list/create/search/detail/edit 主要操作フロー |
 | `accounting-smoke.spec.ts` | /accounting タブ smoke + いりす/イリス→Iris かな非区別検索 + /accounting?tab=unpaid + /accounting/reports |
-| `reservations-smoke.spec.ts` | /reservations auth guard + カレンダーナビ smoke (cancelled filtering は unit test 担保) |
+| `accounting-flow.spec.ts` | /accounting 行クリック→詳細遷移・Iris 検索→詳細・/accounting/reports セレクタ |
+| `reservations-smoke.spec.ts` | /reservations auth guard + カレンダーナビ smoke |
+| `clinical-smoke.spec.ts` | 受付/顧客集計/カルテ管理/入院管理/トリミング/検査/予防接種/定期健診 各ページ smoke |
+| `clinical-flows.spec.ts` | カルテ管理・トリミング管理 主要操作フロー |
+| `hospitalization-flow.spec.ts` | /hospitalization 一覧リストビュー・新規登録遷移・ステータスタブ切り替え |
+| `vaccinations-flow.spec.ts` | /vaccinations 一覧表示・検索フィルタ・新規登録遷移・行クリック詳細遷移 |
+| `business-smoke.spec.ts` | 業務系ページ（ダッシュボード/CPM/在庫/日次集計等）smoke |
+| `operations-smoke.spec.ts` | 受付/トリミング/会計 等 主要ページ一覧/操作 smoke |
+| `inventory-crud.spec.ts` | /inventory 在庫 CRUD フロー |
+| `settings-smoke.spec.ts` | /settings/* 全設定ページ smoke (17 ページ) |
+| `settings-crud.spec.ts` | /settings/* 設定マスタ CRUD フロー |
+| `master-crud.spec.ts` | 処置マスタ CRUD (A-D) 4 ケース |
 
 ## Execution Model
 
@@ -51,8 +62,11 @@ docker compose up -d   # if not already running
 |------|--------------|--------|
 | `owners-search.spec.ts` | pet name `ピーター` (name_kana=`ぴーたー`), owner 5 (佐藤 花子), clinic 1 | `003_seed_demo.sql` |
 | `accounting-smoke.spec.ts` | owner 1 (林 文明, はやし ふみあき) with completed billing for pet 1 (`Iris(イリス)`, name_kana=`いりす`) | `003_seed_demo.sql` |
+| `accounting-flow.spec.ts` | same as `accounting-smoke.spec.ts` | `003_seed_demo.sql` |
 | `reservations-smoke.spec.ts` | admin user at clinic 1 with reservations permission | `003_seed_demo.sql` |
 | `master-crud.spec.ts` | treatment procedure items incl. `注射` (root with children) | `003_seed_demo.sql` |
+| `hospitalization-flow.spec.ts` | 1+ active hospitalization records at clinic 1 | `003_seed_demo.sql` |
+| `vaccinations-flow.spec.ts` | 1+ vaccination records; owner `林 文明` with pet `林 文明` | `003_seed_demo.sql` |
 
 If seed data is missing, run:
 
