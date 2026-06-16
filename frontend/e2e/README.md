@@ -118,7 +118,9 @@ pnpm test:e2e:ui
 
 All specs (except those that test unauthenticated redirect) log in automatically via
 `helpers/auth.ts:loginAsDemoAdmin`. The helper navigates to `/login`, fills the demo credentials,
-and waits for the URL to leave `/login`.
+waits for the login API to succeed, then stores the authenticated storage state in `/tmp`.
+Later specs restore that state instead of repeating UI login, avoiding the backend login
+rate limit during full-suite runs.
 
 - Email: `admin@noavet.jp` / Password: `password`
 
