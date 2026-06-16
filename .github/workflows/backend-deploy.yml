@@ -36,8 +36,27 @@ jobs:
   deploy:
     name: Deploy Backend to ECS
     runs-on: ubuntu-latest
+    outputs:
+      outside_stg_hours: ${{ steps.time-check.outputs.outside_stg_hours }}
 
     steps:
+      # -------------------------------------------------------
+      # Time-window detection: JST 08:00–22:00 の外かどうかを判定する。
+      # 時間外デプロイの場合、完了後 30 分で ECS/RDS を自動停止する。
+      # -------------------------------------------------------
+      - name: Detect JST time window
+        id: time-check
+        run: |
+          JST_HOUR=$(TZ=Asia/Tokyo date +%-H)
+          echo "Current JST hour: $JST_HOUR"
+          if [ "$JST_HOUR" -lt 8 ] || [ "$JST_HOUR" -ge 22 ]; then
+            echo "outside_stg_hours=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Deploy outside 08:00-22:00 JST (hour=${JST_HOUR}). Staging resources will be auto-stopped 30 min after completion."
+          else
+            echo "outside_stg_hours=false" >> "$GITHUB_OUTPUT"
+            echo "Deploy within business hours (hour=${JST_HOUR}). No auto-stop scheduled."
+          fi
+
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
@@ -352,3 +371,67 @@ jobs:
           fi
 
           echo "Deployment completed successfully. Running tasks: $RUNNING"
+
+  # -------------------------------------------------------
+  # 時間外デプロイ後の自動停止ジョブ
+  # deploy ジョブの成功・失敗にかかわらず実行される (always())。
+  # キャンセル時は outside_stg_hours output が伝播しないため実行されない。
+  #
+  # トレードオフ: GitHub Actions ランナーを 30 分占有するが、
+  # EventBridge Scheduler 方式は scheduler:CreateSchedule +
+  # iam:PassRole(scheduler-role) の追加権限が必要で複雑になるため
+  # sleep ベースを採用した。ステージング限定でコストへの影響は軽微。
+  # -------------------------------------------------------
+  delayed-stop:
+    name: Auto-stop staging resources (outside hours)
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always() && needs.deploy.outputs.outside_stg_hours == 'true'
+    timeout-minutes: 45
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.1.0
+        with:
+          role-to-assume: arn:aws:iam::698109622668:role/animalekarte-stg-github-ecs-deploy-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Wait 30 minutes before stopping
+        run: |
+          echo "Deploy result: ${{ needs.deploy.result }}"
+          echo "Waiting 30 minutes before stopping staging resources..."
+          sleep 1800
+
+      - name: Stop ECS service (desiredCount=0)
+        run: |
+          echo "Setting ECS service desiredCount to 0..."
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --desired-count 0 \
+            --region ${{ env.AWS_REGION }} \
+            --query 'service.desiredCount' \
+            --output text
+          echo "ECS desiredCount set to 0."
+
+      - name: Stop RDS instance
+        run: |
+          DB_ID="animalekarte-stg-db"
+          REGION="${{ env.AWS_REGION }}"
+
+          DB_STATUS=$(aws rds describe-db-instances \
+            --db-instance-identifier "$DB_ID" \
+            --query 'DBInstances[0].DBInstanceStatus' \
+            --output text \
+            --region "$REGION")
+
+          echo "RDS status: $DB_STATUS"
+
+          if [ "$DB_STATUS" = "available" ]; then
+            aws rds stop-db-instance \
+              --db-instance-identifier "$DB_ID" \
+              --region "$REGION" > /dev/null
+            echo "RDS stop issued."
+          else
+            echo "::notice::RDS is in state '$DB_STATUS'; skip stop (may already be stopped or transitioning)."
+          fi
