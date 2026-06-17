@@ -48,6 +48,7 @@ export function TreatmentHistorySection({
       isLoading={isLoading}
       isError={isError}
       isEmpty={items.length === 0}
+      count={items.length}
       emptyMessage={emptyMessage ?? "履歴はありません"}
     >
       <HistoryTable headers={headers}>

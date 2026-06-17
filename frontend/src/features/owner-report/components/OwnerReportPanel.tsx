@@ -5,36 +5,44 @@ interface OwnerReportPanelProps {
   owner: Owner;
 }
 
+interface OwnerField {
+  label: string;
+  value: string;
+  mono?: boolean;
+}
+
 /**
- * #158 R4: 飼主情報の常時固定表示パネル。ペット切替で消えない。
+ * #158 R4: 飼主情報の常時固定表示。ペット切替で消えず、履歴スクロール中も上部バーに残る。
+ * 業務ツール向けに 1〜2 行のコンパクトな identity ストリップとして横並び表示する（カードにしない）。
  */
 export function OwnerReportPanel({ owner }: OwnerReportPanelProps) {
+  const fields: OwnerField[] = [
+    { label: "電話", value: owner.phone || "-", mono: true },
+    { label: "会員区分", value: owner.membershipType || "-" },
+  ];
+  if (owner.email) {
+    fields.push({ label: "メール", value: owner.email });
+  }
+
   return (
-    <div className={`rounded-lg border ${C.borderLight} ${C.bgWhite} p-4`}>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className={`text-xs ${C.text50}`}>飼主No</span>
-        <span className={`text-sm font-mono ${C.text}`}>{owner.id}</span>
-        <h1 className={`text-lg font-semibold ${C.text}`}>{owner.ownerName || "-"}</h1>
-        {owner.ownerNameKana ? (
-          <span className={`text-sm ${C.text50}`}>{owner.ownerNameKana}</span>
-        ) : null}
-      </div>
-      <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1">
-        <div className="flex items-baseline gap-1.5">
-          <dt className={`text-xs ${C.text50}`}>電話</dt>
-          <dd className={`text-sm font-mono ${C.text}`}>{owner.phone || "-"}</dd>
-        </div>
-        <div className="flex items-baseline gap-1.5">
-          <dt className={`text-xs ${C.text50}`}>会員区分</dt>
-          <dd className={`text-sm ${C.text}`}>{owner.membershipType || "-"}</dd>
-        </div>
-        {owner.email ? (
-          <div className="flex items-baseline gap-1.5">
-            <dt className={`text-xs ${C.text50}`}>メール</dt>
-            <dd className={`text-sm ${C.text}`}>{owner.email}</dd>
-          </div>
-        ) : null}
-      </dl>
+    <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+      <span className={`text-xs ${C.text50}`}>飼主No</span>
+      <span className={`font-mono text-sm ${C.text}`}>{owner.id}</span>
+      <h1 className={`max-w-full truncate text-base font-semibold ${C.text}`}>
+        {owner.ownerName || "-"}
+      </h1>
+      {owner.ownerNameKana ? (
+        <span className={`truncate text-xs ${C.text50}`}>{owner.ownerNameKana}</span>
+      ) : null}
+      <span aria-hidden className={`${C.text25}`}>
+        |
+      </span>
+      {fields.map((field) => (
+        <span key={field.label} className="flex items-baseline gap-1">
+          <span className={`text-xs ${C.text50}`}>{field.label}</span>
+          <span className={`text-sm ${field.mono ? "font-mono" : ""} ${C.text}`}>{field.value}</span>
+        </span>
+      ))}
     </div>
   );
 }

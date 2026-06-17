@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { C } from "@/lib/design-tokens";
+import { ReportPanel } from "./ReportPanel";
 
 interface ReportSectionProps {
   title: string;
@@ -9,12 +10,15 @@ interface ReportSectionProps {
   isError: boolean;
   isEmpty: boolean;
   emptyMessage?: string;
+  /** 件数バッジ（閲覧可・取得済み・非エラーのときのみヘッダーに表示）。 */
+  count?: number;
   children: ReactNode;
 }
 
 /**
- * #158 飼主レポートの各セクション共通シェル。
+ * #158 飼主レポートの各履歴セクション共通シェル。
  * 権限なし / ローディング / エラー / 空 の縮退表示を一元化し、いずれでもない場合のみ children を描画する。
+ * 表示は密集ワークスペース用の ReportPanel（境界内スクロール）に委譲する。
  */
 export function ReportSection({
   title,
@@ -23,6 +27,7 @@ export function ReportSection({
   isError,
   isEmpty,
   emptyMessage = "履歴はありません",
+  count,
   children,
 }: ReportSectionProps) {
   const body = !canView ? (
@@ -39,10 +44,11 @@ export function ReportSection({
     children
   );
 
+  const showCount = canView && !isLoading && !isError && typeof count === "number";
+
   return (
-    <section className={`rounded-lg border ${C.borderLight} ${C.bgWhite} p-4`}>
-      <h2 className={`text-sm font-semibold ${C.text} mb-3`}>{title}</h2>
+    <ReportPanel title={title} count={showCount ? count : undefined}>
       {body}
-    </section>
+    </ReportPanel>
   );
 }

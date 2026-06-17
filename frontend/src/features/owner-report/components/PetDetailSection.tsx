@@ -1,5 +1,6 @@
 import { C } from "@/lib/design-tokens";
 import type { Pet } from "@/types";
+import { ReportPanel } from "./ReportPanel";
 
 interface PetDetailSectionProps {
   pet: Pet;
@@ -13,6 +14,7 @@ interface DetailRow {
 /**
  * #158 ① ペット詳細セクション。
  * 既存 useGetPets(ownerId) のデータ（transformBackendPetToFrontend）を使い、新規 useGetPet は作らない。
+ * 密集ワークスペースの 1 パネルとして ReportPanel に載せ、行数が増えても内部スクロールに収める。
  */
 export function PetDetailSection({ pet }: PetDetailSectionProps) {
   const rows: DetailRow[] = [
@@ -34,22 +36,23 @@ export function PetDetailSection({ pet }: PetDetailSectionProps) {
   ];
 
   return (
-    <section className={`rounded-lg border ${C.borderLight} ${C.bgWhite} p-4`}>
-      <h2 className={`text-sm font-semibold ${C.text} mb-3`}>ペット詳細</h2>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
+    <ReportPanel title="ペット詳細">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
         {rows.map((row) => (
-          <div key={row.label} className="flex flex-col">
+          <div key={row.label} className="flex min-w-0 flex-col">
             <dt className={`text-xs ${C.text50}`}>{row.label}</dt>
-            <dd className={`text-sm ${C.text}`}>{row.value}</dd>
+            <dd className={`truncate text-sm ${C.text}`} title={row.value}>
+              {row.value}
+            </dd>
           </div>
         ))}
       </dl>
       {pet.remarks ? (
         <dl className="mt-3">
           <dt className={`text-xs ${C.text50}`}>備考</dt>
-          <dd className={`text-sm ${C.text} whitespace-pre-wrap`}>{pet.remarks}</dd>
+          <dd className={`text-sm whitespace-pre-wrap ${C.text}`}>{pet.remarks}</dd>
         </dl>
       ) : null}
-    </section>
+    </ReportPanel>
   );
 }

@@ -24,6 +24,7 @@ export function ExaminationHistorySection({ petId }: ExaminationHistorySectionPr
       isLoading={isLoading}
       isError={isError}
       isEmpty={exams.length === 0}
+      count={exams.length}
       emptyMessage="検査の履歴はありません"
     >
       <ul className="flex flex-col gap-3">

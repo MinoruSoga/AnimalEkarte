@@ -173,6 +173,26 @@ describe("OwnerReport", () => {
     expect(pochiTab).toHaveAttribute("aria-selected", "true");
   });
 
+  it("6 セクションは見出しを名前に持つ region ランドマークとして密集ワークスペースに並ぶ", () => {
+    renderReport(makeAuth(allowAll));
+
+    const regions = screen.getAllByRole("region");
+    const names = regions.map((r) => r.getAttribute("aria-label") ?? r.textContent ?? "");
+    // 6 セクションがそれぞれ独立した region になっている（タブ等の背後に隠れず一画面に同時提示）。
+    expect(regions).toHaveLength(6);
+    for (const title of [
+      "ペット詳細",
+      "予防接種履歴",
+      "健康診断（検査）履歴",
+      "投薬履歴",
+      "手術・処置履歴",
+      "治療履歴",
+    ]) {
+      expect(screen.getByRole("region", { name: title })).toBeInTheDocument();
+    }
+    expect(names.length).toBe(6);
+  });
+
   it("ペット切替でページ遷移せず ?petId= が同期し、飼主パネルは消えない", async () => {
     const user = userEvent.setup();
     renderReport(makeAuth(allowAll));

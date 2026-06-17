@@ -11,7 +11,11 @@ import { useGetOwner } from "@/features/owners";
 import { useGetPets } from "@/features/pets";
 
 import { OwnerReportPanel } from "../components/OwnerReportPanel";
-import { PetSwitcher } from "../components/PetSwitcher";
+import {
+  PetSwitcher,
+  OWNER_REPORT_TABPANEL_ID,
+  ownerReportPetTabId,
+} from "../components/PetSwitcher";
 import { PetDetailSection } from "../components/PetDetailSection";
 import { VaccinationHistorySection } from "../components/VaccinationHistorySection";
 import { ExaminationHistorySection } from "../components/ExaminationHistorySection";
@@ -68,30 +72,47 @@ function OwnerReportContent() {
 
   if (ownerLoading || petsLoading) {
     return (
-      <div className={`min-h-screen ${C.bgPage} p-6`}>
-        <p className={`text-sm ${C.text50}`}>読み込み中...</p>
+      <div className={`flex min-h-dvh items-center justify-center ${C.bgPage} p-6`}>
+        <p className={`text-sm ${C.text50}`} role="status" aria-live="polite">
+          読み込み中...
+        </p>
       </div>
     );
   }
 
+  // 業務ツール向け密集レイアウト:
+  // - root を固定ビューポート高(h-dvh)にする。グローバル CSS が html/body/#root を
+  //   height:100% + overflow:hidden に固定しているため、root 自身をスクロールコンテナにする。
+  // - lg+ では overflow-hidden で root も固定し、各履歴パネルだけが内部スクロールする（ページ非スクロール）。
+  // - lg 未満（タブレット/モバイル）は root が overflow-y-auto でスクロールし、パネルは自然高さで縦積みする。
+  // - 上部 <header> = 常時固定（sticky）の飼主コンテキスト + ペット切替（R4/R5）。
+  // - <main> = 6 セクションを敷き詰めるグリッド（xl:3列×2行 / lg:2列×3行 / それ未満:1列）。
   return (
-    <div className={`min-h-screen ${C.bgPage}`}>
-      <div className="mx-auto flex max-w-4xl flex-col gap-4 p-4 sm:p-6">
-        {/* R4: 飼主パネルは常時固定表示（ペット切替で消えない） */}
-        {owner ? (
-          <OwnerReportPanel owner={owner} />
-        ) : (
-          <div className={`rounded-lg border ${C.borderLight} ${C.bgWhite} p-4`}>
+    <div className={`flex h-dvh flex-col overflow-y-auto ${C.bgPage} lg:overflow-hidden`}>
+      {/* R4/R5: 飼主は固定表示、ペット切替は即アクセス可能。モバイルでも sticky で残す。 */}
+      <header
+        className={`sticky top-0 z-20 shrink-0 border-b ${C.borderLight} ${C.bgWhite} px-3 py-2`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          {owner ? (
+            <OwnerReportPanel owner={owner} />
+          ) : (
             <p className={`text-sm ${C.danger}`}>飼主情報を取得できませんでした</p>
-          </div>
-        )}
+          )}
+          {pets.length > 0 ? (
+            <PetSwitcher pets={pets} selectedPetId={selectedPetId} onSelect={handleSelectPet} />
+          ) : null}
+        </div>
+      </header>
 
-        {pets.length > 0 ? (
-          <PetSwitcher pets={pets} selectedPetId={selectedPetId} onSelect={handleSelectPet} />
-        ) : null}
-
+      <main className="flex-1 lg:min-h-0 lg:overflow-hidden">
         {selectedPet ? (
-          <div className="flex flex-col gap-4">
+          <div
+            id={OWNER_REPORT_TABPANEL_ID}
+            role="tabpanel"
+            aria-labelledby={ownerReportPetTabId(selectedPet.id)}
+            className="grid grid-cols-1 gap-2 p-2 lg:h-full lg:min-h-0 lg:grid-cols-2 lg:grid-rows-3 xl:grid-cols-3 xl:grid-rows-2"
+          >
             <PetDetailSection pet={selectedPet} />
             <VaccinationHistorySection petId={selectedPet.id} />
             <ExaminationHistorySection petId={selectedPet.id} />
@@ -116,11 +137,11 @@ function OwnerReportContent() {
             />
           </div>
         ) : (
-          <div className={`rounded-lg border ${C.borderLight} ${C.bgWhite} p-4`}>
+          <div className="p-3">
             <p className={`text-sm ${C.text50}`}>この飼主に登録されたペットがありません</p>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

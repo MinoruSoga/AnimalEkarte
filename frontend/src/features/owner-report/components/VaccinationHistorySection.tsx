@@ -25,6 +25,7 @@ export function VaccinationHistorySection({ petId }: VaccinationHistorySectionPr
       isLoading={isLoading}
       isError={isError}
       isEmpty={items.length === 0}
+      count={items.length}
       emptyMessage="予防接種の履歴はありません"
     >
       <HistoryTable headers={["接種日", "ワクチン", "次回予定"]}>
