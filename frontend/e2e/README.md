@@ -22,9 +22,17 @@ End-to-end tests for Animal Ekarte using Playwright.
 | `business-smoke.spec.ts` | 業務系ページ（ダッシュボード/CPM/在庫/日次集計等）smoke |
 | `operations-smoke.spec.ts` | 受付/トリミング/会計 等 主要ページ一覧/操作 smoke |
 | `inventory-crud.spec.ts` | /inventory 在庫 CRUD フロー |
-| `settings-smoke.spec.ts` | /settings/* 全設定ページ smoke (17 ページ) |
+| `settings-smoke.spec.ts` | /settings/* 全設定ページ smoke (21 ページ) |
 | `settings-crud.spec.ts` | /settings/* 設定マスタ CRUD フロー |
 | `master-crud.spec.ts` | 処置マスタ CRUD (A-D) 4 ケース |
+| `auth-flows.spec.ts` | /login 表示・入力・ログイン成功/失敗・パスワード表示切替 + /forgot-password・/reset-password アクセス/リダイレクト確認 |
+| `examinations-flow.spec.ts` | /examinations 一覧・/examinations/select-pet ペット選択・/examinations/new フォーム・/:id 詳細・検索機能 |
+| `checkups-flow.spec.ts` | /checkups 一覧・/checkups/select-pet ペット選択・/checkups/new フォーム・新規ボタン遷移・検索機能 |
+| `estimates-flow.spec.ts` | /estimates 一覧・/estimates/new 新規フォーム・/:id 詳細・/:id/edit 編集フォーム・新規ボタン・検索 |
+| `shifts-flow.spec.ts` | /shifts カレンダー表示・ナビゲーション矢印・スタッフセレクタ・カレンダー移動・フィルタ機能 |
+| `lstep-flow.spec.ts` | /lstep/checkup-sync 抽出ページ + /lstep/delivery-monitor 監視ページ・フィルタ + /lstep/analytics 分析ページ・セレクタ |
+| `line-reservation-flow.spec.ts` | /line-reservation 基本設定フォーム + /line-reservation/page-editor 編集フォーム + /line-reservation/slots 枠設定ページ/説明表示 |
+| `manual-flow.spec.ts` | /manual リダイレクト・サイドバー・カテゴリ切替・検索 + /manual/:category/:slug 記事ページ・リンク遷移 |
 
 ## Execution Model
 
