@@ -1,8 +1,12 @@
-import { ChevronDown } from "lucide-react";
+import { useCallback } from "react";
+import { ChevronDown, FileText } from "lucide-react";
 import { PatientContextHeader } from "@/components/shared/PatientContextHeader";
 import { UnifiedTabsContent, UnifiedTabsList } from "@/components/shared/UnifiedTabs";
 import { Button } from "@/components/ui/button";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
+import { usePermission } from "@/hooks/use-permission";
+import { ResourceMedicalRecords } from "@/types/generated/models";
 import { todayJSTISO } from "@/lib/jst-date";
 import type { Pet } from "@/types";
 import { CheckupsTab } from "./CheckupsTab/CheckupsTab";
@@ -64,6 +68,15 @@ export function MedicalRecordStickyHeader({
   const canEditDate = canEdit && !isFinalized && !!onDateChange && !isNewRecord;
   const dateInputValue = recordDate ? recordDate.replace(/\//g, "-") : undefined;
 
+  // #158: 飼主レポートを別ウィンドウで開く。view 権限がない場合はボタンを出さない。
+  const { canView: canViewReport } = usePermission(ResourceMedicalRecords);
+  const reportOwnerId = selectedPet.ownerId;
+  const reportPetId = selectedPet.id;
+  const handleOpenReport = useCallback(() => {
+    const href = `${paths.owners.detail.report.getHref(reportOwnerId)}?petId=${encodeURIComponent(reportPetId)}`;
+    window.open(href, "_blank", "noopener,noreferrer");
+  }, [reportOwnerId, reportPetId]);
+
   const contextControls = (
     <>
       {/* 来院種別 */}
@@ -124,6 +137,21 @@ export function MedicalRecordStickyHeader({
           hasLineIntegration={hasLineIntegration}
           disabled={!canEdit || isFinalized}
         />
+      ) : null}
+
+      {/* #158: 飼主レポート（別ウィンドウ）。当該飼主・当該ペットを初期選択して開く。 */}
+      {canViewReport ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={`h-8 shrink-0 text-sm gap-1 px-2 ${C.hoverBgPage} ${C.text} border-none`}
+          onClick={handleOpenReport}
+          aria-label="飼主レポートを開く"
+        >
+          <FileText className={`${ICON.sm} ${C.text40}`} aria-hidden="true" />
+          レポート
+        </Button>
       ) : null}
     </>
   );

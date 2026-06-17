@@ -23,6 +23,10 @@ type TreatmentRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	FindUnbilledByPetID(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error)
+	// FindHistoryByPetID は #158 飼主レポート用: ペット単位で treatments を横断取得する。
+	// medical_records JOIN で clinic_id 隔離し、medical_records.date 降順で返す。
+	// itemType が nil の場合は全 item_type、非 nil の場合は当該種別のみ。
+	FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error)
 	// CountFinalizedUnconfirmedByPetAndDate は同日同ペットの「未会計対象化」診察カルテ件数を返す(#77)。
 	// finalized だが billing_confirmation 未confirmed かつ未会計のカルテ = 取り残し候補。
 	CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
@@ -82,6 +86,36 @@ func (r *treatmentRepository) FindUnbilledByPetID(ctx context.Context, clinicID,
 		return nil, apperrors.FromGORM(err, "treatment", "")
 	}
 	return treatments, nil
+}
+
+func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error) {
+	buildBase := func() *gorm.DB {
+		q := r.db.WithContext(ctx).
+			Model(&model.Treatment{}).
+			Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
+			Where("medical_records.clinic_id = ? AND medical_records.pet_id = ? AND treatments.deleted_at IS NULL", clinicID, petID)
+		if itemType != nil {
+			q = q.Where("treatments.item_type = ?", *itemType)
+		}
+		return q
+	}
+
+	var total int64
+	if err := buildBase().Count(&total).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "treatment", fmt.Sprintf("pet=%d", petID))
+	}
+
+	treatments := make([]model.Treatment, 0)
+	if err := buildBase().
+		Preload("MedicalRecord", "deleted_at IS NULL").
+		Preload("Procedure", "deleted_at IS NULL").
+		Preload("Medicine", "deleted_at IS NULL").
+		Order("medical_records.date DESC, treatments.sort_order ASC, treatments.id DESC").
+		Offset((page - 1) * limit).Limit(limit).
+		Find(&treatments).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "treatment", fmt.Sprintf("pet=%d", petID))
+	}
+	return treatments, total, nil
 }
 
 func (r *treatmentRepository) CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error) {

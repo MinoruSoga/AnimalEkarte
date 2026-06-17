@@ -127,6 +127,9 @@ func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
 	pets.POST("", h.RequirePermission(string(model.ResourceOwners), "create"), h.CreatePet)
 	pets.PATCH("/:id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdatePet)
 	pets.DELETE("/:id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeletePet)
+	// #158 飼主レポート: ペット単位の治療履歴（投薬/手術/治療）。
+	// 治療データはカルテ内容のため medical-records:view でゲートする（owners 権限ではない）。
+	pets.GET("/:id/treatment-history", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.ListPetTreatmentHistory)
 	// BE-017: ペット死亡ライフサイクル
 	pets.PATCH("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchPetDeath)
 	pets.DELETE("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeletePetDeath)

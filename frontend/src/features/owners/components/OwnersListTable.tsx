@@ -1,4 +1,4 @@
-import { Heart, PawPrint, Pencil, Trash2 } from "lucide-react";
+import { FileText, Heart, PawPrint, Pencil, Trash2 } from "lucide-react";
 
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -78,6 +78,8 @@ interface OwnersListTableProps {
   isFiltering: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  /** #158: 飼主レポート閲覧権限（medical-records:view）。行操作に「レポート」を出す。 */
+  canReport: boolean;
   /** #86: 拠点横断表示時に医院列を出す */
   showClinicColumn?: boolean;
   /** #86: clinicId → 医院名（所属医院由来） */
@@ -92,6 +94,8 @@ interface OwnersListTableProps {
   onRowClick: (pet: Pet) => void;
   onEdit: (ownerId: string) => void;
   onDeleteRequest: (ownerId: string, ownerName: string) => void;
+  /** #158: 飼主レポートを別ウィンドウで開く（ownerId + 初期 petId）。 */
+  onReport: (ownerId: string, petId: string) => void;
   onPageChange: (page: number) => void;
 }
 
@@ -104,6 +108,7 @@ export function OwnersListTable({
   isFiltering,
   canEdit,
   canDelete,
+  canReport,
   showClinicColumn = false,
   clinicNameById,
   currentClinicId,
@@ -115,6 +120,7 @@ export function OwnersListTable({
   onRowClick,
   onEdit,
   onDeleteRequest,
+  onReport,
   onPageChange,
 }: OwnersListTableProps) {
   const columns = [
@@ -218,11 +224,13 @@ export function OwnersListTable({
                 pet={pet}
                 canEdit={canEdit && !isOtherClinic}
                 canDelete={canDelete && !isOtherClinic}
+                canReport={canReport && !isOtherClinic}
                 showClinicColumn={showClinicColumn}
                 clinicNameById={clinicNameById}
                 onRowClick={onRowClick}
                 onEdit={onEdit}
                 onDeleteRequest={onDeleteRequest}
+                onReport={onReport}
               />
             );
           }}
@@ -249,22 +257,26 @@ interface OwnersListRowProps {
   pet: Pet;
   canEdit: boolean;
   canDelete: boolean;
+  canReport: boolean;
   showClinicColumn?: boolean;
   clinicNameById?: Map<string, string>;
   onRowClick: (pet: Pet) => void;
   onEdit: (ownerId: string) => void;
   onDeleteRequest: (ownerId: string, ownerName: string) => void;
+  onReport: (ownerId: string, petId: string) => void;
 }
 
 function OwnersListRow({
   pet,
   canEdit,
   canDelete,
+  canReport,
   showClinicColumn = false,
   clinicNameById,
   onRowClick,
   onEdit,
   onDeleteRequest,
+  onReport,
 }: OwnersListRowProps) {
   return (
     <DataTableRow onClick={canEdit ? () => onRowClick(pet) : undefined}>
@@ -312,13 +324,18 @@ function OwnersListRow({
         {formatDate(pet.lastVisit)}
       </TableCell>
       <TableCell className="whitespace-nowrap py-2 text-right">
-        {canEdit || canDelete ? (
+        {canEdit || canDelete || canReport ? (
           <RowActionDropdown
             actions={[
               ...(canEdit ? [{
                 label: "編集",
                 icon: Pencil,
                 onClick: () => onEdit(pet.ownerId),
+              }] : []),
+              ...(canReport ? [{
+                label: "レポート",
+                icon: FileText,
+                onClick: () => onReport(pet.ownerId, pet.id),
               }] : []),
               ...(canDelete ? [{
                 label: "削除",

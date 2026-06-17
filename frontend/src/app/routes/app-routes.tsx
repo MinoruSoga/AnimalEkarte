@@ -3,6 +3,7 @@ import { type RouteObject } from "react-router";
 
 import { Layout } from "@/components/shared/Layout/Layout";
 import { C } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 
 import { accountingRoutes } from "./accounting-routes";
 import { clinicalRoutes } from "./clinical-routes";
@@ -39,6 +40,16 @@ const authRoutes: RouteObject[] = [
   },
 ];
 
+// #158: 飼主単位カルテレポート。別ウィンドウ用に Layout（サイドバー）外のスタンドアロンで登録する。
+// 認証ガードと medical-records:view ゲートは OwnerReport 自身が持つ。
+const ownerReportRoute: RouteObject = {
+  path: paths.owners.detail.report.path,
+  lazy: async () => {
+    const { OwnerReport } = await import("@/features/owner-report");
+    return { Component: OwnerReport };
+  },
+};
+
 const notFoundRoute: RouteObject = {
   path: "*",
   element: (
@@ -52,6 +63,7 @@ const notFoundRoute: RouteObject = {
 // createMemoryRouter(appRoutes, { initialEntries: [path] }) + AuthContext.Provider で権限ガードを検証できる。
 export const appRoutes: RouteObject[] = [
   ...authRoutes,
+  ownerReportRoute,
   {
     element: <Layout />,
     children: [
