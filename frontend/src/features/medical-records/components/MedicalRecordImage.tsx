@@ -1,6 +1,9 @@
 // React/Framework
 import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
 
+// Internal
+import { normalizedIncludes } from "@/lib/normalize-kana";
+
 // Relative
 import { useGetMedicalRecordImages } from "../api/get-medical-record-images";
 import { useCreateMedicalRecordImages, useDeleteImage } from "../api/medical-record-images";
@@ -37,7 +40,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
     () =>
       apiImageGroups.filter((g) =>
         deferredSearch
-          ? g.images.some((img) => img.name.includes(deferredSearch))
+          ? g.images.some((img) => normalizedIncludes(img.name, deferredSearch))
           : true,
       ),
     [apiImageGroups, deferredSearch],

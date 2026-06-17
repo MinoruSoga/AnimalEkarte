@@ -1,6 +1,9 @@
 // React/Framework
 import { memo, useDeferredValue, useMemo, useState, useCallback } from "react";
 
+// Internal
+import { normalizedIncludes } from "@/lib/normalize-kana";
+
 // Relative
 import { useGetRecordExaminations } from "../api/get-record-examinations";
 import { ExaminationFilter } from "./ExaminationFilter";
@@ -33,7 +36,7 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
     () =>
       apiExamGroups.filter((g) =>
         deferredSearch
-          ? g.items.some((item) => item.name.includes(deferredSearch))
+          ? g.items.some((item) => normalizedIncludes(item.name, deferredSearch))
           : true,
       ),
     [apiExamGroups, deferredSearch],
