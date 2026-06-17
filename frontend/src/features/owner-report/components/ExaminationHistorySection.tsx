@@ -37,6 +37,21 @@ export function ExaminationHistorySection({ petId }: ExaminationHistorySectionPr
             </div>
             {exam.items && exam.items.length > 0 ? (
               <table className="w-full text-sm">
+                {/* 臨床値の判読性向上のため列見出しを明示（scope="col" で各値セルと対応付け）。
+                    パネル内に検査ごとの小テーブルが並ぶため sticky にはしない。 */}
+                <thead>
+                  <tr className={`text-left text-xs ${C.text50}`}>
+                    <th scope="col" className="py-0.5 pr-3 font-medium">
+                      項目
+                    </th>
+                    <th scope="col" className="py-0.5 pr-3 font-medium whitespace-nowrap">
+                      結果
+                    </th>
+                    <th scope="col" className="py-0.5 font-medium whitespace-nowrap">
+                      基準値
+                    </th>
+                  </tr>
+                </thead>
                 <tbody>
                   {exam.items.map((item) => (
                     <tr key={item.id}>
