@@ -7,9 +7,10 @@
 DC = docker compose --env-file .env.local
 
 # 起動
+# --wait で db / migrate / backend / frontend の ready を待つ
 up:
 	$(DC) down --remove-orphans 2>/dev/null || true
-	$(DC) up -d
+	$(DC) up -d --wait --wait-timeout 20m
 
 # node_modules をホストにコピー（IDE補完用・初回 or package.json 変更時のみ実行）
 sync-modules:
@@ -51,43 +52,22 @@ clean:
 	$(DC) build --no-cache
 
 # 完全リセット（スキーマ・シーダー含む）
-# 環境ファイルから DB_USER を読み込み（デフォルト: postgres）
+# migration は compose の one-shot service に任せ、reset は DB 初期化 + 起動完了待ちだけに絞る
 reset:
 	@echo "🔄 Resetting database..."
 	$(DC) down -v
-	$(DC) up -d --build
-	@echo "⏳ Waiting for database to be ready..."
-	@for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if $(DC) exec -T db pg_isready > /dev/null 2>&1; then \
-			echo "✓ Database is ready"; \
-			break; \
-		fi; \
-		if [ $$i -eq 10 ]; then echo "✗ Database startup timeout"; exit 1; fi; \
-		echo "Retrying... ($$i/10)"; \
-		sleep 2; \
-	done
-	@echo "⏳ Waiting for backend to be ready..."
-	@for i in 1 2 3 4 5; do \
-		if $(DC) exec -T backend wget -qO- http://localhost:8080/health > /dev/null 2>&1; then \
-			echo "✓ Backend is ready"; \
-			break; \
-		fi; \
-		if [ $$i -eq 5 ]; then echo "✗ Backend startup timeout"; exit 1; fi; \
-		echo "Retrying... ($$i/5)"; \
-		sleep 2; \
-	done
-	@echo "⏳ Running migrations and seeding..."
-	$(DC) exec -T backend go run ./cmd/migrate
-	@echo "✓ Reset complete — all migrations and seed data applied"
+	$(DC) up -d --build --wait --wait-timeout 20m
+	@echo "✓ Reset complete — database reinitialized and services are healthy"
 
 # マイグレーション適用（差分のみ・DBは落とさない）
+# 使うのは backend ではなく one-shot の migrate サービス
 migrate:
-	$(DC) exec -T backend sh -c "go run ./cmd/migrate"
+	$(DC) run --rm migrate
 	@echo "✓ Migrations applied"
 
-# シーダー適用（マイグレーションと同じコマンド — seed は SQL ファイルとして管理されているため差分のみ適用）
+# シーダー適用（migrate と同一処理。SQL seed も migration サービスで一括適用）
 seed:
-	$(DC) exec -T backend sh -c "go run ./cmd/migrate"
+	$(DC) run --rm migrate
 	@echo "✓ Seed data applied"
 
 # バックエンドのみ再起動

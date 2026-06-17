@@ -22,6 +22,27 @@ services:
       timeout: 5s
       retries: 5
 
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    networks:
+      - ekarte-network
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - go_mod_cache:/go/pkg/mod
+    env_file:
+      - .env.local
+    environment:
+      TZ: Asia/Tokyo
+      DB_HOST: db
+      DB_PORT: 5432
+    entrypoint: ["sh", "-c", "go run ./cmd/migrate"]
+    restart: "no"
+
   backend:
     build:
       context: ./backend
@@ -31,6 +52,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "8080:8080"
     volumes:
@@ -46,14 +69,14 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
       interval: 5s
       timeout: 5s
-      retries: 18
-      # Initial Air/Go builds can take close to 3 minutes on cold caches.
-      start_period: 3m
+      retries: 36
+      # 初回 migration は別サービスに分離したが、cold build 余裕は残す。
+      start_period: 5m
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
       tags:
         - ekarte-frontend:latest
     networks:
@@ -69,6 +92,17 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:3000/ >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      # 初回 dependency install 後の Vite 起動に余裕を持たせる
+      start_period: 2m
 
   codegen:
     image: golang:1.25-alpine
