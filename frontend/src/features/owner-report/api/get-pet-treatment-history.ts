@@ -6,7 +6,7 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 export type TreatmentHistoryFilter = "medicine" | "procedure" | "all";
 
 /** GET /v1/pets/:id/treatment-history の 1 行（バックエンド petTreatmentHistoryResponse に対応）。 */
-interface BackendPetTreatmentHistory {
+export interface BackendPetTreatmentHistory {
   id: string;
   medical_record_id: string;
   /** 診療日 = medical_records.date 由来（treatments.created_at ではない）。 */
@@ -63,7 +63,7 @@ function formatDate(iso: string | null): string {
   return `${yy}/${m}/${day}`;
 }
 
-function transformHistoryItem(row: BackendPetTreatmentHistory): PetTreatmentHistoryItem {
+export function transformHistoryItem(row: BackendPetTreatmentHistory): PetTreatmentHistoryItem {
   const name = row.medicine_name || row.procedure_name || row.content || "-";
   const anesthesia =
     row.anesthesia != null ? (ANESTHESIA_LABEL[row.anesthesia] ?? row.anesthesia) : undefined;

@@ -21,6 +21,7 @@ import { ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { transformUpdatePetRequest } from "@/lib/transforms/pet";
 import { handleApiError } from "@/lib/handle-api-error";
+import { openOwnerReport } from "@/lib/owner-report-window";
 // bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport
 import { deleteOwner } from "../api/delete-owner";
 import { usePermission } from "@/hooks/use-permission";
@@ -206,8 +207,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
 
   // #158: 飼主レポートを別ウィンドウで開く。初期ペットを ?petId= で指定する。
   const handleReport = useCallback((ownerId: string, petId: string) => {
-    const href = `${paths.owners.detail.report.getHref(ownerId)}?petId=${encodeURIComponent(petId)}`;
-    window.open(href, "_blank", "noopener,noreferrer");
+    openOwnerReport(ownerId, petId);
   }, []);
 
   // 行クリック → 飼主編集・ペット一覧ページに遷移

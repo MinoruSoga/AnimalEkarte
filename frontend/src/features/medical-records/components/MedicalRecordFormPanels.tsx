@@ -4,7 +4,7 @@ import { PatientContextHeader } from "@/components/shared/PatientContextHeader";
 import { UnifiedTabsContent, UnifiedTabsList } from "@/components/shared/UnifiedTabs";
 import { Button } from "@/components/ui/button";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
-import { paths } from "@/config/paths";
+import { openOwnerReport } from "@/lib/owner-report-window";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 import { todayJSTISO } from "@/lib/jst-date";
@@ -73,8 +73,7 @@ export function MedicalRecordStickyHeader({
   const reportOwnerId = selectedPet.ownerId;
   const reportPetId = selectedPet.id;
   const handleOpenReport = useCallback(() => {
-    const href = `${paths.owners.detail.report.getHref(reportOwnerId)}?petId=${encodeURIComponent(reportPetId)}`;
-    window.open(href, "_blank", "noopener,noreferrer");
+    openOwnerReport(reportOwnerId, reportPetId);
   }, [reportOwnerId, reportPetId]);
 
   const contextControls = (
