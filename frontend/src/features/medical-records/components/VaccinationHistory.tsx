@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C } from "@/lib/design-tokens";
+import { normalizedIncludes } from "@/lib/normalize-kana";
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
 const SORT_ORDER_SELECT_ITEMS = (
@@ -49,7 +50,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
 
   const filteredItems = historyItems
     .filter((item) => {
-      const matchesSearch = item.name.includes(deferredSearch);
+      const matchesSearch = normalizedIncludes(item.name, deferredSearch);
       // Simplify date filtering for mock
       return matchesSearch;
     })

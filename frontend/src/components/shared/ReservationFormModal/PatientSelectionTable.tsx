@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSearchPets } from "@/hooks/use-pet";
+import { normalizedIncludes } from "@/lib/normalize-kana";
 
 // Types
 import type { Pet } from "@/types";
@@ -57,10 +58,12 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
     for (const pet of allPets) {
       if (result.length >= MAX_RESULTS) break;
       if (searchParams.ownerId && !pet.ownerId.includes(searchParams.ownerId)) continue;
-      if (searchParams.ownerName && !pet.ownerName.includes(searchParams.ownerName)) continue;
+      if (searchParams.ownerName && !normalizedIncludes(pet.ownerName, searchParams.ownerName)) continue;
+      if (searchParams.ownerNameKana && !normalizedIncludes(pet.ownerNameKana ?? "", searchParams.ownerNameKana)) continue;
       if (searchParams.phone && (!pet.phone || !pet.phone.includes(searchParams.phone))) continue;
-      if (searchParams.petName && !pet.name.includes(searchParams.petName)) continue;
-      if (searchParams.species && !pet.species.includes(searchParams.species)) continue;
+      if (searchParams.petName && !normalizedIncludes(pet.name, searchParams.petName)) continue;
+      if (searchParams.petNameKana && !normalizedIncludes(pet.petNameKana ?? "", searchParams.petNameKana)) continue;
+      if (searchParams.species && !normalizedIncludes(pet.species, searchParams.species)) continue;
       result.push(pet);
     }
     return result;
