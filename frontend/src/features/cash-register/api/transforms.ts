@@ -1,11 +1,12 @@
 import type { CashRegisterClose as BackendCashRegisterClose } from "@/types/generated/models";
+import type { CashRegisterPeriod } from "../constants";
 
 export function transformCashRegisterClose(raw: BackendCashRegisterClose) {
   return {
     id: String(raw.id ?? 0),
     clinicId: String(raw.clinic_id ?? 0),
     closeDate: raw.close_date,
-    period: raw.period as "am" | "pm",
+    period: raw.period as CashRegisterPeriod,
     theoreticalCash: raw.theoretical_cash,
     actualCash: raw.actual_cash,
     cashDifference: raw.cash_difference,

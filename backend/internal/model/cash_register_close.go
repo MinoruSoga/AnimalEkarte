@@ -12,7 +12,7 @@ type CashRegisterClose struct {
 	ID                uint64          `gorm:"primaryKey;autoIncrement"          json:"id"`
 	ClinicID          uint64          `gorm:"not null"                          json:"clinic_id"`
 	CloseDate         time.Time       `gorm:"type:date;not null"                json:"close_date"`
-	Period            string          `gorm:"type:varchar(2);not null"          json:"period"` // "am" or "pm"
+	Period            string          `gorm:"type:varchar(3);not null"          json:"period"` // "am", "pm", or "emg"
 	TheoreticalCash   int64           `gorm:"not null;default:0"                json:"theoretical_cash"`
 	ActualCash        int64           `gorm:"not null;default:0"                json:"actual_cash"`
 	CashDifference    int64           `gorm:"not null;default:0"                json:"cash_difference"`

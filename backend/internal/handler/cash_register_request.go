@@ -57,7 +57,7 @@ func (q listCashRegisterClosesQuery) toServiceFilters() (listCashRegisterClosesF
 // closeCashRegisterRequest はレジ締め実行リクエスト。
 type closeCashRegisterRequest struct {
 	Date       string `json:"date"        binding:"required"` // YYYY-MM-DD
-	Period     string `json:"period"      binding:"required"` // "am" or "pm"
+	Period     string `json:"period"      binding:"required"` // "am", "pm", or "emg"
 	ActualCash int64  `json:"actual_cash"`
 	Memo       string `json:"memo"`
 }

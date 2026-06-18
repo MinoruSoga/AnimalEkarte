@@ -290,6 +290,27 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 			wantErrIs: apperrors.ErrInvalidInput,
 		},
 		{
+			name:    "正常: period=emg → CashRegisterPreview を返す（#150）",
+			dateStr: targetDateStr,
+			period:  "emg",
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+				return emptyAggregateResult(), nil
+			},
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+				return nil, nil
+			},
+			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return []model.PaymentMethodMaster{}, nil
+			},
+			checkResult: func(t *testing.T, got *CashRegisterPreview) {
+				assert.Equal(t, "emg", got.Period)
+				assert.False(t, got.IsAlreadyClosed)
+			},
+		},
+		{
 			name:    "正常: 混在会計 → TheoreticalCash は現金分のみ・カテゴリ按分を確認",
 			dateStr: targetDateStr,
 			period:  "am",
@@ -459,6 +480,31 @@ func TestCashRegisterService_Close(t *testing.T) {
 			},
 		},
 		{
+			name: "正常: period=emg の締めを作成できる（#150）",
+			input: CloseRegisterInput{
+				Date:       targetDate,
+				Period:     "emg",
+				ActualCash: 10000,
+				Memo:       "夜間緊急",
+			},
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+				return nil, nil
+			},
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+				return emptyAggregateResult(), nil
+			},
+			createFn: func(_ context.Context, _ *model.CashRegisterClose) error {
+				return nil
+			},
+			checkResult: func(t *testing.T, got *model.CashRegisterClose) {
+				assert.Equal(t, "emg", got.Period)
+				assert.Equal(t, int64(10000), got.ActualCash)
+			},
+		},
+		{
 			name:  "エラー: 二重締め（FindByDateAndPeriod が既存レコードを返す） → ErrConflict",
 			input: validInput,
 			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
@@ -591,6 +637,58 @@ func TestCashRegisterService_IsDateClosed(t *testing.T) {
 			}
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantClosed, got)
+		})
+	}
+}
+
+// TestResolvePeriodRange は period→集計期間（JST）の算出を検証する。
+// #150 で追加した emg は PM 締め終了〜翌日0時を対象とする。
+func TestResolvePeriodRange(t *testing.T) {
+	dateJST := time.Date(2026, 4, 20, 0, 0, 0, 0, jstLocation)
+	schedule := &DaySchedule{AmPmBoundary: "14:00", PmEnd: "18:30"}
+
+	tests := []struct {
+		name      string
+		period    string
+		wantStart time.Time
+		wantEnd   time.Time
+		wantErr   bool
+	}{
+		{
+			name:      "am: 0時〜AM/PM境界",
+			period:    "am",
+			wantStart: time.Date(2026, 4, 20, 0, 0, 0, 0, jstLocation),
+			wantEnd:   time.Date(2026, 4, 20, 14, 0, 0, 0, jstLocation),
+		},
+		{
+			name:      "pm: 境界〜PM締め終了",
+			period:    "pm",
+			wantStart: time.Date(2026, 4, 20, 14, 0, 0, 0, jstLocation),
+			wantEnd:   time.Date(2026, 4, 20, 18, 30, 0, 0, jstLocation),
+		},
+		{
+			name:      "emg: PM締め終了〜翌日0時（PM終了と連続・非破壊）",
+			period:    "emg",
+			wantStart: time.Date(2026, 4, 20, 18, 30, 0, 0, jstLocation),
+			wantEnd:   time.Date(2026, 4, 21, 0, 0, 0, 0, jstLocation),
+		},
+		{
+			name:    "エラー: 不正な period",
+			period:  "noon",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			start, end, err := resolvePeriodRange(dateJST, tt.period, schedule)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.True(t, tt.wantStart.Equal(start), "start: want %v, got %v", tt.wantStart, start)
+			assert.True(t, tt.wantEnd.Equal(end), "end: want %v, got %v", tt.wantEnd, end)
 		})
 	}
 }

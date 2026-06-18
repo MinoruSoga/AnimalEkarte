@@ -133,10 +133,10 @@ func NewCashRegisterService(
 	}
 }
 
-// validatePeriod は period 値（"am"/"pm"）のバリデーションを行う
+// validatePeriod は period 値（"am"/"pm"/"emg"）のバリデーションを行う
 func validatePeriod(period string) error {
-	if period != "am" && period != "pm" {
-		return apperrors.WrapInvalidInput("period は 'am' または 'pm' を指定してください")
+	if period != "am" && period != "pm" && period != "emg" {
+		return apperrors.WrapInvalidInput("period は 'am'、'pm'、'emg' のいずれかを指定してください")
 	}
 	return nil
 }
@@ -353,7 +353,7 @@ func (s *cashRegisterService) IsDateClosed(ctx context.Context, clinicID uint64,
 	return closed, nil
 }
 
-// resolvePeriodRange は period（"am"/"pm"）と DaySchedule から集計期間（JST）を返す
+// resolvePeriodRange は period（"am"/"pm"/"emg"）と DaySchedule から集計期間（JST）を返す
 func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule) (start, end time.Time, err error) {
 	boundaryH, boundaryM, parseErr := parseHHMM(schedule.AmPmBoundary)
 	if parseErr != nil {
@@ -373,8 +373,15 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule)
 		return dayStart, boundary, nil
 	case "pm":
 		return boundary, pmEnd, nil
+	case "emg":
+		// EMG（緊急）は PM 締め終了後〜翌日0時までの夜間時間帯を集計対象とする。
+		// 仕様(#150)の「翌8:59まで」越日範囲を完全再現するには am 開始時刻の設定値
+		// (現状未保持) が必要で、既存 am=[0時,境界] を壊さずには表現できない。
+		// よって非破壊な PM終了〜当日24時 を採用する（越日分は #150 フォローアップ）。
+		nextDayStart := dayStart.AddDate(0, 0, 1)
+		return pmEnd, nextDayStart, nil
 	default:
-		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("period は 'am' または 'pm' を指定してください")
+		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("period は 'am'、'pm'、'emg' のいずれかを指定してください")
 	}
 }
 

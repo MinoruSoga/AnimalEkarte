@@ -2,12 +2,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { CashRegisterClose as BackendCashRegisterClose } from "@/types/generated/models";
+import type { CashRegisterPeriod } from "../constants";
 import { transformCashRegisterClose } from "./transforms";
 import type { CashRegisterClose } from "./transforms";
 
 export interface CreateCashRegisterCloseRequest {
   date: string;
-  period: "am" | "pm";
+  period: CashRegisterPeriod;
   actual_cash: number;
   memo?: string;
 }

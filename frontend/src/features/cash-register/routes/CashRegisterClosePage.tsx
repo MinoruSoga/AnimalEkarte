@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useGetCashRegisterPreview } from "../api/get-cash-register-preview";
 import { useCreateCashRegisterClose } from "../api/create-cash-register-close";
+import { PERIOD_OPTIONS, PERIOD_LABELS, type CashRegisterPeriod } from "../constants";
 import { CategoryPaymentMatrix } from "../components/CategoryPaymentMatrix";
 import { CashReconciliationCard } from "../components/CashReconciliationCard";
 import { BillingDetailTable } from "../components/BillingDetailTable";
@@ -49,7 +50,7 @@ export function CashRegisterClosePage() {
     try {
       await createMutation.mutateAsync({
         date: pendingFormData.get("close_date") as string,
-        period: pendingFormData.get("period") as "am" | "pm",
+        period: pendingFormData.get("period") as CashRegisterPeriod,
         actual_cash: Number(pendingFormData.get("actual_cash")),
         memo: (pendingFormData.get("memo") as string) || undefined,
       });
@@ -68,7 +69,7 @@ export function CashRegisterClosePage() {
     setPendingFormData(null);
   }, []);
 
-  const periodLabel = period === "am" ? "午前" : "午後";
+  const periodLabel = PERIOD_LABELS[period];
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
@@ -93,7 +94,7 @@ export function CashRegisterClosePage() {
           <div>
             <p className={`${STYLE.formLabel} mb-1`}>区分</p>
             <div className="flex gap-2">
-              {(["am", "pm"] as const).map((p) => (
+              {PERIOD_OPTIONS.map((p) => (
                 <button
                   key={p}
                   type="button"
@@ -104,7 +105,7 @@ export function CashRegisterClosePage() {
                       : `${C.bgWhite} ${C.borderMedium} ${C.text} ${C.hoverBgLight}`
                   }`}
                 >
-                  {p === "am" ? "午前" : "午後"}
+                  {PERIOD_LABELS[p]}
                 </button>
               ))}
             </div>

@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { C, STYLE } from "@/lib/design-tokens";
 import { formatJSTDateTimeLocal, toJSTWallDate } from "@/lib/jst-date";
 import { useGetCashRegisterCloses } from "../api/get-cash-register-closes";
+import { PERIOD_LABELS } from "../constants";
 
 export function CashRegisterHistoryPage() {
   const now = toJSTWallDate(new Date());
@@ -95,7 +96,7 @@ export function CashRegisterHistoryPage() {
                     >
                       <td className={`px-4 py-3 ${C.text}`}>{close.closeDate}</td>
                       <td className={`px-4 py-3 ${C.text}`}>
-                        {close.period === "am" ? "午前" : "午後"}
+                        {PERIOD_LABELS[close.period]}
                       </td>
                       <td className={`px-4 py-3 text-right ${C.text}`}>
                         ¥{(close.theoreticalCash ?? 0).toLocaleString()}
