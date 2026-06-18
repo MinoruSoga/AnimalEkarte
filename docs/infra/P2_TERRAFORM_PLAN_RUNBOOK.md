@@ -88,11 +88,11 @@ alb_internal = true   # P2 承認 plan に必須（default false では差分が
 | `module.ecs.aws_lb.main` | **replace**（destroy -> create） | `internal=true` + subnets を public -> private に変更（いずれも ForceNew） |
 | `module.ecs.aws_lb_listener.http` | **replace** | 親 ALB の arn が変わるため再作成 |
 | `module.ecs.aws_cloudfront_vpc_origin.alb[0]` | **create** | `count` 0 -> 1 |
-| `module.security.aws_security_group.alb` の ingress 80/443 | **in-place update**（`0.0.0.0/0` -> VPC CIDR） | SG 許可元は `alb_internal` に連動（`local.alb_ingress_cidrs`）。false -> true で VPC CIDR に絞られる |
+| `module.security.aws_security_group.alb` の ingress | **in-place update** | `alb_internal=true` で ①VPC CIDR 80/443（intra-VPC 用）+ ②**service SG 参照の port 80 ingress（CloudFront 疎通に必須・§6.1）**。`false` では `0.0.0.0/0` 80/443 |
 | outputs（alb dns / vpc_origin_id 等） | 値の変化 | ALB 再作成・VPC Origin 新設に伴う |
 
 - `aws_lb_listener.https[0]` は `alb_certificate_arn` が空のとき `count=0` で plan に出ない。証明書を設定済みの場合のみ replace。
-- ALB SG ingress（80/443）の許可元は `alb_internal` に連動する。`alb_internal` を false -> true にすると `0.0.0.0/0` -> VPC CIDR の **in-place update が期待差分として現れる**（絞り込み方向であり広域開放ではない）。`alb_internal=false` のままなら SG 差分は出ない。
+- ALB SG ingress の許可元は `alb_internal` に連動する。`false -> true` で `0.0.0.0/0` が VPC CIDR に絞られ、さらに **service-managed SG 参照の port 80 ingress が追加される**（CloudFront → ALB 疎通に必須。VPC CIDR だけでは疎通しない＝§6.1）。いずれも絞り込み方向で広域開放ではない。`alb_internal=false` のままなら SG 差分は出ない。
 
 ### 5.2 変化しないことを確認するリソース
 
@@ -120,8 +120,26 @@ alb_internal = true   # P2 承認 plan に必須（default false では差分が
 ## 6. CloudFront distribution は Terraform 管理外
 
 - `aws_cloudfront_distribution` リソースは Terraform に存在しない（手動作成・管理）。よって **distribution 自体の変更は plan に現れない**。
-- ALB が replace されると ALB の DNS が変わる。apply 後、CloudFront distribution のオリジンを VPC Origin に**手動で切り替える**必要がある（`module.ecs` の `vpc_origin_id` output を使用）。
-- apply 後、AWS が `CloudFront-VPCOrigins-Service-SG` を自動生成する。Phase 2 の SG 絞り込みは `docs/infra/STG_AWS_CHANGE_READINESS.md` §3.2 を参照（基本接続には必須ではない・任意の強化）。
+- ALB が replace されると ALB の DNS が変わる。apply 後、CloudFront distribution のオリジンを VPC Origin に**手動で切り替える**必要がある（`module.ecs` の `vpc_origin_id` output を使用）。切替前に現 distribution config + ETag を控える（rollback 用）。
+- apply 後、AWS が `CloudFront-VPCOrigins-Service-SG` を自動生成する。**この service-managed SG を source 参照する ALB SG の port 80 ingress は CloudFront → internal ALB 疎通に【必須】**（任意の強化ではない）。
+
+> ### ⚠️ 6.1 VPC Origin 疎通の要点（2026-06-18 live 検証で確定）
+>
+> **VPC CIDR(`10.0.0.0/16`)許可だけでは CloudFront → internal ALB は疎通しない。**
+> VPC Origins の ENI は VPC CIDR 内に居る（例 10.0.11.x / 10.0.12.x）が、ALB SG を CIDR で許可しても
+> CloudFront からのトラフィックは **ALB に全く到達せず**（ALB `RequestCount=0` / `/health` が 504 Gateway Timeout 30s）。
+> AWS 自動生成の `CloudFront-VPCOrigins-Service-SG` を **source security group として参照**する port 80 ingress を
+> ALB SG に追加して初めて疎通する。
+>
+> - Terraform 管理: `modules/security/main.tf` の `data.aws_security_group.vpc_origins_service`
+>   （`name = "CloudFront-VPCOrigins-Service-SG"` を `alb_internal` gated で参照）+ dynamic inline ingress。
+>   data source は VPC Origin リソースへの依存 edge を持たないため循環依存にならない。
+> - **fresh 構築時の制約**: service SG は VPC Origin 作成後に AWS が生成するため、ゼロからの新規構築では
+>   VPC Origin 作成後の 2 段階 apply が必要（VPC Origins の chicken-and-egg）。
+> - 切り分け: `/health` 504 + ALB `RequestCount=0` + target healthy なら「CloudFront → ALB 未到達」、
+>   ALB `RequestCount>0` + 5xx なら「ALB → ECS 側」。
+> - **最終結果（2026-06-18）**: 上記 service-SG ingress 追加で `https://api.stg.noah-karte.com/health` = **200**
+>   （`{"status":"ok"}`）。Terraform 恒久反映 apply 済で `terraform plan` = **No changes**（state ↔ live SG 一致）。
 
 ---
 

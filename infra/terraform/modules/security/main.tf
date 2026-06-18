@@ -1,21 +1,34 @@
-# P2: ALB SG inbound の許可元を alb_internal に連動させる。
+# P2: ALB SG inbound を alb_internal に連動させる。
 #   - alb_internal=true（internal ALB + CloudFront VPC Origin）:
-#       VPC Origin 経由の CloudFront トラフィックは VPC Origins サービスが VPC subnet に配置する ENI 経由で
-#       到達するため source は VPC CIDR 内。許可元を var.vpc_cidr に絞る。
+#       CloudFront → internal ALB の到達には、AWS が VPC Origin 作成時に自動生成する
+#       VPC Origins サービス管理 SG（CloudFront-VPCOrigins-Service-SG）を source 参照する
+#       port 80 ingress が【必須】。
+#       ※ 当初 VPC CIDR(var.vpc_cidr) 許可で足りると想定したが、live 検証で否定された:
+#         VPC CIDR のみだと CloudFront → ALB が全く到達せず（ALB RequestCount=0 / 504）、
+#         service-managed SG を source 参照して初めて疎通する。VPC CIDR ingress は VPC 内部
+#         呼び出し用に残すが、CloudFront 疎通には service SG ルールが必要。
 #       public CloudFront managed prefix list は internal ALB では使わない
-#       （managed prefix list は SG ルール上限に対し重み ~45/参照 を消費し、80/443 の 2 参照で既定 quota 60 を
-#        超過する。VPC CIDR ベースは重み 2 で quota 内に収まる）。
+#       （managed prefix list は SG ルール上限に対し重み ~45/参照 を消費し、80/443 の 2 参照で
+#        既定 quota 60 を超過する）。
 #   - alb_internal=false（internet-facing ALB / 現行デフォルト）:
-#       CloudFront は public 経由でオリジン接続するため source は VPC 外。0.0.0.0/0 を維持し現行の
-#       internet-facing 経路を壊さない（VPC CIDR に絞ると CloudFront → ALB が全断する）。
-# Phase 2: internal ALB をさらに絞り込む場合は、aws_cloudfront_vpc_origin apply 後に AWS が自動生成する
-# VPC Origins サービス管理 SG を参照する ingress rule に差し替える（名称は VPC Origin 作成後に確認）:
-#   aws --profile AnimalEkarte --region us-east-1 ec2 describe-security-groups \
-#     --filters "Name=description,Values=*VPCOrigins*" --query 'SecurityGroups[*].{Name:GroupName,ID:GroupId}'
+#       CloudFront は public 経由でオリジン接続するため source は VPC 外。0.0.0.0/0 を維持。
+#       service SG ルールは作らない（VPC Origin が存在しないため）。
+# 依存順: service SG は aws_cloudfront_vpc_origin(ecs module) 作成後に AWS が生成するため、
+# 既存環境では下記 data source で解決できる。ゼロからの新規構築時のみ VPC Origin 作成後の
+# 2 段階 apply が必要（VPC Origins 採用に伴う既知の chicken-and-egg 制約）。
 locals {
   # alb_internal=true で VPC CIDR に絞り、false で internet-facing の 0.0.0.0/0 を維持する。
   alb_ingress_cidrs = var.alb_internal ? [var.vpc_cidr] : ["0.0.0.0/0"]
-  alb_ingress_desc  = var.alb_internal ? "from VPC CIDR (internal ALB via CloudFront VPC Origin ENI)" : "from anywhere (internet-facing ALB via CloudFront public origin)"
+  alb_ingress_desc  = var.alb_internal ? "from VPC CIDR (internal ALB intra-VPC callers)" : "from anywhere (internet-facing ALB via CloudFront public origin)"
+}
+
+# VPC Origins サービス管理 SG（alb_internal=true のときのみ参照）。
+# AWS が VPC Origin 作成時に "CloudFront-VPCOrigins-Service-SG" として自動生成する。
+# data source は VPC Origin リソースへの依存 edge を持たないため循環依存にならない。
+data "aws_security_group" "vpc_origins_service" {
+  count  = var.alb_internal ? 1 : 0
+  name   = "CloudFront-VPCOrigins-Service-SG"
+  vpc_id = var.vpc_id
 }
 
 # Security Group for ALB
@@ -38,6 +51,18 @@ resource "aws_security_group" "alb" {
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = local.alb_ingress_cidrs
+  }
+
+  # CloudFront VPC Origin 経由の到達に必須（alb_internal=true のときのみ）。
+  dynamic "ingress" {
+    for_each = var.alb_internal ? [1] : []
+    content {
+      description     = "HTTP from CloudFront VPC Origins service SG"
+      from_port       = 80
+      to_port         = 80
+      protocol        = "tcp"
+      security_groups = [data.aws_security_group.vpc_origins_service[0].id]
+    }
   }
 
   egress {

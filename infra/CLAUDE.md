@@ -56,7 +56,7 @@ VPC: 10.0.0.0/16 (us-east-1)
 
 | リソース | 許可ルール |
 |---------|-----------|
-| ALB | 80/tcp, 443/tcp。許可元は `alb_internal` に連動: `false`（現行・internet-facing）は `0.0.0.0/0`、`true`（P2: internal ALB + CloudFront VPC Origin）は VPC CIDR に絞る（VPC Origin の CloudFront トラフィックは VPC Origins ENI 経由で VPC 内から到達するため。public CloudFront managed prefix list は internal ALB には使わない）。さらに絞り込む場合は VPC Origin apply 後に自動生成される VPC Origins サービス管理 SG へ差し替え（Phase 2、詳細は `docs/infra/STG_AWS_CHANGE_READINESS.md` §3.2） |
+| ALB | 80/tcp, 443/tcp。許可元は `alb_internal` に連動: `false`（internet-facing）は `0.0.0.0/0`、`true`（P2: internal ALB + CloudFront VPC Origin）は VPC CIDR に絞る + **VPC Origin apply 後に自動生成される `CloudFront-VPCOrigins-Service-SG` を source 参照する port 80 ingress を【必須】追加**（CloudFront → internal ALB 疎通には service-managed SG 参照が必須。VPC CIDR だけでは 504 で全断＝2026-06-18 live 検証。public CloudFront managed prefix list は SG ルール重み超過で不採用）。詳細は `docs/infra/P2_TERRAFORM_PLAN_RUNBOOK.md` §6.1 |
 | ECS | 8080/tcp from ALB SG のみ |
 | RDS | 5432/tcp from ECS SG + 開発者 IP |
 
