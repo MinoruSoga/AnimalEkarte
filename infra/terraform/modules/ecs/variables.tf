@@ -77,3 +77,9 @@ variable "alb_certificate_arn" {
   default     = ""
 }
 
+variable "alb_internal" {
+  description = "P2: true にすると ALB を internal scheme に変更（ALB replace が発生する）"
+  type        = bool
+  default     = false
+}
+

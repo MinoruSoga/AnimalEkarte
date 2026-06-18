@@ -12,8 +12,10 @@ module "vpc" {
 module "security" {
   source = "./modules/security"
 
-  name_prefix = var.name_prefix
-  vpc_id      = module.vpc.vpc_id
+  name_prefix  = var.name_prefix
+  vpc_id       = module.vpc.vpc_id
+  vpc_cidr     = module.vpc.vpc_cidr
+  alb_internal = var.alb_internal
 }
 
 module "rds" {
@@ -58,6 +60,7 @@ module "ecs" {
   task_memory               = var.ecs_task_memory
   desired_count             = var.ecs_desired_count
   alb_certificate_arn       = var.alb_certificate_arn
+  alb_internal              = var.alb_internal
 }
 
 module "github_oidc" {
