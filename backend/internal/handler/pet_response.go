@@ -78,16 +78,30 @@ type petListResponse struct {
 	Gender          string                  `json:"gender"`
 	Status          string                  `json:"status"`
 	BirthDate       *time.Time              `json:"birth_date,omitempty"`
+	Breed           string                  `json:"breed"`
+	Color           string                  `json:"color"`
 	BloodType       *string                 `json:"blood_type,omitempty"`
 	MicrochipNumber *string                 `json:"microchip_number,omitempty"`
 	Weight          *float64                `json:"weight,omitempty"`
+	NeuteredDate    *time.Time              `json:"neutered_date,omitempty"`
+	AcquisitionType *string                 `json:"acquisition_type,omitempty"`
+	DangerLevel     string                  `json:"danger_level"`
+	Food            string                  `json:"food"`
 	Environment     string                  `json:"environment"`
 	LastVisit       *time.Time              `json:"last_visit,omitempty"`
+	InsuranceID     *uint64                 `json:"insurance_id,omitempty"`
+	Remarks         string                  `json:"remarks"`
 	Owner           *petOwnerNested         `json:"owner,omitempty"`
 	AnimalSpecies   *petAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance       *petInsuranceNested     `json:"insurance,omitempty"`
 }
 
 func toPetListResponse(p *model.Pet) petListResponse {
+	var acquisitionType *string
+	if p.AcquisitionType != nil {
+		s := string(*p.AcquisitionType)
+		acquisitionType = &s
+	}
 	resp := petListResponse{
 		ID:              p.ID,
 		OwnerID:         p.OwnerID,
@@ -98,11 +112,19 @@ func toPetListResponse(p *model.Pet) petListResponse {
 		Gender:          string(p.Gender),
 		Status:          string(p.Status),
 		BirthDate:       p.BirthDate,
+		Breed:           p.Breed,
+		Color:           p.Color,
 		BloodType:       p.BloodType,
 		MicrochipNumber: p.MicrochipNumber,
 		Weight:          p.Weight,
+		NeuteredDate:    p.NeuteredDate,
+		AcquisitionType: acquisitionType,
+		DangerLevel:     string(p.DangerLevel),
+		Food:            p.Food,
 		Environment:     p.Environment,
 		LastVisit:       p.LastVisit,
+		InsuranceID:     p.InsuranceID,
+		Remarks:         p.Remarks,
 	}
 	if p.Owner != nil {
 		resp.Owner = &petOwnerNested{
@@ -116,6 +138,14 @@ func toPetListResponse(p *model.Pet) petListResponse {
 			ID:        p.AnimalSpecies.ID,
 			Name:      p.AnimalSpecies.Name,
 			SortOrder: p.AnimalSpecies.SortOrder,
+		}
+	}
+	if p.Insurance != nil {
+		resp.Insurance = &petInsuranceNested{
+			ID:           p.Insurance.ID,
+			Name:         p.Insurance.Name,
+			CoverageRate: p.Insurance.CoverageRate,
+			ContactPhone: p.Insurance.ContactPhone,
 		}
 	}
 	return resp

@@ -119,6 +119,8 @@ type PetFormInput = {
   petNameKana?: string;
   breed?: string;
   color?: string;
+  bloodType?: string;
+  microchipNumber?: string;
   gender?: string;
   birthDate?: string;
   weight?: string;
@@ -147,6 +149,8 @@ export const transformCreatePetRequest = (data: PetFormInput & {
   name_kana: data.petNameKana,
   breed: data.breed,
   color: data.color,
+  blood_type: data.bloodType,
+  microchip_number: data.microchipNumber,
   gender: data.gender ? (PET_GENDER_REVERSE_MAP[data.gender] ?? data.gender) : undefined,
   birth_date: data.birthDate ? jstDateStartISOString(data.birthDate) : undefined,
   weight: data.weight ? parseFloat(data.weight) : undefined,
@@ -171,6 +175,8 @@ export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequest 
   name_kana: data.petNameKana,
   breed: data.breed,
   color: data.color,
+  blood_type: data.bloodType,
+  microchip_number: data.microchipNumber,
   gender: data.gender ? (PET_GENDER_REVERSE_MAP[data.gender] ?? data.gender) : undefined,
   birth_date: data.birthDate ? jstDateStartISOString(data.birthDate) : undefined,
   weight: data.weight ? parseFloat(data.weight) : undefined,

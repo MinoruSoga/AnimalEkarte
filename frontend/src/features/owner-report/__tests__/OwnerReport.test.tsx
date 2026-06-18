@@ -59,8 +59,18 @@ const pets = [
     ownerId: "42",
     petNameKana: "ぽち",
     birthDate: "2015-04-14",
+    breed: "柴犬",
+    color: "赤",
     bloodType: "DEA1.1陽性",
     microchipNumber: "392140000123456",
+    neuteredDate: "2016-05-20",
+    acquisitionType: "購入",
+    dangerLevel: "中",
+    food: "療法食",
+    environment: "室内",
+    insuranceName: "アニコム",
+    insuranceDetails: "70%補償",
+    remarks: "咬傷注意",
     // transformBackendPetToFrontend 正規化後の形（日付のみ）を模す。
     lastVisit: "2024-08-25",
   },
@@ -219,6 +229,15 @@ describe("OwnerReport", () => {
     expect(screen.getByText("DEA1.1陽性")).toBeInTheDocument();
     expect(screen.getByText("マイクロチップ")).toBeInTheDocument();
     expect(screen.getByText("392140000123456")).toBeInTheDocument();
+    // ペット詳細: useGetPets list response 由来の既存詳細項目。list response で落とさない。
+    expect(screen.getByText("柴犬")).toBeInTheDocument();
+    expect(screen.getByText("赤")).toBeInTheDocument();
+    expect(screen.getByText("中")).toBeInTheDocument();
+    expect(screen.getByText("購入")).toBeInTheDocument();
+    expect(screen.getByText("療法食")).toBeInTheDocument();
+    expect(screen.getByText("アニコム")).toBeInTheDocument();
+    expect(screen.getByText("70%補償")).toBeInTheDocument();
+    expect(screen.getByText("咬傷注意")).toBeInTheDocument();
 
     // ペット詳細: 初診日（useGetPetFirstVisit 由来の派生値。formatDate で YYYY/MM/DD 表示）
     expect(screen.getByText("初診日")).toBeInTheDocument();
@@ -231,7 +250,7 @@ describe("OwnerReport", () => {
 
   it("データが無い飼主・ペット項目は行を出さず空状態を壊さない", () => {
     hooks.useGetOwner.mockReturnValue(
-      ok({ id: "42", ownerName: "山田太郎", phone: "090-1111-2222", membershipType: "会員", email: "" }),
+      ok({ id: "42", ownerName: "山田太郎", phone: "090-1111-2222", membershipType: "会員", email: "", dmPreference: null }),
     );
     hooks.useGetPets.mockReturnValue(ok([{ id: "7", name: "ポチ", species: "犬", ownerId: "42" }]));
     // 受診歴なし: 初診日は null（捏造せず "-" 表示）。
@@ -241,7 +260,7 @@ describe("OwnerReport", () => {
     // 住所/勤務先フィールドは出ない（"-" で潰さず非表示）
     expect(screen.queryByText("勤務先")).not.toBeInTheDocument();
     expect(screen.queryByText("勤務先TEL")).not.toBeInTheDocument();
-    // DM 区分は未設定（undefined）のため行ごと出さない（"不要" と誤表示しない）
+    // DM 区分は未設定（null）のため行ごと出さない（"不要" と誤表示しない）
     expect(screen.queryByText("DM")).not.toBeInTheDocument();
     // ふりがな/年齢/前回来院/血液型/初診日 のラベルは行として残り、値は "-"
     expect(screen.getByText("ふりがな")).toBeInTheDocument();

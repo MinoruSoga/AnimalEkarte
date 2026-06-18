@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 
-import { transformBackendPetToFrontend } from "./pet";
+import {
+  transformBackendPetToFrontend,
+  transformCreatePetRequest,
+  transformUpdatePetRequest,
+} from "./pet";
 import type { Pet as BackendPet } from "@/types/generated/models";
 
 // makeBackendPet は transformBackendPetToFrontend に渡す最小の BackendPet を組み立てる。
@@ -68,5 +72,28 @@ describe("transformBackendPetToFrontend", () => {
 
     expect(pet.bloodType).toBeUndefined();
     expect(pet.microchipNumber).toBeUndefined();
+  });
+
+  it("作成リクエストへ血液型 / マイクロチップ番号を含める", () => {
+    const request = transformCreatePetRequest({
+      ownerId: "42",
+      name: "ポチ",
+      animalSpeciesId: "1",
+      bloodType: "DEA1.1陽性",
+      microchipNumber: "392140000123456",
+    });
+
+    expect(request.blood_type).toBe("DEA1.1陽性");
+    expect(request.microchip_number).toBe("392140000123456");
+  });
+
+  it("更新リクエストへ血液型 / マイクロチップ番号を含める", () => {
+    const request = transformUpdatePetRequest({
+      bloodType: "B",
+      microchipNumber: "900000000000001",
+    });
+
+    expect(request.blood_type).toBe("B");
+    expect(request.microchip_number).toBe("900000000000001");
   });
 });

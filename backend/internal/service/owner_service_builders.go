@@ -62,6 +62,7 @@ func buildOwnerUpdate(input *UpdateOwnerInput) map[string]any {
 		fields[colMembershipType] = *input.MembershipType
 	}
 	if input.DMPreference != nil {
+		// *input.DMPreference は *bool: nil = NULL クリア、非nil = 値セット。
 		fields[colDMPreference] = *input.DMPreference
 	}
 	return fields

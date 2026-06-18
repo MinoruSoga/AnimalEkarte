@@ -172,7 +172,7 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
 
   // rerender-functional-setstate: setOwnerData・markDirty は両方安定した参照なので
   // useCallback で handleInputChange を安定化できる → MembershipTypeButtons memo の前提条件
-  const handleInputChange = useCallback((field: string, value: string | boolean | number) => {
+  const handleInputChange = useCallback((field: string, value: string | boolean | number | null | undefined) => {
     setOwnerData(prev => ({ ...prev, [field]: value }));
     markDirty();
   }, [setOwnerData, markDirty]);

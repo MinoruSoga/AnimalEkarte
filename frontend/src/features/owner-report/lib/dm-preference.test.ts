@@ -11,9 +11,11 @@ describe("formatDMPreference", () => {
     expect(formatDMPreference(false)).toBe("不要");
   });
 
-  it("undefined（未設定）は『未設定』を返し、false（不要）と混同しない", () => {
+  it("undefined/null（未設定）は『未設定』を返し、false（不要）と混同しない", () => {
     // 既存レコードは値を持たない。未設定を「不要」と誤表示しないことを保証する。
     expect(formatDMPreference(undefined)).toBe("未設定");
+    expect(formatDMPreference(null)).toBe("未設定");
     expect(formatDMPreference(undefined)).not.toBe(formatDMPreference(false));
+    expect(formatDMPreference(null)).not.toBe(formatDMPreference(false));
   });
 });

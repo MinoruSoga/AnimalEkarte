@@ -214,4 +214,24 @@ describe("transformOwner", () => {
     });
     expect(result.lstepOptOutReason).toBe("苦情あり");
   });
+
+  it("dm_preference=true を dmPreference=true にマップする", () => {
+    const result = transformOwner({ ...minimalBackend, dm_preference: true });
+    expect(result.dmPreference).toBe(true);
+  });
+
+  it("dm_preference=false を undefined に潰さず dmPreference=false にマップする", () => {
+    const result = transformOwner({ ...minimalBackend, dm_preference: false });
+    expect(result.dmPreference).toBe(false);
+  });
+
+  it("dm_preference 未設定は undefined のまま", () => {
+    const result = transformOwner({ ...minimalBackend, dm_preference: undefined });
+    expect(result.dmPreference).toBeUndefined();
+  });
+
+  it("dm_preference=null は null のまま（未設定を不要に潰さない）", () => {
+    const result = transformOwner({ ...minimalBackend, dm_preference: null });
+    expect(result.dmPreference).toBeNull();
+  });
 });

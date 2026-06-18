@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/url"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -9,6 +10,35 @@ import (
 
 type listOwnersQuery struct {
 	Search string
+}
+
+// nullableBoolRequestField は PATCH DTO で「未送信」と「JSON null」を区別する。
+// Go 標準の **bool だけでは encoding/json が null と未送信の両方を nil にするため、
+// set フラグでフィールド存在を保持し、service 層の **bool（nil / &nil / &&value）へ変換する。
+type nullableBoolRequestField struct {
+	set   bool
+	value *bool
+}
+
+func (f *nullableBoolRequestField) UnmarshalJSON(data []byte) error {
+	f.set = true
+	if string(data) == "null" {
+		f.value = nil
+		return nil
+	}
+	var value bool
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	f.value = &value
+	return nil
+}
+
+func (f nullableBoolRequestField) toServiceInput() **bool {
+	if !f.set {
+		return nil
+	}
+	return &f.value
 }
 
 func newListOwnersQuery(values url.Values) listOwnersQuery {
@@ -22,6 +52,8 @@ type createPetForOwnerRequest struct {
 	NameKana        string    `json:"name_kana"`
 	Breed           string    `json:"breed"`
 	Color           string    `json:"color"`
+	BloodType       string    `json:"blood_type"       binding:"omitempty,max=32"`
+	MicrochipNumber string    `json:"microchip_number" binding:"omitempty,max=64"`
 	Gender          string    `json:"gender"            binding:"omitempty,oneof=male female unknown"`
 	Status          string    `json:"status"            binding:"omitempty,oneof=alive deceased"`
 	BirthDate       *jsonDate `json:"birth_date"`
@@ -42,6 +74,8 @@ func (r *createPetForOwnerRequest) toServiceInput() service.CreatePetForOwnerInp
 		PetNameKana:     r.NameKana,
 		Breed:           r.Breed,
 		Color:           r.Color,
+		BloodType:       r.BloodType,
+		MicrochipNumber: r.MicrochipNumber,
 		Gender:          r.Gender,
 		Status:          r.Status,
 		BirthDate:       jsonDatePtr(r.BirthDate),
@@ -114,24 +148,24 @@ func (r *createOwnerRequest) toServiceInput() service.CreateOwnerInput {
 
 // updateOwnerRequest は飼主更新のバインド struct（全フィールドポインタ型）
 type updateOwnerRequest struct {
-	OwnerName      *string   `json:"owner_name"`
-	OwnerNameKana  *string   `json:"owner_name_kana"`
-	BirthDate      *jsonDate `json:"birth_date"`
-	Company        *string   `json:"company"`
-	PostalCode     *string   `json:"postal_code"`
-	Address1       *string   `json:"address1"`
-	Address2       *string   `json:"address2"`
-	HomePostalCode *string   `json:"home_postal_code"`
-	HomeAddress1   *string   `json:"home_address1"`
-	HomeAddress2   *string   `json:"home_address2"`
-	Phone          *string   `json:"phone"`
-	CompanyPhone   *string   `json:"company_phone"`
-	Email          *string   `json:"email"`
-	Remarks        *string   `json:"remarks"`
-	IsDangerous    *bool     `json:"is_dangerous"`
-	DiscountRate   *float64  `json:"discount_rate"`
-	MembershipType *string   `json:"membership_type"  binding:"omitempty,oneof=non_member member deceased transferred"`
-	DMPreference   *bool     `json:"dm_preference"`
+	OwnerName      *string                  `json:"owner_name"`
+	OwnerNameKana  *string                  `json:"owner_name_kana"`
+	BirthDate      *jsonDate                `json:"birth_date"`
+	Company        *string                  `json:"company"`
+	PostalCode     *string                  `json:"postal_code"`
+	Address1       *string                  `json:"address1"`
+	Address2       *string                  `json:"address2"`
+	HomePostalCode *string                  `json:"home_postal_code"`
+	HomeAddress1   *string                  `json:"home_address1"`
+	HomeAddress2   *string                  `json:"home_address2"`
+	Phone          *string                  `json:"phone"`
+	CompanyPhone   *string                  `json:"company_phone"`
+	Email          *string                  `json:"email"`
+	Remarks        *string                  `json:"remarks"`
+	IsDangerous    *bool                    `json:"is_dangerous"`
+	DiscountRate   *float64                 `json:"discount_rate"`
+	MembershipType *string                  `json:"membership_type"  binding:"omitempty,oneof=non_member member deceased transferred"`
+	DMPreference   nullableBoolRequestField `json:"dm_preference"`
 }
 
 func (r *updateOwnerRequest) toServiceInput() *service.UpdateOwnerInput {
@@ -159,7 +193,7 @@ func (r *updateOwnerRequest) toServiceInput() *service.UpdateOwnerInput {
 		IsDangerous:    r.IsDangerous,
 		DiscountRate:   r.DiscountRate,
 		MembershipType: membershipType,
-		DMPreference:   r.DMPreference,
+		DMPreference:   r.DMPreference.toServiceInput(),
 	}
 }
 

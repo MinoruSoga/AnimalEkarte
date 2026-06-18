@@ -7,9 +7,10 @@ import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
  * models.ts の Owner（json:"name"）とは異なる。
  * @see backend/internal/handler/owner_response.go ownerResponse
  */
-export interface OwnerApiResponse extends Omit<BackendOwner, "name" | "name_kana"> {
+export interface OwnerApiResponse extends Omit<BackendOwner, "name" | "name_kana" | "dm_preference"> {
   owner_name: string;
   owner_name_kana?: string;
+  dm_preference?: boolean | null;
 }
 
 export const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {
