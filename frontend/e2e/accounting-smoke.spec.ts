@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
-import { loginAsDemoAdmin } from './helpers/auth';
+import { createAuthedContext } from './helpers/context';
+import { AccountingPage } from './pages/accounting-page';
 
 // Seed prerequisites:
 //   - admin@noavet.jp (is_system_admin=true) has full accounting permission
@@ -14,10 +15,7 @@ test.describe('会計 smoke E2E', () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    const loginPage = await context.newPage();
-    await loginAsDemoAdmin(loginPage);
-    await loginPage.close();
+    context = await createAuthedContext(browser);
   });
 
   test.afterAll(async () => {
@@ -26,13 +24,14 @@ test.describe('会計 smoke E2E', () => {
 
   test('会計一覧 (/accounting) が表示される', async () => {
     const page = await context.newPage();
+    const accounting = new AccountingPage(page);
     try {
       // domcontentloaded returns before lazy route chunks load; toBeVisible polls
       // until AccountingList mounts and UnifiedTabs renders (30 s covers Docker lag).
-      await page.goto('/accounting', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('tab', { name: '会計一覧' })).toBeVisible({ timeout: 30000 });
-      await expect(page.getByRole('tab', { name: '未納者一覧' })).toBeVisible({ timeout: 5000 });
-      await expect(page.getByRole('tab', { name: '当日会計' })).toBeVisible({ timeout: 5000 });
+      await accounting.gotoList();
+      await expect(accounting.listTab()).toBeVisible({ timeout: 30000 });
+      await expect(accounting.unpaidTab()).toBeVisible({ timeout: 5000 });
+      await expect(accounting.sameDayTab()).toBeVisible({ timeout: 5000 });
     } finally {
       await page.close();
     }
@@ -40,23 +39,24 @@ test.describe('会計 smoke E2E', () => {
 
   test('会計一覧: ひらがな「いりす」でカタカナ「Iris(イリス)」が表示される (かな非区別検索)', async () => {
     const page = await context.newPage();
+    const accounting = new AccountingPage(page);
     try {
-      await page.goto('/accounting', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('tab', { name: '会計一覧' })).toBeVisible({ timeout: 30000 });
+      await accounting.gotoList();
+      await expect(accounting.listTab()).toBeVisible({ timeout: 30000 });
 
       // Search input is hidden behind a toggle — click the search button first.
       // The button renders once AccountingListTable mounts (after API resolves).
-      const searchToggle = page.getByRole('button', { name: '検索' });
+      const searchToggle = accounting.searchToggle();
       await expect(searchToggle).toBeVisible({ timeout: 15000 });
       await searchToggle.click();
 
-      const searchInput = page.getByPlaceholder('飼主名、ペット名...');
+      const searchInput = accounting.searchInput();
       await expect(searchInput).toBeVisible({ timeout: 5000 });
 
       // normalizeKana('Iris(イリス)') → 'iris(いりす)'; includes('いりす') → true
       // .first() because seed may contain multiple Iris billing rows
       await searchInput.fill('いりす');
-      await expect(page.locator('tbody').getByText('Iris', { exact: false }).first()).toBeVisible({
+      await expect(accounting.irisCell()).toBeVisible({
         timeout: 5000,
       });
     } finally {
@@ -66,21 +66,22 @@ test.describe('会計 smoke E2E', () => {
 
   test('会計一覧: カタカナ「イリス」でも「Iris(イリス)」が表示される (ひらがな・カタカナ統一検索)', async () => {
     const page = await context.newPage();
+    const accounting = new AccountingPage(page);
     try {
-      await page.goto('/accounting', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('tab', { name: '会計一覧' })).toBeVisible({ timeout: 30000 });
+      await accounting.gotoList();
+      await expect(accounting.listTab()).toBeVisible({ timeout: 30000 });
 
-      const searchToggle = page.getByRole('button', { name: '検索' });
+      const searchToggle = accounting.searchToggle();
       await expect(searchToggle).toBeVisible({ timeout: 15000 });
       await searchToggle.click();
 
-      const searchInput = page.getByPlaceholder('飼主名、ペット名...');
+      const searchInput = accounting.searchInput();
       await expect(searchInput).toBeVisible({ timeout: 5000 });
 
       // normalizeKana('イリス') → 'いりす', same match as hiragana above
       // .first() because seed may contain multiple Iris billing rows
       await searchInput.fill('イリス');
-      await expect(page.locator('tbody').getByText('Iris', { exact: false }).first()).toBeVisible({
+      await expect(accounting.irisCell()).toBeVisible({
         timeout: 5000,
       });
     } finally {
@@ -90,9 +91,10 @@ test.describe('会計 smoke E2E', () => {
 
   test('未納者一覧タブ (/accounting?tab=unpaid) がアクティブになる', async () => {
     const page = await context.newPage();
+    const accounting = new AccountingPage(page);
     try {
-      await page.goto('/accounting?tab=unpaid', { waitUntil: 'domcontentloaded' });
-      const unpaidTab = page.getByRole('tab', { name: '未納者一覧' });
+      await accounting.gotoUnpaid();
+      const unpaidTab = accounting.unpaidTab();
       await expect(unpaidTab).toBeVisible({ timeout: 30000 });
       await expect(unpaidTab).toHaveAttribute('data-state', 'active');
     } finally {
@@ -102,10 +104,11 @@ test.describe('会計 smoke E2E', () => {
 
   test('月次集計レポート (/accounting/reports) が表示される', async () => {
     const page = await context.newPage();
+    const accounting = new AccountingPage(page);
     try {
-      await page.goto('/accounting/reports');
+      await accounting.gotoReports();
       await expect(page).toHaveURL(/\/accounting\/reports/, { timeout: 10000 });
-      await expect(page.getByRole('heading', { name: '月次集計レポート' })).toBeVisible({
+      await expect(accounting.reportsHeading()).toBeVisible({
         timeout: 10000,
       });
     } finally {

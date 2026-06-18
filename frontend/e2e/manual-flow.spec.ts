@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
-import { loginAsDemoAdmin } from './helpers/auth';
+import { createAuthedContext } from './helpers/context';
+import { ManualPage } from './pages/manual-page';
 
 // E2E flow tests for manual pages:
 // /manual (index with sidebar navigation)
@@ -12,10 +13,7 @@ test.describe('マニュアル フロー E2E', () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    const loginPage = await context.newPage();
-    await loginAsDemoAdmin(loginPage);
-    await loginPage.close();
+    context = await createAuthedContext(browser);
   });
 
   test.afterAll(async () => {
@@ -24,10 +22,11 @@ test.describe('マニュアル フロー E2E', () => {
 
   test('/manual — マニュアルページが表示される', async () => {
     const page = await context.newPage();
+    const manual = new ManualPage(page);
     try {
-      await page.goto('/manual', { waitUntil: 'domcontentloaded' });
+      await manual.gotoIndex();
       await expect(page).toHaveURL(/\/manual\/screens\/00-overview/);
-      await expect(page.getByRole('heading', { name: 'Animal Ekarte 取扱説明書', level: 1 })).toBeVisible({
+      await expect(manual.overviewHeading()).toBeVisible({
         timeout: 15000,
       });
     } finally {
@@ -37,12 +36,13 @@ test.describe('マニュアル フロー E2E', () => {
 
   test('/manual — サイドバーが表示される', async () => {
     const page = await context.newPage();
+    const manual = new ManualPage(page);
     try {
-      await page.goto('/manual', { waitUntil: 'domcontentloaded' });
-      const sidebar = page.getByRole('navigation', { name: 'マニュアル目次' });
+      await manual.gotoIndex();
+      const sidebar = manual.sidebar();
       await expect(sidebar).toBeVisible({ timeout: 15000 });
 
-      const navLinks = sidebar.getByRole('link');
+      const navLinks = manual.sidebarLinks();
       const linkCount = await navLinks.count();
       expect(linkCount).toBeGreaterThanOrEqual(1);
     } finally {
@@ -52,12 +52,12 @@ test.describe('マニュアル フロー E2E', () => {
 
   test('/manual — サイドバーのカテゴリをクリックできる', async () => {
     const page = await context.newPage();
+    const manual = new ManualPage(page);
     try {
-      await page.goto('/manual', { waitUntil: 'domcontentloaded' });
-      await page.getByRole('tab', { name: '業務フロー' }).click();
-      await expect(page.getByRole('tab', { name: '業務フロー' })).toHaveAttribute('aria-selected', 'true');
-      const sidebar = page.getByRole('navigation', { name: 'マニュアル目次' });
-      await expect(sidebar.getByRole('link', { name: '新規飼主の登録から初診会計まで' })).toBeVisible({
+      await manual.gotoIndex();
+      await manual.categoryTab('業務フロー').click();
+      await expect(manual.categoryTab('業務フロー')).toHaveAttribute('aria-selected', 'true');
+      await expect(manual.sidebarLink('新規飼主の登録から初診会計まで')).toBeVisible({
         timeout: 10000,
       });
     } finally {
@@ -67,10 +67,11 @@ test.describe('マニュアル フロー E2E', () => {
 
   test('/manual/:category/:slug — マニュアル記事ページが表示される', async () => {
     const page = await context.newPage();
+    const manual = new ManualPage(page);
     try {
-      await page.goto('/manual/screens/03-owners', { waitUntil: 'domcontentloaded' });
+      await manual.gotoArticle('screens/03-owners');
       await expect(page).toHaveURL(/\/manual\/screens\/03-owners/);
-      await expect(page.getByRole('heading', { name: '飼主・ペット管理', level: 1 })).toBeVisible({
+      await expect(manual.heading('飼主・ペット管理', 1)).toBeVisible({
         timeout: 15000,
       });
     } finally {
@@ -80,12 +81,13 @@ test.describe('マニュアル フロー E2E', () => {
 
   test('/manual — コンテンツが表示される', async () => {
     const page = await context.newPage();
+    const manual = new ManualPage(page);
     try {
-      await page.goto('/manual', { waitUntil: 'domcontentloaded' });
+      await manual.gotoIndex();
       await expect(page).toHaveURL(/\/manual\/screens\/00-overview/);
-      await expect(page.getByLabel('マニュアル内検索')).toBeVisible({ timeout: 10000 });
-      await page.getByLabel('マニュアル内検索').fill('会計');
-      await expect(page.getByRole('navigation', { name: 'マニュアル目次' }).getByRole('link').first()).toBeVisible({
+      await expect(manual.searchInput()).toBeVisible({ timeout: 10000 });
+      await manual.searchInput().fill('会計');
+      await expect(manual.firstSidebarLink()).toBeVisible({
         timeout: 10000,
       });
     } finally {
@@ -95,12 +97,12 @@ test.describe('マニュアル フロー E2E', () => {
 
   test('/manual — ナビゲーションリンクが機能する', async () => {
     const page = await context.newPage();
+    const manual = new ManualPage(page);
     try {
-      await page.goto('/manual', { waitUntil: 'domcontentloaded' });
-      const sidebar = page.getByRole('navigation', { name: 'マニュアル目次' });
-      await sidebar.getByRole('link', { name: '会計' }).click();
+      await manual.gotoIndex();
+      await manual.sidebarLink('会計').click();
       await expect(page).toHaveURL(/\/manual\/screens\/05-accounting/);
-      await expect(page.getByRole('heading', { name: '会計', level: 1 })).toBeVisible({ timeout: 15000 });
+      await expect(manual.heading('会計', 1)).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }

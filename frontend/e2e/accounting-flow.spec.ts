@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
-import { loginAsDemoAdmin } from './helpers/auth';
+import { createAuthedContext } from './helpers/context';
+import { AccountingPage } from './pages/accounting-page';
 
 // E2E flow tests for accounting (/accounting) navigation.
 // Smoke coverage (tab visibility, kana search) lives in accounting-smoke.spec.ts.
@@ -14,10 +15,7 @@ test.describe('会計フロー E2E', () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    const loginPage = await context.newPage();
-    await loginAsDemoAdmin(loginPage);
-    await loginPage.close();
+    context = await createAuthedContext(browser);
   });
 
   test.afterAll(async () => {
@@ -26,15 +24,16 @@ test.describe('会計フロー E2E', () => {
 
   test('/accounting — 会計一覧の行クリックで会計精算画面に遷移する', async () => {
     const page = await context.newPage();
+    const accounting = new AccountingPage(page);
     try {
-      await page.goto('/accounting', { waitUntil: 'domcontentloaded' });
+      await accounting.gotoList();
       // AccountingList mounts after API resolves (may take 30 s with Docker lag)
-      await expect(page.getByRole('tab', { name: '会計一覧' })).toBeVisible({ timeout: 30000 });
-      await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
+      await expect(accounting.listTab()).toBeVisible({ timeout: 30000 });
+      await expect(accounting.firstRow()).toBeVisible({ timeout: 15000 });
 
-      await page.locator('tbody tr').first().click();
+      await accounting.firstRow().click();
       // AccountingDetail renders PageLayout with title="会計精算" only after API resolves
-      await expect(page.getByRole('heading', { name: '会計精算' })).toBeVisible({ timeout: 30000 });
+      await expect(accounting.detailHeading()).toBeVisible({ timeout: 30000 });
       await expect(page).toHaveURL(/\/accounting\/\d+/);
     } finally {
       await page.close();
@@ -43,26 +42,25 @@ test.describe('会計フロー E2E', () => {
 
   test('/accounting — 会計一覧の「Iris」行クリックで会計精算画面に遷移する (seed: 林 文明 / Iris)', async () => {
     const page = await context.newPage();
+    const accounting = new AccountingPage(page);
     try {
-      await page.goto('/accounting', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('tab', { name: '会計一覧' })).toBeVisible({ timeout: 30000 });
+      await accounting.gotoList();
+      await expect(accounting.listTab()).toBeVisible({ timeout: 30000 });
 
       // Search for Iris to get a stable row from seed data
-      const searchToggle = page.getByRole('button', { name: '検索' });
+      const searchToggle = accounting.searchToggle();
       await expect(searchToggle).toBeVisible({ timeout: 15000 });
       await searchToggle.click();
-      const searchInput = page.getByPlaceholder('飼主名、ペット名...');
+      const searchInput = accounting.searchInput();
       await expect(searchInput).toBeVisible({ timeout: 5000 });
       await searchInput.fill('Iris');
 
       // Click the first Iris row
-      await expect(page.locator('tbody').getByText('Iris', { exact: false }).first()).toBeVisible({
-        timeout: 5000,
-      });
-      await page.locator('tbody tr').filter({ hasText: 'Iris' }).first().click();
+      await expect(accounting.irisCell()).toBeVisible({ timeout: 5000 });
+      await accounting.irisRow().click();
 
       // Detail page renders after API resolves
-      await expect(page.getByRole('heading', { name: '会計精算' })).toBeVisible({ timeout: 30000 });
+      await expect(accounting.detailHeading()).toBeVisible({ timeout: 30000 });
       await expect(page).toHaveURL(/\/accounting\/\d+/);
     } finally {
       await page.close();
@@ -71,13 +69,14 @@ test.describe('会計フロー E2E', () => {
 
   test('/accounting/reports — 月次集計レポートにセレクタが表示される', async () => {
     const page = await context.newPage();
+    const accounting = new AccountingPage(page);
     try {
-      await page.goto('/accounting/reports', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '月次集計レポート' })).toBeVisible({
+      await accounting.gotoReports({ waitUntil: 'domcontentloaded' });
+      await expect(accounting.reportsHeading()).toBeVisible({
         timeout: 15000,
       });
       // Reports page always renders year/month selectors
-      await expect(page.getByRole('combobox').first()).toBeVisible({ timeout: 10000 });
+      await expect(accounting.firstCombobox()).toBeVisible({ timeout: 10000 });
     } finally {
       await page.close();
     }
@@ -85,18 +84,18 @@ test.describe('会計フロー E2E', () => {
 
   test('/accounting/:id — 会計精算フォームの確定ボタンが表示される', async () => {
     const page = await context.newPage();
+    const accounting = new AccountingPage(page);
     try {
-      await page.goto('/accounting', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('tab', { name: '会計一覧' })).toBeVisible({ timeout: 30000 });
-      await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
+      await accounting.gotoList();
+      await expect(accounting.listTab()).toBeVisible({ timeout: 30000 });
+      await expect(accounting.firstRow()).toBeVisible({ timeout: 15000 });
 
       // Click first row to navigate to detail
-      await page.locator('tbody tr').first().click();
-      await expect(page.getByRole('heading', { name: '会計精算' })).toBeVisible({ timeout: 30000 });
+      await accounting.firstRow().click();
+      await expect(accounting.detailHeading()).toBeVisible({ timeout: 30000 });
       await expect(page).toHaveURL(/\/accounting\/\d+/);
 
-      const confirmButton = page.getByRole('button', { name: /会計を確定する|修正を保存する/ });
-      await expect(confirmButton).toBeVisible({ timeout: 10000 });
+      await expect(accounting.confirmButton()).toBeVisible({ timeout: 10000 });
     } finally {
       await page.close();
     }

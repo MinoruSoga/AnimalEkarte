@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
-import { loginAsDemoAdmin } from './helpers/auth';
+import { createAuthedContext } from './helpers/context';
+import { HospitalizationPage } from './pages/hospitalization-page';
 
 // E2E flow tests for hospitalization (/hospitalization) pages.
 // Seed data: 12+ hospitalization records at clinic_id=1.
@@ -13,10 +14,7 @@ test.describe('入院・ホテル管理 フロー E2E', () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    const loginPage = await context.newPage();
-    await loginAsDemoAdmin(loginPage);
-    await loginPage.close();
+    context = await createAuthedContext(browser);
   });
 
   test.afterAll(async () => {
@@ -25,14 +23,15 @@ test.describe('入院・ホテル管理 フロー E2E', () => {
 
   test('/hospitalization — 入院・ホテル管理一覧がリストビューで表示される', async () => {
     const page = await context.newPage();
+    const hospitalization = new HospitalizationPage(page);
     try {
-      await page.goto('/hospitalization', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '入院・ホテル管理' })).toBeVisible();
+      await hospitalization.gotoList();
+      await expect(hospitalization.listHeading()).toBeVisible();
 
       // デフォルトはボードビュー — リストビューに切り替えてから行を確認
-      await page.getByLabel('List View').click();
+      await hospitalization.listViewToggle().click();
       // seed has 12+ records; at least one row must be visible in list view
-      await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
+      await expect(hospitalization.firstRow()).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }
@@ -40,12 +39,13 @@ test.describe('入院・ホテル管理 フロー E2E', () => {
 
   test('/hospitalization — 新規入院登録ボタンでペット選択画面に遷移する', async () => {
     const page = await context.newPage();
+    const hospitalization = new HospitalizationPage(page);
     try {
-      await page.goto('/hospitalization', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '入院・ホテル管理' })).toBeVisible();
+      await hospitalization.gotoList();
+      await expect(hospitalization.listHeading()).toBeVisible();
 
-      await page.getByRole('button', { name: '新規入院登録' }).click();
-      await expect(page.getByRole('heading', { name: '入院・ホテル登録 - ペット選択' })).toBeVisible({
+      await hospitalization.newButton().click();
+      await expect(hospitalization.selectPetHeading()).toBeVisible({
         timeout: 15000,
       });
       await expect(page).toHaveURL(/\/hospitalization\/select-pet/);
@@ -56,13 +56,14 @@ test.describe('入院・ホテル管理 フロー E2E', () => {
 
   test('/hospitalization — ステータスタブ「予約」に切り替えると予約件数が表示される', async () => {
     const page = await context.newPage();
+    const hospitalization = new HospitalizationPage(page);
     try {
-      await page.goto('/hospitalization', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '入院・ホテル管理' })).toBeVisible();
+      await hospitalization.gotoList();
+      await expect(hospitalization.listHeading()).toBeVisible();
 
       // デフォルトは「入院中」タブ; 「予約」タブに切り替え
-      await page.getByRole('tab', { name: '予約' }).click();
-      await expect(page.getByRole('tab', { name: '予約' })).toHaveAttribute('data-state', 'active');
+      await hospitalization.statusTab('予約').click();
+      await expect(hospitalization.statusTab('予約')).toHaveAttribute('data-state', 'active');
     } finally {
       await page.close();
     }
@@ -70,17 +71,18 @@ test.describe('入院・ホテル管理 フロー E2E', () => {
 
   test('/hospitalization — ステータスタブ「すべて」に切り替えるとすべての件数が表示される', async () => {
     const page = await context.newPage();
+    const hospitalization = new HospitalizationPage(page);
     try {
-      await page.goto('/hospitalization', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '入院・ホテル管理' })).toBeVisible();
+      await hospitalization.gotoList();
+      await expect(hospitalization.listHeading()).toBeVisible();
 
       // 「すべて」タブに切り替え
-      await page.getByRole('tab', { name: 'すべて' }).click();
-      await expect(page.getByRole('tab', { name: 'すべて' })).toHaveAttribute('data-state', 'active');
+      await hospitalization.statusTab('すべて').click();
+      await expect(hospitalization.statusTab('すべて')).toHaveAttribute('data-state', 'active');
 
       // リストビューに切り替えて全件表示を確認
-      await page.getByLabel('List View').click();
-      await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
+      await hospitalization.listViewToggle().click();
+      await expect(hospitalization.firstRow()).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }

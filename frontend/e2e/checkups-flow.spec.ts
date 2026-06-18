@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
-import { loginAsDemoAdmin } from './helpers/auth';
+import { createAuthedContext } from './helpers/context';
+import { CheckupsPage } from './pages/checkups-page';
 
 // E2E flow tests for checkups (/checkups) pages.
 // Covers: list page, pet selection, new form.
@@ -11,10 +12,7 @@ test.describe('定期健診 フロー E2E', () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    const loginPage = await context.newPage();
-    await loginAsDemoAdmin(loginPage);
-    await loginPage.close();
+    context = await createAuthedContext(browser);
   });
 
   test.afterAll(async () => {
@@ -23,13 +21,14 @@ test.describe('定期健診 フロー E2E', () => {
 
   test('/checkups — 定期健診一覧が表示される', async () => {
     const page = await context.newPage();
+    const checkups = new CheckupsPage(page);
     try {
-      await page.goto('/checkups', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '定期健診', level: 1 })).toBeVisible({
+      await checkups.gotoList();
+      await expect(checkups.listHeading()).toBeVisible({
         timeout: 15000,
       });
-      await expect(page.getByRole('button', { name: '新規登録' })).toBeVisible({ timeout: 10000 });
-      await expect(page.locator('tbody')).toBeVisible({ timeout: 15000 });
+      await expect(checkups.newButton()).toBeVisible({ timeout: 10000 });
+      await expect(checkups.tableBody()).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }
@@ -37,12 +36,13 @@ test.describe('定期健診 フロー E2E', () => {
 
   test('/checkups/select-pet — ペット選択画面が表示される', async () => {
     const page = await context.newPage();
+    const checkups = new CheckupsPage(page);
     try {
-      await page.goto('/checkups/select-pet', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '定期健診登録 - ペット選択' })).toBeVisible({
+      await checkups.gotoSelectPet();
+      await expect(checkups.selectPetHeading()).toBeVisible({
         timeout: 15000,
       });
-      await expect(page.getByText('Iris').first()).toBeVisible({ timeout: 10000 });
+      await expect(checkups.irisText()).toBeVisible({ timeout: 10000 });
     } finally {
       await page.close();
     }
@@ -50,12 +50,13 @@ test.describe('定期健診 フロー E2E', () => {
 
   test('/checkups/new?petId=1 — 定期健診新規登録フォームが表示される', async () => {
     const page = await context.newPage();
+    const checkups = new CheckupsPage(page);
     try {
       // Use petId=1 (Iris from seed)
-      await page.goto('/checkups/new?petId=1', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '定期健診登録' })).toBeVisible({ timeout: 15000 });
-      await expect(page.getByText('Iris').first()).toBeVisible({ timeout: 10000 });
-      await expect(page.getByRole('button', { name: '保存' })).toBeVisible({ timeout: 10000 });
+      await checkups.gotoNew('?petId=1');
+      await expect(checkups.newFormHeading()).toBeVisible({ timeout: 15000 });
+      await expect(checkups.irisText()).toBeVisible({ timeout: 10000 });
+      await expect(checkups.saveButton()).toBeVisible({ timeout: 10000 });
     } finally {
       await page.close();
     }
@@ -63,14 +64,15 @@ test.describe('定期健診 フロー E2E', () => {
 
   test('/checkups — 新規登録ボタンでペット選択画面に遷移する', async () => {
     const page = await context.newPage();
+    const checkups = new CheckupsPage(page);
     try {
-      await page.goto('/checkups', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '定期健診', level: 1 })).toBeVisible({
+      await checkups.gotoList();
+      await expect(checkups.listHeading()).toBeVisible({
         timeout: 15000,
       });
 
-      await page.getByRole('button', { name: '新規登録' }).click();
-      await expect(page.getByRole('heading', { name: '定期健診登録 - ペット選択' })).toBeVisible({
+      await checkups.newButton().click();
+      await expect(checkups.selectPetHeading()).toBeVisible({
         timeout: 15000,
       });
       await expect(page).toHaveURL(/\/checkups\/select-pet/);
@@ -81,17 +83,18 @@ test.describe('定期健診 フロー E2E', () => {
 
   test('/checkups — 一覧で検索が機能する', async () => {
     const page = await context.newPage();
+    const checkups = new CheckupsPage(page);
     try {
-      await page.goto('/checkups', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '定期健診', level: 1 })).toBeVisible({
+      await checkups.gotoList();
+      await expect(checkups.listHeading()).toBeVisible({
         timeout: 15000,
       });
 
-      const rows = page.locator('tbody tr');
+      const rows = checkups.rows();
       const initialRowCount = await rows.count();
 
       await page.getByLabel('検索').click();
-      const searchInput = page.getByPlaceholder('ペット名・飼主名・種別で検索...');
+      const searchInput = checkups.searchInput();
       await expect(searchInput).toBeVisible();
       await searchInput.fill('Iris');
 
@@ -99,7 +102,7 @@ test.describe('定期健診 フロー E2E', () => {
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => null);
 
       // Verify filtered results or search input retained
-      const filteredRows = await page.locator('tbody tr').count();
+      const filteredRows = await checkups.rows().count();
       expect(filteredRows).toBeLessThanOrEqual(initialRowCount);
       await expect(searchInput).toHaveValue('Iris');
     } finally {

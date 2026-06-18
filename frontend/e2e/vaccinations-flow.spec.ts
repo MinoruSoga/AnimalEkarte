@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
-import { loginAsDemoAdmin } from './helpers/auth';
+import { createAuthedContext } from './helpers/context';
+import { VaccinationsPage } from './pages/vaccinations-page';
 
 // E2E flow tests for vaccinations (/vaccinations) pages.
 // Seed data: 12+ vaccination records at clinic_id=1 (vaccinations).
@@ -12,10 +13,7 @@ test.describe('予防接種管理 フロー E2E', () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    const loginPage = await context.newPage();
-    await loginAsDemoAdmin(loginPage);
-    await loginPage.close();
+    context = await createAuthedContext(browser);
   });
 
   test.afterAll(async () => {
@@ -24,11 +22,12 @@ test.describe('予防接種管理 フロー E2E', () => {
 
   test('/vaccinations — 予防接種管理一覧が表示される', async () => {
     const page = await context.newPage();
+    const vaccinations = new VaccinationsPage(page);
     try {
-      await page.goto('/vaccinations', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '予防接種管理' })).toBeVisible();
+      await vaccinations.gotoList();
+      await expect(vaccinations.listHeading()).toBeVisible();
       // seed has 12+ records; at least one row must be visible
-      await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
+      await expect(vaccinations.firstRow()).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }
@@ -36,16 +35,17 @@ test.describe('予防接種管理 フロー E2E', () => {
 
   test('/vaccinations — 検索フィルタが機能する', async () => {
     const page = await context.newPage();
+    const vaccinations = new VaccinationsPage(page);
     try {
-      await page.goto('/vaccinations', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '予防接種管理' })).toBeVisible();
+      await vaccinations.gotoList();
+      await expect(vaccinations.listHeading()).toBeVisible();
 
       // NotionFilter: 検索トグルボタンをクリックして入力欄を表示
       await page.getByLabel('検索').click();
-      const searchInput = page.getByPlaceholder('飼主名、ペット名、予防接種名...');
+      const searchInput = vaccinations.searchInput();
       await expect(searchInput).toBeVisible();
       await searchInput.fill('林');
-      await expect(page.getByText('林 文明').first()).toBeVisible({ timeout: 10000 });
+      await expect(vaccinations.hayashiText()).toBeVisible({ timeout: 10000 });
     } finally {
       await page.close();
     }
@@ -53,12 +53,13 @@ test.describe('予防接種管理 フロー E2E', () => {
 
   test('/vaccinations — 新規登録ボタンでペット選択画面に遷移する', async () => {
     const page = await context.newPage();
+    const vaccinations = new VaccinationsPage(page);
     try {
-      await page.goto('/vaccinations', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '予防接種管理' })).toBeVisible();
+      await vaccinations.gotoList();
+      await expect(vaccinations.listHeading()).toBeVisible();
 
-      await page.getByRole('button', { name: '新規登録' }).click();
-      await expect(page.getByRole('heading', { name: 'ワクチン接種 - ペット選択' })).toBeVisible({
+      await vaccinations.newButton().click();
+      await expect(vaccinations.selectPetHeading()).toBeVisible({
         timeout: 15000,
       });
       await expect(page).toHaveURL(/\/vaccinations\/select-pet/);
@@ -69,13 +70,14 @@ test.describe('予防接種管理 フロー E2E', () => {
 
   test('/vaccinations — 行クリックで予防接種詳細画面に遷移する', async () => {
     const page = await context.newPage();
+    const vaccinations = new VaccinationsPage(page);
     try {
-      await page.goto('/vaccinations', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '予防接種管理' })).toBeVisible();
-      await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
+      await vaccinations.gotoList();
+      await expect(vaccinations.listHeading()).toBeVisible();
+      await expect(vaccinations.firstRow()).toBeVisible({ timeout: 15000 });
 
-      await page.locator('tbody tr').first().click();
-      await expect(page.getByRole('heading', { name: '予防接種詳細・編集' })).toBeVisible({
+      await vaccinations.firstRow().click();
+      await expect(vaccinations.detailHeading()).toBeVisible({
         timeout: 15000,
       });
       await expect(page).toHaveURL(/\/vaccinations\/\d+/);

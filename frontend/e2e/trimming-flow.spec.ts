@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
-import { loginAsDemoAdmin } from './helpers/auth';
+import { createAuthedContext } from './helpers/context';
+import { TrimmingPage } from './pages/trimming-page';
 
 // E2E flow tests for trimming (/trimming) pages.
 // Seed data: pet 1 "Iris(イリス)" exists in seed.
@@ -12,10 +13,7 @@ test.describe('トリミング管理 フロー E2E', () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    const loginPage = await context.newPage();
-    await loginAsDemoAdmin(loginPage);
-    await loginPage.close();
+    context = await createAuthedContext(browser);
   });
 
   test.afterAll(async () => {
@@ -24,10 +22,11 @@ test.describe('トリミング管理 フロー E2E', () => {
 
   test('/trimming — トリミング管理一覧が表示される', async () => {
     const page = await context.newPage();
+    const trimming = new TrimmingPage(page);
     try {
-      await page.goto('/trimming', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: 'トリミング管理' })).toBeVisible();
-      await expect(page.getByRole('button', { name: '新規登録' })).toBeVisible();
+      await trimming.gotoList();
+      await expect(trimming.listHeading()).toBeVisible();
+      await expect(trimming.newButton()).toBeVisible();
     } finally {
       await page.close();
     }
@@ -35,12 +34,13 @@ test.describe('トリミング管理 フロー E2E', () => {
 
   test('/trimming — 新規登録ボタンでペット選択画面に遷移する', async () => {
     const page = await context.newPage();
+    const trimming = new TrimmingPage(page);
     try {
-      await page.goto('/trimming', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: 'トリミング管理' })).toBeVisible();
+      await trimming.gotoList();
+      await expect(trimming.listHeading()).toBeVisible();
 
-      await page.getByRole('button', { name: '新規登録' }).click();
-      await expect(page.getByRole('heading', { name: 'トリミング登録 - ペット選択' })).toBeVisible({
+      await trimming.newButton().click();
+      await expect(trimming.selectPetHeading()).toBeVisible({
         timeout: 15000,
       });
       await expect(page).toHaveURL(/\/trimming\/select-pet/);
@@ -51,13 +51,14 @@ test.describe('トリミング管理 フロー E2E', () => {
 
   test('/trimming/new?petId=1 — トリミング登録フォームが表示される', async () => {
     const page = await context.newPage();
+    const trimming = new TrimmingPage(page);
     try {
-      await page.goto('/trimming/new?petId=1', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: 'トリミング登録' })).toBeVisible({
+      await trimming.gotoNew('?petId=1');
+      await expect(trimming.newFormHeading()).toBeVisible({
         timeout: 15000,
       });
-      await expect(page.getByText('Iris').first()).toBeVisible({ timeout: 10000 });
-      await expect(page.getByRole('button', { name: '保存' })).toBeVisible({ timeout: 10000 });
+      await expect(trimming.irisText()).toBeVisible({ timeout: 10000 });
+      await expect(trimming.saveButton()).toBeVisible({ timeout: 10000 });
     } finally {
       await page.close();
     }

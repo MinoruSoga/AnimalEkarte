@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
-import { loginAsDemoAdmin } from './helpers/auth';
+import { createAuthedContext } from './helpers/context';
+import { SettingsMasterPage } from './pages/settings-master-page';
 
 // CRUD flow tests for master settings pages.
 // Each test creates test data with a timestamp prefix for isolation.
@@ -13,10 +14,7 @@ test.describe('設定マスタ CRUD E2E', () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    const loginPage = await context.newPage();
-    await loginAsDemoAdmin(loginPage);
-    await loginPage.close();
+    context = await createAuthedContext(browser);
   });
 
   test.afterAll(async () => {
@@ -26,25 +24,26 @@ test.describe('設定マスタ CRUD E2E', () => {
   test('動物種類マスタ: 新規作成 → 一覧表示確認 → 削除', async () => {
     test.setTimeout(60000);
     const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
     const speciesName = `E2E種_${Date.now()}`;
     try {
-      await page.goto('/settings/animal-species', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '動物種類マスタ' })).toBeVisible();
+      await settings.open('/settings/animal-species');
+      await expect(settings.heading('動物種類マスタ')).toBeVisible();
 
       // 新規作成パネルを開く
-      await page.getByRole('button', { name: '新規登録' }).click();
-      await expect(page.locator('#master-title')).toBeVisible();
-      await page.locator('#master-title').fill(speciesName);
-      await page.getByRole('button', { name: '保存' }).click();
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible();
+      await settings.masterTitleInput().fill(speciesName);
+      await settings.saveButton().click();
 
       // 保存成功後: パネルが閉じて一覧に表示される
-      await expect(page.locator('#master-title')).not.toBeVisible({ timeout: 10000 });
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
       await expect(page.getByText(speciesName)).toBeVisible({ timeout: 10000 });
 
       // ページをリロードしてクリーンな状態にしてから削除操作
       // (React state が残っている場合のパネル再オープン問題を回避)
-      await page.goto('/settings/animal-species', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '動物種類マスタ' })).toBeVisible();
+      await settings.open('/settings/animal-species');
+      await expect(settings.heading('動物種類マスタ')).toBeVisible();
 
       // NotionFilter: 検索トグルを開いてから入力
       await page.getByLabel('検索').click();
@@ -54,14 +53,14 @@ test.describe('設定マスタ CRUD E2E', () => {
       await expect(page.getByText(speciesName)).toBeVisible({ timeout: 10000 });
 
       // 行の「操作」ボタンをクリックしてパネルを開く
-      await page.locator('tbody tr').filter({ hasText: speciesName }).getByLabel('操作').click();
-      await expect(page.locator('#master-title')).toBeVisible({ timeout: 10000 });
+      await settings.rowActionButton(speciesName).click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
 
       // 削除ボタン (toolbar の aria-label="削除") をクリック
-      await page.getByLabel('削除').click();
+      await settings.deleteButton().click();
 
       // AlertDialog の「削除」ボタンをクリック
-      const dialog = page.getByRole('alertdialog');
+      const dialog = settings.deleteDialog();
       await expect(dialog).toBeVisible();
       await dialog.getByRole('button', { name: '削除' }).click();
 
@@ -74,9 +73,10 @@ test.describe('設定マスタ CRUD E2E', () => {
 
   test('動物種類マスタ: 検索フィルタが機能する', async () => {
     const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
     try {
-      await page.goto('/settings/animal-species', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '動物種類マスタ' })).toBeVisible();
+      await settings.open('/settings/animal-species');
+      await expect(settings.heading('動物種類マスタ')).toBeVisible();
 
       // NotionFilter: 検索トグルボタンをクリックして入力欄を表示
       await page.getByLabel('検索').click();
@@ -97,21 +97,22 @@ test.describe('設定マスタ CRUD E2E', () => {
   test('薬剤マスタ: 新規作成パネルが開き保存できる', async () => {
     test.setTimeout(60000);
     const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
     const medicineName = `E2E薬_${Date.now()}`;
     try {
-      await page.goto('/settings/medicine', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '薬剤マスタ' })).toBeVisible();
+      await settings.open('/settings/medicine');
+      await expect(settings.heading('薬剤マスタ')).toBeVisible();
 
       // 新規登録ボタンをクリック
-      await page.getByRole('button', { name: '新規登録' }).click();
-      await expect(page.locator('#master-title')).toBeVisible({ timeout: 10000 });
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
 
       // 品名を入力して保存
-      await page.locator('#master-title').fill(medicineName);
-      await page.getByRole('button', { name: '保存' }).click();
+      await settings.masterTitleInput().fill(medicineName);
+      await settings.saveButton().click();
 
       // 保存成功後パネルが閉じる
-      await expect(page.locator('#master-title')).not.toBeVisible({ timeout: 10000 });
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
     } finally {
       await page.close();
     }
@@ -119,17 +120,18 @@ test.describe('設定マスタ CRUD E2E', () => {
 
   test('診断病名マスタ: 新規登録パネルが開く', async () => {
     const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
     try {
-      await page.goto('/settings/diagnosis', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: '診断病名マスタ' })).toBeVisible();
+      await settings.open('/settings/diagnosis');
+      await expect(settings.heading('診断病名マスタ')).toBeVisible();
 
       // 「新規登録」ボタンをクリック → パネルが開く
-      await page.getByRole('button', { name: '新規登録' }).click();
-      await expect(page.locator('#master-title')).toBeVisible({ timeout: 10000 });
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
 
       // キャンセルボタンで閉じる
-      await page.getByRole('button', { name: 'キャンセル' }).click();
-      await expect(page.locator('#master-title')).not.toBeVisible({ timeout: 5000 });
+      await settings.cancelButton().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 5000 });
     } finally {
       await page.close();
     }
