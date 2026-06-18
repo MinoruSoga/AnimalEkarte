@@ -1040,6 +1040,24 @@ func TestValidatePaymentSplits(t *testing.T) {
 			billingAmount: nil,
 			wantErr:       false,
 		},
+		{
+			// #127: 銀行振込は現金以外の手段として扱われ、預り金/お釣りの制約を受けず保存可能。
+			name: "銀行振込1種のみ (#127): 有効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodBankTransfer, Amount: 5000},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       false,
+		},
+		{
+			name: "銀行振込 + 現金 混在 (#127): 有効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 2000, ChangeAmount: 0},
+				{Method: model.PaymentMethodBankTransfer, Amount: 3000},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1077,6 +1095,18 @@ func TestRepresentativeMethod(t *testing.T) {
 		{
 			name:   "electronic_money のみ: electronic_money を返す",
 			splits: []PaymentSplitInput{{Method: model.PaymentMethodElectronicMoney}},
+			want:   model.PaymentMethodElectronicMoney,
+		},
+		{
+			// #127 既知の制約 / #128 スコープ:
+			// representativeMethod の優先順位は cash > credit_card > (else) electronic_money で
+			// PO判断B (2026-05-25) として確定済み。bank_transfer は明示分岐を持たず else に落ちるため、
+			// 銀行振込のみの会計は代表手段が electronic_money になる（一覧の代表表示はこの値を使う）。
+			// payment_splits.method は bank_transfer を正しく保持する（=一次情報は保全）。
+			// 代表手段の優先順位への bank_transfer 組み込みは #128 の設計判断であり本 Issue 対象外。
+			// この振る舞いをここに pin し、#128 で意図的に更新されることを保証する。
+			name:   "bank_transfer のみ (#128 既知制約): 代表手段は electronic_money に落ちる",
+			splits: []PaymentSplitInput{{Method: model.PaymentMethodBankTransfer}},
 			want:   model.PaymentMethodElectronicMoney,
 		},
 	}

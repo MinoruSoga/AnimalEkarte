@@ -47,6 +47,7 @@ export type PaymentMethod = string;
 export const PaymentMethodCash: PaymentMethod = "cash";
 export const PaymentMethodCreditCard: PaymentMethod = "credit_card";
 export const PaymentMethodElectronicMoney: PaymentMethod = "electronic_money";
+export const PaymentMethodBankTransfer: PaymentMethod = "bank_transfer"; // #127: 銀行振込
 export type ItemCategory = string;
 export const ItemCategoryExamination: ItemCategory = "examination";
 export const ItemCategoryTest: ItemCategory = "test";

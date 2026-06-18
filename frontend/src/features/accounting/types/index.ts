@@ -10,6 +10,7 @@ import {
   PaymentMethodCash,
   PaymentMethodCreditCard,
   PaymentMethodElectronicMoney,
+  PaymentMethodBankTransfer,
   ItemCategoryExamination,
   ItemCategoryTest,
   ItemCategoryProcedure,
@@ -36,7 +37,8 @@ export type AccountingStatus =
 export type PaymentMethod =
   | typeof PaymentMethodCash
   | typeof PaymentMethodCreditCard
-  | typeof PaymentMethodElectronicMoney;
+  | typeof PaymentMethodElectronicMoney
+  | typeof PaymentMethodBankTransfer;
 
 /** @see {@link import("@/types/generated/models").ItemCategory} */
 export type ItemCategory =

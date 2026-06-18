@@ -26,6 +26,7 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "現金",
   credit_card: "クレジットカード",
   electronic_money: "電子マネー",
+  bank_transfer: "銀行振込",
 };
 
 const ACCOUNTING_STATUS_LABELS: Record<AccountingStatus, string> = {
@@ -64,6 +65,7 @@ const FILTER_PROPERTIES: FilterProperty[] = [
       { value: "cash", label: "現金" },
       { value: "credit_card", label: "クレジットカード" },
       { value: "electronic_money", label: "電子マネー" },
+      { value: "bank_transfer", label: "銀行振込" },
     ],
   },
 ];

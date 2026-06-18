@@ -30,6 +30,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cash: "現金",
   credit_card: "カード",
   electronic_money: "電子マネー",
+  bank_transfer: "銀行振込",
 };
 
 const MEDICAL_CATEGORIES = new Set(["examination", "test", "procedure", "medicine"]);
