@@ -96,7 +96,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget -qO- http://localhost:3000/ >/dev/null 2>&1 || exit 1",
+          "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1",
         ]
       interval: 5s
       timeout: 5s
@@ -107,6 +107,7 @@ services:
   codegen:
     image: golang:1.25-alpine
     working_dir: /app
+    restart: "no"
     environment:
       TZ: Asia/Tokyo
     volumes:

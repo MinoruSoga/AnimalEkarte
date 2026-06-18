@@ -10,7 +10,7 @@ DC = docker compose --env-file .env.local
 # --wait で db / migrate / backend / frontend の ready を待つ
 up:
 	$(DC) down --remove-orphans 2>/dev/null || true
-	$(DC) up -d --wait --wait-timeout 20m
+	$(DC) up -d --wait --wait-timeout 1200 db migrate backend frontend
 
 # node_modules をホストにコピー（IDE補完用・初回 or package.json 変更時のみ実行）
 sync-modules:
@@ -56,7 +56,7 @@ clean:
 reset:
 	@echo "🔄 Resetting database..."
 	$(DC) down -v
-	$(DC) up -d --build --wait --wait-timeout 20m
+	$(DC) up -d --build --wait --wait-timeout 1200
 	@echo "✓ Reset complete — database reinitialized and services are healthy"
 
 # マイグレーション適用（差分のみ・DBは落とさない）
