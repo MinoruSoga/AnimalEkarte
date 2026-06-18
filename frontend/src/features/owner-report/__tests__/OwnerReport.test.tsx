@@ -39,10 +39,23 @@ const owner = {
   phone: "090-1111-2222",
   membershipType: "会員",
   email: "",
+  postalCode: "192-0916",
+  address1: "東京都八王子市みなみ野2-8-13",
+  address2: "",
+  company: "ノア商事",
+  companyPhone: "042-000-0000",
 };
 
 const pets = [
-  { id: "7", name: "ポチ", species: "犬", ownerId: "42" },
+  {
+    id: "7",
+    name: "ポチ",
+    species: "犬",
+    ownerId: "42",
+    petNameKana: "ぽち",
+    birthDate: "2015-04-14",
+    lastVisit: "2024-08-25T00:00:00Z",
+  },
   { id: "8", name: "タマ", species: "猫", ownerId: "42" },
 ];
 
@@ -171,6 +184,42 @@ describe("OwnerReport", () => {
     // 初期選択 = petId=7 (ポチ)
     const pochiTab = screen.getByRole("tab", { name: /ポチ/ });
     expect(pochiTab).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("レガシー EMR 準拠の飼主・ペット項目（住所/勤務先/ふりがな/年齢/前回来院）を表示する", () => {
+    renderReport(makeAuth(allowAll));
+
+    // 飼主: 郵便番号 + 住所 を 1 フィールドに連結表示
+    expect(screen.getByText(/〒192-0916 東京都八王子市みなみ野2-8-13/)).toBeInTheDocument();
+    // 飼主: 勤務先 / 勤務先電話
+    expect(screen.getByText("ノア商事")).toBeInTheDocument();
+    expect(screen.getByText("042-000-0000")).toBeInTheDocument();
+
+    // ペット詳細: ふりがな
+    expect(screen.getByText("ふりがな")).toBeInTheDocument();
+    expect(screen.getByText("ぽち")).toBeInTheDocument();
+    // ペット詳細: 年齢（birthDate からの導出値。値は基準日依存なので形式で検証）
+    expect(screen.getByText("年齢")).toBeInTheDocument();
+    expect(screen.getByText(/^\d+歳\d+ヶ月$/)).toBeInTheDocument();
+    // ペット詳細: 前回来院（共有 formatDate で JST 整合の YYYY/MM/DD 表示）
+    expect(screen.getByText("前回来院")).toBeInTheDocument();
+    expect(screen.getByText("2024/08/25")).toBeInTheDocument();
+  });
+
+  it("データが無い飼主・ペット項目は行を出さず空状態を壊さない", () => {
+    hooks.useGetOwner.mockReturnValue(
+      ok({ id: "42", ownerName: "山田太郎", phone: "090-1111-2222", membershipType: "会員", email: "" }),
+    );
+    hooks.useGetPets.mockReturnValue(ok([{ id: "7", name: "ポチ", species: "犬", ownerId: "42" }]));
+    renderReport(makeAuth(allowAll));
+
+    // 住所/勤務先フィールドは出ない（"-" で潰さず非表示）
+    expect(screen.queryByText("勤務先")).not.toBeInTheDocument();
+    expect(screen.queryByText("勤務先TEL")).not.toBeInTheDocument();
+    // ふりがな/年齢/前回来院 のラベルは行として残り、値は "-"（birthDate 無し → 年齢も "-"）
+    expect(screen.getByText("ふりがな")).toBeInTheDocument();
+    expect(screen.getByText("年齢")).toBeInTheDocument();
+    expect(screen.getByText("前回来院")).toBeInTheDocument();
   });
 
   it("6 セクションは見出しを名前に持つ region ランドマークとして密集ワークスペースに並ぶ", () => {

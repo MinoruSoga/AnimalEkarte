@@ -1,0 +1,40 @@
+import { describe, it, expect } from "vitest";
+
+import { formatPetAge } from "./pet-age";
+
+describe("formatPetAge", () => {
+  it("誕生日と基準日から N歳Mヶ月 を算出する", () => {
+    // 2015/04/14 生まれ、基準日 2024/10/14 → ちょうど 9歳6ヶ月
+    expect(formatPetAge("2015-04-14", new Date(2024, 9, 14))).toBe("9歳6ヶ月");
+  });
+
+  it("基準日が誕生日より前なら月を 1 繰り下げる", () => {
+    // 同月だが日が手前 → 5ヶ月
+    expect(formatPetAge("2015-04-14", new Date(2024, 9, 10))).toBe("9歳5ヶ月");
+  });
+
+  it("月が負になる場合は年を繰り下げて 12 を足す", () => {
+    // 2015/11/14 生まれ、基準日 2024/01/14 → 8歳2ヶ月
+    expect(formatPetAge("2015-11-14", new Date(2024, 0, 14))).toBe("8歳2ヶ月");
+  });
+
+  it("ISO の time 部分が付いていても日付部分で算出する", () => {
+    expect(formatPetAge("2015-04-14T00:00:00Z", new Date(2024, 9, 14))).toBe("9歳6ヶ月");
+  });
+
+  it("当日（誕生日と基準日が一致）は 0歳0ヶ月 を返す", () => {
+    // 当日生まれのペットも捏造せず正しく算出する。
+    expect(formatPetAge("2024-09-10", new Date(2024, 8, 10))).toBe("0歳0ヶ月");
+  });
+
+  it("不正な日付文字列は null を返す（捏造しない）", () => {
+    expect(formatPetAge("", new Date(2024, 9, 14))).toBeNull();
+    expect(formatPetAge("not-a-date", new Date(2024, 9, 14))).toBeNull();
+    expect(formatPetAge("2015-13-01", new Date(2024, 9, 14))).toBeNull(); // 月 > 12
+    expect(formatPetAge("2015-04-32", new Date(2024, 9, 14))).toBeNull(); // 日 > 31
+  });
+
+  it("未来日付は null を返す", () => {
+    expect(formatPetAge("2030-01-01", new Date(2024, 0, 1))).toBeNull();
+  });
+});

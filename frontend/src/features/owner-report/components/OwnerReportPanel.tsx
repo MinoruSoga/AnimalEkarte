@@ -16,12 +16,27 @@ interface OwnerField {
  * 業務ツール向けに 1〜2 行のコンパクトな identity ストリップとして横並び表示する（カードにしない）。
  */
 export function OwnerReportPanel({ owner }: OwnerReportPanelProps) {
+  // レガシー EMR（Figma 37:142）の飼主欄に揃える: 郵便番号 + 住所、勤務先、勤務先電話。
+  // 既存 useGetOwner のデータに含まれる項目のみ表示し、欠落値は行ごと出さない。
+  const address = [owner.postalCode ? `〒${owner.postalCode}` : "", owner.address1, owner.address2]
+    .filter(Boolean)
+    .join(" ");
+
   const fields: OwnerField[] = [
     { label: "電話", value: owner.phone || "-", mono: true },
     { label: "会員区分", value: owner.membershipType || "-" },
   ];
+  if (address) {
+    fields.push({ label: "住所", value: address });
+  }
   if (owner.email) {
     fields.push({ label: "メール", value: owner.email });
+  }
+  if (owner.company) {
+    fields.push({ label: "勤務先", value: owner.company });
+  }
+  if (owner.companyPhone) {
+    fields.push({ label: "勤務先TEL", value: owner.companyPhone, mono: true });
   }
 
   return (
