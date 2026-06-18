@@ -65,7 +65,7 @@ test.describe('#158 飼主レポート 高密度レイアウト', () => {
     { name: '1440x900', width: 1440, height: 900 },
     { name: '1920x1080', width: 1920, height: 1080 },
   ]) {
-    test(`デスクトップ ${vp.name}: ページ全体はスクロールせず、6 パネルが境界内スクロールになる`, async () => {
+    test(`デスクトップ ${vp.name}: ページ全体はスクロールせず、7 パネルが境界内スクロールになる`, async () => {
       const page = await gotoReport(context, vp.width, vp.height);
       try {
         // --- AC1: ページ(body)レベルの縦スクロールが発生しない ---
@@ -81,16 +81,16 @@ test.describe('#158 飼主レポート 高密度レイアウト', () => {
         expect(doc.scrollH).toBeLessThanOrEqual(doc.innerH + SCROLL_TOLERANCE);
         expect(doc.scrollYAfterAttempt).toBe(0);
 
-        // --- AC2: 6 パネルそれぞれが overflow:auto かつビューポート内に収まる境界高さを持つ ---
+        // --- AC2: 7 パネルそれぞれが overflow:auto かつビューポート内に収まる境界高さを持つ ---
         const metrics = await panelMetrics(page);
-        expect(metrics).toHaveLength(6);
+        expect(metrics).toHaveLength(7);
         for (const m of metrics) {
           expect(['auto', 'scroll']).toContain(m.overflowY);
           expect(m.clientHeight).toBeGreaterThan(0);
           expect(m.clientHeight).toBeLessThanOrEqual(doc.innerH);
         }
 
-        // --- AC4: 6 セクション見出しが最初のビューポートに同時提示される ---
+        // --- AC4: 7 セクション見出しが最初のビューポートに同時提示される ---
         for (const title of [
           'ペット詳細',
           '予防接種履歴',
@@ -98,6 +98,7 @@ test.describe('#158 飼主レポート 高密度レイアウト', () => {
           '投薬履歴',
           '手術・処置履歴',
           '治療履歴',
+          'トリミング履歴',
         ]) {
           await expect(page.getByRole('heading', { name: title })).toBeVisible();
         }
@@ -155,8 +156,8 @@ test.describe('#158 飼主レポート 高密度レイアウト', () => {
         expect(url.pathname).toBe(pathBefore); // ルート遷移していない
         expect(url.searchParams.get('petId')).not.toBeNull();
       }).toPass({ timeout: 5000 });
-      // 切替後も 6 パネルは健在
-      await expect(page.getByRole('heading', { name: '治療履歴' })).toBeVisible();
+      // 切替後も全パネルは健在（末尾のトリミング履歴まで残る）
+      await expect(page.getByRole('heading', { name: 'トリミング履歴' })).toBeVisible();
     } finally {
       await page.close();
     }
@@ -165,7 +166,7 @@ test.describe('#158 飼主レポート 高密度レイアウト', () => {
   test('モバイル 390x844: 飼主と全セクションが利用可能（ページスクロール許容） (AC8)', async () => {
     const page = await gotoReport(context, 390, 844);
     try {
-      // 飼主名 + 6 セクション見出しが（スクロールすれば）到達可能であること。
+      // 飼主名 + 7 セクション見出しが（スクロールすれば）到達可能であること。
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       for (const title of [
         'ペット詳細',
@@ -174,6 +175,7 @@ test.describe('#158 飼主レポート 高密度レイアウト', () => {
         '投薬履歴',
         '手術・処置履歴',
         '治療履歴',
+        'トリミング履歴',
       ]) {
         await expect(page.getByRole('heading', { name: title })).toBeAttached();
       }

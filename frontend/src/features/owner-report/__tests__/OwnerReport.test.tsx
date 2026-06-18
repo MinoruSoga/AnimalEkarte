@@ -18,6 +18,7 @@ const hooks = vi.hoisted(() => ({
   useGetPetVaccinations: vi.fn(),
   useGetPetExaminations: vi.fn(),
   useGetPetTreatmentHistory: vi.fn(),
+  useGetPetTrimmingHistory: vi.fn(),
   useGetPetFirstVisit: vi.fn(),
 }));
 
@@ -31,6 +32,9 @@ vi.mock("../api/get-pet-examinations", () => ({
 }));
 vi.mock("../api/get-pet-treatment-history", () => ({
   useGetPetTreatmentHistory: hooks.useGetPetTreatmentHistory,
+}));
+vi.mock("../api/get-pet-trimming-history", () => ({
+  useGetPetTrimmingHistory: hooks.useGetPetTrimmingHistory,
 }));
 vi.mock("../api/get-pet-first-visit", () => ({
   useGetPetFirstVisit: hooks.useGetPetFirstVisit,
@@ -157,6 +161,11 @@ beforeEach(() => {
     ]),
   );
   hooks.useGetPetFirstVisit.mockReturnValue(ok("2022-01-10"));
+  hooks.useGetPetTrimmingHistory.mockReturnValue(
+    ok([
+      { id: "t1", date: "2026-02-01", status: "完了", courseName: "シャンプー＆カット", staff: "鈴木" },
+    ]),
+  );
   hooks.useGetPetTreatmentHistory.mockImplementation(
     (_petId: string | undefined, filter: string) => {
       if (filter === "medicine") {
@@ -180,25 +189,27 @@ beforeEach(() => {
 const allowAll = () => true;
 
 describe("OwnerReport", () => {
-  it("飼主パネルを常時表示し、初期 petId のペットで6セクションを描画する", () => {
+  it("飼主パネルを常時表示し、初期 petId のペットで7セクションを描画する", () => {
     renderReport(makeAuth(allowAll));
 
     // R4: 飼主情報
     expect(screen.getByText("山田太郎")).toBeInTheDocument();
 
-    // 6 セクション
+    // 7 セクション
     expect(screen.getByText("ペット詳細")).toBeInTheDocument();
     expect(screen.getByText("予防接種履歴")).toBeInTheDocument();
     expect(screen.getByText("健康診断（検査）履歴")).toBeInTheDocument();
     expect(screen.getByText("投薬履歴")).toBeInTheDocument();
     expect(screen.getByText("手術・処置履歴")).toBeInTheDocument();
     expect(screen.getByText("治療履歴")).toBeInTheDocument();
+    expect(screen.getByText("トリミング履歴")).toBeInTheDocument();
 
     // 各セクションのデータ
     expect(screen.getByText("狂犬病ワクチン")).toBeInTheDocument();
     expect(screen.getByText("血液検査")).toBeInTheDocument();
     expect(screen.getAllByText("アモキシシリン").length).toBeGreaterThan(0);
     expect(screen.getAllByText("避妊手術").length).toBeGreaterThan(0);
+    expect(screen.getByText("シャンプー＆カット")).toBeInTheDocument();
 
     // 初期選択 = petId=7 (ポチ)
     const pochiTab = screen.getByRole("tab", { name: /ポチ/ });
@@ -270,13 +281,13 @@ describe("OwnerReport", () => {
     expect(screen.getByText("初診日")).toBeInTheDocument();
   });
 
-  it("6 セクションは見出しを名前に持つ region ランドマークとして密集ワークスペースに並ぶ", () => {
+  it("7 セクションは見出しを名前に持つ region ランドマークとして密集ワークスペースに並ぶ", () => {
     renderReport(makeAuth(allowAll));
 
     const regions = screen.getAllByRole("region");
     const names = regions.map((r) => r.getAttribute("aria-label") ?? r.textContent ?? "");
-    // 6 セクションがそれぞれ独立した region になっている（タブ等の背後に隠れず一画面に同時提示）。
-    expect(regions).toHaveLength(6);
+    // 7 セクションがそれぞれ独立した region になっている（タブ等の背後に隠れず一画面に同時提示）。
+    expect(regions).toHaveLength(7);
     for (const title of [
       "ペット詳細",
       "予防接種履歴",
@@ -284,10 +295,11 @@ describe("OwnerReport", () => {
       "投薬履歴",
       "手術・処置履歴",
       "治療履歴",
+      "トリミング履歴",
     ]) {
       expect(screen.getByRole("region", { name: title })).toBeInTheDocument();
     }
-    expect(names.length).toBe(6);
+    expect(names.length).toBe(7);
   });
 
   it("ペット切替でページ遷移せず ?petId= が同期し、飼主パネルは消えない", async () => {

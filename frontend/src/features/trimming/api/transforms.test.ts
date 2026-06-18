@@ -128,6 +128,21 @@ describe("transformTrimming", () => {
     expect(result.remarks).toBe("特記なし");
   });
 
+  it("course がある場合、courseId / courseName を展開する", () => {
+    const result = transformTrimming({
+      ...minimalBackend,
+      course: { id: 3, name: "シャンプー＆カット", price: 5000 },
+    });
+    expect(result.courseId).toBe("3");
+    expect(result.courseName).toBe("シャンプー＆カット");
+  });
+
+  it("course が未設定のとき courseId / courseName は空文字", () => {
+    const result = transformTrimming({ ...minimalBackend, course: undefined });
+    expect(result.courseId).toBe("");
+    expect(result.courseName).toBe("");
+  });
+
   it("optionIds は options 配列の id を string 変換したリスト", () => {
     const result = transformTrimming({
       ...minimalBackend,
