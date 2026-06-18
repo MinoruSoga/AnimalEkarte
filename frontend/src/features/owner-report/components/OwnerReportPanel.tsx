@@ -1,5 +1,6 @@
 import { C } from "@/lib/design-tokens";
 import type { Owner } from "@/types";
+import { formatDMPreference } from "../lib/dm-preference";
 
 interface OwnerReportPanelProps {
   owner: Owner;
@@ -37,6 +38,11 @@ export function OwnerReportPanel({ owner }: OwnerReportPanelProps) {
   }
   if (owner.companyPhone) {
     fields.push({ label: "勤務先TEL", value: owner.companyPhone, mono: true });
+  }
+  // DM 区分は未設定（undefined）の場合は行を出さず、設定済み（必要/不要）のみ表示する。
+  // 既存飼主は全員 undefined のため、レポートを「不要」表記で埋めない。
+  if (owner.dmPreference !== undefined) {
+    fields.push({ label: "DM", value: formatDMPreference(owner.dmPreference) });
   }
 
   return (

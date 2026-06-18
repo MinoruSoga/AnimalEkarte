@@ -1,0 +1,72 @@
+import { describe, it, expect } from "vitest";
+
+import { transformBackendPetToFrontend } from "./pet";
+import type { Pet as BackendPet } from "@/types/generated/models";
+
+// makeBackendPet は transformBackendPetToFrontend に渡す最小の BackendPet を組み立てる。
+function makeBackendPet(overrides: Partial<BackendPet> = {}): BackendPet {
+  return {
+    id: 7,
+    clinic_id: 1,
+    owner_id: 42,
+    animal_species_id: 1,
+    pet_number: "42-1",
+    name: "ポチ",
+    name_kana: "ぽち",
+    gender: "male",
+    status: "alive",
+    breed: "",
+    color: "",
+    danger_level: "low",
+    food: "",
+    environment: "",
+    phone: "",
+    remarks: "",
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+describe("transformBackendPetToFrontend", () => {
+  it("last_visit を birth_date / neutered_date と同じ『日付のみ』形式へ正規化する", () => {
+    const pet = transformBackendPetToFrontend(
+      makeBackendPet({
+        birth_date: "2015-04-14T00:00:00Z",
+        neutered_date: "2016-05-20T00:00:00Z",
+        last_visit: "2024-08-25T00:00:00Z",
+      }),
+    );
+
+    expect(pet.birthDate).toBe("2015-04-14");
+    expect(pet.neuteredDate).toBe("2016-05-20");
+    // #158: 以前は ISO datetime をそのまま通す非対称があった。兄弟の日付フィールドと揃える。
+    expect(pet.lastVisit).toBe("2024-08-25");
+  });
+
+  it("日付フィールドが未設定なら undefined のまま（"-" 化やゼロ値で潰さない）", () => {
+    const pet = transformBackendPetToFrontend(
+      makeBackendPet({ birth_date: undefined, neutered_date: undefined, last_visit: undefined }),
+    );
+
+    expect(pet.birthDate).toBeUndefined();
+    expect(pet.neuteredDate).toBeUndefined();
+    expect(pet.lastVisit).toBeUndefined();
+  });
+
+  it("血液型 / マイクロチップ番号をマッピングする", () => {
+    const pet = transformBackendPetToFrontend(
+      makeBackendPet({ blood_type: "DEA1.1陽性", microchip_number: "392140000123456" }),
+    );
+
+    expect(pet.bloodType).toBe("DEA1.1陽性");
+    expect(pet.microchipNumber).toBe("392140000123456");
+  });
+
+  it("血液型 / マイクロチップ番号 未設定は undefined（捏造しない）", () => {
+    const pet = transformBackendPetToFrontend(makeBackendPet());
+
+    expect(pet.bloodType).toBeUndefined();
+    expect(pet.microchipNumber).toBeUndefined();
+  });
+});

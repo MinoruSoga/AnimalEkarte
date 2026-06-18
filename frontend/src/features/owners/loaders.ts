@@ -83,6 +83,8 @@ export const ownersLoader = async ({ request }: { request: Request }): Promise<O
         animalSpeciesId: undefined,
         breed: "",
         color: "",
+        bloodType: undefined,
+        microchipNumber: undefined,
         gender: undefined,
         status: undefined,
         birthDate: undefined,

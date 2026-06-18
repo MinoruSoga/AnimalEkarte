@@ -79,6 +79,7 @@ type createOwnerRequest struct {
 	IsDangerous    bool                       `json:"is_dangerous"`
 	DiscountRate   float64                    `json:"discount_rate"`
 	MembershipType string                     `json:"membership_type"  binding:"omitempty,oneof=non_member member deceased transferred"`
+	DMPreference   *bool                      `json:"dm_preference"`
 	Pets           []createPetForOwnerRequest `json:"pets"`
 }
 
@@ -106,6 +107,7 @@ func (r *createOwnerRequest) toServiceInput() service.CreateOwnerInput {
 		IsDangerous:    r.IsDangerous,
 		DiscountRate:   r.DiscountRate,
 		MembershipType: model.MembershipType(r.MembershipType),
+		DMPreference:   r.DMPreference,
 		Pets:           pets,
 	}
 }
@@ -129,6 +131,7 @@ type updateOwnerRequest struct {
 	IsDangerous    *bool     `json:"is_dangerous"`
 	DiscountRate   *float64  `json:"discount_rate"`
 	MembershipType *string   `json:"membership_type"  binding:"omitempty,oneof=non_member member deceased transferred"`
+	DMPreference   *bool     `json:"dm_preference"`
 }
 
 func (r *updateOwnerRequest) toServiceInput() *service.UpdateOwnerInput {
@@ -156,6 +159,7 @@ func (r *updateOwnerRequest) toServiceInput() *service.UpdateOwnerInput {
 		IsDangerous:    r.IsDangerous,
 		DiscountRate:   r.DiscountRate,
 		MembershipType: membershipType,
+		DMPreference:   r.DMPreference,
 	}
 }
 

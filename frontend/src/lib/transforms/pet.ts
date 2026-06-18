@@ -77,6 +77,9 @@ export const transformBackendPetToFrontend = (p: BackendPet) => ({
   animalSpeciesId: p.animal_species_id != null ? String(p.animal_species_id) : undefined,
   breed: p.breed,
   color: p.color,
+  // #158 レガシー EMR 準拠: 血液型 / マイクロチップ番号（未記録は undefined → 表示側で "-"）。
+  bloodType: p.blood_type ?? undefined,
+  microchipNumber: p.microchip_number ?? undefined,
   gender: p.gender ? (PET_GENDER_MAP[p.gender] ?? p.gender) : undefined,
   status: p.status ? PET_STATUS_MAP[p.status] : undefined,
   birthDate: p.birth_date ? p.birth_date.split("T")[0] : undefined,
@@ -86,7 +89,9 @@ export const transformBackendPetToFrontend = (p: BackendPet) => ({
   environment: p.environment,
   acquisitionType: p.acquisition_type ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type) : undefined,
   dangerLevel: p.danger_level ? (DANGER_LEVEL_MAP[p.danger_level] ?? p.danger_level) : undefined,
-  lastVisit: p.last_visit ?? undefined,
+  // last_visit は birth_date / neutered_date と同じ date 型。兄弟フィールドと同様に
+  // 日付部分のみへ正規化し、変換層の非対称を解消する（全消費者は formatDate 経由で無回帰）。
+  lastVisit: p.last_visit ? p.last_visit.split("T")[0] : undefined,
   insuranceId: p.insurance_id != null ? String(p.insurance_id) : undefined,
   insuranceName: p.insurance?.name,
   insuranceDetails:

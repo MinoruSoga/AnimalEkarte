@@ -37,6 +37,9 @@ type MedicalRecordRepository interface {
 	// DeleteDraftByAppointmentID は予約に紐づく draft カルテを論理削除する (#83 Q10)
 	DeleteDraftByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) error
 	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
+	// FindFirstVisitDateByPetID は指定ペットの初診日（最古の有効カルテ date）を返す（#158 飼主レポート）。
+	// clinic スコープ + 論理削除除外。カルテが存在しない場合は nil, nil を返す。
+	FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
 	CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error)
 	// FindOwnerVisitSummary は飼い主の初回/最終診療日・年間来院数を集計して返す（Lステップ同期用）。
 	FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*OwnerVisitSummary, error)
@@ -184,6 +187,25 @@ func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, pe
 		return 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	return count, nil
+}
+
+// FindFirstVisitDateByPetID は指定ペットの初診日（最古の有効カルテ date）を返す（#158 飼主レポート）。
+// clinic スコープ + 論理削除除外で集計し、捏造せず実データの MIN(date) のみ返す。
+// カルテが存在しない場合は MIN が NULL となり nil, nil を返す。
+func (r *medicalRecordRepository) FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error) {
+	var result struct {
+		MinDate *time.Time `gorm:"column:min_date"`
+	}
+	err := r.db.WithContext(ctx).
+		Model(&model.MedicalRecord{}).
+		Scopes(clinicScope(clinicID)).
+		Where("pet_id = ? AND deleted_at IS NULL", petID).
+		Select("MIN(date) AS min_date").
+		Scan(&result).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("pet:%d", petID))
+	}
+	return result.MinDate, nil
 }
 
 // CountByOwnerID は飼い主に紐付く有効カルテ数を返す（初診判定用: FEAT-383 Phase 2）。

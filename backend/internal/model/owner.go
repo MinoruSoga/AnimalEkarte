@@ -49,9 +49,12 @@ type Owner struct {
 	DeliveryCautionReason  *string        `gorm:"column:delivery_caution_reason"                 json:"delivery_caution_reason,omitempty"`
 	IsTransferred          bool           `gorm:"column:is_transferred;default:false"            json:"is_transferred"`
 	TransferAt             *time.Time     `gorm:"column:transfer_at"                             json:"transfer_at,omitempty"`
-	CreatedAt              time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt              time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt              gorm.DeletedAt `                                                      json:"-"`
+	// DMPreference は DM（ダイレクトメール）送付希望（#158 レガシー EMR 準拠）。
+	// NULL=未設定 / true=必要 / false=不要。既存行を誤表示しないよう nullable にする。
+	DMPreference *bool          `gorm:"column:dm_preference" json:"dm_preference,omitempty"`
+	CreatedAt    time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt    time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `                                                      json:"-"`
 
 	// Relations
 	Pets []Pet `gorm:"foreignKey:OwnerID" json:"pets,omitempty"`

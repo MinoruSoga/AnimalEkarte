@@ -55,6 +55,27 @@ func (h *Handler) GetPet(c *gin.Context) {
 	c.JSON(http.StatusOK, toPetResponse(pet))
 }
 
+// GetPetFirstVisit godoc
+// GET /pets/:id/first-visit (#158 飼主レポート: 初診日 = 最古の有効カルテ date)
+// 値は medical_records から導出する派生値で、捏造しない（カルテ無し = null）。
+// clinic 隔離・論理削除除外は service/repository が担保する。
+func (h *Handler) GetPetFirstVisit(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	petID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	date, err := h.svc.Pet.GetFirstVisitDate(c.Request.Context(), clinicID, petID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toPetFirstVisitResponse(date))
+}
+
 // CreatePet godoc
 func (h *Handler) CreatePet(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -130,6 +151,8 @@ func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
 	// #158 飼主レポート: ペット単位の治療履歴（投薬/手術/治療）。
 	// 治療データはカルテ内容のため medical-records:view でゲートする（owners 権限ではない）。
 	pets.GET("/:id/treatment-history", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.ListPetTreatmentHistory)
+	// #158 飼主レポート: ペットの初診日（最古カルテ date 由来）。カルテ内容由来のため medical-records:view でゲートする。
+	pets.GET("/:id/first-visit", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.GetPetFirstVisit)
 	// BE-017: ペット死亡ライフサイクル
 	pets.PATCH("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchPetDeath)
 	pets.DELETE("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeletePetDeath)

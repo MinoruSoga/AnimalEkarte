@@ -1968,6 +1968,7 @@ export interface Owner {
   delivery_caution_reason?: string;
   is_transferred: boolean;
   transfer_at?: string;
+  dm_preference?: boolean;
   created_at: string;
   updated_at: string;
   /**
@@ -2157,6 +2158,8 @@ export interface Pet {
   birth_date?: string;
   breed: string;
   color: string;
+  blood_type?: string;
+  microchip_number?: string;
   weight?: number /* float64 */;
   neutered_date?: string;
   acquisition_type?: AcquisitionType;

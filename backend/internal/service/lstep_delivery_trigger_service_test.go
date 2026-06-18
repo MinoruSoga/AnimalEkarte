@@ -185,6 +185,9 @@ func (m *mockMedRecordRepoForDelivery) Delete(_ context.Context, _, _ uint64) er
 func (m *mockMedRecordRepoForDelivery) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
+func (m *mockMedRecordRepoForDelivery) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
+	return nil, nil
+}
 func (m *mockMedRecordRepoForDelivery) CountEstimatesByMedicalRecordID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }

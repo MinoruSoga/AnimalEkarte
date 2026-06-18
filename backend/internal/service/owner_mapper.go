@@ -27,6 +27,7 @@ func buildOwnerModel(clinicID uint64, input *CreateOwnerInput) *model.Owner {
 		IsDangerous:    input.IsDangerous,
 		DiscountRate:   input.DiscountRate,
 		MembershipType: membershipType,
+		DMPreference:   input.DMPreference,
 	}
 }
 

@@ -18,6 +18,7 @@ const hooks = vi.hoisted(() => ({
   useGetPetVaccinations: vi.fn(),
   useGetPetExaminations: vi.fn(),
   useGetPetTreatmentHistory: vi.fn(),
+  useGetPetFirstVisit: vi.fn(),
 }));
 
 vi.mock("@/features/owners", () => ({ useGetOwner: hooks.useGetOwner }));
@@ -30,6 +31,9 @@ vi.mock("../api/get-pet-examinations", () => ({
 }));
 vi.mock("../api/get-pet-treatment-history", () => ({
   useGetPetTreatmentHistory: hooks.useGetPetTreatmentHistory,
+}));
+vi.mock("../api/get-pet-first-visit", () => ({
+  useGetPetFirstVisit: hooks.useGetPetFirstVisit,
 }));
 
 const owner = {
@@ -44,6 +48,7 @@ const owner = {
   address2: "",
   company: "ノア商事",
   companyPhone: "042-000-0000",
+  dmPreference: true,
 };
 
 const pets = [
@@ -54,7 +59,10 @@ const pets = [
     ownerId: "42",
     petNameKana: "ぽち",
     birthDate: "2015-04-14",
-    lastVisit: "2024-08-25T00:00:00Z",
+    bloodType: "DEA1.1陽性",
+    microchipNumber: "392140000123456",
+    // transformBackendPetToFrontend 正規化後の形（日付のみ）を模す。
+    lastVisit: "2024-08-25",
   },
   { id: "8", name: "タマ", species: "猫", ownerId: "42" },
 ];
@@ -138,6 +146,7 @@ beforeEach(() => {
       },
     ]),
   );
+  hooks.useGetPetFirstVisit.mockReturnValue(ok("2022-01-10"));
   hooks.useGetPetTreatmentHistory.mockImplementation(
     (_petId: string | undefined, filter: string) => {
       if (filter === "medicine") {
@@ -204,6 +213,20 @@ describe("OwnerReport", () => {
     // ペット詳細: 前回来院（共有 formatDate で JST 整合の YYYY/MM/DD 表示）
     expect(screen.getByText("前回来院")).toBeInTheDocument();
     expect(screen.getByText("2024/08/25")).toBeInTheDocument();
+
+    // ペット詳細: 血液型 / マイクロチップ（pets API 由来。データがある時のみ値表示）
+    expect(screen.getByText("血液型")).toBeInTheDocument();
+    expect(screen.getByText("DEA1.1陽性")).toBeInTheDocument();
+    expect(screen.getByText("マイクロチップ")).toBeInTheDocument();
+    expect(screen.getByText("392140000123456")).toBeInTheDocument();
+
+    // ペット詳細: 初診日（useGetPetFirstVisit 由来の派生値。formatDate で YYYY/MM/DD 表示）
+    expect(screen.getByText("初診日")).toBeInTheDocument();
+    expect(screen.getByText("2022/01/10")).toBeInTheDocument();
+
+    // 飼主: DM 区分（dmPreference=true → 必要）
+    expect(screen.getByText("DM")).toBeInTheDocument();
+    expect(screen.getByText("必要")).toBeInTheDocument();
   });
 
   it("データが無い飼主・ペット項目は行を出さず空状態を壊さない", () => {
@@ -211,15 +234,21 @@ describe("OwnerReport", () => {
       ok({ id: "42", ownerName: "山田太郎", phone: "090-1111-2222", membershipType: "会員", email: "" }),
     );
     hooks.useGetPets.mockReturnValue(ok([{ id: "7", name: "ポチ", species: "犬", ownerId: "42" }]));
+    // 受診歴なし: 初診日は null（捏造せず "-" 表示）。
+    hooks.useGetPetFirstVisit.mockReturnValue(ok(null));
     renderReport(makeAuth(allowAll));
 
     // 住所/勤務先フィールドは出ない（"-" で潰さず非表示）
     expect(screen.queryByText("勤務先")).not.toBeInTheDocument();
     expect(screen.queryByText("勤務先TEL")).not.toBeInTheDocument();
-    // ふりがな/年齢/前回来院 のラベルは行として残り、値は "-"（birthDate 無し → 年齢も "-"）
+    // DM 区分は未設定（undefined）のため行ごと出さない（"不要" と誤表示しない）
+    expect(screen.queryByText("DM")).not.toBeInTheDocument();
+    // ふりがな/年齢/前回来院/血液型/初診日 のラベルは行として残り、値は "-"
     expect(screen.getByText("ふりがな")).toBeInTheDocument();
     expect(screen.getByText("年齢")).toBeInTheDocument();
     expect(screen.getByText("前回来院")).toBeInTheDocument();
+    expect(screen.getByText("血液型")).toBeInTheDocument();
+    expect(screen.getByText("初診日")).toBeInTheDocument();
   });
 
   it("6 セクションは見出しを名前に持つ region ランドマークとして密集ワークスペースに並ぶ", () => {

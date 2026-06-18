@@ -11,6 +11,7 @@ import { useGetOwner } from "@/features/owners";
 import { useGetPets } from "@/features/pets";
 
 import { OwnerReportPanel } from "../components/OwnerReportPanel";
+import { useGetPetFirstVisit } from "../api/get-pet-first-visit";
 import {
   PetSwitcher,
   OWNER_REPORT_TABPANEL_ID,
@@ -54,6 +55,9 @@ function OwnerReportContent() {
   const selectedPetId =
     petIdParam && pets.some((p) => p.id === petIdParam) ? petIdParam : pets[0]?.id;
   const selectedPet = pets.find((p) => p.id === selectedPetId);
+
+  // 初診日のみ medical_records 由来の派生値。選択中ペットの分だけ取得する（一覧 N+1 を避ける）。
+  const { data: firstVisitDate } = useGetPetFirstVisit(selectedPetId);
 
   // R5: ページ遷移なしの state 更新 + URL ?petId= 同期。
   const handleSelectPet = useCallback(
@@ -113,7 +117,7 @@ function OwnerReportContent() {
             aria-labelledby={ownerReportPetTabId(selectedPet.id)}
             className="grid grid-cols-1 gap-2 p-2 lg:h-full lg:min-h-0 lg:grid-cols-2 lg:grid-rows-3 xl:grid-cols-3 xl:grid-rows-2"
           >
-            <PetDetailSection pet={selectedPet} />
+            <PetDetailSection pet={selectedPet} firstVisitDate={firstVisitDate} />
             <VaccinationHistorySection petId={selectedPet.id} />
             <ExaminationHistorySection petId={selectedPet.id} />
             <TreatmentHistorySection

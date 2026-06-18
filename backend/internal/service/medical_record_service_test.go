@@ -21,6 +21,7 @@ type mockMedicalRecordRepository struct {
 	updateFieldsFn                    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	deleteFn                          func(ctx context.Context, clinicID, id uint64) error
 	countByPetIDFn                    func(ctx context.Context, clinicID, petID uint64) (int64, error)
+	findFirstVisitDateByPetIDFn       func(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
 	countEstimatesByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) (int64, error)
 	findOwnerVisitSummaryFn           func(ctx context.Context, clinicID, ownerID uint64) (*repository.OwnerVisitSummary, error)
 	countByOwnerIDFn                  func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
@@ -65,6 +66,13 @@ func (m *mockMedicalRecordRepository) CountByPetID(ctx context.Context, clinicID
 		return m.countByPetIDFn(ctx, clinicID, petID)
 	}
 	return 0, nil
+}
+
+func (m *mockMedicalRecordRepository) FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error) {
+	if m.findFirstVisitDateByPetIDFn != nil {
+		return m.findFirstVisitDateByPetIDFn(ctx, clinicID, petID)
+	}
+	return nil, nil
 }
 
 func (m *mockMedicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error) {

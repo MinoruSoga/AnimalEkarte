@@ -36,6 +36,8 @@ type petInOwnerResponse struct {
 	BirthDate       *time.Time              `json:"birth_date,omitempty"`
 	Breed           string                  `json:"breed"`
 	Color           string                  `json:"color"`
+	BloodType       *string                 `json:"blood_type,omitempty"`
+	MicrochipNumber *string                 `json:"microchip_number,omitempty"`
 	DangerLevel     string                  `json:"danger_level"`
 	Weight          *float64                `json:"weight,omitempty"`
 	NeuteredDate    *time.Time              `json:"neutered_date,omitempty"`
@@ -80,6 +82,7 @@ type ownerResponse struct {
 	DeliveryCautionReason  *string              `json:"delivery_caution_reason,omitempty"`
 	IsTransferred          bool                 `json:"is_transferred"`
 	TransferAt             *time.Time           `json:"transfer_at,omitempty"`
+	DMPreference           *bool                `json:"dm_preference,omitempty"`
 	Pets                   []petInOwnerResponse `json:"pets"`
 	CreatedAt              time.Time            `json:"created_at"`
 	UpdatedAt              time.Time            `json:"updated_at"`
@@ -98,6 +101,8 @@ func toPetInOwnerResponse(p *model.Pet) petInOwnerResponse {
 		BirthDate:       localTimePtr(p.BirthDate),
 		Breed:           p.Breed,
 		Color:           p.Color,
+		BloodType:       p.BloodType,
+		MicrochipNumber: p.MicrochipNumber,
 		DangerLevel:     string(p.DangerLevel),
 		Weight:          p.Weight,
 		NeuteredDate:    localTimePtr(p.NeuteredDate),
@@ -164,6 +169,7 @@ func toOwnerResponse(o *model.Owner) ownerResponse {
 		DeliveryCautionReason:  o.DeliveryCautionReason,
 		IsTransferred:          o.IsTransferred,
 		TransferAt:             localTimePtr(o.TransferAt),
+		DMPreference:           o.DMPreference,
 		Pets:                   pets,
 		CreatedAt:              localTime(o.CreatedAt),
 		UpdatedAt:              localTime(o.UpdatedAt),

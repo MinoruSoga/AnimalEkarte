@@ -61,6 +61,9 @@ func buildOwnerUpdate(input *UpdateOwnerInput) map[string]any {
 	if input.MembershipType != nil {
 		fields[colMembershipType] = *input.MembershipType
 	}
+	if input.DMPreference != nil {
+		fields[colDMPreference] = *input.DMPreference
+	}
 	return fields
 }
 

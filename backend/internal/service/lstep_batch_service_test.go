@@ -100,6 +100,9 @@ func (m *batchMockMedRecordRepo) Delete(_ context.Context, _, _ uint64) error { 
 func (m *batchMockMedRecordRepo) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
+func (m *batchMockMedRecordRepo) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
+	return nil, nil
+}
 func (m *batchMockMedRecordRepo) CountEstimatesByMedicalRecordID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }

@@ -33,6 +33,8 @@ export interface Owner {
   deliveryCautionReason?: string | null;
   isTransferred: boolean;
   transferAt?: string;
+  /** #158 レガシー EMR 準拠: DM（ダイレクトメール）送付希望。undefined=未設定 / true=必要 / false=不要。 */
+  dmPreference?: boolean;
   lstepOptOut: boolean;
   lstepOptOutAt?: string;
   lstepOptOutReason?: string;

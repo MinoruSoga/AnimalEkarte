@@ -56,6 +56,8 @@ export const transformOwner = (owner: OwnerApiResponse): Owner => ({
   deliveryCautionReason: owner.delivery_caution_reason,
   isTransferred: owner.is_transferred ?? false,
   transferAt: owner.transfer_at,
+  // #158: 未設定（undefined）と false（不要）を区別するため ?? false で潰さない。
+  dmPreference: owner.dm_preference,
   lstepOptOut: owner.lstep_opt_out ?? false,
   lstepOptOutAt: owner.lstep_opt_out_at,
   lstepOptOutReason: owner.lstep_opt_out_reason,

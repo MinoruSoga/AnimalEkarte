@@ -38,6 +38,8 @@ type petResponse struct {
 	BirthDate       *time.Time              `json:"birth_date,omitempty"`
 	Breed           string                  `json:"breed"`
 	Color           string                  `json:"color"`
+	BloodType       *string                 `json:"blood_type,omitempty"`
+	MicrochipNumber *string                 `json:"microchip_number,omitempty"`
 	Weight          *float64                `json:"weight,omitempty"`
 	NeuteredDate    *time.Time              `json:"neutered_date,omitempty"`
 	AcquisitionType *string                 `json:"acquisition_type,omitempty"`
@@ -55,6 +57,16 @@ type petResponse struct {
 	Insurance       *petInsuranceNested     `json:"insurance,omitempty"`
 }
 
+// petFirstVisitResponse は #158 飼主レポートのペット初診日（最古カルテ date 由来）。
+// FirstVisitDate は派生値で、カルテが無い場合は null（捏造しない）。
+type petFirstVisitResponse struct {
+	FirstVisitDate *time.Time `json:"first_visit_date"`
+}
+
+func toPetFirstVisitResponse(date *time.Time) petFirstVisitResponse {
+	return petFirstVisitResponse{FirstVisitDate: date}
+}
+
 // petListResponse はリスト表示に必要な最小限フィールドのみ返す（GET /v1/pets 専用）
 type petListResponse struct {
 	ID              uint64                  `json:"id"`
@@ -66,6 +78,8 @@ type petListResponse struct {
 	Gender          string                  `json:"gender"`
 	Status          string                  `json:"status"`
 	BirthDate       *time.Time              `json:"birth_date,omitempty"`
+	BloodType       *string                 `json:"blood_type,omitempty"`
+	MicrochipNumber *string                 `json:"microchip_number,omitempty"`
 	Weight          *float64                `json:"weight,omitempty"`
 	Environment     string                  `json:"environment"`
 	LastVisit       *time.Time              `json:"last_visit,omitempty"`
@@ -84,6 +98,8 @@ func toPetListResponse(p *model.Pet) petListResponse {
 		Gender:          string(p.Gender),
 		Status:          string(p.Status),
 		BirthDate:       p.BirthDate,
+		BloodType:       p.BloodType,
+		MicrochipNumber: p.MicrochipNumber,
 		Weight:          p.Weight,
 		Environment:     p.Environment,
 		LastVisit:       p.LastVisit,
@@ -165,6 +181,8 @@ func toPetResponse(p *model.Pet) petResponse {
 		BirthDate:       p.BirthDate,
 		Breed:           p.Breed,
 		Color:           p.Color,
+		BloodType:       p.BloodType,
+		MicrochipNumber: p.MicrochipNumber,
 		Weight:          p.Weight,
 		NeuteredDate:    p.NeuteredDate,
 		AcquisitionType: acquisitionType,
