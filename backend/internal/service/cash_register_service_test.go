@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -784,4 +785,96 @@ func TestCalcTheoreticalCash(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// TestCashRegisterService_Close_ExcludesActualCashFromAggregation は #152 の不変条件を固定する。
+// 締め集計サマリー（永続化される category_breakdown JSONB と理論現金）は医療記録ベースの金額のみで構成され、
+// レジ実査入力 actual_cash / cash_difference は一切混入しないことを検証する。
+// 現コードは既にこの分離を満たしており（production バグは不在）、本テストは将来の回帰
+// （actual_cash を buildCategoryBreakdown / calcTheoreticalCash に取り込む変更）を検出する特性化テストである。
+func TestCashRegisterService_Close_ExcludesActualCashFromAggregation(t *testing.T) {
+	targetDate := time.Date(2026, 4, 20, 0, 0, 0, 0, time.UTC)
+
+	// 医療記録の合計は 10000（現金3000 + クレジット7000）。実査現金は意図的に大きく乖離させる。
+	const (
+		medicalRecordTotal = int64(10000)
+		actualCash         = int64(99999)
+		cashBilling        = int64(3000)
+		creditBilling      = int64(7000)
+	)
+
+	var created *model.CashRegisterClose
+	closeRepo := &mockCashRegisterCloseRepository{
+		findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+			return nil, nil // 未締め
+		},
+		createFn: func(_ context.Context, c *model.CashRegisterClose) error {
+			created = c
+			return nil
+		},
+	}
+	accountingRepo := &mockAccountingRepositoryForClose{
+		getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+			creditID := uint64(1)
+			return &repository.CloseAggregateResult{
+				PaymentRows: []repository.PaymentAggregateRow{
+					{PaymentMethodID: nil, Amount: cashBilling},         // 現金（NULL = 後方互換現金）
+					{PaymentMethodID: &creditID, Amount: creditBilling}, // クレジット
+				},
+				CategoryRows: []repository.CategoryAggregateRow{
+					{Category: "診察", Amount: medicalRecordTotal},
+				},
+				TotalRefund:    0,
+				BillingDetails: []repository.CloseBillingDetail{},
+				TaxBreakdown:   []repository.TaxBreakdownRow{},
+			}, nil
+		},
+	}
+	closingsSvc := &mockClosingSettingsService{
+		resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+			return defaultSchedule(), nil
+		},
+	}
+	payMethodRepo := &mockPaymentMethodMasterRepository{
+		findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+			return []model.PaymentMethodMaster{{ID: 1, Name: "クレジット"}}, nil
+		},
+	}
+	svc := newCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo)
+
+	// Act
+	got, err := svc.Close(context.Background(), 1, CloseRegisterInput{
+		Date:       targetDate,
+		Period:     "am",
+		ActualCash: actualCash,
+		Memo:       "実査過剰",
+	})
+
+	// Assert: 理論現金は請求の現金分のみ（実査現金 99999 ではない）
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+	assert.Equal(t, cashBilling, got.TheoreticalCash, "理論現金は請求の現金分(3000)のみで、actual_cash は含まない")
+	assert.Equal(t, actualCash, got.ActualCash, "actual_cash は照合用に別フィールドへ保存される")
+	assert.Equal(t, actualCash-cashBilling, got.CashDifference, "cash_difference は照合差異であり集計サマリーとは別")
+
+	// Assert: 永続化された category_breakdown JSONB は医療記録金額のみ。actual_cash は混入しない。
+	assert.NotNil(t, created)
+	var schema model.CategoryBreakdownSchema
+	if !assert.NoError(t, json.Unmarshal(created.CategoryBreakdown, &schema)) {
+		return
+	}
+
+	diag := schema.Categories["診察"]
+	assert.Equal(t, cashBilling, diag["cash"], "診察カテゴリの現金按分は請求現金(3000)")
+	assert.Equal(t, creditBilling, diag["method_1"], "診察カテゴリのクレジット按分は請求クレジット(7000)")
+
+	// カテゴリ内訳の総額は医療記録合計(10000)に一致し、actual_cash(99999) で汚染されていない。
+	var breakdownTotal int64
+	for _, byMethod := range schema.Categories {
+		for _, amount := range byMethod {
+			breakdownTotal += amount
+			assert.NotEqual(t, actualCash, amount, "category_breakdown のいかなる金額も actual_cash と一致してはならない")
+		}
+	}
+	assert.Equal(t, medicalRecordTotal, breakdownTotal, "category_breakdown の総額は医療記録合計のみ（actual_cash 不含）")
 }
