@@ -28,6 +28,8 @@ APPOINTMENT_TIME_FILES = [
     ROOT / "backend/migrations/004_seed_staging.sql",
 ]
 
+DEMO_SEED_FILE = ROOT / "backend/migrations/003_seed_demo.sql"
+
 JST = timezone(timedelta(hours=9))
 
 SEVEN_MASTER_TABLES = (
@@ -563,6 +565,89 @@ def check_no_active_trimming_appointments(errors: list[str]) -> None:
     )
 
 
+def build_staff_clinic_map(text: str) -> dict[int, int]:
+    """Map staff id -> clinic_id from every staffs INSERT statement."""
+    staff_clinic: dict[int, int] = {}
+    for statement in split_sql_statements(text):
+        insert_index = statement.upper().find("INSERT INTO")
+        if insert_index < 0:
+            continue
+        trimmed = statement[insert_index:].strip()
+        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+        if table_match is None or table_match.group(1) != "staffs":
+            continue
+        parsed = parse_insert_statement(trimmed)
+        if parsed is None:
+            continue
+        columns = [c.strip().strip('"') for c in parsed.columns]
+        if "id" not in columns or "clinic_id" not in columns:
+            continue
+        id_idx = columns.index("id")
+        clinic_idx = columns.index("clinic_id")
+        for row in parsed.rows:
+            if len(row) <= max(id_idx, clinic_idx):
+                continue
+            staff_id = row[id_idx]
+            clinic_id = row[clinic_idx]
+            if isinstance(staff_id, int) and isinstance(clinic_id, int):
+                staff_clinic[staff_id] = clinic_id
+    return staff_clinic
+
+
+def check_audit_log_actor_tenant(errors: list[str]) -> None:
+    """Ensure every staff-actor audit_logs row is owned by the actor's clinic.
+
+    A cross-tenant audit trail (row clinic_id != actor staff's clinic_id) corrupts
+    per-clinic audit reporting and breaks the clinic_id isolation invariant.
+    Only the demo seed (003) carries audit_logs rows, so it is the sole file scanned.
+    Non-staff actors (actor_type != 'staff') and system rows (actor_id IS NULL) are
+    exempt because they are not bound to a single clinic's staff roster.
+    """
+    text = DEMO_SEED_FILE.read_text(encoding="utf-8")
+    staff_clinic = build_staff_clinic_map(text)
+    mismatches: list[str] = []
+
+    for statement in split_sql_statements(text):
+        insert_index = statement.upper().find("INSERT INTO")
+        if insert_index < 0:
+            continue
+        trimmed = statement[insert_index:].strip()
+        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+        if table_match is None or table_match.group(1) != "audit_logs":
+            continue
+        parsed = parse_insert_statement(trimmed)
+        if parsed is None:
+            continue
+        columns = [c.strip().strip('"') for c in parsed.columns]
+        if not {"clinic_id", "actor_id", "actor_type"}.issubset(columns):
+            continue
+        clinic_idx = columns.index("clinic_id")
+        actor_id_idx = columns.index("actor_id")
+        actor_type_idx = columns.index("actor_type")
+        for row in parsed.rows:
+            if len(row) <= max(clinic_idx, actor_id_idx, actor_type_idx):
+                continue
+            if row[actor_type_idx] != "staff":
+                continue
+            actor_id = row[actor_id_idx]
+            if actor_id is None:
+                continue
+            clinic_id = row[clinic_idx]
+            actor_clinic = staff_clinic.get(actor_id)
+            if actor_clinic is None:
+                mismatches.append(f"actor_id={actor_id} not found (row clinic_id={clinic_id})")
+            elif actor_clinic != clinic_id:
+                mismatches.append(
+                    f"actor_id={actor_id} is clinic_id={actor_clinic} but row clinic_id={clinic_id}"
+                )
+
+    add_result(
+        errors,
+        not mismatches,
+        f"audit_logs: cross-tenant actor references {mismatches[:20]}",
+    )
+
+
 def print_summary(state: SeedState, errors: list[str]) -> None:
     tracked_counts = ", ".join(
         f"{table}={len(state.tables[table])}" for table in sorted(TRACKED_TABLES) if state.tables[table]
@@ -578,7 +663,7 @@ def print_summary(state: SeedState, errors: list[str]) -> None:
         print(
             "verified: 7 masters, treatments drift fixes, CHECK equivalent, "
             "procedure presence, FK, cross-tenant, appointment time window, daily distribution, "
-            "no active trimming appointments"
+            "no active trimming appointments, audit log actor tenant"
         )
 
 
@@ -594,6 +679,7 @@ def main() -> int:
     check_cross_tenant(state, errors)
     check_appointment_time_window(errors)
     check_no_active_trimming_appointments(errors)
+    check_audit_log_actor_tenant(errors)
     print_summary(state, errors)
     return 1 if errors else 0
 
