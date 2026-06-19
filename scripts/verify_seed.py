@@ -30,6 +30,18 @@ APPOINTMENT_TIME_FILES = [
 
 DEMO_SEED_FILE = ROOT / "backend/migrations/003_seed_demo.sql"
 
+# The vaccines master only exists in the demo seed (003); the staging snapshot
+# (004) re-uses those ids. Vaccination rows live in both files, so both are
+# scanned for the combination-vaccine reference check (#125).
+VACCINE_MASTER_FILE = ROOT / "backend/migrations/003_seed_demo.sql"
+VACCINATION_SEED_FILES = [
+    ROOT / "backend/migrations/003_seed_demo.sql",
+    ROOT / "backend/migrations/004_seed_staging.sql",
+]
+
+# Remarks that denote a combination vaccine ("N種混合" / "混合ワクチン").
+COMBO_VACCINE_REMARK_RE = re.compile(r"\d+種混合|混合ワクチン")
+
 JST = timezone(timedelta(hours=9))
 
 SEVEN_MASTER_TABLES = (
@@ -648,6 +660,98 @@ def check_audit_log_actor_tenant(errors: list[str]) -> None:
     )
 
 
+def build_vaccine_name_map(text: str) -> dict[int, dict[str, object]]:
+    """Map vaccine id -> {name, clinic_id} from every vaccines INSERT statement."""
+    vaccines: dict[int, dict[str, object]] = {}
+    for statement in split_sql_statements(text):
+        insert_index = statement.upper().find("INSERT INTO")
+        if insert_index < 0:
+            continue
+        trimmed = statement[insert_index:].strip()
+        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+        if table_match is None or table_match.group(1) != "vaccines":
+            continue
+        parsed = parse_insert_statement(trimmed)
+        if parsed is None:
+            continue
+        columns = [c.strip().strip('"') for c in parsed.columns]
+        if not {"id", "name", "clinic_id"}.issubset(columns):
+            continue
+        id_idx = columns.index("id")
+        name_idx = columns.index("name")
+        clinic_idx = columns.index("clinic_id")
+        for row in parsed.rows:
+            if len(row) <= max(id_idx, name_idx, clinic_idx):
+                continue
+            vaccine_id = row[id_idx]
+            if isinstance(vaccine_id, int):
+                vaccines[vaccine_id] = {"name": row[name_idx], "clinic_id": row[clinic_idx]}
+    return vaccines
+
+
+def check_vaccination_vaccine_category(errors: list[str]) -> None:
+    """Ensure combination-vaccine records reference an actual vaccine entry.
+
+    A vaccination whose remarks describe a combination vaccine ("N種混合" /
+    "混合ワクチン") must reference a vaccines row whose name identifies it as a
+    vaccine (contains "ワクチン") — never a prophylactic drug/injection such as
+    "フィラリア予防注射". The original seed pointed cat 3種混合 records
+    (vaccination ids 2-5) at vaccine_id=5 (フィラリア予防注射), which makes the
+    L-step vaccine reminder fire as a filaria reminder (#125). The identical rows
+    are mirrored in the staging snapshot (004), so both seed files are scanned;
+    the vaccines master only exists in 003. Non-combination remarks (e.g.
+    "狂犬病ワクチン接種") are exempt — they are not combination-vaccine records.
+    """
+    vaccine_map = build_vaccine_name_map(VACCINE_MASTER_FILE.read_text(encoding="utf-8"))
+    mismatches: list[str] = []
+
+    for path in VACCINATION_SEED_FILES:
+        text = path.read_text(encoding="utf-8")
+        for statement in split_sql_statements(text):
+            insert_index = statement.upper().find("INSERT INTO")
+            if insert_index < 0:
+                continue
+            trimmed = statement[insert_index:].strip()
+            table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+            if table_match is None or table_match.group(1) != "vaccinations":
+                continue
+            parsed = parse_insert_statement(trimmed)
+            if parsed is None:
+                continue
+            columns = [c.strip().strip('"') for c in parsed.columns]
+            if not {"id", "vaccine_id", "remarks"}.issubset(columns):
+                continue
+            id_idx = columns.index("id")
+            vaccine_idx = columns.index("vaccine_id")
+            remarks_idx = columns.index("remarks")
+            for row in parsed.rows:
+                if len(row) <= max(id_idx, vaccine_idx, remarks_idx):
+                    continue
+                remarks = row[remarks_idx]
+                if not isinstance(remarks, str) or not COMBO_VACCINE_REMARK_RE.search(remarks):
+                    continue
+                vaccine_id = row[vaccine_idx]
+                vaccine = vaccine_map.get(vaccine_id)
+                if vaccine is None:
+                    mismatches.append(
+                        f"{path.name}:vaccination id={row[id_idx]} "
+                        f"vaccine_id={vaccine_id} not found in vaccines master"
+                    )
+                    continue
+                name = vaccine.get("name")
+                if not isinstance(name, str) or "ワクチン" not in name:
+                    mismatches.append(
+                        f"{path.name}:vaccination id={row[id_idx]} remarks={remarks!r} "
+                        f"references vaccine_id={vaccine_id} ({name!r}) which is not a vaccine"
+                    )
+
+    add_result(
+        errors,
+        not mismatches,
+        f"vaccinations: combination-vaccine records point to non-vaccine entries {mismatches[:20]}",
+    )
+
+
 def print_summary(state: SeedState, errors: list[str]) -> None:
     tracked_counts = ", ".join(
         f"{table}={len(state.tables[table])}" for table in sorted(TRACKED_TABLES) if state.tables[table]
@@ -663,7 +767,7 @@ def print_summary(state: SeedState, errors: list[str]) -> None:
         print(
             "verified: 7 masters, treatments drift fixes, CHECK equivalent, "
             "procedure presence, FK, cross-tenant, appointment time window, daily distribution, "
-            "no active trimming appointments, audit log actor tenant"
+            "no active trimming appointments, audit log actor tenant, vaccination vaccine category"
         )
 
 
@@ -680,6 +784,7 @@ def main() -> int:
     check_appointment_time_window(errors)
     check_no_active_trimming_appointments(errors)
     check_audit_log_actor_tenant(errors)
+    check_vaccination_vaccine_category(errors)
     print_summary(state, errors)
     return 1 if errors else 0
 
