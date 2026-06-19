@@ -42,6 +42,35 @@ VACCINATION_SEED_FILES = [
 # Remarks that denote a combination vaccine ("N種混合" / "混合ワクチン").
 COMBO_VACCINE_REMARK_RE = re.compile(r"\d+種混合|混合ワクチン")
 
+# Exam seed files. exam_types / exam_type_fields masters live only in the demo
+# seed (003); the staging snapshot (004) carries none, but both are scanned so a
+# future snapshot that re-introduces them is still covered (#124).
+EXAM_SEED_FILES = [
+    ROOT / "backend/migrations/003_seed_demo.sql",
+    ROOT / "backend/migrations/004_seed_staging.sql",
+]
+
+# exam_type_field semantic category -> substrings the owning exam_type name must
+# contain. A field whose name identifies a category (blood / urine / x-ray /
+# echo) must be bound to an exam_type whose name matches that category. Blood
+# markers are matched first because "BUN（尿素窒素）" contains "尿" yet is a blood
+# biochemistry field, not a urine field.
+EXAM_FIELD_BLOOD_TOKENS = (
+    "WBC", "RBC", "HGB", "HCT", "PLT", "MCV", "MCH",
+    "ALT", "AST", "GPT", "GOT", "ALP", "GGT", "BUN", "CRE", "GLU", "TBIL",
+)
+EXAM_FIELD_BLOOD_TOKENS_JP = (
+    "白血球", "赤血球", "ヘマトクリット", "血小板", "クレアチニン", "尿素窒素", "血糖", "血球",
+)
+EXAM_FIELD_ECHO_TOKENS = ("エコー", "超音波")
+EXAM_FIELD_XRAY_TOKENS = ("正面", "四肢", "レントゲン", "X線", "Xray")
+EXAM_TYPE_EXPECTED_BY_CATEGORY = {
+    "blood": ("血液",),
+    "echo": ("エコー", "超音波", "Echo"),
+    "xray": ("レントゲン", "Xray", "X線", "X-ray"),
+    "urine": ("尿",),
+}
+
 JST = timezone(timedelta(hours=9))
 
 SEVEN_MASTER_TABLES = (
@@ -752,6 +781,123 @@ def check_vaccination_vaccine_category(errors: list[str]) -> None:
     )
 
 
+def build_exam_type_map(text: str) -> dict[int, dict[str, object]]:
+    """Map exam_type id -> {name, clinic_id} from every exam_types INSERT statement."""
+    exam_types: dict[int, dict[str, object]] = {}
+    for statement in split_sql_statements(text):
+        insert_index = statement.upper().find("INSERT INTO")
+        if insert_index < 0:
+            continue
+        trimmed = statement[insert_index:].strip()
+        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+        if table_match is None or table_match.group(1) != "exam_types":
+            continue
+        parsed = parse_insert_statement(trimmed)
+        if parsed is None:
+            continue
+        columns = [c.strip().strip('"') for c in parsed.columns]
+        if not {"id", "name", "clinic_id"}.issubset(columns):
+            continue
+        id_idx = columns.index("id")
+        name_idx = columns.index("name")
+        clinic_idx = columns.index("clinic_id")
+        for row in parsed.rows:
+            if len(row) <= max(id_idx, name_idx, clinic_idx):
+                continue
+            exam_type_id = row[id_idx]
+            if isinstance(exam_type_id, int):
+                exam_types[exam_type_id] = {"name": row[name_idx], "clinic_id": row[clinic_idx]}
+    return exam_types
+
+
+def classify_exam_field(name: str) -> str | None:
+    """Infer an exam_type_field's semantic category from its name, or None if unknown.
+
+    Blood markers are tested first so that "BUN（尿素窒素）" is classified as blood,
+    not urine, despite containing "尿".
+    """
+    upper = name.upper()
+    if any(tok in upper for tok in EXAM_FIELD_BLOOD_TOKENS) or any(
+        tok in name for tok in EXAM_FIELD_BLOOD_TOKENS_JP
+    ):
+        return "blood"
+    if any(tok in name for tok in EXAM_FIELD_ECHO_TOKENS):
+        return "echo"
+    if any(tok in name for tok in EXAM_FIELD_XRAY_TOKENS):
+        return "xray"
+    if "尿" in name:
+        return "urine"
+    return None
+
+
+def check_exam_type_field_category(errors: list[str]) -> None:
+    """Ensure each exam_type_field is bound to a semantically matching exam_type.
+
+    A field whose name identifies a category — blood (WBC/RBC/ALT/BUN/…), urine
+    (尿…), x-ray (胸部正面/四肢…) or echo (…エコー) — must reference an exam_type
+    whose name matches that category (血液 / 尿 / レントゲン·Xray / エコー·超音波).
+    The clinic 1 demo seed bound blood fields (1-8) to 尿検査·便検査, x-ray fields
+    (13-15) to 便検査 and echo fields (16-17) to 血液検査（院内）, so opening a
+    検査 tab showed the wrong items (#124). Clinic 2/3 are already correct and
+    must stay green. This is a semantic check, not a bare FK-existence check.
+    The exam_types / exam_type_fields masters only exist in 003; 004 carries none.
+    """
+    exam_types: dict[int, dict[str, object]] = {}
+    for path in EXAM_SEED_FILES:
+        exam_types.update(build_exam_type_map(path.read_text(encoding="utf-8")))
+
+    mismatches: list[str] = []
+    for path in EXAM_SEED_FILES:
+        text = path.read_text(encoding="utf-8")
+        for statement in split_sql_statements(text):
+            insert_index = statement.upper().find("INSERT INTO")
+            if insert_index < 0:
+                continue
+            trimmed = statement[insert_index:].strip()
+            table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+            if table_match is None or table_match.group(1) != "exam_type_fields":
+                continue
+            parsed = parse_insert_statement(trimmed)
+            if parsed is None:
+                continue
+            columns = [c.strip().strip('"') for c in parsed.columns]
+            if not {"id", "exam_type_id", "name"}.issubset(columns):
+                continue
+            id_idx = columns.index("id")
+            exam_type_idx = columns.index("exam_type_id")
+            name_idx = columns.index("name")
+            for row in parsed.rows:
+                if len(row) <= max(id_idx, exam_type_idx, name_idx):
+                    continue
+                name = row[name_idx]
+                if not isinstance(name, str):
+                    continue
+                category = classify_exam_field(name)
+                if category is None:
+                    continue
+                exam_type_id = row[exam_type_idx]
+                exam_type = exam_types.get(exam_type_id)
+                if exam_type is None:
+                    mismatches.append(
+                        f"{path.name}:exam_type_field id={row[id_idx]} "
+                        f"exam_type_id={exam_type_id} not found in exam_types master"
+                    )
+                    continue
+                type_name = exam_type.get("name")
+                expected = EXAM_TYPE_EXPECTED_BY_CATEGORY[category]
+                if not isinstance(type_name, str) or not any(sub in type_name for sub in expected):
+                    mismatches.append(
+                        f"{path.name}:exam_type_field id={row[id_idx]} {name!r} ({category}) "
+                        f"-> exam_type_id={exam_type_id} ({type_name!r}) is not a {category} exam_type"
+                    )
+
+    add_result(
+        errors,
+        not mismatches,
+        f"exam_type_fields: fields bound to semantically wrong exam_type {mismatches[:20]}",
+    )
+
+
 def print_summary(state: SeedState, errors: list[str]) -> None:
     tracked_counts = ", ".join(
         f"{table}={len(state.tables[table])}" for table in sorted(TRACKED_TABLES) if state.tables[table]
@@ -767,7 +913,8 @@ def print_summary(state: SeedState, errors: list[str]) -> None:
         print(
             "verified: 7 masters, treatments drift fixes, CHECK equivalent, "
             "procedure presence, FK, cross-tenant, appointment time window, daily distribution, "
-            "no active trimming appointments, audit log actor tenant, vaccination vaccine category"
+            "no active trimming appointments, audit log actor tenant, vaccination vaccine category, "
+            "exam_type_field category"
         )
 
 
@@ -785,6 +932,7 @@ def main() -> int:
     check_no_active_trimming_appointments(errors)
     check_audit_log_actor_tenant(errors)
     check_vaccination_vaccine_category(errors)
+    check_exam_type_field_category(errors)
     print_summary(state, errors)
     return 1 if errors else 0
 
