@@ -692,3 +692,96 @@ func TestResolvePeriodRange(t *testing.T) {
 		})
 	}
 }
+
+// TestFindCashMethodID は payment_methods マスタ群から「現金」マスタ id を name 一致で解決することを検証する（#128）。
+func TestFindCashMethodID(t *testing.T) {
+	methods := []model.PaymentMethodMaster{
+		{ID: 101, Name: "現金"},
+		{ID: 102, Name: "クレジットカード"},
+		{ID: 104, Name: "銀行振込"},
+	}
+	got := findCashMethodID(methods)
+	if assert.NotNil(t, got) {
+		assert.Equal(t, uint64(101), *got)
+	}
+
+	// 現金マスタが存在しない場合は nil（calcTheoreticalCash は NULL のみ現金扱いにフォールバック）
+	assert.Nil(t, findCashMethodID([]model.PaymentMethodMaster{{ID: 102, Name: "クレジットカード"}}))
+}
+
+// TestCalcTheoreticalCash は理論現金の現金判定を検証する（#128）。
+// 現金 = payment_method_id が現金マスタ id（新データ）または NULL（旧/レガシー: 後方互換）。
+func TestCalcTheoreticalCash(t *testing.T) {
+	cashID := uint64(101)
+	creditID := uint64(102)
+
+	tests := []struct {
+		name         string
+		rows         []repository.PaymentAggregateRow
+		totalRefund  int64
+		cashMethodID *uint64
+		want         int64
+	}{
+		{
+			name: "現金マスタ id の行を現金として加算する（hotfix 後の新データ）",
+			rows: []repository.PaymentAggregateRow{
+				{PaymentMethodID: &cashID, Amount: 5000},
+				{PaymentMethodID: &creditID, Amount: 3000},
+			},
+			cashMethodID: &cashID,
+			want:         5000,
+		},
+		{
+			name: "payment_method_id=NULL の行も現金として加算する（レガシー seed 後方互換）",
+			rows: []repository.PaymentAggregateRow{
+				{PaymentMethodID: nil, Amount: 4000},
+				{PaymentMethodID: &creditID, Amount: 1000},
+			},
+			cashMethodID: &cashID,
+			want:         4000,
+		},
+		{
+			name: "現金マスタ id と NULL が混在しても両方加算する",
+			rows: []repository.PaymentAggregateRow{
+				{PaymentMethodID: &cashID, Amount: 5000},
+				{PaymentMethodID: nil, Amount: 2000},
+				{PaymentMethodID: &creditID, Amount: 3000},
+			},
+			cashMethodID: &cashID,
+			want:         7000,
+		},
+		{
+			name: "非現金（credit_card）のみは現金 0",
+			rows: []repository.PaymentAggregateRow{
+				{PaymentMethodID: &creditID, Amount: 3000},
+			},
+			cashMethodID: &cashID,
+			want:         0,
+		},
+		{
+			name: "返金合計を理論現金から差し引く",
+			rows: []repository.PaymentAggregateRow{
+				{PaymentMethodID: &cashID, Amount: 5000},
+			},
+			totalRefund:  1200,
+			cashMethodID: &cashID,
+			want:         3800,
+		},
+		{
+			name: "cashMethodID が nil の場合は NULL のみ現金とみなす（現金マスタ未登録 clinic）",
+			rows: []repository.PaymentAggregateRow{
+				{PaymentMethodID: nil, Amount: 4000},
+				{PaymentMethodID: &cashID, Amount: 5000},
+			},
+			cashMethodID: nil,
+			want:         4000,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := calcTheoreticalCash(tt.rows, tt.totalRefund, tt.cashMethodID)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
