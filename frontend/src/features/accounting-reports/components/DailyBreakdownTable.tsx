@@ -4,10 +4,16 @@ import type { DailyReportDetail } from "../api/get-monthly-report";
 
 interface DailyBreakdownTableProps {
   details: DailyReportDetail[];
+  /**
+   * 締めのある日次行をクリック/Enter で締め履歴へドリルダウンさせるコールバック。
+   * 省略時（締め閲覧権限なし等）は行を非インタラクティブにする。
+   */
+  onDrillDown?: (date: string) => void;
 }
 
 export const DailyBreakdownTable = memo(function DailyBreakdownTable({
   details,
+  onDrillDown,
 }: DailyBreakdownTableProps) {
   if (details.length === 0) {
     return <p className={`text-base ${C.text50} py-4 text-center`}>日次データがありません</p>;
@@ -31,41 +37,64 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
           </tr>
         </thead>
         <tbody>
-          {details.map((detail) => (
-            <tr
-              key={detail.date}
-              className={`border-b ${C.borderLight} ${detail.isHoliday ? C.bgNotice40 : STYLE.tableRow}`}
-            >
-              <td className={`px-3 py-2 ${C.text}`}>{detail.date}</td>
-              <td className={`px-3 py-2 ${C.text}`}>{detail.weekday}</td>
-              <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.amCount}件</td>
-              <td className={`px-3 py-2 text-right ${C.text}`}>
-                ¥{detail.amNet.toLocaleString()}
-              </td>
-              <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.pmCount}件</td>
-              <td className={`px-3 py-2 text-right ${C.text}`}>
-                ¥{detail.pmNet.toLocaleString()}
-              </td>
-              <td className={`px-3 py-2 text-right font-medium ${C.text}`}>
-                ¥{detail.dayNet.toLocaleString()}
-              </td>
-              <td
-                className={`px-3 py-2 text-right ${detail.refund > 0 ? C.danger : C.text50}`}
+          {details.map((detail) => {
+            const isDrillable = !!onDrillDown && (detail.amClosed || detail.pmClosed);
+            const interactiveProps = isDrillable
+              ? {
+                  role: "button" as const,
+                  tabIndex: 0,
+                  "aria-label": `${detail.date} の締め詳細を表示`,
+                  onClick: () => onDrillDown?.(detail.date),
+                  onKeyDown: (event: React.KeyboardEvent<HTMLTableRowElement>) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onDrillDown?.(detail.date);
+                    }
+                  },
+                }
+              : {};
+
+            return (
+              <tr
+                key={detail.date}
+                {...interactiveProps}
+                className={`border-b ${C.borderLight} ${detail.isHoliday ? C.bgNotice40 : STYLE.tableRow} ${
+                  isDrillable
+                    ? `cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset ${C.focusRingAccent40}`
+                    : ""
+                }`}
               >
-                {detail.refund > 0 ? `-¥${detail.refund.toLocaleString()}` : "—"}
-              </td>
-              <td className="px-3 py-2 text-center">
-                <span
-                  className={`inline-block size-2 rounded-full ${detail.amClosed ? C.bgStatusGreenDot : C.bgInactive}`}
-                />
-              </td>
-              <td className="px-3 py-2 text-center">
-                <span
-                  className={`inline-block size-2 rounded-full ${detail.pmClosed ? C.bgStatusGreenDot : C.bgInactive}`}
-                />
-              </td>
-            </tr>
-          ))}
+                <td className={`px-3 py-2 ${C.text}`}>{detail.date}</td>
+                <td className={`px-3 py-2 ${C.text}`}>{detail.weekday}</td>
+                <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.amCount}件</td>
+                <td className={`px-3 py-2 text-right ${C.text}`}>
+                  ¥{detail.amNet.toLocaleString()}
+                </td>
+                <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.pmCount}件</td>
+                <td className={`px-3 py-2 text-right ${C.text}`}>
+                  ¥{detail.pmNet.toLocaleString()}
+                </td>
+                <td className={`px-3 py-2 text-right font-medium ${C.text}`}>
+                  ¥{detail.dayNet.toLocaleString()}
+                </td>
+                <td
+                  className={`px-3 py-2 text-right ${detail.refund > 0 ? C.danger : C.text50}`}
+                >
+                  {detail.refund > 0 ? `-¥${detail.refund.toLocaleString()}` : "—"}
+                </td>
+                <td className="px-3 py-2 text-center">
+                  <span
+                    className={`inline-block size-2 rounded-full ${detail.amClosed ? C.bgStatusGreenDot : C.bgInactive}`}
+                  />
+                </td>
+                <td className="px-3 py-2 text-center">
+                  <span
+                    className={`inline-block size-2 rounded-full ${detail.pmClosed ? C.bgStatusGreenDot : C.bgInactive}`}
+                  />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

@@ -1,13 +1,27 @@
 import { useState, useCallback } from "react";
+import { useSearchParams } from "react-router";
 import { C, STYLE } from "@/lib/design-tokens";
 import { formatJSTDateTimeLocal, toJSTWallDate } from "@/lib/jst-date";
 import { useGetCashRegisterCloses } from "../api/get-cash-register-closes";
 import { PERIOD_LABELS } from "../constants";
 
+// 月次集計レポートからのドリルダウン用 ?date=YYYY-MM-DD を年月にパースする
+function parseHighlightDate(dateParam: string | null): { year: number; month: number } | null {
+  if (!dateParam) return null;
+  const matched = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateParam);
+  if (!matched) return null;
+  return { year: Number(matched[1]), month: Number(matched[2]) };
+}
+
 export function CashRegisterHistoryPage() {
   const now = toJSTWallDate(new Date());
-  const [year, setYear] = useState<number>(now.getFullYear());
-  const [month, setMonth] = useState<number>(now.getMonth() + 1);
+  const [searchParams] = useSearchParams();
+  const drillDownTarget = parseHighlightDate(searchParams.get("date"));
+  // 妥当な YYYY-MM-DD のみハイライト対象とする（不正な値は無視）
+  const highlightDate = drillDownTarget ? searchParams.get("date") : null;
+
+  const [year, setYear] = useState<number>(drillDownTarget?.year ?? now.getFullYear());
+  const [month, setMonth] = useState<number>(drillDownTarget?.month ?? now.getMonth() + 1);
 
   const { data, isLoading, isError } = useGetCashRegisterCloses({ year, month });
 
@@ -24,6 +38,13 @@ export function CashRegisterHistoryPage() {
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
       <h1 className={`text-xl font-bold ${C.text}`}>締め履歴</h1>
+
+      {highlightDate ? (
+        <p className={`text-base ${C.text60}`}>
+          月次集計レポートから <span className={`font-medium ${C.text}`}>{highlightDate}</span>{" "}
+          の締めをハイライト表示しています。
+        </p>
+      ) : null}
 
       {/* 絞り込み */}
       <div className="flex flex-wrap gap-3 items-center">
@@ -89,10 +110,15 @@ export function CashRegisterHistoryPage() {
               <tbody>
                 {data.data.map((close) => {
                   const diff = (close.actualCash ?? 0) - (close.theoreticalCash ?? 0);
+                  const isHighlighted =
+                    highlightDate != null && close.closeDate.slice(0, 10) === highlightDate;
                   return (
                     <tr
                       key={close.id}
-                      className={`border-b ${C.borderLight} ${STYLE.tableRow}`}
+                      data-highlighted={isHighlighted ? "true" : undefined}
+                      className={`border-b ${C.borderLight} ${
+                        isHighlighted ? C.bgAccentLight40 : STYLE.tableRow
+                      }`}
                     >
                       <td className={`px-4 py-3 ${C.text}`}>{close.closeDate}</td>
                       <td className={`px-4 py-3 ${C.text}`}>
