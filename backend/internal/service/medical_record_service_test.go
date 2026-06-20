@@ -26,6 +26,7 @@ type mockMedicalRecordRepository struct {
 	findOwnerVisitSummaryFn           func(ctx context.Context, clinicID, ownerID uint64) (*repository.OwnerVisitSummary, error)
 	countByOwnerIDFn                  func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	countByOwnerIDCallCount           int
+	findOwnerMedicationHistoryFn      func(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]repository.OwnerMedicationHistoryRow, int64, error)
 }
 
 func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -87,6 +88,13 @@ func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(ctx context.Context,
 		return m.findOwnerVisitSummaryFn(ctx, clinicID, ownerID)
 	}
 	return &repository.OwnerVisitSummary{}, nil
+}
+
+func (m *mockMedicalRecordRepository) FindOwnerMedicationHistory(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]repository.OwnerMedicationHistoryRow, int64, error) {
+	if m.findOwnerMedicationHistoryFn != nil {
+		return m.findOwnerMedicationHistoryFn(ctx, clinicID, ownerID, page, limit)
+	}
+	return nil, 0, nil
 }
 
 func (m *mockMedicalRecordRepository) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {

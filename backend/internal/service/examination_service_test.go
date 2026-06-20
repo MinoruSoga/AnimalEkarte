@@ -105,6 +105,10 @@ func (m *mockMedicalRecordRepositoryForExam) FindFirstVisitDateByPetID(_ context
 	return nil, nil
 }
 
+func (m *mockMedicalRecordRepositoryForExam) FindOwnerMedicationHistory(_ context.Context, _, _ uint64, _, _ int) ([]repository.OwnerMedicationHistoryRow, int64, error) {
+	return nil, 0, nil
+}
+
 func (m *mockMedicalRecordRepositoryForExam) CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	return 0, nil
 }
