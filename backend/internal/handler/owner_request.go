@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -28,7 +29,8 @@ func (f *nullableBoolRequestField) UnmarshalJSON(data []byte) error {
 	}
 	var value bool
 	if err := json.Unmarshal(data, &value); err != nil {
-		return err
+		// Go内部のエラー文字列を漏洩させないため、汎用メッセージを返す
+		return apperrors.WrapInvalidInput("真偽値の形式が正しくありません（true または false を指定してください）")
 	}
 	f.value = &value
 	return nil
