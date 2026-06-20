@@ -110,6 +110,11 @@ func TestMedicalRecordRepository_FindOwnerMedicationHistory(t *testing.T) {
 	mrLeak := makeOwnerMedRecord(t, db, clinic2, ownerA.ID, petP3.ID, nil, time.Date(2026, 6, 18, 0, 0, 0, 0, time.UTC), false)
 	makeMedTreatment(t, db, mrLeak.ID, nil, "別院の投薬", "経口", 5, false)
 
+	// 投薬実績の無い飼い主（空結果検証用）。ctx を扱うサブテストクロージャ内で
+	// makeOwner(context.Background()) を呼ぶと contextcheck が誤検知するため、
+	// 他エンティティと同じくセットアップ側で生成する。
+	ownerEmpty := makeOwner(t, db, clinic1, "投薬なし飼主")
+
 	t.Run("cross-pet aggregation with clinic isolation", func(t *testing.T) {
 		rows, total, err := repo.FindOwnerMedicationHistory(ctx, clinic1, ownerA.ID, 1, 10)
 		require.NoError(t, err)
@@ -149,7 +154,6 @@ func TestMedicalRecordRepository_FindOwnerMedicationHistory(t *testing.T) {
 	})
 
 	t.Run("owner with no medications returns empty without error", func(t *testing.T) {
-		ownerEmpty := makeOwner(t, db, clinic1, "投薬なし飼主")
 		rows, total, err := repo.FindOwnerMedicationHistory(ctx, clinic1, ownerEmpty.ID, 1, 10)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), total)
