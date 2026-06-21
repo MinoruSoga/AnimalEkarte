@@ -190,7 +190,7 @@ type paymentSplitRequest struct {
 	PaymentMethodID *uint64 `json:"payment_method_id"`
 	Amount          int64   `json:"amount"           binding:"required,min=1"`
 	ReceivedAmount  int64   `json:"received_amount"`
-	ChangeAmount    int64   `json:"change_amount"    binding:"min=0"` // #119: required (non-negative)
+	ChangeAmount    int64   `json:"change_amount"    binding:"min=0"` // #119: 非負のみ強制（必須ではない。お釣り整合性は service の validatePaymentSplits が検証）
 }
 
 func (r paymentSplitRequest) toServiceInput() service.PaymentSplitInput {
