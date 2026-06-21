@@ -1700,6 +1700,9 @@ ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
 
 -- payments
+-- method と payment_method_id の整合性: cash 行は payment_method_id=NULL に統一する（#128）。
+-- 旧 seed では id=7（アニコム損保）のみ method='cash' でありながら payment_method_id が
+-- '銀行振込' マスタを指しており不整合だった。他の cash 行（id=18 等）と同様 NULL に揃える。
 INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insurance_name, insurance_ratio, insurance_amount, discount_amount, billing_amount, received_amount, change_amount, method, payment_method_id, paid_by) VALUES
     -- AM
     (3,  4,  4500,  450,  4950,  '',              0.00, 0,     0, 4950,  5000, 50,  'cash',         NULL, 1),
@@ -1712,7 +1715,7 @@ INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insuran
     (13, 14, 5000,  500,  5500,  'アイペット',    0.50, 2750,  0, 2750,  3000, 250, 'cash',         NULL, 1),
     (14, 15, 8500,  850,  9350,  '',              0.00, 0,     0, 9350,  9350, 0,   'credit_card', (SELECT id FROM payment_methods WHERE clinic_id=1 AND name='クレジットカード' AND deleted_at IS NULL LIMIT 1), 1),
     -- PM
-    (7,  8,  25000, 2500, 27500, 'アニコム損保',  0.70, 19250, 0, 8250,  8250, 0,   'cash',         (SELECT id FROM payment_methods WHERE clinic_id=1 AND name='銀行振込' AND deleted_at IS NULL LIMIT 1), 1),
+    (7,  8,  25000, 2500, 27500, 'アニコム損保',  0.70, 19250, 0, 8250,  8250, 0,   'cash',         NULL, 1),
     (8,  9,  5000,  500,  5500,  '',              0.00, 0,     0, 5500,  5500, 0,   'electronic_money', (SELECT id FROM payment_methods WHERE clinic_id=1 AND name='電子マネー' AND deleted_at IS NULL LIMIT 1), 1),
     (9,  10, 1400,  140,  1540,  '',              0.00, 0,     0, 1540,  2000, 460, 'cash',         NULL, 1),
     (15, 16, 4200,  420,  4620,  '',              0.00, 0,     0, 4620,  5000, 380, 'cash',         NULL, 1),
