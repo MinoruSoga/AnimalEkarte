@@ -774,9 +774,9 @@ SELECT setval(pg_get_serial_sequence('consultations', 'id'), (SELECT MAX(id) FRO
 INSERT INTO procedures (id, clinic_id, name, price, is_active, description, parent_id, sort_order, duration, anesthesia, tax_type, tax_rate) VALUES
     (13047, 1, '注射', 0, true, '注射カテゴリ', NULL, 1, NULL, 'none', 'excluded', 0.10),
     (13048, 1, '輸液', 0, true, '輸液カテゴリ', NULL, 2, NULL, 'none', 'excluded', 0.10),
-    (13049, 1, '輸血', 0, true, '輸血カテゴリ', NULL, 3, NULL, 'none', 'excluded', 0.10),
+    (13049, 1, '輸血カテゴリ', 0, true, '輸血カテゴリ', NULL, 3, NULL, 'none', 'excluded', 0.10),
     (13050, 1, '処置', 0, true, '処置カテゴリ', NULL, 4, NULL, 'none', 'excluded', 0.10),
-    (13051, 1, 'お手入れ', 0, true, 'お手入れカテゴリ', NULL, 5, NULL, 'none', 'excluded', 0.10),
+    (13051, 1, 'お手入れカテゴリ', 0, true, 'お手入れカテゴリ', NULL, 5, NULL, 'none', 'excluded', 0.10),
     (13052, 1, '手術', 0, true, '手術カテゴリ', NULL, 6, NULL, 'none', 'excluded', 0.10),
     (13053, 1, '麻酔', 0, true, '麻酔カテゴリ', NULL, 7, NULL, 'none', 'excluded', 0.10),
     (1, 1, '抗生物質・抗菌薬（ペニシリン系）', 0, true, '既存', 13047, 1, NULL, 'none', 'excluded', 0.10),

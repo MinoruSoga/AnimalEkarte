@@ -104,7 +104,7 @@ erDiagram
 - 実行コマンド:
   - `make schema-check` (内部で `docker compose --env-file .env.local exec backend go test ./internal/model/ -run TestSchemaDrift -v` を実行)
 - 結果:
-  - `TestSchemaDrift` PASS (0.48s)
+  - `TestSchemaDrift` PASS (0.18s)
 - 互換注記:
   - `docker compose` 実行時、`.env.local` にて `DB_USER` / `DB_PASSWORD` / `DB_NAME` などの環境変数を読み込んでおり、検証は正常に成功しました。
 
