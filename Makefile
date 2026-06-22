@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local dump-stg
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -179,6 +179,13 @@ setup-hooks:
 	chmod +x .githooks/pre-commit
 	@echo "Git hooks を .githooks に設定しました（pre-commit: lint + 型チェック）"
 
+# STG DB ダンプ（SSM ポートフォワード経由 pg_dump → prodData/ekarte-stg-<実行日>.sql）
+# 前提: AWS プロファイル(AnimalEkarte)認証済み。DB 認証は既定で .env.staging の
+#       DB_USER / DB_NAME / DB_PASSWORD を使用（PGPASSWORD 等の env で上書き可）。
+# prodData/ は .gitignore 済。
+dump-stg:
+	@bash scripts/dump-stg.sh
+
 # ヘルプ
 help:
 	@echo "Animal Ekarte - 開発コマンド"
@@ -201,6 +208,7 @@ help:
 	@echo "  restart-api   API再起動"
 	@echo "  restart-front フロントエンド再起動"
 	@echo "  build-prod    本番ビルド"
+	@echo "  dump-stg      STG DBダンプ(SSM経由 pg_dump → prodData/ekarte-stg-<実行日>.sql)"
 	@echo ""
 	@echo "品質管理:"
 	@echo "  lint          Goリンター実行"

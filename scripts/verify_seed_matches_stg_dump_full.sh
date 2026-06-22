@@ -21,15 +21,24 @@
 #
 # 前提: Docker が起動していること, prodData/stg_5-21/ekarte が存在すること
 #
-# 使い方: bash scripts/verify_seed_matches_stg_dump_full.sh
+# 使い方:
+#   bash scripts/verify_seed_matches_stg_dump_full.sh [DUMP_FILE]
+#   STG_DUMP=<path> bash scripts/verify_seed_matches_stg_dump_full.sh   # 環境変数でも指定可
+#   PARSE_ONLY=1   bash scripts/verify_seed_matches_stg_dump_full.sh [DUMP_FILE]  # Docker無しでパース判定のみ
+#   引数も $STG_DUMP も無い場合は prodData/ekarte-stg-*.sql の最新を自動選択する。
+#   dump は TablePlus 形式("public"."table") / pg_dump 形式(public.table) の双方に対応。
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DUMP_FILE="$REPO_ROOT/prodData/stg_5-21/ekarte"
+# Dump path: 第1引数 > $STG_DUMP > prodData/ekarte-stg-*.sql の最新
+DUMP_FILE="${1:-${STG_DUMP:-}}"
+if [[ -z "$DUMP_FILE" ]]; then
+  DUMP_FILE="$(ls -t "$REPO_ROOT"/prodData/ekarte-stg-*.sql 2>/dev/null | head -1 || true)"
+fi
 MIGRATION_DIR="$REPO_ROOT/backend/migrations"
 CONTAINER="ekarte_verify_$$"
-PORT=15432
+PORT="${VERIFY_PORT:-15432}"
 DB_A="ekarte_a"
 DB_B="ekarte_b"
 
@@ -48,9 +57,43 @@ trap cleanup_all EXIT
 
 TMPWORK="$(mktemp -d)"
 
-if [[ ! -f "$DUMP_FILE" ]]; then
-  echo "ERROR: dump file not found: $DUMP_FILE" >&2
+if [[ -z "$DUMP_FILE" || ! -f "$DUMP_FILE" ]]; then
+  echo "ERROR: dump file not found: ${DUMP_FILE:-<none>}" >&2
+  echo "       第1引数か \$STG_DUMP で指定するか prodData/ekarte-stg-*.sql を配置してください。" >&2
   exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Dump INSERT extractor — supports BOTH marker formats:
+#   TablePlus : INSERT INTO "public"."table"
+#   pg_dump   : INSERT INTO public.table
+# schema_migrations は 001_init.sql に定義が無いため除外する（単一行・複数行両対応）。
+# ---------------------------------------------------------------------------
+extract_dump_inserts() {
+  awk '
+    /^INSERT INTO ("public"\."schema_migrations"|public\.schema_migrations)[ (]/ { skip=1 }
+    skip { if (/;[[:space:]]*$/) skip=0; next }
+    /^INSERT INTO ("public"\.|public\.)/ { in_block=1 }
+    in_block { print }
+    in_block && /;[[:space:]]*$/ { in_block=0 }
+  ' "$1"
+}
+
+# Fail loudly if the dump has no parseable INSERT table data (silent empty-DB の誤検出防止)。
+MARKER_COUNT=$(grep -cE '^INSERT INTO ("public"\."|public\.)' "$DUMP_FILE" || true)
+EXTRACT_COUNT=$(extract_dump_inserts "$DUMP_FILE" | grep -cE '^INSERT INTO ' || true)
+echo "Dump file : $DUMP_FILE"
+echo "Dump parse: ${MARKER_COUNT} INSERT markers / ${EXTRACT_COUNT} extracted statements (schema_migrations 除く)"
+if [[ "${MARKER_COUNT:-0}" -eq 0 || "${EXTRACT_COUNT:-0}" -eq 0 ]]; then
+  echo "ERROR: dump に解析可能な INSERT テーブルデータがありません。" >&2
+  echo "       対応マーカー: 'INSERT INTO \"public\".\"table\"' もしくは 'INSERT INTO public.table'" >&2
+  exit 1
+fi
+
+# Parse-only mode: フィクスチャ/ユニット検証用（Docker 不要・パース判定のみ）。
+if [[ "${PARSE_ONLY:-0}" == "1" ]]; then
+  echo "PARSE_ONLY OK (${EXTRACT_COUNT} statements)"
+  exit 0
 fi
 
 # ---------------------------------------------------------------------------
@@ -105,15 +148,17 @@ echo "      001_init.sql schema applied."
 
 {
   echo "SET session_replication_role = 'replica';"
-  awk '
-    /^INSERT INTO "public"\."schema_migrations"/ { skip=1; next }
-    skip { if (/;[[:space:]]*$/) skip=0; next }
-    /^INSERT INTO "public"\./ { in_block=1 }
-    in_block { print }
-    in_block && /;[[:space:]]*$/ { in_block=0 }
-  ' "$DUMP_FILE"
+  extract_dump_inserts "$DUMP_FILE"
 } | $PSQL_Q "$DB_B"
 echo "      Dump INSERT statements applied."
+
+# Guard: DB-B が無言で空になっていないか確認（dump 形式非対応 / import 失敗の早期検出）。
+DBB_CORE=$($PSQL_T "$DB_B" -c "SELECT (SELECT count(*) FROM public.clinics)+(SELECT count(*) FROM public.staffs)+(SELECT count(*) FROM public.accounts);")
+if [[ "${DBB_CORE:-0}" -eq 0 ]]; then
+  echo "ERROR: dump import 後も DB-B が空です (clinics+staffs+accounts=0)。dump 形式が非対応か import が失敗しています。" >&2
+  exit 1
+fi
+echo "      DB-B core rows (clinics+staffs+accounts): $DBB_CORE"
 
 # ---------------------------------------------------------------------------
 # 5. Compare all public tables

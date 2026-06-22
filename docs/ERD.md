@@ -1,7 +1,7 @@
 # データベース設計書 (Entity Relationship Diagram)
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.20 | **最新更新**: 2026-06-12 | **状態**: Production Ready (103 Tables Verified)
+> **バージョン**: v31.21 | **最新更新**: 2026-06-22 | **状態**: Production Ready (103 Tables Verified)
 
 ---
 
@@ -97,19 +97,28 @@ erDiagram
 | 不要確定テーブル | 0 | 静的照合では削除対象なし |
 | 不要確定カラム | 0 | ERD は列一覧を保持しないため、migration DDL 内の `unused` / `deprecated` / `DROP COLUMN` / `廃止` 等の明示的な削除候補コメントを確認。統合済み・seed 更新不要コメントのみで、削除確定カラムなし。 |
 
-### 4.2 実 DB 検証結果（2026-06-12）
+### 4.2 実 DB 検証結果（2026-06-22）
 
 静的照合を補完する実 DB 検証として、現行ローカル環境で以下を実行しました。
 
 - 実行コマンド:
-  - `docker compose exec backend go test ./internal/model -run TestSchemaDrift -v`
-  - `docker compose exec backend go test ./internal/model -list .`
+  - `make schema-check` (内部で `docker compose --env-file .env.local exec backend go test ./internal/model/ -run TestSchemaDrift -v` を実行)
 - 結果:
-  - `TestSchemaDrift` PASS
-  - `-list .` の実行結果としては `TestSchemaDrift` が登録されていることを確認
+  - `TestSchemaDrift` PASS (0.48s)
 - 互換注記:
-  - `docker compose` 実行時、`DB_USER` / `DB_PASSWORD` / `DB_NAME` の未設定だと compose 側で env warning が出ますが、当該環境では `buildDSN` の既定値により接続・検証は成功しました（運用環境では明示環境変数推奨）。
-  - `TestAllModelsCoverage` は現状このパッケージには含まれていないため、実行対象外でした。`TestSchemaDrift` を起点とした検証実施に統一しています。
+  - `docker compose` 実行時、`.env.local` にて `DB_USER` / `DB_PASSWORD` / `DB_NAME` などの環境変数を読み込んでおり、検証は正常に成功しました。
+
+### 4.3 最近のスキーマ更新履歴 (2026-06-22)
+
+最新のモデルファイルおよびマイグレーションの適用に伴い、以下の更新を行いました。
+
+- **緊急レジ締め区分の追加 (Issue #150 / 005_add_emg_period.sql)**
+  - `cash_register_closes.period` カラムを `varchar(2)` から `varchar(3)` に拡張し、従来の `'am'`, `'pm'` に加えて `'emg'` (緊急) 区分を許容する `CHECK` 制約へと緩和。
+- **レガシーEMR準拠の飼主・ペット情報追加 (Issue #158 / 006_add_owner_report_fields.sql)**
+  - `pets.blood_type` (text, NULL可, ペット血液型) および `pets.microchip_number` (text, NULL可, マイクロチップ番号) を追加。
+  - `owners.dm_preference` (boolean, NULL可, DM送付希望) を追加。既存レコードを汚染しないよう nullable 設計。
+- **支払方法の銀行振込追加 (Issue #127 / 007_add_bank_transfer_payment_method.sql)**
+  - `payment_method` ENUM型に `'bank_transfer'` (銀行振込) を追加。新クリニック作成時にマスタへ自動投入される「銀行振込」の値を `payment_splits.method` で保持できるように不整合を解消。
 
 ### 4.1 継続理由を明示する対象
 
