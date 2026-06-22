@@ -1080,7 +1080,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		{"DROP TYPE IF EXISTS body_weight_unit CASCADE", "CREATE TYPE body_weight_unit AS ENUM ('Kg', 'g')"},
 		// トリミング・シフト関連
 		{"DROP TYPE IF EXISTS reservation_type_category CASCADE", "CREATE TYPE reservation_type_category AS ENUM ('general', 'trimming')"},
-		{"DROP TYPE IF EXISTS payment_method CASCADE", "CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money')"},
+		{"DROP TYPE IF EXISTS payment_method CASCADE", "CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money', 'bank_transfer')"},
 		{"DROP TYPE IF EXISTS shift_type CASCADE", "CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave')"},
 		{"DROP TYPE IF EXISTS tax_type CASCADE", "CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt')"},
 	}

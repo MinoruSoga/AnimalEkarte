@@ -76,7 +76,8 @@ type MedicalRecordService interface {
 	UpdateRecommendationReason(ctx context.Context, clinicID, id uint64, input UpdateRecommendationReasonInput) (*model.MedicalRecord, error)
 	// GetOwnerMedicationHistory は飼い主の全ペット横断の投薬履歴（treatments item_type=medicine）を
 	// 日付降順でページング取得する（#158 飼主レポート）。clinic 隔離は repository 層で medical_records 経由。
-	GetOwnerMedicationHistory(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]repository.OwnerMedicationHistoryRow, int64, error)
+	// 戻り値はサービス層 DTO（repository 行型をハンドラへ漏らさない）。
+	GetOwnerMedicationHistory(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]OwnerMedicationHistoryItem, int64, error)
 }
 
 // CreateSubRecordsInput はカルテ作成時の inquiry / clinical_plan サブレコード作成 DTO

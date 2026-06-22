@@ -306,6 +306,8 @@ func (r *medicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, cli
 // FindOwnerMedicationHistory は飼い主の全ペット横断の投薬履歴を日付降順でページング取得する（#158）。
 // 投薬の実体は treatments(item_type=medicine)。clinic 隔離は treatments が clinic_id を持たないため
 // medical_records.clinic_id で行う（別医院のカルテに紐づく投薬は混入させない）。
+// 補助 JOIN（pets/medicines/staffs）は表示名のみを供給するが、データ不整合時に他院の名称が
+// 漏れないよう clinic_id 一致を JOIN 条件に含める（防御の深さ）。
 // 薬剤名は medicines.name を優先し、空なら treatments.content にフォールバックする。
 func (r *medicalRecordRepository) FindOwnerMedicationHistory(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]OwnerMedicationHistoryRow, int64, error) {
 	buildBase := func() *gorm.DB {
@@ -323,9 +325,9 @@ func (r *medicalRecordRepository) FindOwnerMedicationHistory(ctx context.Context
 
 	rows := make([]OwnerMedicationHistoryRow, 0)
 	if err := buildBase().
-		Joins("LEFT JOIN pets ON pets.id = medical_records.pet_id AND pets.deleted_at IS NULL").
-		Joins("LEFT JOIN medicines ON medicines.id = treatments.medicine_id AND medicines.deleted_at IS NULL").
-		Joins("LEFT JOIN staffs ON staffs.id = medical_records.doctor_id AND staffs.deleted_at IS NULL").
+		Joins("LEFT JOIN pets ON pets.id = medical_records.pet_id AND pets.clinic_id = medical_records.clinic_id AND pets.deleted_at IS NULL").
+		Joins("LEFT JOIN medicines ON medicines.id = treatments.medicine_id AND medicines.clinic_id = medical_records.clinic_id AND medicines.deleted_at IS NULL").
+		Joins("LEFT JOIN staffs ON staffs.id = medical_records.doctor_id AND staffs.clinic_id = medical_records.clinic_id AND staffs.deleted_at IS NULL").
 		Select(`treatments.id AS treatment_id,
 			medical_records.date AS record_date,
 			COALESCE(medical_records.pet_id, 0) AS pet_id,

@@ -621,10 +621,10 @@ INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_v
     (2, 3, 'RBC（赤血球数）',      '', '5.5-8.5 x10^6/uL',  2),
     (3, 3, 'HCT（ヘマトクリット）', '', '37-55%',            3),
     (4, 3, 'PLT（血小板数）',      '', '175-500 x10^3/uL',  4),
-    (5, 3, 'ALT（GPT）',           '', '10-125 U/L',         1),
-    (6, 3, 'BUN（尿素窒素）',      '', '7-27 mg/dL',         2),
-    (7, 3, 'CRE（クレアチニン）',  '', '0.5-1.8 mg/dL',      3),
-    (8, 3, 'GLU（血糖値）',        '', '74-143 mg/dL',       4),
+    (5, 3, 'ALT（GPT）',           '', '10-125 U/L',         5),
+    (6, 3, 'BUN（尿素窒素）',      '', '7-27 mg/dL',         6),
+    (7, 3, 'CRE（クレアチニン）',  '', '0.5-1.8 mg/dL',      7),
+    (8, 3, 'GLU（血糖値）',        '', '74-143 mg/dL',       8),
     (9, 1, '尿比重',               '', '1.015-1.045',        1),
     (10, 1, '尿pH',                '', '5.5-7.5',            2),
     (11, 1, '尿タンパク',          '', '陰性',               3),
@@ -634,7 +634,14 @@ INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_v
     (15, 11001, '四肢',            '', '異常なし',           3),
     (16, 11005, '腹部エコー',      '', '異常なし',           1),
     (17, 11005, '心臓エコー',      '', '異常なし',           2)
-ON CONFLICT DO NOTHING;
+-- 再投入時に #124 の訂正値（exam_type_id / sort_order 等）が確実に反映されるよう
+-- DO NOTHING ではなく id 一致で更新する（適用済み DB の部分再 seed でも巻き戻らない）。
+ON CONFLICT (id) DO UPDATE SET
+    exam_type_id = EXCLUDED.exam_type_id,
+    name = EXCLUDED.name,
+    inspection_value = EXCLUDED.inspection_value,
+    normal_value = EXCLUDED.normal_value,
+    sort_order = EXCLUDED.sort_order;
 
 -- -----------------------------------------------------------------------------
 -- 12. vaccines（Google Sheets gid=887363142 から反映）

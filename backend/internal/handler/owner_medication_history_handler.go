@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ownerMedicationHistoryResponse は飼い主の全ペット横断の投薬履歴1行（#158 飼主レポート）。
@@ -21,7 +21,7 @@ type ownerMedicationHistoryResponse struct {
 	DoctorName   string  `json:"doctor_name"`
 }
 
-func toOwnerMedicationHistoryResponse(r *repository.OwnerMedicationHistoryRow) ownerMedicationHistoryResponse {
+func toOwnerMedicationHistoryResponse(r *service.OwnerMedicationHistoryItem) ownerMedicationHistoryResponse {
 	return ownerMedicationHistoryResponse{
 		TreatmentID:  r.TreatmentID,
 		Date:         r.RecordDate.Format("2006-01-02"),

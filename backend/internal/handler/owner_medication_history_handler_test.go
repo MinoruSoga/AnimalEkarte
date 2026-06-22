@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -23,10 +22,10 @@ func TestGetOwnerMedicationHistory(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mrSvc := &mockMedicalRecordService{
-		getOwnerMedicationHistoryFn: func(_ context.Context, clinicID, ownerID uint64, _, _ int) ([]repository.OwnerMedicationHistoryRow, int64, error) {
+		getOwnerMedicationHistoryFn: func(_ context.Context, clinicID, ownerID uint64, _, _ int) ([]service.OwnerMedicationHistoryItem, int64, error) {
 			assert.Equal(t, uint64(1), clinicID)
 			assert.Equal(t, uint64(42), ownerID)
-			return []repository.OwnerMedicationHistoryRow{
+			return []service.OwnerMedicationHistoryItem{
 				{TreatmentID: 11, RecordDate: time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC), PetID: 2, PetName: "タマ", MedicineName: "院内調剤薬", AdminRoute: "皮下", Quantity: 1},
 				{TreatmentID: 9, RecordDate: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC), PetID: 1, PetName: "ポチ", MedicineName: "アモキシシリン", AdminRoute: "経口", Quantity: 2, DoctorName: "山田先生"},
 			}, 2, nil

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 
 import { formatPetAge } from "./pet-age";
 
@@ -36,5 +36,20 @@ describe("formatPetAge", () => {
 
   it("未来日付は null を返す", () => {
     expect(formatPetAge("2030-01-01", new Date(2024, 0, 1))).toBeNull();
+  });
+
+  describe("基準日省略時は JST 壁時計で算出する", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("月境界で UTC とずれない（UTC 深夜 = JST 翌月）", () => {
+      // 2026-06-30T21:00:00Z = 2026-07-01 06:00 JST。
+      // ローカル(UTC)基準だと 6 月扱いで 1 ヶ月手前にずれるが、JST 壁時計なら 7 月で算出する。
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-06-30T21:00:00Z"));
+      // 2025-07-01 生まれ → JST 2026-07-01 でちょうど 1歳0ヶ月。
+      expect(formatPetAge("2025-07-01")).toBe("1歳0ヶ月");
+    });
   });
 });

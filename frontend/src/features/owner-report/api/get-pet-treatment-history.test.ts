@@ -59,4 +59,9 @@ describe("transformHistoryItem", () => {
     expect(transformHistoryItem(row({ date: "2026-06-01T00:00:00+09:00" })).date).toMatch(/^\d{2}\/\d{1,2}\/\d{1,2}$/);
     expect(transformHistoryItem(row({ date: null })).date).toBe("-");
   });
+
+  it("日付は JST 壁日付で算出する（UTC 深夜は翌日になる）", () => {
+    // 2026-06-10T15:30:00Z = JST 2026-06-11 00:30 → "26/6/11"（ローカル UTC 基準だと "26/6/10"）。
+    expect(transformHistoryItem(row({ date: "2026-06-10T15:30:00Z" })).date).toBe("26/6/11");
+  });
 });

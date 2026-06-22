@@ -10,9 +10,9 @@ interface TrimmingHistorySectionProps {
 }
 
 /**
- * #158 ⑦ トリミング履歴。GET /v1/trimmings?pet_id（appointments ベース）由来。
- * 状態 "完了" が施術実施済みを表す。実施日降順で、コース・担当を併記する。
- * 値は API 由来のみで、未設定セルは捏造せず "-" を出す。
+ * #158 ⑦ トリミング履歴 = 施術「実施履歴」。GET /v1/trimmings?pet_id（appointments ベース）由来。
+ * 取得フックが status="完了"（施術実施済み）のみを実施日降順で返す（予約・進行中・キャンセルは除外）。
+ * コース・担当を併記する。値は API 由来のみで、未設定セルは捏造せず "-" を出す。
  */
 export function TrimmingHistorySection({ petId }: TrimmingHistorySectionProps) {
   const { canView } = usePermission(ResourceTrimming);

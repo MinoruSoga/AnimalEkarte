@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { toJSTWallDate } from "@/lib/jst-date";
 
 /** 治療履歴の絞り込み。#158: 投薬=medicine / 手術・処置=procedure / 治療=all。 */
 export type TreatmentHistoryFilter = "medicine" | "procedure" | "all";
@@ -55,11 +56,13 @@ const ANESTHESIA_LABEL: Record<string, string> = {
 
 function formatDate(iso: string | null): string {
   if (!iso) return "-";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "-";
-  const yy = String(d.getFullYear()).slice(2);
-  const m = String(d.getMonth() + 1);
-  const day = String(d.getDate());
+  const instant = new Date(iso);
+  if (isNaN(instant.getTime())) return "-";
+  // 絶対時刻を JST 壁日付に変換してから表示する（ローカル TZ 依存で日付がずれるのを防ぐ）。
+  const jst = toJSTWallDate(instant);
+  const yy = String(jst.getFullYear()).slice(2);
+  const m = String(jst.getMonth() + 1);
+  const day = String(jst.getDate());
   return `${yy}/${m}/${day}`;
 }
 

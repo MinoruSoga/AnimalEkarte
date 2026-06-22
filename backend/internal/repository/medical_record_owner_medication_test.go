@@ -115,6 +115,17 @@ func TestMedicalRecordRepository_FindOwnerMedicationHistory(t *testing.T) {
 	// 他エンティティと同じくセットアップ側で生成する。
 	ownerEmpty := makeOwner(t, db, clinic1, "投薬なし飼主")
 
+	// 名称汚染検証（防御の深さ H-1）: clinic1 のカルテ/投薬から、別院(clinic2)の
+	// pet / medicine / doctor を「誤って」参照させる。LEFT JOIN に clinic_id 一致述語が
+	// あれば、別院の名称は解決されず content フォールバック / 空になる（行レベルの投薬は
+	// medical_records.clinic_id で隔離済みなので、ここで検証するのは表示名の混入防止）。
+	ownerLeak := makeOwner(t, db, clinic1, "名称汚染検証飼主")
+	clinic2Med := makeMedicineMaster(t, db, clinic2, "別院専用薬")
+	clinic2Doc := makeDoctor(t, db, clinic2, "別院ドクター")
+	petC2 := makeSpeciesAndPet(t, db, clinic2, ownerLeak.ID, "別院ペットX")
+	mrLeakNames := makeOwnerMedRecord(t, db, clinic1, ownerLeak.ID, petC2.ID, &clinic2Doc.ID, time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC), false)
+	makeMedTreatment(t, db, mrLeakNames.ID, &clinic2Med.ID, "院内フォールバック薬名", "経口", 3, false)
+
 	t.Run("cross-pet aggregation with clinic isolation", func(t *testing.T) {
 		rows, total, err := repo.FindOwnerMedicationHistory(ctx, clinic1, ownerA.ID, 1, 10)
 		require.NoError(t, err)
@@ -158,5 +169,18 @@ func TestMedicalRecordRepository_FindOwnerMedicationHistory(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), total)
 		assert.Empty(t, rows)
+	})
+
+	t.Run("supplemental name joins are clinic-scoped (no cross-tenant name leak)", func(t *testing.T) {
+		rows, total, err := repo.FindOwnerMedicationHistory(ctx, clinic1, ownerLeak.ID, 1, 10)
+		require.NoError(t, err)
+		// 投薬行自体は medical_records.clinic_id で隔離され 1 件返る。
+		require.Equal(t, int64(1), total)
+		require.Len(t, rows, 1)
+		// 別院 medicine 名は clinic_id 不一致で解決されず content にフォールバックする。
+		assert.Equal(t, "院内フォールバック薬名", rows[0].MedicineName)
+		// 別院 pet 名・doctor 名は clinic_id 不一致で解決されず空になる（他院名称の混入防止）。
+		assert.Empty(t, rows[0].PetName)
+		assert.Empty(t, rows[0].DoctorName)
 	})
 }

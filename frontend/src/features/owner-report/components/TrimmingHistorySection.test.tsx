@@ -18,9 +18,11 @@ function ok<T>(data: T) {
   return { data, isLoading: false, isError: false };
 }
 
+// 実施履歴セクションは取得フックが「完了」のみを返す（フィルタは api 層 selectCompletedTrimmingHistory）。
+// コンポーネントは渡された行を描画するだけなので、テストデータも完了のみで構成する。
 const trimmings = [
   { id: "t1", date: "2026-02-01", status: "完了", courseName: "シャンプー＆カット", staff: "鈴木" },
-  { id: "t2", date: "2026-03-10", status: "予約", courseName: "シャンプー", staff: "" },
+  { id: "t2", date: "2026-03-10", status: "完了", courseName: "シャンプー", staff: "" },
 ];
 
 beforeEach(() => {
@@ -52,11 +54,11 @@ describe("TrimmingHistorySection", () => {
   it("担当が未設定の行は捏造せず '-' を表示する", () => {
     render(<TrimmingHistorySection petId="7" />);
 
-    const reservedRow = screen.getByText("シャンプー", { selector: "td" }).closest("tr");
-    expect(reservedRow).not.toBeNull();
-    expect(within(reservedRow as HTMLElement).getByText("予約")).toBeInTheDocument();
+    const noStaffRow = screen.getByText("シャンプー", { selector: "td" }).closest("tr");
+    expect(noStaffRow).not.toBeNull();
+    expect(within(noStaffRow as HTMLElement).getByText("完了")).toBeInTheDocument();
     // staff = "" → "-"
-    expect(within(reservedRow as HTMLElement).getByText("-")).toBeInTheDocument();
+    expect(within(noStaffRow as HTMLElement).getByText("-")).toBeInTheDocument();
   });
 
   it("履歴ゼロのとき空状態を表示する", () => {

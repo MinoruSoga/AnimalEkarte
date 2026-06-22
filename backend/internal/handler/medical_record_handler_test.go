@@ -17,7 +17,6 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -33,7 +32,7 @@ type mockMedicalRecordService struct {
 	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
 	updateRecommendationReasonFn func(ctx context.Context, clinicID, id uint64, input service.UpdateRecommendationReasonInput) (*model.MedicalRecord, error)
 	autoCreateFromReservationFn  func(ctx context.Context, clinicID uint64, reservation *model.Reservation)
-	getOwnerMedicationHistoryFn  func(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]repository.OwnerMedicationHistoryRow, int64, error)
+	getOwnerMedicationHistoryFn  func(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]service.OwnerMedicationHistoryItem, int64, error)
 }
 
 func (m *mockMedicalRecordService) List(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -110,7 +109,7 @@ func (m *mockMedicalRecordService) UpdateRecommendationReason(ctx context.Contex
 	return &model.MedicalRecord{}, nil
 }
 
-func (m *mockMedicalRecordService) GetOwnerMedicationHistory(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]repository.OwnerMedicationHistoryRow, int64, error) {
+func (m *mockMedicalRecordService) GetOwnerMedicationHistory(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]service.OwnerMedicationHistoryItem, int64, error) {
 	if m.getOwnerMedicationHistoryFn != nil {
 		return m.getOwnerMedicationHistoryFn(ctx, clinicID, ownerID, page, limit)
 	}
