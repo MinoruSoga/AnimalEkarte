@@ -47,6 +47,7 @@ export type PaymentMethod = string;
 export const PaymentMethodCash: PaymentMethod = "cash";
 export const PaymentMethodCreditCard: PaymentMethod = "credit_card";
 export const PaymentMethodElectronicMoney: PaymentMethod = "electronic_money";
+export const PaymentMethodBankTransfer: PaymentMethod = "bank_transfer"; // #127: 銀行振込
 export type ItemCategory = string;
 export const ItemCategoryExamination: ItemCategory = "examination";
 export const ItemCategoryTest: ItemCategory = "test";
@@ -431,7 +432,7 @@ export interface CashRegisterClose {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   close_date: string;
-  period: string; // "am" or "pm"
+  period: string; // "am", "pm", or "emg"
   theoretical_cash: number /* int64 */;
   actual_cash: number /* int64 */;
   cash_difference: number /* int64 */;
@@ -1968,6 +1969,11 @@ export interface Owner {
   delivery_caution_reason?: string;
   is_transferred: boolean;
   transfer_at?: string;
+  /**
+   * DMPreference は DM（ダイレクトメール）送付希望（#158 レガシー EMR 準拠）。
+   * NULL=未設定 / true=必要 / false=不要。既存行を誤表示しないよう nullable にする。
+   */
+  dm_preference?: boolean;
   created_at: string;
   updated_at: string;
   /**
@@ -2157,6 +2163,8 @@ export interface Pet {
   birth_date?: string;
   breed: string;
   color: string;
+  blood_type?: string;
+  microchip_number?: string;
   weight?: number /* float64 */;
   neutered_date?: string;
   acquisition_type?: AcquisitionType;

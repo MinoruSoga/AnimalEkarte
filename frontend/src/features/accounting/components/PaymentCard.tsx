@@ -22,9 +22,10 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "現金",
   credit_card: "カード",
   electronic_money: "電子マネー",
+  bank_transfer: "銀行振込",
 };
 
-const PAYMENT_METHODS: PaymentMethod[] = ["cash", "credit_card", "electronic_money"];
+const PAYMENT_METHODS: PaymentMethod[] = ["cash", "credit_card", "electronic_money", "bank_transfer"];
 
 interface PaymentCardProps {
   billingAmount: number;

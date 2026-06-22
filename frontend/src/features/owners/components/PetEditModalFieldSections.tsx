@@ -267,6 +267,28 @@ export function PetPhysicalSection({
       </div>
 
       <div className="space-y-1">
+        <Label htmlFor="bloodType" className={LABEL_CLS}>血液型</Label>
+        <Input
+          id="bloodType"
+          value={formData.bloodType || ""}
+          maxLength={32}
+          onChange={(e) => setFormData((prev) => ({ ...prev, bloodType: e.target.value }))}
+          className={INPUT_CLS}
+        />
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="microchipNumber" className={LABEL_CLS}>マイクロチップ番号</Label>
+        <Input
+          id="microchipNumber"
+          value={formData.microchipNumber || ""}
+          maxLength={64}
+          onChange={(e) => setFormData((prev) => ({ ...prev, microchipNumber: e.target.value }))}
+          className={INPUT_CLS}
+        />
+      </div>
+
+      <div className="space-y-1">
         <Label htmlFor="weight" className={LABEL_CLS}>体重(kg)</Label>
         <NumberInput
           id="weight"

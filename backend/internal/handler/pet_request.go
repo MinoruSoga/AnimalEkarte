@@ -45,6 +45,8 @@ type createPetRequest struct {
 	BirthDate       *jsonDate `json:"birth_date"`
 	Breed           string    `json:"breed"`
 	Color           string    `json:"color"`
+	BloodType       string    `json:"blood_type"       binding:"omitempty,max=32"`
+	MicrochipNumber string    `json:"microchip_number" binding:"omitempty,max=64"`
 	Weight          *float64  `json:"weight"`
 	NeuteredDate    *jsonDate `json:"neutered_date"`
 	AcquisitionType string    `json:"acquisition_type"`
@@ -67,6 +69,8 @@ func (r *createPetRequest) toServiceInput() *service.CreatePetInput {
 		BirthDate:       jsonDatePtr(r.BirthDate),
 		Breed:           r.Breed,
 		Color:           r.Color,
+		BloodType:       r.BloodType,
+		MicrochipNumber: r.MicrochipNumber,
 		Weight:          r.Weight,
 		NeuteredDate:    jsonDatePtr(r.NeuteredDate),
 		AcquisitionType: r.AcquisitionType,
@@ -92,6 +96,8 @@ type updatePetRequest struct {
 	BirthDate       *jsonDate `json:"birth_date"`
 	Breed           *string   `json:"breed"`
 	Color           *string   `json:"color"`
+	BloodType       *string   `json:"blood_type"       binding:"omitempty,max=32"`
+	MicrochipNumber *string   `json:"microchip_number" binding:"omitempty,max=64"`
 	Weight          *float64  `json:"weight"`
 	NeuteredDate    *jsonDate `json:"neutered_date"`
 	AcquisitionType *string   `json:"acquisition_type"`
@@ -116,6 +122,8 @@ func (r *updatePetRequest) toServiceInput() *service.UpdatePetInput {
 		BirthDate:       jsonDatePtr(r.BirthDate),
 		Breed:           r.Breed,
 		Color:           r.Color,
+		BloodType:       r.BloodType,
+		MicrochipNumber: r.MicrochipNumber,
 		Weight:          r.Weight,
 		NeuteredDate:    jsonDatePtr(r.NeuteredDate),
 		AcquisitionType: r.AcquisitionType,

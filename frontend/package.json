@@ -82,6 +82,10 @@
     "vitest": "^4.1.8"
   },
   "pnpm": {
+    "overrides": {
+      "@opentelemetry/core": "2.8.0",
+      "undici": "^7.28.0"
+    },
     "onlyBuiltDependencies": [
       "@swc/core",
       "esbuild",

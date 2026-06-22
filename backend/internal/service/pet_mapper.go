@@ -34,5 +34,14 @@ func buildPetModel(clinicID uint64, petNumber string, input *CreatePetInput) *mo
 	if input.DangerLevel != "" {
 		pet.DangerLevel = model.DangerLevel(input.DangerLevel)
 	}
+	// 血液型 / マイクロチップ番号は nullable: 未入力（空文字）は NULL のまま残す（記録済みと誤表示しない）。
+	if input.BloodType != "" {
+		bt := input.BloodType
+		pet.BloodType = &bt
+	}
+	if input.MicrochipNumber != "" {
+		mc := input.MicrochipNumber
+		pet.MicrochipNumber = &mc
+	}
 	return pet
 }

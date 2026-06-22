@@ -35,6 +35,55 @@ func (h *Handler) ListTreatments(c *gin.Context) {
 	c.JSON(http.StatusOK, items)
 }
 
+// ListPetTreatmentHistory godoc
+// GET /pets/:id/treatment-history?item_type=medicine|procedure|all (#158 飼主レポート)
+// ペット単位で治療履歴を medical_records.date 降順で返す。clinic_id 隔離は service/repository が medical_records JOIN で担保する。
+func (h *Handler) ListPetTreatmentHistory(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	petID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	itemType, ok := parseTreatmentItemTypeFilter(c)
+	if !ok {
+		return
+	}
+
+	treatments, total, err := h.svc.Treatment.ListPetHistory(c.Request.Context(), clinicID, petID, itemType, page, limit)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(treatments, toPetTreatmentHistoryResponse), total, page, limit))
+}
+
+// parseTreatmentItemTypeFilter は item_type クエリを optional な絞り込みにパースする。
+// "" / "all" は nil（全 item_type）。不正値は 400 を書いて false を返す。
+func parseTreatmentItemTypeFilter(c *gin.Context) (*model.TreatmentItemType, bool) {
+	raw := c.Query("item_type")
+	if raw == "" || raw == "all" {
+		return nil, true
+	}
+	t := model.TreatmentItemType(raw)
+	switch t {
+	case model.TreatmentItemTypeConsultation,
+		model.TreatmentItemTypeProcedure,
+		model.TreatmentItemTypeMedicine,
+		model.TreatmentItemTypeOther:
+		return &t, true
+	}
+	RespondError(c, apperrors.WrapInvalidInput("item_type は medicine / procedure / consultation / other / all のいずれかを指定してください"))
+	return nil, false
+}
+
 // CreateTreatment godoc
 // POST /medical-records/:id/treatments
 func (h *Handler) CreateTreatment(c *gin.Context) {

@@ -82,6 +82,9 @@ func (m *mockPetService) Update(_ context.Context, _, _ uint64, _ *service.Updat
 	return nil, nil
 }
 func (m *mockPetService) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *mockPetService) GetFirstVisitDate(_ context.Context, _, _ uint64) (*time.Time, error) {
+	return nil, nil
+}
 
 func newHandlerWithVaccinationSvc(svc service.VaccinationService) *Handler {
 	return &Handler{svc: &service.Services{

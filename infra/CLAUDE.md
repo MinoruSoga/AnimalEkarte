@@ -56,7 +56,7 @@ VPC: 10.0.0.0/16 (us-east-1)
 
 | リソース | 許可ルール |
 |---------|-----------|
-| ALB | 80/tcp, 443/tcp from 0.0.0.0/0 |
+| ALB | 80/tcp, 443/tcp。許可元は `alb_internal` に連動: `false`（internet-facing）は `0.0.0.0/0`、`true`（P2: internal ALB + CloudFront VPC Origin）は VPC CIDR に絞る + **VPC Origin apply 後に自動生成される `CloudFront-VPCOrigins-Service-SG` を source 参照する port 80 ingress を【必須】追加**（CloudFront → internal ALB 疎通には service-managed SG 参照が必須。VPC CIDR だけでは 504 で全断＝2026-06-18 live 検証。public CloudFront managed prefix list は SG ルール重み超過で不採用）。詳細は `docs/infra/P2_TERRAFORM_PLAN_RUNBOOK.md` §6.1 |
 | ECS | 8080/tcp from ALB SG のみ |
 | RDS | 5432/tcp from ECS SG + 開発者 IP |
 
@@ -155,8 +155,16 @@ export AWS_PROFILE=AnimalEkarte
 cd infra/terraform
 terraform init
 terraform plan -out=tfplan
+# 明示承認後のみ実行
 terraform apply tfplan
 ```
+
+### Terraform 安全ルール（必読）
+
+1. **AWS_PROFILE 明示**: `terraform` / `aws` CLI を実行する前に必ず `export AWS_PROFILE=AnimalEkarte`（または `--profile AnimalEkarte`）を明示する。プロファイル未指定は `InvalidClientTokenId` 等の認証エラーや別アカウント誤操作の原因になる。
+2. **`-target` plan はデバッグ用途のみ**: `terraform plan -target=...` は依存切り分けのデバッグでのみ使う。**承認判断の根拠には使わない**。承認は必ず対象を絞らない full plan（`terraform plan -out=tfplan`）の結果で行う。`-target` は state の一部だけを評価するため、replace・依存破壊を見落とす。
+3. **`terraform apply` は明示承認後のみ**: `terraform apply` は承認者が plan を確認し明示承認した後にのみ実行する。Claude Code は apply を自動実行しない。plan までを準備し、apply は承認後に別途実施する。
+4. **full plan の前提**: full plan は正しい `terraform.tfvars`（`db_password` 等の必須値）が揃っている場合のみ実行する。プレースホルダー値や `TF_VAR_*=PLACEHOLDER` での plan を承認材料にしない。`terraform.tfvars` に秘密値・ローカル環境値を追加しない。
 
 ---
 
@@ -194,9 +202,9 @@ make build-prod   # animal-ekarte-api:latest + animal-ekarte-front:latest
 
 | パラメータ | パス | タイプ |
 |-----------|------|--------|
-| DB User | `/animalekarte/test/db/user` | String |
-| DB Password | `/animalekarte/test/db/password` | SecureString |
-| DB Name | `/animalekarte/test/db/name` | String |
+| DB User | `/animalekarte/stg/db/user` | String |
+| DB Password | `/animalekarte/stg/db/password` | SecureString |
+| DB Name | `/animalekarte/stg/db/name` | String |
 
 ---
 

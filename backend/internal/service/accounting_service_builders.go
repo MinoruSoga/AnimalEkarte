@@ -8,6 +8,41 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// paymentMethodMasterNames は payment_method ENUM と payment_methods マスタの name を対応づける（#128）。
+// マスタには ENUM と機械的に対応づく安定列（code/system_key）が無いため、新規クリニック作成トリガー
+// （migrations/001_init.sql の create_default_payment_methods）が投入する既定 name 文字列で突合する暫定実装である。
+// クリニックが既定 name を改名・削除した場合は解決に失敗し、明示エラーになる（NULL=現金 への暗黙フォールバックをしない）。
+var paymentMethodMasterNames = map[model.PaymentMethod]string{
+	model.PaymentMethodCash:            "現金",
+	model.PaymentMethodCreditCard:      "クレジットカード",
+	model.PaymentMethodElectronicMoney: "電子マネー",
+	model.PaymentMethodBankTransfer:    "銀行振込",
+}
+
+// resolvePaymentMethodMasterID は method(ENUM) を当該 clinic の payment_methods マスタ id に解決する（#128）。
+// 真実の源泉は検証済みの method(ENUM)。nameToID は当該 clinic の payment_methods マスタ name→id マップ。
+// existing（リクエストが明示供給した payment_method_id。ハンドラで無検証バインドされる）が非 nil の場合は、
+// 当該 clinic の当該 method に解決される id と一致することを検証し、不一致なら拒否する
+// （他クリニックの master id や method と矛盾する id の混入を防ぐ＝マルチテナント隔離）。
+// 対応するマスタ行が無い場合は明示エラーを返す（payment_method_id=NULL のまま保存して集計で現金に倒す挙動を防ぐ）。
+func resolvePaymentMethodMasterID(method model.PaymentMethod, existing *uint64, nameToID map[string]uint64) (*uint64, error) {
+	name, ok := paymentMethodMasterNames[method]
+	if !ok {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("未知の支払方法のためマスタ解決ができません: %s", method))
+	}
+	id, ok := nameToID[name]
+	if !ok {
+		// クリニックに既定支払方法マスタが存在しない設定不整合。誤って現金扱いせず、会計確定を止める。
+		return nil, apperrors.WrapInternalServerError(fmt.Sprintf("支払方法マスタ「%s」が見つかりません", name))
+	}
+	// 明示供給された id は当該 clinic の当該 method マスタと一致する場合のみ許可する。
+	if existing != nil && *existing != id {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("指定された支払方法 id (%d) は当該クリニックの支払方法「%s」と一致しません", *existing, name))
+	}
+	resolved := id
+	return &resolved, nil
+}
+
 // hasPaymentFields は UpdateAccountingInput に Payment 関連フィールドが含まれているか判定する。
 func hasPaymentFields(input *UpdateAccountingInput) bool {
 	return len(input.PaymentSplits) > 0 ||

@@ -8,10 +8,32 @@ End-to-end tests for Animal Ekarte using Playwright.
 
 | File | Tests |
 |------|-------|
-| `master-crud.spec.ts` | Settings page master CRUD (A-D) |
 | `owners-search.spec.ts` | /owners kana search — unauthenticated redirect + ぴ/ピ→ピーター (かな非区別) |
+| `owners-flow.spec.ts` | /owners list/create/search/detail/edit 主要操作フロー |
 | `accounting-smoke.spec.ts` | /accounting タブ smoke + いりす/イリス→Iris かな非区別検索 + /accounting?tab=unpaid + /accounting/reports |
-| `reservations-smoke.spec.ts` | /reservations auth guard + カレンダーナビ smoke (cancelled filtering は unit test 担保) |
+| `accounting-flow.spec.ts` | /accounting 行クリック→詳細遷移・Iris 検索→詳細・/accounting/reports セレクタ・会計精算フォーム確定ボタン表示 |
+| `reservations-smoke.spec.ts` | /reservations auth guard + カレンダーナビ smoke |
+| `reservation-patient-search.spec.ts` | 新規予約作成モーダル PatientSelectionTable: ひらがな→カタカナ名一致 (たろう→タロウ, いりす→Iris(イリス)), カタカナ→カタカナ名一致 (かな統一検索 #161) |
+| `clinical-smoke.spec.ts` | 受付/顧客集計/カルテ管理/入院管理/トリミング/検査/予防接種/定期健診 各ページ smoke |
+| `clinical-flows.spec.ts` | カルテ管理 一覧/検索/行クリック詳細・ペット選択画面 |
+| `medical-records-create.spec.ts` | /medical-records/new?petId=1 直接 URL アクセスで新規カルテ入力フォーム表示確認 |
+| `trimming-flow.spec.ts` | /trimming 一覧表示・新規登録ペット選択・/trimming/new?petId=1 フォーム表示 |
+| `hospitalization-flow.spec.ts` | /hospitalization 一覧リストビュー・新規登録遷移・ステータスタブ切り替え |
+| `vaccinations-flow.spec.ts` | /vaccinations 一覧表示・検索フィルタ・新規登録遷移・行クリック詳細遷移 |
+| `business-smoke.spec.ts` | 業務系ページ（ダッシュボード/CPM/在庫/日次集計等）smoke |
+| `operations-smoke.spec.ts` | 受付/トリミング/会計 等 主要ページ一覧/操作 smoke |
+| `inventory-crud.spec.ts` | /inventory 在庫 CRUD フロー |
+| `settings-smoke.spec.ts` | /settings/* 全設定ページ smoke (21 ページ) |
+| `settings-crud.spec.ts` | /settings/* 設定マスタ CRUD フロー |
+| `master-crud.spec.ts` | 処置マスタ CRUD (A-D) 4 ケース |
+| `auth-flows.spec.ts` | /login 表示・入力・ログイン成功/失敗・パスワード表示切替 + /forgot-password・/reset-password アクセス/リダイレクト確認 |
+| `examinations-flow.spec.ts` | /examinations 一覧・/examinations/select-pet ペット選択・/examinations/new フォーム・/:id 詳細・検索機能 |
+| `checkups-flow.spec.ts` | /checkups 一覧・/checkups/select-pet ペット選択・/checkups/new フォーム・新規ボタン遷移・検索機能 |
+| `estimates-flow.spec.ts` | /estimates 一覧・/estimates/new 新規フォーム・/:id 詳細・/:id/edit 編集フォーム・新規ボタン・検索 |
+| `shifts-flow.spec.ts` | /shifts カレンダー表示・ナビゲーション矢印・スタッフセレクタ・カレンダー移動・フィルタ機能 |
+| `lstep-flow.spec.ts` | /lstep/checkup-sync 抽出ページ + /lstep/delivery-monitor 監視ページ・フィルタ + /lstep/analytics 分析ページ・セレクタ |
+| `line-reservation-flow.spec.ts` | /line-reservation 基本設定フォーム + /line-reservation/page-editor 編集フォーム + /line-reservation/slots 枠設定ページ/説明表示 |
+| `manual-flow.spec.ts` | /manual リダイレクト・サイドバー・カテゴリ切替・検索 + /manual/:category/:slug 記事ページ・リンク遷移 |
 
 ## Execution Model
 
@@ -51,8 +73,12 @@ docker compose up -d   # if not already running
 |------|--------------|--------|
 | `owners-search.spec.ts` | pet name `ピーター` (name_kana=`ぴーたー`), owner 5 (佐藤 花子), clinic 1 | `003_seed_demo.sql` |
 | `accounting-smoke.spec.ts` | owner 1 (林 文明, はやし ふみあき) with completed billing for pet 1 (`Iris(イリス)`, name_kana=`いりす`) | `003_seed_demo.sql` |
+| `accounting-flow.spec.ts` | same as `accounting-smoke.spec.ts` | `003_seed_demo.sql` |
 | `reservations-smoke.spec.ts` | admin user at clinic 1 with reservations permission | `003_seed_demo.sql` |
+| `reservation-patient-search.spec.ts` | pet id=4 `タロウ` (name_kana=`たろう`) owner 3, pet id=1 `Iris(イリス)` (name_kana=`いりす`) owner 1, clinic 1; /v1/pets page 1 (limit=20) | `003_seed_demo.sql` |
 | `master-crud.spec.ts` | treatment procedure items incl. `注射` (root with children) | `003_seed_demo.sql` |
+| `hospitalization-flow.spec.ts` | 1+ active hospitalization records at clinic 1 | `003_seed_demo.sql` |
+| `vaccinations-flow.spec.ts` | 1+ vaccination records; owner `林 文明` with pet `林 文明` | `003_seed_demo.sql` |
 
 If seed data is missing, run:
 
@@ -104,7 +130,9 @@ pnpm test:e2e:ui
 
 All specs (except those that test unauthenticated redirect) log in automatically via
 `helpers/auth.ts:loginAsDemoAdmin`. The helper navigates to `/login`, fills the demo credentials,
-and waits for the URL to leave `/login`.
+waits for the login API to succeed, then stores the authenticated storage state in `/tmp`.
+Later specs restore that state instead of repeating UI login, avoiding the backend login
+rate limit during full-suite runs.
 
 - Email: `admin@noavet.jp` / Password: `password`
 
@@ -127,11 +155,12 @@ a date-dependent setup that is intentionally excluded to avoid flakiness.
 
 ### Kana non-distinction search
 
-Tested on two surfaces:
+Tested on three surfaces:
 - `/owners` — pet name `ピーター` matched by `ぴ` (hiragana) and `ピ` (katakana)
 - `/accounting` — pet name `Iris(イリス)` matched by `いりす` (hiragana) and `イリス` (katakana)
+- 新規予約作成モーダル `PatientSelectionTable` — pet name `タロウ` matched by `たろう` (hiragana) and `タロウ` (katakana); `Iris(イリス)` matched by `いりす` (Issue #161)
 
-Both use the shared `normalizeKana` utility (`src/lib/normalize-kana.ts`) which converts katakana
+All use the shared `normalizeKana` utility (`src/lib/normalize-kana.ts`) which converts katakana
 to hiragana before comparison. The unit tests for `normalizeKana` live in
 `src/lib/normalize-kana.test.ts`.
 

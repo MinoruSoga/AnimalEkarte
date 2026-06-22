@@ -34,6 +34,10 @@ export interface PetFormData {
   birthDate: string;
   breed?: string;
   color: string;
+  /** #158 レガシー EMR 準拠: ペット血液型 */
+  bloodType?: string;
+  /** #158 レガシー EMR 準拠: マイクロチップ番号 */
+  microchipNumber?: string;
   weight: string;
   neuteredDate?: string;
   acquisitionType?: AcquisitionType;
@@ -68,6 +72,8 @@ export interface OwnerData {
   remarks: string;
   discountRate?: number;
   homePostalCode?: string;
+  /** #158 レガシー EMR 準拠: DM 送付希望。undefined=未変更 / null=未設定 / true=必要 / false=不要 */
+  dmPreference?: boolean | null;
   /** #84: 登録先医院（新規登録時のみ指定可。未指定は現在の医院） */
   clinicId?: string;
 }

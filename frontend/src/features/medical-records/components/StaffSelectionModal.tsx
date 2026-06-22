@@ -3,6 +3,7 @@ import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, C
 import { Check } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
 import { useGetStaffs } from "@/hooks/use-staffs";
+import { normalizedIncludes } from "@/lib/normalize-kana";
 
 interface StaffSelectionModalProps {
   open: boolean;
@@ -34,6 +35,11 @@ export const StaffSelectionModal = memo(function StaffSelectionModal({
     return { groups, occupationOrder };
   }, [staffs]);
 
+  const commandFilter = useCallback(
+    (value: string, search: string) => normalizedIncludes(value, search) ? 1 : 0,
+    [],
+  );
+
   const handleSelect = useCallback(
     (staffId: string, staffName: string) => {
       onSelect(staffId, staffName);
@@ -46,6 +52,7 @@ export const StaffSelectionModal = memo(function StaffSelectionModal({
     <CommandDialog
       open={open}
       onOpenChange={onOpenChange}
+      filter={commandFilter}
       title="担当医を選択"
       description="担当するスタッフを検索・選択してください"
     >

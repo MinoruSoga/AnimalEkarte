@@ -1,3 +1,16 @@
+// レジ締めの区分（#150: emg=緊急 を追加）
+export type CashRegisterPeriod = "am" | "pm" | "emg";
+
+// 区分セレクタの表示順
+export const PERIOD_OPTIONS: readonly CashRegisterPeriod[] = ["am", "pm", "emg"] as const;
+
+// 区分の日本語ラベル
+export const PERIOD_LABELS: Record<CashRegisterPeriod, string> = {
+  am: "午前",
+  pm: "午後",
+  emg: "緊急",
+};
+
 export const CATEGORY_LABELS: Record<string, string> = {
   examination: "診療",
   test: "診療",

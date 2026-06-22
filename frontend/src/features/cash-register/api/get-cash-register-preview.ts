@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { PaymentMethodMaster } from "@/types/generated/models";
+import type { CashRegisterPeriod } from "../constants";
 
 // ── Backend (raw) types ──────────────────────────────────────────────────────
 
@@ -106,7 +107,7 @@ export type ClosePreviewResult = ReturnType<typeof transformClosePreviewResult>;
 
 export const getCashRegisterPreview = async (
   date: string,
-  period: "am" | "pm",
+  period: CashRegisterPeriod,
 ): Promise<ClosePreviewResult> => {
   const { data } = await axios.get<BackendClosePreviewResult>("/v1/cash-register/preview", {
     params: { date, period },
@@ -114,7 +115,11 @@ export const getCashRegisterPreview = async (
   return transformClosePreviewResult(data);
 };
 
-export const useGetCashRegisterPreview = (date: string, period: "am" | "pm", enabled: boolean) =>
+export const useGetCashRegisterPreview = (
+  date: string,
+  period: CashRegisterPeriod,
+  enabled: boolean,
+) =>
   useQuery({
     queryKey: ["cash-register-preview", date, period],
     queryFn: () => getCashRegisterPreview(date, period),

@@ -47,3 +47,8 @@ output "task_role_arn" {
   description = "Task role ARN"
   value       = aws_iam_role.task.arn
 }
+
+output "vpc_origin_id" {
+  description = "P2: CloudFront VPC Origin ID — CloudFront distribution のオリジン手動切り替え時に使用。alb_internal=false の場合は null"
+  value       = one(aws_cloudfront_vpc_origin.alb[*].id)
+}

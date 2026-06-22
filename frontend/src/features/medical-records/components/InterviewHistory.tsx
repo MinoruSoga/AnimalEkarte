@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { normalizedIncludes } from "@/lib/normalize-kana";
 import type { InterviewHistoryItem } from "../types";
 
 interface InterviewHistoryProps {
@@ -33,9 +34,9 @@ export const InterviewHistory = memo(function InterviewHistory({
   // js-cache-function-results: API 由来の filter 結果は useMemo でキャッシュ
   const filteredItems = useMemo(() =>
     historyItems.filter(item =>
-      item.title.includes(deferredSearch) ||
-      item.content.includes(deferredSearch) ||
-      item.type.includes(deferredSearch)
+      normalizedIncludes(item.title, deferredSearch) ||
+      normalizedIncludes(item.content, deferredSearch) ||
+      normalizedIncludes(item.type, deferredSearch)
     ),
     [historyItems, deferredSearch]
   );

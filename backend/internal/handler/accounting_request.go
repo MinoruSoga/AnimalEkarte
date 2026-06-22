@@ -186,11 +186,11 @@ func (r *createAccountingRequest) toServiceInput(clinicID uint64) *service.Creat
 
 // paymentSplitRequest は混在会計の支払い内訳1行リクエスト。
 type paymentSplitRequest struct {
-	Method          string  `json:"method"           binding:"required,oneof=cash credit_card electronic_money"`
+	Method          string  `json:"method"           binding:"required,oneof=cash credit_card electronic_money bank_transfer"`
 	PaymentMethodID *uint64 `json:"payment_method_id"`
 	Amount          int64   `json:"amount"           binding:"required,min=1"`
 	ReceivedAmount  int64   `json:"received_amount"`
-	ChangeAmount    int64   `json:"change_amount"    binding:"min=0"` // #119: required (non-negative)
+	ChangeAmount    int64   `json:"change_amount"    binding:"min=0"` // #119: 非負のみ強制（必須ではない。お釣り整合性は service の validatePaymentSplits が検証）
 }
 
 func (r paymentSplitRequest) toServiceInput() service.PaymentSplitInput {
@@ -231,7 +231,7 @@ type updateAccountingRequest struct {
 	CompletedAt       *time.Time `json:"completed_at"`
 	Memo              *string    `json:"memo"`
 	// Payment フィールド（会計完了時に同時送信される）
-	PaymentMethod   *string  `json:"payment_method"  binding:"omitempty,oneof=cash credit_card electronic_money"`
+	PaymentMethod   *string  `json:"payment_method"  binding:"omitempty,oneof=cash credit_card electronic_money bank_transfer"`
 	InsuranceRatio  *float64 `json:"insurance_ratio"`
 	InsuranceName   *string  `json:"insurance_name"`
 	InsuranceAmount *int64   `json:"insurance_amount"`
@@ -375,5 +375,5 @@ type createRefundRequest struct {
 	Reason string `json:"reason"`
 	// PaymentMethod は返金先の支払手段（任意・ENUM・#60）。会計 payment_splits.method と同体系。
 	// 混在支払いの方法別返金上限(Phase 2)に使う。
-	PaymentMethod *string `json:"payment_method" binding:"omitempty,oneof=cash credit_card electronic_money"`
+	PaymentMethod *string `json:"payment_method" binding:"omitempty,oneof=cash credit_card electronic_money bank_transfer"`
 }

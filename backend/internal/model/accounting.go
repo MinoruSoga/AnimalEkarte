@@ -30,6 +30,7 @@ const (
 	PaymentMethodCash            PaymentMethod = "cash"
 	PaymentMethodCreditCard      PaymentMethod = "credit_card"
 	PaymentMethodElectronicMoney PaymentMethod = "electronic_money"
+	PaymentMethodBankTransfer    PaymentMethod = "bank_transfer" // #127: 銀行振込
 )
 
 type ItemCategory string

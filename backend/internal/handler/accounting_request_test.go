@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin/binding"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -363,6 +365,78 @@ func TestMonthlyUnpaidQuery_Parse(t *testing.T) {
 			}
 		})
 	}
+}
+
+// #127: payment_method の oneof バインド検証。
+// oneof 制約は gin の binding 層（ShouldBindJSON 時）で評価されるため、
+// gin と同じ tag 名 "binding" を使う binding.Validator.ValidateStruct で直接検証する。
+// toServiceInput は変換のみで制約を評価しないため、ここでないと oneof を回帰できない。
+func TestPaymentSplitRequest_Binding_MethodOneof(t *testing.T) {
+	tests := []struct {
+		name    string
+		method  string
+		wantErr bool
+	}{
+		{name: "cash", method: string(model.PaymentMethodCash), wantErr: false},
+		{name: "credit_card", method: string(model.PaymentMethodCreditCard), wantErr: false},
+		{name: "electronic_money", method: string(model.PaymentMethodElectronicMoney), wantErr: false},
+		{name: "bank_transfer (#127)", method: string(model.PaymentMethodBankTransfer), wantErr: false},
+		{name: "unknown method rejected", method: "paypay", wantErr: true},
+		{name: "empty method rejected (required)", method: "", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Amount は required,min=1 のため Method 単独を検証できるよう常に有効値を入れる。
+			req := paymentSplitRequest{Method: tt.method, Amount: 1}
+			err := binding.Validator.ValidateStruct(&req)
+			if tt.wantErr && err == nil {
+				t.Fatalf("ValidateStruct(method=%q) = nil, want validation error", tt.method)
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("ValidateStruct(method=%q) = %v, want nil", tt.method, err)
+			}
+		})
+	}
+}
+
+// #127: 会計更新リクエスト（完了時の代表 payment_method）と返金リクエストの
+// payment_method oneof が bank_transfer を許可し、既存値・不正値の扱いを維持することを検証する。
+func TestPaymentMethodPointer_Binding_Oneof(t *testing.T) {
+	bankTransfer := string(model.PaymentMethodBankTransfer)
+	cash := string(model.PaymentMethodCash)
+	invalid := "paypay"
+
+	t.Run("updateAccountingRequest accepts bank_transfer", func(t *testing.T) {
+		req := updateAccountingRequest{PaymentMethod: &bankTransfer}
+		if err := binding.Validator.ValidateStruct(&req); err != nil {
+			t.Fatalf("ValidateStruct = %v, want nil for bank_transfer", err)
+		}
+	})
+	t.Run("updateAccountingRequest accepts nil (omitempty)", func(t *testing.T) {
+		req := updateAccountingRequest{}
+		if err := binding.Validator.ValidateStruct(&req); err != nil {
+			t.Fatalf("ValidateStruct = %v, want nil for nil payment_method", err)
+		}
+	})
+	t.Run("updateAccountingRequest rejects unknown method", func(t *testing.T) {
+		req := updateAccountingRequest{PaymentMethod: &invalid}
+		if err := binding.Validator.ValidateStruct(&req); err == nil {
+			t.Fatal("ValidateStruct = nil, want validation error for unknown payment_method")
+		}
+	})
+	t.Run("createRefundRequest accepts bank_transfer", func(t *testing.T) {
+		req := createRefundRequest{Amount: 1, PaymentMethod: &bankTransfer}
+		if err := binding.Validator.ValidateStruct(&req); err != nil {
+			t.Fatalf("ValidateStruct = %v, want nil for bank_transfer refund", err)
+		}
+	})
+	t.Run("createRefundRequest keeps existing cash valid", func(t *testing.T) {
+		req := createRefundRequest{Amount: 1, PaymentMethod: &cash}
+		if err := binding.Validator.ValidateStruct(&req); err != nil {
+			t.Fatalf("ValidateStruct = %v, want nil for cash refund", err)
+		}
+	})
 }
 
 func TestPaymentSplitRequest_ToServiceInput(t *testing.T) {

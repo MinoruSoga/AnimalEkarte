@@ -51,6 +51,8 @@ type Pet struct {
 	BirthDate       *time.Time       `gorm:"type:date"                                      json:"birth_date,omitempty"`
 	Breed           string           `gorm:"default:''"                                     json:"breed"`
 	Color           string           `gorm:"default:''"                                     json:"color"`
+	BloodType       *string          `gorm:"column:blood_type"                              json:"blood_type,omitempty"`
+	MicrochipNumber *string          `gorm:"column:microchip_number"                        json:"microchip_number,omitempty"`
 	Weight          *float64         `gorm:"type:numeric(6,2)"                              json:"weight,omitempty"`
 	NeuteredDate    *time.Time       `gorm:"type:date"                                      json:"neutered_date,omitempty"`
 	AcquisitionType *AcquisitionType `gorm:"type:acquisition_type"                          json:"acquisition_type,omitempty"`

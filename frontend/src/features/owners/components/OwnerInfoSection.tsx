@@ -53,7 +53,7 @@ interface OwnerInfoSectionProps {
   clinicOptions?: ClinicMembership[];
   /** #84: 未選択時に表示する現在の医院ID */
   currentClinicId?: string | null;
-  onChange: (field: string, value: string | boolean | number) => void;
+  onChange: (field: string, value: string | boolean | number | null | undefined) => void;
   onClearError: (field: string) => void;
   onMembershipChange: (type: MembershipType) => void;
   onPostalCodeLookup: (postalCodeField: string, addressField: string) => void;
@@ -154,6 +154,34 @@ export const OwnerInfoSection = memo(function OwnerInfoSection({
       <div className="space-y-1.5">
         <Label className={`text-sm ${C.text60}`}>会員区分</Label>
         <MembershipTypeButtons value={ownerData.membershipType} onChange={onMembershipChange} />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="dmPreference" className={`text-sm ${C.text60}`}>DM</Label>
+        <Select
+          value={
+            ownerData.dmPreference == null
+              ? "unset"
+              : ownerData.dmPreference
+                ? "required"
+                : "unneeded"
+          }
+          onValueChange={(value) => {
+            onChange(
+              "dmPreference",
+              value === "unset" ? null : value === "required",
+            );
+          }}
+        >
+          <SelectTrigger id="dmPreference" className={STYLE.formInput}>
+            <SelectValue placeholder="未設定" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unset">未設定</SelectItem>
+            <SelectItem value="required">必要</SelectItem>
+            <SelectItem value="unneeded">不要</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1.5">

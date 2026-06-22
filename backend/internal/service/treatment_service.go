@@ -122,6 +122,8 @@ func buildTreatmentUpdate(input *UpdateTreatmentInput) map[string]any {
 // TreatmentService は治療項目のビジネスロジックインターフェース
 type TreatmentService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
+	// ListPetHistory は #158 飼主レポート用: ペット単位の治療履歴を medical_records.date 降順で返す。
+	ListPetHistory(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error)
@@ -158,6 +160,20 @@ func (s *treatmentService) List(ctx context.Context, clinicID, medicalRecordID u
 		return nil, apperrors.Wrap(err, "failed to list treatments")
 	}
 	return treatments, nil
+}
+
+func (s *treatmentService) ListPetHistory(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error) {
+	if itemType != nil {
+		if err := validateTreatmentItemType(*itemType); err != nil {
+			return nil, 0, apperrors.Wrap(err, "failed to validate treatment item type")
+		}
+	}
+	treatments, total, err := s.repos.Treatment.FindHistoryByPetID(ctx, clinicID, petID, itemType, page, limit)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list pet treatment history", "error", err)
+		return nil, 0, apperrors.Wrap(err, "failed to list pet treatment history")
+	}
+	return treatments, total, nil
 }
 
 func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error) {

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import type { BrowserContext, Page } from '@playwright/test';
+import type { BrowserContext } from '@playwright/test';
 import { loginAsDemoAdmin } from './helpers/auth';
 
 // The filterCalendarAppointments function (cancelled → hidden, no_show → visible) is
@@ -10,15 +10,18 @@ import { loginAsDemoAdmin } from './helpers/auth';
 // for a stable date is impractical. This file covers:
 //   1. auth guard (unauthenticated → /login)
 //   2. page smoke (calendar navigation renders)
+//
+// Design: fresh page per test within shared context to avoid Chromium
+// state accumulation across many navigations.
 
 test.describe('予約管理 smoke E2E', () => {
   let context: BrowserContext;
-  let page: Page;
 
   test.beforeAll(async ({ browser }) => {
     context = await browser.newContext();
-    page = await context.newPage();
-    await loginAsDemoAdmin(page);
+    const loginPage = await context.newPage();
+    await loginAsDemoAdmin(loginPage);
+    await loginPage.close();
   });
 
   test.afterAll(async () => {
@@ -36,9 +39,14 @@ test.describe('予約管理 smoke E2E', () => {
   });
 
   test('予約管理 (/reservations) が表示される — カレンダーナビゲーション確認', async () => {
-    await page.goto('/reservations', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(/\/reservations/, { timeout: 10000 });
-    // ReservationManagementCalendar always renders a "今日" button in the header
-    await expect(page.getByRole('button', { name: '今日' })).toBeVisible({ timeout: 10000 });
+    const page = await context.newPage();
+    try {
+      await page.goto('/reservations', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL(/\/reservations/, { timeout: 10000 });
+      // ReservationManagementCalendar always renders a "今日" button in the header
+      await expect(page.getByRole('button', { name: '今日' })).toBeVisible({ timeout: 10000 });
+    } finally {
+      await page.close();
+    }
   });
 });

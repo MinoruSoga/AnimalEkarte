@@ -115,14 +115,37 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 
 	// Payment upsert（支払フィールドが含まれている場合）— トランザクション内で SavePayment + SavePaymentSplits を実行
 	if hasPaymentFields(input) {
+		// #128: 書込み前に method(ENUM)→payment_methods マスタ id を解決する。
+		// レジ締め・月次集計は payment_method_id をキーにし NULL を現金とみなすため、
+		// 非現金 split が NULL のまま保存されると全て現金に倒れる。解決失敗時はここで会計確定を止める。
+		nameToID, err := s.loadPaymentMethodNameToID(ctx, input.ClinicID)
+		if err != nil {
+			return nil, err // loadPaymentMethodNameToID 内で既に wrap + log 済み
+		}
+		payment := buildPaymentFromInput(input)
+		// 代表支払方法も master id を併設（dual maintain）。method 未設定の更新（保険のみ等）は解決対象外。
+		if payment.Method != "" {
+			pid, err := resolvePaymentMethodMasterID(payment.Method, payment.PaymentMethodID, nameToID)
+			if err != nil {
+				return nil, err
+			}
+			payment.PaymentMethodID = pid
+		}
+		splits := buildPaymentSplits(input)
+		for i := range splits {
+			pid, err := resolvePaymentMethodMasterID(splits[i].Method, splits[i].PaymentMethodID, nameToID)
+			if err != nil {
+				return nil, err
+			}
+			splits[i].PaymentMethodID = pid
+		}
+
 		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-			payment := buildPaymentFromInput(input)
 			if err := s.repo.SavePayment(txCtx, payment); err != nil {
 				slog.ErrorContext(txCtx, "failed to upsert payment", "error", err)
 				return apperrors.Wrap(err, "failed to upsert payment")
 			}
 			// payment_splits の更新（混在会計・backward compat 両対応）
-			splits := buildPaymentSplits(input)
 			if err := s.repo.SavePaymentSplits(txCtx, splits); err != nil {
 				slog.ErrorContext(txCtx, "failed to save payment splits", "error", err)
 				return apperrors.Wrap(err, "failed to save payment splits")
@@ -178,6 +201,20 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		s.syncCPMStageTag(ctx, input.ClinicID, accounting)
 	}
 	return accounting, nil
+}
+
+// loadPaymentMethodNameToID は当該 clinic の payment_methods マスタを name→id マップとして読み込む（#128）。
+func (s *accountingService) loadPaymentMethodNameToID(ctx context.Context, clinicID uint64) (map[string]uint64, error) {
+	methods, err := s.payMethodRepo.FindAll(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load payment methods", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to load payment methods")
+	}
+	nameToID := make(map[string]uint64, len(methods))
+	for i := range methods {
+		nameToID[methods[i].Name] = methods[i].ID
+	}
+	return nameToID, nil
 }
 
 func (s *accountingService) completeAccountingAppointments(ctx context.Context, clinicID uint64, billing *model.Billing) error {

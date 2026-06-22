@@ -42,6 +42,8 @@ export function transformTrimming(data: BackendTrimming) {
     // Form fields
     staffId: data.staff_id != null ? String(data.staff_id) : "",
     courseId: data.course?.id != null ? String(data.course.id) : "",
+    // 表示用コース名（一覧 API は TrimmingDetail.Course を preload するため埋まる。未設定は空文字）。
+    courseName: data.course?.name ?? "",
     optionIds: data.options?.map((o) => String(o.id)) ?? [],
     bw: data.bw != null ? String(data.bw) : "",
     bwUnit: (data.bw_unit as "Kg" | "g") || "Kg",

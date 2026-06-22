@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
 
 import { todayJSTISO } from "@/lib/jst-date";
+import type { CashRegisterPeriod } from "../constants";
 
 export function useCashRegisterCloseForm() {
   const today = todayJSTISO();
   const [date, setDate] = useState<string>(today);
-  const [period, setPeriod] = useState<"am" | "pm">("am");
+  const [period, setPeriod] = useState<CashRegisterPeriod>("am");
   const [previewEnabled, setPreviewEnabled] = useState(false);
 
   const handleDateChange = useCallback((value: string) => {
@@ -13,7 +14,7 @@ export function useCashRegisterCloseForm() {
     setPreviewEnabled(false);
   }, []);
 
-  const handlePeriodChange = useCallback((value: "am" | "pm") => {
+  const handlePeriodChange = useCallback((value: CashRegisterPeriod) => {
     setPeriod(value);
     setPreviewEnabled(false);
   }, []);

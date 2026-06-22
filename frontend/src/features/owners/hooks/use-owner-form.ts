@@ -58,6 +58,7 @@ function mapOwnerToFormData(owner: Owner): OwnerData {
     companyPhone: owner.companyPhone,
     remarks: owner.remarks,
     discountRate: owner.discountRate,
+    dmPreference: owner.dmPreference,
   };
 }
 
@@ -74,6 +75,8 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
     gender: backendPet.gender || "",
     birthDate: backendPet.birthDate || "",
     color: backendPet.color || "",
+    bloodType: backendPet.bloodType || "",
+    microchipNumber: backendPet.microchipNumber || "",
     weight: backendPet.weight || "",
     food: backendPet.food || "",
     environment: backendPet.environment || "",
@@ -161,6 +164,7 @@ export function useOwnerForm(
           is_dangerous: ownerData.isDangerous,
           discount_rate: ownerData.discountRate,
           membership_type: MEMBERSHIP_TYPE_TO_API[ownerData.membershipType] ?? ownerData.membershipType,
+          dm_preference: ownerData.dmPreference,
         };
 
         if (isEdit && id) {
@@ -191,6 +195,8 @@ export function useOwnerForm(
                     petNameKana: pet.petNameKana,
                     breed: pet.breed,
                     color: pet.color,
+                    bloodType: pet.bloodType,
+                    microchipNumber: pet.microchipNumber,
                     gender: pet.gender,
                     birthDate: pet.birthDate,
                     weight: pet.weight,
@@ -280,6 +286,8 @@ export function useOwnerForm(
         birthDate: petData.birthDate,
         breed: petData.breed,
         color: petData.color,
+        bloodType: petData.bloodType,
+        microchipNumber: petData.microchipNumber,
         weight: petData.weight,
         food: petData.food,
         environment: petData.environment,
@@ -326,6 +334,8 @@ export function useOwnerForm(
         petNameKana: petData.petNameKana,
         breed: petData.breed,
         color: petData.color,
+        bloodType: petData.bloodType,
+        microchipNumber: petData.microchipNumber,
         gender: petData.gender,
         birthDate: petData.birthDate,
         weight: petData.weight,
@@ -352,6 +362,8 @@ export function useOwnerForm(
             gender: newPetData.gender || "",
             birthDate: newPetData.birthDate || "",
             color: newPetData.color || "",
+            bloodType: newPetData.bloodType || "",
+            microchipNumber: newPetData.microchipNumber || "",
             weight: newPetData.weight || "",
             food: newPetData.food || "",
             environment: newPetData.environment || "",
@@ -403,4 +415,3 @@ export function useOwnerForm(
     clearFieldError,
   };
 }
-

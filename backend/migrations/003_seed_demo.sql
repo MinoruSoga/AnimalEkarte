@@ -610,25 +610,38 @@ ON CONFLICT (id) DO UPDATE
 SELECT setval(pg_get_serial_sequence('exam_types', 'id'), (SELECT MAX(id) FROM exam_types));
 
 -- exam_type_fields: 既存の検査結果 seed が参照する検査項目定義
+-- clinic 1 の検査項目を名称の意味に沿った exam_type へ割当（#124）。
+--   血球計算/生化学(WBC〜GLU) → 血液検査（院内）=3
+--   X線(胸部正面〜四肢)        → 画像検査（Xray）=11001
+--   超音波(腹部/心臓エコー)    → 画像検査（Echo）=11005
+--   尿検査項目(尿比重〜尿潜血) → 尿検査=1（変更なし）
+-- clinic 2/3 は当初から正しく紐付け済み。
 INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
-    (1, 1, 'WBC（白血球数）',      '', '6.0-17.0 x10^3/uL', 1),
-    (2, 1, 'RBC（赤血球数）',      '', '5.5-8.5 x10^6/uL',  2),
-    (3, 1, 'HCT（ヘマトクリット）', '', '37-55%',            3),
-    (4, 1, 'PLT（血小板数）',      '', '175-500 x10^3/uL',  4),
-    (5, 2, 'ALT（GPT）',           '', '10-125 U/L',         1),
-    (6, 2, 'BUN（尿素窒素）',      '', '7-27 mg/dL',         2),
-    (7, 2, 'CRE（クレアチニン）',  '', '0.5-1.8 mg/dL',      3),
-    (8, 2, 'GLU（血糖値）',        '', '74-143 mg/dL',       4),
+    (1, 3, 'WBC（白血球数）',      '', '6.0-17.0 x10^3/uL', 1),
+    (2, 3, 'RBC（赤血球数）',      '', '5.5-8.5 x10^6/uL',  2),
+    (3, 3, 'HCT（ヘマトクリット）', '', '37-55%',            3),
+    (4, 3, 'PLT（血小板数）',      '', '175-500 x10^3/uL',  4),
+    (5, 3, 'ALT（GPT）',           '', '10-125 U/L',         5),
+    (6, 3, 'BUN（尿素窒素）',      '', '7-27 mg/dL',         6),
+    (7, 3, 'CRE（クレアチニン）',  '', '0.5-1.8 mg/dL',      7),
+    (8, 3, 'GLU（血糖値）',        '', '74-143 mg/dL',       8),
     (9, 1, '尿比重',               '', '1.015-1.045',        1),
     (10, 1, '尿pH',                '', '5.5-7.5',            2),
     (11, 1, '尿タンパク',          '', '陰性',               3),
     (12, 1, '尿潜血',              '', '陰性',               4),
-    (13, 2, '胸部正面',            '', '異常なし',           1),
-    (14, 2, '腹部正面',            '', '異常なし',           2),
-    (15, 2, '四肢',                '', '異常なし',           3),
-    (16, 3, '腹部エコー',          '', '異常なし',           1),
-    (17, 3, '心臓エコー',          '', '異常なし',           2)
-ON CONFLICT DO NOTHING;
+    (13, 11001, '胸部正面',        '', '異常なし',           1),
+    (14, 11001, '腹部正面',        '', '異常なし',           2),
+    (15, 11001, '四肢',            '', '異常なし',           3),
+    (16, 11005, '腹部エコー',      '', '異常なし',           1),
+    (17, 11005, '心臓エコー',      '', '異常なし',           2)
+-- 再投入時に #124 の訂正値（exam_type_id / sort_order 等）が確実に反映されるよう
+-- DO NOTHING ではなく id 一致で更新する（適用済み DB の部分再 seed でも巻き戻らない）。
+ON CONFLICT (id) DO UPDATE SET
+    exam_type_id = EXCLUDED.exam_type_id,
+    name = EXCLUDED.name,
+    inspection_value = EXCLUDED.inspection_value,
+    normal_value = EXCLUDED.normal_value,
+    sort_order = EXCLUDED.sort_order;
 
 -- -----------------------------------------------------------------------------
 -- 12. vaccines（Google Sheets gid=887363142 から反映）
@@ -1694,6 +1707,9 @@ ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
 
 -- payments
+-- method と payment_method_id の整合性: cash 行は payment_method_id=NULL に統一する（#128）。
+-- 旧 seed では id=7（アニコム損保）のみ method='cash' でありながら payment_method_id が
+-- '銀行振込' マスタを指しており不整合だった。他の cash 行（id=18 等）と同様 NULL に揃える。
 INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insurance_name, insurance_ratio, insurance_amount, discount_amount, billing_amount, received_amount, change_amount, method, payment_method_id, paid_by) VALUES
     -- AM
     (3,  4,  4500,  450,  4950,  '',              0.00, 0,     0, 4950,  5000, 50,  'cash',         NULL, 1),
@@ -1706,7 +1722,7 @@ INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insuran
     (13, 14, 5000,  500,  5500,  'アイペット',    0.50, 2750,  0, 2750,  3000, 250, 'cash',         NULL, 1),
     (14, 15, 8500,  850,  9350,  '',              0.00, 0,     0, 9350,  9350, 0,   'credit_card', (SELECT id FROM payment_methods WHERE clinic_id=1 AND name='クレジットカード' AND deleted_at IS NULL LIMIT 1), 1),
     -- PM
-    (7,  8,  25000, 2500, 27500, 'アニコム損保',  0.70, 19250, 0, 8250,  8250, 0,   'cash',         (SELECT id FROM payment_methods WHERE clinic_id=1 AND name='銀行振込' AND deleted_at IS NULL LIMIT 1), 1),
+    (7,  8,  25000, 2500, 27500, 'アニコム損保',  0.70, 19250, 0, 8250,  8250, 0,   'cash',         NULL, 1),
     (8,  9,  5000,  500,  5500,  '',              0.00, 0,     0, 5500,  5500, 0,   'electronic_money', (SELECT id FROM payment_methods WHERE clinic_id=1 AND name='電子マネー' AND deleted_at IS NULL LIMIT 1), 1),
     (9,  10, 1400,  140,  1540,  '',              0.00, 0,     0, 1540,  2000, 460, 'cash',         NULL, 1),
     (15, 16, 4200,  420,  4620,  '',              0.00, 0,     0, 4620,  5000, 380, 'cash',         NULL, 1),
@@ -2276,13 +2292,15 @@ SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 
 -- -----------------------------------------------------------------------------
 -- ワクチン接種記録（八王子病院: 5件）
+-- id=2-5 は猫(pet_id=3/13/18, animal_species_id=2)の3種混合ワクチン接種記録。
+-- vaccine_id は「ワクチン猫」(id=2) を参照する。フィラリア予防注射(id=5)ではない（#125）。
 -- -----------------------------------------------------------------------------
 INSERT INTO vaccinations (id, clinic_id, medical_record_id, pet_id, vaccine_id, doctor_id, date, lot1, next_schedule_type, next_date, remarks) VALUES
     (1, 1, 1,  1,  1,  1, '2025-12-20', 'LOT-2025-A001', '1year',  '2026-12-20', '5種混合ワクチン接種。体調良好。'),
-    (2, 1, 5,  3,  5,  1, '2025-11-25', 'LOT-2025-C001', '1year',  '2026-11-25', '3種混合ワクチン接種。'),
-    (3, 1, 6,  3,  5,  2, '2026-03-18', 'LOT-2026-C001', '1year',  '2027-03-18', '3種混合ワクチン追加接種。'),
-    (4, 1, 15, 13, 5,  1, '2026-03-18', 'LOT-2026-C003', '4weeks', '2026-04-15', '初回3種混合（猫）。4週後に2回目接種予定。'),
-    (5, 1, 20, 18, 5,  1, '2026-03-18', 'LOT-2026-C002', '1year',  '2027-03-18', '3種混合ワクチン接種。体調良好。')
+    (2, 1, 5,  3,  2,  1, '2025-11-25', 'LOT-2025-C001', '1year',  '2026-11-25', '3種混合ワクチン接種。'),
+    (3, 1, 6,  3,  2,  2, '2026-03-18', 'LOT-2026-C001', '1year',  '2027-03-18', '3種混合ワクチン追加接種。'),
+    (4, 1, 15, 13, 2,  1, '2026-03-18', 'LOT-2026-C003', '4weeks', '2026-04-15', '初回3種混合（猫）。4週後に2回目接種予定。'),
+    (5, 1, 20, 18, 2,  1, '2026-03-18', 'LOT-2026-C002', '1year',  '2027-03-18', '3種混合ワクチン接種。体調良好。')
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -2313,16 +2331,19 @@ SELECT setval(pg_get_serial_sequence('inventory_items', 'id'), (SELECT MAX(id) F
 
 -- -----------------------------------------------------------------------------
 -- 14. audit_logs（監査ログ: 8件）
+-- 八王子病院 (clinic_id=1) のスタッフ (id=10 梶原 / id=11 髙木) が clinic_1 のリソース
+-- (owners.1 / medical_records.1 / treatments.2 / inventory_items.1 / permission_groups.1) を
+-- 操作したログ。clinic_id は操作者・対象リソースと同じ 1 に揃える（#126: cross-tenant 監査汚染修正）。
 -- -----------------------------------------------------------------------------
 INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource, resource_id, old_value, new_value, ip_address, user_agent) VALUES
-    (3, 10, 'staff', 'permission_rules.update', 'permission_groups', 1, '{"can_delete": false}', '{"can_delete": true}', '192.168.1.1', 'Mozilla/5.0...'),
-    (3, 10, 'staff', 'auth.login.success', 'user_accounts', 10, NULL, NULL, '192.168.1.1', 'Mozilla/5.0...'),
-    (3, 11, 'staff', 'owner.update', 'owners', 1, '{"phone": "old"}', '{"phone": "090-1234-5678"}', '192.168.1.2', 'Mozilla/5.0...'),
-    (3, 10, 'staff', 'pet.create', 'pets', 28, NULL, '{"name": "マル"}', '192.168.1.1', 'Mozilla/5.0...'),
-    (3, 10, 'staff', 'medical_record.finalize', 'medical_records', 1, '{"status": "draft"}', '{"status": "finalized"}', '192.168.1.1', 'Mozilla/5.0...'),
-    (3, 11, 'staff', 'auth.login.failure', 'user_accounts', NULL, '{"email": "exec@example.com"}', NULL, '192.168.1.5', 'PostmanRuntime/7.26.8'),
-    (3, 10, 'staff', 'inventory.decrease', 'inventory_items', 1, '{"quantity": 50}', '{"quantity": 43}', '192.168.1.10', 'Mozilla/5.0...'),
-    (3, 10, 'staff', 'treatment.create', 'treatments', 2, NULL, '{"content": "アモキシシリン"}', '192.168.1.10', 'Mozilla/5.0...')
+    (1, 10, 'staff', 'permission_rules.update', 'permission_groups', 1, '{"can_delete": false}', '{"can_delete": true}', '192.168.1.1', 'Mozilla/5.0...'),
+    (1, 10, 'staff', 'auth.login.success', 'user_accounts', 10, NULL, NULL, '192.168.1.1', 'Mozilla/5.0...'),
+    (1, 11, 'staff', 'owner.update', 'owners', 1, '{"phone": "old"}', '{"phone": "090-1234-5678"}', '192.168.1.2', 'Mozilla/5.0...'),
+    (1, 10, 'staff', 'pet.create', 'pets', 28, NULL, '{"name": "マル"}', '192.168.1.1', 'Mozilla/5.0...'),
+    (1, 10, 'staff', 'medical_record.finalize', 'medical_records', 1, '{"status": "draft"}', '{"status": "finalized"}', '192.168.1.1', 'Mozilla/5.0...'),
+    (1, 11, 'staff', 'auth.login.failure', 'user_accounts', NULL, '{"email": "exec@example.com"}', NULL, '192.168.1.5', 'PostmanRuntime/7.26.8'),
+    (1, 10, 'staff', 'inventory.decrease', 'inventory_items', 1, '{"quantity": 50}', '{"quantity": 43}', '192.168.1.10', 'Mozilla/5.0...'),
+    (1, 10, 'staff', 'treatment.create', 'treatments', 2, NULL, '{"content": "アモキシシリン"}', '192.168.1.10', 'Mozilla/5.0...')
 ON CONFLICT DO NOTHING;
 
 -- =============================================================================

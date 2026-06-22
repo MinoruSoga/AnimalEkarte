@@ -19,6 +19,7 @@ type mockAccountingRepository struct {
 	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	createFn            func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	updateFieldsFn      func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	savePaymentFn       func(ctx context.Context, payment *model.Payment) error
 	savePaymentSplitsFn func(ctx context.Context, splits []model.PaymentSplit) error
 	completeApptsFn     func(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 	getDailySummaryFn   func(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error)
@@ -63,7 +64,10 @@ func (m *mockAccountingRepository) Update(ctx context.Context, clinicID, billing
 	return m.updateFieldsFn(ctx, clinicID, billingID, fields)
 }
 
-func (m *mockAccountingRepository) SavePayment(_ context.Context, _ *model.Payment) error {
+func (m *mockAccountingRepository) SavePayment(ctx context.Context, payment *model.Payment) error {
+	if m.savePaymentFn != nil {
+		return m.savePaymentFn(ctx, payment)
+	}
 	return nil
 }
 
@@ -209,7 +213,7 @@ func TestAccountingService_GetMonthlyUnpaidCarryover(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mock := &mockAccountingRepository{findMonthlyUnpaidCarryoverFn: tt.mockFn}
-			svc := NewAccountingService(mock, nil, nil, nil)
+			svc := NewAccountingService(mock, nil, nil, nil, &mockPaymentMethodMasterRepository{})
 
 			items, total, summary, err := svc.GetMonthlyUnpaidCarryover(context.Background(), 1, tt.year, tt.month, 1, 20)
 			if tt.wantErr {
@@ -349,7 +353,7 @@ func TestAccountingService_List(t *testing.T) {
 					return tt.repoBillings, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 			billings, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -411,7 +415,7 @@ func TestAccountingService_GetByID(t *testing.T) {
 					return tt.repoBilling, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 			billing, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -472,7 +476,7 @@ func TestAccountingService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 			billing, err := svc.Create(context.Background(), &tt.input)
 
@@ -504,7 +508,7 @@ func TestAccountingService_Create_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewAccountingService(repo, tagSync, &mockTransactor{}, &mockAccountingAuditService{})
+	svc := NewAccountingService(repo, tagSync, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -541,7 +545,7 @@ func TestAccountingService_Create_CompletesSameDayAccountingAppointments(t *test
 			return 2, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -577,7 +581,7 @@ func TestAccountingService_Create_PassesMedicalRecordIDToCompleteAppointments(t 
 			return 1, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	_, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:        1,
@@ -609,7 +613,7 @@ func TestAccountingService_Create_NilMedicalRecordIDForTrimmingOnly(t *testing.T
 			return 1, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	_, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -695,7 +699,7 @@ func TestAccountingService_Update(t *testing.T) {
 					return tt.repoRet, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 			billing, err := svc.Update(context.Background(), &tt.input)
 
@@ -733,7 +737,7 @@ func TestAccountingService_Update_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewAccountingService(repo, tagSync, &mockTransactor{}, &mockAccountingAuditService{})
+	svc := NewAccountingService(repo, tagSync, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       30,
@@ -786,7 +790,7 @@ func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *test
 			return 2, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       30,
@@ -925,7 +929,7 @@ func TestAccountingService_Cancel(t *testing.T) {
 				},
 			}
 			auditSvc := &mockAccountingAuditService{}
-			svc := NewAccountingService(repo, nil, &mockTransactor{}, auditSvc)
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, auditSvc, &mockPaymentMethodMasterRepository{})
 
 			err := svc.Cancel(context.Background(), tt.clinicID, tt.id, tt.actorID)
 
@@ -1040,6 +1044,24 @@ func TestValidatePaymentSplits(t *testing.T) {
 			billingAmount: nil,
 			wantErr:       false,
 		},
+		{
+			// #127: 銀行振込は現金以外の手段として扱われ、預り金/お釣りの制約を受けず保存可能。
+			name: "銀行振込1種のみ (#127): 有効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodBankTransfer, Amount: 5000},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       false,
+		},
+		{
+			name: "銀行振込 + 現金 混在 (#127): 有効",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 2000, ReceivedAmount: 2000, ChangeAmount: 0},
+				{Method: model.PaymentMethodBankTransfer, Amount: 3000},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1077,6 +1099,18 @@ func TestRepresentativeMethod(t *testing.T) {
 		{
 			name:   "electronic_money のみ: electronic_money を返す",
 			splits: []PaymentSplitInput{{Method: model.PaymentMethodElectronicMoney}},
+			want:   model.PaymentMethodElectronicMoney,
+		},
+		{
+			// #127 既知の制約 / #128 スコープ:
+			// representativeMethod の優先順位は cash > credit_card > (else) electronic_money で
+			// PO判断B (2026-05-25) として確定済み。bank_transfer は明示分岐を持たず else に落ちるため、
+			// 銀行振込のみの会計は代表手段が electronic_money になる（一覧の代表表示はこの値を使う）。
+			// payment_splits.method は bank_transfer を正しく保持する（=一次情報は保全）。
+			// 代表手段の優先順位への bank_transfer 組み込みは #128 の設計判断であり本 Issue 対象外。
+			// この振る舞いをここに pin し、#128 で意図的に更新されることを保証する。
+			name:   "bank_transfer のみ (#128 既知制約): 代表手段は electronic_money に落ちる",
+			splits: []PaymentSplitInput{{Method: model.PaymentMethodBankTransfer}},
 			want:   model.PaymentMethodElectronicMoney,
 		},
 	}
@@ -1146,6 +1180,7 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 	}
 
 	var capturedSplits []model.PaymentSplit
+	var capturedPayment *model.Payment
 	callCount := 0
 	repo := &mockAccountingRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
@@ -1162,8 +1197,12 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 			capturedSplits = splits
 			return nil
 		},
+		savePaymentFn: func(_ context.Context, payment *model.Payment) error {
+			capturedPayment = payment
+			return nil
+		},
 	}
-	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, seededPayMethodMock())
 
 	input := &UpdateAccountingInput{
 		ID:            1,
@@ -1189,8 +1228,160 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 	assert.Equal(t, model.PaymentMethodCreditCard, capturedSplits[1].Method)
 	assert.Equal(t, model.PaymentMethodElectronicMoney, capturedSplits[2].Method)
 
+	// #128: 各 split に当該 clinic の master id が解決されて保存されること（NULL のまま現金に倒れない）
+	if assert.NotNil(t, capturedSplits[0].PaymentMethodID) {
+		assert.Equal(t, uint64(101), *capturedSplits[0].PaymentMethodID, "現金 → 現金 master id")
+	}
+	if assert.NotNil(t, capturedSplits[1].PaymentMethodID) {
+		assert.Equal(t, uint64(102), *capturedSplits[1].PaymentMethodID, "credit_card → クレジットカード master id")
+	}
+	if assert.NotNil(t, capturedSplits[2].PaymentMethodID) {
+		assert.Equal(t, uint64(103), *capturedSplits[2].PaymentMethodID, "electronic_money → 電子マネー master id")
+	}
+
+	// 代表支払方法（payments 行）も master id を併設すること（dual maintain）
+	if assert.NotNil(t, capturedPayment) && assert.NotNil(t, capturedPayment.PaymentMethodID) {
+		assert.Equal(t, uint64(101), *capturedPayment.PaymentMethodID, "代表手段 cash → 現金 master id")
+	}
+
 	// リロード後の billing に PaymentSplits が含まれることを確認
 	assert.Len(t, result.PaymentSplits, 3)
+}
+
+// seededPayMethodMock は標準4支払方法を返す payment_methods マスタモック（#128 解決テスト用）。
+// id は固定: 現金=101 / クレジットカード=102 / 電子マネー=103 / 銀行振込=104。
+func seededPayMethodMock() *mockPaymentMethodMasterRepository {
+	return &mockPaymentMethodMasterRepository{
+		findAllFn: func(_ context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error) {
+			return []model.PaymentMethodMaster{
+				{ID: 101, ClinicID: clinicID, Name: "現金", DisplayOrder: 1, IsActive: true},
+				{ID: 102, ClinicID: clinicID, Name: "クレジットカード", DisplayOrder: 2, IsActive: true},
+				{ID: 103, ClinicID: clinicID, Name: "電子マネー", DisplayOrder: 3, IsActive: true},
+				{ID: 104, ClinicID: clinicID, Name: "銀行振込", DisplayOrder: 4, IsActive: true},
+			}, nil
+		},
+	}
+}
+
+// TestAccountingService_Update_ResolvesPaymentMethodID は #128 hotfix の中核を検証する:
+// 会計完了の書込み経路で、各 method(ENUM) が当該 clinic の payment_methods master id に解決され、
+// payment_splits.payment_method_id が NULL のまま保存されない（集計で現金に倒れない）こと。
+func TestAccountingService_Update_ResolvesPaymentMethodID(t *testing.T) {
+	billingAmount := int64(5000)
+
+	newRepo := func(captured *[]model.PaymentSplit) *mockAccountingRepository {
+		return &mockAccountingRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+				return &model.Billing{ID: 1, ClinicID: 1}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+				return &model.Billing{ID: 1, ClinicID: 1}, nil
+			},
+			savePaymentSplitsFn: func(_ context.Context, splits []model.PaymentSplit) error {
+				*captured = splits
+				return nil
+			},
+		}
+	}
+
+	t.Run("全 method が当該 clinic の master id に解決される（cash/credit_card/electronic_money/bank_transfer）", func(t *testing.T) {
+		cases := []struct {
+			method model.PaymentMethod
+			wantID uint64
+		}{
+			{model.PaymentMethodCash, 101},
+			{model.PaymentMethodCreditCard, 102},
+			{model.PaymentMethodElectronicMoney, 103},
+			{model.PaymentMethodBankTransfer, 104},
+		}
+		for _, c := range cases {
+			t.Run(string(c.method), func(t *testing.T) {
+				var captured []model.PaymentSplit
+				svc := NewAccountingService(newRepo(&captured), nil, &mockTransactor{}, &mockAccountingAuditService{}, seededPayMethodMock())
+
+				received, change := int64(0), int64(0)
+				if c.method == model.PaymentMethodCash {
+					received = 5000
+				}
+				_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+					ID:            1,
+					ClinicID:      1,
+					BillingAmount: &billingAmount,
+					PaymentSplits: []PaymentSplitInput{
+						{Method: c.method, Amount: 5000, ReceivedAmount: received, ChangeAmount: change},
+					},
+				})
+
+				assert.NoError(t, err)
+				assert.Len(t, captured, 1)
+				if assert.NotNil(t, captured[0].PaymentMethodID, "payment_method_id は NULL にならない") {
+					assert.Equal(t, c.wantID, *captured[0].PaymentMethodID)
+				}
+			})
+		}
+	})
+
+	t.Run("明示供給 id が当該 clinic の当該 method マスタと一致する場合は許可する", func(t *testing.T) {
+		var captured []model.PaymentSplit
+		svc := NewAccountingService(newRepo(&captured), nil, &mockTransactor{}, &mockAccountingAuditService{}, seededPayMethodMock())
+
+		matching := uint64(102) // credit_card = クレジットカード = 102
+		_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+			ID:            1,
+			ClinicID:      1,
+			BillingAmount: &billingAmount,
+			PaymentSplits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCreditCard, PaymentMethodID: &matching, Amount: 5000},
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.Len(t, captured, 1)
+		if assert.NotNil(t, captured[0].PaymentMethodID) {
+			assert.Equal(t, uint64(102), *captured[0].PaymentMethodID)
+		}
+	})
+
+	t.Run("明示供給 id が method/clinic と矛盾する場合は拒否する（他クリニック id 混入防止）", func(t *testing.T) {
+		var captured []model.PaymentSplit
+		svc := NewAccountingService(newRepo(&captured), nil, &mockTransactor{}, &mockAccountingAuditService{}, seededPayMethodMock())
+
+		foreign := uint64(999) // 当該 clinic の credit_card master(102) と不一致
+		_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+			ID:            1,
+			ClinicID:      1,
+			BillingAmount: &billingAmount,
+			PaymentSplits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCreditCard, PaymentMethodID: &foreign, Amount: 5000},
+			},
+		})
+
+		assert.Error(t, err, "method と矛盾する id は拒否")
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Nil(t, captured, "拒否時は保存しない")
+	})
+
+	t.Run("master が欠落している場合は明示エラーになり、現金に倒さず保存しない", func(t *testing.T) {
+		var captured []model.PaymentSplit
+		emptyMaster := &mockPaymentMethodMasterRepository{
+			findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return []model.PaymentMethodMaster{}, nil // 現金マスタが存在しない設定不整合
+			},
+		}
+		svc := NewAccountingService(newRepo(&captured), nil, &mockTransactor{}, &mockAccountingAuditService{}, emptyMaster)
+
+		_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+			ID:            1,
+			ClinicID:      1,
+			BillingAmount: &billingAmount,
+			PaymentSplits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCreditCard, Amount: 5000},
+			},
+		})
+
+		assert.Error(t, err, "master 欠落時は明示エラー")
+		assert.Nil(t, captured, "解決失敗時は SavePaymentSplits を呼ばない（NULL/現金で保存しない）")
+	})
 }
 
 // TestAccountingService_GetDailySummary は日次集計取得ロジックを検証する。
@@ -1272,7 +1463,7 @@ func TestAccountingService_GetDailySummary(t *testing.T) {
 			repo := &mockAccountingRepository{
 				getDailySummaryFn: tt.getDailySummaryFn,
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 			got, err := svc.GetDailySummary(context.Background(), 1, tt.dateStr)
 
@@ -1336,7 +1527,7 @@ func TestAccountingService_ListUnpaidByBilling(t *testing.T) {
 					return tt.repoResults, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 			result, total, err := svc.ListUnpaidByBilling(context.Background(), 1, tt.startDate, tt.endDate, 1, 20)
 
@@ -1391,7 +1582,7 @@ func TestAccountingService_ListUnpaidByOwner(t *testing.T) {
 					return tt.repoAggs, tt.repoTotal, repository.UnpaidSummary{}, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{})
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
 
 			result, total, _, err := svc.ListUnpaidByOwner(context.Background(), 1, tt.startDate, tt.endDate, 1, 20)
 

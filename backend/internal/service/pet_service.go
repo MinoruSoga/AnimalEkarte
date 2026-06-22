@@ -21,6 +21,8 @@ const (
 	colPetGender          = "gender"
 	colPetBirthDate       = "birth_date"
 	colPetBreed           = "breed"
+	colPetBloodType       = "blood_type"
+	colPetMicrochipNumber = "microchip_number"
 	colPetWeight          = "weight"
 	colPetEnvironment     = "environment"
 	colPetStatus          = "status"
@@ -42,6 +44,8 @@ type CreatePetInput struct {
 	BirthDate       *time.Time
 	Breed           string
 	Color           string
+	BloodType       string
+	MicrochipNumber string
 	Weight          *float64
 	NeuteredDate    *time.Time
 	AcquisitionType string
@@ -67,6 +71,8 @@ type UpdatePetInput struct {
 	BirthDate       *time.Time
 	Breed           *string
 	Color           *string
+	BloodType       *string
+	MicrochipNumber *string
 	Weight          *float64
 	NeuteredDate    *time.Time
 	AcquisitionType *string
@@ -112,6 +118,12 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 	if input.Color != nil {
 		fields["color"] = *input.Color
 	}
+	if input.BloodType != nil {
+		fields[colPetBloodType] = *input.BloodType
+	}
+	if input.MicrochipNumber != nil {
+		fields[colPetMicrochipNumber] = *input.MicrochipNumber
+	}
 	if input.Weight != nil {
 		fields[colPetWeight] = *input.Weight
 	}
@@ -156,6 +168,9 @@ type PetService interface {
 	Create(ctx context.Context, clinicID uint64, input *CreatePetInput) (*model.Pet, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	// GetFirstVisitDate は指定ペットの初診日（最古の有効カルテ date）を返す（#158 飼主レポート）。
+	// カルテが無い場合は nil, nil を返す。clinic 隔離・論理削除除外は repository が担保する。
+	GetFirstVisitDate(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
 }
 
 // --- Implementation ---
@@ -200,6 +215,20 @@ func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.P
 		return nil, apperrors.Wrap(err, "failed to get pet")
 	}
 	return pet, nil
+}
+
+func (s *petService) GetFirstVisitDate(ctx context.Context, clinicID, petID uint64) (*time.Time, error) {
+	// 当該医院にペットが存在することを先に確認する。存在しない／他医院のペット ID には
+	// 404 を返し、初診日 null との区別（ID 存在の推測）を与えない（IDOR 対策）。
+	if _, err := s.repo.FindByID(ctx, clinicID, petID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find pet")
+	}
+	date, err := s.medicalRecordRepo.FindFirstVisitDateByPetID(ctx, clinicID, petID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get pet first visit date", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get pet first visit date")
+	}
+	return date, nil
 }
 
 func (s *petService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {

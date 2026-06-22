@@ -38,6 +38,12 @@ func (m *mockMedicalRecordRepoForTreatment) Delete(_ context.Context, _, _ uint6
 func (m *mockMedicalRecordRepoForTreatment) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
+func (m *mockMedicalRecordRepoForTreatment) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
+	return nil, nil
+}
+func (m *mockMedicalRecordRepoForTreatment) FindOwnerMedicationHistory(_ context.Context, _, _ uint64, _, _ int) ([]repository.OwnerMedicationHistoryRow, int64, error) {
+	return nil, 0, nil
+}
 func (m *mockMedicalRecordRepoForTreatment) CountEstimatesByMedicalRecordID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }
@@ -83,6 +89,7 @@ type mockTreatmentRepository struct {
 	updateFn                func(ctx context.Context, clinicID, treatmentID uint64, fields map[string]any) error
 	deleteFn                func(ctx context.Context, clinicID, treatmentID uint64) error
 	bulkUpdateSortOrderFn   func(ctx context.Context, updates []repository.TreatmentSortUpdate) error
+	findHistoryByPetIDFn    func(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error)
 }
 
 func (m *mockTreatmentRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
@@ -114,6 +121,13 @@ func (m *mockTreatmentRepository) BulkUpdateSortOrder(ctx context.Context, updat
 
 func (m *mockTreatmentRepository) FindUnbilledByPetID(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
 	return nil, nil
+}
+
+func (m *mockTreatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error) {
+	if m.findHistoryByPetIDFn != nil {
+		return m.findHistoryByPetIDFn(ctx, clinicID, petID, itemType, page, limit)
+	}
+	return nil, 0, nil
 }
 
 func (m *mockTreatmentRepository) CountFinalizedUnconfirmedByPetAndDate(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
@@ -184,6 +198,66 @@ func TestTreatmentService_List(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTreatmentService_ListPetHistory(t *testing.T) {
+	const (
+		clinicID = uint64(1)
+		petID    = uint64(7)
+	)
+	medicine := model.TreatmentItemTypeMedicine
+	invalid := model.TreatmentItemType("bogus")
+
+	t.Run("returns treatments and total on success", func(t *testing.T) {
+		var gotItemType *model.TreatmentItemType
+		repo := &mockTreatmentRepository{
+			findHistoryByPetIDFn: func(_ context.Context, gotClinic, gotPet uint64, it *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+				assert.Equal(t, clinicID, gotClinic)
+				assert.Equal(t, petID, gotPet)
+				gotItemType = it
+				return []model.Treatment{{ID: 1}, {ID: 2}}, 2, nil
+			},
+		}
+		svc := NewTreatmentService(&repository.Repositories{Treatment: repo})
+
+		treatments, total, err := svc.ListPetHistory(context.Background(), clinicID, petID, &medicine, 1, 100)
+
+		assert.NoError(t, err)
+		assert.Len(t, treatments, 2)
+		assert.Equal(t, int64(2), total)
+		if assert.NotNil(t, gotItemType) {
+			assert.Equal(t, medicine, *gotItemType)
+		}
+	})
+
+	t.Run("rejects invalid item_type before hitting repository", func(t *testing.T) {
+		called := false
+		repo := &mockTreatmentRepository{
+			findHistoryByPetIDFn: func(_ context.Context, _, _ uint64, _ *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+				called = true
+				return nil, 0, nil
+			},
+		}
+		svc := NewTreatmentService(&repository.Repositories{Treatment: repo})
+
+		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, &invalid, 1, 100)
+
+		assert.Error(t, err)
+		assert.False(t, called, "repository should not be called for invalid item_type")
+	})
+
+	t.Run("propagates repository error", func(t *testing.T) {
+		repo := &mockTreatmentRepository{
+			findHistoryByPetIDFn: func(_ context.Context, _, _ uint64, _ *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+				return nil, 0, errors.New("db error")
+			},
+		}
+		svc := NewTreatmentService(&repository.Repositories{Treatment: repo})
+
+		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, nil, 1, 100)
+
+		assert.Error(t, err)
+	})
 }
 
 func TestTreatmentService_Create(t *testing.T) {

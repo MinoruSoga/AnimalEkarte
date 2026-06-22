@@ -27,6 +27,7 @@ func buildOwnerModel(clinicID uint64, input *CreateOwnerInput) *model.Owner {
 		IsDangerous:    input.IsDangerous,
 		DiscountRate:   input.DiscountRate,
 		MembershipType: membershipType,
+		DMPreference:   input.DMPreference,
 	}
 }
 
@@ -47,6 +48,15 @@ func buildOwnerPetModels(inputs []CreatePetForOwnerInput) []model.Pet {
 			Environment:     p.Environment,
 			InsuranceID:     p.InsuranceID,
 			Remarks:         p.Remarks,
+		}
+		// 血液型 / マイクロチップ番号は nullable。空文字は未設定として NULL のままにする。
+		if p.BloodType != "" {
+			bt := p.BloodType
+			pet.BloodType = &bt
+		}
+		if p.MicrochipNumber != "" {
+			mc := p.MicrochipNumber
+			pet.MicrochipNumber = &mc
 		}
 		if p.Gender != "" {
 			pet.Gender = model.PetGender(p.Gender)

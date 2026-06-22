@@ -1,10 +1,10 @@
 # Application Load Balancer
 resource "aws_lb" "main" {
   name               = "${var.name_prefix}-alb"
-  internal           = false
+  internal           = var.alb_internal
   load_balancer_type = "application"
   security_groups    = [var.alb_sg_id]
-  subnets            = var.public_subnet_ids
+  subnets            = var.alb_internal ? var.private_subnet_ids : var.public_subnet_ids
 
   enable_deletion_protection = false
 
@@ -64,6 +64,31 @@ resource "aws_lb_listener" "http" {
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.main.arn
+  }
+}
+
+# P2: CloudFront VPC Origin — internal ALB を CloudFront バックボーン経由で接続
+# NOTE: CloudFront distribution 自体は Terraform 管理外（手動作成済み）。
+#       この resource apply 後に手動で distribution のオリジンを VPC Origin に切り替える。
+# NOTE: apply 後、AWS が CloudFront-VPCOrigins-Service-SG を自動生成する。
+#       Phase 2 SG 絞り込みは docs/infra/STG_AWS_CHANGE_READINESS.md §3.2 を参照。
+resource "aws_cloudfront_vpc_origin" "alb" {
+  count = var.alb_internal ? 1 : 0
+
+  vpc_origin_endpoint_config {
+    name                   = "${var.name_prefix}-vpc-origin"
+    arn                    = aws_lb.main.arn
+    http_port              = 80
+    https_port             = 443
+    origin_protocol_policy = "http-only"
+    origin_ssl_protocols {
+      items    = ["TLSv1.2"]
+      quantity = 1
+    }
+  }
+
+  tags = {
+    Name = "${var.name_prefix}-vpc-origin"
   }
 }
 

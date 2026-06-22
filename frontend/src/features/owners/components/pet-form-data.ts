@@ -16,6 +16,8 @@ export function createPetFormData(petData?: PetFormData): PetFormData {
     birthDate: petData?.birthDate || "",
     breed: petData?.breed || "",
     color: petData?.color || "",
+    bloodType: petData?.bloodType || "",
+    microchipNumber: petData?.microchipNumber || "",
     weight: petData?.weight || "",
     neuteredDate: petData?.neuteredDate || "",
     acquisitionType: (petData?.acquisitionType || "購入") as typeof ACQUISITION_TYPE_VALUES[number],

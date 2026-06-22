@@ -41,6 +41,7 @@ const (
 	colDeliveryCautionReason  = "delivery_caution_reason"
 	colIsTransferred          = "is_transferred"
 	colTransferAt             = "transfer_at"
+	colDMPreference           = "dm_preference"
 )
 
 // --- Input DTOs（Service層の公開I/F） ---
@@ -52,6 +53,8 @@ type CreatePetForOwnerInput struct {
 	PetNameKana     string
 	Breed           string
 	Color           string
+	BloodType       string
+	MicrochipNumber string
 	Gender          string
 	Status          string
 	BirthDate       *time.Time
@@ -85,7 +88,9 @@ type CreateOwnerInput struct {
 	IsDangerous    bool
 	DiscountRate   float64
 	MembershipType model.MembershipType
-	Pets           []CreatePetForOwnerInput
+	// DMPreference は DM 送付希望（#158）。nil=未設定 / true=必要 / false=不要。
+	DMPreference *bool
+	Pets         []CreatePetForOwnerInput
 }
 
 // UpdateOwnerInput は飼主更新の入力DTO（全フィールドポインタ型: nil = 未指定, 非nil = 更新対象）
@@ -108,6 +113,8 @@ type UpdateOwnerInput struct {
 	IsDangerous    *bool
 	DiscountRate   *float64
 	MembershipType *model.MembershipType
+	// DMPreference は DM 送付希望（#158）。nil=未指定 / &nil=NULLクリア / &&value=更新対象。
+	DMPreference **bool
 }
 
 // UpdateDeliveryExclusionInput は配信除外フラグ更新の入力DTO（FEAT-381）

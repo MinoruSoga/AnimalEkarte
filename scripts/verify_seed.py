@@ -28,6 +28,49 @@ APPOINTMENT_TIME_FILES = [
     ROOT / "backend/migrations/004_seed_staging.sql",
 ]
 
+DEMO_SEED_FILE = ROOT / "backend/migrations/003_seed_demo.sql"
+
+# The vaccines master only exists in the demo seed (003); the staging snapshot
+# (004) re-uses those ids. Vaccination rows live in both files, so both are
+# scanned for the combination-vaccine reference check (#125).
+VACCINE_MASTER_FILE = ROOT / "backend/migrations/003_seed_demo.sql"
+VACCINATION_SEED_FILES = [
+    ROOT / "backend/migrations/003_seed_demo.sql",
+    ROOT / "backend/migrations/004_seed_staging.sql",
+]
+
+# Remarks that denote a combination vaccine ("N種混合" / "混合ワクチン").
+COMBO_VACCINE_REMARK_RE = re.compile(r"\d+種混合|混合ワクチン")
+
+# Exam seed files. exam_types / exam_type_fields masters live only in the demo
+# seed (003); the staging snapshot (004) carries none, but both are scanned so a
+# future snapshot that re-introduces them is still covered (#124).
+EXAM_SEED_FILES = [
+    ROOT / "backend/migrations/003_seed_demo.sql",
+    ROOT / "backend/migrations/004_seed_staging.sql",
+]
+
+# exam_type_field semantic category -> substrings the owning exam_type name must
+# contain. A field whose name identifies a category (blood / urine / x-ray /
+# echo) must be bound to an exam_type whose name matches that category. Blood
+# markers are matched first because "BUN（尿素窒素）" contains "尿" yet is a blood
+# biochemistry field, not a urine field.
+EXAM_FIELD_BLOOD_TOKENS = (
+    "WBC", "RBC", "HGB", "HCT", "PLT", "MCV", "MCH",
+    "ALT", "AST", "GPT", "GOT", "ALP", "GGT", "BUN", "CRE", "GLU", "TBIL",
+)
+EXAM_FIELD_BLOOD_TOKENS_JP = (
+    "白血球", "赤血球", "ヘマトクリット", "血小板", "クレアチニン", "尿素窒素", "血糖", "血球",
+)
+EXAM_FIELD_ECHO_TOKENS = ("エコー", "超音波")
+EXAM_FIELD_XRAY_TOKENS = ("正面", "四肢", "レントゲン", "X線", "Xray")
+EXAM_TYPE_EXPECTED_BY_CATEGORY = {
+    "blood": ("血液",),
+    "echo": ("エコー", "超音波", "Echo"),
+    "xray": ("レントゲン", "Xray", "X線", "X-ray"),
+    "urine": ("尿",),
+}
+
 JST = timezone(timedelta(hours=9))
 
 SEVEN_MASTER_TABLES = (
@@ -563,6 +606,298 @@ def check_no_active_trimming_appointments(errors: list[str]) -> None:
     )
 
 
+def build_staff_clinic_map(text: str) -> dict[int, int]:
+    """Map staff id -> clinic_id from every staffs INSERT statement."""
+    staff_clinic: dict[int, int] = {}
+    for statement in split_sql_statements(text):
+        insert_index = statement.upper().find("INSERT INTO")
+        if insert_index < 0:
+            continue
+        trimmed = statement[insert_index:].strip()
+        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+        if table_match is None or table_match.group(1) != "staffs":
+            continue
+        parsed = parse_insert_statement(trimmed)
+        if parsed is None:
+            continue
+        columns = [c.strip().strip('"') for c in parsed.columns]
+        if "id" not in columns or "clinic_id" not in columns:
+            continue
+        id_idx = columns.index("id")
+        clinic_idx = columns.index("clinic_id")
+        for row in parsed.rows:
+            if len(row) <= max(id_idx, clinic_idx):
+                continue
+            staff_id = row[id_idx]
+            clinic_id = row[clinic_idx]
+            if isinstance(staff_id, int) and isinstance(clinic_id, int):
+                staff_clinic[staff_id] = clinic_id
+    return staff_clinic
+
+
+def check_audit_log_actor_tenant(errors: list[str]) -> None:
+    """Ensure every staff-actor audit_logs row is owned by the actor's clinic.
+
+    A cross-tenant audit trail (row clinic_id != actor staff's clinic_id) corrupts
+    per-clinic audit reporting and breaks the clinic_id isolation invariant.
+    Only the demo seed (003) carries audit_logs rows, so it is the sole file scanned.
+    Non-staff actors (actor_type != 'staff') and system rows (actor_id IS NULL) are
+    exempt because they are not bound to a single clinic's staff roster.
+    """
+    text = DEMO_SEED_FILE.read_text(encoding="utf-8")
+    staff_clinic = build_staff_clinic_map(text)
+    mismatches: list[str] = []
+
+    for statement in split_sql_statements(text):
+        insert_index = statement.upper().find("INSERT INTO")
+        if insert_index < 0:
+            continue
+        trimmed = statement[insert_index:].strip()
+        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+        if table_match is None or table_match.group(1) != "audit_logs":
+            continue
+        parsed = parse_insert_statement(trimmed)
+        if parsed is None:
+            continue
+        columns = [c.strip().strip('"') for c in parsed.columns]
+        if not {"clinic_id", "actor_id", "actor_type"}.issubset(columns):
+            continue
+        clinic_idx = columns.index("clinic_id")
+        actor_id_idx = columns.index("actor_id")
+        actor_type_idx = columns.index("actor_type")
+        for row in parsed.rows:
+            if len(row) <= max(clinic_idx, actor_id_idx, actor_type_idx):
+                continue
+            if row[actor_type_idx] != "staff":
+                continue
+            actor_id = row[actor_id_idx]
+            if actor_id is None:
+                continue
+            clinic_id = row[clinic_idx]
+            actor_clinic = staff_clinic.get(actor_id)
+            if actor_clinic is None:
+                mismatches.append(f"actor_id={actor_id} not found (row clinic_id={clinic_id})")
+            elif actor_clinic != clinic_id:
+                mismatches.append(
+                    f"actor_id={actor_id} is clinic_id={actor_clinic} but row clinic_id={clinic_id}"
+                )
+
+    add_result(
+        errors,
+        not mismatches,
+        f"audit_logs: cross-tenant actor references {mismatches[:20]}",
+    )
+
+
+def build_vaccine_name_map(text: str) -> dict[int, dict[str, object]]:
+    """Map vaccine id -> {name, clinic_id} from every vaccines INSERT statement."""
+    vaccines: dict[int, dict[str, object]] = {}
+    for statement in split_sql_statements(text):
+        insert_index = statement.upper().find("INSERT INTO")
+        if insert_index < 0:
+            continue
+        trimmed = statement[insert_index:].strip()
+        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+        if table_match is None or table_match.group(1) != "vaccines":
+            continue
+        parsed = parse_insert_statement(trimmed)
+        if parsed is None:
+            continue
+        columns = [c.strip().strip('"') for c in parsed.columns]
+        if not {"id", "name", "clinic_id"}.issubset(columns):
+            continue
+        id_idx = columns.index("id")
+        name_idx = columns.index("name")
+        clinic_idx = columns.index("clinic_id")
+        for row in parsed.rows:
+            if len(row) <= max(id_idx, name_idx, clinic_idx):
+                continue
+            vaccine_id = row[id_idx]
+            if isinstance(vaccine_id, int):
+                vaccines[vaccine_id] = {"name": row[name_idx], "clinic_id": row[clinic_idx]}
+    return vaccines
+
+
+def check_vaccination_vaccine_category(errors: list[str]) -> None:
+    """Ensure combination-vaccine records reference an actual vaccine entry.
+
+    A vaccination whose remarks describe a combination vaccine ("N種混合" /
+    "混合ワクチン") must reference a vaccines row whose name identifies it as a
+    vaccine (contains "ワクチン") — never a prophylactic drug/injection such as
+    "フィラリア予防注射". The original seed pointed cat 3種混合 records
+    (vaccination ids 2-5) at vaccine_id=5 (フィラリア予防注射), which makes the
+    L-step vaccine reminder fire as a filaria reminder (#125). The identical rows
+    are mirrored in the staging snapshot (004), so both seed files are scanned;
+    the vaccines master only exists in 003. Non-combination remarks (e.g.
+    "狂犬病ワクチン接種") are exempt — they are not combination-vaccine records.
+    """
+    vaccine_map = build_vaccine_name_map(VACCINE_MASTER_FILE.read_text(encoding="utf-8"))
+    mismatches: list[str] = []
+
+    for path in VACCINATION_SEED_FILES:
+        text = path.read_text(encoding="utf-8")
+        for statement in split_sql_statements(text):
+            insert_index = statement.upper().find("INSERT INTO")
+            if insert_index < 0:
+                continue
+            trimmed = statement[insert_index:].strip()
+            table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+            if table_match is None or table_match.group(1) != "vaccinations":
+                continue
+            parsed = parse_insert_statement(trimmed)
+            if parsed is None:
+                continue
+            columns = [c.strip().strip('"') for c in parsed.columns]
+            if not {"id", "vaccine_id", "remarks"}.issubset(columns):
+                continue
+            id_idx = columns.index("id")
+            vaccine_idx = columns.index("vaccine_id")
+            remarks_idx = columns.index("remarks")
+            for row in parsed.rows:
+                if len(row) <= max(id_idx, vaccine_idx, remarks_idx):
+                    continue
+                remarks = row[remarks_idx]
+                if not isinstance(remarks, str) or not COMBO_VACCINE_REMARK_RE.search(remarks):
+                    continue
+                vaccine_id = row[vaccine_idx]
+                vaccine = vaccine_map.get(vaccine_id)
+                if vaccine is None:
+                    mismatches.append(
+                        f"{path.name}:vaccination id={row[id_idx]} "
+                        f"vaccine_id={vaccine_id} not found in vaccines master"
+                    )
+                    continue
+                name = vaccine.get("name")
+                if not isinstance(name, str) or "ワクチン" not in name:
+                    mismatches.append(
+                        f"{path.name}:vaccination id={row[id_idx]} remarks={remarks!r} "
+                        f"references vaccine_id={vaccine_id} ({name!r}) which is not a vaccine"
+                    )
+
+    add_result(
+        errors,
+        not mismatches,
+        f"vaccinations: combination-vaccine records point to non-vaccine entries {mismatches[:20]}",
+    )
+
+
+def build_exam_type_map(text: str) -> dict[int, dict[str, object]]:
+    """Map exam_type id -> {name, clinic_id} from every exam_types INSERT statement."""
+    exam_types: dict[int, dict[str, object]] = {}
+    for statement in split_sql_statements(text):
+        insert_index = statement.upper().find("INSERT INTO")
+        if insert_index < 0:
+            continue
+        trimmed = statement[insert_index:].strip()
+        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+        if table_match is None or table_match.group(1) != "exam_types":
+            continue
+        parsed = parse_insert_statement(trimmed)
+        if parsed is None:
+            continue
+        columns = [c.strip().strip('"') for c in parsed.columns]
+        if not {"id", "name", "clinic_id"}.issubset(columns):
+            continue
+        id_idx = columns.index("id")
+        name_idx = columns.index("name")
+        clinic_idx = columns.index("clinic_id")
+        for row in parsed.rows:
+            if len(row) <= max(id_idx, name_idx, clinic_idx):
+                continue
+            exam_type_id = row[id_idx]
+            if isinstance(exam_type_id, int):
+                exam_types[exam_type_id] = {"name": row[name_idx], "clinic_id": row[clinic_idx]}
+    return exam_types
+
+
+def classify_exam_field(name: str) -> str | None:
+    """Infer an exam_type_field's semantic category from its name, or None if unknown.
+
+    Blood markers are tested first so that "BUN（尿素窒素）" is classified as blood,
+    not urine, despite containing "尿".
+    """
+    upper = name.upper()
+    if any(tok in upper for tok in EXAM_FIELD_BLOOD_TOKENS) or any(
+        tok in name for tok in EXAM_FIELD_BLOOD_TOKENS_JP
+    ):
+        return "blood"
+    if any(tok in name for tok in EXAM_FIELD_ECHO_TOKENS):
+        return "echo"
+    if any(tok in name for tok in EXAM_FIELD_XRAY_TOKENS):
+        return "xray"
+    if "尿" in name:
+        return "urine"
+    return None
+
+
+def check_exam_type_field_category(errors: list[str]) -> None:
+    """Ensure each exam_type_field is bound to a semantically matching exam_type.
+
+    A field whose name identifies a category — blood (WBC/RBC/ALT/BUN/…), urine
+    (尿…), x-ray (胸部正面/四肢…) or echo (…エコー) — must reference an exam_type
+    whose name matches that category (血液 / 尿 / レントゲン·Xray / エコー·超音波).
+    The clinic 1 demo seed bound blood fields (1-8) to 尿検査·便検査, x-ray fields
+    (13-15) to 便検査 and echo fields (16-17) to 血液検査（院内）, so opening a
+    検査 tab showed the wrong items (#124). Clinic 2/3 are already correct and
+    must stay green. This is a semantic check, not a bare FK-existence check.
+    The exam_types / exam_type_fields masters only exist in 003; 004 carries none.
+    """
+    exam_types: dict[int, dict[str, object]] = {}
+    for path in EXAM_SEED_FILES:
+        exam_types.update(build_exam_type_map(path.read_text(encoding="utf-8")))
+
+    mismatches: list[str] = []
+    for path in EXAM_SEED_FILES:
+        text = path.read_text(encoding="utf-8")
+        for statement in split_sql_statements(text):
+            insert_index = statement.upper().find("INSERT INTO")
+            if insert_index < 0:
+                continue
+            trimmed = statement[insert_index:].strip()
+            table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
+            if table_match is None or table_match.group(1) != "exam_type_fields":
+                continue
+            parsed = parse_insert_statement(trimmed)
+            if parsed is None:
+                continue
+            columns = [c.strip().strip('"') for c in parsed.columns]
+            if not {"id", "exam_type_id", "name"}.issubset(columns):
+                continue
+            id_idx = columns.index("id")
+            exam_type_idx = columns.index("exam_type_id")
+            name_idx = columns.index("name")
+            for row in parsed.rows:
+                if len(row) <= max(id_idx, exam_type_idx, name_idx):
+                    continue
+                name = row[name_idx]
+                if not isinstance(name, str):
+                    continue
+                category = classify_exam_field(name)
+                if category is None:
+                    continue
+                exam_type_id = row[exam_type_idx]
+                exam_type = exam_types.get(exam_type_id)
+                if exam_type is None:
+                    mismatches.append(
+                        f"{path.name}:exam_type_field id={row[id_idx]} "
+                        f"exam_type_id={exam_type_id} not found in exam_types master"
+                    )
+                    continue
+                type_name = exam_type.get("name")
+                expected = EXAM_TYPE_EXPECTED_BY_CATEGORY[category]
+                if not isinstance(type_name, str) or not any(sub in type_name for sub in expected):
+                    mismatches.append(
+                        f"{path.name}:exam_type_field id={row[id_idx]} {name!r} ({category}) "
+                        f"-> exam_type_id={exam_type_id} ({type_name!r}) is not a {category} exam_type"
+                    )
+
+    add_result(
+        errors,
+        not mismatches,
+        f"exam_type_fields: fields bound to semantically wrong exam_type {mismatches[:20]}",
+    )
+
+
 def print_summary(state: SeedState, errors: list[str]) -> None:
     tracked_counts = ", ".join(
         f"{table}={len(state.tables[table])}" for table in sorted(TRACKED_TABLES) if state.tables[table]
@@ -578,7 +913,8 @@ def print_summary(state: SeedState, errors: list[str]) -> None:
         print(
             "verified: 7 masters, treatments drift fixes, CHECK equivalent, "
             "procedure presence, FK, cross-tenant, appointment time window, daily distribution, "
-            "no active trimming appointments"
+            "no active trimming appointments, audit log actor tenant, vaccination vaccine category, "
+            "exam_type_field category"
         )
 
 
@@ -594,6 +930,9 @@ def main() -> int:
     check_cross_tenant(state, errors)
     check_appointment_time_window(errors)
     check_no_active_trimming_appointments(errors)
+    check_audit_log_actor_tenant(errors)
+    check_vaccination_vaccine_category(errors)
+    check_exam_type_field_category(errors)
     print_summary(state, errors)
     return 1 if errors else 0
 

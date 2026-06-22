@@ -33,6 +33,11 @@ export const paths = {
     detail: {
       path: "/owners/:id",
       getHref: (id: string | number) => `/owners/${id}`,
+      // #158: 飼主単位カルテレポート（別ウィンドウ / Layout 外スタンドアロン）
+      report: {
+        path: "/owners/:id/report",
+        getHref: (id: string | number) => `/owners/${id}/report`,
+      },
     },
   },
 

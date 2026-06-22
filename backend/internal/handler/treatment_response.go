@@ -55,6 +55,57 @@ func toTreatmentResponse(t *model.Treatment) treatmentResponse {
 	}
 }
 
+// petTreatmentHistoryResponse は #158 飼主レポート用のペット横断治療履歴 1 行。
+// 診療日 (medical_records.date) と薬剤/処置の名称・麻酔種別を含めて表示用に整形する。
+type petTreatmentHistoryResponse struct {
+	ID              string     `json:"id"`
+	MedicalRecordID string     `json:"medical_record_id"`
+	Date            *time.Time `json:"date"`
+	ItemType        string     `json:"item_type"`
+	Content         string     `json:"content"`
+	Memo            string     `json:"memo"`
+	AdminRoute      string     `json:"admin_route"`
+	Quantity        float64    `json:"quantity"`
+	UnitPrice       int64      `json:"unit_price"`
+	Status          string     `json:"status"`
+	MedicineID      *string    `json:"medicine_id,omitempty"`
+	MedicineName    *string    `json:"medicine_name,omitempty"`
+	ProcedureID     *string    `json:"procedure_id,omitempty"`
+	ProcedureName   *string    `json:"procedure_name,omitempty"`
+	Anesthesia      *string    `json:"anesthesia,omitempty"`
+}
+
+func toPetTreatmentHistoryResponse(t *model.Treatment) petTreatmentHistoryResponse {
+	resp := petTreatmentHistoryResponse{
+		ID:              strconv.FormatUint(t.ID, 10),
+		MedicalRecordID: strconv.FormatUint(t.MedicalRecordID, 10),
+		ItemType:        string(t.ItemType),
+		Content:         t.Content,
+		Memo:            t.Memo,
+		AdminRoute:      t.AdminRoute,
+		Quantity:        t.Quantity,
+		UnitPrice:       t.UnitPrice,
+		Status:          string(t.Status),
+		MedicineID:      uint64PtrToStringPtr(t.MedicineID),
+		ProcedureID:     uint64PtrToStringPtr(t.ProcedureID),
+	}
+	// 診療日は medical_records.date 由来（treatments.created_at は入力時刻なので使わない）。
+	if t.MedicalRecord != nil {
+		resp.Date = localTimePtr(&t.MedicalRecord.Date)
+	}
+	if t.Medicine != nil {
+		name := t.Medicine.Name
+		resp.MedicineName = &name
+	}
+	if t.Procedure != nil {
+		name := t.Procedure.Name
+		resp.ProcedureName = &name
+		anesthesia := string(t.Procedure.Anesthesia)
+		resp.Anesthesia = &anesthesia
+	}
+	return resp
+}
+
 // uint64PtrToStringPtr は *uint64 を *string に変換するヘルパー。
 // nilの場合はnilを返す。
 func uint64PtrToStringPtr(v *uint64) *string {

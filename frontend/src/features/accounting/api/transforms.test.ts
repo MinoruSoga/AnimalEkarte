@@ -178,6 +178,19 @@ describe("transformToAccounting", () => {
     expect(result.paymentSplits).toBeUndefined();
   });
 
+  // #127: 銀行振込 (bank_transfer) の split が UI モデルへロスなくマップされること。
+  it("bank_transfer の payment_split が paymentSplits にマップされる (#127)", () => {
+    const result = transformToAccounting({
+      ...minimal,
+      payment_splits: [
+        { id: 7, clinic_id: 1, billing_id: 1, method: "bank_transfer" as const, amount: 5000, received_amount: 0, change_amount: 0, created_at: "2026-03-25T00:00:00Z" },
+      ],
+    });
+    expect(result.paymentSplits).toHaveLength(1);
+    expect(result.paymentSplits![0].method).toBe("bank_transfer");
+    expect(result.paymentSplits![0].amount).toBe(5000);
+  });
+
   it("payment_splits が未設定の場合 paymentSplits は undefined", () => {
     const result = transformToAccounting({ ...minimal });
     expect(result.paymentSplits).toBeUndefined();

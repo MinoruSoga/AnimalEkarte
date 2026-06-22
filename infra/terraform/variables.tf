@@ -139,6 +139,15 @@ variable "alb_certificate_arn" {
   default     = ""
 }
 
+# P2: ALB internal + CloudFront VPC Origin
+# STG で有効化: terraform.tfvars または TF_VAR_alb_internal=true で上書きする。
+# default=false は internet-facing（安全なデフォルト）。
+variable "alb_internal" {
+  description = "P2: true にすると ALB を internal scheme に変更し CloudFront VPC Origin 経由で接続。false は internet-facing（デフォルト）"
+  type        = bool
+  default     = false
+}
+
 # GitHub Configuration
 variable "github_repo" {
   description = "GitHub repository in format owner/repo"

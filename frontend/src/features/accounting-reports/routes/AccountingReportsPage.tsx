@@ -1,8 +1,11 @@
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
+import { useNavigate } from "react-router";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { C } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
+import { usePermission } from "@/hooks/use-permission";
+import { ResourceCashRegisterClose } from "@/types/generated/models";
 import { useGetMonthlyReport } from "../api/get-monthly-report";
 import { exportMonthlyCSV } from "../api/export-monthly-csv";
 import { MonthlySummaryCards } from "../components/MonthlySummaryCards";
@@ -15,9 +18,19 @@ export function AccountingReportsPage() {
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
   const [isExporting, startExportTransition] = useTransition();
 
+  const navigate = useNavigate();
+  const { canView: canViewCloses } = usePermission(ResourceCashRegisterClose);
+
   const { data, isLoading, isError } = useGetMonthlyReport(year, month);
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
+
+  const handleDrillDown = useCallback(
+    (date: string) => {
+      navigate(`/accounting/close/history?date=${encodeURIComponent(date)}`);
+    },
+    [navigate],
+  );
 
   const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setYear(Number(e.target.value));
@@ -148,7 +161,10 @@ export function AccountingReportsPage() {
           {/* 日次明細 */}
           <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
             <h2 className={`text-base font-semibold ${C.text} mb-4`}>日次明細</h2>
-            <DailyBreakdownTable details={data.dailyDetails} />
+            <DailyBreakdownTable
+              details={data.dailyDetails}
+              onDrillDown={canViewCloses ? handleDrillDown : undefined}
+            />
           </section>
         </>
       )}

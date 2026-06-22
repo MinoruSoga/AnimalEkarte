@@ -113,6 +113,11 @@ output "task_role_arn" {
   value       = module.ecs.task_role_arn
 }
 
+output "vpc_origin_id" {
+  description = "P2: CloudFront VPC Origin ID — CloudFront distribution のオリジン手動切り替えに使用"
+  value       = module.ecs.vpc_origin_id
+}
+
 # GitHub OIDC Outputs
 output "github_oidc_provider_arn" {
   description = "GitHub OIDC Provider ARN"

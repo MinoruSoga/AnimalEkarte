@@ -21,6 +21,7 @@ import { ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { transformUpdatePetRequest } from "@/lib/transforms/pet";
 import { handleApiError } from "@/lib/handle-api-error";
+import { openOwnerReport } from "@/lib/owner-report-window";
 // bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport
 import { deleteOwner } from "../api/delete-owner";
 import { usePermission } from "@/hooks/use-permission";
@@ -37,7 +38,7 @@ import type { OwnersLoaderData } from "../loaders";
 import type { PetFormData } from "../types";
 import type { UpdatePetRequest } from "@/types/pet";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
-import { ResourceOwners } from "@/types/generated/models";
+import { ResourceMedicalRecords, ResourceOwners } from "@/types/generated/models";
 import { OwnersListTable } from "../components/OwnersListTable";
 
 // Pet → ペット編集フォーム初期値の変換。本ルートのモーダルでのみ使用するため
@@ -78,6 +79,8 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("owners");
+  // #158: レポート導線は medical-records:view でゲートする（カルテ内容を横断表示するため）
+  const { canView: canReport } = usePermission(ResourceMedicalRecords);
   const revalidator = useRevalidator();
   const { pets } = useLoaderData<OwnersLoaderData>();
 
@@ -202,6 +205,11 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
     navigate(paths.owners.detail.getHref(ownerId));
   }, [navigate]);
 
+  // #158: 飼主レポートを別ウィンドウで開く。初期ペットを ?petId= で指定する。
+  const handleReport = useCallback((ownerId: string, petId: string) => {
+    openOwnerReport(ownerId, petId);
+  }, []);
+
   // 行クリック → 飼主編集・ペット一覧ページに遷移
   // #86: 別医院の行は詳細 API が現在医院スコープで 404 になるため遷移させない（閲覧のみ）
   const handleRowClick = useCallback((pet: Pet) => {
@@ -306,6 +314,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         isFiltering={isFiltering}
         canEdit={canEdit}
         canDelete={canDelete}
+        canReport={canReport}
         showClinicColumn={isMultiClinic}
         clinicNameById={clinicNameById}
         currentClinicId={currentClinicId}
@@ -317,6 +326,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         onRowClick={handleRowClick}
         onEdit={handleEdit}
         onDeleteRequest={handleDeleteRequest}
+        onReport={handleReport}
         onPageChange={handlePageChange}
       />
 

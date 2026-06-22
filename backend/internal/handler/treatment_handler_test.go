@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -27,10 +28,18 @@ type mockTreatmentService struct {
 	updateFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error)
 	deleteFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error
 	bulkUpdateSortOrderFn func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error
+	listPetHistoryFn      func(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error)
 }
 
 func (m *mockTreatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
 	return m.listFn(ctx, clinicID, medicalRecordID)
+}
+
+func (m *mockTreatmentService) ListPetHistory(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error) {
+	if m.listPetHistoryFn != nil {
+		return m.listPetHistoryFn(ctx, clinicID, petID, itemType, page, limit)
+	}
+	return nil, 0, nil
 }
 
 func (m *mockTreatmentService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error) {
@@ -140,6 +149,116 @@ func TestListTreatments(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- ListPetTreatmentHistory (#158 飼主レポート) ----
+
+func TestListPetTreatmentHistory(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	medicineID := uint64(3)
+	historyRow := func() []model.Treatment {
+		return []model.Treatment{{
+			ID:              5,
+			MedicalRecordID: 9,
+			ItemType:        model.TreatmentItemTypeMedicine,
+			Content:         "投薬",
+			MedicineID:      &medicineID,
+			MedicalRecord:   &model.MedicalRecord{ID: 9, Date: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)},
+			Medicine:        &model.Medicine{ID: medicineID, Name: "アモキシシリン"},
+		}}
+	}
+
+	tests := []struct {
+		name       string
+		paramID    string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        *mockTreatmentService
+		wantStatus int
+		wantBody   []string
+	}{
+		{
+			name:     "returns paginated history with medical_records.date and medicine name",
+			paramID:  "7",
+			query:    "?item_type=medicine&limit=100",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockTreatmentService{
+				listPetHistoryFn: func(_ context.Context, clinicID, petID uint64, it *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(7), petID)
+					if assert.NotNil(t, it) {
+						assert.Equal(t, model.TreatmentItemTypeMedicine, *it)
+					}
+					return historyRow(), 1, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   []string{`"medicine_name":"アモキシシリン"`, `"2026-06-01`, `"total":1`, `"item_type":"medicine"`},
+		},
+		{
+			name:     "item_type=all passes nil filter",
+			paramID:  "7",
+			query:    "?item_type=all",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockTreatmentService{
+				listPetHistoryFn: func(_ context.Context, _, _ uint64, it *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+					assert.Nil(t, it)
+					return []model.Treatment{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   []string{`"data":[]`, `"total":0`},
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "7",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockTreatmentService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric pet id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockTreatmentService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid item_type",
+			paramID:    "7",
+			query:      "?item_type=bogus",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockTreatmentService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "7",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockTreatmentService{
+				listPetHistoryFn: func(_ context.Context, _, _ uint64, _ *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+					return nil, 0, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithTreatmentSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/"+tt.query, http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.ListPetTreatmentHistory(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			for _, want := range tt.wantBody {
+				assert.Contains(t, w.Body.String(), want)
 			}
 		})
 	}

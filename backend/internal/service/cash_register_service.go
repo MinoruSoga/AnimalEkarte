@@ -109,6 +109,8 @@ type periodAggregate struct {
 	TheoreticalCash int64
 	PeriodStart     time.Time
 	PeriodEnd       time.Time
+	// PaymentMethods は当該 clinic の支払方法マスタ。現金マスタ id 判定（#128）と GetPreview の二重ロード回避に使う。
+	PaymentMethods []model.PaymentMethodMaster
 }
 
 type cashRegisterService struct {
@@ -133,10 +135,10 @@ func NewCashRegisterService(
 	}
 }
 
-// validatePeriod は period 値（"am"/"pm"）のバリデーションを行う
+// validatePeriod は period 値（"am"/"pm"/"emg"）のバリデーションを行う
 func validatePeriod(period string) error {
-	if period != "am" && period != "pm" {
-		return apperrors.WrapInvalidInput("period は 'am' または 'pm' を指定してください")
+	if period != "am" && period != "pm" && period != "emg" {
+		return apperrors.WrapInvalidInput("period は 'am'、'pm'、'emg' のいずれかを指定してください")
 	}
 	return nil
 }
@@ -167,6 +169,14 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to aggregate billings")
 	}
 
+	// #128: 現金マスタ id を解決し、payment_method_id=現金id の新データも理論現金に含める（NULL も後方互換で現金）。
+	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load payment methods for aggregate", "error", err)
+		return nil, apperrors.Wrap(err, "failed to load payment methods for aggregate")
+	}
+	cashMethodID := findCashMethodID(payMethods)
+
 	return &periodAggregate{
 		Schedule:        schedule,
 		PaymentRows:     aggregate.PaymentRows,
@@ -174,9 +184,10 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		TotalRefund:     aggregate.TotalRefund,
 		BillingDetails:  aggregate.BillingDetails,
 		TaxBreakdown:    aggregate.TaxBreakdown,
-		TheoreticalCash: calcTheoreticalCash(aggregate.PaymentRows, aggregate.TotalRefund),
+		TheoreticalCash: calcTheoreticalCash(aggregate.PaymentRows, aggregate.TotalRefund, cashMethodID),
 		PeriodStart:     periodStart,
 		PeriodEnd:       periodEnd,
+		PaymentMethods:  payMethods,
 	}, nil
 }
 
@@ -209,12 +220,8 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	}
 	isAlreadyClosed := existing != nil
 
-	// 支払方法マスタを取得
-	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get payment methods", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get payment methods")
-	}
+	// 支払方法マスタは fetchAggregate で取得済みのものを再利用する（#128: 二重ロード回避）
+	payMethods := agg.PaymentMethods
 	payMethodNames := buildPayMethodNameMap(payMethods)
 
 	// カテゴリ別×支払方法名別集計マップを構築（混在支払いは比率按分）
@@ -353,7 +360,7 @@ func (s *cashRegisterService) IsDateClosed(ctx context.Context, clinicID uint64,
 	return closed, nil
 }
 
-// resolvePeriodRange は period（"am"/"pm"）と DaySchedule から集計期間（JST）を返す
+// resolvePeriodRange は period（"am"/"pm"/"emg"）と DaySchedule から集計期間（JST）を返す
 func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule) (start, end time.Time, err error) {
 	boundaryH, boundaryM, parseErr := parseHHMM(schedule.AmPmBoundary)
 	if parseErr != nil {
@@ -373,8 +380,15 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule)
 		return dayStart, boundary, nil
 	case "pm":
 		return boundary, pmEnd, nil
+	case "emg":
+		// EMG（緊急）は PM 締め終了後〜翌日0時までの夜間時間帯を集計対象とする。
+		// 仕様(#150)の「翌8:59まで」越日範囲を完全再現するには am 開始時刻の設定値
+		// (現状未保持) が必要で、既存 am=[0時,境界] を壊さずには表現できない。
+		// よって非破壊な PM終了〜当日24時 を採用する（越日分は #150 フォローアップ）。
+		nextDayStart := dayStart.AddDate(0, 0, 1)
+		return pmEnd, nextDayStart, nil
 	default:
-		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("period は 'am' または 'pm' を指定してください")
+		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("period は 'am'、'pm'、'emg' のいずれかを指定してください")
 	}
 }
 
@@ -395,12 +409,26 @@ func parseHHMM(s string) (h, m int, err error) {
 	return hh, mm, nil
 }
 
-// calcTheoreticalCash は支払方法別集計行から現金（payment_method_id が nil）の合計を返す。
-// 返金合計を差し引いて理論現金残高を算出する。
-func calcTheoreticalCash(payRows []repository.PaymentAggregateRow, totalRefund int64) int64 {
+// findCashMethodID は payment_methods マスタ群から「現金」マスタの id を返す（無ければ nil）。#128
+// 現金 name は paymentMethodMasterNames（書込み側の解決と同一の真実の源泉）を参照する。
+func findCashMethodID(methods []model.PaymentMethodMaster) *uint64 {
+	cashName := paymentMethodMasterNames[model.PaymentMethodCash]
+	for i := range methods {
+		if methods[i].Name == cashName {
+			id := methods[i].ID
+			return &id
+		}
+	}
+	return nil
+}
+
+// calcTheoreticalCash は支払方法別集計行から現金合計を返し、返金合計を差し引いて理論現金残高を算出する。
+// 現金判定（#128）: payment_method_id が現金マスタ id（hotfix 後の新データ）、または NULL（旧 seed/
+// レガシーデータの現金 split: 後方互換）。cashMethodID が nil の場合は NULL のみを現金とみなす。
+func calcTheoreticalCash(payRows []repository.PaymentAggregateRow, totalRefund int64, cashMethodID *uint64) int64 {
 	var cashTotal int64
 	for _, r := range payRows {
-		if r.PaymentMethodID == nil {
+		if r.PaymentMethodID == nil || (cashMethodID != nil && *r.PaymentMethodID == *cashMethodID) {
 			cashTotal += r.Amount
 		}
 	}
