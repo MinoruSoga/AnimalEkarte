@@ -26,7 +26,7 @@ jobs:
       run_e2e: ${{ steps.filter.outputs.e2e }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Path filter
         uses: dorny/paths-filter@v3
@@ -54,7 +54,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Create CI environment file
         # .env.local はリポジトリに含まれない。CI 用の最小限の値をインラインで生成する。

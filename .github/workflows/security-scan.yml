@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Run AgentShield
         # Pinned to v1.3.0 SHA: v1.4.0 (9bbc007c) introduced an unbundled `yaml` import that
