@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local dump-stg
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed seed-old-db verify-old-db-seed restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local dump-stg
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -69,6 +69,26 @@ migrate:
 seed:
 	$(DC) run --rm migrate
 	@echo "✓ Seed data applied"
+
+# 旧DB移行データのローカル投入
+# 前提: DB が起動済み（make up 実行後）かつ OLD_DB_MIGRATION_OUTPUT_DIR が指定済み
+# デフォルトパス: /Users/minoru/Dev/Case/AnimalHospital/old_db/sensitive-local/migration-output
+# 上書きする場合: make seed-old-db OLD_DB_MIGRATION_OUTPUT_DIR=/other/path
+OLD_DB_MIGRATION_OUTPUT_DIR ?= /Users/minoru/Dev/Case/AnimalHospital/old_db/sensitive-local/migration-output
+OLD_DB_DOCS_DIR ?= /Users/minoru/Dev/Case/AnimalHospital/old_db/docs
+
+seed-old-db:
+	@echo "🌱 Loading old-db migration data from $(OLD_DB_MIGRATION_OUTPUT_DIR) ..."
+	@test -d "$(OLD_DB_MIGRATION_OUTPUT_DIR)" || (echo "ERROR: OLD_DB_MIGRATION_OUTPUT_DIR=$(OLD_DB_MIGRATION_OUTPUT_DIR) does not exist" && exit 1)
+	OLD_DB_MIGRATION_OUTPUT_DIR="$(OLD_DB_MIGRATION_OUTPUT_DIR)" \
+	OLD_DB_DOCS_DIR="$(OLD_DB_DOCS_DIR)" \
+	$(DC) -f docker-compose.yml -f docker-compose.seed-old-db.yml run --rm seed-old-db
+	@echo "✓ old-db seed completed"
+
+# 旧DB投入後の件数検証
+verify-old-db-seed:
+	@echo "🔍 Verifying old-db seeded row counts ..."
+	@bash scripts/verify-old-db-seed.sh
 
 # バックエンドのみ再起動
 restart-api:
@@ -204,7 +224,9 @@ help:
 	@echo "  clean         キャッシュクリア＆再ビルド"
 	@echo "  reset         完全リセット（ボリューム削除→マイグレーション＋シーダー全適用）"
 	@echo "  migrate       差分マイグレーションのみ適用（DBは落とさない）"
-	@echo "  seed          シーダーのみ適用（差分のみ・べき等）"
+	@echo "  seed              シーダーのみ適用（差分のみ・べき等）"
+	@echo "  seed-old-db       旧DB移行データをローカルDBに投入（要 OLD_DB_MIGRATION_OUTPUT_DIR）"
+	@echo "  verify-old-db-seed 旧DB投入後の件数検証スクリプト実行"
 	@echo "  restart-api   API再起動"
 	@echo "  restart-front フロントエンド再起動"
 	@echo "  build-prod    本番ビルド"

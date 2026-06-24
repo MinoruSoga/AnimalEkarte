@@ -98,3 +98,9 @@ tables.txt
 
 # Trash directory
 trash/
+
+# old_db raw migration data — must never be committed
+# These guards catch any accidental copy of sensitive-local/ files into this repo.
+*.import.tsv
+*.import.tsv.header
+sensitive-local/
