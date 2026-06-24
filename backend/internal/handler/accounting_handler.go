@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -215,6 +216,26 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 	default:
 		RespondError(c, apperrors.WrapInvalidInput("group_by must be owner or billing"))
 	}
+}
+
+// GetOwnerUnpaidBalance は会計画面表示用に飼主の未納残高を返す。#182
+// GET /v1/accountings/unpaid-balance?owner_id=N
+func (h *Handler) GetOwnerUnpaidBalance(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	ownerID, err := strconv.ParseUint(c.Query("owner_id"), 10, 64)
+	if err != nil || ownerID == 0 {
+		RespondError(c, apperrors.WrapInvalidInput("owner_id is required"))
+		return
+	}
+	result, err := h.svc.Accounting.GetOwnerUnpaidBalance(c.Request.Context(), clinicID, ownerID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toOwnerUnpaidBalanceResponse(result))
 }
 
 // GetUnpaidMonthlySummary は月次未納繰越集計を返す。#114

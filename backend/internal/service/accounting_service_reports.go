@@ -48,6 +48,19 @@ func (s *accountingService) ListUnpaidByOwner(ctx context.Context, clinicID uint
 	return result, total, summary, nil
 }
 
+// GetOwnerUnpaidBalance は会計画面表示用に飼主の未納残高を返す。#182
+func (s *accountingService) GetOwnerUnpaidBalance(ctx context.Context, clinicID, ownerID uint64) (repository.OwnerUnpaidBalance, error) {
+	if ownerID == 0 {
+		return repository.OwnerUnpaidBalance{}, apperrors.WrapInvalidInput("owner_id is required")
+	}
+	result, err := s.repo.SumUnpaidByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get owner unpaid balance", "clinic_id", clinicID, "owner_id", ownerID, "error", err)
+		return repository.OwnerUnpaidBalance{}, apperrors.Wrap(err, "failed to get owner unpaid balance")
+	}
+	return result, nil
+}
+
 // Cancel は会計を論理削除（status=cancelled）する。
 // BUG-371 / #118: ハード削除の代替。actorID で監査ログを記録する。
 func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, actorID *uint64) error {

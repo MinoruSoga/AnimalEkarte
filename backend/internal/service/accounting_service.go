@@ -88,6 +88,8 @@ type AccountingService interface {
 	// BUG-370 / #120: 未納者一覧（startDate〜endDate の BETWEEN）
 	ListUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
 	ListUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error)
+	// #182: 会計画面表示用の飼主未納残高
+	GetOwnerUnpaidBalance(ctx context.Context, clinicID, ownerID uint64) (repository.OwnerUnpaidBalance, error)
 	// #114: 月次未納繰越集計（前月繰越・当月未払い・次月繰越）
 	GetMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, year, month, page, limit int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error)
 	// BUG-368: レジ締め日次集計

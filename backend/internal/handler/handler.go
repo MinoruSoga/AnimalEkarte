@@ -266,6 +266,8 @@ func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
 	accountings.GET("", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListAccountings)
 	// BUG-370: 月末未納者一覧
 	accountings.GET("/unpaid", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListUnpaidBillings)
+	// #182: 会計画面表示用 飼主未納残高
+	accountings.GET("/unpaid-balance", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetOwnerUnpaidBalance)
 	// #114: 月次未納繰越集計
 	accountings.GET("/unpaid-monthly", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetUnpaidMonthlySummary)
 	// BUG-368: レジ締め日次集計

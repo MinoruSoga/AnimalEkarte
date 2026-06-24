@@ -59,6 +59,9 @@ func (m *mockAccountingRepositoryForReport) FindUnpaidByBilling(_ context.Contex
 func (m *mockAccountingRepositoryForReport) FindUnpaidByOwner(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
 	return nil, 0, repository.UnpaidSummary{}, nil
 }
+func (m *mockAccountingRepositoryForReport) SumUnpaidByOwner(_ context.Context, _, _ uint64) (repository.OwnerUnpaidBalance, error) {
+	return repository.OwnerUnpaidBalance{}, nil
+}
 func (m *mockAccountingRepositoryForReport) FindMonthlyUnpaidCarryover(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
 	return nil, 0, repository.MonthlyUnpaidSummary{}, nil
 }

@@ -8,6 +8,7 @@ import { AccountingDocument, type ClinicInfo } from "./AccountingDocument";
 import { InsuranceCard } from "./InsuranceCard";
 import { ItemListCard } from "./ItemListCard";
 import { PaymentCard, type PaymentSplitDraft } from "./PaymentCard";
+import { OwnerUnpaidBalanceCard } from "./OwnerUnpaidBalanceCard";
 import { RefundSection } from "./RefundSection";
 
 interface AccountingHeaderActionsProps {
@@ -177,6 +178,9 @@ export function AccountingDetailColumns({
       </div>
 
       <div className="w-full lg:w-[400px] flex flex-col gap-4 overflow-y-auto">
+        {/* #182: 飼主の未納残高（未納がある場合のみ表示） */}
+        <OwnerUnpaidBalanceCard ownerId={accounting.ownerId} />
+
         <InsuranceCard
           useInsurance={hasInsurance}
           onUseInsuranceChange={onUseInsuranceChange}

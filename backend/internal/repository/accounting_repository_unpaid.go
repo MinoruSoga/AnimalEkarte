@@ -46,6 +46,12 @@ type UnpaidSummary struct {
 	OwnerCount   int64 `json:"owner_count"`
 }
 
+// OwnerUnpaidBalance は飼主単位の未納残高（未入金 billing の合計と件数）。#182
+type OwnerUnpaidBalance struct {
+	TotalAmount int64 `json:"total_amount"`
+	Count       int64 `json:"count"`
+}
+
 // FindUnpaidByBilling は未納 (status=waiting かつ scheduled_date BETWEEN startDate AND endDate) の billings を
 // 会計単位で返す。#120
 func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error) {
@@ -102,6 +108,24 @@ func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID u
 		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}
 	return aggregates, totalOwners, summary, nil
+}
+
+// SumUnpaidByOwner は指定飼主の未納残高（status=waiting の billings.total_amount 合計と件数）を返す。#182
+// 既存の未納集計（#120/#114）と同一定義（status=waiting・soft-delete 除外）で算出し、
+// 会計画面の残高表示と未納者一覧/繰越集計の値が乖離しないようにする。
+func (r *accountingRepository) SumUnpaidByOwner(ctx context.Context, clinicID, ownerID uint64) (OwnerUnpaidBalance, error) {
+	var result OwnerUnpaidBalance
+	// Model(&Billing{}) で soft-delete を自動付与し、clinicScope でテナント隔離する
+	// （#120/#114 と同一スコープ。裸の clinic_id 述語ではなく規約ヘルパーに統一）。
+	if err := r.db.WithContext(ctx).
+		Model(&model.Billing{}).
+		Scopes(clinicScope(clinicID)).
+		Where("owner_id = ? AND status = ?", ownerID, model.BillingStatusWaiting).
+		Select("COALESCE(SUM(total_amount), 0) AS total_amount, COUNT(id) AS count").
+		Scan(&result).Error; err != nil {
+		return OwnerUnpaidBalance{}, apperrors.FromGORM(err, "billing", "")
+	}
+	return result, nil
 }
 
 // FindMonthlyUnpaidCarryover は対象月の未納繰越（前月繰越・当月未払い・次月繰越）を

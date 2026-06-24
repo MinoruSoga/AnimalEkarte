@@ -121,6 +121,20 @@ func toUnpaidByOwnerResponse(items []repository.UnpaidOwnerAggregate, total int6
 	}
 }
 
+// #182: 会計画面用 飼主未納残高レスポンス
+
+type ownerUnpaidBalanceResponse struct {
+	UnpaidTotal int64 `json:"unpaid_total"`
+	UnpaidCount int64 `json:"unpaid_count"`
+}
+
+func toOwnerUnpaidBalanceResponse(b repository.OwnerUnpaidBalance) ownerUnpaidBalanceResponse {
+	return ownerUnpaidBalanceResponse{
+		UnpaidTotal: b.TotalAmount,
+		UnpaidCount: b.Count,
+	}
+}
+
 // #114: 月次未納繰越集計レスポンス
 
 type monthlyUnpaidOwnerPetResponse struct {

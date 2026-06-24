@@ -69,6 +69,50 @@ func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petN
 	return pet
 }
 
+// TestSumUnpaidByOwner は飼主単位の未納残高が status=waiting のみ・soft-delete 除外・
+// クリニック/飼主スコープで正しく集計されることを検証する。#182
+func TestSumUnpaidByOwner(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	jun := time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)
+
+	owner := makeOwner(t, db, clinicID, "未納 太郎")
+	other := makeOwner(t, db, clinicID, "別 花子")
+
+	// 対象飼主: waiting 1234 + 866（未納=2100）、completed 5000（除外）、cancelled 999（除外）
+	makeBilling(t, db, clinicID, &owner.ID, nil, 1234, model.BillingStatusWaiting, jun)
+	makeBilling(t, db, clinicID, &owner.ID, nil, 866, model.BillingStatusWaiting, jun)
+	makeBilling(t, db, clinicID, &owner.ID, nil, 5000, model.BillingStatusCompleted, jun)
+	makeBilling(t, db, clinicID, &owner.ID, nil, 999, model.BillingStatusCancelled, jun)
+	// 別飼主の waiting（対象飼主の残高に混入しないこと）
+	makeBilling(t, db, clinicID, &other.ID, nil, 7777, model.BillingStatusWaiting, jun)
+
+	t.Run("waiting のみ合算し completed/cancelled/別飼主を除外", func(t *testing.T) {
+		got, err := repo.SumUnpaidByOwner(ctx, clinicID, owner.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(2100), got.TotalAmount, "1234+866 の waiting のみ")
+		assert.Equal(t, int64(2), got.Count)
+	})
+
+	t.Run("未納なしは 0/0（空値ケース）", func(t *testing.T) {
+		empty := makeOwner(t, db, clinicID, "完納 次郎")
+		makeBilling(t, db, clinicID, &empty.ID, nil, 3000, model.BillingStatusCompleted, jun)
+		got, err := repo.SumUnpaidByOwner(ctx, clinicID, empty.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), got.TotalAmount)
+		assert.Equal(t, int64(0), got.Count)
+	})
+
+	t.Run("別クリニックスコープでは混入しない", func(t *testing.T) {
+		got, err := repo.SumUnpaidByOwner(ctx, 999, owner.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), got.TotalAmount)
+		assert.Equal(t, int64(0), got.Count)
+	})
+}
+
 // TestFindMonthlyUnpaidCarryover_PrevCurrentSplit は
 // 前月/当月の分割と対象月以降の除外を検証する。#114
 func TestFindMonthlyUnpaidCarryover_PrevCurrentSplit(t *testing.T) {

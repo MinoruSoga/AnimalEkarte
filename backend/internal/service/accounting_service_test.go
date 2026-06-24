@@ -26,6 +26,8 @@ type mockAccountingRepository struct {
 	// #120: start_date/end_date 2引数バリアント
 	findUnpaidByBillingFn func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
 	findUnpaidByOwnerFn   func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error)
+	// #182: 飼主未納残高
+	sumUnpaidByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) (repository.OwnerUnpaidBalance, error)
 	// #114: 月次未納繰越集計
 	findMonthlyUnpaidCarryoverFn func(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error)
 }
@@ -98,6 +100,13 @@ func (m *mockAccountingRepository) FindUnpaidByOwner(ctx context.Context, clinic
 		return m.findUnpaidByOwnerFn(ctx, clinicID, startDate, endDate, page, limit)
 	}
 	return nil, 0, repository.UnpaidSummary{}, nil
+}
+
+func (m *mockAccountingRepository) SumUnpaidByOwner(ctx context.Context, clinicID, ownerID uint64) (repository.OwnerUnpaidBalance, error) {
+	if m.sumUnpaidByOwnerFn != nil {
+		return m.sumUnpaidByOwnerFn(ctx, clinicID, ownerID)
+	}
+	return repository.OwnerUnpaidBalance{}, nil
 }
 
 func (m *mockAccountingRepository) GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error) {
@@ -1597,4 +1606,49 @@ func TestAccountingService_ListUnpaidByOwner(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGetOwnerUnpaidBalance は #182 の未納残高取得サービスを検証する。
+func TestGetOwnerUnpaidBalance(t *testing.T) {
+	t.Run("owner_id=0 は 400（リポジトリを呼ばない）", func(t *testing.T) {
+		called := false
+		repo := &mockAccountingRepository{
+			sumUnpaidByOwnerFn: func(_ context.Context, _, _ uint64) (repository.OwnerUnpaidBalance, error) {
+				called = true
+				return repository.OwnerUnpaidBalance{}, nil
+			},
+		}
+		svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
+		_, err := svc.GetOwnerUnpaidBalance(context.Background(), 1, 0)
+		assert.Error(t, err)
+		assert.False(t, called, "owner_id=0 ではリポジトリを呼ばない")
+	})
+
+	t.Run("リポジトリ結果をそのまま返す", func(t *testing.T) {
+		var gotClinic, gotOwner uint64
+		repo := &mockAccountingRepository{
+			sumUnpaidByOwnerFn: func(_ context.Context, clinicID, ownerID uint64) (repository.OwnerUnpaidBalance, error) {
+				gotClinic, gotOwner = clinicID, ownerID
+				return repository.OwnerUnpaidBalance{TotalAmount: 2100, Count: 2}, nil
+			},
+		}
+		svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
+		got, err := svc.GetOwnerUnpaidBalance(context.Background(), 7, 42)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(2100), got.TotalAmount)
+		assert.Equal(t, int64(2), got.Count)
+		assert.Equal(t, uint64(7), gotClinic)
+		assert.Equal(t, uint64(42), gotOwner)
+	})
+
+	t.Run("リポジトリエラーはラップして返す", func(t *testing.T) {
+		repo := &mockAccountingRepository{
+			sumUnpaidByOwnerFn: func(_ context.Context, _, _ uint64) (repository.OwnerUnpaidBalance, error) {
+				return repository.OwnerUnpaidBalance{}, errors.New("db error")
+			},
+		}
+		svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
+		_, err := svc.GetOwnerUnpaidBalance(context.Background(), 1, 42)
+		assert.Error(t, err)
+	})
 }
