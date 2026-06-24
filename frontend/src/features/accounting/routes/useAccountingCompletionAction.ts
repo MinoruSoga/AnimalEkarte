@@ -14,7 +14,7 @@ import { createBillingItem } from "../api/create-billing-item";
 import type { PaymentSplitRequest } from "../api/types";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo, PaymentMethod } from "../types";
-import type { AccountingFormState } from "./AccountingDetailModel";
+import { buildPaymentSplitRequests, type AccountingFormState } from "./AccountingDetailModel";
 
 interface AccountingCalculation {
   subtotal: number;
@@ -65,18 +65,7 @@ export function useAccountingCompletionAction({
       }
       editConfirmedRef.current = false;
 
-      const builtSplits: PaymentSplitRequest[] = paymentSplits
-        .filter((split) => split.amount && parseInt(split.amount, 10) > 0)
-        .map((split) => {
-          const amount = parseInt(split.amount, 10);
-          const received = split.method === "cash" ? parseInt(split.receivedAmount || "0", 10) : 0;
-          return {
-            method: split.method as PaymentMethod,
-            amount,
-            received_amount: received,
-            change_amount: split.method === "cash" ? Math.max(0, received - amount) : 0,
-          };
-        });
+      const builtSplits: PaymentSplitRequest[] = buildPaymentSplitRequests(paymentSplits);
 
       const repMethod: PaymentMethod =
         builtSplits.some((split) => split.method === "cash") ? "cash" :

@@ -55,4 +55,6 @@ const (
 	AuditActionBillingCancel        = "billing.cancel"
 	AuditActionBillingPostCloseEdit = "billing.post_close_edit"
 	AuditActionBillingRefundCreate  = "billing_refund.create"
+	// #189: 確定済み会計のクレジット（カード）金額の確定後訂正
+	AuditActionBillingCreditCorrection = "billing.credit_correction"
 )

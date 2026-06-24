@@ -91,7 +91,13 @@ func validatePaymentSplits(splits []PaymentSplitInput, billingAmount *int64) err
 			if s.ReceivedAmount < s.Amount {
 				return apperrors.WrapInvalidInput("現金の預り金が不足しています")
 			}
-			if s.ChangeAmount != s.ReceivedAmount-s.Amount {
+			if s.ChangeOverride {
+				// #188: お釣り直接上書きモード。レジ実機（カルテ非連動）の誤差を会計記録に反映するため
+				// change == received - amount の整合検証を意図的に緩和する。下限ガード（change >= 0）は維持する。
+				if s.ChangeAmount < 0 {
+					return apperrors.WrapInvalidInput("お釣りは0円以上でなければなりません")
+				}
+			} else if s.ChangeAmount != s.ReceivedAmount-s.Amount {
 				return apperrors.WrapInvalidInput("お釣り計算が不正です")
 			}
 		}

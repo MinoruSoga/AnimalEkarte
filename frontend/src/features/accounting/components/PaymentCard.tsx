@@ -16,6 +16,9 @@ export interface PaymentSplitDraft {
   method: PaymentMethod;
   amount: string;
   receivedAmount: string;
+  // #188: お釣り直接上書きモード（レジ実機の誤差吸収）。changeOverride=true の時のみ changeAmount を使う。
+  changeOverride?: boolean;
+  changeAmount?: string;
 }
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -70,6 +73,24 @@ export const PaymentCard = memo(function PaymentCard({
 
   const handleReceivedChange = useCallback((idx: number, value: string) => {
     onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, receivedAmount: value } : s));
+  }, [paymentSplits, onSplitsChange]);
+
+  // #188: お釣り手動修正モードの ON/OFF。ON 時は現在の派生値（max(0, received-amount)）を初期値に置く。
+  const handleToggleChangeOverride = useCallback((idx: number) => {
+    onSplitsChange(paymentSplits.map((s, i) => {
+      if (i !== idx) return s;
+      if (s.changeOverride) {
+        // 自動計算に戻す: 上書きフィールドを除いた基本ドラフトへ戻す
+        return { method: s.method, amount: s.amount, receivedAmount: s.receivedAmount };
+      }
+      const amt = parseInt(s.amount || "0", 10);
+      const rec = parseInt(s.receivedAmount || "0", 10);
+      return { ...s, changeOverride: true, changeAmount: Math.max(0, rec - amt).toString() };
+    }));
+  }, [paymentSplits, onSplitsChange]);
+
+  const handleChangeAmountChange = useCallback((idx: number, value: string) => {
+    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, changeAmount: value } : s));
   }, [paymentSplits, onSplitsChange]);
 
   const handleRemoveSplit = useCallback((idx: number) => {
@@ -176,11 +197,38 @@ export const PaymentCard = memo(function PaymentCard({
                           </Button>
                         </div>
                       </div>
-                      <div className={`${C.bgPrimary5} p-3 rounded-lg flex justify-between items-center`}>
-                        <span className={`text-sm font-bold ${C.text60}`}>お釣り</span>
-                        <span className={`text-xl font-bold ${splitChange < 0 ? C.danger : C.text}`}>
-                          ¥{splitChange.toLocaleString()}
-                        </span>
+                      <div className={`${C.bgPrimary5} p-3 rounded-lg space-y-2`}>
+                        <div className="flex justify-between items-center">
+                          <span className={`text-sm font-bold ${C.text60}`}>お釣り</span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleChangeOverride(idx)}
+                            className={`text-xs underline ${C.text50} ${C.hoverText}`}
+                          >
+                            {split.changeOverride ? "自動計算に戻す" : "手動修正"}
+                          </button>
+                        </div>
+                        {split.changeOverride ? (
+                          <>
+                            <NumberInput
+                              className="h-10 text-lg font-bold"
+                              value={split.changeAmount ?? ""}
+                              onChange={(v) => handleChangeAmountChange(idx, v)}
+                              suffix="円"
+                              align="right"
+                              min={0}
+                            />
+                            <p className={`text-xs text-right ${C.text40}`}>
+                              レジ実機の実際のお釣りに合わせて手動修正中
+                            </p>
+                          </>
+                        ) : (
+                          <div className="flex justify-end">
+                            <span className={`text-xl font-bold ${splitChange < 0 ? C.danger : C.text}`}>
+                              ¥{splitChange.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </>
                   ) : null}

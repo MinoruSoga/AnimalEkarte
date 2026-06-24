@@ -50,6 +50,8 @@ export interface PaymentSplitRequest {
   amount: number;
   received_amount?: number;
   change_amount: number; // #119: required — cash: received-amount, non-cash: 0
+  // #188: お釣り直接上書きモード。true の場合のみ BE が change == received-amount 整合検証を緩和する。
+  change_override?: boolean;
 }
 
 export interface UpdateAccountingRequest {
@@ -69,4 +71,14 @@ export interface UpdateAccountingRequest {
   completed_at?: string | null;
   memo?: string;
   post_close_reason?: string; // #115: レジ締め済み期間の遡り編集理由
+}
+
+// #189: 確定済み会計のクレジット（カード）金額の確定後訂正リクエスト。
+// 専用エンドポイント POST /v1/accountings/:id/credit-correction 用。
+export interface CorrectCreditPaymentRequest {
+  // 生成型 PaymentMethod は string 別名のため Extract が never に潰れる。リテラルユニオンで直接定義する。
+  method: "credit_card" | "electronic_money";
+  amount: number;
+  reason: string;
+  memo?: string;
 }

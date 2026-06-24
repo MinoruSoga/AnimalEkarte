@@ -176,6 +176,38 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 	c.JSON(http.StatusOK, toAccountingResponse(updated))
 }
 
+// CorrectCreditPayment は確定済み会計のクレジット（カード）金額を確定後に訂正する（#189）。
+// ルート側で ResourceAccountingPostCloseEdit:edit 権限を要求する（確定/締め済み訂正の既存ゲートを再利用）。
+// 確定前編集の通常 PATCH 経路とは別の専用フローで、理由・監査を伴う。
+func (h *Handler) CorrectCreditPayment(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+
+	var req correctCreditPaymentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	ctx := c.Request.Context()
+	updated, err := h.svc.Accounting.CorrectCreditPayment(ctx, req.toServiceInput(id, clinicID, staffID))
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toAccountingResponse(updated))
+}
+
 // ListUnpaidBillings は未納者一覧を返す。#120
 // GET /v1/accountings/unpaid?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&group_by=owner|billing&page=N&limit=N
 // start_date / end_date は必須。欠けた場合は 400 を返す。

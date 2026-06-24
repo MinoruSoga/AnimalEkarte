@@ -32,6 +32,11 @@ type PaymentSplitInput struct {
 	Amount          int64
 	ReceivedAmount  int64
 	ChangeAmount    int64
+	// ChangeOverride は #188: お釣り直接上書きモード。true の場合、レジ実機の誤差吸収のため
+	// change == received - amount の整合検証を緩和する（received >= amount・change >= 0 の下限ガードは維持）。
+	// このフラグは検証専用で DB には永続化しない（payment_splits に列なし）。再編集時は保存済み ChangeAmount から
+	// FE が上書き状態を再導出する（AccountingDetailModel.restoreChangeOverride）。
+	ChangeOverride bool
 }
 
 // UpdateAccountingInput は会計更新のサービス入力DTO。
@@ -68,6 +73,23 @@ type UpdateAccountingInput struct {
 	IsPostClose     bool    // ハンドラがレジ締め済み判定を注入する
 }
 
+// CorrectCreditPaymentInput は確定済み会計のクレジット（カード）金額を確定後に訂正する入力DTO（#189）。
+// レジ実機（カルテ非連動）でのカード打ち間違いを、理由・権限・監査付きで訂正する専用フロー。
+// 訂正対象は Method で指定したカード系内訳1件のみ。現金は #188（お釣り上書き）の管轄で本フロー対象外。
+type CorrectCreditPaymentInput struct {
+	ClinicID  uint64
+	BillingID uint64
+	StaffID   *uint64
+	// Method は訂正対象のカード系支払い手段（credit_card | electronic_money）。
+	Method model.PaymentMethod
+	// Amount は訂正後の金額（1円以上）。カード内訳は受領額・お釣りを持たない（0固定）ため金額のみ受け取る。
+	Amount int64
+	// Reason は訂正理由（必須）。監査ログに記録する。
+	Reason string
+	// Memo は補足メモ（任意）。監査ログに記録する。
+	Memo string
+}
+
 // ClinicDailySummary は拠点別日次集計結果 (#86 段階3 論点4=2 拠点別集計)。
 type ClinicDailySummary struct {
 	ClinicID uint64
@@ -83,6 +105,9 @@ type AccountingService interface {
 	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error)
 	Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error)
+	// CorrectCreditPayment は確定済み会計のクレジット（カード）金額を確定後に訂正する（#189）。
+	// 確定済み（status=completed）かつ対象カード内訳が存在する場合のみ許可し、理由・監査を必須とする。
+	CorrectCreditPayment(ctx context.Context, input *CorrectCreditPaymentInput) (*model.Billing, error)
 	// BUG-371 / #118: 論理削除（status=cancelled）。actorID で監査ログを記録する。
 	Cancel(ctx context.Context, clinicID, id uint64, actorID *uint64) error
 	// BUG-370 / #120: 未納者一覧（startDate〜endDate の BETWEEN）

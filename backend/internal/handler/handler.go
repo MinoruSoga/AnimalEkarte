@@ -276,6 +276,8 @@ func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
 	accountings.GET("/:id/refunds", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListRefunds)
 	accountings.POST("", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateAccounting)
 	accountings.PATCH("/:id", h.RequirePermission(string(model.ResourceAccounting), "edit"), h.UpdateAccounting)
+	// #189: 確定済みカード金額の確定後訂正（専用フロー）。確定/締め後訂正の既存権限 accounting-post-close-edit:edit を再利用。
+	accountings.POST("/:id/credit-correction", h.RequirePermission(string(model.ResourceAccountingPostCloseEdit), "edit"), h.CorrectCreditPayment)
 	// BUG-371 / #118: DELETE は廃止し論理削除 (POST /:id/cancel) に統合。専用権限 accounting-cancel を使用する。
 	accountings.POST("/:id/cancel", h.RequirePermission(string(model.ResourceAccountingCancel), "edit"), h.CancelAccounting)
 	accountings.POST("/:id/refunds", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateRefund)

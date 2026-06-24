@@ -16,6 +16,7 @@ import {
   ReadOnlyAccountingBanner,
   UngroupedItemsWarningBanner,
 } from "../components/AccountingDetailPanels";
+import { CreditCorrectionDialog } from "../components/CreditCorrectionDialog";
 import { useAccountingCompletionAction } from "./useAccountingCompletionAction";
 import { useAccountingDetailState } from "./useAccountingDetailState";
 import { useAccountingItemActions } from "./useAccountingItemActions";
@@ -200,6 +201,14 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               onRefund={handleRefund}
             />
           </fieldset>
+
+          {/* #189: 確定済みカード金額の確定後訂正（専用フロー・監査付き）。確定済み + 訂正権限がある場合のみ導線を表示。
+              CreditCorrectionDialog は確定済み(completed)かつカード支払いが無ければ自動で null を返す。 */}
+          {id && canPostCloseEdit ? (
+            <div className="px-4 pb-4">
+              <CreditCorrectionDialog accounting={accounting} />
+            </div>
+          ) : null}
 
           {/* #115: 締め後編集理由入力（レジ締め済み期間かつ編集権限あり） */}
           {isScheduledDateClosed && canSubmit && canPostCloseEdit ? (

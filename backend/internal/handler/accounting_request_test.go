@@ -400,6 +400,58 @@ func TestPaymentSplitRequest_Binding_MethodOneof(t *testing.T) {
 	}
 }
 
+// #189: クレジット訂正リクエストの binding 検証。
+// method は credit_card / electronic_money のみ許可（cash/bank_transfer/未知は拒否）、
+// amount は required,min=1、reason は required。oneof/required は gin binding 層で評価される。
+func TestCorrectCreditPaymentRequest_Binding(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     correctCreditPaymentRequest
+		wantErr bool
+	}{
+		{name: "正常: credit_card", req: correctCreditPaymentRequest{Method: "credit_card", Amount: 12000, Reason: "打ち間違い"}, wantErr: false},
+		{name: "正常: electronic_money", req: correctCreditPaymentRequest{Method: "electronic_money", Amount: 500, Reason: "訂正"}, wantErr: false},
+		{name: "拒否: cash は対象外", req: correctCreditPaymentRequest{Method: "cash", Amount: 100, Reason: "x"}, wantErr: true},
+		{name: "拒否: bank_transfer は対象外", req: correctCreditPaymentRequest{Method: "bank_transfer", Amount: 100, Reason: "x"}, wantErr: true},
+		{name: "拒否: 未知の手段", req: correctCreditPaymentRequest{Method: "paypay", Amount: 100, Reason: "x"}, wantErr: true},
+		{name: "拒否: reason 空", req: correctCreditPaymentRequest{Method: "credit_card", Amount: 100, Reason: ""}, wantErr: true},
+		{name: "拒否: amount=0", req: correctCreditPaymentRequest{Method: "credit_card", Amount: 0, Reason: "x"}, wantErr: true},
+		{name: "拒否: amount 負", req: correctCreditPaymentRequest{Method: "credit_card", Amount: -100, Reason: "x"}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := binding.Validator.ValidateStruct(&tt.req)
+			if tt.wantErr && err == nil {
+				t.Fatalf("ValidateStruct(%+v) = nil, want validation error", tt.req)
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("ValidateStruct(%+v) = %v, want nil", tt.req, err)
+			}
+		})
+	}
+}
+
+// #189: クレジット訂正リクエストの service 入力変換が全フィールドを伝播することを検証する。
+func TestCorrectCreditPaymentRequest_ToServiceInput(t *testing.T) {
+	req := correctCreditPaymentRequest{Method: "credit_card", Amount: 8800, Reason: "端末打ち間違い", Memo: "確認済み"}
+	in := req.toServiceInput(10, 1, 7)
+	if in.BillingID != 10 || in.ClinicID != 1 {
+		t.Fatalf("BillingID/ClinicID = %d/%d, want 10/1", in.BillingID, in.ClinicID)
+	}
+	if in.StaffID == nil || *in.StaffID != 7 {
+		t.Fatalf("StaffID = %v, want 7", in.StaffID)
+	}
+	if in.Method != model.PaymentMethodCreditCard {
+		t.Fatalf("Method = %q, want credit_card", in.Method)
+	}
+	if in.Amount != 8800 {
+		t.Fatalf("Amount = %d, want 8800", in.Amount)
+	}
+	if in.Reason != "端末打ち間違い" || in.Memo != "確認済み" {
+		t.Fatalf("Reason/Memo = %q/%q, want 端末打ち間違い/確認済み", in.Reason, in.Memo)
+	}
+}
+
 // #127: 会計更新リクエスト（完了時の代表 payment_method）と返金リクエストの
 // payment_method oneof が bank_transfer を許可し、既存値・不正値の扱いを維持することを検証する。
 func TestPaymentMethodPointer_Binding_Oneof(t *testing.T) {

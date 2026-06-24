@@ -1046,6 +1046,36 @@ func TestValidatePaymentSplits(t *testing.T) {
 			wantInvalid:   true,
 		},
 		{
+			// #188: お釣り直接上書きモード。レジ実機の誤差吸収のため change==received-amount 整合を緩和する。
+			// received(6000) - amount(5000) = 1000 だが、実機が誤って 500 を返した現実を記録できる。
+			name: "現金: お釣り直接上書き（整合不一致でも有効・#188）",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 5000, ReceivedAmount: 6000, ChangeAmount: 500, ChangeOverride: true},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       false,
+		},
+		{
+			// #188: 上書きでも下限ガード（received >= amount）は維持する。過少入金は弾く。
+			name: "現金: お釣り上書きでも預り金不足は弾く（#188）",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 5000, ReceivedAmount: 4000, ChangeAmount: 0, ChangeOverride: true},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			// #188: 上書きでも下限ガード（change >= 0）は維持する。負のお釣りは弾く。
+			name: "現金: お釣り上書きでも負のお釣りは弾く（#188）",
+			splits: []PaymentSplitInput{
+				{Method: model.PaymentMethodCash, Amount: 5000, ReceivedAmount: 6000, ChangeAmount: -100, ChangeOverride: true},
+			},
+			billingAmount: ptrInt64(5000),
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
 			name: "billingAmount が nil: 合計チェックをスキップ",
 			splits: []PaymentSplitInput{
 				{Method: model.PaymentMethodCreditCard, Amount: 9999},
