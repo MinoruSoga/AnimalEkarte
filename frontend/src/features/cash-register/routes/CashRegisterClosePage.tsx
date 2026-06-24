@@ -1,8 +1,10 @@
 import { useActionState, useState, useCallback } from "react";
+import { Printer } from "lucide-react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { handleApiError } from "@/lib/handle-api-error";
+import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,14 +18,16 @@ import {
 import { useGetCashRegisterPreview } from "../api/get-cash-register-preview";
 import { useCreateCashRegisterClose } from "../api/create-cash-register-close";
 import { PERIOD_OPTIONS, PERIOD_LABELS, type CashRegisterPeriod } from "../constants";
-import { CategoryPaymentMatrix } from "../components/CategoryPaymentMatrix";
+import { UnifiedClosingSummaryTable } from "../components/UnifiedClosingSummaryTable";
 import { CashReconciliationCard } from "../components/CashReconciliationCard";
 import { BillingDetailTable } from "../components/BillingDetailTable";
+import { ClosePrintArea } from "../components/ClosePrintArea";
 import { useCashRegisterCloseForm } from "../hooks/use-cash-register-close-form";
 
 export function CashRegisterClosePage() {
   const { date, period, previewEnabled, handleDateChange, handlePeriodChange, enablePreview } =
     useCashRegisterCloseForm();
+  const clinicName = useCurrentClinicName();
   const [actualCash, setActualCash] = useState<string>("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
@@ -142,14 +146,41 @@ export function CashRegisterClosePage() {
             </div>
           ) : (
             <>
-              {/* カテゴリ×支払方法マトリクス */}
+              {/* 印刷 / PDF 出力導線（#153: #184 と同じ印刷基盤を再利用）*/}
+              <div className="flex justify-end print:hidden" data-testid="close-actions">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  data-testid="close-print-button"
+                  className={`flex items-center gap-2 px-4 h-10 text-base rounded-[4px] ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
+                >
+                  <Printer className="size-4" />
+                  印刷 / PDF出力
+                </button>
+              </div>
+
+              {/* 統合テーブル: 部門別集計（件数＋支払方法別金額＋合計）*/}
               <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
                 <h2 className={`text-base font-semibold ${C.text} mb-4`}>部門別集計</h2>
-                <CategoryPaymentMatrix
+                <UnifiedClosingSummaryTable
                   categories={preview.aggregate.categories}
                   paymentMethods={preview.aggregate.paymentMethods}
+                  billingDetails={preview.billingDetails}
                 />
               </section>
+
+              {/* 印刷 / PDF 出力ビュー（印刷時のみ表示）*/}
+              <ClosePrintArea
+                date={preview.date}
+                period={period}
+                clinicName={clinicName}
+                categories={preview.aggregate.categories}
+                paymentMethods={preview.aggregate.paymentMethods}
+                billingDetails={preview.billingDetails}
+                taxBreakdown={preview.aggregate.taxBreakdown}
+                theoreticalCash={preview.aggregate.theoreticalCash}
+                actualCash={actualCash !== "" ? Number(actualCash) : null}
+              />
 
               {/* 消費税内訳 */}
               <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>

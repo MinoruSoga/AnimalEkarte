@@ -1,15 +1,17 @@
 import { useCallback, useState, useTransition } from "react";
 import { useNavigate } from "react-router";
-import { Download } from "lucide-react";
+import { Download, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { C } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
+import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
 import { ResourceCashRegisterClose } from "@/types/generated/models";
 import { useGetMonthlyReport } from "../api/get-monthly-report";
 import { exportMonthlyCSV } from "../api/export-monthly-csv";
 import { MonthlySummaryCards } from "../components/MonthlySummaryCards";
 import { DailyBreakdownTable } from "../components/DailyBreakdownTable";
+import { MonthlyReportPrintArea } from "../components/MonthlyReportPrintArea";
 import { toJSTWallDate } from "@/lib/jst-date";
 
 export function AccountingReportsPage() {
@@ -20,6 +22,7 @@ export function AccountingReportsPage() {
 
   const navigate = useNavigate();
   const { canView: canViewCloses } = usePermission(ResourceCashRegisterClose);
+  const clinicName = useCurrentClinicName();
 
   const { data, isLoading, isError } = useGetMonthlyReport(year, month);
 
@@ -53,21 +56,37 @@ export function AccountingReportsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div
+        className="flex items-center justify-between flex-wrap gap-3 print:hidden"
+        data-testid="report-actions"
+      >
         <h1 className={`text-xl font-bold ${C.text}`}>月次集計レポート</h1>
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={isExporting}
-          className={`flex items-center gap-2 px-4 h-10 text-base rounded-[4px] ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors disabled:opacity-50`}
-        >
-          <Download className="size-4" />
-          {isExporting ? "エクスポート中..." : "CSV出力"}
-        </button>
+        <div className="flex items-center gap-2">
+          {data ? (
+            <button
+              type="button"
+              onClick={() => window.print()}
+              data-testid="monthly-report-print-button"
+              className={`flex items-center gap-2 px-4 h-10 text-base rounded-[4px] ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
+            >
+              <Printer className="size-4" />
+              印刷 / PDF出力
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting}
+            className={`flex items-center gap-2 px-4 h-10 text-base rounded-[4px] ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors disabled:opacity-50`}
+          >
+            <Download className="size-4" />
+            {isExporting ? "エクスポート中..." : "CSV出力"}
+          </button>
+        </div>
       </div>
 
       {/* 年月選択 */}
-      <div className="flex flex-wrap gap-3 items-center">
+      <div className="flex flex-wrap gap-3 items-center print:hidden">
         <div>
           <label htmlFor="report_year" className={`text-base ${C.text70} mr-2`}>
             年
@@ -114,6 +133,15 @@ export function AccountingReportsPage() {
         </div>
       ) : (
         <>
+          {/* 印刷 / PDF 出力ビュー（印刷時のみ表示）*/}
+          <MonthlyReportPrintArea
+            year={data.year}
+            month={data.month}
+            clinicName={clinicName}
+            summary={data.summary}
+            dailyDetails={data.dailyDetails}
+          />
+
           <MonthlySummaryCards summary={data.summary} />
 
           {/* 支払方法別集計 */}
