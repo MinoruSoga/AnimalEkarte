@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed seed-old-db verify-old-db-seed restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local dump-stg
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed seed-old-db verify-old-db-seed restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local dump-stg check-reset-contract check-reset-contract-test shellcheck shellcheck-test
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -53,11 +53,39 @@ clean:
 
 # 完全リセット（スキーマ・シーダー含む）
 # migration は compose の one-shot service に任せ、reset は DB 初期化 + 起動完了待ちだけに絞る
+# --wait は up と同じく長寿命サービス（db migrate backend frontend）だけを対象にする。
+# codegen は一発実行で正常終了する one-shot のため、wait 対象に含めると正常終了が
+# --wait の失敗扱いになり cosmetic exit 1 を起こす（必要時は make codegen で個別実行）。
 reset:
 	@echo "🔄 Resetting database..."
 	$(DC) down -v
-	$(DC) up -d --build --wait --wait-timeout 1200
+	$(DC) up -d --build --wait --wait-timeout 1200 db migrate backend frontend
 	@echo "✓ Reset complete — database reinitialized and services are healthy"
+
+# reset の wait-set 契約チェック（Docker 不要・純テキスト検査・高速）
+# `make reset` の `up --wait` が長寿命サービス (db migrate backend frontend) だけを
+# 待ち、one-shot codegen を含めないことを静的に保証する。これが裸の `up --wait` に
+# 退行すると cosmetic exit-1 が再発するため、ci-local と CI で自動実行する。
+check-reset-contract:
+	@bash scripts/check-reset-wait-services.sh
+
+# 上記契約チェック自体の回帰テスト（fixture ベース・Docker 不要）
+# 正しい wait-set は通し、codegen 混入 / 必須欠落 / 裸 up --wait を reject できることを検証する。
+check-reset-contract-test:
+	@bash scripts/check-reset-wait-services.test.sh
+
+# scripts/*.sh の shellcheck ゲート（severity=warning）。
+# shellcheck はローカルに無ければピン留め Docker イメージ経由で実行する（再現可能）。
+# 整形・行継続トリックでは欺けない AST 検査で、シェルスクリプトの退行を手動レビュー
+# ではなく自動で弾く。一括/ファイル全体スコープの disable によるゲート骨抜きも reject する。
+shellcheck:
+	@bash scripts/shellcheck-scripts.sh
+
+# 上記 shellcheck ゲート自体の回帰テスト（fixture ベース）。
+# 実バグ・行継続で隠したバグ・disable=all / ファイル全体 disable を確実に reject し、
+# clean スクリプトと正当な行内 disable は通すことを検証する。
+shellcheck-test:
+	@bash scripts/shellcheck-scripts.test.sh
 
 # マイグレーション適用（差分のみ・DBは落とさない）
 # 使うのは backend ではなく one-shot の migrate サービス
@@ -170,25 +198,32 @@ mod-tidy:
 
 # CI と同等のチェックをローカル Docker で実行
 # 実行前に make up でコンテナを起動しておくこと
+# 先頭の reset 契約チェックは Docker 不要・純テキスト検査なので最速で fail させる。
 ci-local:
-	@echo "=== [1/7] Backend: build ==="
+	@echo "=== [1/9] Reset wait-set contract ==="
+	$(MAKE) check-reset-contract
+	$(MAKE) check-reset-contract-test
+	@echo "=== [2/9] Shell scripts: shellcheck ==="
+	$(MAKE) shellcheck
+	$(MAKE) shellcheck-test
+	@echo "=== [3/9] Backend: build ==="
 	$(DC) exec backend go build ./...
-	@echo "=== [2/7] Backend: test ==="
+	@echo "=== [4/9] Backend: test ==="
 	$(DC) exec backend go test ./... -count=1 -race -timeout 120s
-	@echo "=== [3/7] Backend: lint ==="
+	@echo "=== [5/9] Backend: lint ==="
 	docker run --rm \
 		-v $(PWD)/backend:/app \
 		-w /app \
 		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) \
 		golangci-lint run
-	@echo "=== [4/7] Backend: schema drift ==="
+	@echo "=== [6/9] Backend: schema drift ==="
 	$(DC) exec backend go test ./internal/model/ -run TestSchemaDrift -v
-	@echo "=== [5/7] Codegen: sync check ==="
+	@echo "=== [7/9] Codegen: sync check ==="
 	$(MAKE) codegen
 	git diff --exit-code frontend/src/types/generated/ || (echo "ERROR: models.ts is out of sync. Commit the updated file." && exit 1)
-	@echo "=== [6/7] Frontend: lint ==="
+	@echo "=== [8/9] Frontend: lint ==="
 	$(DC) exec frontend pnpm run lint
-	@echo "=== [7/7] Frontend: build ==="
+	@echo "=== [9/9] Frontend: build ==="
 	$(DC) exec frontend pnpm run build
 	@echo ""
 	@echo "✓ All CI checks passed"
@@ -243,6 +278,10 @@ help:
 	@echo "  codegen       型定義生成（Go model → TypeScript型）"
 	@echo "  codegen-check 型定義の差分チェック（CI用）"
 	@echo "  schema-check  GoモデルとDBスキーマの差分チェック"
+	@echo "  check-reset-contract      make reset の wait-set 契約を静的検証（Docker不要）"
+	@echo "  check-reset-contract-test 上記契約チェック自体の回帰テスト"
+	@echo "  shellcheck       scripts/*.sh を shellcheck で検査（severity=warning・ローカル無ければDocker経由）"
+	@echo "  shellcheck-test  上記 shellcheck ゲート自体の回帰テスト"
 	@echo "  ci-local      CI と同等のチェックをローカル Docker で実行"
 	@echo "  build-go      Goビルド（開発用）"
 	@echo "  mod-download  Goモジュールダウンロード"

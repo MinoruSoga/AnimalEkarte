@@ -106,7 +106,7 @@ docker run -d --name "$CONTAINER" \
   -p "${PORT}:5432" \
   postgres:18-alpine > /dev/null
 
-for i in $(seq 1 30); do
+for _ in $(seq 1 30); do
   docker exec "$CONTAINER" pg_isready -U postgres -q 2>/dev/null && break
   sleep 1
 done

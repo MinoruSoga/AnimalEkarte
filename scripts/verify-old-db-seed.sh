@@ -10,7 +10,6 @@
 set -euo pipefail
 
 DC="docker compose --env-file .env.local"
-PSQL="$DC exec -T db psql -U \$POSTGRES_USER -d \$POSTGRES_DB -t -c"
 
 pass=0
 fail=0

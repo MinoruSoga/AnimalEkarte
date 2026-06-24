@@ -103,18 +103,25 @@ make seed-old-db OLD_DB_MIGRATION_OUTPUT_DIR=/other/path OLD_DB_DOCS_DIR=/other/
 
 ### 最新検証結果
 
-2026-06-24 の fresh DB 投入結果。`owners.dm_preference` の保持チェックを追加したため
-`verify-old-db-seed` の PASS 件数は 21 → 22 に増える（投入後に下表を更新する）。
+2026-06-25 の fresh DB 投入結果（`make reset` → `make seed-old-db` → `make verify-old-db-seed`）。
+子明細クロスウォーク解決後の値で、`vital_records` / `clinical_plans` / `inquiries` /
+`treatments` / `billing_items` / `exam_results` が複合キーで load されるようになったため
+loaded/skipped と件数が以前（loaded=13/skipped=14）から更新されている。
 
 ```text
+make reset
+  exit=0   # one-shot codegen を wait 対象から除外し cosmetic exit-1 を解消
+           # この wait-set 契約は make check-reset-contract / CI で自動検証され、
+           # 裸の `up --wait` への退行は merge 前に reject される（手動確認不要）
+
 make seed-old-db
-  loaded=13
-  skipped=14
+  loaded=19
+  skipped=8
   errors=0
-  totalRowsInserted=1,382,225
+  totalRowsInserted=7,880,430
 
 make verify-old-db-seed
-  PASS=22   # owners.dm_preference populated チェックを追加
+  PASS=34
   FAIL=0
   WARN=0
 ```
@@ -131,12 +138,27 @@ make verify-old-db-seed
 | exam_type_fields | 368 |
 | merchandise_items | 5,073 |
 | procedures | 5,088 |
-| medical_records | 1,433 |
-| billings | 1,054 |
+| medical_records | 425,681 |
+| billings | 392,433 |
 | exams | 1,343,725 |
+| vital_records | 424,938 |
+| clinical_plans | 425,544 |
+| inquiries | 425,544 |
+| treatments | 1,542,116 |
+| billing_items | 1,542,116 |
+| exam_results | 1,322,321 |
 
 ### 注意事項
 
 - `*.import.tsv` および `sensitive-local/` は `.gitignore` 済み。AnimalEkarte リポジトリには絶対にコミットしない。
 - `make seed-old-db` は DB の drop/recreate を行わない。スキーマ変更は `make reset` で行う。
 - 全エントリが loaded/skipped になれば成功（error が 1 件でもあれば非ゼロ終了）。
+- `make reset` の `up --wait` wait-set 契約は `scripts/check-reset-wait-services.sh` が静的に検証する。
+  `make check-reset-contract`（および `ci-local` 先頭ステップ・CI の Reset Wait-Set Contract ジョブ）で
+  自動実行されるため、one-shot codegen 混入や裸 `up --wait` への退行は手動確認なしで検出される。
+  契約チェック自体の回帰テストは `make check-reset-contract-test` で実行できる。
+- `scripts/*.sh` の lint は `make shellcheck`（`ci-local` の [2/9] ステップ・CI の ShellCheck Scripts ジョブ）で
+  shellcheck により**自動**実行される。シェルスクリプトのレビューは手動目視ではなく、整形・行継続トリックで
+  欺けない AST 検査でゲートされる（`make reset` 等の運用スクリプトの退行は merge 前に reject される）。
+  ゲート自体の回帰テストは `make shellcheck-test` で実行できる。shellcheck がローカルに無い場合は
+  ピン留め Docker イメージ経由で再現可能に実行される。

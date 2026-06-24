@@ -52,6 +52,46 @@ jobs:
               - 'backend/migrations/*.sql'
 
   # ──────────────────────────────────────────────
+  # Reset wait-set contract: make reset の `up --wait` が
+  # 長寿命サービス (db migrate backend frontend) だけを待ち、
+  # one-shot codegen を含めないことを静的に検証する。
+  # Docker 不要・純テキスト検査なので無条件かつ最速で走らせ、
+  # cosmetic exit-1 を起こす wait-set 退行を merge 前に reject する。
+  # ──────────────────────────────────────────────
+  reset-contract:
+    name: Reset Wait-Set Contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Verify make reset wait-set contract
+        run: bash scripts/check-reset-wait-services.sh
+
+      - name: Self-test the contract check
+        run: bash scripts/check-reset-wait-services.test.sh
+
+  # ──────────────────────────────────────────────
+  # ShellCheck: scripts/*.sh の静的検査ゲート。
+  # シェルスクリプトの退行を手動レビューではなく自動で弾く。
+  # ubuntu-latest には shellcheck がプリインストールされているため
+  # ゲートは PATH 上の shellcheck をそのまま使う（Docker fallback は不要）。
+  # 整形・行継続トリックでは欺けない AST 検査で無条件に実行する。
+  # ──────────────────────────────────────────────
+  shellcheck:
+    name: ShellCheck Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Lint scripts/*.sh (severity=warning)
+        run: bash scripts/shellcheck-scripts.sh
+
+      - name: Self-test the shellcheck gate
+        run: bash scripts/shellcheck-scripts.test.sh
+
+  # ──────────────────────────────────────────────
   # Backend: build + lint + schema check
   # ──────────────────────────────────────────────
   backend:
