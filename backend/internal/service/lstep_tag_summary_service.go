@@ -135,6 +135,12 @@ func (s *lstepTagSummaryService) ExportOwnersByTagCSV(ctx context.Context, clini
 		return apperrors.Wrap(err, "failed to export owners by tag csv")
 	}
 
+	// UTF-8 BOM（Excel が Shift-JIS と誤認して日本語が文字化けするのを防ぐ）。
+	// 月次集計レポート CSV と同一方針（#179 ③）。
+	if _, err := w.Write([]byte("\xEF\xBB\xBF")); err != nil {
+		return apperrors.Wrap(err, "failed to write csv BOM")
+	}
+
 	cw := csv.NewWriter(w)
 	if err := cw.Write([]string{"owner_id", "owner_name", "last_visit_date", "cpm_stage"}); err != nil {
 		return apperrors.Wrap(err, "failed to write csv header")

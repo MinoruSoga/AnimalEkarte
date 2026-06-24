@@ -114,3 +114,30 @@ describe("AccountingReportsPage 印刷 / PDF出力 (#184) + 操作UI除外 (#179
     expect(screen.queryByTestId("monthly-report-print-area")).not.toBeInTheDocument();
   });
 });
+
+describe("AccountingReportsPage カード配置 (#179 ④-b) + 税率設定導線 (#179 ②)", () => {
+  beforeEach(() => {
+    server.use(http.get("*/v1/reports/monthly", () => HttpResponse.json(MONTHLY)));
+  });
+
+  it("#179 ④-b: 集計数字カード(KPI)が日次明細セクションより後ろ(ページ下部)に配置される", async () => {
+    renderPage();
+    const printArea = await screen.findByTestId("monthly-report-print-area");
+    // 印刷ポータル(body直下)にも同名テキストが出るため、画面側(ポータル外)のみを対象にする
+    const screenKpi = screen.getAllByText("診療日数").find((el) => !printArea.contains(el));
+    const screenDailyHeading = screen
+      .getAllByText("日次明細")
+      .find((el) => !printArea.contains(el));
+    expect(screenKpi).toBeDefined();
+    expect(screenDailyHeading).toBeDefined();
+    // KPI(診療日数) が 日次明細見出し より DOM 上で後ろにある = 下部配置
+    const relativePosition = screenDailyHeading!.compareDocumentPosition(screenKpi!);
+    expect(relativePosition & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("#179 ②: 税率設定(/settings/clinic)への導線が表示される", async () => {
+    renderPage();
+    const link = await screen.findByRole("link", { name: /税率設定を変更/ });
+    expect(link).toHaveAttribute("href", "/settings/clinic");
+  });
+});

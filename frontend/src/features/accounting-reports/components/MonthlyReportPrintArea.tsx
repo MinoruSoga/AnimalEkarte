@@ -1,4 +1,5 @@
 import { PrintPortal } from "@/components/shared/PrintPortal";
+import { formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
 import type { MonthlyReportResponse } from "../api/get-monthly-report";
 
 interface MonthlyReportPrintAreaProps {
@@ -7,6 +8,10 @@ interface MonthlyReportPrintAreaProps {
   clinicName: string;
   summary: MonthlyReportResponse["summary"];
   dailyDetails: MonthlyReportResponse["dailyDetails"];
+  /** #179 ②: 病院マスタ設定の標準税率。印刷面でも固定「10%」を撤廃。 */
+  standardTaxRate: number;
+  /** #179 ②: 病院マスタ設定の軽減税率。印刷面でも固定「8%」を撤廃。 */
+  reducedTaxRate: number;
 }
 
 const yen = (amount: number): string => `¥${amount.toLocaleString()}`;
@@ -24,6 +29,8 @@ export function MonthlyReportPrintArea({
   clinicName,
   summary,
   dailyDetails,
+  standardTaxRate,
+  reducedTaxRate,
 }: MonthlyReportPrintAreaProps) {
   const { standard, reduced } = summary.taxBreakdown;
   const paymentEntries = Object.entries(summary.byPaymentMethod);
@@ -90,12 +97,16 @@ export function MonthlyReportPrintArea({
             </thead>
             <tbody>
               <tr>
-                <td className="border border-gray-300 px-2 py-1">標準税率（10%）</td>
+                <td className="border border-gray-300 px-2 py-1">
+                  標準税率（{formatTaxRatePercent(standardTaxRate)}）
+                </td>
                 <td className="border border-gray-300 px-2 py-1 text-right">{yen(standard.taxableAmount)}</td>
                 <td className="border border-gray-300 px-2 py-1 text-right">{yen(standard.taxAmount)}</td>
               </tr>
               <tr>
-                <td className="border border-gray-300 px-2 py-1">軽減税率（8%）</td>
+                <td className="border border-gray-300 px-2 py-1">
+                  軽減税率（{formatTaxRatePercent(reducedTaxRate)}）
+                </td>
                 <td className="border border-gray-300 px-2 py-1 text-right">{yen(reduced.taxableAmount)}</td>
                 <td className="border border-gray-300 px-2 py-1 text-right">{yen(reduced.taxAmount)}</td>
               </tr>

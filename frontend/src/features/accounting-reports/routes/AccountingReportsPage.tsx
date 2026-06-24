@@ -1,12 +1,13 @@
 import { useCallback, useState, useTransition } from "react";
-import { useNavigate } from "react-router";
-import { Download, Printer } from "lucide-react";
+import { Link, useNavigate } from "react-router";
+import { Download, Printer, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { C } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
 import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
-import { ResourceCashRegisterClose } from "@/types/generated/models";
+import { useClinicTaxRates, formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
+import { ResourceCashRegisterClose, ResourceHospitalSettings } from "@/types/generated/models";
 import { useGetMonthlyReport } from "../api/get-monthly-report";
 import { exportMonthlyCSV } from "../api/export-monthly-csv";
 import { MonthlySummaryCards } from "../components/MonthlySummaryCards";
@@ -22,7 +23,10 @@ export function AccountingReportsPage() {
 
   const navigate = useNavigate();
   const { canView: canViewCloses } = usePermission(ResourceCashRegisterClose);
+  const { canView: canViewClinicSettings } = usePermission(ResourceHospitalSettings);
   const clinicName = useCurrentClinicName();
+  // #179 ②: 税率は病院マスタ設定（明細兼領収書と同一の正本）を参照する
+  const { standardTaxRate, reducedTaxRate } = useClinicTaxRates();
 
   const { data, isLoading, isError } = useGetMonthlyReport(year, month);
 
@@ -140,9 +144,9 @@ export function AccountingReportsPage() {
             clinicName={clinicName}
             summary={data.summary}
             dailyDetails={data.dailyDetails}
+            standardTaxRate={standardTaxRate}
+            reducedTaxRate={reducedTaxRate}
           />
-
-          <MonthlySummaryCards summary={data.summary} />
 
           {/* 支払方法別集計 */}
           {Object.keys(data.summary.byPaymentMethod).length > 0 ? (
@@ -163,10 +167,24 @@ export function AccountingReportsPage() {
 
           {/* 消費税内訳 */}
           <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-            <h2 className={`text-base font-semibold ${C.text} mb-4`}>消費税内訳</h2>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h2 className={`text-base font-semibold ${C.text}`}>消費税内訳</h2>
+              {/* #179 ②: 税率設定（病院マスタ）への導線。権限保持時のみ表示し印刷面からは除外 */}
+              {canViewClinicSettings ? (
+                <Link
+                  to="/settings/clinic"
+                  className={`flex items-center gap-1 text-sm ${C.text60} ${C.hoverText} underline-offset-2 hover:underline print:hidden`}
+                >
+                  <Settings className="size-3.5" />
+                  税率設定を変更
+                </Link>
+              ) : null}
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className={`text-base ${C.text60} mb-1`}>標準税率 (10%)</p>
+                <p className={`text-base ${C.text60} mb-1`}>
+                  標準税率 ({formatTaxRatePercent(standardTaxRate)})
+                </p>
                 <p className={`text-base ${C.text}`}>
                   課税額: ¥{data.summary.taxBreakdown.standard.taxableAmount.toLocaleString()}
                 </p>
@@ -175,7 +193,9 @@ export function AccountingReportsPage() {
                 </p>
               </div>
               <div>
-                <p className={`text-base ${C.text60} mb-1`}>軽減税率 (8%)</p>
+                <p className={`text-base ${C.text60} mb-1`}>
+                  軽減税率 ({formatTaxRatePercent(reducedTaxRate)})
+                </p>
                 <p className={`text-base ${C.text}`}>
                   課税額: ¥{data.summary.taxBreakdown.reduced.taxableAmount.toLocaleString()}
                 </p>
@@ -194,6 +214,13 @@ export function AccountingReportsPage() {
               onDrillDown={canViewCloses ? handleDrillDown : undefined}
             />
           </section>
+
+          {/* #179 ④-b: 集計数字カードはページ下部に配置する */}
+          <MonthlySummaryCards
+            summary={data.summary}
+            standardTaxRate={standardTaxRate}
+            reducedTaxRate={reducedTaxRate}
+          />
         </>
       )}
     </div>

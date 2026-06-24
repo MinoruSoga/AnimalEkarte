@@ -1,9 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -145,6 +145,16 @@ func TestExportOwnersByTagCSV(t *testing.T) {
 		},
 	}
 	svc := NewLstepTagSummaryService(repo)
-	err := svc.ExportOwnersByTagCSV(context.Background(), 1, "my_tag", "", io.Discard)
+
+	var buf bytes.Buffer
+	err := svc.ExportOwnersByTagCSV(context.Background(), 1, "my_tag", "", &buf)
 	assert.NoError(t, err)
+
+	out := buf.Bytes()
+	// #179 ③: Excel が Shift-JIS と誤認するのを防ぐため先頭に UTF-8 BOM を付与する
+	assert.True(t, bytes.HasPrefix(out, []byte("\xEF\xBB\xBF")), "CSV は UTF-8 BOM で始まること")
+	// 日本語の飼主名が UTF-8 のまま含まれる（文字化けしない）
+	assert.Contains(t, buf.String(), "田中 太郎")
+	// ヘッダ行が含まれる
+	assert.Contains(t, buf.String(), "owner_id")
 }
