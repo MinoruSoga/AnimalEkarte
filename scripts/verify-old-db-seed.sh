@@ -95,6 +95,52 @@ check "owners.dm_preference populated (not silently dropped)" \
   "SELECT COUNT(*) FROM owners WHERE dm_preference IS NOT NULL"
 
 echo ""
+echo "--- Clinic resolution checks (八王子病院 single-clinic binding) ---"
+
+# clinics must NEVER contain an empty-name row. old_db has no real clinic master;
+# the only legacy sources that ever targeted clinics were the pet/owner masters'
+# hospital-CODE columns (QA-only crosswalk evidence) whose name is always NULL.
+# Routing them into clinics inserted empty-name orphan clinic rows (ids 5/6/7,
+# branch codes 05/06/07). clinics.name is NOT NULL with no default, so any blank
+# name is invalid. A non-zero count means that defect regressed — the row-count
+# check above (clinics >= 0) cannot catch it. Guarded at three layers: old_db
+# generator (drops the entry), the seeder (shouldSkipRow), and here.
+check_zero "clinics with empty/blank name" \
+  "SELECT COUNT(*) FROM clinics WHERE COALESCE(TRIM(name), '') = ''"
+
+# OLD_DB_OWNER_ID_FLOOR scopes the clinic-binding checks to OLD_DB-derived rows
+# only, excluding the base-seed demo data (003_seed_demo.sql) that legitimately
+# belongs to other clinics (城東センター病院 / 敷島医院). Legacy owner ids are the
+# original MST_SIIK_INFO keys, preserved as the owners PK, and start at 300001;
+# demo owner ids occupy 1–61. The wide gap makes this a safe, stable boundary.
+# old_db pets carry no legacy numeric id, so they are scoped by their owner_id.
+OLD_DB_OWNER_ID_FLOOR=300000
+
+# owners.clinic_id must NEVER be NULL for ANY row (demo or old_db). The legacy
+# export carries clinic_id as branch codes {01,05,06,07} that are not valid
+# clinics(id); the seeder drops that column and supplies the single 八王子病院
+# clinic synthetically. A non-zero count means resolution regressed and owners
+# landed with an empty clinic_id — the exact bug this check guards.
+check_zero "owners with NULL clinic_id" \
+  "SELECT COUNT(*) FROM owners WHERE clinic_id IS NULL"
+
+# Every OLD_DB owner must resolve to the canonical 八王子病院 clinic — not to a
+# legacy branch code (5/6/7) or any other clinic. A non-zero count means an old_db
+# owner is bound to a clinic other than 八王子病院, i.e. the legacy code leaked
+# through. Demo owners (id < floor) are excluded by design.
+check_zero "old_db owners not bound to the 八王子病院 clinic" \
+  "SELECT COUNT(*) FROM owners o WHERE o.id >= $OLD_DB_OWNER_ID_FLOOR AND NOT EXISTS (SELECT 1 FROM clinics c WHERE c.id = o.clinic_id AND c.name = '八王子病院')"
+
+# pets carry the same legacy branch code and must also bind to 八王子病院.
+check_zero "pets with NULL clinic_id" \
+  "SELECT COUNT(*) FROM pets WHERE clinic_id IS NULL"
+
+# Scope to old_db pets via their owner: a pet whose owner is an old_db owner
+# (owner_id >= floor) must bind to 八王子病院. Demo pets are excluded.
+check_zero "old_db pets not bound to the 八王子病院 clinic" \
+  "SELECT COUNT(*) FROM pets p WHERE p.owner_id >= $OLD_DB_OWNER_ID_FLOOR AND NOT EXISTS (SELECT 1 FROM clinics c WHERE c.id = p.clinic_id AND c.name = '八王子病院')"
+
+echo ""
 echo "--- Relational checks (orphan detection) ---"
 
 # pets with valid owner reference

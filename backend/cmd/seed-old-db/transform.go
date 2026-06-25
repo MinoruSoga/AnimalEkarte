@@ -25,6 +25,17 @@ const (
 // in normalizeArgs — keeping the two in lockstep if the mapping ever changes.
 const legacyProcedureItemCode = "1"
 
+// hachiojiClinicName is the canonical name of the single clinic every old_db row
+// belongs to. The legacy export stores clinic_id as branch/section codes
+// {01,05,06,07} that DO NOT exist as clinics(id) in the new schema; all old_db
+// data is from the 八王子 hospital, so clinic_id is resolved to this base-seeded
+// clinic BY NAME (see hachiojiClinicIDExpr), not by trusting the legacy code.
+//
+// Source of truth: backend/migrations/003_seed_demo.sql inserts
+// `(1, 1, '八王子病院')`. TestHachiojiClinicNameMatchesBaseSeed pins this string
+// to that seed so the two never drift.
+const hachiojiClinicName = "八王子病院"
+
 // crosswalkFKColumn returns the resolved FK column a recoverable child-detail
 // table fills from its crosswalk columns, plus the cache that resolves it.
 // Returns ("", nil) for tables that do not use the crosswalk. The cache is
@@ -100,8 +111,8 @@ func normalizeArgs(entry ManifestEntry, cols []string, args []any, cache *lookup
 	}
 
 	// medical_records stores record_no PET-QUALIFIED ("<pet_no>-<record_no>") so it
-	// is unique within the single synthetic clinic_id=1 (legacy record_no is unique
-	// only per pet). Do this BEFORE pet_id is converted to the new bigint below,
+	// is unique within the single synthetic clinic all old_db rows resolve to (legacy
+	// record_no is unique only per pet). Do this BEFORE pet_id is converted to the new bigint below,
 	// reading the old pet_no from the pet_id slot. The qualified value is also the
 	// composite cache key every child resolves against.
 	if entry.TargetTable == "medical_records" {
@@ -284,14 +295,14 @@ func buildParamExpr(paramN int, entry ManifestEntry, col string) string {
 			return fmt.Sprintf("COALESCE(%s, now())", timestampExpr(ref))
 		}
 		return timestampExpr(ref)
-	case "id", "owner_id", "clinic_id", "pet_id", "medical_record_id",
+	case "id", "owner_id", "pet_id", "medical_record_id",
 		"billing_id", "exam_id",
 		"doctor_id", "entered_by", "exam_type_id", "parent_id", "animal_species_id",
 		"procedure_id", "merchandise_item_id", "insurance_id", "exam_type_field_id",
 		"chief_complaint_type_id":
-		if col == "clinic_id" {
-			return fmt.Sprintf("COALESCE(NULLIF(%s, 0), 1)", bigintExpr(ref))
-		}
+		// clinic_id is intentionally NOT handled here: it is dropped from the TSV
+		// columns (allowedColumns) and supplied as a synthetic column resolved by
+		// hachiojiClinicIDExpr, so the legacy branch code is never inserted.
 		return bigintExpr(ref)
 	case "sort_order", "heart_rate", "respiration_rate":
 		if col == "sort_order" {
@@ -402,6 +413,36 @@ func insuranceIDLookupExpr(ref string) string {
 	return fmt.Sprintf("(CASE WHEN %s::text ~ '^[0-9]+$' THEN (SELECT i.id FROM public.insurances i WHERE i.id = (%s::text)::bigint LIMIT 1) ELSE NULL END)", ref, ref)
 }
 
+// hachiojiClinicIDExpr resolves clinic_id to the single base-seeded 八王子病院
+// clinic, ignoring the legacy branch code in the TSV entirely.
+//
+// The legacy clinic_id values {01,05,06,07} are section codes that do not exist
+// as clinics(id) in the new schema (the base seed creates only 1=八王子病院,
+// 2, 3); casting them straight to bigint would write 5/6/7 and violate the
+// NOT NULL FK owners.clinic_id → clinics(id) (the empty-owners.clinic_id bug).
+// Because every old_db row belongs to the 八王子 hospital, resolution is by NAME
+// against the already-seeded clinics table — deterministic, tied to the existing
+// seed path, and free of any hardcoded numeric id.
+//
+// The COALESCE fallback to MIN(id) handles the case where the named clinic is
+// absent (e.g. a renamed base seed): it lands on the lowest-id clinic instead.
+// This is a belt-and-suspenders default, not a guarantee — it returns NULL if the
+// clinics table is entirely empty (migrations/base seed not applied), and binds to
+// whatever clinic happens to have the smallest id if 八王子病院 is missing. The
+// verify script asserts the name binding post-seed, so a wrong/NULL fallback is
+// caught there rather than silently shipped.
+//
+// It takes no parameter: the legacy clinic_id column is dropped from the INSERT
+// (removed from allowedColumns for owners/pets) and clinic_id is supplied entirely
+// as a synthetic column whose value is this subquery. So every table resolves the
+// same single clinic the same way, and the unreliable legacy code is never read.
+func hachiojiClinicIDExpr() string {
+	return fmt.Sprintf(
+		"COALESCE((SELECT c.id FROM public.clinics c WHERE c.name = '%s' ORDER BY c.id LIMIT 1), (SELECT MIN(id) FROM public.clinics))",
+		hachiojiClinicName,
+	)
+}
+
 // existsIDLookupExpr resolves a legacy numeric id to itself only if a row with
 // that id exists in the given master table, else NULL. Used for nullable FK
 // columns whose legacy codes are not guaranteed to exist in the loaded masters
@@ -476,6 +517,27 @@ func usesOldRecordNo(entry ManifestEntry) bool {
 	return entry.TargetTable == "billings" || entry.TargetTable == "exams"
 }
 
+// clinicScopedTables lists every target table whose clinic_id is supplied as a
+// SYNTHETIC column resolved to the single 八王子病院 clinic (hachiojiClinicIDExpr),
+// rather than read from the TSV. owners and pets DO carry a legacy clinic_id
+// column, but its values are unreliable branch codes {01,05,06,07} that are not
+// valid clinics(id); allowedColumns drops that column for them so this synthetic
+// resolver is the sole source of clinic_id. The remaining tables carry no clinic
+// key at all. Centralising the list keeps every table on one deterministic,
+// no-magic-number resolution path.
+var clinicScopedTables = map[string]bool{
+	"owners":            true,
+	"pets":              true,
+	"exam_types":        true,
+	"procedures":        true,
+	"merchandise_items": true,
+	"staffs":            true,
+	"medical_records":   true,
+	"billings":          true,
+	"exams":             true,
+	"vital_records":     true,
+}
+
 // syntheticColumns returns (cols, exprs) for NOT NULL columns absent from the TSV.
 // filteredCols is the actual ordered column list from the TSV header (after filtering).
 // exprs are SQL literals or subqueries embedded in the INSERT VALUES clause.
@@ -484,6 +546,14 @@ func syntheticColumns(entry ManifestEntry, filteredCols []string) ([]string, []s
 	has := toSet(filteredCols) // use actual loaded cols, not manifest TargetColumns
 	cols := []string{}
 	exprs := []string{}
+
+	// clinic_id: every clinic-scoped table resolves the single 八王子病院 clinic by
+	// name. allowedColumns drops any legacy clinic_id from the TSV, so it is always
+	// absent here and always supplied synthetically — uniform across tables.
+	if clinicScopedTables[table] && !has["clinic_id"] {
+		cols = append(cols, "clinic_id")
+		exprs = append(exprs, hachiojiClinicIDExpr())
+	}
 
 	switch table {
 	case "animal_species":
@@ -497,50 +567,10 @@ func syntheticColumns(entry ManifestEntry, filteredCols []string) ([]string, []s
 			}
 		}
 	case "clinics":
+		// company_id → the base-seeded 本部 company (companies id=1, 002_seed_master).
+		// This is the company, not the clinic, and has its own single-row default.
 		if !has["company_id"] {
 			cols = append(cols, "company_id")
-			exprs = append(exprs, "1")
-		}
-	case "exam_types":
-		if !has["clinic_id"] {
-			cols = append(cols, "clinic_id")
-			exprs = append(exprs, "1")
-		}
-	case "procedures":
-		if !has["clinic_id"] {
-			cols = append(cols, "clinic_id")
-			exprs = append(exprs, "1")
-		}
-	case "merchandise_items":
-		if !has["clinic_id"] {
-			cols = append(cols, "clinic_id")
-			exprs = append(exprs, "1")
-		}
-	case "staffs":
-		if !has["clinic_id"] {
-			cols = append(cols, "clinic_id")
-			exprs = append(exprs, "1")
-		}
-	case "medical_records":
-		if !has["clinic_id"] {
-			cols = append(cols, "clinic_id")
-			exprs = append(exprs, "1")
-		}
-	case "billings":
-		if !has["clinic_id"] {
-			cols = append(cols, "clinic_id")
-			exprs = append(exprs, "1")
-		}
-	case "exams":
-		if !has["clinic_id"] {
-			cols = append(cols, "clinic_id")
-			exprs = append(exprs, "1")
-		}
-	case "vital_records":
-		// clinic_id NOT NULL; the legacy child rows carry no clinic key, so use
-		// the same single-clinic literal as the other dev-seed tables.
-		if !has["clinic_id"] {
-			cols = append(cols, "clinic_id")
 			exprs = append(exprs, "1")
 		}
 	}
@@ -566,8 +596,23 @@ func shouldSkipRow(entry ManifestEntry, cols []string, args []any) bool {
 	}
 
 	switch entry.TargetTable {
-	case "animal_species", "clinics", "exam_types", "owners", "procedures", "merchandise_items":
+	case "animal_species", "exam_types", "owners", "procedures", "merchandise_items":
 		if v, ok := values["id"]; ok && !isIntegerValue(v) {
+			return true
+		}
+	case "clinics":
+		if v, ok := values["id"]; ok && !isIntegerValue(v) {
+			return true
+		}
+		// Defense-in-depth against empty-name clinic rows. old_db has no real clinic
+		// master; the only legacy sources that ever targeted clinics were the pet/owner
+		// masters' hospital-code columns (QA-only crosswalk evidence), whose name is
+		// always NULL. Loading them inserted empty-name orphan clinic rows (id = branch
+		// code 05/06/07). The generator now drops those entries (isQaOnlyCrosswalkCandidate
+		// in old_db), so no clinics TSV is produced — but this guard ensures the seeder
+		// never inserts a nameless clinic even if a clinics entry resurfaces. clinics.name
+		// is NOT NULL with no default, so a missing/blank name is never valid here.
+		if !isTextValue(values["name"]) {
 			return true
 		}
 	case "pets":
@@ -715,7 +760,11 @@ func allowedColumns(table string) map[string]bool {
 		},
 		"owners": {
 			// name_kana excluded: CHECK (name_kana !~ '[ァ-ヶ]') — old data may contain katakana; use DEFAULT ''
-			"id": true, "clinic_id": true, "name": true, "birth_date": true,
+			// clinic_id excluded: the legacy value is an unreliable branch code
+			// {01,05,06,07} that is not a valid clinics(id). Dropping it here lets
+			// syntheticColumns supply the single 八王子病院 clinic via
+			// hachiojiClinicIDExpr (see clinicScopedTables) — fixes empty clinic_id.
+			"id": true, "name": true, "birth_date": true,
 			"company": true, "postal_code": true, "address1": true, "address2": true,
 			"home_postal_code": true, "home_address1": true, "home_address2": true,
 			"phone": true, "company_phone": true, "email": true, "remarks": true,
@@ -732,7 +781,10 @@ func allowedColumns(table string) map[string]bool {
 			"owner_id": true, "animal_species_id": true, "breed": true,
 			"gender": true, "color": true, "birth_date": true, "deceased_at": true,
 			"acquisition_type": true, "remarks": true, "neutered_date": true, "created_at": true,
-			"clinic_id": true, "danger_level": true, "insurance_id": true, "weight": true,
+			// clinic_id excluded for the same reason as owners: the legacy pets
+			// clinic_id is a branch code {05,07}, not a valid clinics(id). Supplied
+			// synthetically via hachiojiClinicIDExpr (clinicScopedTables) instead.
+			"danger_level": true, "insurance_id": true, "weight": true,
 			"environment": true, "food": true,
 		},
 		"staffs": {

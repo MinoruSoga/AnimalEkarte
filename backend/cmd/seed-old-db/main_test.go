@@ -505,6 +505,121 @@ func TestDMPreferenceExprMapsLegacyCodes(t *testing.T) {
 	}
 }
 
+// TestHachiojiClinicIDExprResolvesByName is the core regression for the empty
+// owners.clinic_id bug. The old_db export stores clinic_id as legacy branch
+// codes {01,05,06,07} that DO NOT exist in the new clinics table (base seed
+// creates only 1=八王子病院, 2, 3). All old_db data is Hachioji, so clinic_id
+// must resolve deterministically to the single base-seeded 八王子病院 clinic by
+// NAME — never to a legacy code (5/6/7 → FK violation) and never to a hardcoded
+// numeric id.
+func TestHachiojiClinicIDExprResolvesByName(t *testing.T) {
+	expr := hachiojiClinicIDExpr()
+
+	if !strings.Contains(expr, "FROM public.clinics") {
+		t.Errorf("clinic_id must resolve via the clinics table, got: %q", expr)
+	}
+	if !strings.Contains(expr, hachiojiClinicName) {
+		t.Errorf("clinic_id must resolve the canonical %q clinic by name, got: %q", hachiojiClinicName, expr)
+	}
+	// Deterministic fallback when the named clinic is somehow absent: the single
+	// dev clinic (MIN id). No raw numeric literal id is permitted.
+	if !strings.Contains(expr, "MIN(id)") {
+		t.Errorf("clinic_id must fall back to MIN(id) FROM clinics, got: %q", expr)
+	}
+	// The resolver must take no parameter and contain no $-placeholder: the legacy
+	// branch code is dropped from the TSV, not cast. A '$' would mean it still reads
+	// the legacy value (05→5 would leak an invalid FK).
+	if strings.Contains(expr, "$") {
+		t.Errorf("clinic_id resolver must not reference any param (legacy code is dropped): %q", expr)
+	}
+	// And it must NOT collapse to a bare numeric literal — that would be the banned
+	// hardcoded clinic id.
+	if expr == "1" {
+		t.Error("clinic_id must not be a hardcoded numeric id")
+	}
+}
+
+// TestHachiojiClinicNameMatchesBaseSeed pins the resolver name to the exact
+// string the base seed (003_seed_demo.sql) inserts: '八王子病院'. If the base
+// seed is ever renamed, every old_db owner would silently fall back to MIN(id);
+// this contract test fails first so the two stay in lockstep.
+func TestHachiojiClinicNameMatchesBaseSeed(t *testing.T) {
+	const baseSeedName = "八王子病院" // 003_seed_demo.sql: INSERT INTO clinics (id, company_id, name) VALUES (1, 1, '八王子病院')
+	if hachiojiClinicName != baseSeedName {
+		t.Fatalf("hachiojiClinicName=%q drifted from base seed clinics.name=%q", hachiojiClinicName, baseSeedName)
+	}
+}
+
+// TestOwnersAndPetsDropLegacyClinicID guards that the unreliable legacy clinic_id
+// column is filtered out of the owners/pets TSV (so its branch code 05/06/07 is
+// never inserted), and is instead supplied synthetically by the Hachioji resolver.
+// This is the precise mechanism that fixes the empty/mis-linked owners.clinic_id.
+func TestOwnersAndPetsDropLegacyClinicID(t *testing.T) {
+	for _, table := range []string{"owners", "pets"} {
+		allowed := allowedColumns(table)
+		if allowed == nil {
+			t.Fatalf("allowedColumns(%q) must not be nil", table)
+		}
+		if allowed["clinic_id"] {
+			t.Errorf("%s whitelist must NOT include clinic_id; the legacy branch code is invalid and must be dropped", table)
+		}
+
+		// With clinic_id absent from the (filtered) TSV columns, syntheticColumns
+		// must add it, resolved by name — never by the legacy value.
+		synCols, synExprs := syntheticColumns(ManifestEntry{TargetTable: table}, []string{"id", "name"})
+		idx := -1
+		for i, c := range synCols {
+			if c == "clinic_id" {
+				idx = i
+			}
+		}
+		if idx < 0 {
+			t.Fatalf("%s: syntheticColumns must supply clinic_id, got cols=%v", table, synCols)
+		}
+		if synExprs[idx] != hachiojiClinicIDExpr() {
+			t.Errorf("%s: synthetic clinic_id expr = %q, want hachiojiClinicIDExpr()", table, synExprs[idx])
+		}
+	}
+}
+
+// TestClinicScopedTablesUseNameResolver guards that EVERY clinic-scoped table
+// supplies clinic_id via the name resolver, not a hardcoded literal. A regression
+// to literal "1" here would reintroduce a magic number and decouple the seed from
+// the actual clinics row.
+func TestClinicScopedTablesUseNameResolver(t *testing.T) {
+	for table := range clinicScopedTables {
+		synCols, synExprs := syntheticColumns(ManifestEntry{TargetTable: table}, []string{})
+		found := false
+		for i, c := range synCols {
+			if c != "clinic_id" {
+				continue
+			}
+			found = true
+			if synExprs[i] != hachiojiClinicIDExpr() {
+				t.Errorf("%s: clinic_id expr = %q, want the name resolver (no magic number)", table, synExprs[i])
+			}
+		}
+		if !found {
+			t.Errorf("%s is clinic-scoped but syntheticColumns did not supply clinic_id", table)
+		}
+	}
+}
+
+// TestNonClinicBigintColumnsUnaffected guards that the clinic_id change does not
+// bleed into other bigint FK columns: pet_id/owner_id/etc. must still use the
+// plain bigint cast.
+func TestNonClinicBigintColumnsUnaffected(t *testing.T) {
+	for _, col := range []string{"owner_id", "pet_id", "animal_species_id"} {
+		expr := buildParamExpr(3, ManifestEntry{TargetTable: "pets"}, col)
+		if strings.Contains(expr, "FROM public.clinics") {
+			t.Errorf("%s must not resolve through the clinics lookup: %q", col, expr)
+		}
+		if expr != bigintExpr(paramRef(3)) {
+			t.Errorf("%s must use the plain bigint cast, got: %q", col, expr)
+		}
+	}
+}
+
 // TestBooleanColumnsHaveNonTextCast is a contract/regression test (harness P1).
 //
 // A column that maps to a non-text DDL type (e.g. boolean) MUST be (a) present in
@@ -553,5 +668,33 @@ func TestSkipReasonRequiresStructuralParentKeys(t *testing.T) {
 
 	if got := skipReason(entry); got == "" {
 		t.Fatal("skipReason should reject billing_items without billing_id")
+	}
+}
+
+// TestShouldSkipRowRejectsEmptyNameClinic pins the defense-in-depth guard that
+// prevents empty-name clinic rows. old_db's pet/owner masters carry a hospital
+// CODE (branch 01/05/06/07) with a NULL name; routed into clinics they inserted
+// nameless orphan clinic rows (ids 5/6/7). clinics.name is NOT NULL with no
+// default, so a missing/blank name is never a valid clinic row. A row with a
+// real integer id AND a real name must still load.
+func TestShouldSkipRowRejectsEmptyNameClinic(t *testing.T) {
+	entry := ManifestEntry{TargetTable: "clinics"}
+	cols := []string{"id", "name"}
+
+	cases := []struct {
+		name string
+		args []any
+		want bool
+	}{
+		{"nil name (legacy \\N) skipped", []any{"05", nil}, true},
+		{"blank name skipped", []any{"06", "   "}, true},
+		{"empty string name skipped", []any{"07", ""}, true},
+		{"non-integer id skipped", []any{"abc", "八王子病院"}, true},
+		{"valid id and name loaded", []any{"1", "八王子病院"}, false},
+	}
+	for _, tc := range cases {
+		if got := shouldSkipRow(entry, cols, tc.args); got != tc.want {
+			t.Fatalf("%s: shouldSkipRow = %v, want %v (args=%v)", tc.name, got, tc.want, tc.args)
+		}
 	}
 }

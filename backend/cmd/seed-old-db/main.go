@@ -95,7 +95,7 @@ type lookupCache struct {
 // The new schema enforces UNIQUE(clinic_id, record_no), but legacy record_no
 // (Ksk_KarteNo / TReat_Sno / HkSK_SNo) is unique only PER PET — record_no
 // "00000001" repeats across 15,101 different pets. With every seeded row in the
-// single synthetic clinic_id=1, the raw record_no would collapse 425,545
+// single synthetic clinic (all old_db rows resolve to one clinic), the raw record_no would collapse 425,545
 // medical_records to 1,297 via ON CONFLICT. Qualifying with the pet number makes
 // it unique within clinic 1, keeps it human-readable and traceable to the legacy
 // chart, and — because it is also the composite cache key — lets every

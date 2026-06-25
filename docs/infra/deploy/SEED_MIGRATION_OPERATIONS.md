@@ -27,9 +27,71 @@
 
 ---
 
-## 旧DB移行データのローカル投入 (old-db seed)
+## 旧DB移行：推奨経路は stage-import（animalekarte_stage → 本テーブル）
+
+更新日: 2026-06-25
+
+> **⚠️ 直下の TSV ベース直接 seeder (`make seed-old-db`) は deprecated（comparison-only）。**
+> 新規の移行作業・本テーブル投入は **`make stage-import`** を使うこと。下記
+> 「旧DB移行データのローカル投入 (old-db seed)」節は比較用に残す。
+
+### なぜ stage-import か
+
+直接 seeder は変換ロジックを2リポジトリ（old_db の Node generator + AnimalEkarte の Go seeder）
+に分割していたため、マッピング正しさを単一クエリで検証できなかった。空 clinic / branch code
+leakage / owner `000001` 衝突 / `record_no`単独 mis-link / 子明細 orphan / lineage 欠落 といった
+既知の失敗はすべて下流で個別に潰すしかなかった。
+
+`old_db` の3層パイプライン（`legacy_raw` → `legacy_canonical` → `animalekarte_stage`、
+old_db `make migration-pipeline`）は全変換を純 SQL に集約し、`make migration-stage-check` が
+各失敗モードを決定的に検証する。stage-import はその **検証済み stage** を唯一の投入元として
+本テーブルへ取り込むため、投入前に正しさが保証される。
+
+### 手順（推奨）
+
+```bash
+# 0. old_db 側（別 repo）でパイプラインを構築・検証
+#    cd old_db && make local-postgres-up && make migration-pipeline && make migration-stage-check
+
+# 1. stage の TCP パスワードを渡す（old_db の POSTGRES_PASSWORD と同一）
+export OLD_DB_POSTGRES_PASSWORD=...
+
+# 2. dry-run（件数表示・本テーブルへの書き込みは0）
+make stage-import-dry-run
+
+# 3. apply（破壊的：old_db 由来行を削除し stage から再投入。demo/master/config は保持）
+make stage-import
+
+# 4. 投入後検証（空clinic / branch leakage / owner collision / orphan / record_no / demo混入）
+make verify-stage-import
+```
+
+### 仕組み（要点）
+
+| 項目 | 内容 |
+|------|------|
+| 投入元 | `animalekarte_stage.*`（old_db の `ani_legacy` Postgres）のみ。`legacy_raw`/`legacy_canonical` から本テーブルへは書かない |
+| 対象行 | `mapping_status IN ('confirmed','inferred')` のみ。`needs_review`/`archive_only`/`blocked` は投入せず件数と理由を report |
+| 親子整合 | hard-FK 子（billing_items→billings、exam_results→exams）は親が非対象なら子もスキップ（dangling FK 防止） |
+| clinic | 本テーブルの 八王子病院 を名前解決した id に固定。legacy branch code は使わない |
+| NOT NULL 補完 | `animal_species_id`/`exam_type_id` は本テーブルの fallback id、`date`/`scheduled_date` は 1900-01-01 へ COALESCE、`name_kana` は katakana CHECK 回避のため非投入（DEFAULT '') |
+| 安全境界 | 非ローカル TARGET DB_HOST を拒否。stage 接続は read-only。apply は `--apply` かつ `--confirm-local-destroy` 必須 |
+| トランザクション | 削除→投入を単一トランザクションで実行。失敗時は全ロールバック（中途半端な本テーブル状態を残さない） |
+| 冪等性 | 再実行で old_db 由来行を削除してから再投入するため重複しない |
+| 実装 | `backend/cmd/stage-import/`、`docker-compose.stage-import.yml`、`scripts/verify-stage-import.sh` |
+
+### テスト
+
+- unit: `make test`（SQL生成・status filter・親子cascade・guard・delete scope・FK順）
+- rollback / read-only 統合: `make stage-import-rollback-test`（注入失敗後に件数不変・stage は read-only）
+
+---
+
+## 旧DB移行データのローカル投入 (old-db seed) — **deprecated / comparison-only**
 
 更新日: 2026-06-24
+
+> **⚠️ deprecated。** 上の `make stage-import` を使うこと。本節は比較用に保持。
 
 `old_db/sensitive-local/migration-output/` にある TSV ファイル（旧DB→新スキーマのマッピング済みデータ）をローカル開発DBへ投入する手順。
 
