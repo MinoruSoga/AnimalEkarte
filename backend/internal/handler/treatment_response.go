@@ -73,6 +73,7 @@ type petTreatmentHistoryResponse struct {
 	ProcedureID     *string    `json:"procedure_id,omitempty"`
 	ProcedureName   *string    `json:"procedure_name,omitempty"`
 	Anesthesia      *string    `json:"anesthesia,omitempty"`
+	IsSurgery       *bool      `json:"is_surgery,omitempty"`
 }
 
 func toPetTreatmentHistoryResponse(t *model.Treatment) petTreatmentHistoryResponse {
@@ -102,6 +103,8 @@ func toPetTreatmentHistoryResponse(t *model.Treatment) petTreatmentHistoryRespon
 		resp.ProcedureName = &name
 		anesthesia := string(t.Procedure.Anesthesia)
 		resp.Anesthesia = &anesthesia
+		isSurgery := t.Procedure.IsSurgery
+		resp.IsSurgery = &isSurgery
 	}
 	return resp
 }

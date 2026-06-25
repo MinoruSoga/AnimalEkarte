@@ -28,16 +28,16 @@ type mockTreatmentService struct {
 	updateFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error)
 	deleteFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error
 	bulkUpdateSortOrderFn func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error
-	listPetHistoryFn      func(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error)
+	listPetHistoryFn      func(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error)
 }
 
 func (m *mockTreatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
 	return m.listFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockTreatmentService) ListPetHistory(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error) {
+func (m *mockTreatmentService) ListPetHistory(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error) {
 	if m.listPetHistoryFn != nil {
-		return m.listPetHistoryFn(ctx, clinicID, petID, itemType, page, limit)
+		return m.listPetHistoryFn(ctx, clinicID, petID, filter, page, limit)
 	}
 	return nil, 0, nil
 }
@@ -186,11 +186,11 @@ func TestListPetTreatmentHistory(t *testing.T) {
 			query:    "?item_type=medicine&limit=100",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				listPetHistoryFn: func(_ context.Context, clinicID, petID uint64, it *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+				listPetHistoryFn: func(_ context.Context, clinicID, petID uint64, f model.PetTreatmentHistoryFilter, _, _ int) ([]model.Treatment, int64, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(7), petID)
-					if assert.NotNil(t, it) {
-						assert.Equal(t, model.TreatmentItemTypeMedicine, *it)
+					if assert.NotNil(t, f.ItemType) {
+						assert.Equal(t, model.TreatmentItemTypeMedicine, *f.ItemType)
 					}
 					return historyRow(), 1, nil
 				},
@@ -204,8 +204,8 @@ func TestListPetTreatmentHistory(t *testing.T) {
 			query:    "?item_type=all",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				listPetHistoryFn: func(_ context.Context, _, _ uint64, it *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
-					assert.Nil(t, it)
+				listPetHistoryFn: func(_ context.Context, _, _ uint64, f model.PetTreatmentHistoryFilter, _, _ int) ([]model.Treatment, int64, error) {
+					assert.Nil(t, f.ItemType)
 					return []model.Treatment{}, 0, nil
 				},
 			},
@@ -239,7 +239,7 @@ func TestListPetTreatmentHistory(t *testing.T) {
 			paramID:  "7",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				listPetHistoryFn: func(_ context.Context, _, _ uint64, _ *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+				listPetHistoryFn: func(_ context.Context, _, _ uint64, _ model.PetTreatmentHistoryFilter, _, _ int) ([]model.Treatment, int64, error) {
 					return nil, 0, fmt.Errorf("db error")
 				},
 			},

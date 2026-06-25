@@ -58,3 +58,10 @@ type Treatment struct {
 }
 
 func (Treatment) TableName() string { return "treatments" }
+
+// PetTreatmentHistoryFilter は #159 飼主レポート用の治療履歴絞り込み条件。
+type PetTreatmentHistoryFilter struct {
+	ItemType       *TreatmentItemType
+	AnesthesiaOnly bool // true = procedures.anesthesia != 'none'
+	IsSurgery      bool // true = procedures.is_surgery = true
+}

@@ -23,10 +23,10 @@ type TreatmentRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	FindUnbilledByPetID(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error)
-	// FindHistoryByPetID は #158 飼主レポート用: ペット単位で treatments を横断取得する。
+	// FindHistoryByPetID は #158/#159 飼主レポート用: ペット単位で treatments を横断取得する。
 	// medical_records JOIN で clinic_id 隔離し、medical_records.date 降順で返す。
-	// itemType が nil の場合は全 item_type、非 nil の場合は当該種別のみ。
-	FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error)
+	// filter.AnesthesiaOnly=true / filter.IsSurgery=true 指定時は procedures JOIN で絞り込む。
+	FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error)
 	// CountFinalizedUnconfirmedByPetAndDate は同日同ペットの「未会計対象化」診察カルテ件数を返す(#77)。
 	// finalized だが billing_confirmation 未confirmed かつ未会計のカルテ = 取り残し候補。
 	CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
@@ -88,14 +88,24 @@ func (r *treatmentRepository) FindUnbilledByPetID(ctx context.Context, clinicID,
 	return treatments, nil
 }
 
-func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error) {
+func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error) {
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).
 			Model(&model.Treatment{}).
 			Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 			Where("medical_records.clinic_id = ? AND medical_records.pet_id = ? AND treatments.deleted_at IS NULL", clinicID, petID)
-		if itemType != nil {
-			q = q.Where("treatments.item_type = ?", *itemType)
+		if filter.ItemType != nil {
+			q = q.Where("treatments.item_type = ?", *filter.ItemType)
+		}
+		// #159: 処置 JOIN フィルタ（procedure_id が NULL 以外の行のみ通る INNER JOIN で暗黙 item_type 絞り込み）
+		if filter.AnesthesiaOnly || filter.IsSurgery {
+			q = q.Joins("JOIN procedures ON procedures.id = treatments.procedure_id AND procedures.deleted_at IS NULL")
+			if filter.AnesthesiaOnly {
+				q = q.Where("procedures.anesthesia != ?", string(model.AnesthesiaTypeNone))
+			}
+			if filter.IsSurgery {
+				q = q.Where("procedures.is_surgery = ?", true)
+			}
 		}
 		return q
 	}

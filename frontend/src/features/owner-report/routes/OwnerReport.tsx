@@ -129,10 +129,19 @@ function OwnerReportContent() {
             />
             <TreatmentHistorySection
               petId={selectedPet.id}
-              title="手術・処置履歴"
+              title="麻酔処置履歴"
               filter="procedure"
+              anesthesiaOnly
               showAnesthesia
-              emptyMessage="手術・処置の履歴はありません"
+              emptyMessage="麻酔処置の履歴はありません"
+            />
+            <TreatmentHistorySection
+              petId={selectedPet.id}
+              title="手術処置履歴"
+              filter="procedure"
+              isSurgery
+              showAnesthesia
+              emptyMessage="手術処置の履歴はありません"
             />
             <TreatmentHistorySection
               petId={selectedPet.id}
