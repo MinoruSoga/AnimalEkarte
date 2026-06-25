@@ -133,7 +133,7 @@ func TestNameKanaIsNotImported(t *testing.T) {
 func TestFallbacksFillNotNullColumnsStageLacks(t *testing.T) {
 	// pets.animal_species_id ($2) and exams.exam_type_id ($3) are NOT NULL with no
 	// default and absent from stage; they must come from resolved target fallbacks.
-	if !strings.Contains(selectSQL("pets", ""), "$2::bigint AS animal_species_id") {
+	if !strings.Contains(selectSQL("pets", ""), "COALESCE(animal_species_id, $2::bigint) AS animal_species_id") {
 		t.Error("pets selectSQL must supply animal_species_id from the $2 fallback")
 	}
 	if !strings.Contains(selectSQL("exams", ""), "$2::bigint AS exam_type_id") {
