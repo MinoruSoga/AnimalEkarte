@@ -148,9 +148,9 @@ func applyImport(
 	runID string,
 	logger *slog.Logger,
 	hooks *applyHooks,
-) (map[string]int64, map[string]int64, error) {
-	inserted := map[string]int64{}
-	deleted := map[string]int64{}
+) (inserted, deleted map[string]int64, err error) {
+	inserted = map[string]int64{}
+	deleted = map[string]int64{}
 
 	tx, err := targetPool.Begin(ctx)
 	if err != nil {
@@ -158,7 +158,7 @@ func applyImport(
 	}
 	// Rollback is a no-op after a successful Commit; it is the safety net on any
 	// early return below.
-	defer tx.Rollback(ctx) //nolint:errcheck
+	defer tx.Rollback(ctx) //nolint:errcheck // no-op after a successful Commit; a cleanup-path error is not actionable
 
 	// 0. Ensure the FK index the scoped delete relies on exists. exam_results has
 	//    ~1.3M rows and its exam_id FK is unindexed in the base schema, so deleting

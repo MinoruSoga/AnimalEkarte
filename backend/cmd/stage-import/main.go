@@ -35,9 +35,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/animal-ekarte/backend/internal/config"
 )
 
 // targetEnumTypes are the AnimalEkarte enum types used by imported columns. They

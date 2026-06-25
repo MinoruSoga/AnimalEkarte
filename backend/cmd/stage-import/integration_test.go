@@ -24,9 +24,9 @@ func requireIntegration(t *testing.T) {
 	}
 }
 
-func mustPools(t *testing.T) (context.Context, *pgxpool.Pool, *pgxpool.Pool) {
+func mustPools(t *testing.T) (ctx context.Context, targetPool, stagePool *pgxpool.Pool) {
 	t.Helper()
-	ctx := context.Background()
+	ctx = context.Background()
 
 	td, err := targetDSN()
 	if err != nil {
@@ -50,7 +50,7 @@ func mustPools(t *testing.T) (context.Context, *pgxpool.Pool, *pgxpool.Pool) {
 	return ctx, tp, sp
 }
 
-func snapshotCounts(t *testing.T, ctx context.Context, pool *pgxpool.Pool) map[string]int64 {
+func snapshotCounts(ctx context.Context, t *testing.T, pool *pgxpool.Pool) map[string]int64 {
 	t.Helper()
 	counts := map[string]int64{}
 	for _, tbl := range importOrder {
@@ -77,7 +77,7 @@ func TestApplyImportRollsBackOnInjectedFailure(t *testing.T) {
 		t.Fatalf("resolveTargetRefs: %v", err)
 	}
 
-	before := snapshotCounts(t, ctx, tp)
+	before := snapshotCounts(ctx, t, tp)
 
 	// Fail right after the FIRST delete (deleteOrder[0]) so we prove that delete is
 	// rolled back without paying for the full multi-million-row scrub.
@@ -90,7 +90,7 @@ func TestApplyImportRollsBackOnInjectedFailure(t *testing.T) {
 		t.Fatal("applyImport must return an error when the injected failure fires")
 	}
 
-	after := snapshotCounts(t, ctx, tp)
+	after := snapshotCounts(ctx, t, tp)
 	for _, tbl := range importOrder {
 		if before[tbl] != after[tbl] {
 			t.Errorf("rollback failed: %s count changed %d -> %d (the delete was not rolled back)",
