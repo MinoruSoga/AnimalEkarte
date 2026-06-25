@@ -411,3 +411,33 @@ func TestAccountingReportService_GetMonthlyByPeriod(t *testing.T) {
 	assert.False(t, got.DailyDetails[0].IsHoliday)
 	assert.True(t, got.DailyDetails[1].IsHoliday)
 }
+
+// TestValidateReportPeriod は #192 期間集計のガード契約を固定化する。
+// start>end の拒否と 367 日上限（無制限スキャン防止）が回帰しないことを保証する。
+// 366 日差はちょうど境界で許可、367 日差で拒否となる。
+func TestValidateReportPeriod(t *testing.T) {
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, jst)
+	cases := []struct {
+		name      string
+		start     time.Time
+		end       time.Time
+		wantError bool
+	}{
+		{"同日は許可", base, base, false},
+		{"通常の昇順期間は許可", base, base.AddDate(0, 0, 30), false},
+		{"上限ちょうど(366日差)は許可", base, base.AddDate(0, 0, 366), false},
+		{"上限超過(367日差)は拒否", base, base.AddDate(0, 0, 367), true},
+		{"start が end より後は拒否", base.AddDate(0, 0, 1), base, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateReportPeriod(tc.start, tc.end)
+			if tc.wantError {
+				assert.Error(t, err)
+				assert.True(t, apperrors.IsInvalidInput(err), "期間バリデーションは invalid input 種別であるべき")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
