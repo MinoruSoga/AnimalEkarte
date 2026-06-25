@@ -293,6 +293,10 @@ export const AuditActionBillingPostCloseEdit = "billing.post_close_edit";
  * 監査アクション定数
  */
 export const AuditActionBillingRefundCreate = "billing_refund.create";
+/**
+ * #189: 確定済み会計のクレジット（カード）金額の確定後訂正
+ */
+export const AuditActionBillingCreditCorrection = "billing.credit_correction";
 
 //////////
 // source: billing_confirmation.go
