@@ -167,7 +167,40 @@ jobs:
           DB_PASSWORD: ekarte_password
           DB_NAME: ekarte_db
           DB_SSL_MODE: disable
-        run: go test ./... -count=1 -race -timeout 120s
+        # 非ゲートのカバレッジ可視化: -coverprofile で測定するが、しきい値で fail させない。
+        # -race は covermode=atomic を要求するため明示する。テストの合否は従来どおり。
+        run: go test ./... -count=1 -race -covermode=atomic -coverprofile=coverage.out -timeout 120s
+
+      - name: Coverage summary (non-gating, baseline visibility)
+        if: always()
+        # 可視化専用ステップ。集計失敗が CI を落とさないよう非致命にする。
+        continue-on-error: true
+        working-directory: backend
+        run: |
+          if [ -f coverage.out ]; then
+            go tool cover -func=coverage.out | tee coverage-summary.txt
+            go tool cover -html=coverage.out -o coverage.html
+            {
+              echo "### Backend coverage (non-gating, baseline visibility)"
+              echo '```'
+              tail -n 1 coverage-summary.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "coverage.out not produced (tests failed before profiling completed); skipping summary."
+          fi
+
+      - name: Upload backend coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage
+          path: |
+            backend/coverage.out
+            backend/coverage-summary.txt
+            backend/coverage.html
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Schema drift check
         working-directory: backend
@@ -215,9 +248,20 @@ jobs:
         working-directory: frontend
         run: pnpm run type-check
 
-      - name: Test
+      # 非ゲートのカバレッジ可視化: vite.config.ts には coverage.thresholds 未設定のため、
+      # --coverage はレポート生成のみで低カバレッジによる fail は起きない。テストの合否は従来どおり。
+      - name: Test (with coverage)
         working-directory: frontend
-        run: pnpm run test:run
+        run: pnpm run test:coverage
+
+      - name: Upload frontend coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Lint
         working-directory: frontend

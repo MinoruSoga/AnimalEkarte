@@ -22,6 +22,11 @@ frontend/test-results/
 frontend/playwright-report/
 frontend/debug_*.png
 
+# Backend coverage artifacts (CI generates these; non-gating)
+backend/coverage.out
+backend/coverage.html
+backend/coverage-summary.txt
+
 # Design-spec extraction artifacts
 .design-specs/test-results/
 
