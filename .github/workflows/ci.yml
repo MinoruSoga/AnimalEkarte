@@ -169,7 +169,10 @@ jobs:
           DB_SSL_MODE: disable
         # 非ゲートのカバレッジ可視化: -coverprofile で測定するが、しきい値で fail させない。
         # -race は covermode=atomic を要求するため明示する。テストの合否は従来どおり。
-        run: go test ./... -count=1 -race -covermode=atomic -coverprofile=coverage.out -timeout 120s
+        # -coverpkg=./internal/... で internal/* のみを計測対象とし、cmd/,
+        # lstep-migrate/, seed-old-db/, stage-import/, migrations/ 等のエントリポイント・
+        # インフラパッケージを除外する。除外ポリシー/ロードマップ: docs/coverage-policy.md
+        run: go test ./... -count=1 -race -covermode=atomic -coverprofile=coverage.out -coverpkg=./internal/... -timeout 120s
 
       - name: Coverage summary (non-gating, baseline visibility)
         if: always()
