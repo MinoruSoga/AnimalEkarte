@@ -1,8 +1,8 @@
 # ADR-003: 支払方法の安定識別と payment_methods 整合性の設計判断
 
-**Status**: Proposed — PO 設計判断待ち（#185 単一追跡先）
-**Date**: 2026-06-25
-**Deciders**: PO（未決）
+**Status**: Decided — 論点2（system_key）#197 済・論点3（representativeMethod）#198 済・論点1（TRIGGER）保留（独立 Issue で再評価）・論点4（ENUM DROP）WONTFIX 維持。
+**Date**: 2026-06-25 / Updated: 2026-06-26
+**Deciders**: Engineering（論点2/3）。論点1 は PO 判断待ち。
 **Drafted by**: Engineering（#185 follow-up）
 
 ## Context
@@ -86,17 +86,33 @@
 ### 推奨
 **採用**。rename 脆弱性の恒久解消はこれ以外にない。技術リスク低・db_reset 不要・論点1/3 の前提にもなる。
 
+### 決定（#197 — 2026-06-26）
+
+**採用**。`payment_methods.system_key varchar(50)` 列を additive migration `009_add_payment_method_system_key.sql` で追加。
+
+実装内容:
+- `ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS system_key varchar(50)` (db_reset 不要)
+- 既存行 backfill（標準4種: cash/credit_card/electronic_money/bank_transfer）
+- `create_default_payment_methods()` を `system_key` 込みに `CREATE OR REPLACE`
+- 部分 UNIQUE INDEX `(clinic_id, system_key) WHERE system_key IS NOT NULL AND deleted_at IS NULL`
+
+コード切替:
+- `paymentMethodMasterNames`（name マップ）→ `paymentMethodSystemKeys`（system_key マップ）
+- `loadPaymentMethodNameToID` → `loadPaymentMethodSystemKeyToID`（system_key→id マップ構築、NULL スキップ）
+- `findCashMethodID` を `SystemKey='cash'` ベースへ変更（name 比較廃止）
+- rename 耐性テスト追加（`renamedPayMethodMock` + `TestFindCashMethodID/rename耐性`）
+
 ---
 
 ## Decision Point 3: 代表支払方法 `representativeMethod` の優先順位
 
-### 現状
+### 現状（実装前）
 - `accounting_service_builders.go:60-72`。優先順位 `cash > credit_card > else(electronic_money)`（PO判断B 2026-05-25 確定）。
 - **既知バグ**: `bank_transfer`（#127 で ENUM 追加済）は最終 `else` に落ち、
-  **bank_transfer 単独 split でも `electronic_money` と表示される**。`accounting_service_test.go:1145` が現仕様を固定中。
+  **bank_transfer 単独 split でも `electronic_money` と表示される**。`accounting_service_test.go:1155` が旧仕様を固定していた。
 
 ### 設計案
-- **案 3A**: 優先チェーンに bank_transfer を追加（`cash > credit_card > electronic_money > bank_transfer`、最終 fallback を見直し）。最小変更。
+- **案 3A**: 優先チェーンに bank_transfer を追加（`cash > credit_card > bank_transfer > electronic_money`、最終 fallback を見直し）。最小変更。
 - **案 3B（推奨）**: 「代表 = 金額最大の split の method」へ意味論を変更。混在会計で業務的に妥当。同額時の tiebreak を固定優先順位で解決。
 
 ### トレードオフ
@@ -108,6 +124,17 @@ bank_transfer を含む優先順位ルール、または金額最大方式への
 
 ### 推奨
 **3B**（業務的妥当性）。ただし「代表」表示の業務意図に依存するため PO 確定が前提。
+
+### 決定（#198 — 2026-06-26）
+
+**案 3A を採用**。`#127` 対応漏れバグとして最小差分で解消（実装 #198）。
+
+優先順位: `cash > credit_card > bank_transfer > electronic_money`
+
+`representativeMethod` は priority slice によるループに書き換え、すべての ENUM 値を明示カバーする。
+`accounting_service_test.go` のピンテストを正常系に更新し、`bank_transfer + electronic_money` 混在ケースを追加。
+
+3B（金額最大方式）は将来の独立 Issue で別途判断する。
 
 ---
 

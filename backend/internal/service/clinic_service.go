@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+
+	"github.com/lib/pq"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 
@@ -42,6 +45,12 @@ type UpdateClinicInput struct {
 	AccountingDocumentShowRegistrationWarning *bool
 	AccountingDocumentShowItemCategory        *bool
 	AccountingDocumentFooterNote              *string
+	// #190: セクション表示/非表示トグルと表示順 (migration 010)
+	AccountingDocumentShowClinicHeader   *bool
+	AccountingDocumentShowOwnerPetInfo   *bool
+	AccountingDocumentShowItemsTable     *bool
+	AccountingDocumentShowPaymentSummary *bool
+	AccountingDocumentSectionOrder       *[]string // nil=未変更, non-nil=更新（空配列=デフォルト順にリセット）
 }
 
 const (
@@ -62,6 +71,12 @@ const (
 	colClinicAccountingDocumentShowRegistrationWarning = "accounting_document_show_registration_warning"
 	colClinicAccountingDocumentShowItemCategory        = "accounting_document_show_item_category"
 	colClinicAccountingDocumentFooterNote              = "accounting_document_footer_note"
+	// #190: セクション表示/非表示トグルと表示順 (migration 010)
+	colClinicAccountingDocumentShowClinicHeader   = "accounting_document_show_clinic_header"
+	colClinicAccountingDocumentShowOwnerPetInfo   = "accounting_document_show_owner_pet_info"
+	colClinicAccountingDocumentShowItemsTable     = "accounting_document_show_items_table"
+	colClinicAccountingDocumentShowPaymentSummary = "accounting_document_show_payment_summary"
+	colClinicAccountingDocumentSectionOrder       = "accounting_document_section_order"
 )
 
 // buildClinicUpdate は PATCH 用 map を構築する。
@@ -127,6 +142,37 @@ func buildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 	}
 	if input.AccountingDocumentFooterNote != nil {
 		fields[colClinicAccountingDocumentFooterNote] = *input.AccountingDocumentFooterNote
+	}
+	if input.AccountingDocumentShowClinicHeader != nil {
+		fields[colClinicAccountingDocumentShowClinicHeader] = *input.AccountingDocumentShowClinicHeader
+	}
+	if input.AccountingDocumentShowOwnerPetInfo != nil {
+		fields[colClinicAccountingDocumentShowOwnerPetInfo] = *input.AccountingDocumentShowOwnerPetInfo
+	}
+	if input.AccountingDocumentShowItemsTable != nil {
+		fields[colClinicAccountingDocumentShowItemsTable] = *input.AccountingDocumentShowItemsTable
+	}
+	if input.AccountingDocumentShowPaymentSummary != nil {
+		fields[colClinicAccountingDocumentShowPaymentSummary] = *input.AccountingDocumentShowPaymentSummary
+	}
+	if input.AccountingDocumentSectionOrder != nil {
+		order := *input.AccountingDocumentSectionOrder
+		// 有効なセクションキーのみ許可する（インジェクション防止）
+		allowedKeys := map[string]struct{}{
+			"clinic_header": {}, "owner_pet_info": {}, "items_table": {},
+			"payment_summary": {}, "footer_note": {},
+		}
+		seen := make(map[string]struct{}, len(order))
+		for _, key := range order {
+			if _, ok := allowedKeys[key]; !ok {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("unknown section key: %q", key))
+			}
+			if _, dup := seen[key]; dup {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("duplicate section key: %q", key))
+			}
+			seen[key] = struct{}{}
+		}
+		fields[colClinicAccountingDocumentSectionOrder] = pq.StringArray(order)
 	}
 	return fields, nil
 }
@@ -197,6 +243,10 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 		IsActive:           true,
 		AccountingDocumentShowRegistrationWarning: true,
 		AccountingDocumentShowItemCategory:        true,
+		AccountingDocumentShowClinicHeader:        true,
+		AccountingDocumentShowOwnerPetInfo:        true,
+		AccountingDocumentShowItemsTable:          true,
+		AccountingDocumentShowPaymentSummary:      true,
 	}
 
 	if err := s.transactor.WithTx(ctx, func(ctx context.Context) error {

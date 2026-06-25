@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -489,10 +490,75 @@ func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
 			"accounting_document_show_registration_warning",
 			"accounting_document_show_item_category",
 			"accounting_document_footer_note",
+			"accounting_document_show_clinic_header",
+			"accounting_document_show_owner_pet_info",
+			"accounting_document_show_items_table",
+			"accounting_document_show_payment_summary",
+			"accounting_document_section_order",
 		} {
 			_, ok := fields[col]
 			assert.Falsef(t, ok, "未指定フィールド %s は更新マップに含めない", col)
 		}
+	})
+
+	t.Run("#190: セクション表示トグルが実カラム名付きで更新マップへ入る", func(t *testing.T) {
+		f := false
+		fields, err := buildClinicUpdate(&UpdateClinicInput{
+			AccountingDocumentShowClinicHeader:   &f,
+			AccountingDocumentShowOwnerPetInfo:   &f,
+			AccountingDocumentShowItemsTable:     &f,
+			AccountingDocumentShowPaymentSummary: &f,
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, false, fields["accounting_document_show_clinic_header"])
+		assert.Equal(t, false, fields["accounting_document_show_owner_pet_info"])
+		assert.Equal(t, false, fields["accounting_document_show_items_table"])
+		assert.Equal(t, false, fields["accounting_document_show_payment_summary"])
+	})
+
+	t.Run("#190: 有効なセクション順序が更新マップへ入る", func(t *testing.T) {
+		order := []string{"payment_summary", "items_table", "clinic_header", "owner_pet_info", "footer_note"}
+		fields, err := buildClinicUpdate(&UpdateClinicInput{
+			AccountingDocumentSectionOrder: &order,
+		})
+
+		assert.NoError(t, err)
+		got, ok := fields["accounting_document_section_order"]
+		assert.True(t, ok)
+		assert.Equal(t, pq.StringArray(order), got)
+	})
+
+	t.Run("#190: 空の順序配列はデフォルト順リセットとして更新マップへ入る", func(t *testing.T) {
+		empty := []string{}
+		fields, err := buildClinicUpdate(&UpdateClinicInput{
+			AccountingDocumentSectionOrder: &empty,
+		})
+
+		assert.NoError(t, err)
+		got, ok := fields["accounting_document_section_order"]
+		assert.True(t, ok, "空配列でもキーは存在する（デフォルト順にリセット）")
+		assert.Equal(t, pq.StringArray{}, got)
+	})
+
+	t.Run("#190: 未知のセクションキーはエラーになる", func(t *testing.T) {
+		invalid := []string{"clinic_header", "unknown_section"}
+		_, err := buildClinicUpdate(&UpdateClinicInput{
+			AccountingDocumentSectionOrder: &invalid,
+		})
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "unknown key は WrapInvalidInput を返す")
+	})
+
+	t.Run("#190: 重複セクションキーはエラーになる", func(t *testing.T) {
+		dup := []string{"clinic_header", "items_table", "clinic_header"}
+		_, err := buildClinicUpdate(&UpdateClinicInput{
+			AccountingDocumentSectionOrder: &dup,
+		})
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "重複キーは WrapInvalidInput を返す")
 	})
 }
 

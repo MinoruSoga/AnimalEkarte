@@ -30,6 +30,12 @@ const meClinicInfoSchema = z.object({
   accounting_document_show_registration_warning: z.boolean().default(true),
   accounting_document_show_item_category: z.boolean().default(true),
   accounting_document_footer_note: z.string().default(""),
+  // #190: セクション表示/非表示トグルと表示順
+  accounting_document_show_clinic_header: z.boolean().default(true),
+  accounting_document_show_owner_pet_info: z.boolean().default(true),
+  accounting_document_show_items_table: z.boolean().default(true),
+  accounting_document_show_payment_summary: z.boolean().default(true),
+  accounting_document_section_order: z.array(z.string()).default([]),
 });
 
 const resourcePermissionSchema = z.object({
@@ -76,6 +82,11 @@ function mapMeClinicInfo(raw: z.infer<typeof meClinicInfoSchema>): AuthClinic {
     accountingDocumentShowRegistrationWarning: raw.accounting_document_show_registration_warning,
     accountingDocumentShowItemCategory: raw.accounting_document_show_item_category,
     accountingDocumentFooterNote: raw.accounting_document_footer_note,
+    accountingDocumentShowClinicHeader: raw.accounting_document_show_clinic_header,
+    accountingDocumentShowOwnerPetInfo: raw.accounting_document_show_owner_pet_info,
+    accountingDocumentShowItemsTable: raw.accounting_document_show_items_table,
+    accountingDocumentShowPaymentSummary: raw.accounting_document_show_payment_summary,
+    accountingDocumentSectionOrder: raw.accounting_document_section_order,
   };
 }
 

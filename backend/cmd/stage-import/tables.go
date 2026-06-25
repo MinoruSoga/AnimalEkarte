@@ -147,7 +147,7 @@ func importableWhere(table, runID string) string {
 // insertColumns(table). Stage-only columns (lineage) are excluded. Target NOT
 // NULL / CHECK / enum constraints are satisfied here:
 //   - clinic_id is the resolved TARGET 八王子病院 id (param), never the stage value;
-//   - animal_species_id / exam_type_id are TARGET fallbacks (param) the stage lacks;
+//   - animal_species_id: COALESCE(stage column, fallback param); 126 NULL-species pets use fallback;
 //   - NOT NULL dates (medical_records.date, billings.scheduled_date, exams.date)
 //     COALESCE to 1900-01-01 when the legacy date was a sentinel/NULL;
 //   - name_kana is NOT projected (target CHECK rejects katakana; matches seeder).
@@ -160,8 +160,9 @@ func importableWhere(table, runID string) string {
 // registered on the target pool so pgx can encode them).
 //
 // Each query references ONLY the params it needs (PostgreSQL rejects extra params):
-// owners/medical_records/billings use $1=clinic_id; pets uses $1, $2=fallback
-// animal_species_id; exams uses $1, $2=fallback exam_type_id; billing_items/
+// owners/medical_records/billings use $1=clinic_id; pets uses $1=clinic_id, $2=fallback
+// animal_species_id (COALESCE with stage column; fallback only for 126 NULL-species rows);
+// exams uses $1=clinic_id, $2=fallback exam_type_id; billing_items/
 // exam_results take none. selectArgs() supplies exactly the matching args per table.
 func selectSQL(table, runID string) string {
 	where := importableWhere(table, runID)
@@ -189,7 +190,7 @@ func selectSQL(table, runID string) string {
 			FROM animalekarte_stage.owners WHERE ` + where
 	case "pets":
 		return `SELECT id, $1::bigint AS clinic_id, owner_id, COALESCE(pet_number,'') AS pet_number,
-			COALESCE(name,'') AS name, $2::bigint AS animal_species_id,
+			COALESCE(name,'') AS name, COALESCE(animal_species_id, $2::bigint) AS animal_species_id,
 			COALESCE(gender,'unknown') AS gender,
 			COALESCE(status,'alive') AS status,
 			birth_date, COALESCE(breed,'') AS breed, COALESCE(color,'') AS color, weight,

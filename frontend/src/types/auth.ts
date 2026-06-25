@@ -48,6 +48,12 @@ export interface AuthClinic {
   accountingDocumentShowRegistrationWarning: boolean;
   accountingDocumentShowItemCategory: boolean;
   accountingDocumentFooterNote: string;
+  /** #190: セクション表示/非表示トグルと表示順 */
+  accountingDocumentShowClinicHeader: boolean;
+  accountingDocumentShowOwnerPetInfo: boolean;
+  accountingDocumentShowItemsTable: boolean;
+  accountingDocumentShowPaymentSummary: boolean;
+  accountingDocumentSectionOrder: string[];
 }
 
 /** @see {@link import("@/types/generated/models").Account} */

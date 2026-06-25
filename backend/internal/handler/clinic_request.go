@@ -61,6 +61,12 @@ type updateClinicRequest struct {
 	AccountingDocumentShowRegistrationWarning *bool    `json:"accounting_document_show_registration_warning"`
 	AccountingDocumentShowItemCategory        *bool    `json:"accounting_document_show_item_category"`
 	AccountingDocumentFooterNote              *string  `json:"accounting_document_footer_note"`
+	// #190: セクション表示/非表示トグルと表示順 (migration 010)
+	AccountingDocumentShowClinicHeader   *bool     `json:"accounting_document_show_clinic_header"`
+	AccountingDocumentShowOwnerPetInfo   *bool     `json:"accounting_document_show_owner_pet_info"`
+	AccountingDocumentShowItemsTable     *bool     `json:"accounting_document_show_items_table"`
+	AccountingDocumentShowPaymentSummary *bool     `json:"accounting_document_show_payment_summary"`
+	AccountingDocumentSectionOrder       *[]string `json:"accounting_document_section_order"`
 }
 
 func (r *updateClinicRequest) toServiceInput() *service.UpdateClinicInput {
@@ -82,5 +88,10 @@ func (r *updateClinicRequest) toServiceInput() *service.UpdateClinicInput {
 		AccountingDocumentShowRegistrationWarning: r.AccountingDocumentShowRegistrationWarning,
 		AccountingDocumentShowItemCategory:        r.AccountingDocumentShowItemCategory,
 		AccountingDocumentFooterNote:              r.AccountingDocumentFooterNote,
+		AccountingDocumentShowClinicHeader:        r.AccountingDocumentShowClinicHeader,
+		AccountingDocumentShowOwnerPetInfo:        r.AccountingDocumentShowOwnerPetInfo,
+		AccountingDocumentShowItemsTable:          r.AccountingDocumentShowItemsTable,
+		AccountingDocumentShowPaymentSummary:      r.AccountingDocumentShowPaymentSummary,
+		AccountingDocumentSectionOrder:            r.AccountingDocumentSectionOrder,
 	}
 }

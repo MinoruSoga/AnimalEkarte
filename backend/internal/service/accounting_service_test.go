@@ -1145,16 +1145,14 @@ func TestRepresentativeMethod(t *testing.T) {
 			want:   model.PaymentMethodElectronicMoney,
 		},
 		{
-			// #127 既知の制約 / #128 スコープ:
-			// representativeMethod の優先順位は cash > credit_card > (else) electronic_money で
-			// PO判断B (2026-05-25) として確定済み。bank_transfer は明示分岐を持たず else に落ちるため、
-			// 銀行振込のみの会計は代表手段が electronic_money になる（一覧の代表表示はこの値を使う）。
-			// payment_splits.method は bank_transfer を正しく保持する（=一次情報は保全）。
-			// 代表手段の優先順位への bank_transfer 組み込みは #128 の設計判断であり本 Issue 対象外。
-			// この振る舞いをここに pin し、#128 で意図的に更新されることを保証する。
-			name:   "bank_transfer のみ (#128 既知制約): 代表手段は electronic_money に落ちる",
+			name:   "bank_transfer のみ: bank_transfer を返す",
 			splits: []PaymentSplitInput{{Method: model.PaymentMethodBankTransfer}},
-			want:   model.PaymentMethodElectronicMoney,
+			want:   model.PaymentMethodBankTransfer,
+		},
+		{
+			name:   "bank_transfer + electronic_money: bank_transfer を返す",
+			splits: []PaymentSplitInput{{Method: model.PaymentMethodBankTransfer}, {Method: model.PaymentMethodElectronicMoney}},
+			want:   model.PaymentMethodBankTransfer,
 		},
 	}
 
@@ -1291,16 +1289,34 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 	assert.Len(t, result.PaymentSplits, 3)
 }
 
-// seededPayMethodMock は標準4支払方法を返す payment_methods マスタモック（#128 解決テスト用）。
+// seededPayMethodMock は標準4支払方法を返す payment_methods マスタモック（#128/#197 解決テスト用）。
 // id は固定: 現金=101 / クレジットカード=102 / 電子マネー=103 / 銀行振込=104。
+// system_key (#197) をセットし rename 耐性を持つ。
 func seededPayMethodMock() *mockPaymentMethodMasterRepository {
+	ptr := func(s string) *string { return &s }
 	return &mockPaymentMethodMasterRepository{
 		findAllFn: func(_ context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error) {
 			return []model.PaymentMethodMaster{
-				{ID: 101, ClinicID: clinicID, Name: "現金", DisplayOrder: 1, IsActive: true},
-				{ID: 102, ClinicID: clinicID, Name: "クレジットカード", DisplayOrder: 2, IsActive: true},
-				{ID: 103, ClinicID: clinicID, Name: "電子マネー", DisplayOrder: 3, IsActive: true},
-				{ID: 104, ClinicID: clinicID, Name: "銀行振込", DisplayOrder: 4, IsActive: true},
+				{ID: 101, ClinicID: clinicID, Name: "現金", SystemKey: ptr("cash"), DisplayOrder: 1, IsActive: true},
+				{ID: 102, ClinicID: clinicID, Name: "クレジットカード", SystemKey: ptr("credit_card"), DisplayOrder: 2, IsActive: true},
+				{ID: 103, ClinicID: clinicID, Name: "電子マネー", SystemKey: ptr("electronic_money"), DisplayOrder: 3, IsActive: true},
+				{ID: 104, ClinicID: clinicID, Name: "銀行振込", SystemKey: ptr("bank_transfer"), DisplayOrder: 4, IsActive: true},
+			}, nil
+		},
+	}
+}
+
+// renamedPayMethodMock は標準4支払方法の name を変更したモック（#197 rename 耐性テスト用）。
+// system_key は正しいまま name のみ改名 → resolvePaymentMethodMasterID が成功することを検証する。
+func renamedPayMethodMock() *mockPaymentMethodMasterRepository {
+	ptr := func(s string) *string { return &s }
+	return &mockPaymentMethodMasterRepository{
+		findAllFn: func(_ context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error) {
+			return []model.PaymentMethodMaster{
+				{ID: 101, ClinicID: clinicID, Name: "お金", SystemKey: ptr("cash"), DisplayOrder: 1, IsActive: true},
+				{ID: 102, ClinicID: clinicID, Name: "カード", SystemKey: ptr("credit_card"), DisplayOrder: 2, IsActive: true},
+				{ID: 103, ClinicID: clinicID, Name: "電子決済", SystemKey: ptr("electronic_money"), DisplayOrder: 3, IsActive: true},
+				{ID: 104, ClinicID: clinicID, Name: "振込", SystemKey: ptr("bank_transfer"), DisplayOrder: 4, IsActive: true},
 			}, nil
 		},
 	}
@@ -1425,6 +1441,62 @@ func TestAccountingService_Update_ResolvesPaymentMethodID(t *testing.T) {
 		assert.Error(t, err, "master 欠落時は明示エラー")
 		assert.Nil(t, captured, "解決失敗時は SavePaymentSplits を呼ばない（NULL/現金で保存しない）")
 	})
+}
+
+// TestAccountingService_Update_ResolvesPaymentMethodID_RenameResilient は #197 system_key 導入後の
+// rename 耐性を検証する: 支払方法 name を改名しても system_key ベースで master id に正しく解決される。
+func TestAccountingService_Update_ResolvesPaymentMethodID_RenameResilient(t *testing.T) {
+	billingAmount := int64(5000)
+
+	newRepo := func(captured *[]model.PaymentSplit) *mockAccountingRepository {
+		return &mockAccountingRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+				return &model.Billing{ID: 1, ClinicID: 1}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+				return &model.Billing{ID: 1, ClinicID: 1}, nil
+			},
+			savePaymentSplitsFn: func(_ context.Context, splits []model.PaymentSplit) error {
+				*captured = splits
+				return nil
+			},
+		}
+	}
+
+	cases := []struct {
+		method model.PaymentMethod
+		wantID uint64
+	}{
+		{model.PaymentMethodCash, 101},
+		{model.PaymentMethodCreditCard, 102},
+		{model.PaymentMethodElectronicMoney, 103},
+		{model.PaymentMethodBankTransfer, 104},
+	}
+	for _, c := range cases {
+		t.Run("name改名後も system_key で解決: "+string(c.method), func(t *testing.T) {
+			var captured []model.PaymentSplit
+			svc := NewAccountingService(newRepo(&captured), nil, &mockTransactor{}, &mockAccountingAuditService{}, renamedPayMethodMock())
+
+			received, change := int64(0), int64(0)
+			if c.method == model.PaymentMethodCash {
+				received = 5000
+			}
+			_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+				ID:            1,
+				ClinicID:      1,
+				BillingAmount: &billingAmount,
+				PaymentSplits: []PaymentSplitInput{
+					{Method: c.method, Amount: 5000, ReceivedAmount: received, ChangeAmount: change},
+				},
+			})
+
+			assert.NoError(t, err)
+			assert.Len(t, captured, 1)
+			if assert.NotNil(t, captured[0].PaymentMethodID, "name 改名後も payment_method_id は NULL にならない") {
+				assert.Equal(t, c.wantID, *captured[0].PaymentMethodID)
+			}
+		})
+	}
 }
 
 // TestAccountingService_GetDailySummary は日次集計取得ロジックを検証する。

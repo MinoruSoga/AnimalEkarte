@@ -98,3 +98,73 @@ describe("AccountingDocument #179 ① 帳票レイアウト設定", () => {
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 });
+
+describe("AccountingDocument #190 セクション表示/非表示と順序", () => {
+  it("各フラグがデフォルト（未設定）のときすべてのセクションを表示する（後方互換）", () => {
+    renderDocument({ name: "テスト病院" });
+
+    expect(screen.getByRole("heading", { name: "明細兼領収書" })).toBeInTheDocument();
+    expect(screen.getByText(/山田 太郎/)).toBeInTheDocument();
+    expect(screen.getByText("診察料")).toBeInTheDocument();
+    expect(screen.getByText("請求金額")).toBeInTheDocument();
+  });
+
+  it("accountingDocumentShowClinicHeader: false で病院情報ヘッダーを非表示にする", () => {
+    renderDocument({ name: "テスト病院", accountingDocumentShowClinicHeader: false });
+
+    expect(screen.queryByRole("heading", { name: "明細兼領収書" })).not.toBeInTheDocument();
+  });
+
+  it("accountingDocumentShowOwnerPetInfo: false で飼主・ペット情報を非表示にする", () => {
+    renderDocument({ name: "テスト病院", accountingDocumentShowOwnerPetInfo: false });
+
+    expect(screen.queryByText(/山田 太郎/)).not.toBeInTheDocument();
+  });
+
+  it("accountingDocumentShowItemsTable: false で明細テーブルを非表示にする", () => {
+    renderDocument({ name: "テスト病院", accountingDocumentShowItemsTable: false });
+
+    expect(screen.queryByText("診察料")).not.toBeInTheDocument();
+  });
+
+  it("accountingDocumentShowPaymentSummary: false でお会計サマリーを非表示にする", () => {
+    renderDocument({ name: "テスト病院", accountingDocumentShowPaymentSummary: false });
+
+    expect(screen.queryByText("請求金額")).not.toBeInTheDocument();
+  });
+
+  it("section_order が空配列のときデフォルト順(clinic_header→payment_summary)を維持する", () => {
+    renderDocument({ name: "テスト病院", accountingDocumentSectionOrder: [] });
+
+    const heading = screen.getByRole("heading", { name: "明細兼領収書" });
+    const billing = screen.getByText("請求金額");
+    // heading (clinic_header) が billing (payment_summary) より DOM 上で先に来る
+    expect(
+      heading.compareDocumentPosition(billing) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("section_order で payment_summary を先頭にするとDOMでも先に現れる", () => {
+    renderDocument({
+      name: "テスト病院",
+      accountingDocumentSectionOrder: ["payment_summary", "clinic_header"],
+    });
+
+    const heading = screen.getByRole("heading", { name: "明細兼領収書" });
+    const billing = screen.getByText("請求金額");
+    // billing (payment_summary) が heading (clinic_header) より DOM 上で先に来る
+    expect(
+      billing.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("section_order に未知のキーが混入しても既知キーのみ有効化される", () => {
+    renderDocument({
+      name: "テスト病院",
+      accountingDocumentSectionOrder: ["unknown_key", "clinic_header"],
+    });
+
+    // unknown_key は無視され、clinic_header は正常に描画される
+    expect(screen.getByRole("heading", { name: "明細兼領収書" })).toBeInTheDocument();
+  });
+});

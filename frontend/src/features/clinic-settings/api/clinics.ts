@@ -44,6 +44,12 @@ export interface UpdateClinicRequest {
   accounting_document_show_registration_warning?: boolean;
   accounting_document_show_item_category?: boolean;
   accounting_document_footer_note?: string;
+  // #190: セクション表示/非表示トグルと表示順
+  accounting_document_show_clinic_header?: boolean;
+  accounting_document_show_owner_pet_info?: boolean;
+  accounting_document_show_items_table?: boolean;
+  accounting_document_show_payment_summary?: boolean;
+  accounting_document_section_order?: string[];
 }
 
 // ─────────────────────────────────────────────────

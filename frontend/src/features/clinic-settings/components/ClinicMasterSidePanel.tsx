@@ -1,5 +1,11 @@
-import { memo, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { Building2, FileText, Percent, X } from "lucide-react";
+import { memo, useMemo, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { Building2, ChevronDown, ChevronUp, FileText, Percent, X } from "lucide-react";
+
+import {
+  DOCUMENT_SECTION_KEYS,
+  DOCUMENT_SECTION_LABELS,
+  type DocumentSectionKey,
+} from "@/features/accounting";
 
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError";
@@ -220,6 +226,57 @@ export function ClinicMasterSidePanel({
                     }))
                   }
                 />
+                {/* #190: セクション表示トグル */}
+                <ClinicBooleanProperty
+                  label="病院情報ヘッダー"
+                  value={formData.accounting_document_show_clinic_header}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_clinic_header: value,
+                    }))
+                  }
+                />
+                <ClinicBooleanProperty
+                  label="飼主・ペット情報"
+                  value={formData.accounting_document_show_owner_pet_info}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_owner_pet_info: value,
+                    }))
+                  }
+                />
+                <ClinicBooleanProperty
+                  label="明細テーブル"
+                  value={formData.accounting_document_show_items_table}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_items_table: value,
+                    }))
+                  }
+                />
+                <ClinicBooleanProperty
+                  label="お会計サマリー"
+                  value={formData.accounting_document_show_payment_summary}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_payment_summary: value,
+                    }))
+                  }
+                />
+                {/* #190: セクション表示順 */}
+                <SectionOrderProperty
+                  order={formData.accounting_document_section_order}
+                  onChange={(order) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_section_order: order,
+                    }))
+                  }
+                />
                 <ClinicTextareaProperty
                   label="フッター"
                   value={formData.accounting_document_footer_note}
@@ -362,6 +419,69 @@ function ClinicTextareaProperty({
         maxLength={500}
       />
     </PropertyRow>
+  );
+}
+
+// #190: セクション表示順の変更UI
+function SectionOrderProperty({
+  order,
+  onChange,
+}: {
+  order: string[];
+  onChange: (order: string[]) => void;
+}) {
+  // 有効なキーのみ抽出し、漏れたキーを末尾に補完（AccountingDocument と同ロジック）
+  const effectiveOrder = useMemo<DocumentSectionKey[]>(() => {
+    const validKeys = order.filter((k): k is DocumentSectionKey =>
+      (DOCUMENT_SECTION_KEYS as readonly string[]).includes(k)
+    );
+    if (validKeys.length === 0) return [...DOCUMENT_SECTION_KEYS];
+    const missing = DOCUMENT_SECTION_KEYS.filter(k => !validKeys.includes(k));
+    return [...validKeys, ...missing];
+  }, [order]);
+
+  function move(index: number, direction: -1 | 1) {
+    const next = [...effectiveOrder];
+    const target = index + direction;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
+  }
+
+  return (
+    <div className={`${STYLE.propertyRow} flex-col items-start gap-1`}>
+      <div className={`text-sm ${C.text65} select-none`}>セクション順</div>
+      <div className="w-full space-y-0.5 pl-1">
+        {effectiveOrder.map((key, i) => (
+          <div
+            key={key}
+            className={`flex items-center justify-between text-xs ${C.text} py-0.5 px-1 rounded ${C.hoverBgLight}`}
+          >
+            <span>{DOCUMENT_SECTION_LABELS[key]}</span>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => move(i, -1)}
+                disabled={i === 0}
+                className={`p-0.5 rounded ${C.hoverBgLight} disabled:opacity-30 cursor-pointer disabled:cursor-default`}
+                aria-label="上に移動"
+              >
+                <ChevronUp className="size-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => move(i, 1)}
+                disabled={i === effectiveOrder.length - 1}
+                className={`p-0.5 rounded ${C.hoverBgLight} disabled:opacity-30 cursor-pointer disabled:cursor-default`}
+                aria-label="下に移動"
+              >
+                <ChevronDown className="size-3" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

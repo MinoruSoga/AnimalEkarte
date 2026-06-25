@@ -22,6 +22,12 @@ export function transformClinic(data: Clinic) {
     accountingDocumentShowRegistrationWarning: data.accounting_document_show_registration_warning ?? true,
     accountingDocumentShowItemCategory: data.accounting_document_show_item_category ?? true,
     accountingDocumentFooterNote: data.accounting_document_footer_note ?? "",
+    // #190: セクション表示/非表示トグルと表示順
+    accountingDocumentShowClinicHeader: data.accounting_document_show_clinic_header ?? true,
+    accountingDocumentShowOwnerPetInfo: data.accounting_document_show_owner_pet_info ?? true,
+    accountingDocumentShowItemsTable: data.accounting_document_show_items_table ?? true,
+    accountingDocumentShowPaymentSummary: data.accounting_document_show_payment_summary ?? true,
+    accountingDocumentSectionOrder: data.accounting_document_section_order ?? [],
   };
 }
 

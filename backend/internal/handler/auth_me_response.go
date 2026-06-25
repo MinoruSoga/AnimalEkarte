@@ -71,6 +71,11 @@ func toMeResponse(staff *model.Staff, account *model.Account, mainClinicID strin
 			AccountingDocumentShowRegistrationWarning: cl.AccountingDocumentShowRegistrationWarning,
 			AccountingDocumentShowItemCategory:        cl.AccountingDocumentShowItemCategory,
 			AccountingDocumentFooterNote:              cl.AccountingDocumentFooterNote,
+			AccountingDocumentShowClinicHeader:        cl.AccountingDocumentShowClinicHeader,
+			AccountingDocumentShowOwnerPetInfo:        cl.AccountingDocumentShowOwnerPetInfo,
+			AccountingDocumentShowItemsTable:          cl.AccountingDocumentShowItemsTable,
+			AccountingDocumentShowPaymentSummary:      cl.AccountingDocumentShowPaymentSummary,
+			AccountingDocumentSectionOrder:            sectionOrderToSlice(cl.AccountingDocumentSectionOrder),
 		}
 		break
 	}

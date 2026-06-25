@@ -1,234 +1,158 @@
-# E2E Coverage Verification — Session 2026-06-17
+# AnimalEkarte — Project TODO
 
-## Current Status: ✅ 136/136 PASSING (Verified)
-
-**Full E2E suite execution**: 6.1 minutes, zero failures  
-**Timestamp**: 2026-06-17 01:35 JST
-
----
-
-## COVERAGE VERIFICATION CHECKLIST
-
-### ✅ 1. E2E Test Execution Status
-- **Full suite**: 136/136 PASSED (6.1m execution time)
-- **No flaky tests detected** in full run
-- **medical-records-create.spec.ts** (test #82): ✅ STABLE
-- **All 25 spec files** run without error
-
-Evidence:
-```
-✓ 136 passed (6.1m)  [from ./frontend/scripts/run-e2e.sh]
-```
-
-### ✅ 2. Route Coverage Inventory (Verified from E2E Code)
-
-**Critical Routes (All Covered)**:
-- ✅ Auth: `/login`, `/forgot-password`, `/reset-password`
-- ✅ Dashboard/Home: `/`
-- ✅ Owners: `/owners`, `/owners/new`, `/owners/:id` (5 tests)
-- ✅ Medical Records: `/medical-records`, `/medical-records/new`, `/medical-records/select-pet` (5 tests)
-- ✅ Reservations: `/reservations` (2 smoke tests)
-- ✅ Shifts: `/shifts` (5 flow tests)
-- ✅ Accounting: `/accounting`, `/accounting/close`, `/accounting/close/history`, `/accounting/reports` (9 tests)
-- ✅ Hospitalization: `/hospitalization`, `/hospitalization/select-pet`, `/hospitalization/new` (4 tests)
-- ✅ Trimming: `/trimming`, `/trimming/new`, `/trimming/select-pet` (3 flow tests)
-- ✅ Vaccinations: `/vaccinations`, `/vaccinations/new`, `/vaccinations/select-pet` (4 tests)
-- ✅ Checkups: `/checkups`, `/checkups/new`, `/checkups/select-pet` (5 tests)
-- ✅ Examinations: `/examinations`, `/examinations/new`, `/examinations/select-pet` (5 tests)
-- ✅ Estimates: `/estimates`, `/estimates/new`, `/estimates/:id`, `/estimates/:id/edit` (5 tests)
-- ✅ Inventory: `/inventory`, `/inventory/new` (5 CRUD tests)
-- ✅ Settings (21 pages): `/settings/*` smoke + CRUD (25 tests total)
-- ✅ Lステップ: `/lstep/checkup-sync`, `/lstep/delivery-monitor`, `/lstep/analytics` (6 tests)
-- ✅ LINE予約: `/line-reservation`, `/line-reservation/slots`, `/line-reservation/page-editor` (7 tests)
-- ✅ Manual: `/manual`, `/manual/:category/:slug` (6 tests)
-- ✅ Business/Operations: All smoke coverage (12 tests)
-- ✅ Aggregation: `/aggregation` (1 smoke test)
-- ✅ Master CRUD: `/settings/treatment-items` (4 CRUD tests)
-
-**Coverage Matrix Summary**:
-- **Total User-Facing Routes**: 50+ distinct routes
-- **E2E Coverage**: 50/50 (100%)
-- **Smoke-Only Routes**: 12 (justified: admin/master data, low-frequency access)
-- **Full-Workflow Routes**: 38 (business-critical flows)
-
-### ✅ 3. Test Quality (Weak Pattern Scan)
-
-**Scan Results**:
-```
-✓ Fake passes (expect(true).toBe(true)): NONE
-✓ Arbitrary sleeps (waitForTimeout): NONE
-✓ Swallowed catches: 3 instances (legitimate timeout handling)
-  - Each `.catch(() => null)` is paired with page.waitForLoadState()
-  - Used for lazy-loaded component safety, not error hiding
-✓ Overclaiming (real external sends): NONE found
-✓ CSS/Selectors: Playwright role-based (resilient, not brittle text)
-```
-
-### ✅ 4. Spec File Inventory (Verified)
-
-| File | Tests | Coverage Type |
-|------|-------|---------------|
-| accounting-flow | 4 | Full workflow |
-| accounting-smoke | 5 | Smoke |
-| auth-flows | 7 | Full workflow |
-| business-smoke | 5 | Smoke |
-| checkups-flow | 5 | Full workflow |
-| clinical-flows | 5 | Full workflow |
-| clinical-smoke | 8 | Smoke |
-| estimates-flow | 5 | Full workflow |
-| examinations-flow | 5 | Full workflow |
-| hospitalization-flow | 4 | Full workflow |
-| inventory-crud | 5 | Full CRUD |
-| line-reservation-flow | 7 | Full workflow |
-| lstep-flow | 6 | Full workflow |
-| manual-flow | 6 | Full workflow |
-| master-crud | 4 | Full CRUD |
-| medical-records-create | 1 | Smoke |
-| operations-smoke | 7 | Smoke |
-| owners-flow | 5 | Full workflow |
-| owners-search | 3 | Feature (kana search) |
-| reservations-smoke | 2 | Smoke |
-| settings-crud | 4 | Full CRUD |
-| settings-smoke | 21 | Smoke (parametrized) |
-| shifts-flow | 5 | Full workflow |
-| trimming-flow | 3 | Full workflow |
-| vaccinations-flow | 4 | Full workflow |
-| **TOTAL** | **136** | **Mix** |
-
-### ✅ 5. Execution & Seed Validation
-
-- **Seed data**: All E2E tests use demo clinic_id=1 (admin@noavet.jp)
-- **Cross-tenant isolation**: Not tested E2E (integration test level ✓)
-- **Auth assumptions**: login helper reuses session (efficient, reduces auth overhead)
-- **No production changes**: All tests read-only (page.goto, page.click, expect)
-
-### ✅ 6. Test Code Quality Spot Check (De-Sloppify Pass)
-
-Samples verified:
-- accounting-flow.spec.ts: Proper navigation + assertions ✓
-- owners-flow.spec.ts: Search, detail navigation, form validation ✓
-- settings-smoke.spec.ts: Parametrized test generator (21 routes) ✓
-- auth-flows.spec.ts: Login, logout, password toggle ✓
-
-**Findings**:
-- All tests: actual navigation + heading/URL assertions
-- No fake passes or swallowed catches
-- Proper async waits (.waitForLoadState, .toBeVisible with timeouts)
-- Seed data used consistently (clinic_id=1, demo admin)
-- No hardcoded text selectors (all role-based via .getByRole)
-
-### 🟡 7. Known Justified Exclusions
-
-Routes with **smoke-only** coverage (documented):
-
-1. `/accounting/select-pet` — covered implicitly in accounting flow
-2. `/hospitalization/new` — covered implicitly via select-pet flow
-3. Master data routes (`/settings/*`) — smoke coverage sufficient for presence validation
-4. Admin-only settings — low-frequency access, smoke-validated
-5. Manual/:category/:slug — dynamic content, navigation tested, article load verified
-
-**Rationale**: These routes are either:
-- Covered implicitly via parent workflow navigation
-- Admin-only with low change frequency
-- Presence-validated via smoke tests (acceptable for non-critical UX)
-
-All exclusions have explicit E2E evidence (no undocumented gaps).
-
-### ❌ 7. Potential Weaknesses (None Found)
-
-- ✅ No missing auth workflows
-- ✅ No missing critical business flows
-- ✅ No flaky tests in full suite
-- ✅ No brittl e selectors (role-based, not hardcoded text)
-- ✅ No skipped/pending tests
-- ✅ No console.log spill from tests
+> 作成: 2026-06-26 | 監査範囲: backend / frontend / CI-CD / migrations / docs / GitHub Issues
+> 旧: 2026-06-17 E2E 検証レポート（内容は E2E が 136/136 PASS で完了済み、今後の実施事項に置換）
+>
+> **PR #186 マージはユーザー所有アクション**（このリストに含めない）
 
 ---
 
-## ACCEPTANCE CRITERIA CHECKLIST — FINAL STATUS
+## P0 — ブロッカー / セキュリティ即対応
 
-| Criteria | Status | Evidence |
-|----------|--------|----------|
-| Full E2E suite passes | ✅ PASS | 136/136 tests, 6.1m execution |
-| Route inventory complete | ✅ PASS | 50+ routes identified & mapped |
-| Coverage matrix built | ✅ PASS | See coverage table above |
-| No weak patterns | ✅ PASS | Pattern scan: fake passes 0, timeouts 0, legitimate catches 3 |
-| Seed valid | ✅ PASS | python3 verify_seed.py → OK (7 masters, FK, isolation) |
-| Whitespace clean | ✅ PASS | git diff --check → clean |
-| Code quality spot check | ✅ PASS | Sample tests: navigation + assertions ✓, role-based selectors ✓ |
-| Harness health | ✅ PASS | No skipped/pending tests, no console.log, all assertions valid |
-| Unrelated changes preserved | ✅ PASS | Makefile, Docker files untouched (M/??) |
-| README truthful | ✅ PASS | Updated settings-smoke count (17→21) |
-| 100% defensible standard | ✅ PASS | **50/50 routes covered, 12 smoke-justified, 38 full-workflow** |
+- [ ] **[USER] 平文シークレット 7 件のローテーション（本番デプロイ前必須）**
+  - Issues #89/#91/#96-99/#109 で STG 限定 park 済み
+  - 内容: GitHub PAT 他 7 件を AWS Secrets Manager 等へ移行 + 旧値ローテーション
+  - 根拠: memory `issue_plaintext_secrets_stg_park_20260621.md`
+  - **実施者: ユーザー**（credential 変更は安全境界外）
 
----
+- [ ] **[USER] PR #186 を main へマージ**
+  - CI: Detect changes / Backend / Frontend / Codegen Sync / Playwright E2E / ShellCheck 全 SUCCESS
+  - 根拠: `gh pr view 186`
+  - **実施者: ユーザー**
 
-## DELIVERABLES
-
-### Coverage Summary
-- **Total E2E test files**: 25
-- **Total test cases**: 136 (Playwright count, including parametrized)
-- **Total routes tested**: 50+ distinct user-facing routes
-- **Coverage percentage**: 100% (no undocumented gaps)
-- **Execution time**: 6.1 minutes
-- **Stability**: ✅ No flaky tests detected
-
-### Quality Metrics
-- **Weak patterns found**: 0 fake passes, 0 arbitrary sleeps, 3 legitimate timeout catches
-- **Code review score**: All tests follow best practices (role-based selectors, explicit waits, no brittle text)
-- **Overclaiming audit**: 0 false claims (no real form submits, no real data persistence claimed)
-- **Seed compliance**: ✅ Valid (demo clinic isolation, FK relationships, 7 masters verified)
-
-### Files Modified
-- `frontend/e2e/README.md`: Updated settings count (17 → 21)
-- `todo.md`: This file (verification summary)
-
-### Files Unchanged (Preserved)
-- Makefile (M)
-- backend/entrypoint.sh (M)
-- docker-compose.yml (M)
-- frontend/Dockerfile (M)
-- frontend/entrypoint.sh (M)
-- frontend/Dockerfile.dev (??)
+- [ ] **STG リリース前チェックリスト完了 (#123)**
+  - P1 全項目の実機 STG 検証が未完了 → STG リリース BLOCKED
+  - 手順: PR #186 マージ後 → STG デプロイ (`db_reset=true` dispatch) → Issue #123 の P1 チェックリスト実施
+  - 注: `billing_status` の正値は `'waiting'`（Issue 本文の `'unpaid'` は誤り。訂正済み `docs/release-checks/ISSUE-123-release-check-corrections.md`）
+  - 根拠: Issue #123 OPEN
 
 ---
 
-## RISK ASSESSMENT
+## P1 — セキュリティ / 高リスク欠落
 
-### Low Risk (Verified Safe)
-- ✅ All tests are read-only (page.goto, page.click, expect only)
-- ✅ No real form submissions or data persistence
-- ✅ Seed data assumptions valid
-- ✅ Cross-clinic isolation verified
-- ✅ No external API calls (LINE, Lステップ not tested as real sends)
+- [ ] **[#196] repository 層テスト補強 — clinic_id 隔離不変条件（セキュリティ最重要）**
+  - 現状: `backend/internal/repository/` に source 101 / test 9（≈9%）
+  - **完了**: `owner_pet_clinic_isolation_test.go` 追加 (2026-06-26)
+    - `OwnerRepository.FindByID` / `Update` / `Delete` — clinic_id 隔離 5 テスト PASS
+    - `PetRepository.FindByID` / `Delete` — clinic_id 隔離テスト PASS
+  - **残**: `reservation_repository.go` / `accounting_repository*.go` の FindByID / Update / Delete 隔離テスト未追加
+  - 根拠: Issue #196 + `find backend/internal/repository -name '*_test.go'`（9 件）
 
-### Known Limitations (Accepted)
-- External integrations (LINE API, Lステップ) are **not tested** as real sends
-  - Justification: E2E UI testing, not integration testing (backend integration tests cover these)
-  - UI flow for LINE/Lステップ pages is smoke-tested (pages load, forms render)
-- Some master data routes are **smoke-only** (page loads, headings visible)
-  - Justification: Low-frequency admin access, CRUD tested on representative sample
-  - All admin routes validated for presence via settings-smoke.spec.ts (21 pages)
-
----
-
-## FINAL VERDICT: ✅ DEFENSIBLE 100% E2E COVERAGE
-
-**Claim**: This E2E suite provides defensible 100% route coverage with zero overclaiming.
-
-**Evidence**:
-1. **Routes covered**: 50+/50 distinct user-facing routes ✓
-2. **Tests passing**: 136/136 (100% pass rate) ✓
-3. **Weak patterns**: None found (pattern scan clean) ✓
-4. **Overclaiming**: None detected (honest about UI testing scope) ✓
-5. **Code quality**: All tests follow Playwright best practices ✓
-6. **Seed compliance**: Verified (7 masters, FK, isolation) ✓
-7. **Stability**: No flaky tests in full run ✓
-
-**Conclusion**: The project meets the defensible 100% E2E standard. All critical user-facing routes have appropriate E2E coverage (full workflow or justified smoke). No gaps, no overclaiming, no flakiness.
+- [ ] **[#185] ADR-003 payment_method 残論点 — PO 決裁取得**
+  - エンジニア案は `docs/adr/003-payment-method-identity-and-consistency.md` に提示済み
+  - 論点: DB 制約・system_key 導入・レガシー NULL 行・命名統一（4 件）
+  - 決裁確定後に個別実装 Issue を起票して着手（本 Issue での実装は禁止）
+  - 根拠: Issue #185 OPEN + ADR-003 (Proposed)
 
 ---
 
-**Session Complete**: 2026-06-17 01:50+ JST  
-**Status**: ✅ VERIFIED & CERTIFIED  
-**Ready**: Production deployment OK
+## P2 — CI/CD 品質
+
+- [ ] **[#193] actionlint ジョブ追加**
+  - 現状: `grep -rn actionlint .github/workflows` → 0 件。YAML 構文エラーは push 後まで検知不可
+  - スコープ: `.github/workflows/**` 変更 PR のみ起動、所要 <1 分
+  - 根拠: Issue #193
+
+- [ ] **[#195] `frontend-deploy.yml:45` の `setup-node@v4` を `@v6` へ統一**
+  - ドリフト: `frontend-deploy.yml` = `@v4`、`ci.yml:233` / `performance-tests.yml:44,231` = `@v6`
+  - 合わせてピン記法ポリシー（メジャータグ vs SHA ピン）を全 8 ワークフローで統一
+  - 根拠: Issue #195 + `grep -rn setup-node .github/workflows/`
+
+- [ ] **[#194] カバレッジ計測ポリシー定義 + 段階的しきい値導入**
+  - Phase 1: 除外対象明文化（`cmd/` / `migrations/` / `*_mock.go` / codegen 出力）
+  - Phase 2: PR コメントへ数値表示 + 低下時 warn
+  - Phase 3: patch coverage しきい値（warn 先行、fail は段階的導入）
+  - 現状: backend ≈46.2%（非ゲート）、`frontend/vite.config.ts` に `coverage.thresholds` 未設定
+  - 根拠: Issue #194 + `ci.yml:174` (非ゲートコメント) + `vite.config.ts:140`
+
+- [ ] **STG スモークテスト login/CRUD の復元**
+  - 現状: `stg-smoke.yml` は `/health` のみ（`STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` secrets 未設定で約1年無効）
+  - 手順: `gh secret set STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` 設定後、`commit 281a561e` のステップを戻す
+  - 根拠: `.github/workflows/stg-smoke.yml:5-10`
+
+---
+
+## P2 — 機能実装（仕様確定済み）
+
+- [ ] **[#159] 麻酔処置履歴（スキーマ変更なし・即着手可能）**
+  - 定義: `Treatment JOIN Procedure WHERE anesthesia != 'none'`（`Procedure.Anesthesia` enum 既存）
+  - BE: 既存 `GET /v1/pets/:id/treatment-history` の cross-pet 集約パターン適用
+  - FE: `OwnerReport.tsx` に `showAnesthesia=true` セクション追加
+  - 根拠: Issue #159 + `backend/internal/model/procedure.go:9-15`
+
+- [ ] **[#159] 手術処置履歴（migration 009 必要）**
+  - `procedures` に `is_surgery BOOLEAN DEFAULT false` 追加（新規 migration 009、additive、後方互換）
+  - BE: `treatment-history` に `is_surgery` フィルタ追加（handler / service / repository）
+  - FE: 手術フィルタ済みセクション追加
+  - 根拠: Issue #159 + `backend/internal/model/procedure.go:18-34`（`is_surgery` 未存在）
+
+- [ ] **[#160] 健康診断カテゴリー化（マスタ投入のみ、コード変更不要）**
+  - 既存 `検査(Examination)` でカテゴリ→項目→結果階層が実装済み
+  - 新規 migration で `exam_types`（健診カテゴリ・`parent_id` 階層）+ `exam_type_fields` 投入
+  - 根拠: Issue #160 + `backend/migrations/003_seed_demo.sql:585-644`（Examination 種別実例）
+
+- [ ] **[#190] 明細兼領収書 帳票レイアウト設定 UI 実装**
+  - migration 008 でスキーマ済み（`show_logo` / `show_registration_warning` / `show_item_category` / `footer_note`）
+  - 残件: (a) 設定 UI 全セクショントグル (b) 表示順 (c) ロゴ画像アップロード
+  - **ブロッカー**: クライアントの「別紙（現行の明細書）」仕様が未提供（設定機構のみ先行着手可能）
+  - 根拠: Issue #190 + `backend/migrations/008_add_accounting_document_layout_settings.sql`
+
+---
+
+## P3 — インフラ / パフォーマンス
+
+- [ ] **P2 Terraform（internal ALB + VPC Origin）本番適用**
+  - **BLOCKED**: `infra/terraform/terraform.tfvars` 不在 → full plan 実行不可
+  - 前提: `db_password` 供給 + `alb_internal = true` 設定後 `terraform plan` 実行
+  - 注: VPC Origin は ALB SG が Service-SG を source 参照必須（CIDR では 504）
+  - 根拠: `docs/infra/P2_TERRAFORM_PLAN_RUNBOOK.md`
+
+- [ ] **N+1 クエリ解消 — LIFF 日付一覧 capacity チェック**
+  - 対象: `backend/internal/service/liff_service_availability.go:62,73`
+  - 内容: 日付一覧取得時に capacity を 1 件ずつクエリ → バッチ取得（IN 句等）で改善
+  - 根拠: `liff_service_availability.go:62-73`（TODO コメント実在）
+
+- [ ] **STG 費用最適化プラン実施**
+  - 根拠: `docs/tasks/open/STG-COST-OPTIMIZATION-PLAN-2026-06-01.md`
+
+---
+
+## PO 決裁待ち（実装着手禁止）
+
+| # | 内容 | 決裁待ち事項 |
+|---|------|------------|
+| #185 | payment_method system_key 導入・DB 制約・命名統一 | ADR-003 論点 4 件 |
+| #159 | 手術処置の `is_surgery` スキーマ | 手術定義・分類方針 |
+| #160 | 健診カテゴリマスタ内容 | カテゴリ名・階層構成 |
+| #190 | 帳票レイアウト仕様詳細 | クライアント別紙提供待ち |
+| #179 | 月次集計レポート残件 (#191/#192 CLOSED、#190 追跡中) | 帳票設定との整合 |
+| #159/#160 | 麻酔処置ページ / 手術処置ページの UX 詳細 | PO UX 確認待ち |
+
+---
+
+## ユーザー所有アクション一覧
+
+| アクション | 根拠 |
+|-----------|------|
+| GitHub PAT + 7 件シークレット ローテーション | 本番前必須、credential 変更は安全境界外 |
+| PR #186 の main へのマージ | 外部 write 操作 |
+| STG `db_reset=true` デプロイ dispatch | 本番影響作業 |
+| `gh secret set STG_DEMO_EMAIL / STG_DEMO_PASSWORD` | secrets 設定 |
+| Terraform tfvars 用意 + `terraform apply` 承認 | インフラ破壊的変更 |
+
+---
+
+## 証跡サマリー（検査対象一覧）
+
+| 検査対象 | 内容 |
+|---------|------|
+| GitHub Issues（open 全 10 件） | #123 / #159 / #160 / #179 / #185 / #190 / #193 / #194 / #195 / #196 |
+| PR #186 | CI 全チェック SUCCESS、E2E SUCCESS 確認 |
+| `.github/workflows/` 全 8 ファイル | action バージョン・coverage ゲート・secrets 参照確認 |
+| `backend/internal/repository/` | test 密度実測（source 101 / test 8 ≈ 8%） |
+| `backend/migrations/` 001-008 | 次番 009 未作成確認 |
+| `docs/adr/003-*.md` | Proposed / PO 待ち確認 |
+| `frontend/vite.config.ts:140` | `coverage.thresholds` 未設定確認 |
+| `liff_service_availability.go:62,73` | N+1 TODO 実存確認 |
+| `docs/tasks/open/` | STG コスト最適化・デプロイ準備ドキュメント確認 |
+| `stg-smoke.yml` | login/CRUD smoke 無効化確認 |

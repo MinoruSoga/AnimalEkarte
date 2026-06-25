@@ -58,7 +58,17 @@ type CloseBillingDetail struct {
 
 // buildCategoryBreakdown はカテゴリ行と支払方法行から CategoryBreakdownSchema を構築する。
 // 混在支払いの場合、カテゴリ金額を支払方法比率で按分する。
-func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []repository.CategoryAggregateRow, taxRows []repository.TaxBreakdownRow) model.CategoryBreakdownSchema {
+// 支払方法キーは system_key（例: "cash", "credit_card"）を使用。未登録 id は "method_N" にフォールバック。
+func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []repository.CategoryAggregateRow, taxRows []repository.TaxBreakdownRow, payMethods []model.PaymentMethodMaster) model.CategoryBreakdownSchema {
+	idToKey := make(map[uint64]string, len(payMethods))
+	for _, m := range payMethods {
+		if m.SystemKey != nil {
+			idToKey[m.ID] = *m.SystemKey
+		} else {
+			idToKey[m.ID] = fmt.Sprintf("method_%d", m.ID)
+		}
+	}
+
 	var totalPayment int64
 	for _, pm := range payRows {
 		totalPayment += pm.Amount
@@ -68,8 +78,11 @@ func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []
 	for _, cat := range catRows {
 		cats[cat.Category] = make(map[string]int64)
 		for _, pm := range payRows {
-			key := "cash"
-			if pm.PaymentMethodID != nil {
+			if pm.PaymentMethodID == nil {
+				continue // #128 hotfix 後は payment_method_id=NULL は発生しない
+			}
+			key, ok := idToKey[*pm.PaymentMethodID]
+			if !ok {
 				key = fmt.Sprintf("method_%d", *pm.PaymentMethodID)
 			}
 			if totalPayment > 0 {
@@ -169,13 +182,17 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to aggregate billings")
 	}
 
-	// #128: 現金マスタ id を解決し、payment_method_id=現金id の新データも理論現金に含める（NULL も後方互換で現金）。
+	// #128: 現金マスタ id を解決し、payment_method_id=現金id の split を理論現金に含める。
 	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load payment methods for aggregate", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load payment methods for aggregate")
 	}
-	cashMethodID := findCashMethodID(payMethods)
+	cashMethodID, err := findCashMethodID(payMethods)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find cash payment method", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find cash payment method")
+	}
 
 	return &periodAggregate{
 		Schedule:        schedule,
@@ -303,7 +320,7 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 	cashDifference := input.ActualCash - agg.TheoreticalCash
 
 	// category_breakdown JSONB を構築（消費税内訳を含む）
-	breakdownSchema := buildCategoryBreakdown(agg.PaymentRows, agg.CategoryRows, agg.TaxBreakdown)
+	breakdownSchema := buildCategoryBreakdown(agg.PaymentRows, agg.CategoryRows, agg.TaxBreakdown, agg.PaymentMethods)
 	breakdownJSON, err := json.Marshal(breakdownSchema)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal category breakdown", "error", err)
@@ -409,26 +426,25 @@ func parseHHMM(s string) (h, m int, err error) {
 	return hh, mm, nil
 }
 
-// findCashMethodID は payment_methods マスタ群から「現金」マスタの id を返す（無ければ nil）。#128
-// 現金 name は paymentMethodMasterNames（書込み側の解決と同一の真実の源泉）を参照する。
-func findCashMethodID(methods []model.PaymentMethodMaster) *uint64 {
-	cashName := paymentMethodMasterNames[model.PaymentMethodCash]
+// findCashMethodID は payment_methods マスタ群から現金マスタ（system_key='cash'）の id を返す（#197）。
+// system_key 一致で検索するため、クリニックが「現金」等の name を改名しても正しく現金マスタを識別できる。
+// 現金マスタが存在しない場合は内部エラーを返す（migration 009 で必ず backfill 済み）。
+func findCashMethodID(methods []model.PaymentMethodMaster) (uint64, error) {
+	cashKey := paymentMethodSystemKeys[model.PaymentMethodCash]
 	for i := range methods {
-		if methods[i].Name == cashName {
-			id := methods[i].ID
-			return &id
+		if methods[i].SystemKey != nil && *methods[i].SystemKey == cashKey {
+			return methods[i].ID, nil
 		}
 	}
-	return nil
+	return 0, apperrors.WrapInternalServerError("現金マスタが見つかりません (system_key='cash')")
 }
 
 // calcTheoreticalCash は支払方法別集計行から現金合計を返し、返金合計を差し引いて理論現金残高を算出する。
-// 現金判定（#128）: payment_method_id が現金マスタ id（hotfix 後の新データ）、または NULL（旧 seed/
-// レガシーデータの現金 split: 後方互換）。cashMethodID が nil の場合は NULL のみを現金とみなす。
-func calcTheoreticalCash(payRows []repository.PaymentAggregateRow, totalRefund int64, cashMethodID *uint64) int64 {
+// 現金判定（#128）: payment_method_id が現金マスタ id と一致する split のみを現金として集計する。
+func calcTheoreticalCash(payRows []repository.PaymentAggregateRow, totalRefund int64, cashMethodID uint64) int64 {
 	var cashTotal int64
 	for _, r := range payRows {
-		if r.PaymentMethodID == nil || (cashMethodID != nil && *r.PaymentMethodID == *cashMethodID) {
+		if r.PaymentMethodID != nil && *r.PaymentMethodID == cashMethodID {
 			cashTotal += r.Amount
 		}
 	}

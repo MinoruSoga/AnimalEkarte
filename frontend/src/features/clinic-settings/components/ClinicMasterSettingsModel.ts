@@ -17,6 +17,12 @@ export interface ClinicFormData {
   accounting_document_show_registration_warning: boolean;
   accounting_document_show_item_category: boolean;
   accounting_document_footer_note: string;
+  // #190: セクション表示/非表示トグルと表示順
+  accounting_document_show_clinic_header: boolean;
+  accounting_document_show_owner_pet_info: boolean;
+  accounting_document_show_items_table: boolean;
+  accounting_document_show_payment_summary: boolean;
+  accounting_document_section_order: string[];
 }
 
 export const DEFAULT_CLINIC_FORM_DATA: ClinicFormData = {
@@ -36,6 +42,11 @@ export const DEFAULT_CLINIC_FORM_DATA: ClinicFormData = {
   accounting_document_show_registration_warning: true,
   accounting_document_show_item_category: true,
   accounting_document_footer_note: "",
+  accounting_document_show_clinic_header: true,
+  accounting_document_show_owner_pet_info: true,
+  accounting_document_show_items_table: true,
+  accounting_document_show_payment_summary: true,
+  accounting_document_section_order: [],
 };
 
 export function clinicToFormData(item: Clinic): ClinicFormData {
@@ -56,5 +67,10 @@ export function clinicToFormData(item: Clinic): ClinicFormData {
     accounting_document_show_registration_warning: item.accountingDocumentShowRegistrationWarning,
     accounting_document_show_item_category: item.accountingDocumentShowItemCategory,
     accounting_document_footer_note: item.accountingDocumentFooterNote,
+    accounting_document_show_clinic_header: item.accountingDocumentShowClinicHeader,
+    accounting_document_show_owner_pet_info: item.accountingDocumentShowOwnerPetInfo,
+    accounting_document_show_items_table: item.accountingDocumentShowItemsTable,
+    accounting_document_show_payment_summary: item.accountingDocumentShowPaymentSummary,
+    accounting_document_section_order: item.accountingDocumentSectionOrder,
   };
 }

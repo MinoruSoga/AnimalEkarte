@@ -8,36 +8,35 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// paymentMethodMasterNames は payment_method ENUM と payment_methods マスタの name を対応づける（#128）。
-// マスタには ENUM と機械的に対応づく安定列（code/system_key）が無いため、新規クリニック作成トリガー
-// （migrations/001_init.sql の create_default_payment_methods）が投入する既定 name 文字列で突合する暫定実装である。
-// クリニックが既定 name を改名・削除した場合は解決に失敗し、明示エラーになる（NULL=現金 への暗黙フォールバックをしない）。
-var paymentMethodMasterNames = map[model.PaymentMethod]string{
-	model.PaymentMethodCash:            "現金",
-	model.PaymentMethodCreditCard:      "クレジットカード",
-	model.PaymentMethodElectronicMoney: "電子マネー",
-	model.PaymentMethodBankTransfer:    "銀行振込",
+// paymentMethodSystemKeys は payment_method ENUM と payment_methods マスタの system_key を対応づける（#197）。
+// system_key は rename 耐性のある安定識別子（migration 009 で追加）。
+// name（表示専用）への依存を廃止し、クリニックが既定 name を改名しても会計確定・集計が正常動作する。
+var paymentMethodSystemKeys = map[model.PaymentMethod]string{
+	model.PaymentMethodCash:            "cash",
+	model.PaymentMethodCreditCard:      "credit_card",
+	model.PaymentMethodElectronicMoney: "electronic_money",
+	model.PaymentMethodBankTransfer:    "bank_transfer",
 }
 
-// resolvePaymentMethodMasterID は method(ENUM) を当該 clinic の payment_methods マスタ id に解決する（#128）。
-// 真実の源泉は検証済みの method(ENUM)。nameToID は当該 clinic の payment_methods マスタ name→id マップ。
+// resolvePaymentMethodMasterID は method(ENUM) を当該 clinic の payment_methods マスタ id に解決する（#128/#197）。
+// 真実の源泉は検証済みの method(ENUM)。systemKeyToID は当該 clinic の payment_methods マスタ system_key→id マップ。
 // existing（リクエストが明示供給した payment_method_id。ハンドラで無検証バインドされる）が非 nil の場合は、
 // 当該 clinic の当該 method に解決される id と一致することを検証し、不一致なら拒否する
 // （他クリニックの master id や method と矛盾する id の混入を防ぐ＝マルチテナント隔離）。
 // 対応するマスタ行が無い場合は明示エラーを返す（payment_method_id=NULL のまま保存して集計で現金に倒す挙動を防ぐ）。
-func resolvePaymentMethodMasterID(method model.PaymentMethod, existing *uint64, nameToID map[string]uint64) (*uint64, error) {
-	name, ok := paymentMethodMasterNames[method]
+func resolvePaymentMethodMasterID(method model.PaymentMethod, existing *uint64, systemKeyToID map[string]uint64) (*uint64, error) {
+	key, ok := paymentMethodSystemKeys[method]
 	if !ok {
 		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("未知の支払方法のためマスタ解決ができません: %s", method))
 	}
-	id, ok := nameToID[name]
+	id, ok := systemKeyToID[key]
 	if !ok {
 		// クリニックに既定支払方法マスタが存在しない設定不整合。誤って現金扱いせず、会計確定を止める。
-		return nil, apperrors.WrapInternalServerError(fmt.Sprintf("支払方法マスタ「%s」が見つかりません", name))
+		return nil, apperrors.WrapInternalServerError(fmt.Sprintf("支払方法マスタ (system_key=%s) が見つかりません", key))
 	}
 	// 明示供給された id は当該 clinic の当該 method マスタと一致する場合のみ許可する。
 	if existing != nil && *existing != id {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("指定された支払方法 id (%d) は当該クリニックの支払方法「%s」と一致しません", *existing, name))
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("指定された支払方法 id (%d) は当該クリニックの支払方法 (system_key=%s) と一致しません", *existing, key))
 	}
 	resolved := id
 	return &resolved, nil
@@ -56,16 +55,18 @@ func hasPaymentFields(input *UpdateAccountingInput) bool {
 }
 
 // representativeMethod は splits から payments.method（代表手段）を導出する仕様ロジック（PO判断B 2026-05-25: 確定）。
-// 優先順位は仕様として固定: cash > credit_card > electronic_money
+// 優先順位は仕様として固定: cash > credit_card > bank_transfer > electronic_money（#198 で bank_transfer を明示追加）。
 func representativeMethod(splits []PaymentSplitInput) model.PaymentMethod {
-	for _, s := range splits {
-		if s.Method == model.PaymentMethodCash {
-			return model.PaymentMethodCash
-		}
-	}
-	for _, s := range splits {
-		if s.Method == model.PaymentMethodCreditCard {
-			return model.PaymentMethodCreditCard
+	for _, p := range []model.PaymentMethod{
+		model.PaymentMethodCash,
+		model.PaymentMethodCreditCard,
+		model.PaymentMethodBankTransfer,
+		model.PaymentMethodElectronicMoney,
+	} {
+		for _, s := range splits {
+			if s.Method == p {
+				return p
+			}
 		}
 	}
 	return model.PaymentMethodElectronicMoney
