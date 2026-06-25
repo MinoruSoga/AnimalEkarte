@@ -1,0 +1,18 @@
+name: actionlint
+
+# ワークフロー YAML の構文・式・action 参照を検証する軽量セルフテスト。
+# .github/workflows/ を変更する PR でのみ起動する（Go/frontend/e2e マトリクスは起動しない）。
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+
+jobs:
+  actionlint:
+    name: Validate workflow YAML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.0
+      - name: Run actionlint
+        uses: rhysd/actionlint@v1
