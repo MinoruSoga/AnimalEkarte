@@ -6,6 +6,12 @@ import { toJSTWallDate } from "@/lib/jst-date";
 /** 治療履歴の絞り込み。#158: 投薬=medicine / 手術・処置=procedure / 治療=all。 */
 export type TreatmentHistoryFilter = "medicine" | "procedure" | "all";
 
+/** #159 追加フィルタ。anesthesiaOnly=true で麻酔処置のみ / isSurgery=true で手術処置のみ。 */
+export interface TreatmentHistoryOptions {
+  anesthesiaOnly?: boolean;
+  isSurgery?: boolean;
+}
+
 /** GET /v1/pets/:id/treatment-history の 1 行（バックエンド petTreatmentHistoryResponse に対応）。 */
 export interface BackendPetTreatmentHistory {
   id: string;
@@ -24,6 +30,7 @@ export interface BackendPetTreatmentHistory {
   procedure_id?: string;
   procedure_name?: string;
   anesthesia?: string;
+  is_surgery?: boolean;
 }
 
 interface PetTreatmentHistoryListResponse {
@@ -44,6 +51,8 @@ export interface PetTreatmentHistoryItem {
   quantity: number;
   /** 麻酔種別の日本語ラベル（procedure のみ）。 */
   anesthesia?: string;
+  /** 手術処置フラグ（procedure のみ）。 */
+  isSurgery?: boolean;
   medicalRecordId: string;
 }
 
@@ -78,6 +87,7 @@ export function transformHistoryItem(row: BackendPetTreatmentHistory): PetTreatm
     adminRoute: row.admin_route ?? "",
     quantity: row.quantity,
     anesthesia,
+    isSurgery: row.is_surgery,
     medicalRecordId: row.medical_record_id,
   };
 }
@@ -85,9 +95,12 @@ export function transformHistoryItem(row: BackendPetTreatmentHistory): PetTreatm
 const getPetTreatmentHistory = async (
   petId: string,
   filter: TreatmentHistoryFilter,
+  options: TreatmentHistoryOptions = {},
 ): Promise<PetTreatmentHistoryItem[]> => {
-  const params: Record<string, string | number> = { limit: 100 };
+  const params: Record<string, string | number | boolean> = { limit: 100 };
   if (filter !== "all") params.item_type = filter;
+  if (options.anesthesiaOnly) params.anesthesia_only = true;
+  if (options.isSurgery) params.is_surgery = true;
   const { data } = await axios.get<PetTreatmentHistoryListResponse>(
     `/v1/pets/${petId}/treatment-history`,
     { params },
@@ -98,10 +111,11 @@ const getPetTreatmentHistory = async (
 export const useGetPetTreatmentHistory = (
   petId: string | undefined,
   filter: TreatmentHistoryFilter,
+  options: TreatmentHistoryOptions = {},
 ) => {
   return useQuery({
-    queryKey: ["pet-treatment-history", petId, filter],
-    queryFn: () => getPetTreatmentHistory(petId!, filter),
+    queryKey: ["pet-treatment-history", petId, filter, options],
+    queryFn: () => getPetTreatmentHistory(petId!, filter, options),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

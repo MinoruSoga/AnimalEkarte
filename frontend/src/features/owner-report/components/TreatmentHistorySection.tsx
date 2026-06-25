@@ -6,19 +6,25 @@ import { HistoryTable } from "./HistoryTable";
 import {
   useGetPetTreatmentHistory,
   type TreatmentHistoryFilter,
+  type TreatmentHistoryOptions,
 } from "../api/get-pet-treatment-history";
 
 interface TreatmentHistorySectionProps {
   petId: string;
   title: string;
   filter: TreatmentHistoryFilter;
-  /** 麻酔列を出す（手術・処置セクション用）。 */
+  /** 麻酔列を出す（麻酔処置・手術処置セクション用）。 */
   showAnesthesia?: boolean;
+  /** 麻酔処置のみを返す（#159）。 */
+  anesthesiaOnly?: boolean;
+  /** 手術処置のみを返す（#159）。 */
+  isSurgery?: boolean;
   emptyMessage?: string;
 }
 
 /**
  * #158 ④投薬 / ⑤手術・処置 / ⑥治療 履歴。
+ * #159 追加: 麻酔処置履歴 / 手術処置履歴。
  * いずれも treatments 由来（prescriptions は参照しない）。日付は medical_records.date 由来で降順。
  */
 export function TreatmentHistorySection({
@@ -26,12 +32,16 @@ export function TreatmentHistorySection({
   title,
   filter,
   showAnesthesia = false,
+  anesthesiaOnly,
+  isSurgery,
   emptyMessage,
 }: TreatmentHistorySectionProps) {
   const { canView } = usePermission(ResourceMedicalRecords);
+  const options: TreatmentHistoryOptions = { anesthesiaOnly, isSurgery };
   const { data, isLoading, isError } = useGetPetTreatmentHistory(
     canView ? petId : undefined,
     filter,
+    options,
   );
   const items = data ?? [];
 

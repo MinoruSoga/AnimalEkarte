@@ -24,6 +24,7 @@ type Procedure struct {
 	Description string         `gorm:"default:''"                                     json:"description"`
 	Duration    *int           `gorm:"type:integer"                                   json:"duration,omitempty"`
 	Anesthesia  AnesthesiaType `gorm:"type:anesthesia_type;default:'none'"            json:"anesthesia"`
+	IsSurgery   bool           `gorm:"column:is_surgery;default:false"                json:"is_surgery"`
 	ParentID    *uint64        `gorm:"column:parent_id"                               json:"parent_id,omitempty"`
 	TaxType     TaxType        `gorm:"type:tax_type;not null;default:excluded"        json:"tax_type"`
 	TaxRate     float64        `gorm:"type:numeric;not null;default:0.10"             json:"tax_rate"`

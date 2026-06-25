@@ -189,18 +189,19 @@ beforeEach(() => {
 const allowAll = () => true;
 
 describe("OwnerReport", () => {
-  it("飼主パネルを常時表示し、初期 petId のペットで7セクションを描画する", () => {
+  it("飼主パネルを常時表示し、初期 petId のペットで8セクションを描画する", () => {
     renderReport(makeAuth(allowAll));
 
     // R4: 飼主情報
     expect(screen.getByText("山田太郎")).toBeInTheDocument();
 
-    // 7 セクション
+    // 8 セクション（#159: 手術・処置履歴 → 麻酔処置履歴 + 手術処置履歴 に分割）
     expect(screen.getByText("ペット詳細")).toBeInTheDocument();
     expect(screen.getByText("予防接種履歴")).toBeInTheDocument();
     expect(screen.getByText("健康診断（検査）履歴")).toBeInTheDocument();
     expect(screen.getByText("投薬履歴")).toBeInTheDocument();
-    expect(screen.getByText("手術・処置履歴")).toBeInTheDocument();
+    expect(screen.getByText("麻酔処置履歴")).toBeInTheDocument();
+    expect(screen.getByText("手術処置履歴")).toBeInTheDocument();
     expect(screen.getByText("治療履歴")).toBeInTheDocument();
     expect(screen.getByText("トリミング履歴")).toBeInTheDocument();
 
@@ -281,25 +282,26 @@ describe("OwnerReport", () => {
     expect(screen.getByText("初診日")).toBeInTheDocument();
   });
 
-  it("7 セクションは見出しを名前に持つ region ランドマークとして密集ワークスペースに並ぶ", () => {
+  it("8 セクションは見出しを名前に持つ region ランドマークとして密集ワークスペースに並ぶ", () => {
     renderReport(makeAuth(allowAll));
 
     const regions = screen.getAllByRole("region");
     const names = regions.map((r) => r.getAttribute("aria-label") ?? r.textContent ?? "");
-    // 7 セクションがそれぞれ独立した region になっている（タブ等の背後に隠れず一画面に同時提示）。
-    expect(regions).toHaveLength(7);
+    // 8 セクション（#159: 手術・処置履歴 → 麻酔処置履歴 + 手術処置履歴 に分割）がそれぞれ独立した region になっている。
+    expect(regions).toHaveLength(8);
     for (const title of [
       "ペット詳細",
       "予防接種履歴",
       "健康診断（検査）履歴",
       "投薬履歴",
-      "手術・処置履歴",
+      "麻酔処置履歴",
+      "手術処置履歴",
       "治療履歴",
       "トリミング履歴",
     ]) {
       expect(screen.getByRole("region", { name: title })).toBeInTheDocument();
     }
-    expect(names.length).toBe(7);
+    expect(names.length).toBe(8);
   });
 
   it("ペット切替でページ遷移せず ?petId= が同期し、飼主パネルは消えない", async () => {

@@ -36,7 +36,7 @@ func (h *Handler) ListTreatments(c *gin.Context) {
 }
 
 // ListPetTreatmentHistory godoc
-// GET /pets/:id/treatment-history?item_type=medicine|procedure|all (#158 飼主レポート)
+// GET /pets/:id/treatment-history?item_type=medicine|procedure|all&anesthesia_only=true&is_surgery=true (#158/#159 飼主レポート)
 // ペット単位で治療履歴を medical_records.date 降順で返す。clinic_id 隔離は service/repository が medical_records JOIN で担保する。
 func (h *Handler) ListPetTreatmentHistory(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -57,7 +57,13 @@ func (h *Handler) ListPetTreatmentHistory(c *gin.Context) {
 		return
 	}
 
-	treatments, total, err := h.svc.Treatment.ListPetHistory(c.Request.Context(), clinicID, petID, itemType, page, limit)
+	filter := model.PetTreatmentHistoryFilter{
+		ItemType:       itemType,
+		AnesthesiaOnly: c.Query("anesthesia_only") == "true",
+		IsSurgery:      c.Query("is_surgery") == "true",
+	}
+
+	treatments, total, err := h.svc.Treatment.ListPetHistory(c.Request.Context(), clinicID, petID, filter, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return

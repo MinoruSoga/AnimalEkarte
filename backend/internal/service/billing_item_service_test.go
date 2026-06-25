@@ -97,7 +97,7 @@ func (m *mockTreatmentRepositoryForBilling) FindUnbilledByPetID(ctx context.Cont
 func (m *mockTreatmentRepositoryForBilling) FindByMedicalRecordID(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
 	return nil, nil
 }
-func (m *mockTreatmentRepositoryForBilling) FindHistoryByPetID(_ context.Context, _, _ uint64, _ *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+func (m *mockTreatmentRepositoryForBilling) FindHistoryByPetID(_ context.Context, _, _ uint64, _ model.PetTreatmentHistoryFilter, _, _ int) ([]model.Treatment, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockTreatmentRepositoryForBilling) FindByID(_ context.Context, _, _ uint64) (*model.Treatment, error) {
