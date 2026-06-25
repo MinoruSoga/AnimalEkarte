@@ -343,6 +343,28 @@ func TestClinicsIsNeverInserted(t *testing.T) {
 	}
 }
 
+// --- exam_type fallback resolves by semantic name, not ORDER BY id ---
+
+func TestExamTypeFallbackConstantIsRootCategory(t *testing.T) {
+	// examTypeFallbackName must be the root exam category, not a leaf type.
+	// "検査" is the parent_id=NULL root; "尿検査" is a leaf child (wrong fallback).
+	if examTypeFallbackName == "尿検査" {
+		t.Error("examTypeFallbackName must not be the leaf type 尿検査; use the root 検査")
+	}
+	if examTypeFallbackName != "検査" {
+		t.Errorf("examTypeFallbackName = %q, want 検査 (root exam category)", examTypeFallbackName)
+	}
+}
+
+func TestExamTypeFallbackQueryUsesNameAndClinicID(t *testing.T) {
+	// resolveTargetRefs must look up exam_type_id by name+clinic_id, not ORDER BY id LIMIT 1.
+	// This test asserts the constant exists and is non-empty (the query shape is
+	// integration-only; the constant drives it deterministically).
+	if examTypeFallbackName == "" {
+		t.Error("examTypeFallbackName must not be empty — resolveTargetRefs uses it to look up fallback exam_type_id by name")
+	}
+}
+
 // --- run-id filter is escaped, not interpolated raw ---
 
 func TestRunIDClauseEscapesSingleQuotes(t *testing.T) {

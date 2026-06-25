@@ -76,6 +76,13 @@ var importableStatuses = []string{"confirmed", "inferred"}
 // leak a wrong/branch-code clinic into本テーブル. Mirrors the direct seeder.
 const clinicName = "八王子病院"
 
+// examTypeFallbackName is the root exam category used as the exam_type_id fallback
+// for all imported old_db exams. Per-row exam type mapping is structurally impossible
+// (TBL_KNS_HIST.HkKnsa_No is a field-group row marker, not a per-visit type selector).
+// The root category is the least-wrong single assignment; resolved by name+clinic so
+// no magic id is hardcoded.
+const examTypeFallbackName = "検査"
+
 // oldDBOwnerIDFloor scopes "old_db-derived" target rows for the destructive
 // pre-import delete. Legacy owner ids are preserved as the owners PK and start at
 // 300001; demo owners occupy 1-61. The wide gap is the provenance boundary
@@ -312,9 +319,10 @@ func resolveTargetRefs(ctx context.Context, pool *pgxpool.Pool) (targetRefs, err
 		return r, fmt.Errorf("no animal_species in target for pets.animal_species_id fallback: %w", err)
 	}
 	if err := pool.QueryRow(ctx,
-		`SELECT id FROM public.exam_types ORDER BY id LIMIT 1`,
+		`SELECT id FROM public.exam_types WHERE name = $1 AND clinic_id = $2`,
+		examTypeFallbackName, r.clinicID,
 	).Scan(&r.fallbackExamTypeID); err != nil {
-		return r, fmt.Errorf("no exam_types in target for exams.exam_type_id fallback: %w", err)
+		return r, fmt.Errorf("exam_type %q not found for clinic %q in target (run base seed first): %w", examTypeFallbackName, clinicName, err)
 	}
 	return r, nil
 }
