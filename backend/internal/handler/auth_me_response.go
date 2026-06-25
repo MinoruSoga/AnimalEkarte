@@ -54,19 +54,23 @@ func toMeResponse(staff *model.Staff, account *model.Account, mainClinicID strin
 			logoURL = &cl.LogoURL
 		}
 		meClinic = &MeClinicInfo{
-			ID:                 strconv.FormatUint(cl.ID, 10),
-			Name:               cl.Name,
-			PostalCode:         cl.PostalCode,
-			Address:            cl.Address,
-			PhoneNumber:        cl.PhoneNumber,
-			FaxNumber:          cl.FaxNumber,
-			RegistrationNumber: cl.RegistrationNumber,
-			DirectorName:       cl.DirectorName,
-			Email:              cl.Email,
-			Website:            cl.Website,
-			LogoURL:            logoURL,
-			StandardTaxRate:    cl.StandardTaxRate,
-			ReducedTaxRate:     cl.ReducedTaxRate,
+			ID:                         strconv.FormatUint(cl.ID, 10),
+			Name:                       cl.Name,
+			PostalCode:                 cl.PostalCode,
+			Address:                    cl.Address,
+			PhoneNumber:                cl.PhoneNumber,
+			FaxNumber:                  cl.FaxNumber,
+			RegistrationNumber:         cl.RegistrationNumber,
+			DirectorName:               cl.DirectorName,
+			Email:                      cl.Email,
+			Website:                    cl.Website,
+			LogoURL:                    logoURL,
+			StandardTaxRate:            cl.StandardTaxRate,
+			ReducedTaxRate:             cl.ReducedTaxRate,
+			AccountingDocumentShowLogo: cl.AccountingDocumentShowLogo,
+			AccountingDocumentShowRegistrationWarning: cl.AccountingDocumentShowRegistrationWarning,
+			AccountingDocumentShowItemCategory:        cl.AccountingDocumentShowItemCategory,
+			AccountingDocumentFooterNote:              cl.AccountingDocumentFooterNote,
 		}
 		break
 	}

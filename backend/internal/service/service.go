@@ -249,7 +249,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		TrimmingCourseType:        NewTrimmingCourseTypeService(repos.TrimmingCourseType),
 		Campaign:                  NewCampaignService(repos.Campaign),
 		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster),
-		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday),
+		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
 		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting),
 		ReservationTypeLiff:       NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),
 		ReservationStaff:          resStaffSvc,

@@ -25,35 +25,43 @@ type CreateClinicInput struct {
 
 // UpdateClinicInput はクリニック更新の入力DTO（nil = 未指定）
 type UpdateClinicInput struct {
-	Name               *string
-	PostalCode         *string
-	Address            *string
-	PhoneNumber        *string
-	FaxNumber          *string
-	RegistrationNumber *string
-	DirectorName       *string
-	Email              *string
-	Website            *string
-	LogoURL            *string
-	IsActive           *bool
-	StandardTaxRate    *float64
-	ReducedTaxRate     *float64
+	Name                                      *string
+	PostalCode                                *string
+	Address                                   *string
+	PhoneNumber                               *string
+	FaxNumber                                 *string
+	RegistrationNumber                        *string
+	DirectorName                              *string
+	Email                                     *string
+	Website                                   *string
+	LogoURL                                   *string
+	IsActive                                  *bool
+	StandardTaxRate                           *float64
+	ReducedTaxRate                            *float64
+	AccountingDocumentShowLogo                *bool
+	AccountingDocumentShowRegistrationWarning *bool
+	AccountingDocumentShowItemCategory        *bool
+	AccountingDocumentFooterNote              *string
 }
 
 const (
-	colClinicName               = "name"
-	colClinicPostalCode         = "postal_code"
-	colClinicAddress            = "address"
-	colClinicPhoneNumber        = "phone_number"
-	colClinicFaxNumber          = "fax_number"
-	colClinicRegistrationNumber = "registration_number"
-	colClinicDirectorName       = "director_name"
-	colClinicEmail              = "email"
-	colClinicWebsite            = "website"
-	colClinicLogoURL            = "logo_url"
-	colClinicIsActive           = "is_active"
-	colClinicStandardTaxRate    = "standard_tax_rate"
-	colClinicReducedTaxRate     = "reduced_tax_rate"
+	colClinicName                                      = "name"
+	colClinicPostalCode                                = "postal_code"
+	colClinicAddress                                   = "address"
+	colClinicPhoneNumber                               = "phone_number"
+	colClinicFaxNumber                                 = "fax_number"
+	colClinicRegistrationNumber                        = "registration_number"
+	colClinicDirectorName                              = "director_name"
+	colClinicEmail                                     = "email"
+	colClinicWebsite                                   = "website"
+	colClinicLogoURL                                   = "logo_url"
+	colClinicIsActive                                  = "is_active"
+	colClinicStandardTaxRate                           = "standard_tax_rate"
+	colClinicReducedTaxRate                            = "reduced_tax_rate"
+	colClinicAccountingDocumentShowLogo                = "accounting_document_show_logo"
+	colClinicAccountingDocumentShowRegistrationWarning = "accounting_document_show_registration_warning"
+	colClinicAccountingDocumentShowItemCategory        = "accounting_document_show_item_category"
+	colClinicAccountingDocumentFooterNote              = "accounting_document_footer_note"
 )
 
 // buildClinicUpdate は PATCH 用 map を構築する。
@@ -107,6 +115,18 @@ func buildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 			return nil, apperrors.WrapInvalidInput("reduced_tax_rate must be between 0 and 1")
 		}
 		fields[colClinicReducedTaxRate] = r
+	}
+	if input.AccountingDocumentShowLogo != nil {
+		fields[colClinicAccountingDocumentShowLogo] = *input.AccountingDocumentShowLogo
+	}
+	if input.AccountingDocumentShowRegistrationWarning != nil {
+		fields[colClinicAccountingDocumentShowRegistrationWarning] = *input.AccountingDocumentShowRegistrationWarning
+	}
+	if input.AccountingDocumentShowItemCategory != nil {
+		fields[colClinicAccountingDocumentShowItemCategory] = *input.AccountingDocumentShowItemCategory
+	}
+	if input.AccountingDocumentFooterNote != nil {
+		fields[colClinicAccountingDocumentFooterNote] = *input.AccountingDocumentFooterNote
 	}
 	return fields, nil
 }
@@ -175,6 +195,8 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 		Email:              input.Email,
 		Website:            input.Website,
 		IsActive:           true,
+		AccountingDocumentShowRegistrationWarning: true,
+		AccountingDocumentShowItemCategory:        true,
 	}
 
 	if err := s.transactor.WithTx(ctx, func(ctx context.Context) error {

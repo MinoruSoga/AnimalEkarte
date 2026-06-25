@@ -21,9 +21,14 @@ export interface ClinicInfo {
   phoneNumber?: string;
   registrationNumber?: string;
   invoiceRegistrationNumber?: string;
+  logoUrl?: string | null;
   /** BUG-367: インボイス帳票の軽減税率判定に使用 */
   standardTaxRate?: number;
   reducedTaxRate?: number;
+  accountingDocumentShowLogo?: boolean;
+  accountingDocumentShowRegistrationWarning?: boolean;
+  accountingDocumentShowItemCategory?: boolean;
+  accountingDocumentFooterNote?: string;
 }
 
 interface AccountingDocumentProps {
@@ -36,6 +41,21 @@ interface AccountingDocumentProps {
 const TAX_RATE_EPSILON = 0.0001;
 function approxEqual(a: number, b: number): boolean {
   return Math.abs(a - b) < TAX_RATE_EPSILON;
+}
+
+/**
+ * #179 ①(#190): 帳票ロゴ src 用に http(s) スキームのみ許可する防御ガード。
+ * logo_url は病院設定で編集可能なため、javascript:/data: 等の危険スキームや
+ * 不正値が <img src> へ流入しないよう描画時に検証する。不正・空は undefined を返す。
+ */
+function safeImageUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.protocol === "https:" || parsed.protocol === "http:" ? parsed.href : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -71,11 +91,16 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
 
   const registrationNumber = clinic?.invoiceRegistrationNumber?.trim() ?? "";
   const hasRegistrationNumber = registrationNumber !== "";
+  const showRegistrationWarning = clinic?.accountingDocumentShowRegistrationWarning ?? true;
+  const showItemCategory = clinic?.accountingDocumentShowItemCategory ?? true;
+  const logoSrc = safeImageUrl(clinic?.logoUrl);
+  const showLogo = Boolean(clinic?.accountingDocumentShowLogo && logoSrc);
+  const footerNote = clinic?.accountingDocumentFooterNote?.trim() ?? "";
 
   return (
     <div className={`${C.bgWhite} p-8 text-sm font-sans flex flex-col gap-6 border mx-auto max-w-2xl print:max-w-none print:w-full print:border-none print:p-0`}>
       {/* AC-6: 登録番号未設定警告 */}
-      {!hasRegistrationNumber ? (
+      {!hasRegistrationNumber && showRegistrationWarning ? (
         <div className={`border ${C.borderRed300} ${C.bgRed50} ${C.textRed700} p-2 text-xs rounded print:hidden`}>
           登録番号が未設定です。病院設定から登録してください。適格請求書として無効となります。
         </div>
@@ -88,6 +113,13 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
           <p className={C.text60}>発行日: {currentDate}</p>
         </div>
         <div className={`text-right text-xs ${C.text60}`}>
+          {showLogo ? (
+            <img
+              src={logoSrc}
+              alt={`${clinic?.name ?? "病院"}ロゴ`}
+              className="max-h-12 ml-auto mb-2 object-contain"
+            />
+          ) : null}
           <p className={`font-bold text-base ${C.text} mb-1`}>{clinic?.name}</p>
           <p>〒{clinic?.postalCode} {clinic?.address}</p>
           <p>TEL: {clinic?.phoneNumber}</p>
@@ -125,7 +157,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                   <div className="font-medium">
                     {isReduced ? <span className="mr-1">※</span> : null}{item.name}
                   </div>
-                  {item.category ? <span className={`text-xs ${C.text50}`}>{item.category}</span> : null}
+                  {item.category && showItemCategory ? <span className={`text-xs ${C.text50}`}>{item.category}</span> : null}
                   {item.discountAmount > 0 ? (
                     <span className={`block text-xs ${C.text50}`}>割引 −¥{item.discountAmount.toLocaleString()}</span>
                   ) : null}
@@ -184,6 +216,9 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
           </div>
         </div>
       </div>
+      {footerNote ? (
+        <p className={`text-xs ${C.text60} border-t pt-3 whitespace-pre-wrap`}>{footerNote}</p>
+      ) : null}
     </div>
   );
 });

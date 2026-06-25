@@ -40,6 +40,10 @@ export interface UpdateClinicRequest {
   is_active?: boolean;
   standard_tax_rate?: number;
   reduced_tax_rate?: number;
+  accounting_document_show_logo?: boolean;
+  accounting_document_show_registration_warning?: boolean;
+  accounting_document_show_item_category?: boolean;
+  accounting_document_footer_note?: string;
 }
 
 // ─────────────────────────────────────────────────

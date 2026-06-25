@@ -547,6 +547,10 @@ export interface Clinic {
   is_active: boolean;
   standard_tax_rate: number /* float64 */;
   reduced_tax_rate: number /* float64 */;
+  accounting_document_show_logo: boolean;
+  accounting_document_show_registration_warning: boolean;
+  accounting_document_show_item_category: boolean;
+  accounting_document_footer_note: string;
   created_at: string;
   updated_at: string;
 }

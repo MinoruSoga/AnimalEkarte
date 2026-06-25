@@ -1,5 +1,5 @@
 import { memo, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { Building2, Percent, X } from "lucide-react";
+import { Building2, FileText, Percent, X } from "lucide-react";
 
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError";
@@ -183,6 +183,54 @@ export function ClinicMasterSidePanel({
                     }))
                   }
                 />
+
+                <div className={`${STYLE.sectionDivider} my-2`} />
+                <div className={`flex items-center gap-1.5 py-1.5 text-xs ${C.text45} select-none`}>
+                  <FileText className={ICON.xs} />
+                  明細兼領収書
+                </div>
+
+                <ClinicBooleanProperty
+                  label="ロゴ表示"
+                  value={formData.accounting_document_show_logo}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_logo: value,
+                    }))
+                  }
+                />
+                <ClinicBooleanProperty
+                  label="登録番号警告"
+                  value={formData.accounting_document_show_registration_warning}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_registration_warning: value,
+                    }))
+                  }
+                />
+                <ClinicBooleanProperty
+                  label="項目カテゴリ"
+                  value={formData.accounting_document_show_item_category}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_item_category: value,
+                    }))
+                  }
+                />
+                <ClinicTextareaProperty
+                  label="フッター"
+                  value={formData.accounting_document_footer_note}
+                  placeholder="例: ご来院ありがとうございました。"
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_footer_note: value,
+                    }))
+                  }
+                />
               </div>
             </div>
           </div>
@@ -267,6 +315,52 @@ function ClinicTaxRateProperty({
         />
         <span className={`text-sm ${C.text50}`}>%</span>
       </div>
+    </PropertyRow>
+  );
+}
+
+function ClinicBooleanProperty({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <PropertyRow label={label}>
+      <button
+        type="button"
+        onClick={() => onChange(!value)}
+        className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+      >
+        <NotionStatusPill status={value ? "active" : "inactive"} />
+      </button>
+    </PropertyRow>
+  );
+}
+
+function ClinicTextareaProperty({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <PropertyRow label={label}>
+      <textarea
+        className={`${PROP_INPUT_CLASS} min-h-16 resize-y`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={500}
+      />
     </PropertyRow>
   );
 }

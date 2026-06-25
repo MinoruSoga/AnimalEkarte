@@ -19,13 +19,24 @@ func (h *Handler) GetMonthlyReport(c *gin.Context) {
 		return
 	}
 
-	year, month, err := newMonthlyReportQuery(c.Request.URL.Query()).toYearMonth(time.Now())
-	if err != nil {
-		RespondError(c, err)
-		return
+	query := newMonthlyReportQuery(c.Request.URL.Query())
+	var result *service.MonthlyReportResponse
+	var err error
+	if query.hasPeriod() {
+		startDate, endDate, parseErr := query.toPeriod()
+		if parseErr != nil {
+			RespondError(c, parseErr)
+			return
+		}
+		result, err = h.svc.AccountingReport.GetMonthlyByPeriod(c.Request.Context(), clinicID, startDate, endDate)
+	} else {
+		year, month, parseErr := query.toYearMonth(time.Now())
+		if parseErr != nil {
+			RespondError(c, parseErr)
+			return
+		}
+		result, err = h.svc.AccountingReport.GetMonthly(c.Request.Context(), clinicID, year, month)
 	}
-
-	result, err := h.svc.AccountingReport.GetMonthly(c.Request.Context(), clinicID, year, month)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -41,13 +52,24 @@ func (h *Handler) ExportMonthlyCSV(c *gin.Context) {
 		return
 	}
 
-	year, month, err := newMonthlyReportQuery(c.Request.URL.Query()).toYearMonth(time.Now())
-	if err != nil {
-		RespondError(c, err)
-		return
+	query := newMonthlyReportQuery(c.Request.URL.Query())
+	var csvResult *service.MonthlyCSVResult
+	var err error
+	if query.hasPeriod() {
+		startDate, endDate, parseErr := query.toPeriod()
+		if parseErr != nil {
+			RespondError(c, parseErr)
+			return
+		}
+		csvResult, err = h.svc.AccountingReport.ExportMonthlyCSVByPeriod(c.Request.Context(), clinicID, startDate, endDate)
+	} else {
+		year, month, parseErr := query.toYearMonth(time.Now())
+		if parseErr != nil {
+			RespondError(c, parseErr)
+			return
+		}
+		csvResult, err = h.svc.AccountingReport.ExportMonthlyCSV(c.Request.Context(), clinicID, year, month)
 	}
-
-	csvResult, err := h.svc.AccountingReport.ExportMonthlyCSV(c.Request.Context(), clinicID, year, month)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -108,6 +130,8 @@ type dailyReportDetailResponse struct {
 type monthlyReportResponse struct {
 	Year         int                          `json:"year"`
 	Month        int                          `json:"month"`
+	StartDate    string                       `json:"start_date"`
+	EndDate      string                       `json:"end_date"`
 	Summary      monthlyReportSummaryResponse `json:"summary"`
 	DailyDetails []dailyReportDetailResponse  `json:"daily_details"`
 }
@@ -130,8 +154,10 @@ func toMonthlyReportResponse(r *service.MonthlyReportResponse) monthlyReportResp
 		})
 	}
 	return monthlyReportResponse{
-		Year:  r.Year,
-		Month: r.Month,
+		Year:      r.Year,
+		Month:     r.Month,
+		StartDate: r.StartDate,
+		EndDate:   r.EndDate,
 		Summary: monthlyReportSummaryResponse{
 			WorkingDays:     r.Summary.WorkingDays,
 			TotalBillings:   r.Summary.TotalBillings,

@@ -450,6 +450,52 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 	}
 }
 
+// TestBuildClinicUpdate_AccountingDocumentSettings は #179 follow-up ①（#190）の
+// 帳票レイアウト設定が PATCH セマンティクスで更新マップへ反映されることを検証する。
+// 指定フィールドは実カラム名付きでマップへ入り、nil フィールドは省略される（既存値保持）。
+func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
+	t.Run("指定した帳票設定が実カラム名付きで更新マップへ入る", func(t *testing.T) {
+		fields, err := buildClinicUpdate(&UpdateClinicInput{
+			AccountingDocumentShowLogo:                boolPtr(true),
+			AccountingDocumentShowRegistrationWarning: boolPtr(false),
+			AccountingDocumentShowItemCategory:        boolPtr(false),
+			AccountingDocumentFooterNote:              strPtr("ご来院ありがとうございました。"),
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, true, fields["accounting_document_show_logo"])
+		assert.Equal(t, false, fields["accounting_document_show_registration_warning"])
+		assert.Equal(t, false, fields["accounting_document_show_item_category"])
+		assert.Equal(t, "ご来院ありがとうございました。", fields["accounting_document_footer_note"])
+	})
+
+	t.Run("空フッター文字列も明示更新として反映される（明示クリア可能）", func(t *testing.T) {
+		fields, err := buildClinicUpdate(&UpdateClinicInput{
+			AccountingDocumentFooterNote: strPtr(""),
+		})
+
+		assert.NoError(t, err)
+		got, ok := fields["accounting_document_footer_note"]
+		assert.True(t, ok, "空文字でもキーは存在する（フッターを明示的にクリアできる）")
+		assert.Equal(t, "", got)
+	})
+
+	t.Run("未指定（nil）の帳票設定は更新マップへ入らない（PATCH: 既存値保持）", func(t *testing.T) {
+		fields, err := buildClinicUpdate(&UpdateClinicInput{Name: strPtr("更新後院")})
+
+		assert.NoError(t, err)
+		for _, col := range []string{
+			"accounting_document_show_logo",
+			"accounting_document_show_registration_warning",
+			"accounting_document_show_item_category",
+			"accounting_document_footer_note",
+		} {
+			_, ok := fields[col]
+			assert.Falsef(t, ok, "未指定フィールド %s は更新マップに含めない", col)
+		}
+	})
+}
+
 func TestClinicService_DeleteClinic(t *testing.T) {
 	tests := []struct {
 		name          string

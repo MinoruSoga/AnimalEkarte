@@ -61,3 +61,39 @@ func TestMonthlyReportQuery_ToYearMonth_Invalid(t *testing.T) {
 		})
 	}
 }
+
+func TestMonthlyReportQuery_ToPeriod(t *testing.T) {
+	start, end, err := newMonthlyReportQuery(url.Values{
+		"start_date": {"2026-04-30"},
+		"end_date":   {"2026-05-02"},
+	}).toPeriod()
+	if err != nil {
+		t.Fatalf("toPeriod returned error: %v", err)
+	}
+	if start.Format("2006-01-02") != "2026-04-30" {
+		t.Errorf("start = %s, want 2026-04-30", start.Format("2006-01-02"))
+	}
+	if end.Format("2006-01-02") != "2026-05-02" {
+		t.Errorf("end = %s, want 2026-05-02", end.Format("2006-01-02"))
+	}
+}
+
+func TestMonthlyReportQuery_ToPeriod_Invalid(t *testing.T) {
+	cases := []struct {
+		name  string
+		query monthlyReportQuery
+	}{
+		{"missing start", monthlyReportQuery{EndDate: "2026-05-02"}},
+		{"missing end", monthlyReportQuery{StartDate: "2026-04-30"}},
+		{"invalid start", monthlyReportQuery{StartDate: "2026/04/30", EndDate: "2026-05-02"}},
+		{"invalid end", monthlyReportQuery{StartDate: "2026-04-30", EndDate: "2026/05/02"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, _, err := tc.query.toPeriod(); err == nil {
+				t.Fatal("toPeriod returned nil error")
+			}
+		})
+	}
+}

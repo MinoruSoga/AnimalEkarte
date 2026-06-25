@@ -17,7 +17,8 @@ import (
 // accounting_service_test.go の mockAccountingRepository とは別型として定義し、
 // GetMonthlyReport の関数フィールドを制御可能にする。
 type mockAccountingRepositoryForReport struct {
-	getMonthlyReportFn func(ctx context.Context, clinicID uint64, year, month int) (*repository.MonthlyReportResult, error)
+	getMonthlyReportFn         func(ctx context.Context, clinicID uint64, year, month int) (*repository.MonthlyReportResult, error)
+	getMonthlyReportByPeriodFn func(ctx context.Context, clinicID uint64, start, end time.Time) (*repository.MonthlyReportResult, error)
 }
 
 func (m *mockAccountingRepositoryForReport) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
@@ -77,6 +78,12 @@ func (m *mockAccountingRepositoryForReport) GetMonthlyReport(ctx context.Context
 	}
 	return &repository.MonthlyReportResult{}, nil
 }
+func (m *mockAccountingRepositoryForReport) GetMonthlyReportByPeriod(ctx context.Context, clinicID uint64, start, end time.Time) (*repository.MonthlyReportResult, error) {
+	if m.getMonthlyReportByPeriodFn != nil {
+		return m.getMonthlyReportByPeriodFn(ctx, clinicID, start, end)
+	}
+	return &repository.MonthlyReportResult{}, nil
+}
 
 func (m *mockAccountingRepositoryForReport) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
@@ -97,7 +104,11 @@ func newAccountingReportService(
 	payMethodRepo *mockPaymentMethodMasterRepository,
 	holidayRepo *mockClinicHolidayRepository,
 ) AccountingReportService {
-	return NewAccountingReportService(repo, payMethodRepo, holidayRepo)
+	return NewAccountingReportService(repo, payMethodRepo, holidayRepo, &mockClinicRepository{
+		findByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
+			return &model.Clinic{ID: id, StandardTaxRate: 0.10, ReducedTaxRate: 0.08}, nil
+		},
+	})
 }
 
 // ---- テスト ----
@@ -322,4 +333,81 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAccountingReportService_GetMonthly_UsesClinicTaxRates(t *testing.T) {
+	repo := &mockAccountingRepositoryForReport{
+		getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
+			return &repository.MonthlyReportResult{
+				TaxBreakdown: []repository.TaxBreakdownRow{
+					{TaxRate: 12, TaxableAmount: 12000, TaxAmount: 1440},
+					{TaxRate: 10, TaxableAmount: 10000, TaxAmount: 1000},
+				},
+			}, nil
+		},
+	}
+	svc := NewAccountingReportService(
+		repo,
+		&mockPaymentMethodMasterRepository{findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+			return []model.PaymentMethodMaster{}, nil
+		}},
+		&mockClinicHolidayRepository{findByYearMonthFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
+			return []model.ClinicHoliday{}, nil
+		}},
+		&mockClinicRepository{findByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
+			return &model.Clinic{ID: id, StandardTaxRate: 0.12, ReducedTaxRate: 0.10}, nil
+		}},
+	)
+
+	got, err := svc.GetMonthly(context.Background(), 1, 2026, 4)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(12000), got.Summary.TaxBreakdown.Standard.TaxableAmount)
+	assert.Equal(t, int64(1440), got.Summary.TaxBreakdown.Standard.TaxAmount)
+	assert.Equal(t, int64(10000), got.Summary.TaxBreakdown.Reduced.TaxableAmount)
+	assert.Equal(t, int64(1000), got.Summary.TaxBreakdown.Reduced.TaxAmount)
+}
+
+func TestAccountingReportService_GetMonthlyByPeriod(t *testing.T) {
+	var gotStart time.Time
+	var gotEnd time.Time
+	repo := &mockAccountingRepositoryForReport{
+		getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, start, end time.Time) (*repository.MonthlyReportResult, error) {
+			gotStart = start
+			gotEnd = end
+			return &repository.MonthlyReportResult{
+				DailyBillingCount: map[string]int64{"2026-04-30": 1, "2026-05-01": 2},
+				GrandTotal:        3000,
+				BillingCount:      3,
+			}, nil
+		},
+	}
+	svc := NewAccountingReportService(
+		repo,
+		&mockPaymentMethodMasterRepository{findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+			return []model.PaymentMethodMaster{}, nil
+		}},
+		&mockClinicHolidayRepository{findByYearMonthFn: func(_ context.Context, _ uint64, yearMonth string) ([]model.ClinicHoliday, error) {
+			if yearMonth == "2026-05" {
+				return []model.ClinicHoliday{{Date: time.Date(2026, 5, 1, 0, 0, 0, 0, time.Local)}}, nil
+			}
+			return []model.ClinicHoliday{}, nil
+		}},
+		&mockClinicRepository{findByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
+			return &model.Clinic{ID: id, StandardTaxRate: 0.10, ReducedTaxRate: 0.08}, nil
+		}},
+	)
+	start := time.Date(2026, 4, 30, 0, 0, 0, 0, time.Local)
+	end := time.Date(2026, 5, 1, 0, 0, 0, 0, time.Local)
+
+	got, err := svc.GetMonthlyByPeriod(context.Background(), 1, start, end)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "2026-04-30", gotStart.Format("2006-01-02"))
+	assert.Equal(t, "2026-05-02", gotEnd.Format("2006-01-02"))
+	assert.Equal(t, "2026-04-30", got.StartDate)
+	assert.Equal(t, "2026-05-01", got.EndDate)
+	assert.Len(t, got.DailyDetails, 2)
+	assert.False(t, got.DailyDetails[0].IsHoliday)
+	assert.True(t, got.DailyDetails[1].IsHoliday)
 }

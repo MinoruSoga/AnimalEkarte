@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
@@ -24,6 +24,8 @@ import { AccountingReportsPage } from "./AccountingReportsPage";
 const MONTHLY = {
   year: 2026,
   month: 5,
+  start_date: "2026-05-01",
+  end_date: "2026-05-31",
   summary: {
     working_days: 20,
     total_billings: 150,
@@ -139,5 +141,33 @@ describe("AccountingReportsPage カード配置 (#179 ④-b) + 税率設定導�
     renderPage();
     const link = await screen.findByRole("link", { name: /税率設定を変更/ });
     expect(link).toHaveAttribute("href", "/settings/clinic");
+  });
+
+  it("#179 ④-c: 期間指定では start_date/end_date で月次レポートAPIを再取得する", async () => {
+    const requestUrls: string[] = [];
+    server.use(
+      http.get("*/v1/reports/monthly", ({ request }) => {
+        requestUrls.push(request.url);
+        return HttpResponse.json(MONTHLY);
+      }),
+    );
+    renderPage();
+    await screen.findByTestId("monthly-report-print-area");
+
+    fireEvent.change(screen.getByLabelText("集計単位"), { target: { value: "period" } });
+    fireEvent.change(screen.getByLabelText("開始日"), { target: { value: "2026-04-15" } });
+    fireEvent.change(screen.getByLabelText("終了日"), { target: { value: "2026-05-20" } });
+
+    await waitFor(() => {
+      expect(
+        requestUrls.some((url) => {
+          const parsed = new URL(url);
+          return (
+            parsed.searchParams.get("start_date") === "2026-04-15" &&
+            parsed.searchParams.get("end_date") === "2026-05-20"
+          );
+        }),
+      ).toBe(true);
+    });
   });
 });

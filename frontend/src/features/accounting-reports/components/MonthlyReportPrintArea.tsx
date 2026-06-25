@@ -3,8 +3,7 @@ import { formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
 import type { MonthlyReportResponse } from "../api/get-monthly-report";
 
 interface MonthlyReportPrintAreaProps {
-  year: number;
-  month: number;
+  periodLabel: string;
   clinicName: string;
   summary: MonthlyReportResponse["summary"];
   dailyDetails: MonthlyReportResponse["dailyDetails"];
@@ -24,8 +23,7 @@ const yen = (amount: number): string => `¥${amount.toLocaleString()}`;
  * A4 横（日次明細が横長のため）で対象年月・病院名・サマリー・日次明細を出力する。
  */
 export function MonthlyReportPrintArea({
-  year,
-  month,
+  periodLabel,
   clinicName,
   summary,
   dailyDetails,
@@ -41,9 +39,7 @@ export function MonthlyReportPrintArea({
       <div className="mb-3 text-center">
         <h1 className="text-[14pt] font-bold">月次集計レポート</h1>
         {clinicName ? <p className="text-[10pt]">{clinicName}</p> : null}
-        <p className="text-[10pt]">
-          対象年月: {year}年{month}月
-        </p>
+        <p className="text-[10pt]">対象期間: {periodLabel}</p>
       </div>
 
       {/* サマリー KPI */}

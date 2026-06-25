@@ -13,7 +13,11 @@ import (
 func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error) {
 	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
 	end := start.AddDate(0, 1, 0)
+	return r.GetMonthlyReportByPeriod(ctx, clinicID, start, end)
+}
 
+// GetMonthlyReportByPeriod は指定期間（start 以上 end 未満）の売上レポートを集計する。
+func (r *accountingRepository) GetMonthlyReportByPeriod(ctx context.Context, clinicID uint64, start, end time.Time) (*MonthlyReportResult, error) {
 	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
 	mArgs := []any{clinicID, model.BillingStatusCompleted, start, end}
 	mCompletedCTE := `WITH completed_billings AS (

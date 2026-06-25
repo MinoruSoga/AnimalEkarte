@@ -26,6 +26,10 @@ const meClinicInfoSchema = z.object({
   // BUG-367: インボイス帳票用
   standard_tax_rate: z.number().default(0.1),
   reduced_tax_rate: z.number().default(0.08),
+  accounting_document_show_logo: z.boolean().default(false),
+  accounting_document_show_registration_warning: z.boolean().default(true),
+  accounting_document_show_item_category: z.boolean().default(true),
+  accounting_document_footer_note: z.string().default(""),
 });
 
 const resourcePermissionSchema = z.object({
@@ -68,6 +72,10 @@ function mapMeClinicInfo(raw: z.infer<typeof meClinicInfoSchema>): AuthClinic {
     logoUrl: raw.logo_url,
     standardTaxRate: raw.standard_tax_rate,
     reducedTaxRate: raw.reduced_tax_rate,
+    accountingDocumentShowLogo: raw.accounting_document_show_logo,
+    accountingDocumentShowRegistrationWarning: raw.accounting_document_show_registration_warning,
+    accountingDocumentShowItemCategory: raw.accounting_document_show_item_category,
+    accountingDocumentFooterNote: raw.accounting_document_footer_note,
   };
 }
 

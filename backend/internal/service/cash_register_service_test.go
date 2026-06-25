@@ -137,6 +137,10 @@ func (m *mockAccountingRepositoryForClose) GetMonthlyReport(ctx context.Context,
 	return &repository.MonthlyReportResult{}, nil
 }
 
+func (m *mockAccountingRepositoryForClose) GetMonthlyReportByPeriod(_ context.Context, _ uint64, _, _ time.Time) (*repository.MonthlyReportResult, error) {
+	return &repository.MonthlyReportResult{}, nil
+}
+
 func (m *mockAccountingRepositoryForClose) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }

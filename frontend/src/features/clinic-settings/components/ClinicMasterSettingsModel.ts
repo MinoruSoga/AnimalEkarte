@@ -13,6 +13,10 @@ export interface ClinicFormData {
   is_active: boolean;
   standard_tax_rate: number;
   reduced_tax_rate: number;
+  accounting_document_show_logo: boolean;
+  accounting_document_show_registration_warning: boolean;
+  accounting_document_show_item_category: boolean;
+  accounting_document_footer_note: string;
 }
 
 export const DEFAULT_CLINIC_FORM_DATA: ClinicFormData = {
@@ -28,6 +32,10 @@ export const DEFAULT_CLINIC_FORM_DATA: ClinicFormData = {
   is_active: true,
   standard_tax_rate: 0.1,
   reduced_tax_rate: 0.08,
+  accounting_document_show_logo: false,
+  accounting_document_show_registration_warning: true,
+  accounting_document_show_item_category: true,
+  accounting_document_footer_note: "",
 };
 
 export function clinicToFormData(item: Clinic): ClinicFormData {
@@ -44,5 +52,9 @@ export function clinicToFormData(item: Clinic): ClinicFormData {
     is_active: item.isActive,
     standard_tax_rate: item.standardTaxRate ?? 0.1,
     reduced_tax_rate: item.reducedTaxRate ?? 0.08,
+    accounting_document_show_logo: item.accountingDocumentShowLogo,
+    accounting_document_show_registration_warning: item.accountingDocumentShowRegistrationWarning,
+    accounting_document_show_item_category: item.accountingDocumentShowItemCategory,
+    accounting_document_footer_note: item.accountingDocumentFooterNote,
   };
 }

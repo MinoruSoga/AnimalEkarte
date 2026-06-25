@@ -70,6 +70,10 @@ export function ClinicMasterSettings() {
             is_active: fd.is_active,
             standard_tax_rate: fd.standard_tax_rate,
             reduced_tax_rate: fd.reduced_tax_rate,
+            accounting_document_show_logo: fd.accounting_document_show_logo,
+            accounting_document_show_registration_warning: fd.accounting_document_show_registration_warning,
+            accounting_document_show_item_category: fd.accounting_document_show_item_category,
+            accounting_document_footer_note: fd.accounting_document_footer_note,
           };
           await updateMutation.mutateAsync({ id: selectedItem.id, req });
           toast.success("更新しました");

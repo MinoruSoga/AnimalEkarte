@@ -44,6 +44,10 @@ export interface AuthClinic {
   /** BUG-367: インボイス帳票の税率別内訳計算用 */
   standardTaxRate: number;
   reducedTaxRate: number;
+  accountingDocumentShowLogo: boolean;
+  accountingDocumentShowRegistrationWarning: boolean;
+  accountingDocumentShowItemCategory: boolean;
+  accountingDocumentFooterNote: string;
 }
 
 /** @see {@link import("@/types/generated/models").Account} */
