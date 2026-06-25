@@ -140,6 +140,10 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      exclude: [
+        'src/types/generated/**', // tygo 生成型定義 — テスト対象外
+        'src/testing/**', // テストセットアップ・MSW モック — テスト対象外
+      ],
     },
   },
 });
