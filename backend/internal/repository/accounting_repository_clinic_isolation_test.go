@@ -40,6 +40,8 @@ func setupAccountingIsolationTestDB(t *testing.T) *gorm.DB {
 // makeBillingRet は指定 clinicID の最小 Billing を作成して返す。
 // makeBilling は戻り値なしのため clinic_id 隔離テスト用に別途定義する。
 // ownerID / petID は nil — FK 制約違反なし。
+//
+//nolint:unparam // clinicID は将来の隔離テスト拡張のため引数として保持する
 func makeBillingRet(t *testing.T, db *gorm.DB, clinicID uint64) *model.Billing {
 	t.Helper()
 	b := &model.Billing{

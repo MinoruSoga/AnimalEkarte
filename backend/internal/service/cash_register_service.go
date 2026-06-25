@@ -61,7 +61,8 @@ type CloseBillingDetail struct {
 // 支払方法キーは system_key（例: "cash", "credit_card"）を使用。未登録 id は "method_N" にフォールバック。
 func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []repository.CategoryAggregateRow, taxRows []repository.TaxBreakdownRow, payMethods []model.PaymentMethodMaster) model.CategoryBreakdownSchema {
 	idToKey := make(map[uint64]string, len(payMethods))
-	for _, m := range payMethods {
+	for i := range payMethods {
+		m := &payMethods[i]
 		if m.SystemKey != nil {
 			idToKey[m.ID] = *m.SystemKey
 		} else {

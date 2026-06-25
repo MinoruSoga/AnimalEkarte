@@ -34,7 +34,7 @@ func setupScheduleIsolationTestDB(t *testing.T) *gorm.DB {
 }
 
 // makeShiftEntry はテスト用シフトエントリを1件作成する。
-func makeShiftEntry(t *testing.T, db *gorm.DB, clinicID, staffID uint64, date time.Time) *model.ShiftEntry {
+func makeShiftEntry(t *testing.T, db *gorm.DB, clinicID, staffID uint64, date time.Time) {
 	t.Helper()
 	entry := &model.ShiftEntry{
 		ClinicID:  clinicID,
@@ -43,7 +43,6 @@ func makeShiftEntry(t *testing.T, db *gorm.DB, clinicID, staffID uint64, date ti
 		ShiftType: model.ShiftTypeFull,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(entry).Error)
-	return entry
 }
 
 // TestReservationScheduleRepository_FindAllByDate_ClinicIsolation は

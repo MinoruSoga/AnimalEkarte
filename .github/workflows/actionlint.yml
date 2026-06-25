@@ -15,4 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.0
       - name: Run actionlint
-        uses: rhysd/actionlint@v1
+        shell: bash
+        run: |
+          bash <(curl -Ls https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint
