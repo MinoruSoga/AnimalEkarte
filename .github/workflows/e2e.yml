@@ -71,9 +71,11 @@ jobs:
           JWT_SECRET=ci-e2e-jwt-secret-for-testing-only
           GIN_MODE=debug
           EOF
-          echo "DB_USER=ekarte_user" >> $GITHUB_ENV
-          echo "DB_PASSWORD=ekarte_password" >> $GITHUB_ENV
-          echo "DB_NAME=ekarte_db" >> $GITHUB_ENV
+          {
+            echo "DB_USER=ekarte_user"
+            echo "DB_PASSWORD=ekarte_password"
+            echo "DB_NAME=ekarte_db"
+          } >> "$GITHUB_ENV"
 
       - name: Start app stack (db + backend + frontend)
         run: docker compose up -d db backend frontend

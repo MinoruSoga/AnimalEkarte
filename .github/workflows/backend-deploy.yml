@@ -111,11 +111,11 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             -f backend/Dockerfile.production \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:latest" \
             --push \
             ./backend
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
       # -------------------------------------------------------
       # .env.production → ECS environment JSON に変換
@@ -213,7 +213,7 @@ jobs:
             exit 1
           fi
 
-          echo "task_definition_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          echo "task_definition_arn=$TASK_DEF_ARN" >> "$GITHUB_OUTPUT"
           echo "Registered: $TASK_DEF_ARN"
 
       # -------------------------------------------------------
@@ -245,7 +245,7 @@ jobs:
             exit 1
           fi
 
-          echo "task_arn=$TASK_ARN" >> $GITHUB_OUTPUT
+          echo "task_arn=$TASK_ARN" >> "$GITHUB_OUTPUT"
           echo "Migration task started: $TASK_ARN"
 
       - name: Wait for migration to complete

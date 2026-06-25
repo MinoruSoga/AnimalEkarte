@@ -47,10 +47,12 @@ jobs:
 
       - name: Create .env.local for CI
         run: |
-          echo "DB_USER=postgres" > .env.local
-          echo "DB_PASSWORD=postgres" >> .env.local
-          echo "DB_NAME=animal_ekarte" >> .env.local
-          echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}" >> .env.local
+          {
+            echo "DB_USER=postgres"
+            echo "DB_PASSWORD=postgres"
+            echo "DB_NAME=animal_ekarte"
+            echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}"
+          } > .env.local
 
       - name: Install k6
         run: sudo apt-get install -y gnupg software-properties-common && curl https://dl.k6.io/key.gpg | sudo apt-key add - && sudo add-apt-repository "deb https://dl.k6.io/deb stable main" && sudo apt-get update && sudo apt-get install k6
@@ -109,11 +111,11 @@ jobs:
       - name: Parse load test results
         if: always()
         run: |
-          echo "=== Load Test Results Summary ===" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "=== Load Test Results Summary ===" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ -f load-tests/results-endpoints.json ]; then
-            echo "**API Endpoints Test**" >> $GITHUB_STEP_SUMMARY
-            jq '.metrics | keys' load-tests/results-endpoints.json >> $GITHUB_STEP_SUMMARY || echo "Results parsing failed" >> $GITHUB_STEP_SUMMARY
+            echo "**API Endpoints Test**" >> "$GITHUB_STEP_SUMMARY"
+            jq '.metrics | keys' load-tests/results-endpoints.json >> "$GITHUB_STEP_SUMMARY" || echo "Results parsing failed" >> "$GITHUB_STEP_SUMMARY"
           fi
 
   profiling:
@@ -138,10 +140,12 @@ jobs:
 
       - name: Create .env.local for CI
         run: |
-          echo "DB_USER=postgres" > .env.local
-          echo "DB_PASSWORD=postgres" >> .env.local
-          echo "DB_NAME=animal_ekarte" >> .env.local
-          echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}" >> .env.local
+          {
+            echo "DB_USER=postgres"
+            echo "DB_PASSWORD=postgres"
+            echo "DB_NAME=animal_ekarte"
+            echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}"
+          } > .env.local
 
       - name: Start Docker services
         run: docker compose up -d db backend
@@ -240,10 +244,12 @@ jobs:
 
       - name: Create .env.local for CI
         run: |
-          echo "DB_USER=postgres" > .env.local
-          echo "DB_PASSWORD=postgres" >> .env.local
-          echo "DB_NAME=animal_ekarte" >> .env.local
-          echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}" >> .env.local
+          {
+            echo "DB_USER=postgres"
+            echo "DB_PASSWORD=postgres"
+            echo "DB_NAME=animal_ekarte"
+            echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}"
+          } > .env.local
 
       - name: Start Docker services
         run: docker compose up -d
@@ -324,13 +330,15 @@ jobs:
     steps:
       - name: Generate summary
         run: |
-          echo "## Performance Test Run Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Load Testing: ${{ needs.load-test.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Backend Profiling: ${{ needs.profiling.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Lighthouse Audit: ${{ needs.lighthouse.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Results available in Artifacts" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Performance Test Run Complete"
+            echo ""
+            echo "- Load Testing: ${{ needs.load-test.result }}"
+            echo "- Backend Profiling: ${{ needs.profiling.result }}"
+            echo "- Lighthouse Audit: ${{ needs.lighthouse.result }}"
+            echo ""
+            echo "Results available in Artifacts"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Stop Docker services
         if: always()
