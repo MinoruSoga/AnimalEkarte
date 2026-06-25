@@ -477,4 +477,60 @@ describe('AggregationOwnerTable', () => {
     const headerCheckbox = screen.getByRole('checkbox', { name: '全選択' });
     expect(headerCheckbox).not.toBeDisabled();
   });
+
+  it('should render the CPM segment column with badge on all tabs (ISSUE-180)', () => {
+    const ownersWithCpm: AggregationOwner[] = [
+      { ...mockOwners[0], cpm_stage: 'cpm_core' },
+      { ...mockOwners[1], cpm_stage: 'cpm_dormant' },
+    ];
+
+    const { rerender } = render(
+      <AggregationOwnerTable
+        owners={ownersWithCpm}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
+        isLoading={false}
+        activeTab="revenue"
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    expect(screen.getByText('CPM')).toBeInTheDocument();
+    expect(screen.getByText('Core')).toBeInTheDocument();
+    expect(screen.getByText('Dormant')).toBeInTheDocument();
+
+    rerender(
+      <AggregationOwnerTable
+        owners={ownersWithCpm}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
+        isLoading={false}
+        activeTab="last_visit"
+      />
+    );
+
+    expect(screen.getByText('CPM')).toBeInTheDocument();
+    expect(screen.getByText('Core')).toBeInTheDocument();
+  });
+
+  it('should render a dash for owners without a cpm_stage (ISSUE-180)', () => {
+    const ownerNoCpm: AggregationOwner = { ...mockOwners[0], cpm_stage: undefined };
+
+    render(
+      <AggregationOwnerTable
+        owners={[ownerNoCpm]}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
+        isLoading={false}
+        activeTab="revenue"
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    expect(screen.getByText('CPM')).toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
+  });
 });

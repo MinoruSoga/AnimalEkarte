@@ -4,6 +4,7 @@ import type { AggregationParams } from "./api/get-aggregations";
 import type { AggregationTab } from "./AggregationDashboardPage";
 import {
   AggregationSearchFilter,
+  CPMStageFilter,
   LastVisitFilters,
   RevenueFilters,
   SortControls,
@@ -50,6 +51,13 @@ export function AggregationFilterPanel({ params, onParamsChange, activeTab }: Ag
           onParamsChange={onParamsChange}
         />
       ) : null}
+
+      <CPMStageFilter
+        params={params}
+        inputClass={inputClass}
+        labelClass={labelClass}
+        onParamsChange={onParamsChange}
+      />
 
       <SortControls
         params={params}

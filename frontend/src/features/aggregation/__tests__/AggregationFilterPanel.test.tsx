@@ -180,4 +180,60 @@ describe('AggregationFilterPanel', () => {
 
     expect(screen.queryByText('直近12ヶ月')).not.toBeInTheDocument();
   });
+
+  it('should render the CPM segment filter on all tabs (ISSUE-180)', () => {
+    const params: AggregationParams = {
+      page: 1,
+      per_page: 50,
+      sort: 'annual_amount',
+      order: 'desc',
+    };
+
+    const { rerender } = render(
+      <AggregationFilterPanel
+        params={params}
+        onParamsChange={mockOnParamsChange}
+        activeTab="revenue"
+      />
+    );
+    expect(screen.getByText('CPMセグメント')).toBeInTheDocument();
+
+    rerender(
+      <AggregationFilterPanel
+        params={params}
+        onParamsChange={mockOnParamsChange}
+        activeTab="visit"
+      />
+    );
+    expect(screen.getByText('CPMセグメント')).toBeInTheDocument();
+
+    rerender(
+      <AggregationFilterPanel
+        params={params}
+        onParamsChange={mockOnParamsChange}
+        activeTab="last_visit"
+      />
+    );
+    expect(screen.getByText('CPMセグメント')).toBeInTheDocument();
+  });
+
+  it('should reflect the selected CPM segment label in the trigger (ISSUE-180)', () => {
+    const params: AggregationParams = {
+      page: 1,
+      per_page: 50,
+      sort: 'annual_amount',
+      order: 'desc',
+      cpm_stage: 'cpm_core',
+    };
+
+    render(
+      <AggregationFilterPanel
+        params={params}
+        onParamsChange={mockOnParamsChange}
+        activeTab="revenue"
+      />
+    );
+
+    expect(screen.getByText('Core（コア顧客）')).toBeInTheDocument();
+  });
 });

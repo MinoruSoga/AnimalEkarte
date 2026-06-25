@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, STYLE } from "@/lib/design-tokens";
 
+import { CPM_STAGE_OPTIONS, type CPMStage } from "@/lib/cpm-stage";
+
 import type {
   AggregationParams,
   AggregationSortField,
@@ -240,6 +242,42 @@ export function LastVisitFilters({
         </label>
       </div>
     </>
+  );
+}
+
+// ISSUE-180: CPM セグメント絞り込み。全タブ共通の属性フィルタ。
+// 値域・ラベルは共有定義 @/lib/cpm-stage（健診対象者抽出と単一真実源）。
+export function CPMStageFilter({
+  params,
+  inputClass,
+  labelClass,
+  onParamsChange,
+}: FilterSectionProps) {
+  return (
+    <div className="flex flex-col gap-1 min-w-[160px]">
+      <label className={labelClass}>CPMセグメント</label>
+      <Select
+        value={params.cpm_stage ?? "all"}
+        onValueChange={(value) =>
+          onParamsChange({
+            cpm_stage: value === "all" ? undefined : (value as CPMStage),
+            page: 1,
+          })
+        }
+      >
+        <SelectTrigger className={inputClass} aria-label="CPMセグメント">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">すべて</SelectItem>
+          {CPM_STAGE_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 

@@ -322,7 +322,9 @@ describe('AggregationDashboardPage', () => {
     await user.click(periodVisitOption);
 
     await waitFor(() => {
-      const lastUrl = requestUrls[requestUrls.length - 1];
+      // ISSUE-180: サマリーの人数リクエスト (cpm_stage 付き) を除外し、メインの一覧リクエストを見る。
+      const mainUrls = requestUrls.filter((u) => !u.includes('cpm_stage='));
+      const lastUrl = mainUrls[mainUrls.length - 1];
       expect(lastUrl).toContain('sort=period_visit_count');
       expect(lastUrl).toContain('page=1');
     });
@@ -349,7 +351,9 @@ describe('AggregationDashboardPage', () => {
     await user.click(orderToggle);
 
     await waitFor(() => {
-      const lastUrl = requestUrls[requestUrls.length - 1];
+      // ISSUE-180: サマリーの人数リクエスト (cpm_stage 付き) を除外し、メインの一覧リクエストを見る。
+      const mainUrls = requestUrls.filter((u) => !u.includes('cpm_stage='));
+      const lastUrl = mainUrls[mainUrls.length - 1];
       expect(lastUrl).toContain('order=asc');
       expect(lastUrl).toContain('page=1');
     });

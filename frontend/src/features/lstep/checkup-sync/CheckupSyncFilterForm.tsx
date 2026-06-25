@@ -4,8 +4,8 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type {
   CheckupSyncParams,
   CheckupType,
-  CPMStage,
 } from "../api/get-checkup-sync-preview";
+import { CPM_STAGE_OPTIONS, type CPMStage } from "@/lib/cpm-stage";
 
 const CHECKUP_TYPE_OPTIONS: { value: CheckupType; label: string }[] = [
   { value: "annual", label: "定期健診" },
@@ -16,15 +16,7 @@ const CHECKUP_TYPE_OPTIONS: { value: CheckupType; label: string }[] = [
   { value: "other", label: "その他" },
 ];
 
-// ISSUE-009: CPM ステージ選択肢。backend service.CPMStage* と一致させる。
-const CPM_STAGE_OPTIONS: { value: CPMStage; label: string }[] = [
-  { value: "cpm_encounter", label: "Encounter（初回・新規）" },
-  { value: "cpm_growing", label: "Growing（成長中）" },
-  { value: "cpm_core", label: "Core（コア顧客）" },
-  { value: "cpm_spot", label: "Spot（単発高額）" },
-  { value: "cpm_noah", label: "Noah（最上位）" },
-  { value: "cpm_dormant", label: "Dormant（休眠）" },
-];
+// CPM ステージ選択肢は共有定義 @/lib/cpm-stage の CPM_STAGE_OPTIONS を使用（ISSUE-180）。
 
 const CHRONIC_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "指定しない" },

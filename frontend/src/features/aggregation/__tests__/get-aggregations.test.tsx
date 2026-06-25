@@ -30,6 +30,7 @@ const mockResponse: AggregationResponse = {
       period_visit_count: 5,
       days_since_last_visit: 7,
       last_visit_bucket: 'within_3m',
+      cpm_stage: 'cpm_core',
     },
     {
       owner_id: 'owner2',
@@ -44,6 +45,7 @@ const mockResponse: AggregationResponse = {
       period_visit_count: 2,
       days_since_last_visit: 107,
       last_visit_bucket: 'over_3m',
+      cpm_stage: 'cpm_dormant',
     },
   ],
   page: 1,
@@ -198,5 +200,41 @@ describe('useGetOwnerAggregations', () => {
 
     expect(result.current.data?.page).toBe(1);
     expect(result.current.data?.per_page).toBe(50);
+  });
+
+  it('should send cpm_stage as a query parameter (ISSUE-180)', async () => {
+    let capturedUrl = '';
+    server.use(
+      http.get('/api/v1/clinics/:clinic_id/owners/aggregations', ({ request }) => {
+        capturedUrl = request.url;
+        return HttpResponse.json(mockResponse);
+      })
+    );
+
+    const { result } = renderHook(
+      () =>
+        useGetOwnerAggregations({ page: 1, per_page: 50, cpm_stage: 'cpm_core' }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(capturedUrl).toContain('cpm_stage=cpm_core');
+  });
+
+  it('should expose cpm_stage from each owner in the response (ISSUE-180)', async () => {
+    const { result } = renderHook(
+      () => useGetOwnerAggregations({ page: 1, per_page: 50 }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.data?.owners[0].cpm_stage).toBe('cpm_core');
+    expect(result.current.data?.owners[1].cpm_stage).toBe('cpm_dormant');
   });
 });

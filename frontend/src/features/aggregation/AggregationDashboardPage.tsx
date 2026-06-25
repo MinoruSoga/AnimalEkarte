@@ -7,9 +7,13 @@ import { Button } from "@/components/ui/button";
 import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
-import { useGetOwnerAggregations, type AggregationParams, type AggregationOwner } from "./api/get-aggregations";
+import type { CPMStage } from "@/lib/cpm-stage";
+import { useGetOwnerAggregations, type AggregationParams } from "./api/get-aggregations";
+import { useGetCPMStageCounts } from "./api/get-cpm-stage-counts";
 import { AggregationFilterPanel } from "./AggregationFilterPanel";
 import { AggregationOwnerTable } from "./AggregationOwnerTable";
+import { CPMStageSummary } from "./CPMStageSummary";
+import { buildCsvContent } from "./aggregation-csv";
 
 // 集計軸は仕様書 §6.2 で revenue / visit / last_visit の3つに固定。
 // 既定タブは売上ランキング (revenue)。それ以外の値は URL に書き込めない。
@@ -48,57 +52,6 @@ const TAB_DEFAULT_PARAMS: Record<AggregationTab, AggregationParams> = {
 
 function validateTab(value: unknown): AggregationTab | null {
   return AGGREGATION_TABS.find((t) => t === value) ?? null;
-}
-
-interface CsvColumnDef {
-  header: string;
-  getValue: (o: AggregationOwner) => string;
-}
-
-const CSV_COMMON_COLUMNS: CsvColumnDef[] = [
-  { header: "owner_id", getValue: (o) => o.owner_id },
-  { header: "owner_name", getValue: (o) => `"${o.owner_name.replace(/"/g, '""')}"` },
-];
-
-const CSV_COLUMNS: Record<AggregationTab, CsvColumnDef[]> = {
-  revenue: [
-    ...CSV_COMMON_COLUMNS,
-    { header: "annual_amount", getValue: (o) => String(o.annual_amount ?? "") },
-    { header: "billing_count", getValue: (o) => String(o.billing_count ?? "") },
-    { header: "period_visit_count", getValue: (o) => String(o.period_visit_count ?? "") },
-    { header: "last_visit_date", getValue: (o) => o.last_visit_date ?? "" },
-    { header: "first_visit_date", getValue: (o) => o.first_visit_date ?? "" },
-  ],
-  visit: [
-    ...CSV_COMMON_COLUMNS,
-    { header: "period_visit_count", getValue: (o) => String(o.period_visit_count ?? "") },
-    { header: "total_visit_count", getValue: (o) => String(o.total_visit_count) },
-    { header: "annual_visit_count", getValue: (o) => String(o.annual_visit_count) },
-    { header: "last_visit_date", getValue: (o) => o.last_visit_date ?? "" },
-    { header: "first_visit_date", getValue: (o) => o.first_visit_date ?? "" },
-  ],
-  // 仕様書 §4.3 表示項目に合わせる: 飼主名 / 最終来院日 / 経過日数 / 分類 / 累計来院回数 / 年間来院回数 / 累計診療費
-  // 画面 (TAB_SPECIFIC_COLUMNS.last_visit) と1対1で揃えること。drift 防止。
-  last_visit: [
-    ...CSV_COMMON_COLUMNS,
-    { header: "last_visit_date", getValue: (o) => o.last_visit_date ?? "" },
-    { header: "days_since_last_visit", getValue: (o) => String(o.days_since_last_visit ?? "") },
-    { header: "last_visit_bucket", getValue: (o) => o.last_visit_bucket ?? "" },
-    { header: "total_visit_count", getValue: (o) => String(o.total_visit_count) },
-    { header: "annual_visit_count", getValue: (o) => String(o.annual_visit_count) },
-    { header: "total_amount", getValue: (o) => String(o.total_amount ?? o.total_fee ?? "") },
-  ],
-};
-
-function buildCsvContent(owners: AggregationOwner[], tab: AggregationTab): string {
-  const columns = CSV_COLUMNS[tab];
-  const header = columns.map((col) => col.header).join(",");
-
-  const rows = owners.map((o) =>
-    columns.map((col) => col.getValue(o)).join(",")
-  );
-
-  return [header, ...rows].join("\n");
 }
 
 // エラーメッセージは「データの読み込みに失敗しました」をベースとし、
@@ -163,6 +116,9 @@ export function AggregationDashboardPage() {
   const { data, isLoading, isError, error } = useGetOwnerAggregations(params);
   const owners = useMemo(() => data?.owners ?? [], [data?.owners]);
 
+  // ISSUE-180: CPM セグメント別の人数（total 由来）。現在のフィルタ母集団を反映する。
+  const cpmCounts = useGetCPMStageCounts(params);
+
   const handleTabChange = useCallback(
     (tab: string) => {
       const validTab = validateTab(tab) ?? DEFAULT_AGGREGATION_TAB;
@@ -182,6 +138,13 @@ export function AggregationDashboardPage() {
     }));
     setSelectedOwnerIds(new Set());
   }, []);
+
+  const handleCpmStageSelect = useCallback(
+    (stage: CPMStage | undefined) => {
+      handleParamsChange({ cpm_stage: stage });
+    },
+    [handleParamsChange]
+  );
 
   const handleSelectAll = useCallback(
     (checked: boolean) => {
@@ -258,6 +221,16 @@ export function AggregationDashboardPage() {
 
         {/* フィルタパネル */}
         <AggregationFilterPanel params={params} onParamsChange={handleParamsChange} activeTab={activeTab} />
+
+        {/* CPM セグメント別の人数サマリー（ISSUE-180）。クリックで一覧を絞り込む。 */}
+        <CPMStageSummary
+          counts={cpmCounts.counts}
+          total={cpmCounts.total}
+          isLoading={cpmCounts.isLoading}
+          isError={cpmCounts.isError}
+          selected={params.cpm_stage}
+          onSelect={handleCpmStageSelect}
+        />
 
         {/* 件数 + 選択件数 (NotionFilter のツールバーと同じ密度) */}
         <div className="flex flex-wrap items-center gap-2">

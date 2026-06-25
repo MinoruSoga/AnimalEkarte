@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { BADGE, C } from "@/lib/design-tokens";
+import { CPM_STAGE_SHORT_LABELS, type CPMStage } from "@/lib/cpm-stage";
 
 import type { AggregationOwner, LastVisitBucket } from "./api/get-aggregations";
 import type { AggregationTab } from "./AggregationDashboardPage";
@@ -71,6 +72,38 @@ const OWNER_NAME_COLUMN: AggregationOwnerColumn = {
       {owner.owner_name}
     </Link>
   ),
+};
+
+// ISSUE-180: CPM セグメントのバッジ。色は意味的に割当
+// （green=成長, gray=休眠, purple=最上位, blue=コア, yellow=新規, orange=単発）。
+const CPM_STAGE_BADGE_CLASS: Record<CPMStage, string> = {
+  cpm_noah: BADGE.purple,
+  cpm_core: BADGE.blue,
+  cpm_growing: BADGE.green,
+  cpm_encounter: BADGE.yellow,
+  cpm_spot: BADGE.orange,
+  cpm_dormant: BADGE.gray,
+};
+
+function renderCPMStageBadge(stage: CPMStage | undefined) {
+  if (!stage) {
+    return <span className={`text-sm ${C.text40}`}>—</span>;
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${CPM_STAGE_BADGE_CLASS[stage]}`}
+    >
+      {CPM_STAGE_SHORT_LABELS[stage]}
+    </span>
+  );
+}
+
+const CPM_STAGE_COLUMN: AggregationOwnerColumn = {
+  key: "cpm_stage",
+  label: "CPM",
+  width: "w-28",
+  render: (owner) => renderCPMStageBadge(owner.cpm_stage),
 };
 
 const TAB_SPECIFIC_COLUMNS: Record<AggregationTab, AggregationOwnerColumn[]> = {
@@ -192,5 +225,7 @@ const TAB_SPECIFIC_COLUMNS: Record<AggregationTab, AggregationOwnerColumn[]> = {
 };
 
 export function getAggregationOwnerColumns(activeTab: AggregationTab) {
-  return TAB_SPECIFIC_COLUMNS[activeTab];
+  // owner_name の直後に全タブ共通の CPM セグメント列を差し込む（ISSUE-180）。
+  const [ownerColumn, ...rest] = TAB_SPECIFIC_COLUMNS[activeTab];
+  return [ownerColumn, CPM_STAGE_COLUMN, ...rest];
 }
