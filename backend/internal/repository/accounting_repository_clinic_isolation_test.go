@@ -116,6 +116,81 @@ func TestAccountingRepository_LockAndFindByID_ClinicIsolation(t *testing.T) {
 	})
 }
 
+// TestAccountingRepository_FindAll_ClinicIsolation は
+// clinic A の会計一覧を clinic B の clinicID で取得できないことを検証する。
+// clinicScope を accounting_repository.go から削除すると「別クリニックIDでは0件」が失敗する。
+func TestAccountingRepository_FindAll_ClinicIsolation(t *testing.T) {
+	db := setupAccountingIsolationTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+
+	const (
+		clinicA = uint64(1)
+		clinicB = uint64(2)
+	)
+
+	makeBillingRet(t, db, clinicA)
+
+	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
+		billings, total, err := repo.FindAll(ctx, clinicB, nil, nil, nil, nil, nil, 1, 100)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), total, "clinic B から clinic A の会計一覧は0件でなければならない")
+		assert.Empty(t, billings)
+	})
+
+	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
+		billings, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, 1, 100)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		assert.Len(t, billings, 1)
+	})
+}
+
+// TestAccountingRepository_SavePaymentSplits_ClinicIsolation は
+// clinic B のコンテキストで clinic A の billing_id を使った SavePaymentSplits が
+// clinic A の payment_splits を削除しないことを検証する。
+// DELETE に clinic_id フィルタがなければ「clinic A の payment_split が残存する」が失敗する。
+func TestAccountingRepository_SavePaymentSplits_ClinicIsolation(t *testing.T) {
+	db := setupAccountingIsolationTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+
+	const (
+		clinicA = uint64(1)
+		clinicB = uint64(2)
+	)
+
+	// clinic A の billing に payment_split を直接挿入する
+	billingA := makeBillingRet(t, db, clinicA)
+	splitA := model.PaymentSplit{
+		ClinicID:  clinicA,
+		BillingID: billingA.ID,
+		Method:    model.PaymentMethodCash,
+		Amount:    1000,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(&splitA).Error)
+
+	// clinic B のコンテキストで billingA.ID を指定して SavePaymentSplits を呼ぶ
+	// （サービス層のバグで cross-tenant billing_id が渡された場合のシミュレーション）
+	crossSplits := []model.PaymentSplit{{
+		ClinicID:  clinicB,
+		BillingID: billingA.ID, // clinic A の billing_id を指定
+		Method:    model.PaymentMethodCreditCard,
+		Amount:    9999,
+	}}
+	// clinic_id フィルタがあれば DELETE は 0 件（エラーなし）
+	_ = repo.SavePaymentSplits(ctx, crossSplits)
+
+	t.Run("clinic A の payment_split は clinic B からの SavePaymentSplits で削除されない", func(t *testing.T) {
+		var splits []model.PaymentSplit
+		require.NoError(t, db.Where("billing_id = ? AND clinic_id = ?", billingA.ID, clinicA).Find(&splits).Error)
+		assert.Len(t, splits, 1, "clinic B からの SavePaymentSplits で clinic A の payment_split が削除されてはならない")
+		if len(splits) > 0 {
+			assert.Equal(t, splitA.ID, splits[0].ID)
+		}
+	})
+}
+
 // TestAccountingRepository_Update_ClinicIsolation は
 // 別クリニックIDからの Update が NotFound を返し、行が変更されないことを検証する。
 // clinicScope を削除すると「行が変更されていない」が失敗する。

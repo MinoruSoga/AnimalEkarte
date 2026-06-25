@@ -277,14 +277,15 @@ func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.P
 
 // SavePaymentSplits は billing の payment_splits を delete-then-recreate で保存する。
 // splits が空の場合は既存レコードを削除のみ行う。
-// P4 clinicScope は直接 clinic_id カラムで保証する（payment_splits 自体に clinic_id を持つ）。
+// P4: DELETE に clinic_id = ? を付与しテナント越境削除を防ぐ（splits[0].ClinicID = 呼び出し元の clinicID）。
 func (r *accountingRepository) SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error {
 	if len(splits) == 0 {
 		return nil
 	}
 	billingID := splits[0].BillingID
+	clinicID := splits[0].ClinicID
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("billing_id = ?", billingID).Delete(&model.PaymentSplit{}).Error; err != nil {
+		if err := tx.Where("billing_id = ? AND clinic_id = ?", billingID, clinicID).Delete(&model.PaymentSplit{}).Error; err != nil {
 			return apperrors.FromGORM(err, "payment_split", fmt.Sprintf("billing_id=%d", billingID))
 		}
 		if err := tx.Create(&splits).Error; err != nil {
