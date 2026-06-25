@@ -112,10 +112,10 @@ func (h *Handler) SearchLstepOwnersByTag(c *gin.Context) {
 		// 非対応クライアント用に ASCII フォールバック(filename=)、対応クライアント用に
 		// UTF-8 パーセントエンコード版(filename*=UTF-8'') を併記する。
 		asciiFallback := fmt.Sprintf("lstep-%s.csv", date)
-		// filename= は HTTP quoted-string。asciiFallback は純 ASCII（日付のみ）のため
-		// 二重引用符で直接囲む（Go 式クオートの %q は使わない）。
+		// filename= は HTTP quoted-string。asciiFallback は純 ASCII（日付のみ）なので
+		// %q による Go クオートは二重引用符の付与と等価で、HTTP quoted-string として安全。
 		c.Header("Content-Disposition", fmt.Sprintf(
-			"attachment; filename=\"%s\"; filename*=UTF-8''%s",
+			"attachment; filename=%q; filename*=UTF-8''%s",
 			asciiFallback, url.PathEscape(filename),
 		))
 		if err := h.svc.LstepTagSummary.ExportOwnersByTagCSV(c.Request.Context(), clinicID, query.TagName, query.NameQuery, c.Writer); err != nil {
