@@ -91,7 +91,7 @@ function OwnerReportContent() {
   // - lg+ では overflow-hidden で root も固定し、各履歴パネルだけが内部スクロールする（ページ非スクロール）。
   // - lg 未満（タブレット/モバイル）は root が overflow-y-auto でスクロールし、パネルは自然高さで縦積みする。
   // - 上部 <header> = 常時固定（sticky）の飼主コンテキスト + ペット切替（R4/R5）。
-  // - <main> = 7 セクションを敷き詰めるグリッド（xl:3列×3行 / lg:2列×4行 / それ未満:1列）。
+  // - <main> = 8 セクションを敷き詰めるグリッド（xl:3列×3行 / lg:2列×4行 / それ未満:1列）。
   return (
     <div className={`flex h-dvh flex-col overflow-y-auto ${C.bgPage} lg:overflow-hidden`}>
       {/* R4/R5: 飼主は固定表示、ペット切替は即アクセス可能。モバイルでも sticky で残す。 */}

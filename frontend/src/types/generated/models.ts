@@ -2267,6 +2267,7 @@ export interface Procedure {
   description: string;
   duration?: number /* int */;
   anesthesia: AnesthesiaType;
+  is_surgery: boolean;
   parent_id?: number /* uint64 */;
   tax_type: TaxType;
   tax_rate: number /* float64 */;
@@ -2723,6 +2724,14 @@ export interface Treatment {
   procedure?: Procedure;
   medicine?: Medicine;
   inventory?: InventoryItem;
+}
+/**
+ * PetTreatmentHistoryFilter は #159 飼主レポート用の治療履歴絞り込み条件。
+ */
+export interface PetTreatmentHistoryFilter {
+  ItemType?: TreatmentItemType;
+  AnesthesiaOnly: boolean; // true = procedures.anesthesia != 'none'
+  IsSurgery: boolean; // true = procedures.is_surgery = true
 }
 
 //////////
