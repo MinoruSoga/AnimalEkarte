@@ -18,9 +18,9 @@
 ### マイグレーション安全性（全論点共通の前提）
 
 適用済み migration（`001`〜`004`）の **in-place 編集は checksum mismatch を起こし STG db_reset 必須**になる。
-一方、`007_add_bank_transfer_payment_method.sql`（#127）が実証した通り、
+一方、かつて `007_add_bank_transfer_payment_method.sql`（#127）が実証した通り（同ファイルは 2026-06-26 の統合で `001_init.sql` に取り込み済み）、
 **新規ファイルで additive に変更すれば適用済みファイルの checksum は破壊されず、通常デプロイで適用される（db_reset 不要）**。
-本 ADR の全案は新規ファイル（`008+`）で実現可能であり、**技術リスクは低い**。
+本 ADR の全案は新規ファイル（`005+`、現行ベースラインは `001`〜`004`）で実現可能であり、**技術リスクは低い**。
 よって各論点を退ける/保留する根拠は「技術的危険」ではなく「設計の意味論を PO が確定すべき」というガバナンス事由である。
 
 ---
@@ -66,7 +66,7 @@
 
 ### 設計案
 `payment_methods` に `system_key varchar(50) NULL` を追加。予約体系 = `cash` / `credit_card` / `electronic_money` / `bank_transfer`。
-新規ファイル `008_add_payment_method_system_key.sql`（`001` は編集しない）で additive に：
+新規ファイル（当時 `008_add_payment_method_system_key.sql` として提案、現在は `001_init.sql` に統合済み）で additive に：
 1. `ALTER TABLE payment_methods ADD COLUMN system_key varchar(50);`
 2. 既存行を name 一致で backfill（`'現金'→'cash'` 等。非標準のクリニック独自 method は NULL のまま）。
 3. `create_default_payment_methods()` を `CREATE OR REPLACE`（新規ファイル内）で `system_key` 込みに更新。
@@ -88,7 +88,7 @@
 
 ### 決定（#197 — 2026-06-26）
 
-**採用**。`payment_methods.system_key varchar(50)` 列を additive migration `009_add_payment_method_system_key.sql` で追加。
+**採用**。`payment_methods.system_key varchar(50)` 列を additive migration として追加（当時 `009_add_payment_method_system_key.sql`→2026-06-26 統合により `001_init.sql` に取り込み済み）。
 
 実装内容:
 - `ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS system_key varchar(50)` (db_reset 不要)
@@ -177,7 +177,7 @@ bank_transfer を含む優先順位ルール、または金額最大方式への
 ## References
 
 - #185（本 follow-up・残論点の単一追跡先）/ #128（中核バグ解消済・CLOSED）/ #127（bank_transfer ENUM 追加）
-- hotfix `d9bcd387` / `007_add_bank_transfer_payment_method.sql`（additive migration の実証）
+- hotfix `d9bcd387` / `007_add_bank_transfer_payment_method.sql`（additive migration の実証・2026-06-26 統合により `001_init.sql` に取り込み済み）
 - `backend/internal/service/accounting_service_builders.go`（`resolvePaymentMethodMasterID` / `representativeMethod`）
 - `backend/internal/service/cash_register_service.go`（`findCashMethodID` / `calcTheoreticalCash`）
 - `backend/migrations/001_init.sql:1885`（payment_methods スキーマ）/ `:2722`（create_default_payment_methods）
