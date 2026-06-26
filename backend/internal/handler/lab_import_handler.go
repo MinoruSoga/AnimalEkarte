@@ -110,9 +110,52 @@ type labImportEventResponse struct {
 	CreatedAt        string  `json:"created_at"`
 }
 
+// labImportPreviewResponse は preview エンドポイントのハンドラー境界 DTO（P7 準拠）。
+type labImportPreviewResponse struct {
+	RowCount        int      `json:"row_count"`
+	MappingWarnings []string `json:"mapping_warnings"`
+	BlockedReasons  []string `json:"blocked_reasons"`
+}
+
+// labImportCommitResponse は commit エンドポイントのハンドラー境界 DTO（P7 準拠）。
+// JobID を string に変換してフロントエンドの uint64 精度問題を回避する。
+type labImportCommitResponse struct {
+	JobID            string `json:"job_id"`
+	PersistedCount   int    `json:"persisted_count"`
+	DuplicateCount   int    `json:"duplicate_count"`
+	NeedsReviewCount int    `json:"needs_review_count"`
+	FailedCount      int    `json:"failed_count"`
+}
+
 // ------------------------------------
 // Conversion functions (P18)
 // ------------------------------------
+
+func toLabImportPreviewResponse(r *model.LabImportPreviewResponse) labImportPreviewResponse {
+	warnings := r.MappingWarnings
+	if warnings == nil {
+		warnings = []string{}
+	}
+	blocked := r.BlockedReasons
+	if blocked == nil {
+		blocked = []string{}
+	}
+	return labImportPreviewResponse{
+		RowCount:        r.RowCount,
+		MappingWarnings: warnings,
+		BlockedReasons:  blocked,
+	}
+}
+
+func toLabImportCommitResponse(r *model.LabImportCommitResponse) labImportCommitResponse {
+	return labImportCommitResponse{
+		JobID:            r.JobID.String(),
+		PersistedCount:   r.PersistedCount,
+		DuplicateCount:   r.DuplicateCount,
+		NeedsReviewCount: r.NeedsReviewCount,
+		FailedCount:      r.FailedCount,
+	}
+}
 
 func toLabImportJobResponse(j *model.LabImportJob) labImportJobResponse {
 	r := labImportJobResponse{
@@ -286,7 +329,7 @@ func (h *Handler) PostLabImportPreview(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, preview)
+	c.JSON(http.StatusOK, toLabImportPreviewResponse(preview))
 }
 
 // PostLabImportCommit godoc
@@ -323,7 +366,7 @@ func (h *Handler) PostLabImportCommit(c *gin.Context) {
 	}
 
 	c.Header("Location", fmt.Sprintf("/api/v1/lab-imports/%s", result.JobID.String()))
-	c.JSON(http.StatusCreated, result)
+	c.JSON(http.StatusCreated, toLabImportCommitResponse(result))
 }
 
 // GetLabImportJob godoc
