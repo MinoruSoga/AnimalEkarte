@@ -70,3 +70,17 @@ const (
 const (
 	AuditResourceLabImport = "lab_import"
 )
+
+// LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
+// 許可された値のみを表す型。free-form string は使用不可。
+// 新しい reason を追加する場合はこのファイルに定数を追加すること。
+type LabBlockedReason string
+
+const (
+	// LabBlockedReasonMDBSchemaUnconfirmed は drwan ソースの MDB スキーマが未確認のためブロックされた場合。
+	LabBlockedReasonMDBSchemaUnconfirmed LabBlockedReason = "mdb_schema_not_confirmed"
+	// LabBlockedReasonSourceNotImplemented は該当ソース種別が未実装のためブロックされた場合。
+	LabBlockedReasonSourceNotImplemented LabBlockedReason = "source_not_implemented"
+	// LabBlockedReasonSourceTypeBlocked は該当ソース種別がポリシーによりブロックされた場合。
+	LabBlockedReasonSourceTypeBlocked LabBlockedReason = "source_type_blocked"
+)

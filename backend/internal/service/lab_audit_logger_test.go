@@ -188,7 +188,7 @@ func TestLabAuditLogger_LogSourceBlocked_RecordsEvent(t *testing.T) {
 	logger := NewLabAuditLogger(fake)
 	actorID := uint64(5)
 
-	logger.LogSourceBlocked(context.Background(), 1, &actorID, "drwan", "commit", "MDB schema not confirmed")
+	logger.LogSourceBlocked(context.Background(), 1, &actorID, "drwan", "commit", model.LabBlockedReasonMDBSchemaUnconfirmed)
 
 	require.Len(t, fake.entries, 1)
 	e := fake.entries[0]
@@ -197,7 +197,43 @@ func TestLabAuditLogger_LogSourceBlocked_RecordsEvent(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "drwan", meta["source_type"])
 	assert.Equal(t, "commit", meta["operation"])
-	assert.Equal(t, "MDB schema not confirmed", meta["reason"])
+	assert.Equal(t, string(model.LabBlockedReasonMDBSchemaUnconfirmed), meta["reason"])
+}
+
+func TestLabAuditLogger_LogSourceBlocked_ReasonIsTypedConstant(t *testing.T) {
+	// Compile-time guarantee: only model.LabBlockedReason values accepted — not arbitrary strings.
+	// This test documents the taxonomy contract; if the signature reverts to plain string,
+	// the typed-reason call sites below will fail to compile.
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+
+	for _, reason := range []model.LabBlockedReason{
+		model.LabBlockedReasonMDBSchemaUnconfirmed,
+		model.LabBlockedReasonSourceNotImplemented,
+		model.LabBlockedReasonSourceTypeBlocked,
+	} {
+		fake.entries = nil
+		logger.LogSourceBlocked(context.Background(), 1, nil, "drwan", "preview", reason)
+		require.Len(t, fake.entries, 1)
+		meta, ok := fake.entries[0].Metadata.(map[string]any)
+		require.True(t, ok)
+		// reason in payload must be the string form of the typed constant
+		assert.Equal(t, string(reason), meta["reason"])
+	}
+}
+
+func TestLabAuditLogger_LogSourceBlocked_ReasonStoredAsString(t *testing.T) {
+	// Verify the typed constant is faithfully stored in the payload as its string value.
+	// This pins the serialization contract: reason key holds the constant's string form.
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+
+	logger.LogSourceBlocked(context.Background(), 1, nil, "drwan", "preview", model.LabBlockedReasonMDBSchemaUnconfirmed)
+
+	require.Len(t, fake.entries, 1)
+	meta, ok := fake.entries[0].Metadata.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "mdb_schema_not_confirmed", meta["reason"], "reason must be the constant's string value")
 }
 
 // ------------------------------------
@@ -224,7 +260,7 @@ func TestLabAuditLogger_AuditFailure_DoesNotPanic(t *testing.T) {
 		logger.LogCommitFailed(context.Background(), 1, nil, "context_cancelled")
 	})
 	assert.NotPanics(t, func() {
-		logger.LogSourceBlocked(context.Background(), 1, nil, "drwan", "commit", "blocked")
+		logger.LogSourceBlocked(context.Background(), 1, nil, "drwan", "commit", model.LabBlockedReasonSourceTypeBlocked)
 	})
 }
 

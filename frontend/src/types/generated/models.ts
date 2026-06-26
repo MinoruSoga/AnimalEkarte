@@ -297,6 +297,48 @@ export const AuditActionBillingRefundCreate = "billing_refund.create";
  * #189: 確定済み会計のクレジット（カード）金額の確定後訂正
  */
 export const AuditActionBillingCreditCorrection = "billing.credit_correction";
+/**
+ * lab import 監査アクション（Phase 4A）
+ */
+export const AuditActionLabImportPreviewRequested = "lab_import.preview.requested";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionLabImportCommitRequested = "lab_import.commit.requested";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionLabImportCommitSucceeded = "lab_import.commit.succeeded";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionLabImportCommitFailed = "lab_import.commit.failed";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionLabImportSourceBlocked = "lab_import.source.blocked";
+/**
+ * audit_logs.resource 定数
+ */
+export const AuditResourceLabImport = "lab_import";
+/**
+ * LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
+ * 許可された値のみを表す型。free-form string は使用不可。
+ * 新しい reason を追加する場合はこのファイルに定数を追加すること。
+ */
+export type LabBlockedReason = string;
+/**
+ * LabBlockedReasonMDBSchemaUnconfirmed は drwan ソースの MDB スキーマが未確認のためブロックされた場合。
+ */
+export const LabBlockedReasonMDBSchemaUnconfirmed: LabBlockedReason = "mdb_schema_not_confirmed";
+/**
+ * LabBlockedReasonSourceNotImplemented は該当ソース種別が未実装のためブロックされた場合。
+ */
+export const LabBlockedReasonSourceNotImplemented: LabBlockedReason = "source_not_implemented";
+/**
+ * LabBlockedReasonSourceTypeBlocked は該当ソース種別がポリシーによりブロックされた場合。
+ */
+export const LabBlockedReasonSourceTypeBlocked: LabBlockedReason = "source_type_blocked";
 
 //////////
 // source: billing_confirmation.go
@@ -1428,6 +1470,125 @@ export interface InventoryItem {
 }
 
 //////////
+// source: lab_import.go
+
+/**
+ * LabImportJobStatus は lab_import_jobs のジョブ状態。
+ * 許可された遷移は service.LabImportJobStatus.CanTransitionTo で強制される。
+ */
+export type LabImportJobStatus = string;
+export const LabImportJobStatusReceived: LabImportJobStatus = "received";
+export const LabImportJobStatusValidated: LabImportJobStatus = "validated";
+export const LabImportJobStatusMapped: LabImportJobStatus = "mapped";
+export const LabImportJobStatusPersisted: LabImportJobStatus = "persisted";
+export const LabImportJobStatusDuplicate: LabImportJobStatus = "duplicate";
+export const LabImportJobStatusNeedsReview: LabImportJobStatus = "needs_review";
+export const LabImportJobStatusFailed: LabImportJobStatus = "failed";
+/**
+ * LabImportSourceType は入力元の種別。
+ * fixture: Phase 0 テスト用。drwan: Phase BLOCKED（MDB スキーマ未確認）。
+ */
+export type LabImportSourceType = string;
+export const LabImportSourceTypeFixture: LabImportSourceType = "fixture";
+export const LabImportSourceTypeDrWan: LabImportSourceType = "drwan";
+export const LabImportSourceTypeManual: LabImportSourceType = "manual";
+/**
+ * LabImportJob は外部検査結果のインポートジョブ。
+ * source_fingerprint には raw 接続文字列・認証情報を格納しない。
+ * error_message には安全なメッセージのみ格納し、スタックトレース・PHI 不可。
+ */
+export interface LabImportJob {
+  id: any /* uuid.UUID */;
+  clinic_id: number /* uint64 */;
+  source_type: LabImportSourceType;
+  source_fingerprint: string;
+  status: LabImportJobStatus;
+  row_count: number /* int */;
+  persisted_count: number /* int */;
+  duplicate_count: number /* int */;
+  needs_review_count: number /* int */;
+  failed_count: number /* int */;
+  error_code?: string;
+  error_message?: string;
+  started_at?: string;
+  finished_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * LabImportEventType はイベントの種別ラベル。
+ */
+export type LabImportEventType = string;
+export const LabImportEventTypeStatusTransition: LabImportEventType = "status_transition";
+export const LabImportEventTypeValidationResult: LabImportEventType = "validation_result";
+export const LabImportEventTypeMappingResult: LabImportEventType = "mapping_result";
+export const LabImportEventTypePersistenceResult: LabImportEventType = "persistence_result";
+export const LabImportEventTypeRetryRequested: LabImportEventType = "retry_requested";
+/**
+ * LabImportEvent は検査インポートジョブの監査イベント。
+ * PHI・raw デバイスペイロード・接続情報は格納しない。
+ * error_code は lab_error_taxonomy のコードのみ。スタックトレース不可。
+ */
+export interface LabImportEvent {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  job_id: any /* uuid.UUID */;
+  event_type: LabImportEventType;
+  from_status?: LabImportJobStatus;
+  to_status?: LabImportJobStatus;
+  row_count: number /* int */;
+  persisted_count: number /* int */;
+  duplicate_count: number /* int */;
+  needs_review_count: number /* int */;
+  error_code?: string;
+  created_at: string;
+}
+/**
+ * LabInboundBatch は外部入力バッチの DTO。
+ * raw 接続文字列・認証情報・臨床ナラティブ blob は含めない。
+ */
+export interface LabInboundBatch {
+  source_type: LabImportSourceType;
+  source_fingerprint: string;
+  received_at: string;
+  result_rows: LabInboundResultRow[];
+}
+/**
+ * LabInboundResultRow は入力バッチの 1 行。
+ * フィクスチャ値はサニタイズ済みであること。raw PHI 不可。
+ */
+export interface LabInboundResultRow {
+  old_pet_key: string;
+  old_chart_key: string;
+  old_row_key: string;
+  exam_date: string;
+  exam_code: string;
+  exam_name: string;
+  item_name: string;
+  display_value: string;
+  reference_value: string;
+}
+/**
+ * LabImportPreviewResponse は preview エンドポイントのレスポンス。
+ * raw 検査値・PHI は含めない。
+ */
+export interface LabImportPreviewResponse {
+  row_count: number /* int */;
+  mapping_warnings: string[];
+  blocked_reasons: string[];
+}
+/**
+ * LabImportCommitResponse は commit エンドポイントのレスポンス。
+ */
+export interface LabImportCommitResponse {
+  job_id: any /* uuid.UUID */;
+  persisted_count: number /* int */;
+  duplicate_count: number /* int */;
+  needs_review_count: number /* int */;
+  failed_count: number /* int */;
+}
+
+//////////
 // source: line_customer.go
 
 export interface LineCustomer {
@@ -2092,6 +2253,10 @@ export const ResourceAccountingCancel: Resource = "accounting-cancel";
  * #115: 締め後編集専用権限（レジ締め済み期間の会計を特定権限で遡り編集）
  */
 export const ResourceAccountingPostCloseEdit: Resource = "accounting-post-close-edit";
+/**
+ * lab import: 外部検査結果インポートジョブ管理
+ */
+export const ResourceLabImport: Resource = "lab-import";
 
 //////////
 // source: permission_group.go

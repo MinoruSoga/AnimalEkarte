@@ -39,7 +39,8 @@ type LabAuditLogger interface {
 	// LogCommitFailed は commit の失敗を記録する（job 作成前の失敗も含む）。
 	LogCommitFailed(ctx context.Context, clinicID uint64, actorID *uint64, errorCategory string)
 	// LogSourceBlocked は drwan / manual 等のブロック対象ソースへの操作を記録する。
-	LogSourceBlocked(ctx context.Context, clinicID uint64, actorID *uint64, sourceType, operation, reason string)
+	// reason には model.LabBlockedReason の定数を使用すること。free-form string は受け付けない。
+	LogSourceBlocked(ctx context.Context, clinicID uint64, actorID *uint64, sourceType, operation string, reason model.LabBlockedReason)
 }
 
 // CommitAuditCounts は commit 成功時の集計カウンタ。PII を含まない。
@@ -90,11 +91,11 @@ func (l *labAuditLogger) LogCommitFailed(ctx context.Context, clinicID uint64, a
 	})
 }
 
-func (l *labAuditLogger) LogSourceBlocked(ctx context.Context, clinicID uint64, actorID *uint64, sourceType, operation, reason string) {
+func (l *labAuditLogger) LogSourceBlocked(ctx context.Context, clinicID uint64, actorID *uint64, sourceType, operation string, reason model.LabBlockedReason) {
 	l.logBestEffort(ctx, clinicID, actorID, model.AuditActionLabImportSourceBlocked, map[string]any{
 		"source_type": sourceType,
 		"operation":   operation,
-		"reason":      reason,
+		"reason":      string(reason),
 	})
 }
 

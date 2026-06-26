@@ -337,7 +337,7 @@ func (h *Handler) PostLabImportPreview(c *gin.Context) {
 
 	if la := h.labAudit(); la != nil && len(preview.BlockedReasons) > 0 {
 		la.LogSourceBlocked(c.Request.Context(), clinicID, optionalStaffID(c),
-			req.SourceType, "preview", preview.BlockedReasons[0])
+			req.SourceType, "preview", model.LabBlockedReasonSourceTypeBlocked)
 	}
 
 	c.JSON(http.StatusOK, toLabImportPreviewResponse(preview))

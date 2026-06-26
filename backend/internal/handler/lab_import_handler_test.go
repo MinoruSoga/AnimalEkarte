@@ -1219,7 +1219,7 @@ type sourceBlockedCall struct {
 	actorID    *uint64
 	sourceType string
 	operation  string
-	reason     string
+	reason     model.LabBlockedReason
 }
 
 func (s *stubLabAuditLoggerForHandler) LogPreviewRequested(_ context.Context, clinicID uint64, actorID *uint64, sourceType string, rowCount int) {
@@ -1234,7 +1234,7 @@ func (s *stubLabAuditLoggerForHandler) LogCommitSucceeded(_ context.Context, cli
 func (s *stubLabAuditLoggerForHandler) LogCommitFailed(_ context.Context, clinicID uint64, actorID *uint64, errorCategory string) {
 	s.commitFailed = append(s.commitFailed, commitFailedCall{clinicID, actorID, errorCategory})
 }
-func (s *stubLabAuditLoggerForHandler) LogSourceBlocked(_ context.Context, clinicID uint64, actorID *uint64, sourceType, operation, reason string) {
+func (s *stubLabAuditLoggerForHandler) LogSourceBlocked(_ context.Context, clinicID uint64, actorID *uint64, sourceType, operation string, reason model.LabBlockedReason) {
 	s.sourceBlocked = append(s.sourceBlocked, sourceBlockedCall{clinicID, actorID, sourceType, operation, reason})
 }
 
@@ -1297,6 +1297,7 @@ func TestPostLabImportPreview_AuditSourceBlocked_DrWan(t *testing.T) {
 	sb := audit.sourceBlocked[0]
 	assert.Equal(t, "drwan", sb.sourceType)
 	assert.Equal(t, "preview", sb.operation)
+	assert.Equal(t, model.LabBlockedReasonSourceTypeBlocked, sb.reason, "reason must be a typed taxonomy constant")
 }
 
 // TestPostLabImportCommit_AuditCommitRequestedAndSucceeded verifies commit emits
