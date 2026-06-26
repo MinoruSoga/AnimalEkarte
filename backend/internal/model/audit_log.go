@@ -84,3 +84,21 @@ const (
 	// LabBlockedReasonSourceTypeBlocked は該当ソース種別がポリシーによりブロックされた場合。
 	LabBlockedReasonSourceTypeBlocked LabBlockedReason = "source_type_blocked"
 )
+
+// validLabBlockedReasons は許可されたすべての LabBlockedReason 値のセット。
+// 新しい定数を追加したらここにも追加すること。
+var validLabBlockedReasons = map[LabBlockedReason]struct{}{
+	LabBlockedReasonMDBSchemaUnconfirmed: {},
+	LabBlockedReasonSourceNotImplemented: {},
+	LabBlockedReasonSourceTypeBlocked:    {},
+}
+
+// ValidLabBlockedReason は r が許可済み LabBlockedReason 定数のいずれかと一致するか検証する。
+// 任意の文字列キャスト (model.LabBlockedReason("arbitrary")) は false を返す。
+func ValidLabBlockedReason(r LabBlockedReason) bool {
+	if r == "" {
+		return false
+	}
+	_, ok := validLabBlockedReasons[r]
+	return ok
+}

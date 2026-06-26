@@ -282,6 +282,54 @@ func TestLabAuditLogger_ClinicAndActorPreserved(t *testing.T) {
 	assert.Equal(t, &actorID, e.ActorID, "actor_id must be preserved in audit entry")
 }
 
+// ------------------------------------
+// Tests: Phase 4A.2 — runtime reason validation (fail-closed)
+// ------------------------------------
+
+func TestLabAuditLogger_LogSourceBlocked_InvalidReason_NotEmitted(t *testing.T) {
+	// model.LabBlockedReason("arbitrary") must not reach the audit payload.
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+
+	logger.LogSourceBlocked(context.Background(), 1, nil, "drwan", "commit", model.LabBlockedReason("arbitrary text"))
+
+	assert.Empty(t, fake.entries, "invalid reason must not produce an audit entry")
+}
+
+func TestLabAuditLogger_LogSourceBlocked_EmptyReason_NotEmitted(t *testing.T) {
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+
+	logger.LogSourceBlocked(context.Background(), 1, nil, "drwan", "commit", model.LabBlockedReason(""))
+
+	assert.Empty(t, fake.entries, "empty reason must not produce an audit entry")
+}
+
+func TestLabAuditLogger_LogSourceBlocked_InvalidReasonDoesNotBreakAPI(t *testing.T) {
+	// Fail-closed must remain best-effort: no panic, no error returned to caller.
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+
+	assert.NotPanics(t, func() {
+		logger.LogSourceBlocked(context.Background(), 1, nil, "drwan", "preview", model.LabBlockedReason("arbitrary"))
+	})
+	// No audit entry produced.
+	assert.Empty(t, fake.entries)
+}
+
+func TestLabAuditLogger_LogSourceBlocked_ValidReasonStillEmitted(t *testing.T) {
+	// Regression guard: valid reasons must still reach the audit payload unchanged.
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+
+	logger.LogSourceBlocked(context.Background(), 1, nil, "drwan", "commit", model.LabBlockedReasonSourceTypeBlocked)
+
+	require.Len(t, fake.entries, 1)
+	meta, ok := fake.entries[0].Metadata.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "source_type_blocked", meta["reason"])
+}
+
 // errAuditFail is a sentinel error for best-effort tests.
 var errAuditFail = &auditTestError{"audit write failed"}
 

@@ -92,6 +92,11 @@ func (l *labAuditLogger) LogCommitFailed(ctx context.Context, clinicID uint64, a
 }
 
 func (l *labAuditLogger) LogSourceBlocked(ctx context.Context, clinicID uint64, actorID *uint64, sourceType, operation string, reason model.LabBlockedReason) {
+	if !model.ValidLabBlockedReason(reason) {
+		slog.WarnContext(ctx, "lab audit: LogSourceBlocked called with invalid reason — skipping (fail-closed)",
+			"reason", string(reason), "clinic_id", clinicID)
+		return
+	}
 	l.logBestEffort(ctx, clinicID, actorID, model.AuditActionLabImportSourceBlocked, map[string]any{
 		"source_type": sourceType,
 		"operation":   operation,
