@@ -119,7 +119,7 @@ CREATE TYPE body_weight_unit AS ENUM ('Kg', 'g');
 
 -- トリミング・シフト関連
 CREATE TYPE reservation_type_category AS ENUM ('general', 'trimming');
-CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money');
+CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money', 'bank_transfer');
 CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave');
 CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt'); -- 内税, 外税, 非課税
 
@@ -170,6 +170,17 @@ CREATE TABLE clinics (
     is_active           boolean     NOT NULL DEFAULT true,
     standard_tax_rate   numeric     NOT NULL DEFAULT 0.10,
     reduced_tax_rate    numeric     NOT NULL DEFAULT 0.08,
+    -- 008: 帳票レイアウト設定（Issue #179）
+    accounting_document_show_logo                boolean NOT NULL DEFAULT false,
+    accounting_document_show_registration_warning boolean NOT NULL DEFAULT true,
+    accounting_document_show_item_category        boolean NOT NULL DEFAULT true,
+    accounting_document_footer_note               text    NOT NULL DEFAULT '',
+    -- 010: 帳票セクション設定（Issue #190）
+    accounting_document_show_clinic_header        boolean NOT NULL DEFAULT true,
+    accounting_document_show_owner_pet_info       boolean NOT NULL DEFAULT true,
+    accounting_document_show_items_table          boolean NOT NULL DEFAULT true,
+    accounting_document_show_payment_summary      boolean NOT NULL DEFAULT true,
+    accounting_document_section_order             text[]  NOT NULL DEFAULT '{}',
     created_at          timestamptz NOT NULL DEFAULT now(),
     updated_at          timestamptz NOT NULL DEFAULT now()
 );
@@ -308,6 +319,8 @@ CREATE TABLE owners (
     -- ext-014: 配信注意フラグ
     delivery_caution        boolean     NOT NULL DEFAULT false,
     delivery_caution_reason varchar(100),
+    -- 006: DM送付希望（Issue #158）
+    dm_preference           boolean     NULL,                           -- DM（ダイレクトメール）送付希望。NULL=未設定 / true=必要 / false=不要。
     created_at       timestamptz     NOT NULL DEFAULT now(),
     updated_at       timestamptz     NOT NULL DEFAULT now(),
     deleted_at       timestamptz
@@ -331,6 +344,7 @@ COMMENT ON COLUMN owners.lstep_opt_out_at   IS 'オプトアウト設定日時�
 COMMENT ON COLUMN owners.lstep_opt_out_reason IS 'オプトアウト理由（監査ログ用）。';
 COMMENT ON COLUMN owners.line_followed_at   IS 'LINE フォロー日時（最終フォロー時刻）。Webhook follow イベントで更新。';
 COMMENT ON COLUMN owners.line_blocked_at    IS 'LINE ブロック日時。Webhook unfollow イベントで更新。再フォロー時に NULL にリセット。';
+COMMENT ON COLUMN owners.dm_preference      IS 'DM（ダイレクトメール）送付希望。NULL=未設定 / true=必要 / false=不要。';
 
 -- ext-009: owners 配信・転院フィールドインデックス
 CREATE INDEX idx_owners_delivery_excluded
@@ -893,10 +907,16 @@ CREATE TABLE procedures (
     tax_type    tax_type        NOT NULL DEFAULT 'excluded',
     tax_rate    numeric         NOT NULL DEFAULT 0.10,
     sort_order  integer                  DEFAULT 0,
+    -- 012: 手術処置フラグ（Issue #159）
+    is_surgery  boolean         NOT NULL DEFAULT false,
     created_at  timestamptz     NOT NULL DEFAULT now(),
     updated_at  timestamptz     NOT NULL DEFAULT now(),
     deleted_at  timestamptz
 );
+
+CREATE INDEX IF NOT EXISTS idx_procedures_clinic_is_surgery
+    ON procedures(clinic_id, is_surgery)
+    WHERE is_surgery = true;
 
 -- ------------------------------------
 -- 19. hospitalization_plans（入院プランマスタ）
@@ -1088,6 +1108,9 @@ CREATE TABLE pets (
     -- 009: ペット死亡記録
     deceased_at       timestamptz     NULL,                          -- ペット死亡日。NULL = 生存中。
     deceased_reason   text            NULL,                          -- ペット死亡理由（任意記録）。
+    -- 006: レガシーEMR準拠の飼主レポート項目（Issue #158）
+    blood_type        text            NULL,                          -- ペット血液型。NULL=未記録。
+    microchip_number  text            NULL,                          -- マイクロチップ番号。NULL=未記録。
     created_at        timestamptz     NOT NULL DEFAULT now(),
     updated_at        timestamptz     NOT NULL DEFAULT now(),
     deleted_at        timestamptz
@@ -1097,8 +1120,10 @@ CREATE TABLE pets (
 CREATE INDEX idx_pets_deceased ON pets (clinic_id, deceased_at)
     WHERE deceased_at IS NOT NULL;
 
-COMMENT ON COLUMN pets.deceased_at     IS 'ペット死亡日。NULL = 生存中。';
-COMMENT ON COLUMN pets.deceased_reason IS 'ペット死亡理由（任意記録）。';
+COMMENT ON COLUMN pets.deceased_at       IS 'ペット死亡日。NULL = 生存中。';
+COMMENT ON COLUMN pets.deceased_reason   IS 'ペット死亡理由（任意記録）。';
+COMMENT ON COLUMN pets.blood_type        IS 'ペット血液型。NULL=未記録。';
+COMMENT ON COLUMN pets.microchip_number  IS 'マイクロチップ番号。NULL=未記録。';
 
 -- ------------------------------------
 -- 27a. pet_chronic_conditions（慢性疾患フラグ管理: 012 統合）
@@ -1886,6 +1911,8 @@ CREATE TABLE payment_methods (
     id             BIGSERIAL    PRIMARY KEY,
     clinic_id      bigint       NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
     name           varchar(50)  NOT NULL,
+    -- 009: 安定識別子（Issue #197）
+    system_key     varchar(50),
     display_order  integer      NOT NULL DEFAULT 0,
     is_active      boolean      NOT NULL DEFAULT true,
     created_at     timestamptz  NOT NULL DEFAULT now(),
@@ -1895,6 +1922,9 @@ CREATE TABLE payment_methods (
 
 CREATE UNIQUE INDEX idx_payment_methods_clinic_name ON payment_methods(clinic_id, name) WHERE deleted_at IS NULL;
 CREATE INDEX idx_payment_methods_clinic_order ON payment_methods(clinic_id, display_order) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_payment_methods_clinic_system_key
+    ON payment_methods (clinic_id, system_key)
+    WHERE system_key IS NOT NULL AND deleted_at IS NULL;
 
 COMMENT ON TABLE payment_methods IS '支払方法マスタ（FEAT-368: payment_method enum のマスタ化）';
 
@@ -2085,7 +2115,7 @@ CREATE TABLE cash_register_closes (
     id                      BIGSERIAL    PRIMARY KEY,
     clinic_id               bigint       NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
     close_date              date         NOT NULL,
-    period                  varchar(2)   NOT NULL CHECK (period IN ('am', 'pm')),
+    period                  varchar(3)   NOT NULL CHECK (period IN ('am', 'pm', 'emg')),
     theoretical_cash        bigint       NOT NULL DEFAULT 0,
     actual_cash             bigint       NOT NULL DEFAULT 0,
     cash_difference         bigint       NOT NULL DEFAULT 0,
@@ -2405,6 +2435,15 @@ CREATE INDEX idx_hospitalization_plans_active ON hospitalization_plans(clinic_id
 
 COMMENT ON TABLE companies IS '法人情報（シングルトン）';
 COMMENT ON TABLE clinics IS '医院情報';
+COMMENT ON COLUMN clinics.accounting_document_show_logo IS '明細兼領収書に病院ロゴを表示するか。';
+COMMENT ON COLUMN clinics.accounting_document_show_registration_warning IS '登録番号未設定時の帳票警告を表示するか。';
+COMMENT ON COLUMN clinics.accounting_document_show_item_category IS '明細兼領収書の項目カテゴリ行を表示するか。';
+COMMENT ON COLUMN clinics.accounting_document_footer_note IS '明細兼領収書のフッター備考文言。';
+COMMENT ON COLUMN clinics.accounting_document_show_clinic_header   IS '明細兼領収書に病院ヘッダーセクションを表示するか。';
+COMMENT ON COLUMN clinics.accounting_document_show_owner_pet_info  IS '明細兼領収書に飼主・ペット情報セクションを表示するか。';
+COMMENT ON COLUMN clinics.accounting_document_show_items_table     IS '明細兼領収書に明細表セクションを表示するか。';
+COMMENT ON COLUMN clinics.accounting_document_show_payment_summary IS '明細兼領収書に合計・支払セクションを表示するか。';
+COMMENT ON COLUMN clinics.accounting_document_section_order        IS '明細兼領収書のセクション表示順（空配列=デフォルト順）。';
 COMMENT ON TABLE animal_species IS 'ペット種類マスタ（システム共通）';
 COMMENT ON TABLE accounts IS '認証用アカウント';
 COMMENT ON TABLE occupations IS '職種マスタ';
@@ -2722,12 +2761,12 @@ COMMENT ON TABLE reservation_type_occupations IS '予約区分対応職種';
 CREATE OR REPLACE FUNCTION create_default_payment_methods()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO payment_methods (clinic_id, name, display_order, is_active)
+    INSERT INTO payment_methods (clinic_id, name, system_key, display_order, is_active)
     VALUES
-        (NEW.id, '現金',            1, true),
-        (NEW.id, 'クレジットカード', 2, true),
-        (NEW.id, '電子マネー',       3, true),
-        (NEW.id, '銀行振込',         4, true);
+        (NEW.id, '現金',            'cash',             1, true),
+        (NEW.id, 'クレジットカード', 'credit_card',      2, true),
+        (NEW.id, '電子マネー',       'electronic_money', 3, true),
+        (NEW.id, '銀行振込',         'bank_transfer',    4, true);
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

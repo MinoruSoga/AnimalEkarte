@@ -108,27 +108,28 @@ erDiagram
 - 互換注記:
   - `docker compose` 実行時、`.env.local` にて `DB_USER` / `DB_PASSWORD` / `DB_NAME` などの環境変数を読み込んでおり、検証は正常に成功しました。
 
-### 4.3 最近のスキーマ更新履歴 (2026-06-22)
+### 4.3 スキーマ更新履歴（001-004 統合済み）
 
-最新のモデルファイルおよびマイグレーションの適用に伴い、以下の更新を行いました。
+2026-06-26 に、かつて独立した増分ファイル (005-012) として管理されていたスキーマ・シード変更を `001_init.sql` および `003_seed_demo.sql` へ統合しました。
+現行マイグレーションは `001_init.sql`、`002_seed_master.sql`、`003_seed_demo.sql`、`004_seed_staging.sql` の 4 ファイルのみです。
+以下は統合された変更の論理的な記録です（参照用、独立ファイルは存在しません）。
 
-- **緊急レジ締め区分の追加 (Issue #150 / 005_add_emg_period.sql)**
-  - `cash_register_closes.period` カラムを `varchar(2)` から `varchar(3)` に拡張し、従来の `'am'`, `'pm'` に加えて `'emg'` (緊急) 区分を許容する `CHECK` 制約へと緩和。
-- **レガシーEMR準拠の飼主・ペット情報追加 (Issue #158 / 006_add_owner_report_fields.sql)**
-  - `pets.blood_type` (text, NULL可, ペット血液型) および `pets.microchip_number` (text, NULL可, マイクロチップ番号) を追加。
-  - `owners.dm_preference` (boolean, NULL可, DM送付希望) を追加。既存レコードを汚染しないよう nullable 設計。
-- **支払方法の銀行振込追加 (Issue #127 / 007_add_bank_transfer_payment_method.sql)**
-  - `payment_method` ENUM型に `'bank_transfer'` (銀行振込) を追加。新クリニック作成時にマスタへ自動投入される「銀行振込」の値を `payment_splits.method` で保持できるように不整合を解消。
-- **帳票レイアウト設定追加 (Issue #179 / 008_add_accounting_document_layout_settings.sql)**
-  - `clinics` テーブルに帳票表示制御カラムを追加: `accounting_document_show_logo` (boolean NOT NULL DEFAULT false), `accounting_document_show_registration_warning` (boolean NOT NULL DEFAULT true), `accounting_document_show_item_category` (boolean NOT NULL DEFAULT true), `accounting_document_footer_note` (text NOT NULL DEFAULT '')。
-- **支払方法安定識別子追加 (Issue #197 / 009_add_payment_method_system_key.sql)**
-  - `payment_methods` テーブルに `system_key` (varchar(50), NULL可) を追加。rename 耐性を持たせる安定キー。部分 UNIQUE INDEX `idx_payment_methods_clinic_system_key ON payment_methods(clinic_id, system_key) WHERE system_key IS NOT NULL AND deleted_at IS NULL` を作成。`create_default_payment_methods` 関数を `system_key` 込みに差し替え。
-- **帳票セクション設定追加 (Issue #190 / 010_add_accounting_document_section_settings.sql)**
-  - `clinics` テーブルにセクション単位の表示制御カラムを追加: `accounting_document_show_clinic_header`, `accounting_document_show_owner_pet_info`, `accounting_document_show_items_table`, `accounting_document_show_payment_summary` (各 boolean NOT NULL DEFAULT true), `accounting_document_section_order` (text[] NOT NULL DEFAULT '{}')。
-- **健康診断マスタ投入 (Issue #160 / 011_seed_exam_types_checkup.sql)**
-  - スキーマ変更なし。`exam_types` / `exam_type_fields` に健診カテゴリ (id 12000-12003) および検査項目テンプレート (id 45-58) を clinic 1 向けにシード投入。
-- **手術処置フラグ追加 (Issue #159 / 012_add_procedure_is_surgery.sql)**
-  - `procedures` テーブルに `is_surgery` (BOOLEAN NOT NULL DEFAULT false) を追加。部分インデックス `idx_procedures_clinic_is_surgery ON procedures(clinic_id, is_surgery) WHERE is_surgery = true` を作成。既存処置レコードは `is_surgery = false` のまま後方互換を維持。
+- **緊急レジ締め区分の追加 (Issue #150 → 001_init.sql に統合)**
+  - `cash_register_closes.period` を `varchar(3)` / `CHECK (period IN ('am', 'pm', 'emg'))` で定義済み。
+- **レガシーEMR準拠の飼主・ペット情報追加 (Issue #158 → 001_init.sql に統合)**
+  - `pets.blood_type` (text, NULL可)、`pets.microchip_number` (text, NULL可)、`owners.dm_preference` (boolean, NULL可) を定義済み。
+- **支払方法の銀行振込追加 (Issue #127 → 001_init.sql に統合)**
+  - `payment_method` ENUM に `'bank_transfer'` を含めて定義済み。
+- **帳票レイアウト設定追加 (Issue #179 → 001_init.sql に統合)**
+  - `clinics` テーブルに `accounting_document_show_logo`、`accounting_document_show_registration_warning`、`accounting_document_show_item_category`、`accounting_document_footer_note` を定義済み。
+- **支払方法安定識別子追加 (Issue #197 → 001_init.sql に統合)**
+  - `payment_methods.system_key` (varchar(50))、部分 UNIQUE INDEX `idx_payment_methods_clinic_system_key`、`create_default_payment_methods` 関数の system_key 対応を定義済み。
+- **帳票セクション設定追加 (Issue #190 → 001_init.sql に統合)**
+  - `clinics` テーブルに `accounting_document_show_clinic_header`、`accounting_document_show_owner_pet_info`、`accounting_document_show_items_table`、`accounting_document_show_payment_summary`、`accounting_document_section_order` を定義済み。
+- **健康診断マスタ投入 (Issue #160 → 003_seed_demo.sql に統合)**
+  - `exam_types` (id 12000-12003) および `exam_type_fields` (id 45-58) を clinic 1 向けに 003_seed_demo.sql 末尾へシード定義済み。
+- **手術処置フラグ追加 (Issue #159 → 001_init.sql に統合)**
+  - `procedures.is_surgery` (BOOLEAN NOT NULL DEFAULT false) と部分インデックス `idx_procedures_clinic_is_surgery` を定義済み。
 
 ### 4.1 継続理由を明示する対象
 
