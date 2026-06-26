@@ -152,7 +152,9 @@ type stubJobRepo struct {
 	jobs map[uuid.UUID]*model.LabImportJob
 }
 
-func newStubJobRepo() *stubJobRepo { return &stubJobRepo{jobs: make(map[uuid.UUID]*model.LabImportJob)} }
+func newStubJobRepo() *stubJobRepo {
+	return &stubJobRepo{jobs: make(map[uuid.UUID]*model.LabImportJob)}
+}
 
 func (r *stubJobRepo) Create(_ context.Context, job *model.LabImportJob) error {
 	if job.ID == uuid.Nil {

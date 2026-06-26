@@ -212,8 +212,8 @@ func (s *labImportJobService) PreviewBatch(_ context.Context, _ uint64, batch mo
 		)
 	}
 
-	for i, row := range batch.ResultRows {
-		if row.ExamCode == "" {
+	for i := range batch.ResultRows {
+		if batch.ResultRows[i].ExamCode == "" {
 			resp.MappingWarnings = append(resp.MappingWarnings,
 				fmt.Sprintf("row[%d]: exam_code is empty — crosswalk will use fallback exam type", i),
 			)

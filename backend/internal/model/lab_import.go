@@ -88,9 +88,9 @@ func (LabImportEvent) TableName() string { return "lab_import_events" }
 // LabInboundBatch は外部入力バッチの DTO。
 // raw 接続文字列・認証情報・臨床ナラティブ blob は含めない。
 type LabInboundBatch struct {
-	SourceType        LabImportSourceType  `json:"source_type"`
-	SourceFingerprint string               `json:"source_fingerprint"`
-	ReceivedAt        time.Time            `json:"received_at"`
+	SourceType        LabImportSourceType   `json:"source_type"`
+	SourceFingerprint string                `json:"source_fingerprint"`
+	ReceivedAt        time.Time             `json:"received_at"`
 	ResultRows        []LabInboundResultRow `json:"result_rows"`
 }
 
@@ -111,7 +111,7 @@ type LabInboundResultRow struct {
 // LabImportPreviewResponse は preview エンドポイントのレスポンス。
 // raw 検査値・PHI は含めない。
 type LabImportPreviewResponse struct {
-	RowCount       int      `json:"row_count"`
+	RowCount        int      `json:"row_count"`
 	MappingWarnings []string `json:"mapping_warnings"`
 	BlockedReasons  []string `json:"blocked_reasons"`
 }

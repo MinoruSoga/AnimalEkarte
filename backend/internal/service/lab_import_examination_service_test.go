@@ -59,9 +59,9 @@ func (r *stubExamRepo) ReplaceItemsByExamID(_ context.Context, clinicID, examID 
 		return nil, apperrors.WrapNotFound("exam", "")
 	}
 	saved := make([]model.ExamResult, len(items))
-	for i, it := range items {
-		it.ExamID = examID
-		saved[i] = it
+	for i := range items {
+		saved[i] = items[i]
+		saved[i].ExamID = examID
 	}
 	r.results[examID] = saved
 	return saved, nil
@@ -107,7 +107,7 @@ type stubDupChecker struct {
 	checkErr error
 }
 
-func (c *stubDupChecker) IsDuplicate(_ context.Context, _ uint64, _ uint64, _ time.Time, _ *uint64) (bool, error) {
+func (c *stubDupChecker) IsDuplicate(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (bool, error) {
 	return c.isDup, c.checkErr
 }
 

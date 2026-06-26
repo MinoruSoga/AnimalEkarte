@@ -210,7 +210,7 @@ func (s *labImportExaminationService) PersistBatch(ctx context.Context, inputs [
 	for _, input := range inputs {
 		// context キャンセルはバッチ全体を中断する
 		if err := ctx.Err(); err != nil {
-			return results, err
+			return results, apperrors.Wrap(err, "lab import batch context cancelled")
 		}
 		res, err := s.PersistExam(ctx, input)
 		if err != nil {

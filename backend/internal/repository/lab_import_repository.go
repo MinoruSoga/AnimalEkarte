@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -113,4 +114,53 @@ func (r *labImportEventRepository) FindByJob(ctx context.Context, clinicID uint6
 		return nil, apperrors.FromGORM(err, "lab_import_event", jobID.String())
 	}
 	return events, nil
+}
+
+// ------------------------------------
+// LabImportDuplicateChecker DB 実装
+// ------------------------------------
+
+// LabImportDuplicateCheckerDB は exams テーブルを直接参照する DB-backed 重複チェッカー。
+// (clinic_id, exam_type_id, date, pet_id) の複合キーで既存 exam を検索する。
+// pet_id が nil の場合は "pet_id IS NULL" として検索する（ISO SQL: NULL ≠ NULL）。
+//
+// TOCTOU 注意: IsDuplicate と Create の間には競合ウィンドウがある。
+// DB unique 制約がないため、並行リクエストによる重複行の作成を DB レベルでは防げない。
+// PersistExam の AlreadyExists 安全ネットは DB unique 制約が存在しない限り発火しない。
+// DB unique 制約は Phase 3 で追加予定（本番データの違反件数確認後）。
+// それまでは concurrent import を直列化するか、この制約を運用上許容すること。
+//
+// date 値は UTC 日付部のみ（時刻成分なし）で渡すこと。
+// IsDuplicate に渡す前に呼び出し元で time.Date(y, m, d, 0, 0, 0, 0, time.UTC) に正規化すること。
+// GORM が time.Time を PostgreSQL date 型と比較する際、サーバータイムゾーンによっては
+// 時刻成分が日付境界をまたいで誤判定することがある。
+type LabImportDuplicateCheckerDB struct {
+	db *gorm.DB
+}
+
+// NewLabImportDuplicateCheckerDB は DB-backed LabImportDuplicateChecker を返す。
+func NewLabImportDuplicateCheckerDB(db *gorm.DB) *LabImportDuplicateCheckerDB {
+	return &LabImportDuplicateCheckerDB{db: db}
+}
+
+// IsDuplicate は (clinic_id, exam_type_id, date, pet_id) に一致する exam が既存かを返す。
+// date は UTC 日付部のみに正規化済みであること（呼び出し元責務）。
+// GORM のソフトデリートスコープが deleted_at IS NULL を自動付与するが、
+// 意図を明示するために明示的にも条件を加える。
+func (c *LabImportDuplicateCheckerDB) IsDuplicate(ctx context.Context, clinicID, examTypeID uint64, date time.Time, petID *uint64) (bool, error) {
+	// UTC date-only に正規化（呼び出し元が既に正規化している前提だが二重チェックとして）。
+	normalised := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	q := c.db.WithContext(ctx).
+		Model(&model.Examination{}).
+		Where("clinic_id = ? AND exam_type_id = ? AND date = ?", clinicID, examTypeID, normalised)
+	if petID == nil {
+		q = q.Where("pet_id IS NULL")
+	} else {
+		q = q.Where("pet_id = ?", *petID)
+	}
+	var count int64
+	if err := q.Count(&count).Error; err != nil {
+		return false, apperrors.FromGORM(err, "exam", "")
+	}
+	return count > 0, nil
 }

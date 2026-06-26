@@ -1,9 +1,9 @@
 # AnimalEkarte — Project TODO
 
-> 作成: 2026-06-26 | 監査範囲: backend / frontend / CI-CD / migrations / docs / GitHub Issues
-> 旧: 2026-06-17 E2E 検証レポート（内容は E2E が 136/136 PASS で完了済み、今後の実施事項に置換）
->
-> **PR #186 マージはユーザー所有アクション**（このリストに含めない）
+> 更新: 2026-06-26（lab_import BE 自動検証完了: gofmt PASS / scoped test PASS / lint 0 issues。format+lint 修正 5 ファイル未コミット。handler/router/FE が残作業）
+> 前回: #193/#194/#195/#196/#185/#197/#198/#159/#160/#179/#190/#180/#178 全 CLOSED 確認 → 除去。lab_import Phase 0+1 コミット済み（c224ec81/73340eac）。ADR-003 Proposed→Decided 反映
+> 監査範囲: backend / frontend / CI-CD / migrations / docs / GitHub Issues / git untracked
+> **PR マージ・push・外部書き込みはユーザー所有アクション。**
 
 ---
 
@@ -16,7 +16,8 @@
   - **実施者: ユーザー**（credential 変更は安全境界外）
 
 - [ ] **[USER] PR #186 を main へマージ**
-  - CI: Detect changes / Backend / Frontend / Codegen Sync / Playwright E2E / ShellCheck 全 SUCCESS
+  - CI: Detect changes / Backend / Frontend / Codegen Sync / Playwright E2E / ShellCheck / actionlint 全 SUCCESS
+  - Vercel: SUCCESS / qlty check: SUCCESS（2026-06-26 06:13 確認）
   - 根拠: `gh pr view 186`
   - **実施者: ユーザー**
 
@@ -24,78 +25,76 @@
   - P1 全項目の実機 STG 検証が未完了 → STG リリース BLOCKED
   - 手順: PR #186 マージ後 → STG デプロイ (`db_reset=true` dispatch) → Issue #123 の P1 チェックリスト実施
   - 注: `billing_status` の正値は `'waiting'`（Issue 本文の `'unpaid'` は誤り。訂正済み `docs/release-checks/ISSUE-123-release-check-corrections.md`）
-  - 根拠: Issue #123 OPEN
+  - 根拠: Issue #123 OPEN（2026-06-26 時点で唯一の open issue）
 
 ---
 
-## P1 — セキュリティ / 高リスク欠落
+## P1 — 進行中 WIP（コミット待ち・実装続行）
 
-- [ ] **[#196] repository 層テスト補強 — clinic_id 隔離不変条件（セキュリティ最重要）**
-  - 現状: `backend/internal/repository/` に source 101 / test 9（≈9%）
-  - **完了**: `owner_pet_clinic_isolation_test.go` 追加 (2026-06-26)
-    - `OwnerRepository.FindByID` / `Update` / `Delete` — clinic_id 隔離 5 テスト PASS
-    - `PetRepository.FindByID` / `Delete` — clinic_id 隔離テスト PASS
-  - **残**: `reservation_repository.go` / `accounting_repository*.go` の FindByID / Update / Delete 隔離テスト未追加
-  - 根拠: Issue #196 + `find backend/internal/repository -name '*_test.go'`（9 件）
+### lab_import 外部検査連携（Dr.Wan Phase 0+1 scaffold）
 
-- [ ] **[#185] ADR-003 payment_method 残論点 — PO 決裁取得**
-  - エンジニア案は `docs/adr/003-payment-method-identity-and-consistency.md` に提示済み
-  - 論点: DB 制約・system_key 導入・レガシー NULL 行・命名統一（4 件）
-  - 決裁確定後に個別実装 Issue を起票して着手（本 Issue での実装は禁止）
-  - 根拠: Issue #185 OPEN + ADR-003 (Proposed)
+**現在の実装状態:**
+
+| ファイル | git 状態 | 規約チェック（2026-06-26） |
+|---------|---------|------------|
+| `backend/internal/service/lab_import_service.go` | committed (73340eac) + 未コミット修正 | ✅ gofmt/lint PASS |
+| `backend/internal/service/lab_import_service_test.go` | committed (73340eac) + 未コミット修正 | ✅ gofmt PASS |
+| `backend/internal/service/lab_import_examination_service.go` | committed (c224ec81) + 未コミット修正 | ✅ lint PASS (wrapcheck fix) |
+| `backend/internal/service/lab_import_examination_service_test.go` | committed (c224ec81) + 未コミット修正 | ✅ lint PASS (gocritic fix) |
+| `backend/internal/model/lab_import.go` | committed (73340eac) + 未コミット修正 | ✅ gofmt PASS |
+| `backend/internal/repository/lab_import_repository.go` | committed (73340eac) + 未コミット修正 | ✅ lint PASS (LabImportDuplicateCheckerDB 追加) |
+| `backend/migrations/005_add_lab_import_tables.sql` | committed (73340eac) | ✅ 規約適合 |
+| `backend/migrations/006_add_exam_results_exam_id_index.sql` | **untracked** | ✅ 規約適合（CREATE INDEX IF NOT EXISTS） |
+| `backend/internal/handler/lab_import_handler.go` | **未作成** | — |
+| frontend lab_import UI | **未着手** | — |
+| router 配線 | **未接続** | — |
+
+**BE 自動検証結果（2026-06-26 Docker 実行）:**
+- gofmt: ✅ PASS（全 6 ファイル clean）
+- scoped go test: ✅ PASS（`ok github.com/animal-ekarte/backend/internal/service 0.801s`）
+- golangci-lint: ✅ PASS（0 issues — gocritic/gofmt/wrapcheck 5 件修正後）
+
+**修正内容（未コミット — format+lint cleanup）:**
+- `model/lab_import.go`: gofmt タブ幅アライメント修正（LabInboundBatch + LabImportPreviewResponse struct）
+- `service/lab_import_service.go`: gocritic rangeValCopy → index ベースに変更（ResultRows ループ）
+- `service/lab_import_service_test.go`: gofmt 単行関数を複数行展開（newStubJobRepo）
+- `service/lab_import_examination_service.go`: wrapcheck — ctx.Err() を apperrors.Wrap でラップ
+- `service/lab_import_examination_service_test.go`: gocritic rangeValCopy（items ループ） + paramTypeCombine（stubDupChecker.IsDuplicate）
+
+**着手タスク（優先順）:**
+
+- [ ] **[AGENT] format/lint 修正 + DuplicateCheckerDB + migration をコミット（ユーザー承認後）**
+  - 対象: `model/lab_import.go` / `service/lab_import_service.go` / `service/lab_import_service_test.go` / `service/lab_import_examination_service.go` / `service/lab_import_examination_service_test.go` / `repository/lab_import_repository.go` / `migrations/006_add_exam_results_exam_id_index.sql`
+  - 根拠: gofmt PASS + scoped test PASS + lint 0 issues 確認済み
+
+- [ ] **[AGENT] `lab_import_handler.go` 作成**
+  - エンドポイント案:
+    - `POST /v1/lab-import/preview` → `PreviewBatch`
+    - `POST /v1/lab-import/jobs` → `CreateJob`
+    - `GET  /v1/lab-import/jobs` → `ListJobs`
+    - `GET  /v1/lab-import/jobs/:id` → `GetJob`
+  - P5 準拠: `RequirePermission` 付与必須
+  - `source_type=drwan/manual` は `PreviewBatch` で `blocked_reasons` 返却済み（handler でも 400 返却を検討）
+  - 前提: WIP コミット後
+
+- [ ] **[AGENT] router へ配線**
+  - `NewLabImportJobRepository` / `NewLabImportEventRepository` / `NewLabImportJobService` の DI
+  - 前提: handler 作成後
+
+- [ ] **[PO 確認後] Frontend lab_import UI**
+  - Phase 0: フィクスチャ入力のみ。Dr.Wan MDB / manual はサービス層でブロック済み
+  - UX 仕様（操作者・操作画面・入力形式）は PO 未確認 → FE 着手前に確認要
+  - 根拠: migration コメント「Phase BLOCKED — MDB スキーマ未確認」
 
 ---
 
-## P2 — CI/CD 品質
-
-- [ ] **[#193] actionlint ジョブ追加**
-  - 現状: `grep -rn actionlint .github/workflows` → 0 件。YAML 構文エラーは push 後まで検知不可
-  - スコープ: `.github/workflows/**` 変更 PR のみ起動、所要 <1 分
-  - 根拠: Issue #193
-
-- [ ] **[#195] `frontend-deploy.yml:45` の `setup-node@v4` を `@v6` へ統一**
-  - ドリフト: `frontend-deploy.yml` = `@v4`、`ci.yml:233` / `performance-tests.yml:44,231` = `@v6`
-  - 合わせてピン記法ポリシー（メジャータグ vs SHA ピン）を全 8 ワークフローで統一
-  - 根拠: Issue #195 + `grep -rn setup-node .github/workflows/`
-
-- [ ] **[#194] カバレッジ計測ポリシー定義 + 段階的しきい値導入**
-  - Phase 1: 除外対象明文化（`cmd/` / `migrations/` / `*_mock.go` / codegen 出力）
-  - Phase 2: PR コメントへ数値表示 + 低下時 warn
-  - Phase 3: patch coverage しきい値（warn 先行、fail は段階的導入）
-  - 現状: backend ≈46.2%（非ゲート）、`frontend/vite.config.ts` に `coverage.thresholds` 未設定
-  - 根拠: Issue #194 + `ci.yml:174` (非ゲートコメント) + `vite.config.ts:140`
+## P2 — STG/CI 品質
 
 - [ ] **STG スモークテスト login/CRUD の復元**
-  - 現状: `stg-smoke.yml` は `/health` のみ（`STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` secrets 未設定で約1年無効）
-  - 手順: `gh secret set STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` 設定後、`commit 281a561e` のステップを戻す
-  - 根拠: `.github/workflows/stg-smoke.yml:5-10`
-
----
-
-## P2 — 機能実装（仕様確定済み）
-
-- [ ] **[#159] 麻酔処置履歴（スキーマ変更なし・即着手可能）**
-  - 定義: `Treatment JOIN Procedure WHERE anesthesia != 'none'`（`Procedure.Anesthesia` enum 既存）
-  - BE: 既存 `GET /v1/pets/:id/treatment-history` の cross-pet 集約パターン適用
-  - FE: `OwnerReport.tsx` に `showAnesthesia=true` セクション追加
-  - 根拠: Issue #159 + `backend/internal/model/procedure.go:9-15`
-
-- [ ] **[#159] 手術処置履歴（migration 009 必要）**
-  - `procedures` に `is_surgery BOOLEAN DEFAULT false` 追加（新規 migration 009、additive、後方互換）
-  - BE: `treatment-history` に `is_surgery` フィルタ追加（handler / service / repository）
-  - FE: 手術フィルタ済みセクション追加
-  - 根拠: Issue #159 + `backend/internal/model/procedure.go:18-34`（`is_surgery` 未存在）
-
-- [ ] **[#160] 健康診断カテゴリー化（マスタ投入のみ、コード変更不要）**
-  - 既存 `検査(Examination)` でカテゴリ→項目→結果階層が実装済み
-  - 新規 migration で `exam_types`（健診カテゴリ・`parent_id` 階層）+ `exam_type_fields` 投入
-  - 根拠: Issue #160 + `backend/migrations/003_seed_demo.sql:585-644`（Examination 種別実例）
-
-- [ ] **[#190] 明細兼領収書 帳票レイアウト設定 UI 実装**
-  - migration 008 でスキーマ済み（`show_logo` / `show_registration_warning` / `show_item_category` / `footer_note`）
-  - 残件: (a) 設定 UI 全セクショントグル (b) 表示順 (c) ロゴ画像アップロード
-  - **ブロッカー**: クライアントの「別紙（現行の明細書）」仕様が未提供（設定機構のみ先行着手可能）
-  - 根拠: Issue #190 + `backend/migrations/008_add_accounting_document_layout_settings.sql`
+  - 現状: `stg-smoke.yml` は `/health` のみ（`STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` secrets 未設定で無効）
+  - 手順: `gh secret set STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` 設定後、login/CRUD smoke ステップを復活
+  - 根拠: `.github/workflows/stg-smoke.yml:5-9`（コメントに明記）
+  - **実施者: ユーザー**（secret 設定は credential 操作）
 
 ---
 
@@ -106,11 +105,12 @@
   - 前提: `db_password` 供給 + `alb_internal = true` 設定後 `terraform plan` 実行
   - 注: VPC Origin は ALB SG が Service-SG を source 参照必須（CIDR では 504）
   - 根拠: `docs/infra/P2_TERRAFORM_PLAN_RUNBOOK.md`
+  - **実施者: ユーザー**（terraform apply は本番影響・破壊的操作）
 
 - [ ] **N+1 クエリ解消 — LIFF 日付一覧 capacity チェック**
   - 対象: `backend/internal/service/liff_service_availability.go:62,73`
-  - 内容: 日付一覧取得時に capacity を 1 件ずつクエリ → バッチ取得（IN 句等）で改善
-  - 根拠: `liff_service_availability.go:62-73`（TODO コメント実在）
+  - 内容: 日付一覧取得時に capacity を 1 件ずつクエリ → IN 句バッチ取得で改善
+  - 根拠: 同ファイル内 TODO コメント実在
 
 - [ ] **STG 費用最適化プラン実施**
   - 根拠: `docs/tasks/open/STG-COST-OPTIMIZATION-PLAN-2026-06-01.md`
@@ -119,14 +119,30 @@
 
 ## PO 決裁待ち（実装着手禁止）
 
-| # | 内容 | 決裁待ち事項 |
-|---|------|------------|
-| #185 | payment_method system_key 導入・DB 制約・命名統一 | ADR-003 論点 4 件 |
-| #159 | 手術処置の `is_surgery` スキーマ | 手術定義・分類方針 |
-| #160 | 健診カテゴリマスタ内容 | カテゴリ名・階層構成 |
-| #190 | 帳票レイアウト仕様詳細 | クライアント別紙提供待ち |
-| #179 | 月次集計レポート残件 (#191/#192 CLOSED、#190 追跡中) | 帳票設定との整合 |
-| #159/#160 | 麻酔処置ページ / 手術処置ページの UX 詳細 | PO UX 確認待ち |
+| 内容 | 決裁待ち事項 | 根拠 |
+|------|------------|------|
+| ADR-003 論点1: payment_methods DB TRIGGER 検討 | 独立 Issue 要起票後 PO 判断 | `docs/adr/003-*.md` Status=Decided、論点1のみ保留 |
+| lab_import Frontend UI | Phase 0 の操作 UX 仕様（操作者・画面・入力形式） | migration コメント + service Phase 0 定義 |
+
+---
+
+## 完了済み（2026-06-25〜26 で CLOSED 確認）
+
+| # | 内容 |
+|---|------|
+| #193 | CI: actionlint ジョブ追加 → CLOSED |
+| #194 | CI: カバレッジ計測ポリシー + 除外設定 → CLOSED |
+| #195 | CI: setup-node@v4 → @v6 統一 → CLOSED |
+| #196 | repository 層 clinic_id 隔離テスト補強 → CLOSED |
+| #185 | ADR-003 payment_method 残論点 全論点確定 → CLOSED（論点1は保留 Issue 要起票） |
+| #197 | payment_methods.system_key 列追加 → CLOSED |
+| #198 | representativeMethod bank_transfer 分岐修正 → CLOSED |
+| #159 | カルテレポート 麻酔処置・手術処置 + is_surgery フラグ → CLOSED |
+| #160 | 健康診断カテゴリー化 既存 Examination で充足確認 → CLOSED |
+| #179 | 月次集計レポート（#191/#192/#190 全 CLOSED） → CLOSED |
+| #190 | 帳票レイアウト設定 全層実装 → CLOSED |
+| #180 | CPM セグメント別人数・一覧 → CLOSED |
+| #178 | カルテページ飼主コハビタントペット → CLOSED |
 
 ---
 
@@ -142,17 +158,21 @@
 
 ---
 
-## 証跡サマリー（検査対象一覧）
+## 証跡サマリー（検査対象）
 
-| 検査対象 | 内容 |
+| 検査対象 | 結果 |
 |---------|------|
-| GitHub Issues（open 全 10 件） | #123 / #159 / #160 / #179 / #185 / #190 / #193 / #194 / #195 / #196 |
-| PR #186 | CI 全チェック SUCCESS、E2E SUCCESS 確認 |
-| `.github/workflows/` 全 8 ファイル | action バージョン・coverage ゲート・secrets 参照確認 |
-| `backend/internal/repository/` | test 密度実測（source 101 / test 8 ≈ 8%） |
-| `backend/migrations/` 001-008 | 次番 009 未作成確認 |
-| `docs/adr/003-*.md` | Proposed / PO 待ち確認 |
-| `frontend/vite.config.ts:140` | `coverage.thresholds` 未設定確認 |
-| `liff_service_availability.go:62,73` | N+1 TODO 実存確認 |
-| `docs/tasks/open/` | STG コスト最適化・デプロイ準備ドキュメント確認 |
-| `stg-smoke.yml` | login/CRUD smoke 無効化確認 |
+| GitHub Issues（open） | #123 のみ OPEN（2026-06-26 確認） |
+| GitHub Issues（closed 直近 30 件） | #159/#160/#178-#198 全 CLOSED 確認 |
+| PR #186 CI ステータス | 全 SUCCESS（actionlint 含む、Vercel + qlty 含む） |
+| `git status --short` | `M todo.md` のみ（lab_import 5 件は untracked のまま） |
+| BE 規約チェック（lab_import） | P4/P8/P11/P16 修正済み。gofmt/scoped test は Docker 停止で未実行 |
+| FE 規約チェック | lab_import 関連 FE ファイルなし → 対象外（根拠: git status 変更なし・FE lab_import UI 未着手） |
+| migration 規約チェック | `005_add_lab_import_tables.sql` 適合（RESTRICT・clinic_id・インデックス・命名） |
+| model 規約チェック | `lab_import.go` 適合（PHI コメント・型定義・TableName 実装） |
+| `backend/internal/handler/` | lab_import ハンドラ不在確認 |
+| `backend/internal/router/` | lab_import 配線なし確認（`grep LabImport` 0 件） |
+| `backend/internal/service/lab_import_service_test.go` | 10+ テストケース実装済み（untracked）確認 |
+| `docs/adr/003-*.md` | Status=Decided（論点1のみ保留） |
+| `.github/workflows/stg-smoke.yml:5-9` | login/CRUD smoke 無効（secrets 未設定コメント実在） |
+| `liff_service_availability.go:62,73` | N+1 TODO コメント実在確認 |
