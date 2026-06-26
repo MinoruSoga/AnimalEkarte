@@ -119,6 +119,9 @@ type Repositories struct {
 	LstepTagConfig LstepTagConfigRepository
 	// 認証: refresh_token JTI ブラックリスト
 	TokenBlacklist TokenBlacklistRepository
+	// lab import
+	LabImportJob   LabImportJobRepository
+	LabImportEvent LabImportEventRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -216,6 +219,9 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		LstepFriendAttributeSnapshot: NewLstepFriendAttributeSnapshotRepository(db),
 		LstepTagConfig:               NewLstepTagConfigRepository(db),
 		TokenBlacklist:               NewTokenBlacklistRepository(db),
+		// lab import
+		LabImportJob:   NewLabImportJobRepository(db),
+		LabImportEvent: NewLabImportEventRepository(db),
 	}
 }
 

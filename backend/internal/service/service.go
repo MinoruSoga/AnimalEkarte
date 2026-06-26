@@ -126,6 +126,9 @@ type Services struct {
 	LstepAnalytics LstepAnalyticsService
 	// 認証: refresh_token JTI ブラックリスト
 	TokenBlacklist TokenBlacklistService
+	// lab import: 外部検査結果インポートジョブ管理 (Phase 3)
+	LabImportJob    LabImportJobService
+	LabResultImport LabResultImportService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -170,6 +173,9 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, nil, auditSvc, repos.ClinicSettings)
 	lstepTagSyncSvc := NewLstepTagSyncService(lstepSettingsSvc, repos.Owner, repos.Vaccination, repos.MedicalRecord, repos.Accounting, repos.LstepTagCache, repos.Pet, repos.Prescription, repos.Checkup, repos.Reservation, repos.LstepSyncErrorCounter, repos.LstepTagCodeMapping, repos.BillingItem, repos.LstepTagConfig)
 	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc, repos.LstepTagConfig)
+
+	// lab import (Phase 3): 同一 jobSvc インスタンスを LabImportJob/LabResultImport で共有する。
+	labImportJobSvc := NewLabImportJobService(repos.LabImportJob, repos.LabImportEvent)
 
 	return &Services{
 		Account:               NewAccountService(repos.Account),
@@ -286,5 +292,14 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			repos.AppointmentTrimmingDetail,
 		),
 		TokenBlacklist: NewTokenBlacklistService(repos.TokenBlacklist),
+		// lab import (Phase 3)
+		LabImportJob: labImportJobSvc,
+		LabResultImport: NewLabResultImportService(
+			labImportJobSvc,
+			NewLabImportExaminationService(
+				repos.Examination,
+				repository.NewLabImportDuplicateCheckerDB(repos.DB()),
+			),
+		),
 	}
 }

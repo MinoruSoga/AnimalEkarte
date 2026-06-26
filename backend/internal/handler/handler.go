@@ -108,6 +108,9 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterAccountingReportRoutes(protected)
 	h.RegisterPaymentMethodMasterRoutes(protected)
 
+	// lab import: 外部検査結果インポートジョブ管理 (Phase 3)
+	h.RegisterLabImportRoutes(protected)
+
 	// LSTEP / LINE連携
 	h.RegisterLstepSettingsRoutes(protected)
 	h.RegisterSharedFileRoutes(protected)

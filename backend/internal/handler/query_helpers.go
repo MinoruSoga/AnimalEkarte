@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
@@ -73,6 +74,19 @@ func parseIDParam(c *gin.Context, key string) (uint64, bool) {
 	if id == 0 {
 		RespondError(c, apperrors.WrapInvalidInput("IDは1以上を指定してください"))
 		return 0, false
+	}
+	return id, true
+}
+
+// parseUUIDParam は URL path parameter を uuid.UUID にパースする汎用ヘルパー。
+// パース失敗時は即座に HTTP 400 レスポンスを書いて false を返す。
+// 呼び出し元は false 時に即 return すること。
+func parseUUIDParam(c *gin.Context, key string) (uuid.UUID, bool) {
+	s := c.Param(key)
+	id, err := uuid.Parse(s)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("パラメータの形式が不正です: %s は有効な UUID ではありません", key)))
+		return uuid.Nil, false
 	}
 	return id, true
 }

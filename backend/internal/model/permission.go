@@ -53,6 +53,9 @@ const (
 
 	// #115: 締め後編集専用権限（レジ締め済み期間の会計を特定権限で遡り編集）
 	ResourceAccountingPostCloseEdit Resource = "accounting-post-close-edit"
+
+	// lab import: 外部検査結果インポートジョブ管理
+	ResourceLabImport Resource = "lab-import"
 )
 
 // AllResources は全リソース一覧（is_system_admin=true 全権限バイパス用）
@@ -90,6 +93,7 @@ var AllResources = []Resource{
 	ResourceManualEdit,
 	ResourceAccountingCancel,
 	ResourceAccountingPostCloseEdit,
+	ResourceLabImport,
 }
 
 // IsValidResource は指定されたリソース名が有効かどうかを判定する（BUG-146）

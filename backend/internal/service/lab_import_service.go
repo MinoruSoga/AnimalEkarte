@@ -57,6 +57,8 @@ type LabImportJobService interface {
 	ListJobs(ctx context.Context, clinicID uint64, limit int) ([]*model.LabImportJob, error)
 	// PreviewBatch はバッチ内容を検証し、プレビューサマリを返す（永続化しない）。
 	PreviewBatch(ctx context.Context, clinicID uint64, batch model.LabInboundBatch) (*model.LabImportPreviewResponse, error)
+	// ListEvents はクリニックスコープでジョブのイベント一覧を返す（作成昇順）。
+	ListEvents(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error)
 }
 
 // transitionCounts は状態遷移時に更新するカウンタ群。
@@ -221,6 +223,18 @@ func (s *labImportJobService) PreviewBatch(_ context.Context, _ uint64, batch mo
 	}
 
 	return resp, nil
+}
+
+func (s *labImportJobService) ListEvents(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error) {
+	if _, err := s.jobRepo.FindByID(ctx, clinicID, jobID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find lab import job")
+	}
+	events, err := s.eventRepo.FindByJob(ctx, clinicID, jobID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list lab import events", "error", err, "job_id", jobID)
+		return nil, apperrors.Wrap(err, "failed to list lab import events")
+	}
+	return events, nil
 }
 
 func ptr[T any](v T) *T { return &v }
