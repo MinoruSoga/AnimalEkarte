@@ -85,6 +85,17 @@ func (s *stubLabJobService) ListJobs(_ context.Context, clinicID uint64, _ int) 
 	return out, nil
 }
 
+func (s *stubLabJobService) ListEvents(_ context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error) {
+	var out []*model.LabImportEvent
+	for _, e := range s.events {
+		if e.ClinicID == clinicID && e.JobID == jobID {
+			cp := *e
+			out = append(out, &cp)
+		}
+	}
+	return out, nil
+}
+
 func (s *stubLabJobService) PreviewBatch(_ context.Context, _ uint64, batch model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
 	resp := &model.LabImportPreviewResponse{
 		RowCount:        len(batch.ResultRows),
@@ -102,10 +113,10 @@ func (s *stubLabJobService) PreviewBatch(_ context.Context, _ uint64, batch mode
 
 // stubLabExamService is an in-memory LabImportExaminationService for orchestration tests.
 type stubLabExamService struct {
-	persistErr  error
-	results     []*LabExamPersistResult
-	callCount   int
-	persistFn   func(input LabExamPersistInput) (*LabExamPersistResult, error)
+	persistErr error
+	results    []*LabExamPersistResult
+	callCount  int
+	persistFn  func(input LabExamPersistInput) (*LabExamPersistResult, error)
 }
 
 func (s *stubLabExamService) PersistExam(_ context.Context, input LabExamPersistInput) (*LabExamPersistResult, error) {
@@ -585,4 +596,73 @@ func TestLabResultImportService_NoExternalIO(t *testing.T) {
 	// LabImportExaminationService interfaces. No network, no credentials, no Dr.Wan access.
 	// Phase BLOCKED: Dr.Wan MDB connection requires external schema confirmation.
 	t.Log("no external IO: LabResultImportService depends only on injected service interfaces")
+}
+
+// TestLabResultImportService_Phase3A_ServiceLevelDuplicatePolicy は
+// Phase 3A 決定: サービスレベル重複防止が正式方針であることを記録するコントラクトテスト。
+//
+// 決定根拠 (2026-06-26):
+//   - ローカル移行データ調査で (clinic_id, exam_type_id, date, pet_id) の 4-col key に
+//     87 重複グループ（95 超過行）が存在することを確認。
+//   - 84/85 の非 null グループは distinct な medical_record_id を持つ（同日別カルテの正当な複数受診）。
+//   - 5-col key (clinic_id, exam_type_id, date, pet_id, medical_record_id) でゼロ違反を確認。
+//   - lab import の重複検知意味論（同ペット同日同検査の再インポート = duplicate）には 4-col key が正しく、
+//     DB unique 制約（すべての重複を禁止）では移行データを拒絶する。
+//   - DB unique 制約は本番データ全件確認なしには追加できない。
+//   - TOCTOU リスク（IsDuplicate と Create の間の競合）は設計上許容する。
+//     concurrent import は呼び出し元で直列化するか、この重複を運用上許容すること。
+//
+// このテストはサービスレベル重複チェック（LabImportDuplicateChecker）が
+// DB unique 制約の代替として正しく機能することを verify する。
+func TestLabResultImportService_Phase3A_ServiceLevelDuplicatePolicy(t *testing.T) {
+	// サービスレベル重複チェック: 同一 (clinic_id, exam_type_id, date, pet_id) は
+	// DB 制約ではなく LabImportDuplicateChecker によって検知・スキップされる。
+	jobSvc := newStubLabJobService()
+	callCount := 0
+	examSvc := &stubLabExamService{
+		persistFn: func(input LabExamPersistInput) (*LabExamPersistResult, error) {
+			callCount++
+			// 1 行目: 新規 → persisted
+			// 2 行目: 同一キー → サービスレベルで duplicate 検知 (dup checker がブロック)
+			if callCount == 2 {
+				return &LabExamPersistResult{Duplicate: true, JobID: input.JobID}, nil
+			}
+			return &LabExamPersistResult{ExamID: uint64(callCount), JobID: input.JobID}, nil
+		},
+	}
+	svc := NewLabResultImportService(jobSvc, examSvc)
+
+	petID := uint64(42)
+	examDate := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
+	batch := syntheticFixtureBatch(2)
+	inputs := []LabExamPersistInput{
+		{ClinicID: 1, PetID: &petID, ExamTypeID: 5, Date: examDate},
+		{ClinicID: 1, PetID: &petID, ExamTypeID: 5, Date: examDate}, // same key — duplicate
+	}
+
+	resp, err := svc.Commit(context.Background(), 1, batch, inputs)
+	if err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	// 1 row persisted, 1 row blocked by service-level duplicate checker
+	if resp.PersistedCount != 1 {
+		t.Errorf("Phase3A: expected persisted_count=1, got %d", resp.PersistedCount)
+	}
+	if resp.DuplicateCount != 1 {
+		t.Errorf("Phase3A: expected duplicate_count=1 (service-level), got %d", resp.DuplicateCount)
+	}
+	if resp.FailedCount != 0 {
+		t.Errorf("Phase3A: expected failed_count=0, got %d", resp.FailedCount)
+	}
+
+	// job reaches persisted (some rows persisted)
+	job, err := jobSvc.GetJob(context.Background(), 1, resp.JobID)
+	if err != nil {
+		t.Fatalf("Phase3A: GetJob: %v", err)
+	}
+	if job.Status != model.LabImportJobStatusPersisted {
+		t.Errorf("Phase3A: expected job status=persisted, got %s", job.Status)
+	}
+
+	t.Log("Phase3A: service-level duplicate checker is the formal duplicate policy; no DB unique constraint")
 }

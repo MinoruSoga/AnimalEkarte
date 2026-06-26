@@ -5,17 +5,21 @@
 -- keyed on exam_id. Without this index each call is a full table scan on exam_results.
 -- Phase 1 comment noted this migration must be applied before large-batch lab import runs.
 --
--- Uses CONCURRENTLY so the build does not lock exam_results against concurrent writes.
--- CONCURRENTLY cannot run inside an explicit transaction block; if the migration runner
--- wraps scripts in a transaction, add a `-- no-transaction` pragma or split this file.
+-- Note: CONCURRENTLY was removed because the migration runner wraps each file in an
+-- explicit transaction (cmd/migrate/main.go:tx.Begin/Exec/Commit), and PostgreSQL
+-- does not allow CREATE INDEX CONCURRENTLY inside a transaction block. The tables
+-- created in this phase are new (005_add_lab_import_tables.sql) with no concurrent
+-- traffic at migration time, so a plain CREATE INDEX is safe.
 -- IF NOT EXISTS makes the migration idempotent.
 --
--- No unique constraint is added: duplicate prevention for
--- (clinic_id, exam_type_id, date, pet_id) is enforced at service level.
--- A DB-level unique constraint requires confirming zero violations in production data;
--- that check is deferred to Phase 3.
+-- Phase 3A decision: no DB unique constraint on (clinic_id, exam_type_id, date, pet_id).
+-- Local data check showed 87 duplicate groups (95 extra rows) in migrated data; these
+-- are legitimate multi-visit records with distinct medical_record_ids, not true import
+-- duplicates. Duplicate prevention is enforced at service level via LabImportDuplicateCheckerDB.
+-- Production data must be verified before adding any DB unique constraint.
+-- See: docs/lab-go/app-integration-boundary.md Phase 3A section.
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_exam_results_exam_id
+CREATE INDEX IF NOT EXISTS idx_exam_results_exam_id
     ON exam_results (exam_id);
 
 COMMENT ON INDEX idx_exam_results_exam_id

@@ -124,11 +124,47 @@ func (r *labImportEventRepository) FindByJob(ctx context.Context, clinicID uint6
 // (clinic_id, exam_type_id, date, pet_id) の複合キーで既存 exam を検索する。
 // pet_id が nil の場合は "pet_id IS NULL" として検索する（ISO SQL: NULL ≠ NULL）。
 //
+// Phase 3A 決定: サービスレベル重複防止を正式方針として採用。DB unique 制約は追加しない。
+//
+// 根拠（ローカルデータ調査 2026-06-26）:
+//   4-col key (clinic_id, exam_type_id, date, pet_id) には 87 重複グループ（95 超過行）が存在する。
+//   そのうち 84/85 非 null グループは distinct な medical_record_id を持つ（同日別カルテの正当な複数受診）。
+//   これらに unique 制約を追加すると既存移行データを拒絶する。
+//   5-col key (clinic_id, exam_type_id, date, pet_id, medical_record_id) でゼロ違反を確認済み。
+//   lab import の重複判定意味論（同ペット同日同検査の再インポート検知）は 4-col key が正しく、
+//   DB unique 制約ではなくサービスレベルで実装する。
+//
 // TOCTOU 注意: IsDuplicate と Create の間には競合ウィンドウがある。
 // DB unique 制約がないため、並行リクエストによる重複行の作成を DB レベルでは防げない。
 // PersistExam の AlreadyExists 安全ネットは DB unique 制約が存在しない限り発火しない。
-// DB unique 制約は Phase 3 で追加予定（本番データの違反件数確認後）。
-// それまでは concurrent import を直列化するか、この制約を運用上許容すること。
+// concurrent import は呼び出し元で直列化するか、この重複を運用上許容すること。
+//
+// 本番データに DB unique 制約を追加する前に以下の SQL 3 本で確認すること:
+//
+//	-- (1) non-null pet_id: 4-col 違反グループ（0 でなければ制約追加不可）
+//	SELECT COUNT(*) FROM (
+//	  SELECT clinic_id, exam_type_id, date, pet_id
+//	  FROM exams WHERE deleted_at IS NULL AND pet_id IS NOT NULL
+//	  GROUP BY clinic_id, exam_type_id, date, pet_id HAVING COUNT(*) > 1
+//	) sub;
+//
+//	-- (2) null pet_id: 違反グループ
+//	SELECT COUNT(*) FROM (
+//	  SELECT clinic_id, exam_type_id, date
+//	  FROM exams WHERE deleted_at IS NULL AND pet_id IS NULL
+//	  GROUP BY clinic_id, exam_type_id, date HAVING COUNT(*) > 1
+//	) sub;
+//
+//	-- (3) 真の重複グループ: 同一グループ内に 2 以上の distinct medical_record_id を持つ行
+//	--     (1)(2) がゼロでも、これがゼロでなければ同一カルテの真の重複行が残っている
+//	SELECT COUNT(*) FROM (
+//	  SELECT clinic_id, exam_type_id, date, pet_id
+//	  FROM exams WHERE deleted_at IS NULL AND pet_id IS NOT NULL
+//	  GROUP BY clinic_id, exam_type_id, date, pet_id
+//	  HAVING COUNT(DISTINCT medical_record_id) > 1
+//	) sub;
+//
+// (1)(2)(3) の全クエリがゼロを返してから制約追加の migration を検討すること。
 //
 // date 値は UTC 日付部のみ（時刻成分なし）で渡すこと。
 // IsDuplicate に渡す前に呼び出し元で time.Date(y, m, d, 0, 0, 0, 0, time.UTC) に正規化すること。
@@ -144,11 +180,13 @@ func NewLabImportDuplicateCheckerDB(db *gorm.DB) *LabImportDuplicateCheckerDB {
 }
 
 // IsDuplicate は (clinic_id, exam_type_id, date, pet_id) に一致する exam が既存かを返す。
-// date は UTC 日付部のみに正規化済みであること（呼び出し元責務）。
-// GORM のソフトデリートスコープが deleted_at IS NULL を自動付与するが、
-// 意図を明示するために明示的にも条件を加える。
+// date は UTC 日付部のみ (時刻成分なし) であること。呼び出し元は
+// time.Date(y, m, d, 0, 0, 0, 0, time.UTC) で正規化してから渡すこと（呼び出し元責務）。
+// 内部でも再正規化を行うが、これは write path との一致を保証しない安全ネットであり、
+// 呼び出し元の正規化省略を許容する意図ではない。
+// GORM の soft-delete スコープが自動で "deleted_at IS NULL" を付与する。
 func (c *LabImportDuplicateCheckerDB) IsDuplicate(ctx context.Context, clinicID, examTypeID uint64, date time.Time, petID *uint64) (bool, error) {
-	// UTC date-only に正規化（呼び出し元が既に正規化している前提だが二重チェックとして）。
+	// UTC date-only に再正規化。write path も同様に正規化していること。
 	normalised := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	q := c.db.WithContext(ctx).
 		Model(&model.Examination{}).

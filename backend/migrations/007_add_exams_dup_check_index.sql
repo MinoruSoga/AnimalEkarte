@@ -15,13 +15,24 @@
 -- Partial index on deleted_at IS NULL keeps the index smaller (soft-deleted exams are
 -- excluded from import duplicate checks by design).
 --
--- Uses CONCURRENTLY so the build does not lock exams against concurrent writes.
--- CONCURRENTLY cannot run inside an explicit transaction block; if the migration runner
--- wraps scripts in a transaction, add a `-- no-transaction` pragma or split this file.
+-- Note: CONCURRENTLY was removed because the migration runner wraps each file in an
+-- explicit transaction (cmd/migrate/main.go:tx.Begin/Exec/Commit), and PostgreSQL
+-- does not allow CREATE INDEX CONCURRENTLY inside a transaction block. The exams table
+-- exists with migrated data but lab import is not yet live, so a plain CREATE INDEX is
+-- safe at migration time.
+--
+-- Phase 3A decision: no DB unique constraint added.
+-- 87 duplicate groups exist in local migrated data on the 4-column key
+-- (clinic_id, exam_type_id, date, pet_id). 84/85 non-null groups have distinct
+-- medical_record_ids (same pet, different karte visits on the same day) and are
+-- legitimate. A DB unique constraint on this key would reject valid historical records.
+-- Service-level duplicate prevention is the formal policy until production data is
+-- verified and a 5-column partial unique index (adding medical_record_id) can be assessed.
+-- See: docs/lab-go/app-integration-boundary.md Phase 3A section.
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_exams_clinic_exam_type_date
+CREATE INDEX IF NOT EXISTS idx_exams_clinic_exam_type_date
     ON exams (clinic_id, exam_type_id, date)
     WHERE deleted_at IS NULL;
 
 COMMENT ON INDEX idx_exams_clinic_exam_type_date
-    IS 'Phase 2: LabImportDuplicateCheckerDB (clinic_id, exam_type_id, date) lookup';
+    IS 'Phase 2/3A: LabImportDuplicateCheckerDB (clinic_id, exam_type_id, date) lookup; no unique constraint — see Phase 3A decision';
