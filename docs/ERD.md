@@ -1,7 +1,7 @@
 # データベース設計書 (Entity Relationship Diagram)
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.21 | **最新更新**: 2026-06-22 | **状態**: Production Ready (103 Tables Verified)
+> **バージョン**: v31.25 | **最新更新**: 2026-06-26 | **状態**: Production Ready (103 Tables Verified)
 
 ---
 
@@ -119,6 +119,16 @@ erDiagram
   - `owners.dm_preference` (boolean, NULL可, DM送付希望) を追加。既存レコードを汚染しないよう nullable 設計。
 - **支払方法の銀行振込追加 (Issue #127 / 007_add_bank_transfer_payment_method.sql)**
   - `payment_method` ENUM型に `'bank_transfer'` (銀行振込) を追加。新クリニック作成時にマスタへ自動投入される「銀行振込」の値を `payment_splits.method` で保持できるように不整合を解消。
+- **帳票レイアウト設定追加 (Issue #179 / 008_add_accounting_document_layout_settings.sql)**
+  - `clinics` テーブルに帳票表示制御カラムを追加: `accounting_document_show_logo` (boolean NOT NULL DEFAULT false), `accounting_document_show_registration_warning` (boolean NOT NULL DEFAULT true), `accounting_document_show_item_category` (boolean NOT NULL DEFAULT true), `accounting_document_footer_note` (text NOT NULL DEFAULT '')。
+- **支払方法安定識別子追加 (Issue #197 / 009_add_payment_method_system_key.sql)**
+  - `payment_methods` テーブルに `system_key` (varchar(50), NULL可) を追加。rename 耐性を持たせる安定キー。部分 UNIQUE INDEX `idx_payment_methods_clinic_system_key ON payment_methods(clinic_id, system_key) WHERE system_key IS NOT NULL AND deleted_at IS NULL` を作成。`create_default_payment_methods` 関数を `system_key` 込みに差し替え。
+- **帳票セクション設定追加 (Issue #190 / 010_add_accounting_document_section_settings.sql)**
+  - `clinics` テーブルにセクション単位の表示制御カラムを追加: `accounting_document_show_clinic_header`, `accounting_document_show_owner_pet_info`, `accounting_document_show_items_table`, `accounting_document_show_payment_summary` (各 boolean NOT NULL DEFAULT true), `accounting_document_section_order` (text[] NOT NULL DEFAULT '{}')。
+- **健康診断マスタ投入 (Issue #160 / 011_seed_exam_types_checkup.sql)**
+  - スキーマ変更なし。`exam_types` / `exam_type_fields` に健診カテゴリ (id 12000-12003) および検査項目テンプレート (id 45-58) を clinic 1 向けにシード投入。
+- **手術処置フラグ追加 (Issue #159 / 012_add_procedure_is_surgery.sql)**
+  - `procedures` テーブルに `is_surgery` (BOOLEAN NOT NULL DEFAULT false) を追加。部分インデックス `idx_procedures_clinic_is_surgery ON procedures(clinic_id, is_surgery) WHERE is_surgery = true` を作成。既存処置レコードは `is_surgery = false` のまま後方互換を維持。
 
 ### 4.1 継続理由を明示する対象
 
