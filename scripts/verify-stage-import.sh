@@ -118,6 +118,23 @@ check_gt "demo owners present (id 1-61, not deleted by import)" \
 check_gt "八王子病院 clinic present" "SELECT count(*) FROM clinics WHERE name = '八王子病院'"
 
 echo ""
+echo "--- Sequence safety (next insert will not collide) ---"
+# After the importer runs advanceSequences(), every id sequence must be strictly
+# greater than max(id) in its table. A sequence <= max(id) means the next app
+# INSERT gets a PK that already exists, causing a duplicate-key error.
+# check_zero: count of tables where last_value <= max(id) must be 0.
+check_zero "sequences ahead of max id for all 7 business tables" \
+  "SELECT count(*) FROM (
+     SELECT 'owners' AS t, (SELECT last_value FROM owners_id_seq) AS seq, (SELECT COALESCE(max(id),0) FROM owners) AS mx
+     UNION ALL SELECT 'pets', (SELECT last_value FROM pets_id_seq), (SELECT COALESCE(max(id),0) FROM pets)
+     UNION ALL SELECT 'medical_records', (SELECT last_value FROM medical_records_id_seq), (SELECT COALESCE(max(id),0) FROM medical_records)
+     UNION ALL SELECT 'billings', (SELECT last_value FROM billings_id_seq), (SELECT COALESCE(max(id),0) FROM billings)
+     UNION ALL SELECT 'billing_items', (SELECT last_value FROM billing_items_id_seq), (SELECT COALESCE(max(id),0) FROM billing_items)
+     UNION ALL SELECT 'exams', (SELECT last_value FROM exams_id_seq), (SELECT COALESCE(max(id),0) FROM exams)
+     UNION ALL SELECT 'exam_results', (SELECT last_value FROM exam_results_id_seq), (SELECT COALESCE(max(id),0) FROM exam_results)
+   ) s WHERE seq <= mx"
+
+echo ""
 echo "========================================="
 echo "Results: PASS=$pass  FAIL=$fail  WARN=$warn"
 echo "========================================="
