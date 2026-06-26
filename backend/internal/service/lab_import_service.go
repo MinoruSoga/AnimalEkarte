@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -96,7 +97,8 @@ func (s *labImportJobService) CreateJob(ctx context.Context, clinicID uint64, ba
 		StartedAt:         &now,
 	}
 	if err := s.jobRepo.Create(ctx, job); err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to create lab import job", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to create lab import job")
 	}
 	event := &model.LabImportEvent{
 		ClinicID:  clinicID,
@@ -105,8 +107,9 @@ func (s *labImportJobService) CreateJob(ctx context.Context, clinicID uint64, ba
 		ToStatus:  ptr(model.LabImportJobStatusReceived),
 		RowCount:  len(batch.ResultRows),
 	}
-	if err := s.eventRepo.AppendEvent(ctx, event); err != nil {
-		return nil, err
+	if err := s.eventRepo.Create(ctx, event); err != nil {
+		slog.ErrorContext(ctx, "failed to append lab import event", "error", err, "job_id", job.ID)
+		return nil, apperrors.Wrap(err, "failed to append lab import event")
 	}
 	return job, nil
 }
@@ -120,7 +123,7 @@ func (s *labImportJobService) TransitionStatus(
 ) (*model.LabImportJob, error) {
 	job, err := s.jobRepo.FindByID(ctx, clinicID, jobID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to find lab import job")
 	}
 	from := job.Status
 	if !CanTransitionTo(from, to) {
@@ -161,20 +164,31 @@ func (s *labImportJobService) TransitionStatus(
 	}
 
 	if err := s.jobRepo.Update(ctx, job); err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to update lab import job", "error", err, "job_id", job.ID)
+		return nil, apperrors.Wrap(err, "failed to update lab import job")
 	}
-	if err := s.eventRepo.AppendEvent(ctx, event); err != nil {
-		return nil, err
+	if err := s.eventRepo.Create(ctx, event); err != nil {
+		slog.ErrorContext(ctx, "failed to append lab import event", "error", err, "job_id", job.ID)
+		return nil, apperrors.Wrap(err, "failed to append lab import event")
 	}
 	return job, nil
 }
 
 func (s *labImportJobService) GetJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) (*model.LabImportJob, error) {
-	return s.jobRepo.FindByID(ctx, clinicID, jobID)
+	job, err := s.jobRepo.FindByID(ctx, clinicID, jobID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get lab import job")
+	}
+	return job, nil
 }
 
 func (s *labImportJobService) ListJobs(ctx context.Context, clinicID uint64, limit int) ([]*model.LabImportJob, error) {
-	return s.jobRepo.ListByClinic(ctx, clinicID, limit)
+	jobs, err := s.jobRepo.FindByClinic(ctx, clinicID, limit)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list lab import jobs", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to list lab import jobs")
+	}
+	return jobs, nil
 }
 
 // PreviewBatch は入力バッチを検証してサマリを返す（DB 書き込みなし）。

@@ -181,7 +181,7 @@ func (r *stubJobRepo) FindByID(_ context.Context, clinicID uint64, id uuid.UUID)
 	return &cp, nil
 }
 
-func (r *stubJobRepo) ListByClinic(_ context.Context, clinicID uint64, _ int) ([]*model.LabImportJob, error) {
+func (r *stubJobRepo) FindByClinic(_ context.Context, clinicID uint64, _ int) ([]*model.LabImportJob, error) {
 	var out []*model.LabImportJob
 	for _, j := range r.jobs {
 		if j.ClinicID == clinicID {
@@ -195,13 +195,13 @@ func (r *stubJobRepo) ListByClinic(_ context.Context, clinicID uint64, _ int) ([
 // stubEventRepo はテスト用のインメモリ LabImportEventRepository。
 type stubEventRepo struct{ events []*model.LabImportEvent }
 
-func (r *stubEventRepo) AppendEvent(_ context.Context, event *model.LabImportEvent) error {
+func (r *stubEventRepo) Create(_ context.Context, event *model.LabImportEvent) error {
 	cp := *event
 	r.events = append(r.events, &cp)
 	return nil
 }
 
-func (r *stubEventRepo) ListByJob(_ context.Context, _ uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error) {
+func (r *stubEventRepo) FindByJob(_ context.Context, _ uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error) {
 	var out []*model.LabImportEvent
 	for _, e := range r.events {
 		if e.JobID == jobID {
@@ -258,9 +258,9 @@ func TestTransitionStatus_ValidPath(t *testing.T) {
 		t.Error("persisted terminal status must set finished_at")
 	}
 
-	events, err := eventRepo.ListByJob(context.Background(), 1, job.ID)
+	events, err := eventRepo.FindByJob(context.Background(), 1, job.ID)
 	if err != nil {
-		t.Fatalf("ListByJob: %v", err)
+		t.Fatalf("FindByJob: %v", err)
 	}
 	if len(events) != 4 {
 		t.Errorf("expected 4 audit events (create + 3 transitions), got %d", len(events))

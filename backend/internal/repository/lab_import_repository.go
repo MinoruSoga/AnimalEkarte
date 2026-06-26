@@ -18,16 +18,16 @@ type LabImportJobRepository interface {
 	Update(ctx context.Context, job *model.LabImportJob) error
 	// FindByID はクリニックスコープで ID に一致するジョブを返す。
 	FindByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LabImportJob, error)
-	// ListByClinic はクリニックスコープで最新順にジョブ一覧を返す。
-	ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LabImportJob, error)
+	// FindByClinic はクリニックスコープで最新順にジョブ一覧を返す。
+	FindByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LabImportJob, error)
 }
 
 // LabImportEventRepository は lab_import_events の永続化インターフェース。
 type LabImportEventRepository interface {
-	// AppendEvent は監査イベントを追記する。
-	AppendEvent(ctx context.Context, event *model.LabImportEvent) error
-	// ListByJob はジョブ ID に紐づくイベントを時系列昇順で返す。
-	ListByJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error)
+	// Create は監査イベントを追記する。
+	Create(ctx context.Context, event *model.LabImportEvent) error
+	// FindByJob はジョブ ID に紐づくイベントを時系列昇順で返す。
+	FindByJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error)
 }
 
 // ------------------------------------
@@ -50,7 +50,7 @@ func (r *labImportJobRepository) Create(ctx context.Context, job *model.LabImpor
 
 func (r *labImportJobRepository) Update(ctx context.Context, job *model.LabImportJob) error {
 	result := r.db.WithContext(ctx).
-		Where("clinic_id = ?", job.ClinicID).
+		Scopes(clinicScope(job.ClinicID)).
 		Save(job)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "lab_import_job", job.ID.String())
@@ -72,10 +72,10 @@ func (r *labImportJobRepository) FindByID(ctx context.Context, clinicID uint64, 
 	return &job, nil
 }
 
-func (r *labImportJobRepository) ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LabImportJob, error) {
+func (r *labImportJobRepository) FindByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LabImportJob, error) {
 	var jobs []*model.LabImportJob
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ?", clinicID).
+		Scopes(clinicScope(clinicID)).
 		Order("created_at DESC").
 		Limit(limit).
 		Find(&jobs).Error
@@ -96,14 +96,14 @@ func NewLabImportEventRepository(db *gorm.DB) LabImportEventRepository {
 	return &labImportEventRepository{db: db}
 }
 
-func (r *labImportEventRepository) AppendEvent(ctx context.Context, event *model.LabImportEvent) error {
+func (r *labImportEventRepository) Create(ctx context.Context, event *model.LabImportEvent) error {
 	if err := r.db.WithContext(ctx).Create(event).Error; err != nil {
 		return apperrors.FromGORM(err, "lab_import_event", "")
 	}
 	return nil
 }
 
-func (r *labImportEventRepository) ListByJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error) {
+func (r *labImportEventRepository) FindByJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error) {
 	var events []*model.LabImportEvent
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ? AND job_id = ?", clinicID, jobID).
