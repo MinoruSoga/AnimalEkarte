@@ -126,9 +126,10 @@ type Services struct {
 	LstepAnalytics LstepAnalyticsService
 	// 認証: refresh_token JTI ブラックリスト
 	TokenBlacklist TokenBlacklistService
-	// lab import: 外部検査結果インポートジョブ管理 (Phase 3)
+	// lab import: 外部検査結果インポートジョブ管理 (Phase 3–4)
 	LabImportJob    LabImportJobService
 	LabResultImport LabResultImportService
+	LabAudit        LabAuditLogger
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -292,7 +293,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			repos.AppointmentTrimmingDetail,
 		),
 		TokenBlacklist: NewTokenBlacklistService(repos.TokenBlacklist),
-		// lab import (Phase 3)
+		// lab import (Phase 3–4)
 		LabImportJob: labImportJobSvc,
 		LabResultImport: NewLabResultImportService(
 			labImportJobSvc,
@@ -301,5 +302,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 				repository.NewLabImportDuplicateCheckerDB(repos.DB()),
 			),
 		),
+		LabAudit: NewLabAuditLogger(auditSvc),
 	}
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -225,17 +226,17 @@ func toBatch(req labImportBatchReq) (model.LabInboundBatch, error) {
 	}
 
 	rows := make([]model.LabInboundResultRow, len(req.ResultRows))
-	for i, r := range req.ResultRows {
+	for i := range req.ResultRows {
 		rows[i] = model.LabInboundResultRow{
-			OldPetKey:      r.OldPetKey,
-			OldChartKey:    r.OldChartKey,
-			OldRowKey:      r.OldRowKey,
-			ExamDate:       r.ExamDate,
-			ExamCode:       r.ExamCode,
-			ExamName:       r.ExamName,
-			ItemName:       r.ItemName,
-			DisplayValue:   r.DisplayValue,
-			ReferenceValue: r.ReferenceValue,
+			OldPetKey:      req.ResultRows[i].OldPetKey,
+			OldChartKey:    req.ResultRows[i].OldChartKey,
+			OldRowKey:      req.ResultRows[i].OldRowKey,
+			ExamDate:       req.ResultRows[i].ExamDate,
+			ExamCode:       req.ResultRows[i].ExamCode,
+			ExamName:       req.ResultRows[i].ExamName,
+			ItemName:       req.ResultRows[i].ItemName,
+			DisplayValue:   req.ResultRows[i].DisplayValue,
+			ReferenceValue: req.ResultRows[i].ReferenceValue,
 		}
 	}
 	return model.LabInboundBatch{
@@ -310,18 +311,22 @@ func (h *Handler) PostLabImportPreview(c *gin.Context) {
 		SourceFingerprint: req.SourceFingerprint,
 		ReceivedAt:        time.Now(),
 	}
-	for _, r := range req.ResultRows {
+	for i := range req.ResultRows {
 		batch.ResultRows = append(batch.ResultRows, model.LabInboundResultRow{
-			OldPetKey:      r.OldPetKey,
-			OldChartKey:    r.OldChartKey,
-			OldRowKey:      r.OldRowKey,
-			ExamDate:       r.ExamDate,
-			ExamCode:       r.ExamCode,
-			ExamName:       r.ExamName,
-			ItemName:       r.ItemName,
-			DisplayValue:   r.DisplayValue,
-			ReferenceValue: r.ReferenceValue,
+			OldPetKey:      req.ResultRows[i].OldPetKey,
+			OldChartKey:    req.ResultRows[i].OldChartKey,
+			OldRowKey:      req.ResultRows[i].OldRowKey,
+			ExamDate:       req.ResultRows[i].ExamDate,
+			ExamCode:       req.ResultRows[i].ExamCode,
+			ExamName:       req.ResultRows[i].ExamName,
+			ItemName:       req.ResultRows[i].ItemName,
+			DisplayValue:   req.ResultRows[i].DisplayValue,
+			ReferenceValue: req.ResultRows[i].ReferenceValue,
 		})
+	}
+
+	if la := h.labAudit(); la != nil {
+		la.LogPreviewRequested(c.Request.Context(), clinicID, optionalStaffID(c), req.SourceType, len(batch.ResultRows))
 	}
 
 	preview, err := h.svc.LabResultImport.Preview(c.Request.Context(), clinicID, batch)
@@ -329,6 +334,12 @@ func (h *Handler) PostLabImportPreview(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+
+	if la := h.labAudit(); la != nil && len(preview.BlockedReasons) > 0 {
+		la.LogSourceBlocked(c.Request.Context(), clinicID, optionalStaffID(c),
+			req.SourceType, "preview", preview.BlockedReasons[0])
+	}
+
 	c.JSON(http.StatusOK, toLabImportPreviewResponse(preview))
 }
 
@@ -359,10 +370,27 @@ func (h *Handler) PostLabImportCommit(c *gin.Context) {
 		return
 	}
 
+	actorID := optionalStaffID(c)
+	if la := h.labAudit(); la != nil {
+		la.LogCommitRequested(c.Request.Context(), clinicID, actorID, req.Batch.SourceType, len(req.Inputs))
+	}
+
 	result, err := h.svc.LabResultImport.Commit(c.Request.Context(), clinicID, batch, inputs)
 	if err != nil {
+		if la := h.labAudit(); la != nil {
+			la.LogCommitFailed(c.Request.Context(), clinicID, actorID, errorCategory(err))
+		}
 		RespondError(c, err)
 		return
+	}
+
+	if la := h.labAudit(); la != nil {
+		la.LogCommitSucceeded(c.Request.Context(), clinicID, actorID, result.JobID, service.CommitAuditCounts{
+			RowCount:       result.PersistedCount + result.DuplicateCount + result.FailedCount,
+			PersistedCount: result.PersistedCount,
+			DuplicateCount: result.DuplicateCount,
+			FailedCount:    result.FailedCount,
+		})
 	}
 
 	c.Header("Location", fmt.Sprintf("/api/v1/lab-imports/%s", result.JobID.String()))
@@ -411,6 +439,35 @@ func (h *Handler) ListLabImportEvents(c *gin.Context) {
 		resp[i] = toLabImportEventResponse(e)
 	}
 	c.JSON(http.StatusOK, resp)
+}
+
+// labAudit は nil-safe な LabAuditLogger アクセサ。
+// Handler が LabAudit を持たない場合（テスト等）は nil を返す。
+func (h *Handler) labAudit() service.LabAuditLogger {
+	if h.svc == nil {
+		return nil
+	}
+	return h.svc.LabAudit
+}
+
+// errorCategory は apperrors エラーから audit 用のカテゴリ文字列を返す。
+// 生のエラーメッセージは返さない（PII 漏洩防止）。
+func errorCategory(err error) string {
+	if err == nil {
+		return "none"
+	}
+	switch {
+	case apperrors.IsInvalidInput(err):
+		return "invalid_input"
+	case apperrors.IsNotFound(err):
+		return "not_found"
+	case errors.Is(err, apperrors.ErrForbidden):
+		return "forbidden"
+	case errors.Is(err, apperrors.ErrUnauthorized):
+		return "unauthorized"
+	default:
+		return "internal"
+	}
 }
 
 // RegisterLabImportRoutes は lab import エンドポイントのルートを登録する。

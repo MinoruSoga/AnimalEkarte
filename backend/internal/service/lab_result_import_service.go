@@ -126,7 +126,7 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 		// context キャンセル等のシステムエラー: job を failed に遷移させてから返す。
 		// ctx は既にキャンセル済みのため、補償トランザクションには新しいコンテキストを使う。
 		errMsg := err.Error()
-		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cleanupCancel()
 		_, _ = s.jobSvc.TransitionStatus(cleanupCtx, clinicID, jobID, model.LabImportJobStatusFailed,
 			TransitionCounts{RowCount: len(inputs), ErrorCode: ptr("context_cancelled"), ErrorMessage: &errMsg})

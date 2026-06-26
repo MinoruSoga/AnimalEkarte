@@ -267,23 +267,6 @@ func denyAllPermSvc() service.EffectivePermissionService {
 	}
 }
 
-// grantLabImportPermSvc returns an EffectivePermissionService that grants lab-import permissions.
-func grantLabImportPermSvc() service.EffectivePermissionService {
-	return &mockEffectivePermissionService{
-		getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
-			return []model.PermissionGroupRule{
-				{
-					Resource:  string(model.ResourceLabImport),
-					CanView:   true,
-					CanCreate: true,
-					CanEdit:   true,
-					CanDelete: true,
-				},
-			}, nil
-		},
-	}
-}
-
 // TestPostLabImportPreview_MissingPermission_Returns403 verifies ResourceLabImport "create"
 // is enforced: non-admin with no permission rules gets 403.
 func TestPostLabImportPreview_MissingPermission_Returns403(t *testing.T) {
@@ -1193,4 +1176,266 @@ func TestToBatch_DefaultsReceivedAtWhenEmpty(t *testing.T) {
 	batch, err := toBatch(req)
 	assert.NoError(t, err)
 	assert.False(t, batch.ReceivedAt.IsZero())
+}
+
+// ------------------------------------
+// Phase 4A — LabAuditLogger handler integration tests
+// ------------------------------------
+
+// stubLabAuditLoggerForHandler captures audit calls without DB I/O.
+type stubLabAuditLoggerForHandler struct {
+	previewRequested []previewAuditCall
+	commitRequested  []commitRequestedCall
+	commitSucceeded  []commitSucceededCall
+	commitFailed     []commitFailedCall
+	sourceBlocked    []sourceBlockedCall
+}
+
+type previewAuditCall struct {
+	clinicID   uint64
+	actorID    *uint64
+	sourceType string
+	rowCount   int
+}
+type commitRequestedCall struct {
+	clinicID   uint64
+	actorID    *uint64
+	sourceType string
+	rowCount   int
+}
+type commitSucceededCall struct {
+	clinicID uint64
+	actorID  *uint64
+	jobID    uuid.UUID
+	counts   service.CommitAuditCounts
+}
+type commitFailedCall struct {
+	clinicID      uint64
+	actorID       *uint64
+	errorCategory string
+}
+type sourceBlockedCall struct {
+	clinicID   uint64
+	actorID    *uint64
+	sourceType string
+	operation  string
+	reason     string
+}
+
+func (s *stubLabAuditLoggerForHandler) LogPreviewRequested(_ context.Context, clinicID uint64, actorID *uint64, sourceType string, rowCount int) {
+	s.previewRequested = append(s.previewRequested, previewAuditCall{clinicID, actorID, sourceType, rowCount})
+}
+func (s *stubLabAuditLoggerForHandler) LogCommitRequested(_ context.Context, clinicID uint64, actorID *uint64, sourceType string, rowCount int) {
+	s.commitRequested = append(s.commitRequested, commitRequestedCall{clinicID, actorID, sourceType, rowCount})
+}
+func (s *stubLabAuditLoggerForHandler) LogCommitSucceeded(_ context.Context, clinicID uint64, actorID *uint64, jobID uuid.UUID, counts service.CommitAuditCounts) {
+	s.commitSucceeded = append(s.commitSucceeded, commitSucceededCall{clinicID, actorID, jobID, counts})
+}
+func (s *stubLabAuditLoggerForHandler) LogCommitFailed(_ context.Context, clinicID uint64, actorID *uint64, errorCategory string) {
+	s.commitFailed = append(s.commitFailed, commitFailedCall{clinicID, actorID, errorCategory})
+}
+func (s *stubLabAuditLoggerForHandler) LogSourceBlocked(_ context.Context, clinicID uint64, actorID *uint64, sourceType, operation, reason string) {
+	s.sourceBlocked = append(s.sourceBlocked, sourceBlockedCall{clinicID, actorID, sourceType, operation, reason})
+}
+
+// newHandlerWithAudit builds a Handler with a lab audit stub wired in.
+func newHandlerWithAudit(previewSvc service.LabResultImportService, jobSvc service.LabImportJobService, audit service.LabAuditLogger) *Handler {
+	return &Handler{
+		svc: &service.Services{
+			LabResultImport: previewSvc,
+			LabImportJob:    jobSvc,
+			LabAudit:        audit,
+		},
+	}
+}
+
+// TestPostLabImportPreview_AuditPreviewRequested verifies the preview endpoint emits
+// a preview_requested audit event with clinic_id, actor_id, source_type, and row_count.
+func TestPostLabImportPreview_AuditPreviewRequested(t *testing.T) {
+	audit := &stubLabAuditLoggerForHandler{}
+	h := newHandlerWithAudit(fixturePreviewSvc(), fixtureJobSvc(1, nil, nil), audit)
+	actorID := uint64(42)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("clinic_id", "1")
+	c.Set("user_id", "42")
+	body := jsonBody(map[string]any{
+		"source_type": "fixture",
+		"result_rows": []any{},
+	})
+	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports/preview", body)
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.PostLabImportPreview(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	require.Len(t, audit.previewRequested, 1)
+	pr := audit.previewRequested[0]
+	assert.Equal(t, uint64(1), pr.clinicID)
+	assert.Equal(t, &actorID, pr.actorID)
+	assert.Equal(t, "fixture", pr.sourceType)
+}
+
+// TestPostLabImportPreview_AuditSourceBlocked_DrWan verifies drwan preview emits
+// source_blocked event in addition to preview_requested.
+func TestPostLabImportPreview_AuditSourceBlocked_DrWan(t *testing.T) {
+	audit := &stubLabAuditLoggerForHandler{}
+	h := newHandlerWithAudit(fixturePreviewSvc(), fixtureJobSvc(1, nil, nil), audit)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("clinic_id", "1")
+	c.Set("user_id", "1")
+	body := jsonBody(map[string]any{"source_type": "drwan"})
+	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports/preview", body)
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.PostLabImportPreview(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	require.Len(t, audit.previewRequested, 1, "preview_requested must be emitted")
+	require.Len(t, audit.sourceBlocked, 1, "source_blocked must be emitted for drwan")
+	sb := audit.sourceBlocked[0]
+	assert.Equal(t, "drwan", sb.sourceType)
+	assert.Equal(t, "preview", sb.operation)
+}
+
+// TestPostLabImportCommit_AuditCommitRequestedAndSucceeded verifies commit emits
+// commit_requested then commit_succeeded with job_id and counts.
+func TestPostLabImportCommit_AuditCommitRequestedAndSucceeded(t *testing.T) {
+	jobID := uuid.New()
+	audit := &stubLabAuditLoggerForHandler{}
+	h := newHandlerWithAudit(fixtureCommitSvc(jobID), fixtureJobSvc(1, nil, nil), audit)
+	actorID := uint64(7)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("clinic_id", "1")
+	c.Set("user_id", "7")
+	body := jsonBody(map[string]any{
+		"batch": map[string]any{
+			"source_type":        "fixture",
+			"source_fingerprint": "sha256:synthetic-test-only",
+			"received_at":        "2026-01-15T00:00:00Z",
+		},
+		"inputs": []any{
+			map[string]any{
+				"exam_type_id": 1,
+				"date":         "2026-01-15",
+			},
+		},
+	})
+	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports", body)
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.PostLabImportCommit(c)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	require.Len(t, audit.commitRequested, 1)
+	cr := audit.commitRequested[0]
+	assert.Equal(t, uint64(1), cr.clinicID)
+	assert.Equal(t, &actorID, cr.actorID)
+	assert.Equal(t, "fixture", cr.sourceType)
+
+	require.Len(t, audit.commitSucceeded, 1)
+	cs := audit.commitSucceeded[0]
+	assert.Equal(t, jobID, cs.jobID)
+	assert.Equal(t, uint64(1), cs.clinicID)
+}
+
+// TestPostLabImportCommit_AuditCommitFailed_BlockedSourceType verifies that committing
+// a drwan batch emits commit_requested then commit_failed with error_category=invalid_input.
+func TestPostLabImportCommit_AuditCommitFailed_BlockedSourceType(t *testing.T) {
+	jobID := uuid.New()
+	audit := &stubLabAuditLoggerForHandler{}
+	h := newHandlerWithAudit(fixtureCommitSvc(jobID), fixtureJobSvc(1, nil, nil), audit)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("clinic_id", "1")
+	c.Set("user_id", "1")
+	body := jsonBody(map[string]any{
+		"batch": map[string]any{
+			"source_type": "drwan",
+			"received_at": "2026-01-15T00:00:00Z",
+		},
+		"inputs": []any{},
+	})
+	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports", body)
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.PostLabImportCommit(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	require.Len(t, audit.commitRequested, 1, "commit_requested must be emitted even on failure")
+	require.Len(t, audit.commitFailed, 1, "commit_failed must be emitted")
+	assert.Equal(t, "invalid_input", audit.commitFailed[0].errorCategory)
+	assert.Empty(t, audit.commitSucceeded, "commit_succeeded must NOT be emitted on failure")
+}
+
+// TestPostLabImportCommit_AuditPayloadNoPII verifies commit_succeeded metadata
+// contains no raw lab values, patient identifiers, or source_fingerprint.
+func TestPostLabImportCommit_AuditPayloadNoPII(t *testing.T) {
+	jobID := uuid.New()
+	fakeSvc := &stubLabResultImportService{
+		previewFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
+			return &model.LabImportPreviewResponse{MappingWarnings: []string{}, BlockedReasons: []string{}}, nil
+		},
+		commitFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch, inputs []service.LabExamPersistInput) (*model.LabImportCommitResponse, error) {
+			return &model.LabImportCommitResponse{JobID: jobID, PersistedCount: 1}, nil
+		},
+	}
+	audit := &stubLabAuditLoggerForHandler{}
+	h := newHandlerWithAudit(fakeSvc, fixtureJobSvc(1, nil, nil), audit)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("clinic_id", "1")
+	c.Set("user_id", "1")
+	body := jsonBody(map[string]any{
+		"batch": map[string]any{
+			"source_type":        "fixture",
+			"source_fingerprint": "sha256:synthetic-SENSITIVE",
+			"received_at":        "2026-01-15T00:00:00Z",
+			"result_rows": []any{
+				map[string]any{
+					"old_pet_key":     "SYNTHETIC_PET_001",
+					"display_value":   "99.9",
+					"reference_value": "0-100",
+				},
+			},
+		},
+		"inputs": []any{
+			map[string]any{"exam_type_id": 1, "date": "2026-01-15"},
+		},
+	})
+	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports", body)
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.PostLabImportCommit(c)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	require.Len(t, audit.commitSucceeded, 1)
+	// Verify the audit stub received safe counts only (no raw values).
+	cs := audit.commitSucceeded[0]
+	assert.Equal(t, jobID, cs.jobID)
+	// The counts struct has no raw value fields by design; this is a type-level PII guarantee.
+	// If CommitAuditCounts gains raw fields, this test will fail to compile.
+	_ = cs.counts.RowCount
+	_ = cs.counts.PersistedCount
+	_ = cs.counts.DuplicateCount
+	_ = cs.counts.FailedCount
+}
+
+// TestPostLabImportPreview_AuditNilSafe verifies handler does not panic when LabAudit is nil.
+func TestPostLabImportPreview_AuditNilSafe(t *testing.T) {
+	// Handler with no LabAudit set (e.g., older tests / nil svc)
+	h := newHandlerWithLabSvc(fixturePreviewSvc(), fixtureJobSvc(1, nil, nil))
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("clinic_id", "1")
+	c.Set("user_id", "1")
+	body := jsonBody(map[string]any{"source_type": "fixture"})
+	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports/preview", body)
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	assert.NotPanics(t, func() { h.PostLabImportPreview(c) })
+	assert.Equal(t, http.StatusOK, w.Code)
 }

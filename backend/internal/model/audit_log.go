@@ -57,4 +57,16 @@ const (
 	AuditActionBillingRefundCreate  = "billing_refund.create"
 	// #189: 確定済み会計のクレジット（カード）金額の確定後訂正
 	AuditActionBillingCreditCorrection = "billing.credit_correction"
+
+	// lab import 監査アクション（Phase 4A）
+	AuditActionLabImportPreviewRequested = "lab_import.preview.requested"
+	AuditActionLabImportCommitRequested  = "lab_import.commit.requested"
+	AuditActionLabImportCommitSucceeded  = "lab_import.commit.succeeded"
+	AuditActionLabImportCommitFailed     = "lab_import.commit.failed"
+	AuditActionLabImportSourceBlocked    = "lab_import.source.blocked"
+)
+
+// audit_logs.resource 定数
+const (
+	AuditResourceLabImport = "lab_import"
 )
