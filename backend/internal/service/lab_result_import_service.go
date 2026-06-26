@@ -99,7 +99,7 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 
 	// received → validated
 	if _, err := s.jobSvc.TransitionStatus(ctx, clinicID, jobID, model.LabImportJobStatusValidated,
-		transitionCounts{RowCount: len(inputs)}); err != nil {
+		TransitionCounts{RowCount: len(inputs)}); err != nil {
 		slog.ErrorContext(ctx, "lab result import: failed to transition to validated",
 			"error", err, "job_id", jobID)
 		return nil, apperrors.Wrap(err, "failed to transition job to validated")
@@ -107,7 +107,7 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 
 	// validated → mapped (fixture: mapping is trivial, no blocking warnings)
 	if _, err := s.jobSvc.TransitionStatus(ctx, clinicID, jobID, model.LabImportJobStatusMapped,
-		transitionCounts{RowCount: len(inputs)}); err != nil {
+		TransitionCounts{RowCount: len(inputs)}); err != nil {
 		slog.ErrorContext(ctx, "lab result import: failed to transition to mapped",
 			"error", err, "job_id", jobID)
 		return nil, apperrors.Wrap(err, "failed to transition job to mapped")
@@ -129,7 +129,7 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cleanupCancel()
 		_, _ = s.jobSvc.TransitionStatus(cleanupCtx, clinicID, jobID, model.LabImportJobStatusFailed,
-			transitionCounts{RowCount: len(inputs), ErrorCode: ptr("context_cancelled"), ErrorMessage: &errMsg})
+			TransitionCounts{RowCount: len(inputs), ErrorCode: ptr("context_cancelled"), ErrorMessage: &errMsg})
 		return nil, apperrors.Wrap(err, "lab import batch interrupted")
 	}
 
@@ -163,7 +163,7 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 		termStatus = model.LabImportJobStatusFailed
 	}
 
-	finalCounts := transitionCounts{
+	finalCounts := TransitionCounts{
 		RowCount:       len(inputs),
 		PersistedCount: persisted,
 		DuplicateCount: duplicate,
@@ -191,4 +191,3 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 		FailedCount:      failed,
 	}, nil
 }
-

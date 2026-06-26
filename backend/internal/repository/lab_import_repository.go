@@ -127,12 +127,13 @@ func (r *labImportEventRepository) FindByJob(ctx context.Context, clinicID uint6
 // Phase 3A 決定: サービスレベル重複防止を正式方針として採用。DB unique 制約は追加しない。
 //
 // 根拠（ローカルデータ調査 2026-06-26）:
-//   4-col key (clinic_id, exam_type_id, date, pet_id) には 87 重複グループ（95 超過行）が存在する。
-//   そのうち 84/85 非 null グループは distinct な medical_record_id を持つ（同日別カルテの正当な複数受診）。
-//   これらに unique 制約を追加すると既存移行データを拒絶する。
-//   5-col key (clinic_id, exam_type_id, date, pet_id, medical_record_id) でゼロ違反を確認済み。
-//   lab import の重複判定意味論（同ペット同日同検査の再インポート検知）は 4-col key が正しく、
-//   DB unique 制約ではなくサービスレベルで実装する。
+//
+//	4-col key (clinic_id, exam_type_id, date, pet_id) には 87 重複グループ（95 超過行）が存在する。
+//	そのうち 84/85 非 null グループは distinct な medical_record_id を持つ（同日別カルテの正当な複数受診）。
+//	これらに unique 制約を追加すると既存移行データを拒絶する。
+//	5-col key (clinic_id, exam_type_id, date, pet_id, medical_record_id) でゼロ違反を確認済み。
+//	lab import の重複判定意味論（同ペット同日同検査の再インポート検知）は 4-col key が正しく、
+//	DB unique 制約ではなくサービスレベルで実装する。
 //
 // TOCTOU 注意: IsDuplicate と Create の間には競合ウィンドウがある。
 // DB unique 制約がないため、並行リクエストによる重複行の作成を DB レベルでは防げない。

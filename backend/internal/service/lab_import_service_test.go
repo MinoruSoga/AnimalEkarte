@@ -236,7 +236,7 @@ func TestTransitionStatus_ValidPath(t *testing.T) {
 		t.Errorf("expected status=received, got %s", job.Status)
 	}
 
-	job, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusValidated, transitionCounts{RowCount: 1})
+	job, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusValidated, TransitionCounts{RowCount: 1})
 	if err != nil {
 		t.Fatalf("TransitionStatus received→validated: %v", err)
 	}
@@ -244,12 +244,12 @@ func TestTransitionStatus_ValidPath(t *testing.T) {
 		t.Errorf("expected status=validated, got %s", job.Status)
 	}
 
-	job, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusMapped, transitionCounts{RowCount: 1})
+	job, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusMapped, TransitionCounts{RowCount: 1})
 	if err != nil {
 		t.Fatalf("TransitionStatus validated→mapped: %v", err)
 	}
 
-	job, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusPersisted, transitionCounts{RowCount: 1, PersistedCount: 1})
+	job, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusPersisted, TransitionCounts{RowCount: 1, PersistedCount: 1})
 	if err != nil {
 		t.Fatalf("TransitionStatus mapped→persisted: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestTransitionStatus_InvalidTransition(t *testing.T) {
 	}
 
 	// received → persisted は不正
-	_, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusPersisted, transitionCounts{})
+	_, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusPersisted, TransitionCounts{})
 	if err == nil {
 		t.Fatal("expected error for invalid transition received → persisted, got nil")
 	}
@@ -309,14 +309,14 @@ func TestTransitionStatus_TerminalCannotTransition(t *testing.T) {
 		model.LabImportJobStatusMapped,
 		model.LabImportJobStatusPersisted,
 	} {
-		job, err = svc.TransitionStatus(context.Background(), 1, job.ID, to, transitionCounts{RowCount: 1})
+		job, err = svc.TransitionStatus(context.Background(), 1, job.ID, to, TransitionCounts{RowCount: 1})
 		if err != nil {
 			t.Fatalf("TransitionStatus → %s: %v", to, err)
 		}
 	}
 
 	// persisted → validated は不正
-	_, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusValidated, transitionCounts{})
+	_, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusValidated, TransitionCounts{})
 	if err == nil {
 		t.Fatal("expected error transitioning out of terminal persisted state, got nil")
 	}
@@ -338,7 +338,7 @@ func TestTransitionStatus_FailedRetryPath(t *testing.T) {
 	}
 
 	// received → failed
-	job, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusFailed, transitionCounts{})
+	job, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusFailed, TransitionCounts{})
 	if err != nil {
 		t.Fatalf("received→failed: %v", err)
 	}
@@ -347,7 +347,7 @@ func TestTransitionStatus_FailedRetryPath(t *testing.T) {
 	}
 
 	// failed → received (retry): FinishedAt must be cleared
-	job, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusReceived, transitionCounts{})
+	job, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusReceived, TransitionCounts{})
 	if err != nil {
 		t.Fatalf("failed→received (retry): %v", err)
 	}

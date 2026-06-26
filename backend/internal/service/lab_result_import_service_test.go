@@ -50,7 +50,7 @@ func (s *stubLabJobService) CreateJob(_ context.Context, clinicID uint64, batch 
 	return job, nil
 }
 
-func (s *stubLabJobService) TransitionStatus(_ context.Context, clinicID uint64, jobID uuid.UUID, to model.LabImportJobStatus, counts transitionCounts) (*model.LabImportJob, error) {
+func (s *stubLabJobService) TransitionStatus(_ context.Context, clinicID uint64, jobID uuid.UUID, to model.LabImportJobStatus, counts TransitionCounts) (*model.LabImportJob, error) {
 	if s.transErr != nil && (s.transErrFor == "" || s.transErrFor == to) {
 		return nil, s.transErr
 	}

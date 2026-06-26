@@ -50,7 +50,7 @@ type LabImportJobService interface {
 	CreateJob(ctx context.Context, clinicID uint64, batch model.LabInboundBatch) (*model.LabImportJob, error)
 	// TransitionStatus はジョブ状態を遷移させ、監査イベントを記録する。
 	// 不正遷移の場合は ErrInvalidInput を返す。
-	TransitionStatus(ctx context.Context, clinicID uint64, jobID uuid.UUID, to model.LabImportJobStatus, counts transitionCounts) (*model.LabImportJob, error)
+	TransitionStatus(ctx context.Context, clinicID uint64, jobID uuid.UUID, to model.LabImportJobStatus, counts TransitionCounts) (*model.LabImportJob, error)
 	// GetJob はクリニックスコープでジョブを返す。
 	GetJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) (*model.LabImportJob, error)
 	// ListJobs はクリニックスコープで最新順にジョブ一覧を返す。
@@ -61,8 +61,8 @@ type LabImportJobService interface {
 	ListEvents(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error)
 }
 
-// transitionCounts は状態遷移時に更新するカウンタ群。
-type transitionCounts struct {
+// TransitionCounts は状態遷移時に更新するカウンタ群。
+type TransitionCounts struct {
 	RowCount         int
 	PersistedCount   int
 	DuplicateCount   int
@@ -121,7 +121,7 @@ func (s *labImportJobService) TransitionStatus(
 	clinicID uint64,
 	jobID uuid.UUID,
 	to model.LabImportJobStatus,
-	counts transitionCounts,
+	counts TransitionCounts,
 ) (*model.LabImportJob, error) {
 	job, err := s.jobRepo.FindByID(ctx, clinicID, jobID)
 	if err != nil {
