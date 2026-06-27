@@ -1212,7 +1212,7 @@ type commitSucceededCall struct {
 type commitFailedCall struct {
 	clinicID      uint64
 	actorID       *uint64
-	errorCategory string
+	errorCategory model.LabAuditErrorCategory
 }
 type sourceBlockedCall struct {
 	clinicID   uint64
@@ -1231,7 +1231,7 @@ func (s *stubLabAuditLoggerForHandler) LogCommitRequested(_ context.Context, cli
 func (s *stubLabAuditLoggerForHandler) LogCommitSucceeded(_ context.Context, clinicID uint64, actorID *uint64, jobID uuid.UUID, counts service.CommitAuditCounts) {
 	s.commitSucceeded = append(s.commitSucceeded, commitSucceededCall{clinicID, actorID, jobID, counts})
 }
-func (s *stubLabAuditLoggerForHandler) LogCommitFailed(_ context.Context, clinicID uint64, actorID *uint64, errorCategory string) {
+func (s *stubLabAuditLoggerForHandler) LogCommitFailed(_ context.Context, clinicID uint64, actorID *uint64, errorCategory model.LabAuditErrorCategory) {
 	s.commitFailed = append(s.commitFailed, commitFailedCall{clinicID, actorID, errorCategory})
 }
 func (s *stubLabAuditLoggerForHandler) LogSourceBlocked(_ context.Context, clinicID uint64, actorID *uint64, sourceType, operation string, reason model.LabBlockedReason) {
@@ -1367,7 +1367,7 @@ func TestPostLabImportCommit_AuditCommitFailed_BlockedSourceType(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	require.Len(t, audit.commitRequested, 1, "commit_requested must be emitted even on failure")
 	require.Len(t, audit.commitFailed, 1, "commit_failed must be emitted")
-	assert.Equal(t, "invalid_input", audit.commitFailed[0].errorCategory)
+	assert.Equal(t, model.LabAuditErrorCategoryInvalidInput, audit.commitFailed[0].errorCategory)
 	assert.Empty(t, audit.commitSucceeded, "commit_succeeded must NOT be emitted on failure")
 }
 
@@ -1422,6 +1422,67 @@ func TestPostLabImportCommit_AuditPayloadNoPII(t *testing.T) {
 	_ = cs.counts.PersistedCount
 	_ = cs.counts.DuplicateCount
 	_ = cs.counts.FailedCount
+}
+
+// ------------------------------------
+// Phase 4A.3 — errorCategory helper and typed taxonomy at call sites
+// ------------------------------------
+
+// TestErrorCategory_ReturnsTypedConstants verifies every errorCategory() path maps to
+// a declared model.LabAuditErrorCategory constant (not an ad-hoc string).
+func TestErrorCategory_ReturnsTypedConstants(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want model.LabAuditErrorCategory
+	}{
+		{"nil", nil, model.LabAuditErrorCategoryInternal},
+		{"invalid_input", apperrors.WrapInvalidInput("bad"), model.LabAuditErrorCategoryInvalidInput},
+		{"not_found", apperrors.WrapNotFound("resource", "id"), model.LabAuditErrorCategoryNotFound},
+		{"forbidden", apperrors.ErrForbidden, model.LabAuditErrorCategoryForbidden},
+		{"unauthorized", apperrors.ErrUnauthorized, model.LabAuditErrorCategoryUnauthorized},
+		{"internal_default", apperrors.WrapInternalServerError("something went wrong"), model.LabAuditErrorCategoryInternal},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := errorCategory(tc.err)
+			assert.Equal(t, tc.want, got)
+			// The returned value must pass the taxonomy validator.
+			assert.True(t, model.ValidLabAuditErrorCategory(got),
+				"errorCategory() must return a valid LabAuditErrorCategory constant, got %q", got)
+		})
+	}
+}
+
+// TestPostLabImportCommit_AuditCommitFailed_InternalError verifies that an internal service
+// error emits commit_failed with LabAuditErrorCategoryInternal (not a raw error string).
+func TestPostLabImportCommit_AuditCommitFailed_InternalError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &stubLabResultImportService{
+		previewFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
+			return nil, nil
+		},
+		commitFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch, _ []service.LabExamPersistInput) (*model.LabImportCommitResponse, error) {
+			return nil, apperrors.WrapInternalServerError("db unavailable")
+		},
+	}
+	audit := &stubLabAuditLoggerForHandler{}
+	h := newHandlerWithAudit(svc, nil, audit)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("clinic_id", "1")
+	c.Set("user_id", "1")
+	body := jsonBody(map[string]any{
+		"batch": map[string]any{"source_type": "fixture"},
+	})
+	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports", body)
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.PostLabImportCommit(c)
+
+	require.Len(t, audit.commitFailed, 1)
+	assert.Equal(t, model.LabAuditErrorCategoryInternal, audit.commitFailed[0].errorCategory)
 }
 
 // TestPostLabImportPreview_AuditNilSafe verifies handler does not panic when LabAudit is nil.

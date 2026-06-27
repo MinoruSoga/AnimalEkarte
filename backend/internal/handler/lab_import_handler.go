@@ -450,23 +450,23 @@ func (h *Handler) labAudit() service.LabAuditLogger {
 	return h.svc.LabAudit
 }
 
-// errorCategory は apperrors エラーから audit 用のカテゴリ文字列を返す。
+// errorCategory は apperrors エラーから audit 用の LabAuditErrorCategory を返す。
 // 生のエラーメッセージは返さない（PII 漏洩防止）。
-func errorCategory(err error) string {
+func errorCategory(err error) model.LabAuditErrorCategory {
 	if err == nil {
-		return "none"
+		return model.LabAuditErrorCategoryInternal
 	}
 	switch {
 	case apperrors.IsInvalidInput(err):
-		return "invalid_input"
+		return model.LabAuditErrorCategoryInvalidInput
 	case apperrors.IsNotFound(err):
-		return "not_found"
+		return model.LabAuditErrorCategoryNotFound
 	case errors.Is(err, apperrors.ErrForbidden):
-		return "forbidden"
+		return model.LabAuditErrorCategoryForbidden
 	case errors.Is(err, apperrors.ErrUnauthorized):
-		return "unauthorized"
+		return model.LabAuditErrorCategoryUnauthorized
 	default:
-		return "internal"
+		return model.LabAuditErrorCategoryInternal
 	}
 }
 

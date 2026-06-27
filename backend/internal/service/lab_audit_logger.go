@@ -37,7 +37,8 @@ type LabAuditLogger interface {
 	// LogCommitSucceeded は commit の正常完了を記録する。
 	LogCommitSucceeded(ctx context.Context, clinicID uint64, actorID *uint64, jobID uuid.UUID, counts CommitAuditCounts)
 	// LogCommitFailed は commit の失敗を記録する（job 作成前の失敗も含む）。
-	LogCommitFailed(ctx context.Context, clinicID uint64, actorID *uint64, errorCategory string)
+	// errorCategory には model.LabAuditErrorCategory の定数を使用すること。free-form string は受け付けない。
+	LogCommitFailed(ctx context.Context, clinicID uint64, actorID *uint64, errorCategory model.LabAuditErrorCategory)
 	// LogSourceBlocked は drwan / manual 等のブロック対象ソースへの操作を記録する。
 	// reason には model.LabBlockedReason の定数を使用すること。free-form string は受け付けない。
 	LogSourceBlocked(ctx context.Context, clinicID uint64, actorID *uint64, sourceType, operation string, reason model.LabBlockedReason)
@@ -85,9 +86,14 @@ func (l *labAuditLogger) LogCommitSucceeded(ctx context.Context, clinicID uint64
 	})
 }
 
-func (l *labAuditLogger) LogCommitFailed(ctx context.Context, clinicID uint64, actorID *uint64, errorCategory string) {
+func (l *labAuditLogger) LogCommitFailed(ctx context.Context, clinicID uint64, actorID *uint64, errorCategory model.LabAuditErrorCategory) {
+	if !model.ValidLabAuditErrorCategory(errorCategory) {
+		slog.WarnContext(ctx, "lab audit: LogCommitFailed called with invalid errorCategory — skipping (fail-closed)",
+			"clinic_id", clinicID)
+		return
+	}
 	l.logBestEffort(ctx, clinicID, actorID, model.AuditActionLabImportCommitFailed, map[string]any{
-		"error_category": errorCategory,
+		"error_category": string(errorCategory),
 	})
 }
 

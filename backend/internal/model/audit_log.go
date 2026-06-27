@@ -102,3 +102,41 @@ func ValidLabBlockedReason(r LabBlockedReason) bool {
 	_, ok := validLabBlockedReasons[r]
 	return ok
 }
+
+// LabAuditErrorCategory は commit_failed 監査イベントの error_category フィールドに使用できる
+// 許可された値のみを表す型。free-form string は使用不可。
+// 新しいカテゴリを追加する場合はこのファイルに定数を追加すること。
+type LabAuditErrorCategory string
+
+const (
+	// LabAuditErrorCategoryInvalidInput はリクエストの入力値が不正な場合。
+	LabAuditErrorCategoryInvalidInput LabAuditErrorCategory = "invalid_input"
+	// LabAuditErrorCategoryNotFound はリソースが見つからない / スコープ外の場合。
+	LabAuditErrorCategoryNotFound LabAuditErrorCategory = "not_found"
+	// LabAuditErrorCategoryForbidden は操作が権限上禁止されている場合。
+	LabAuditErrorCategoryForbidden LabAuditErrorCategory = "forbidden"
+	// LabAuditErrorCategoryUnauthorized は認証されていない場合。
+	LabAuditErrorCategoryUnauthorized LabAuditErrorCategory = "unauthorized"
+	// LabAuditErrorCategoryInternal はその他の内部エラーの場合。
+	LabAuditErrorCategoryInternal LabAuditErrorCategory = "internal"
+)
+
+// validLabAuditErrorCategories は許可されたすべての LabAuditErrorCategory 値のセット。
+// 新しい定数を追加したらここにも追加すること。
+var validLabAuditErrorCategories = map[LabAuditErrorCategory]struct{}{
+	LabAuditErrorCategoryInvalidInput: {},
+	LabAuditErrorCategoryNotFound:     {},
+	LabAuditErrorCategoryForbidden:    {},
+	LabAuditErrorCategoryUnauthorized: {},
+	LabAuditErrorCategoryInternal:     {},
+}
+
+// ValidLabAuditErrorCategory は c が許可済み LabAuditErrorCategory 定数のいずれかと一致するか検証する。
+// 任意の文字列キャスト (model.LabAuditErrorCategory("arbitrary")) は false を返す。
+func ValidLabAuditErrorCategory(c LabAuditErrorCategory) bool {
+	if c == "" {
+		return false
+	}
+	_, ok := validLabAuditErrorCategories[c]
+	return ok
+}

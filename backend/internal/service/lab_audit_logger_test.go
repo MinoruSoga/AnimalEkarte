@@ -169,14 +169,14 @@ func TestLabAuditLogger_LogCommitFailed_RecordsEvent(t *testing.T) {
 	fake := &fakeAuditServiceForLab{}
 	logger := NewLabAuditLogger(fake)
 
-	logger.LogCommitFailed(context.Background(), 1, nil, "invalid_source_type")
+	logger.LogCommitFailed(context.Background(), 1, nil, model.LabAuditErrorCategoryInvalidInput)
 
 	require.Len(t, fake.entries, 1)
 	e := fake.entries[0]
 	assert.Equal(t, model.AuditActionLabImportCommitFailed, e.Action)
 	meta, ok := e.Metadata.(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "invalid_source_type", meta["error_category"])
+	assert.Equal(t, "invalid_input", meta["error_category"])
 }
 
 // ------------------------------------
@@ -257,7 +257,7 @@ func TestLabAuditLogger_AuditFailure_DoesNotPanic(t *testing.T) {
 		logger.LogCommitSucceeded(context.Background(), 1, nil, uuid.New(), CommitAuditCounts{})
 	})
 	assert.NotPanics(t, func() {
-		logger.LogCommitFailed(context.Background(), 1, nil, "context_cancelled")
+		logger.LogCommitFailed(context.Background(), 1, nil, model.LabAuditErrorCategoryInternal)
 	})
 	assert.NotPanics(t, func() {
 		logger.LogSourceBlocked(context.Background(), 1, nil, "drwan", "commit", model.LabBlockedReasonSourceTypeBlocked)
@@ -328,6 +328,114 @@ func TestLabAuditLogger_LogSourceBlocked_ValidReasonStillEmitted(t *testing.T) {
 	meta, ok := fake.entries[0].Metadata.(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "source_type_blocked", meta["reason"])
+}
+
+// ------------------------------------
+// Tests: Phase 4A.3 — LabAuditErrorCategory runtime validation (fail-closed)
+// ------------------------------------
+
+func TestLabAuditLogger_LogCommitFailed_InvalidCategory_NotEmitted(t *testing.T) {
+	// model.LabAuditErrorCategory("arbitrary text") must not reach the audit payload.
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+
+	logger.LogCommitFailed(context.Background(), 1, nil, model.LabAuditErrorCategory("arbitrary text"))
+
+	assert.Empty(t, fake.entries, "invalid category must not produce an audit entry")
+}
+
+func TestLabAuditLogger_LogCommitFailed_EmptyCategory_NotEmitted(t *testing.T) {
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+
+	logger.LogCommitFailed(context.Background(), 1, nil, model.LabAuditErrorCategory(""))
+
+	assert.Empty(t, fake.entries, "empty category must not produce an audit entry")
+}
+
+func TestLabAuditLogger_LogCommitFailed_InvalidCategoryDoesNotBreakAPI(t *testing.T) {
+	// Fail-closed must remain best-effort: no panic, no error returned to caller.
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+
+	assert.NotPanics(t, func() {
+		logger.LogCommitFailed(context.Background(), 1, nil, model.LabAuditErrorCategory("patient name / arbitrary"))
+	})
+	assert.Empty(t, fake.entries)
+}
+
+func TestLabAuditLogger_LogCommitFailed_ValidCategoryStillEmitted(t *testing.T) {
+	// Regression guard: valid categories must still reach the audit payload unchanged.
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+
+	logger.LogCommitFailed(context.Background(), 1, nil, model.LabAuditErrorCategoryInvalidInput)
+
+	require.Len(t, fake.entries, 1)
+	meta, ok := fake.entries[0].Metadata.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "invalid_input", meta["error_category"])
+}
+
+func TestLabAuditLogger_LogCommitFailed_AllValidCategories_Emitted(t *testing.T) {
+	// Each declared constant must produce exactly one audit entry with the correct string value.
+	cases := []struct {
+		category model.LabAuditErrorCategory
+		want     string
+	}{
+		{model.LabAuditErrorCategoryInvalidInput, "invalid_input"},
+		{model.LabAuditErrorCategoryNotFound, "not_found"},
+		{model.LabAuditErrorCategoryForbidden, "forbidden"},
+		{model.LabAuditErrorCategoryUnauthorized, "unauthorized"},
+		{model.LabAuditErrorCategoryInternal, "internal"},
+	}
+	for _, tc := range cases {
+		fake := &fakeAuditServiceForLab{}
+		logger := NewLabAuditLogger(fake)
+
+		logger.LogCommitFailed(context.Background(), 1, nil, tc.category)
+
+		require.Len(t, fake.entries, 1, "category %q must produce one audit entry", tc.category)
+		meta, ok := fake.entries[0].Metadata.(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, tc.want, meta["error_category"], "category %q must serialize to %q", tc.category, tc.want)
+	}
+}
+
+func TestLabAuditLogger_LogCommitFailed_ClinicAndActorPreserved(t *testing.T) {
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+	actorID := uint64(77)
+	clinicID := uint64(5)
+
+	logger.LogCommitFailed(context.Background(), clinicID, &actorID, model.LabAuditErrorCategoryInternal)
+
+	require.Len(t, fake.entries, 1)
+	e := fake.entries[0]
+	assert.Equal(t, clinicID, *e.ClinicID)
+	assert.Equal(t, &actorID, e.ActorID)
+	assert.Equal(t, model.AuditActionLabImportCommitFailed, e.Action)
+}
+
+func TestLabAuditLogger_LogCommitFailed_NoPIIInPayload(t *testing.T) {
+	// The audit payload must not contain raw lab values, patient data, or credential-like fields.
+	fake := &fakeAuditServiceForLab{}
+	logger := NewLabAuditLogger(fake)
+
+	logger.LogCommitFailed(context.Background(), 1, nil, model.LabAuditErrorCategoryInternal)
+
+	require.Len(t, fake.entries, 1)
+	meta, ok := fake.entries[0].Metadata.(map[string]any)
+	require.True(t, ok)
+	for _, forbidden := range []string{
+		"inspection_value", "display_value", "reference_value",
+		"old_pet_key", "old_chart_key", "old_row_key",
+		"source_fingerprint", "pet_name", "owner_name",
+		"email", "phone", "password", "token",
+	} {
+		_, present := meta[forbidden]
+		assert.False(t, present, "audit metadata must not contain %q", forbidden)
+	}
 }
 
 // errAuditFail is a sentinel error for best-effort tests.
