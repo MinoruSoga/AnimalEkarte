@@ -68,6 +68,14 @@ func (h *Handler) Login(c *gin.Context) {
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
 
+	// Set context values that extractClinicID expects.
+	// calculateEffectivePermissions calls extractClinicID which reads c.Get("clinic_id").
+	// Without these, extractClinicID writes a 401 "missing clinic context" side-effect
+	// (RespondError without c.Abort) and then Login continues, producing a double-write
+	// response with HTTP 401 + user payload concatenated.
+	c.Set("clinic_id", mainClinicID)
+	c.Set("user_id", strconv.FormatUint(staff.ID, 10))
+
 	permMap := h.calculateEffectivePermissions(c, account.IsSystemAdmin, staff.ID)
 
 	// 監査ログ: ログイン成功
