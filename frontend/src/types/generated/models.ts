@@ -339,6 +339,32 @@ export const LabBlockedReasonSourceNotImplemented: LabBlockedReason = "source_no
  * LabBlockedReasonSourceTypeBlocked は該当ソース種別がポリシーによりブロックされた場合。
  */
 export const LabBlockedReasonSourceTypeBlocked: LabBlockedReason = "source_type_blocked";
+/**
+ * LabAuditErrorCategory は commit_failed 監査イベントの error_category フィールドに使用できる
+ * 許可された値のみを表す型。free-form string は使用不可。
+ * 新しいカテゴリを追加する場合はこのファイルに定数を追加すること。
+ */
+export type LabAuditErrorCategory = string;
+/**
+ * LabAuditErrorCategoryInvalidInput はリクエストの入力値が不正な場合。
+ */
+export const LabAuditErrorCategoryInvalidInput: LabAuditErrorCategory = "invalid_input";
+/**
+ * LabAuditErrorCategoryNotFound はリソースが見つからない / スコープ外の場合。
+ */
+export const LabAuditErrorCategoryNotFound: LabAuditErrorCategory = "not_found";
+/**
+ * LabAuditErrorCategoryForbidden は操作が権限上禁止されている場合。
+ */
+export const LabAuditErrorCategoryForbidden: LabAuditErrorCategory = "forbidden";
+/**
+ * LabAuditErrorCategoryUnauthorized は認証されていない場合。
+ */
+export const LabAuditErrorCategoryUnauthorized: LabAuditErrorCategory = "unauthorized";
+/**
+ * LabAuditErrorCategoryInternal はその他の内部エラーの場合。
+ */
+export const LabAuditErrorCategoryInternal: LabAuditErrorCategory = "internal";
 
 //////////
 // source: billing_confirmation.go
