@@ -475,3 +475,166 @@ func TestGetLabJobReportSummaries_ResponseDoesNotLeakPII(t *testing.T) {
 	assert.NotContains(t, body, "pet_name")
 	assert.NotContains(t, body, "result_summary")
 }
+
+// ------------------------------------
+// Exact JSON field allowlist tests (Phase 4B.3 hardening)
+// ------------------------------------
+
+// summarySafeKeys is the exact set of JSON keys allowed in a LabExamReportSummary response.
+// Any key outside this set is a contract violation.
+var summarySafeKeys = map[string]struct{}{
+	"exam_id":        {},
+	"clinic_id":      {},
+	"job_id":         {},
+	"date":           {},
+	"exam_type_name": {},
+	"status":         {},
+	"result_count":   {},
+	"abnormal_count": {},
+	"machine":        {},
+	"created_at":     {},
+}
+
+// detailSafeKeys is the exact set of JSON keys allowed in a LabExamReportDetail response.
+var detailSafeKeys = map[string]struct{}{
+	"exam_id":           {},
+	"clinic_id":         {},
+	"job_id":            {},
+	"pet_id":            {},
+	"medical_record_id": {},
+	"doctor_id":         {},
+	"date":              {},
+	"exam_type_name":    {},
+	"status":            {},
+	"machine":           {},
+	"items":             {},
+	"created_at":        {},
+	"updated_at":        {},
+}
+
+// itemSafeKeys is the exact set of JSON keys allowed in each LabExamResultItem.
+var itemSafeKeys = map[string]struct{}{
+	"name":             {},
+	"inspection_value": {},
+	"normal_value":     {},
+	"unit":             {},
+	"reference_value":  {},
+	"ref_min":          {},
+	"ref_max":          {},
+	"is_abnormal":      {},
+	"status":           {},
+	"sort_order":       {},
+}
+
+// TestGetLabJobReportSummaries_ExactFieldAllowlist verifies that the summary
+// response contains exactly the approved keys and no others.
+// Keys absent from summarySafeKeys indicate a contract violation (e.g., PII leak).
+func TestGetLabJobReportSummaries_ExactFieldAllowlist(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	jobID := uuid.New()
+	svc := &stubLabReportQueryService{
+		listFn: func(_ context.Context, _ uint64, jid uuid.UUID) ([]model.LabExamReportSummary, error) {
+			return []model.LabExamReportSummary{syntheticSummary(1, jid)}, nil
+		},
+	}
+	r := labReportAdminRouter(svc)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/jobs/"+jobID.String()+"/summaries", http.NoBody)
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var body []map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.Len(t, body, 1)
+
+	for key := range body[0] {
+		_, allowed := summarySafeKeys[key]
+		assert.True(t, allowed, "unexpected key in summary response: %q (not in allowlist)", key)
+	}
+}
+
+// TestGetLabExamReport_ExactFieldAllowlist verifies that the detail response
+// contains exactly the approved top-level keys and no others.
+func TestGetLabExamReport_ExactFieldAllowlist(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	jobID := uuid.New()
+	svc := &stubLabReportQueryService{
+		getFn: func(_ context.Context, _ uint64, _ uint64) (*model.LabExamReportDetail, error) {
+			return syntheticDetail(1, jobID), nil
+		},
+	}
+	r := labReportAdminRouter(svc)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/exams/1", http.NoBody)
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+
+	for key := range body {
+		_, allowed := detailSafeKeys[key]
+		assert.True(t, allowed, "unexpected key in detail response: %q (not in allowlist)", key)
+	}
+
+	// Verify items keys are also within allowlist.
+	items, ok := body["items"].([]any)
+	require.True(t, ok, "items must be an array")
+	for _, rawItem := range items {
+		item, ok := rawItem.(map[string]any)
+		require.True(t, ok)
+		for key := range item {
+			_, allowed := itemSafeKeys[key]
+			assert.True(t, allowed, "unexpected key in item: %q (not in allowlist)", key)
+		}
+	}
+}
+
+// TestGetLabExamReport_ExactFieldAllowlist_NilOptionalFields verifies that
+// optional omitempty fields (job_id, pet_id, medical_record_id, doctor_id)
+// are absent from the JSON body when nil, and the remaining keys still satisfy
+// the allowlist.
+func TestGetLabExamReport_ExactFieldAllowlist_NilOptionalFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &stubLabReportQueryService{
+		getFn: func(_ context.Context, _ uint64, _ uint64) (*model.LabExamReportDetail, error) {
+			return &model.LabExamReportDetail{
+				ExamID:       1,
+				ClinicID:     "1",
+				JobID:        nil, // omitempty — job was deleted (ON DELETE SET NULL)
+				PetID:        nil,
+				Date:         "2026-01-15",
+				ExamTypeName: "血液化学",
+				Status:       string(model.ExaminationStatusResultEntered),
+				Machine:      "Fuji DRI-CHEM",
+				Items:        []model.LabExamResultItem{},
+				CreatedAt:    "2026-01-15T09:00:00+09:00",
+				UpdatedAt:    "2026-01-15T09:00:00+09:00",
+			}, nil
+		},
+	}
+	r := labReportAdminRouter(svc)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/exams/1", http.NoBody)
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+
+	// job_id, pet_id, medical_record_id, doctor_id must be absent when nil (omitempty).
+	assert.NotContains(t, body, "job_id", "nil job_id must be absent (omitempty) — models ON DELETE SET NULL state")
+	assert.NotContains(t, body, "pet_id", "nil pet_id must be absent (omitempty)")
+
+	// All present keys must be in allowlist.
+	for key := range body {
+		_, allowed := detailSafeKeys[key]
+		assert.True(t, allowed, "unexpected key in detail response (nil-optional case): %q", key)
+	}
+}

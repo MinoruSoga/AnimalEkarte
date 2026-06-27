@@ -336,6 +336,80 @@ func TestLabReportQueryService_GetExamReport_PII_Safe(t *testing.T) {
 	_ = detail.UpdatedAt
 }
 
+// ------------------------------------
+// ON DELETE SET NULL behavior model test (Phase 4B.3 hardening)
+// ------------------------------------
+
+// TestLabReportQueryService_ExamSurvivesJobDeletion models the ON DELETE SET NULL behavior
+// declared in migration 008_add_exams_job_id.sql.
+//
+// When a lab_import_job is deleted the DB sets exams.job_id = NULL (the exam row is NOT deleted).
+// This test verifies that LabReportQueryService.GetExamReport can still retrieve an exam
+// whose job_id is nil — confirming the service DTO handles the post-SET-NULL state correctly.
+//
+// The stub models the DB state after ON DELETE SET NULL: the exam row exists with JobID = nil.
+// In a real DB this is enforced by the FK constraint; here we assert the DTO layer handles it.
+func TestLabReportQueryService_ExamSurvivesJobDeletion(t *testing.T) {
+	repo := newStubReportExamRepo()
+
+	// Exam with job_id = nil models the state after ON DELETE SET NULL fires.
+	exam := &model.Examination{
+		ID:              99,
+		ClinicID:        1,
+		JobID:           nil, // was set; job was deleted; ON DELETE SET NULL → nil
+		ExaminationType: makeExamType("血液化学"),
+		Items: []model.ExamResult{
+			{Name: "BUN", InspectionValue: "15.0", IsAbnormal: false, Status: model.ExaminationResultStatusNormal, SortOrder: 1},
+		},
+		Date:    syntheticExam(99, 1, uuid.New(), "", nil).Date,
+		Machine: "Fuji DRI-CHEM",
+		Status:  model.ExaminationStatusResultEntered,
+	}
+	repo.byID[99] = exam
+
+	svc := NewLabReportQueryService(repo)
+	detail, err := svc.GetExamReport(context.Background(), 1, 99)
+	if err != nil {
+		t.Fatalf("exam must be retrievable after ON DELETE SET NULL: %v", err)
+	}
+	if detail.ExamID != 99 {
+		t.Errorf("expected ExamID=99, got %d", detail.ExamID)
+	}
+	if detail.JobID != nil {
+		t.Errorf("expected JobID=nil (ON DELETE SET NULL state), got %v", detail.JobID)
+	}
+	if detail.ExamTypeName != "血液化学" {
+		t.Errorf("expected ExamTypeName=血液化学, got %q", detail.ExamTypeName)
+	}
+	if len(detail.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(detail.Items))
+	}
+}
+
+// TestLabReportQueryService_ListJobReportSummaries_AfterJobDeletion models the behavior
+// of ListJobReportSummaries when the referenced job has been deleted.
+//
+// After ON DELETE SET NULL, exams.job_id = NULL for those exams. A query for the original
+// job_id returns an empty list (not an error) because no exams now reference that job_id.
+// The exam rows are not deleted — they become job_id=NULL "orphan" exams accessible by GetExamReport.
+func TestLabReportQueryService_ListJobReportSummaries_AfterJobDeletion(t *testing.T) {
+	repo := newStubReportExamRepo()
+	deletedJobID := uuid.New()
+
+	// After ON DELETE SET NULL there are no exams with this job_id in the stub.
+	// (In a real DB the exams still exist but job_id = NULL.)
+	// The stub's byJobID map has no entry for deletedJobID — models the post-SET-NULL state.
+
+	svc := NewLabReportQueryService(repo)
+	summaries, err := svc.ListJobReportSummaries(context.Background(), 1, deletedJobID)
+	if err != nil {
+		t.Fatalf("expected no error for deleted job_id (job exams are orphaned, not missing): %v", err)
+	}
+	if len(summaries) != 0 {
+		t.Errorf("expected 0 summaries after ON DELETE SET NULL (no exams reference the deleted job), got %d", len(summaries))
+	}
+}
+
 // TestLabReportQueryService_GetExamReport_ItemsOrdered verifies that items in the
 // detail DTO reflect the SortOrder set on ExamResult.
 func TestLabReportQueryService_GetExamReport_ItemsOrdered(t *testing.T) {
