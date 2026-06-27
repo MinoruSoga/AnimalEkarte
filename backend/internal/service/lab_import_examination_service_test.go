@@ -101,6 +101,17 @@ func (r *stubExamRepo) FindAllItemsByExamID(_ context.Context, clinicID, examID 
 	return out, nil
 }
 
+func (r *stubExamRepo) FindByJobID(_ context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.Examination, error) {
+	var out []*model.Examination
+	for _, e := range r.exams {
+		if e.ClinicID == clinicID && e.JobID != nil && *e.JobID == jobID {
+			cp := *e
+			out = append(out, &cp)
+		}
+	}
+	return out, nil
+}
+
 // stubDupChecker は LabImportDuplicateChecker のインメモリ stub。
 type stubDupChecker struct {
 	isDup    bool
@@ -186,6 +197,12 @@ func TestLabImportExaminationService_PersistExam_Happy(t *testing.T) {
 	}
 	if saved.Status != model.ExaminationStatusResultEntered {
 		t.Errorf("expected status=result_entered, got %s", saved.Status)
+	}
+	// Phase 4B.2: job_id FK must be persisted on the exam row
+	if saved.JobID == nil {
+		t.Error("expected JobID to be non-nil on saved exam (Phase 4B.2 exams.job_id FK)")
+	} else if *saved.JobID != jobID {
+		t.Errorf("expected saved.JobID=%s, got %s", jobID, *saved.JobID)
 	}
 
 	// exam_results persisted correctly

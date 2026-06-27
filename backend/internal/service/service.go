@@ -130,6 +130,8 @@ type Services struct {
 	LabImportJob    LabImportJobService
 	LabResultImport LabResultImportService
 	LabAudit        LabAuditLogger
+	// lab report: 検査帳票 read-only クエリ (Phase 4B.2)
+	LabReportQuery LabReportQueryService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -302,6 +304,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 				repository.NewLabImportDuplicateCheckerDB(repos.DB()),
 			),
 		),
-		LabAudit: NewLabAuditLogger(auditSvc),
+		LabAudit:       NewLabAuditLogger(auditSvc),
+		LabReportQuery: NewLabReportQueryService(repos.Examination),
 	}
 }

@@ -143,11 +143,13 @@ func (s *labImportExaminationService) PersistExam(ctx context.Context, input Lab
 		}, nil
 	}
 
+	jobID := input.JobID
 	exam := &model.Examination{
 		ClinicID:        input.ClinicID,
 		PetID:           input.PetID,
 		MedicalRecordID: input.MedicalRecordID,
 		ExamTypeID:      input.ExamTypeID,
+		JobID:           &jobID,
 		Date:            input.Date,
 		Machine:         input.Machine,
 		// result_entered: lab 結果は到着時点で値が確定しているため pending/in_progress をスキップ

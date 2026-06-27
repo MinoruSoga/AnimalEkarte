@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -68,6 +69,10 @@ func (m *mockExaminationRepository) ReplaceItemsByExamID(ctx context.Context, cl
 		return items, nil
 	}
 	return m.replaceItemsByExamIDFn(ctx, clinicID, examID, items)
+}
+
+func (m *mockExaminationRepository) FindByJobID(_ context.Context, _ uint64, _ uuid.UUID) ([]*model.Examination, error) {
+	return nil, nil
 }
 
 // mockMedicalRecordRepositoryForExam は MedicalRecordRepository のテスト用 stub（全メソッド実装）

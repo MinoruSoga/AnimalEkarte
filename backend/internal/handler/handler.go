@@ -110,6 +110,8 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 
 	// lab import: 外部検査結果インポートジョブ管理 (Phase 3)
 	h.RegisterLabImportRoutes(protected)
+	// lab report: 検査帳票 read-only クエリ (Phase 4B.2)
+	h.RegisterLabReportRoutes(protected)
 
 	// LSTEP / LINE連携
 	h.RegisterLstepSettingsRoutes(protected)

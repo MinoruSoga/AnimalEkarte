@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -13,6 +14,8 @@ import (
 type ExaminationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	// FindByJobID は clinic_id + job_id で絞り込んだ exams を日付降順で返す（Phase 4B.2）。
+	FindByJobID(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.Examination, error)
 	Create(ctx context.Context, exam *model.Examination) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -75,6 +78,23 @@ func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		return nil, apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", id))
 	}
 	return &exam, nil
+}
+
+// FindByJobID は clinic_id + job_id scope で exams を日付降順・作成日時降順で返す。
+// exam_results と exam_type を Preload する（report DTO 組み立てに必要）。
+// clinic scope は WHERE exams.clinic_id = ? で保証する（exam_results は clinic_id を持たないため JOIN で隔離）。
+func (r *examinationRepository) FindByJobID(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.Examination, error) {
+	var exams []*model.Examination
+	err := r.db.WithContext(ctx).
+		Where("exams.clinic_id = ? AND exams.job_id = ?", clinicID, jobID).
+		Preload("ExaminationType", "deleted_at IS NULL").
+		Preload("Items").
+		Order("exams.date DESC, exams.created_at DESC").
+		Find(&exams).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "exam", fmt.Sprintf("job_id=%s", jobID))
+	}
+	return exams, nil
 }
 
 func (r *examinationRepository) Create(ctx context.Context, exam *model.Examination) error {
