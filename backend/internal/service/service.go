@@ -25,6 +25,7 @@ type Services struct {
 	StaffPermission                StaffPermissionService
 	Cage                           CageService
 	Medicine                       MedicineService
+	MedicineDoseParam              MedicineDoseParamService
 	Vaccine                        VaccineService
 	Insurance                      InsuranceService
 	ReservationType                ReservationTypeCoreService
@@ -208,6 +209,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		StaffPermission:                staffSvc,
 		Cage:                           NewCageService(repos.Cage),
 		Medicine:                       NewMedicineServiceWithAudit(repos.Medicine, repos.Inventory, tx, auditSvc),
+		MedicineDoseParam:              NewMedicineDoseParamService(repos.MedicineDoseParam, repos.Medicine, auditSvc),
 		Vaccine:                        NewVaccineService(repos.Vaccine),
 		Insurance:                      NewInsuranceService(repos.Insurance),
 		ReservationType:                reservationTypeSvc,

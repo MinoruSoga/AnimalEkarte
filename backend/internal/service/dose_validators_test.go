@@ -85,6 +85,12 @@ func TestValidateMedicineDoseParamInput(t *testing.T) {
 		{"dose_per_kg 過大は拒否", func(in *MedicineDoseParamInput) { in.DosePerKg = maxReasonableDosePerKg + 1 }, true},
 		{"min>max は拒否", func(in *MedicineDoseParamInput) { in.MinMgPerKg = fptr(10); in.MaxMgPerKg = fptr(5) }, true},
 		{"min<=0 は拒否", func(in *MedicineDoseParamInput) { in.MinMgPerKg = fptr(0) }, true},
+		{"dose_per_kg > max は拒否（typo の silent 吸収防止）", func(in *MedicineDoseParamInput) { in.DosePerKg = 50 }, true},
+		{"dose_per_kg < min は拒否", func(in *MedicineDoseParamInput) { in.MinMgPerKg = fptr(8) }, true},
+		{"dose_per_kg == max は通る（境界・inclusive）", func(in *MedicineDoseParamInput) { in.DosePerKg = 10 }, false},
+		{"dose_per_kg == min は通る（境界・inclusive）", func(in *MedicineDoseParamInput) {
+			in.MinMgPerKg = fptr(5) // baseline dose_per_kg=5
+		}, false},
 		{"丸め step だけ指定は拒否（ペア違反）", func(in *MedicineDoseParamInput) { in.RoundingStep = fptr(1) }, true},
 		{"丸め mode だけ指定は拒否（ペア違反）", func(in *MedicineDoseParamInput) { in.RoundingMode = rmptr(model.MedicineRoundingModeUp) }, true},
 		{"rounding_step<=0 は拒否", func(in *MedicineDoseParamInput) {

@@ -54,6 +54,10 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.GET("/medicines/:id", perm(model.ResourceMasterMedical, "view"), h.GetMedicine)
 	masters.PATCH("/medicines/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateMedicine)
 	masters.DELETE("/medicines/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteMedicine)
+	// #201 B-2c: 薬剤 × 種の投与量計算パラメータ（dog/cat の mg/kg）。species を自然キーに upsert。
+	masters.GET("/medicines/:id/dose-params", perm(model.ResourceMasterMedical, "view"), h.ListMedicineDoseParams)
+	masters.PUT("/medicines/:id/dose-params/:species", perm(model.ResourceMasterMedical, "edit"), h.UpsertMedicineDoseParam)
+	masters.DELETE("/medicines/:id/dose-params/:species", perm(model.ResourceMasterMedical, "delete"), h.DeleteMedicineDoseParam)
 
 	// Vaccines
 	masters.GET("/vaccines", perm(model.ResourceMasterMedical, "view"), h.ListVaccines)

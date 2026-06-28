@@ -121,6 +121,15 @@ func ValidateMedicineDoseParamInput(in *MedicineDoseParamInput) error {
 	if in.MinMgPerKg != nil && in.MaxMgPerKg != nil && *in.MinMgPerKg > *in.MaxMgPerKg {
 		return apperrors.WrapInvalidInput("min_mg_per_kg は max_mg_per_kg 以下である必要があります")
 	}
+	// 患者安全: base dose は自身の安全域 [min, max] 内である必要がある（healthcare review MEDIUM）。
+	// 範囲外を許すと calc 側の clamp が入力 typo（例 5→50）を silent に上限へ吸収し、
+	// 過量にはならないが意図と異なる用量が投与される。書込時に fail-fast で弾く。
+	if in.MinMgPerKg != nil && in.DosePerKg < *in.MinMgPerKg {
+		return apperrors.WrapInvalidInput("dose_per_kg は min_mg_per_kg 以上である必要があります")
+	}
+	if in.MaxMgPerKg != nil && in.DosePerKg > *in.MaxMgPerKg {
+		return apperrors.WrapInvalidInput("dose_per_kg は max_mg_per_kg 以下である必要があります")
+	}
 	// 患者安全: per_weight 自動計算には上限が必須（healthcare review HIGH-1）。
 	// 上限が一切ないと丸め上げで実効用量が silent に過量化しても検出できない。
 	// max_mg_per_kg（体重連動）または absolute_max_dose（mg/head）の少なくとも一方を要求する。

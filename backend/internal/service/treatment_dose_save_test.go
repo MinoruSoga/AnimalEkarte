@@ -19,22 +19,43 @@ import (
 // ---- mockMedicineDoseParamRepository ----
 
 type mockMedicineDoseParamRepository struct {
+	findByMedicineIDFn         func(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error)
 	findByMedicineAndSpeciesFn func(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error)
+	createFn                   func(ctx context.Context, clinicID uint64, param *model.MedicineDoseParam) error
+	updateFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error)
+	deleteFn                   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockMedicineDoseParamRepository) FindByMedicineID(_ context.Context, _, _ uint64) ([]model.MedicineDoseParam, error) {
-	return nil, nil
+func (m *mockMedicineDoseParamRepository) FindByMedicineID(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error) {
+	if m.findByMedicineIDFn == nil {
+		return nil, nil
+	}
+	return m.findByMedicineIDFn(ctx, clinicID, medicineID)
 }
 func (m *mockMedicineDoseParamRepository) FindByMedicineAndSpecies(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+	if m.findByMedicineAndSpeciesFn == nil {
+		return nil, apperrors.WrapNotFound("medicine_dose_param", "")
+	}
 	return m.findByMedicineAndSpeciesFn(ctx, clinicID, medicineID, species)
 }
-func (m *mockMedicineDoseParamRepository) Create(_ context.Context, _ uint64, _ *model.MedicineDoseParam) error {
-	return nil
+func (m *mockMedicineDoseParamRepository) Create(ctx context.Context, clinicID uint64, param *model.MedicineDoseParam) error {
+	if m.createFn == nil {
+		return nil
+	}
+	return m.createFn(ctx, clinicID, param)
 }
-func (m *mockMedicineDoseParamRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicineDoseParam, error) {
-	return nil, nil
+func (m *mockMedicineDoseParamRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error) {
+	if m.updateFn == nil {
+		return nil, nil
+	}
+	return m.updateFn(ctx, clinicID, id, fields)
 }
-func (m *mockMedicineDoseParamRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *mockMedicineDoseParamRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	if m.deleteFn == nil {
+		return nil
+	}
+	return m.deleteFn(ctx, clinicID, id)
+}
 
 // ---- mockDoseAuditService（LogEntry をキャプチャ。他は no-op）----
 
