@@ -18,6 +18,12 @@ asserts the load-bearing facts of the deliverable:
   and that caveat stays consistent with the detailed cost section.
 - Every inventory row cites a source file.
 - The FX assumption and official pricing source URLs are present.
+- The headline STG-AWS cost reconciles to the Cost-Explorer doc total via the
+  stated FX rate, and every cost-summary total row is internally FX-consistent
+  (guards against fabricated JPY figures / silent FX drift).
+- The "Security Group ×N" inventory count matches the number of
+  aws_security_group resources actually declared in the Terraform IaC
+  (guards against the undercount type where conditional resources are missed).
 - No secrets or infrastructure PII leaked into the deliverable.
 
 Exit code is 0 only when every check passes, non-zero otherwise, so it can be
@@ -37,6 +43,10 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TARGET = ROOT / "research-cloudflare.html"
+
+# IaC + cost truth sources the deliverable's figures must reconcile against.
+TERRAFORM_DIR = ROOT / "infra" / "terraform"
+COST_DOC = ROOT / "docs" / "infra" / "STG_AWS_COST_REDUCTION.md"
 
 # Section anchors the deliverable must contain (id="..." on the <h2> headings).
 REQUIRED_SECTION_IDS = (
@@ -68,6 +78,27 @@ OFFICIAL_SOURCE_RE = re.compile(
     r"(?:cloudflare\.com|developers\.cloudflare\.com|neon\.com|neon\.tech|"
     r"supabase\.com|aws\.amazon\.com|amazon\.com/[^\"'\s]*pricing)"
 )
+
+# --- Cost reconciliation ---------------------------------------------------
+# FX rate as stated in the deliverable ("1 USD = 161.7 JPY").
+FX_RE = re.compile(r"1\s*USD\s*=\s*([\d.]+)\s*JPY")
+# Cost-doc total row: `| **合計（税前）** | **$21.17** | **$39.73** | ...`.
+# Two USD columns (before / after optimization); the second is the live total.
+COST_DOC_TOTAL_RE = re.compile(r"合計（税前）.*?\$[\d.]+.*?\$([\d.]+)")
+# Each cost-summary total row carries a USD cell then a JPY cell.
+TOTALROW_RE = re.compile(r'<tr class="totalrow">(.*?)</tr>', re.DOTALL)
+NUM_CELL_RE = re.compile(r'<td class="num">(.*?)</td>')
+# Tolerance: total rows reconcile within max(¥10, 0.5%) to absorb per-row
+# rounding and the explicitly approximate (~) production projections.
+RECONCILE_FLOOR_JPY = 10
+RECONCILE_PCT = 0.005
+
+# --- Security Group inventory <-> IaC ---------------------------------------
+# A Terraform security-group *declaration* (counted regardless of any `count`
+# meta-argument, so conditional `count = ... ? 1 : 0` resources still count 1).
+SG_RESOURCE_RE = re.compile(r'resource\s+"aws_security_group"')
+# Inventory / mapping text: "Security Group ×3" (× is U+00D7; allow ascii x too).
+HTML_SG_COUNT_RE = re.compile(r"Security Group\s*[×x]\s*(\d+)")
 
 # Secrets / infrastructure PII that must NOT appear in a shareable research doc.
 SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
@@ -231,6 +262,112 @@ def check_no_secrets(html: str) -> CheckResult:
     )
 
 
+def _money_to_float(cell: str) -> float:
+    """Strip ~, ¥, $, commas and whitespace from a money cell -> float."""
+    return float(re.sub(r"[~¥$,\s]", "", cell))
+
+
+def check_cost_reconciliation(html: str) -> CheckResult:
+    """Headline cost must trace to the Cost-Explorer doc total via the FX rate,
+    and every cost-summary total row must be internally FX-consistent.
+
+    This is the regression guard against fabricated JPY figures and silent FX
+    drift: a JPY edited without a matching USD/FX change is caught here.
+    """
+    fx_match = FX_RE.search(html)
+    if not fx_match:
+        return CheckResult("cost_reconciliation", False, "FX rate not found in HTML")
+    fx = float(fx_match.group(1))
+
+    if not COST_DOC.is_file():
+        return CheckResult(
+            "cost_reconciliation", False, f"cost doc not found: {COST_DOC}"
+        )
+    doc_match = COST_DOC_TOTAL_RE.search(COST_DOC.read_text(encoding="utf-8"))
+    if not doc_match:
+        return CheckResult(
+            "cost_reconciliation", False, "AWS total USD not parseable from cost doc"
+        )
+    doc_usd = float(doc_match.group(1))
+    expected_stg_jpy = round(doc_usd * fx)
+
+    problems: list[str] = []
+    anchor_ok = False
+    for row in TOTALROW_RE.findall(html):
+        cells = NUM_CELL_RE.findall(row)
+        if len(cells) < 2:
+            continue
+        try:
+            usd = _money_to_float(cells[0])
+            jpy = _money_to_float(cells[1])
+        except ValueError:
+            continue
+        expected = round(usd * fx)
+        tolerance = max(RECONCILE_FLOOR_JPY, jpy * RECONCILE_PCT)
+        if abs(expected - jpy) > tolerance:
+            problems.append(f"{usd}USD->¥{int(jpy)} (expected ~¥{expected})")
+        # Anchor: the headline STG-AWS row must trace to the cost-doc total.
+        # Use the same tolerance as the row check so a legitimate rounding
+        # difference (e.g. ¥6,421 vs ¥6,424) doesn't raise a false failure.
+        if abs(int(jpy) - expected_stg_jpy) <= tolerance:
+            anchor_ok = True
+
+    if not anchor_ok:
+        problems.append(
+            f"no total row equals cost-doc-derived ¥{expected_stg_jpy} "
+            f"(${doc_usd}×{fx})"
+        )
+    passed = not problems
+    return CheckResult(
+        "cost_reconciliation",
+        passed,
+        f"cost doc ${doc_usd}×{fx}=¥{expected_stg_jpy} matches headline; "
+        f"all total rows reconcile within tolerance"
+        if passed
+        else f"reconcile FAIL: {problems}",
+    )
+
+
+def check_security_group_count(html: str) -> CheckResult:
+    """The "Security Group ×N" inventory count must equal the number of
+    aws_security_group resources declared in the Terraform IaC.
+
+    Robust to conditional resources: it counts static `resource
+    "aws_security_group"` declarations, not runtime instances, so a
+    `count = var.x ? 1 : 0` security group still counts as one. This catches
+    the undercount type where a conditional SG (e.g. fck-nat) is overlooked.
+    """
+    tf_files = [
+        f
+        for f in TERRAFORM_DIR.rglob("*.tf")
+        if ".terraform" not in f.parts
+    ]
+    if not tf_files:
+        return CheckResult(
+            "security_group_count",
+            False,
+            f"no terraform files under {TERRAFORM_DIR}",
+        )
+    iac_count = sum(
+        len(SG_RESOURCE_RE.findall(f.read_text(encoding="utf-8"))) for f in tf_files
+    )
+    html_counts = [int(n) for n in HTML_SG_COUNT_RE.findall(html)]
+    if not html_counts:
+        return CheckResult(
+            "security_group_count", False, "no 'Security Group ×N' mention in HTML"
+        )
+    mismatched = [n for n in html_counts if n != iac_count]
+    passed = not mismatched
+    return CheckResult(
+        "security_group_count",
+        passed,
+        f"HTML SG counts {html_counts} match IaC aws_security_group resources "
+        f"({iac_count})"
+        if passed
+        else f"SG mismatch: HTML says {html_counts}, IaC declares {iac_count}",
+    )
+
+
 CHECKS = (
     check_tag_balance,
     check_sections_present,
@@ -241,6 +378,8 @@ CHECKS = (
     check_fx_assumption,
     check_source_urls,
     check_inventory_citations,
+    check_cost_reconciliation,
+    check_security_group_count,
     check_no_secrets,
 )
 

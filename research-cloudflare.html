@@ -151,7 +151,7 @@
     <tr class="inv-row"><td>6</td><td>Elastic IP ×1</td><td>fck-nat 用（外向き IP 安定化・allowlist 対策）</td><td class="inv-src">modules/vpc/main.tf:135</td></tr>
     <tr class="inv-row"><td>7</td><td>Route Table ×2</td><td>public→IGW / private→fck-nat ENI（toggle で NAT GW 切替可）</td><td class="inv-src">modules/vpc/main.tf:175,200</td></tr>
     <tr class="inv-row"><td>8</td><td>CloudWatch Alarm</td><td>fck-nat auto-recover（StatusCheckFailed_System）</td><td class="inv-src">modules/vpc/main.tf:152</td></tr>
-    <tr class="inv-row"><td>9</td><td>Security Group ×3</td><td>ALB(80/443) / ECS(8080 from ALB) / RDS(5432 from ECS)。内部化時は VPC Origins サービス SG 参照</td><td class="inv-src">modules/security/main.tf:35,86,117</td></tr>
+    <tr class="inv-row"><td>9</td><td>Security Group ×4</td><td>ALB(80/443) / ECS(8080 from ALB) / RDS(5432 from ECS) / fck-nat(VPC 内→NAT 転送・<code>use_nat_instance</code> 有効時)。内部化時は VPC Origins サービス SG 参照</td><td class="inv-src">modules/security/main.tf:35,86,117 / modules/vpc/main.tf:92</td></tr>
     <tr class="inv-row"><td>10</td><td>CloudWatch Log Group</td><td><code>/ecs/animalekarte-stg</code>、保持 1 日</td><td class="inv-src">modules/security/main.tf:148</td></tr>
     <tr class="inv-row"><td>11</td><td>SSM Parameter Store</td><td>DB user(String) / password(SecureString) / name(String)</td><td class="inv-src">infra/CLAUDE.md「シークレット管理」</td></tr>
     <tr class="inv-row"><td>12</td><td>RDS PostgreSQL</td><td>db.t4g.micro、20GB gp3、single-AZ、private、暗号化、backup 1日、削除保護なし</td><td class="inv-src">modules/rds/main.tf:39</td></tr>
@@ -180,7 +180,7 @@
 <div class="callout warn">
   <h4>⚠ 検出した IaC ↔ ドキュメントのドリフト（要報告）</h4>
   <ul style="margin-bottom:0">
-    <li><strong>RDS エンジン版数:</strong> Terraform は <code>engine_version = "16.4"</code> / param family <code>postgres16</code>（<span class="src">modules/rds/main.tf:42,25</span>）だが、root CLAUDE.md と Cost 調査ドキュメント（read-only describe・2026-06-17）は <strong>PostgreSQL 18</strong> と記載。IaC と実環境記述が食い違う。移行分析の結論には影響しないが、IaC を権威としつつ実環境版数の確認を推奨。</li>
+    <li><strong>RDS エンジン版数:</strong> Terraform は <code>engine_version = "16.4"</code> / param family <code>postgres16</code>（<span class="src">modules/rds/main.tf:42,26</span>）だが、root CLAUDE.md と Cost 調査ドキュメント（read-only describe・2026-06-17）は <strong>PostgreSQL 18</strong> と記載。IaC と実環境記述が食い違う。移行分析の結論には影響しないが、IaC を権威としつつ実環境版数の確認を推奨。</li>
     <li><strong>ALB scheme:</strong> Cost ドキュメント（2026-06-17 時点）は internet-facing(public IP 2)で計上。現行 <code>terraform.tfvars</code> は <code>alb_internal=true</code>（P2 適用後 = internal）。費用シナリオ①では両状態を併記。</li>
     <li><strong>AWS 認証:</strong> 本調査環境の AWS CLI は有効な認証情報を持たず（<code>InvalidClientTokenId</code>）、実 API での裏取りは不可。棚卸しは IaC を根拠とする。</li>
   </ul>
@@ -201,7 +201,7 @@
     <tr class="map-row"><td>Elastic IP</td><td class="map-cf"><span class="pill na">等価なし → 不要化</span></td><td>固定 IP 維持コストが消滅。allowlist 用途のみ要設計。</td></tr>
     <tr class="map-row"><td>Route Table ×2</td><td class="map-cf"><span class="pill na">等価なし → 不要化</span></td><td>ルーティングは Worker の fetch 制御に置換。</td></tr>
     <tr class="map-row"><td>CloudWatch Alarm (NAT 回復)</td><td class="map-cf">Cloudflare Notifications / Health Checks</td><td>NAT 自体が消えるため当該アラームは消滅。可用性監視は CF Notifications。</td></tr>
-    <tr class="map-row"><td>Security Group ×3</td><td class="map-cf">Cloudflare WAF / Zero Trust / Worker ルーティング</td><td>L4 SG は L7 制御へ移行。RDS の private 隔離は外部 Postgres 側の責務。</td></tr>
+    <tr class="map-row"><td>Security Group ×4</td><td class="map-cf">Cloudflare WAF / Zero Trust / Worker ルーティング</td><td>L4 SG は L7 制御へ移行。RDS の private 隔離は外部 Postgres 側の責務。</td></tr>
     <tr class="map-row"><td>CloudWatch Log Group</td><td class="map-cf">Workers Logs / Logpush</td><td>保持・転送は Workers Logs(7日) / Logpush。長期保管は R2/外部 SIEM。</td></tr>
     <tr class="map-row"><td>SSM Parameter Store</td><td class="map-cf">Workers Secrets / Secrets Store(open beta)</td><td>暗号化環境変数 or アカウント単位 Secrets Store。</td></tr>
     <tr class="map-row"><td><strong>RDS PostgreSQL</strong></td><td class="map-cf"><span class="pill bad">等価なし</span> → 外部 Postgres + Hyperdrive</td><td><strong>本移行の最大の壁。</strong>Cloudflare にマネージド Postgres なし。D1 は非互換。詳細は<a href="#db">④</a>。</td></tr>
@@ -347,7 +347,7 @@
 </table>
 
 <h4>なぜ D1 を不採用とするか（senior judgment）</h4>
-<p>本電子カルテのスキーマは Postgres 依存が深い — <code>CREATE TYPE ... AS ENUM</code>（migrations/001_init.sql:95 等）、<code>text[]</code>、jsonb、CTE/window を多用する生 SQL（例: <code>ltv_repository.go</code> の集計クエリ）、clinic_id マルチテナント、臨床・会計データの整合性要件。SQLite はネイティブの ENUM・配列を持たず、JSON も方言が異なり、10GB のハード上限は成長するカルテ/画像メタには非現実的。<strong>全 repository 層・全 migration・全型定義を書き換える 30+ 人日の作業を、臨床/会計データの回帰リスクと引き換えに行う合理性はない。</strong>よって案B（外部 Postgres + Hyperdrive）を推奨案として採用する。最も低リスクなのは <strong>既存 RDS をそのまま外部 Postgres として Hyperdrive の背後に置く</strong>構成（DB 移設すら不要・Hyperdrive の RDS 対応は公式確認済）。外部移設する場合の現実解は <strong>Supabase Pro+Medium(~$80/月)</strong> または <strong>Neon Launch 常時起動(~$95/月)</strong>（いずれも単一インスタンス・&lt;50GB）。HA/SLA が必要なら Neon Scale 等で $150〜250/月。料金は<a href="https://neon.com/pricing">neon.com/pricing</a> / <a href="https://supabase.com/pricing">supabase.com/pricing</a>（2026-06-28 取得）。</p>
+<p>本電子カルテのスキーマは Postgres 依存が深い — <code>CREATE TYPE ... AS ENUM</code>（migrations/001_init.sql:95 等）、<code>text[]</code>、jsonb、CTE(<code>WITH</code>)を用いる集計 SQL（例: <code>accounting_repository_reports_monthly.go</code> / <code>accounting_repository_reports_close.go</code>）、raw SQL＋Postgres 固有関数を直書きする集計（<code>EXTRACT</code>・<code>::</code> キャスト等。例: <code>ltv_repository.go</code>）、clinic_id マルチテナント、臨床・会計データの整合性要件。SQLite はネイティブの ENUM・配列を持たず、JSON も方言が異なり、10GB のハード上限は成長するカルテ/画像メタには非現実的。<strong>全 repository 層・全 migration・全型定義を書き換える 30+ 人日の作業を、臨床/会計データの回帰リスクと引き換えに行う合理性はない。</strong>よって案B（外部 Postgres + Hyperdrive）を推奨案として採用する。最も低リスクなのは <strong>既存 RDS をそのまま外部 Postgres として Hyperdrive の背後に置く</strong>構成（DB 移設すら不要・Hyperdrive の RDS 対応は公式確認済）。外部移設する場合の現実解は <strong>Supabase Pro+Medium(~$75/月 = Pro$25 + Medium$60 − $10 compute クレジット)</strong> または <strong>Neon Launch を常時起動した場合の推計 ~$95/月</strong>（Neon は usage-based: 公称 <code>$0.106/CU-h</code>・scale-to-zero であり掲示の固定額ではない。1 CU を 24/7 常時起動＝730h×$0.106≈$77 ＋ ストレージ ~$18 の概算。いずれも単一インスタンス・&lt;50GB）。HA/SLA が必要なら Neon Scale(<code>$0.222/CU-h</code>)等の常時起動＋レプリカ推計で $150〜250/月。料金は<a href="https://neon.com/pricing">neon.com/pricing</a> / <a href="https://supabase.com/pricing">supabase.com/pricing</a>（2026-06-28 取得）。</p>
 
 <!-- ===================== 5. COST ===================== -->
 <h2 id="cost">⑤ 費用 2 シナリオ（AWS vs Cloudflare・JPY）</h2>
@@ -441,11 +441,11 @@
     <tr><td>Workers Logs（超過分）</td><td class="num">~6.00</td><td class="num">¥970</td></tr>
     <tr><td>DNS / SSL / LB(単一は不要)</td><td class="num">0</td><td class="num">¥0</td></tr>
     <tr><td>小計（Cloudflare 課金分）</td><td class="num">~100</td><td class="num">~¥16,170</td></tr>
-    <tr><td>外部マネージド Postgres（単一インスタンス）</td><td class="num">~80</td><td class="num">~¥12,936</td></tr>
+    <tr><td>外部マネージド Postgres（単一インスタンス・Supabase ~$75〜Neon ~$95 のレンジ内概算）</td><td class="num">~80</td><td class="num">~¥12,936</td></tr>
     <tr class="totalrow"><td>Cloudflare 合計（DB 込）</td><td class="num">~180</td><td class="num">~¥29,100</td></tr>
   </tbody>
 </table>
-<p class="small">外部 Postgres: Supabase Pro+Medium(2vCPU/4GB) ~$80 / Neon Launch 常時起動 ~$95（単一インスタンス・&lt;50GB、いずれも Hyperdrive 対応確認済）。<strong>RDS Multi-AZ と同等 HA を求めると $150〜250 に上昇</strong>（Neon Scale / Supabase+replica）。</p>
+<p class="small">外部 Postgres: Supabase Pro+Medium(2vCPU/4GB) ~$75（Pro$25+Medium$60−$10 クレジット）/ Neon Launch 常時起動の推計 ~$95（usage-based $0.106/CU-h を 24/7 換算＋ストレージの概算で掲示額ではない。単一インスタンス・&lt;50GB、いずれも Hyperdrive 対応確認済）。<strong>RDS Multi-AZ と同等 HA を求めると $150〜250 に上昇</strong>（Neon Scale / Supabase+replica）。</p>
 </div>
 </div>
 
