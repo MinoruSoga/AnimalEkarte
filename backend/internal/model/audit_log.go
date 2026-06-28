@@ -58,6 +58,13 @@ const (
 	// #189: 確定済み会計のクレジット（カード）金額の確定後訂正
 	AuditActionBillingCreditCorrection = "billing.credit_correction"
 
+	// #201 薬量自動計算 監査アクション
+	// dose パラメータ変更（作成/更新/削除）・per_weight 有効化・著しい逸脱上書き
+	AuditActionMedicineDoseParamUpsert = "medicine_dose_param.upsert"
+	AuditActionMedicineDoseParamDelete = "medicine_dose_param.delete"
+	AuditActionMedicinePerWeightEnable = "medicine.per_weight.enable"
+	AuditActionTreatmentDoseDeviation  = "treatment.dose.deviation"
+
 	// lab import 監査アクション（Phase 4A）
 	AuditActionLabImportPreviewRequested = "lab_import.preview.requested"
 	AuditActionLabImportCommitRequested  = "lab_import.commit.requested"
@@ -69,6 +76,10 @@ const (
 // audit_logs.resource 定数
 const (
 	AuditResourceLabImport = "lab_import"
+	// #201 薬量自動計算
+	AuditResourceMedicineDoseParam = "medicine_dose_param"
+	AuditResourceMedicine          = "medicine"
+	AuditResourceTreatmentDose     = "treatment_dose"
 )
 
 // LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる

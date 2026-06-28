@@ -29,6 +29,7 @@ type Repositories struct {
 	Staff                     StaffRepository
 	Cage                      CageRepository
 	Medicine                  MedicineRepository
+	MedicineDoseParam         MedicineDoseParamRepository
 	Vaccine                   VaccineRepository
 	Insurance                 InsuranceRepository
 	ReservationType           ReservationTypeRepository
@@ -143,6 +144,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Staff:                          NewStaffRepository(db),
 		Cage:                           NewCageRepository(db),
 		Medicine:                       NewMedicineRepository(db),
+		MedicineDoseParam:              NewMedicineDoseParamRepository(db),
 		Vaccine:                        NewVaccineRepository(db),
 		Insurance:                      NewInsuranceRepository(db),
 		ReservationType:                NewReservationTypeRepository(db),

@@ -1,0 +1,213 @@
+package service
+
+// treatment_dose_save_test.go — #201 B-2: treatment 保存時 BE 再検証の統合テスト。
+// species 解決→param 取得→保存時再検証→スナップショット永続化→逸脱 audit→fail-closed を mock で検証する。
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
+)
+
+// ---- mockMedicineDoseParamRepository ----
+
+type mockMedicineDoseParamRepository struct {
+	findByMedicineAndSpeciesFn func(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error)
+}
+
+func (m *mockMedicineDoseParamRepository) FindByMedicineID(_ context.Context, _, _ uint64) ([]model.MedicineDoseParam, error) {
+	return nil, nil
+}
+func (m *mockMedicineDoseParamRepository) FindByMedicineAndSpecies(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+	return m.findByMedicineAndSpeciesFn(ctx, clinicID, medicineID, species)
+}
+func (m *mockMedicineDoseParamRepository) Create(_ context.Context, _ uint64, _ *model.MedicineDoseParam) error {
+	return nil
+}
+func (m *mockMedicineDoseParamRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicineDoseParam, error) {
+	return nil, nil
+}
+func (m *mockMedicineDoseParamRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
+
+// ---- mockDoseAuditService（LogEntry をキャプチャ。他は no-op）----
+
+type mockDoseAuditService struct {
+	entries []*AuditLogInput
+}
+
+func (m *mockDoseAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
+func (m *mockDoseAuditService) LogEntry(_ context.Context, in *AuditLogInput) error {
+	m.entries = append(m.entries, in)
+	return nil
+}
+func (m *mockDoseAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
+	return nil
+}
+func (m *mockDoseAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
+	return nil
+}
+func (m *mockDoseAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
+	return nil
+}
+func (m *mockDoseAuditService) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
+	return nil
+}
+func (m *mockDoseAuditService) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
+	return nil
+}
+func (m *mockDoseAuditService) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
+	return nil
+}
+func (m *mockDoseAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
+	return nil
+}
+
+// ---- helpers ----
+
+type doseSaveFixture struct {
+	repos   *repository.Repositories
+	audit   *mockDoseAuditService
+	created *model.Treatment
+}
+
+// newDoseSaveFixture は per_weight 医薬 1 種・犬・体重 4kg・dose 5mg/kg・max 5・strength 10mg/錠 の保存環境を構築する。
+// calcType=none を指定すると後方互換（再検証なし）を再現する。paramSpecies で取得 param の種を上書きできる（mismatch 検証）。
+func newDoseSaveFixture(t *testing.T, calcType model.MedicineCalculationType, paramSpecies model.MedicineDoseSpecies) *doseSaveFixture {
+	t.Helper()
+	f := &doseSaveFixture{audit: &mockDoseAuditService{}}
+
+	medRepo := &mockMedicineRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
+			strength := 10.0
+			unit := model.MedicineUnitPerTablet
+			return &model.Medicine{
+				ID: 50, ClinicID: 1, Name: "テスト薬",
+				CalculationType: calcType, MedicineUnit: &unit, Strength: &strength,
+			}, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepoForTreatment{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			petID := uint64(7)
+			return &model.MedicalRecord{
+				Status: model.MedicalRecordStatusDraft,
+				PetID:  &petID,
+				Pet:    &model.Pet{AnimalSpecies: &model.AnimalSpecies{Name: "犬"}},
+			}, nil
+		},
+	}
+	vitalRepo := &mockVitalRepository{
+		listByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
+			w := 4.0
+			return []model.VitalRecord{
+				{ID: 11, Weight: &w, WeightUnit: model.BodyWeightUnitKg, RecordedAt: time.Date(2026, 6, 28, 9, 0, 0, 0, time.UTC)},
+			}, nil
+		},
+	}
+	paramRepo := &mockMedicineDoseParamRepository{
+		findByMedicineAndSpeciesFn: func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+			return &model.MedicineDoseParam{
+				ID: 1, ClinicID: 1, MedicineID: 50,
+				Species: paramSpecies, DoseBasis: model.MedicineDoseBasisPerAdministration,
+				DosePerKg: 5, MaxMgPerKg: fptr(5),
+			}, nil
+		},
+	}
+	treatRepo := &mockTreatmentRepository{
+		createFn: func(_ context.Context, tr *model.Treatment) error {
+			tr.ID = 99
+			f.created = tr
+			return nil
+		},
+	}
+
+	repos := &repository.Repositories{
+		Treatment:         treatRepo,
+		Medicine:          medRepo,
+		MedicalRecord:     mrRepo,
+		Vital:             vitalRepo,
+		MedicineDoseParam: paramRepo,
+		Inventory:         &mockInventoryRepository{},
+	}
+	repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
+		return fn(repos)
+	}
+	f.repos = repos
+	return f
+}
+
+func medicineCreateInput(qty float64) *CreateTreatmentInput {
+	medID := uint64(50)
+	actor := uint64(3)
+	return &CreateTreatmentInput{
+		ItemType:   model.TreatmentItemTypeMedicine,
+		MedicineID: &medID,
+		Quantity:   qty,
+		ActorID:    &actor,
+	}
+}
+
+func TestTreatmentService_Create_DoseRevalidation(t *testing.T) {
+	const clinicID = uint64(1)
+
+	t.Run("推奨どおり保存: スナップショット永続化・逸脱 audit なし", func(t *testing.T) {
+		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
+		svc := NewTreatmentServiceWithAudit(f.repos, f.audit)
+
+		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(2)) // computed=2錠
+		require.NoError(t, err)
+		require.NotNil(t, f.created)
+		require.NotNil(t, f.created.DoseAmountMg, "スナップショット dose_amount_mg が永続化されること")
+		assert.InDelta(t, 20.0, *f.created.DoseAmountMg, 1e-6)
+		require.NotNil(t, f.created.DoseWeightKg)
+		assert.InDelta(t, 4.0, *f.created.DoseWeightKg, 1e-6)
+		assert.NotEmpty(t, f.created.DoseParamSnapshot, "dose_param_snapshot(jsonb) が値で固定されること")
+		assert.Empty(t, f.audit.entries, "上限内・乖離なしでは逸脱 audit は発火しない")
+	})
+
+	t.Run("回帰: 範囲外 quantity で保存 → 逸脱 audit 記録（silent 過量保存の閉鎖）", func(t *testing.T) {
+		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
+		svc := NewTreatmentServiceWithAudit(f.repos, f.audit)
+
+		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(5)) // 5錠=50mg > cap 20mg
+		require.NoError(t, err, "上書きは拒否せず記録する")
+		require.NotNil(t, f.created.DoseAmountMg)
+		assert.InDelta(t, 50.0, *f.created.DoseAmountMg, 1e-6)
+		require.Len(t, f.audit.entries, 1, "逸脱は audit に1件記録される")
+		entry := f.audit.entries[0]
+		assert.Equal(t, model.AuditActionTreatmentDoseDeviation, entry.Action)
+		assert.Equal(t, model.AuditResourceTreatmentDose, entry.Resource)
+		require.NotNil(t, entry.ActorID)
+		assert.Equal(t, uint64(3), *entry.ActorID, "実施者が記録される")
+		assert.Equal(t, model.AuditActorTypeStaff, entry.ActorType)
+	})
+
+	t.Run("species 不一致は fail-closed（保存中止）", func(t *testing.T) {
+		// pet=犬 だが param が cat を返す → 防御アサートが発火し保存を中止する。
+		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesCat)
+		svc := NewTreatmentServiceWithAudit(f.repos, f.audit)
+
+		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(2))
+		require.Error(t, err, "species 不一致では保存してはならない")
+		assert.True(t, apperrors.IsConflict(err), "fail-closed は Conflict: %v", err)
+	})
+
+	t.Run("後方互換: calculation_type=none は再検証なし・スナップショットなし", func(t *testing.T) {
+		f := newDoseSaveFixture(t, model.MedicineCalculationTypeNone, model.MedicineDoseSpeciesDog)
+		svc := NewTreatmentServiceWithAudit(f.repos, f.audit)
+
+		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(7))
+		require.NoError(t, err)
+		require.NotNil(t, f.created)
+		assert.Nil(t, f.created.DoseAmountMg, "none では dose スナップショットを書かない")
+		assert.Empty(t, f.created.DoseParamSnapshot)
+		assert.Empty(t, f.audit.entries)
+	})
+}

@@ -15,12 +15,18 @@ import (
 
 // ---- MedicalRecord スタブ（BulkUpdateSortOrder テナント検証用）----
 
-type mockMedicalRecordRepoForTreatment struct{}
+type mockMedicalRecordRepoForTreatment struct {
+	// findByIDFn は任意フック（#201 B-2: pet species 解決テスト用）。nil なら既定の draft レコードを返す。
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+}
 
 func (m *mockMedicalRecordRepoForTreatment) FindAll(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockMedicalRecordRepoForTreatment) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+func (m *mockMedicalRecordRepoForTreatment) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
 	return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 }
 func (m *mockMedicalRecordRepoForTreatment) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
@@ -541,11 +547,15 @@ func TestTreatmentService_Update(t *testing.T) {
 					return tt.updateErr
 				},
 			}
-			svc := NewTreatmentService(&repository.Repositories{
+			updateRepos := &repository.Repositories{
 				Treatment:     repo,
 				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
 				Inventory:     &mockInventoryRepository{},
-			})
+			}
+			updateRepos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
+				return fn(updateRepos)
+			}
+			svc := NewTreatmentService(updateRepos)
 
 			treatment, err := svc.Update(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID, tt.input)
 

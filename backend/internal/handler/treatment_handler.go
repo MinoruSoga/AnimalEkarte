@@ -118,7 +118,9 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 		return
 	}
 
-	treatment, err := h.svc.Treatment.Create(c.Request.Context(), clinicID, medicalRecordID, req.toServiceInput())
+	createInput := req.toServiceInput()
+	createInput.ActorID = optionalStaffID(c) // #201 B-2: 逸脱 audit の実施者
+	treatment, err := h.svc.Treatment.Create(c.Request.Context(), clinicID, medicalRecordID, createInput)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -166,7 +168,9 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 		}
 	}
 
-	treatment, err := h.svc.Treatment.Update(c.Request.Context(), clinicID, medicalRecordID, treatmentID, req.toServiceInput())
+	updateInput := req.toServiceInput()
+	updateInput.ActorID = optionalStaffID(c) // #201 B-2: 逸脱 audit の実施者
+	treatment, err := h.svc.Treatment.Update(c.Request.Context(), clinicID, medicalRecordID, treatmentID, updateInput)
 	if err != nil {
 		RespondError(c, err)
 		return

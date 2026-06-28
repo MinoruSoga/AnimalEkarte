@@ -61,7 +61,9 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 		return
 	}
 
-	medicine, err := h.svc.Medicine.Create(c.Request.Context(), clinicID, req.toServiceInput())
+	createInput := req.toServiceInput()
+	createInput.ActorID = optionalStaffID(c) // #201 B-2: per_weight 有効化 audit の実施者
+	medicine, err := h.svc.Medicine.Create(c.Request.Context(), clinicID, createInput)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -87,7 +89,9 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 		return
 	}
 
-	medicine, err := h.svc.Medicine.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
+	updateInput := req.toServiceInput()
+	updateInput.ActorID = optionalStaffID(c) // #201 B-2: per_weight 有効化 audit の実施者
+	medicine, err := h.svc.Medicine.Update(c.Request.Context(), clinicID, id, updateInput)
 	if err != nil {
 		RespondError(c, err)
 		return
