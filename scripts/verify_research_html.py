@@ -391,7 +391,14 @@ def run(target: Path) -> int:
     html = target.read_text(encoding="utf-8")
     results = [check(html) for check in CHECKS]
 
-    print(f"verify_research_html: {target.relative_to(ROOT)}")
+    # Label relative to ROOT when the target lives inside the repo; fall back to
+    # the absolute path for an arbitrary out-of-tree target (the usage docstring
+    # allows any path, so relative_to must not raise here).
+    try:
+        label: Path = target.relative_to(ROOT)
+    except ValueError:
+        label = target
+    print(f"verify_research_html: {label}")
     for r in results:
         status = "PASS" if r.passed else "FAIL"
         print(f"  [{status}] {r.name}: {r.detail}")
