@@ -298,6 +298,23 @@ export const AuditActionBillingRefundCreate = "billing_refund.create";
  */
 export const AuditActionBillingCreditCorrection = "billing.credit_correction";
 /**
+ * #201 薬量自動計算 監査アクション
+ * dose パラメータ変更（作成/更新/削除）・per_weight 有効化・著しい逸脱上書き
+ */
+export const AuditActionMedicineDoseParamUpsert = "medicine_dose_param.upsert";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionMedicineDoseParamDelete = "medicine_dose_param.delete";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionMedicinePerWeightEnable = "medicine.per_weight.enable";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionTreatmentDoseDeviation = "treatment.dose.deviation";
+/**
  * lab import 監査アクション（Phase 4A）
  */
 export const AuditActionLabImportPreviewRequested = "lab_import.preview.requested";
@@ -321,6 +338,18 @@ export const AuditActionLabImportSourceBlocked = "lab_import.source.blocked";
  * audit_logs.resource 定数
  */
 export const AuditResourceLabImport = "lab_import";
+/**
+ * #201 薬量自動計算
+ */
+export const AuditResourceMedicineDoseParam = "medicine_dose_param";
+/**
+ * audit_logs.resource 定数
+ */
+export const AuditResourceMedicine = "medicine";
+/**
+ * audit_logs.resource 定数
+ */
+export const AuditResourceTreatmentDose = "treatment_dose";
 /**
  * LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
  * 許可された値のみを表す型。free-form string は使用不可。
@@ -1112,6 +1141,11 @@ export interface Examination {
   pet_id?: number /* uint64 */;
   exam_type_id: number /* uint64 */;
   doctor_id?: number /* uint64 */;
+  /**
+   * JobID は lab_import_jobs.id への nullable FK。手動作成の exam は NULL。
+   * ON DELETE SET NULL のため job 削除時も exam は保持される（Phase 4B.2）。
+   */
+  job_id?: any /* uuid.UUID */;
   date: string;
   result_summary: string;
   machine: string;
@@ -1615,6 +1649,76 @@ export interface LabImportCommitResponse {
 }
 
 //////////
+// source: lab_report.go
+
+/**
+ * LabReportFilter は LabReportQueryService のリスト/サマリクエリのフィルター入力。
+ * nil フィールドはフィルターなしを意味する。
+ * PII-safe: owner 情報・pet 名は含めない（ID のみ）。
+ */
+export interface LabReportFilter {
+  PetID?: number /* uint64 */;
+  ExamTypeID?: number /* uint64 */;
+  Status?: string;
+  StartDate?: string; // YYYY-MM-DD
+  EndDate?: string; // YYYY-MM-DD
+  IsAbnormal?: boolean; // true: is_abnormal=true の exam_result を持つ exam のみ
+}
+/**
+ * LabExamReportSummary は ListJobReportSummaries / ListExamReports の 1 件。
+ * result_summary は PHI 分類未確認のため除外する（Phase 4B.1 決定2）。
+ * owner 名・pet 名・raw 検査値は含めない。
+ */
+export interface LabExamReportSummary {
+  exam_id: number /* uint64 */;
+  clinic_id: string;
+  job_id?: any /* uuid.UUID */;
+  date: string;
+  exam_type_name: string;
+  status: string;
+  result_count: number /* int */;
+  abnormal_count: number /* int */;
+  machine: string;
+  created_at: string;
+}
+/**
+ * LabExamReportDetail は GetExamReport の詳細 DTO。
+ * result_summary は PHI 分類未確認のため omitempty NULL（Phase 4B.1 決定2）。
+ * owner 名・pet 名・raw デバイスペイロードは含めない。
+ */
+export interface LabExamReportDetail {
+  exam_id: number /* uint64 */;
+  clinic_id: string;
+  job_id?: any /* uuid.UUID */;
+  pet_id?: number /* uint64 */;
+  medical_record_id?: number /* uint64 */;
+  doctor_id?: number /* uint64 */;
+  date: string;
+  exam_type_name: string;
+  status: string;
+  machine: string;
+  items: LabExamResultItem[];
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * LabExamResultItem は LabExamReportDetail の検査結果 1 件。
+ * 定量値・定性値・参照値を含む。raw デバイスペイロードは含めない。
+ */
+export interface LabExamResultItem {
+  name: string;
+  inspection_value: string;
+  normal_value: string;
+  unit: string;
+  reference_value: string;
+  ref_min?: number /* float64 */;
+  ref_max?: number /* float64 */;
+  is_abnormal: boolean;
+  status: string;
+  sort_order: number /* int */;
+}
+
+//////////
 // source: line_customer.go
 
 export interface LineCustomer {
@@ -2085,12 +2189,74 @@ export interface Medicine {
   tax_rate: number /* float64 */;
   sort_order: number /* int */;
   is_non_insurance: boolean;
+  /**
+   * #201 投与量自動計算（製品軸パラメータ）。calculation_type=none（既定）で従来通り手動。
+   */
+  calculation_type: MedicineCalculationType;
+  strength?: number /* float64 */; // 製品含量 mg/単位。分母は medicine_unit で解釈
+  frequency_per_day?: number /* int */; // 1日投与回数（per_day 按分）
+  default_duration_days?: number /* int */; // 既定投与日数
   created_at: string;
   updated_at: string;
   /**
    * Relations
    */
   inventory?: InventoryItem;
+  dose_params?: MedicineDoseParam[]; // #201 種別計算パラメータ
+}
+
+//////////
+// source: medicine_dose_param.go
+
+/**
+ * MedicineCalculationType は投与量計算方式（#201）。
+ * none = 手動（既定・default-deny）/ per_weight = mg/kg 線形自動計算。
+ * 非線形（CRI/IU/濃度/BSA 等）は将来この ENUM を拡張して名前付き計算式を追加する。
+ * 自由入力式は不採用（任意コード実行・型非安全・式ミスの全患者波及）。
+ */
+export type MedicineCalculationType = string;
+export const MedicineCalculationTypeNone: MedicineCalculationType = "none";
+export const MedicineCalculationTypePerWeight: MedicineCalculationType = "per_weight";
+/**
+ * MedicineDoseBasis は dose_per_kg の基準。
+ * per_administration = 1回投与あたりの mg/kg / per_day = 1日あたりの mg/kg（1回量は frequency_per_day で按分）。
+ */
+export type MedicineDoseBasis = string;
+export const MedicineDoseBasisPerAdministration: MedicineDoseBasis = "per_administration";
+export const MedicineDoseBasisPerDay: MedicineDoseBasis = "per_day";
+/**
+ * MedicineRoundingMode は丸め方向。臨床ソースは丸め規則を定義しないため運用前提（NULL=丸めなし）。
+ */
+export type MedicineRoundingMode = string;
+export const MedicineRoundingModeUp: MedicineRoundingMode = "up";
+export const MedicineRoundingModeDown: MedicineRoundingMode = "down";
+export const MedicineRoundingModeNearest: MedicineRoundingMode = "nearest";
+/**
+ * MedicineDoseSpecies は計算対象の患者種。mg/kg は犬・猫で網羅的に異なり 'both' は持たない
+ * （vaccine_species と区別）。free-text animal_species から正規化し、マップ不能種は fail-closed。
+ */
+export type MedicineDoseSpecies = string;
+export const MedicineDoseSpeciesDog: MedicineDoseSpecies = "dog";
+export const MedicineDoseSpeciesCat: MedicineDoseSpecies = "cat";
+/**
+ * MedicineDoseParam は薬剤 × 種の体重あたり投与量パラメータ（#201 per_weight 自動計算用）。
+ * strength は製品軸（medicines）、dose_per_kg は種軸（この子テーブル）に分離する。
+ */
+export interface MedicineDoseParam {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */; // 親 medicines から非正規化（clinicScope 直適用）
+  medicine_id: number /* uint64 */;
+  species: MedicineDoseSpecies;
+  dose_basis: MedicineDoseBasis;
+  dose_per_kg: number /* float64 */; // mg/kg
+  min_mg_per_kg?: number /* float64 */; // 安全域下限
+  max_mg_per_kg?: number /* float64 */; // 体重連動上限
+  absolute_max_dose?: number /* float64 */; // 体重非依存 mg/head 上限
+  rounding_step?: number /* float64 */; // NULL=丸めなし
+  rounding_mode?: MedicineRoundingMode;
+  notes: string;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -2905,6 +3071,15 @@ export interface Treatment {
   discount_rate: number /* float64 */;
   discount_amount: number /* int64 */;
   sort_order: number /* int */;
+  /**
+   * #201 投与量自動計算の根拠スナップショット（medicine 明細のみ・per_weight 計算時に値で固定）。
+   * マスタの後変更・論理削除があっても当時の計算根拠を保全する（FK 非依存）。
+   */
+  dose_weight_kg?: number /* float64 */; // 使用体重（kg 正規化後）
+  dose_weight_source?: string; // 体重の出典（vital_records.id / 時刻 pin）
+  dose_amount_mg?: number /* float64 */; // 実効用量(mg)。安全域判定(C1)はこの丸め後の値
+  dose_amount_unit?: string; // 'mg' | 'ug'
+  dose_param_snapshot?: any /* json.RawMessage */; // species/dose_per_kg/strength/丸め設定/計算式版
   created_at: string;
   updated_at: string;
   /**
