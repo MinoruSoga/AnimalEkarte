@@ -38,7 +38,7 @@ jobs:
         # v1.3.0's bundle is self-contained (only Node builtins). Upgrade past v1.3.0 only
         # after confirming the new release re-bundles its dependencies. Resolve tag -> commit:
         #   git ls-remote https://github.com/affaan-m/agentshield.git refs/tags/<tag>^{}
-        uses: affaan-m/agentshield@0b5e1bc95a712285d6bf6289f67d6694de4cf8ef
+        uses: affaan-m/agentshield@9bbc007cf5afb562c324bbad4ce6c544420f49f6
         with:
           path: "."
           min-severity: "${{ github.event.inputs.min_severity || 'medium' }}"
