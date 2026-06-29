@@ -112,7 +112,7 @@ func (m *mockPermissionGroupRepositoryForClinic) FindAllGroupIDsByStaffID(ctx co
 	return m.getGroupIDsByStaffIDFn(ctx, staffID)
 }
 
-func (m *mockPermissionGroupRepositoryForClinic) UpdateStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
+func (m *mockPermissionGroupRepositoryForClinic) UpdateStaffGroups(ctx context.Context, _, staffID uint64, groupIDs []uint64) error {
 	if m.setStaffGroupsFn == nil {
 		return nil
 	}

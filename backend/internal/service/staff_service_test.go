@@ -233,7 +233,7 @@ func (m *mockPermissionGroupForStaff) FindAllEffectivePermissionsByStaffID(_ con
 func (m *mockPermissionGroupForStaff) FindAllGroupIDsByStaffID(_ context.Context, _ uint64) ([]uint64, error) {
 	return nil, nil
 }
-func (m *mockPermissionGroupForStaff) UpdateStaffGroups(_ context.Context, _ uint64, _ []uint64) error {
+func (m *mockPermissionGroupForStaff) UpdateStaffGroups(_ context.Context, _, _ uint64, _ []uint64) error {
 	return nil
 }
 
@@ -263,7 +263,7 @@ func (m *mockResStaffForStaff) FindAllExcludedReservationTypes(_ context.Context
 func (m *mockResStaffForStaff) FindAllExcludedReservationTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
 	return nil, nil
 }
-func (m *mockResStaffForStaff) UpdateExcludedReservationTypes(_ context.Context, _ uint64, _ []uint64) error {
+func (m *mockResStaffForStaff) UpdateExcludedReservationTypes(_ context.Context, _, _ uint64, _ []uint64) error {
 	return nil
 }
 func (m *mockResStaffForStaff) FindAllReservationCapabilities(_ context.Context, _, _ uint64) ([]model.StaffReservationCapability, error) {

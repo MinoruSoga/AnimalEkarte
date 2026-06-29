@@ -123,7 +123,7 @@ func (m *mockStaffService) GetPermissionGroupIDs(ctx context.Context, staffID ui
 	return nil, nil
 }
 
-func (m *mockStaffService) SetPermissionGroupIDs(ctx context.Context, staffID uint64, groupIDs []uint64) error {
+func (m *mockStaffService) SetPermissionGroupIDs(ctx context.Context, _, staffID uint64, groupIDs []uint64) error {
 	if m.setPermissionGroupIDsFn != nil {
 		return m.setPermissionGroupIDsFn(ctx, staffID, groupIDs)
 	}
@@ -137,7 +137,7 @@ func (m *mockStaffService) GetExcludedReservationTypeIDs(ctx context.Context, st
 	return nil, nil
 }
 
-func (m *mockStaffService) SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error {
+func (m *mockStaffService) SetExcludedReservationTypeIDs(ctx context.Context, _, staffID uint64, typeIDs []uint64) error {
 	if m.setExcludedReservationTypesFn != nil {
 		return m.setExcludedReservationTypesFn(ctx, staffID, typeIDs)
 	}

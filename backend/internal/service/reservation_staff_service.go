@@ -128,7 +128,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 			return apperrors.Wrap(err, "failed to create reservation staff")
 		}
 		if len(input.ExcludedTypeIDs) > 0 {
-			if err := s.repo.UpdateExcludedReservationTypes(txCtx, staff.ID, input.ExcludedTypeIDs); err != nil {
+			if err := s.repo.UpdateExcludedReservationTypes(txCtx, clinicID, staff.ID, input.ExcludedTypeIDs); err != nil {
 				slog.ErrorContext(txCtx, "failed to set excluded courses", "error", err)
 				return apperrors.Wrap(err, "failed to set excluded courses")
 			}
@@ -163,7 +163,7 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 		}
 	}
 	if input.ExcludedTypeIDs != nil {
-		if err := s.repo.UpdateExcludedReservationTypes(ctx, id, *input.ExcludedTypeIDs); err != nil {
+		if err := s.repo.UpdateExcludedReservationTypes(ctx, clinicID, id, *input.ExcludedTypeIDs); err != nil {
 			slog.ErrorContext(ctx, "failed to update excluded courses", "error", err, "id", id, "clinic_id", clinicID)
 			return nil, nil, apperrors.Wrap(err, "failed to update excluded courses")
 		}

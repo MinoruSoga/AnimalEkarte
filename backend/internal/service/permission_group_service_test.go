@@ -60,7 +60,7 @@ func (m *mockPermissionGroupRepository) FindAllGroupIDsByStaffID(ctx context.Con
 	}
 	return nil, nil
 }
-func (m *mockPermissionGroupRepository) UpdateStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
+func (m *mockPermissionGroupRepository) UpdateStaffGroups(ctx context.Context, _, staffID uint64, groupIDs []uint64) error {
 	if m.setStaffGroupsFn != nil {
 		return m.setStaffGroupsFn(ctx, staffID, groupIDs)
 	}

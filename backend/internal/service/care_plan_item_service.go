@@ -94,12 +94,13 @@ type CarePlanItemService interface {
 }
 
 type carePlanItemService struct {
-	repo repository.CarePlanItemRepository
+	repo     repository.CarePlanItemRepository
+	hospRepo repository.HospitalizationRepository
 }
 
 // NewCarePlanItemService は CarePlanItemService を初期化して返す
-func NewCarePlanItemService(repo repository.CarePlanItemRepository) CarePlanItemService {
-	return &carePlanItemService{repo: repo}
+func NewCarePlanItemService(repo repository.CarePlanItemRepository, hospRepo repository.HospitalizationRepository) CarePlanItemService {
+	return &carePlanItemService{repo: repo, hospRepo: hospRepo}
 }
 
 func (s *carePlanItemService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
@@ -124,6 +125,14 @@ func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizat
 			return nil, apperrors.Wrap(err, "failed to validate care plan status")
 		}
 		status = planStatus
+	}
+
+	// テナント所有権検証（クロステナント write 防止）。
+	// care_plan_items は自前 clinic_id を持たず hospitalizations 経由で隔離するため、
+	// 親入院の所有権を Create でも明示検証する（repo.Create は clinicScope できない）。
+	if _, err := s.hospRepo.FindByID(ctx, clinicID, hospitalizationID); err != nil {
+		slog.ErrorContext(ctx, "failed to verify hospitalization ownership", "error", err)
+		return nil, apperrors.Wrap(err, "failed to verify hospitalization ownership")
 	}
 
 	item := &model.CarePlanItem{

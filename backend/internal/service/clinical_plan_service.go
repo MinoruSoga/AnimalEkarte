@@ -54,12 +54,13 @@ type ClinicalPlanService interface {
 }
 
 type clinicalPlanService struct {
-	repo repository.ClinicalPlanRepository
+	repo   repository.ClinicalPlanRepository
+	medRec repository.MedicalRecordRepository
 }
 
 // NewClinicalPlanService はClinicalPlanServiceを初期化して返す
-func NewClinicalPlanService(repo repository.ClinicalPlanRepository) ClinicalPlanService {
-	return &clinicalPlanService{repo: repo}
+func NewClinicalPlanService(repo repository.ClinicalPlanRepository, medRec repository.MedicalRecordRepository) ClinicalPlanService {
+	return &clinicalPlanService{repo: repo, medRec: medRec}
 }
 
 func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
@@ -68,6 +69,15 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medical
 		if !apperrors.IsNotFound(err) {
 			slog.ErrorContext(ctx, "failed to get clinical plan", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get clinical plan")
+		}
+		// テナント所有権検証（クロステナント write 防止）。
+		// clinical_plans は自前 clinic_id を持たず medical_records 経由で隔離するため、
+		// 自動作成前に親カルテの所有権を明示検証する（NotFound 分岐は越境ケースと重なる）。
+		if _, ownerErr := s.medRec.FindByID(ctx, clinicID, medicalRecordID); ownerErr != nil {
+			if !apperrors.IsNotFound(ownerErr) {
+				slog.ErrorContext(ctx, "failed to verify parent medical record", "error", ownerErr)
+			}
+			return nil, apperrors.Wrap(ownerErr, "failed to verify parent medical record")
 		}
 		// 存在しない場合は空レコードを自動作成
 		plan = &model.ClinicalPlan{

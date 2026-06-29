@@ -23,7 +23,7 @@ type ReservationStaffRepository interface {
 	// ExcludedReservationTypes
 	FindAllExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
-	UpdateExcludedReservationTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error
+	UpdateExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64, courseIDs []uint64) error
 	// ReservationCapabilities
 	FindAllReservationCapabilities(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error)
 	FindAllReservationCapabilitiesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error)
@@ -200,7 +200,23 @@ func (r *reservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(c
 }
 
 // UpdateExcludedReservationTypes は staffID の除外コースを courseIDs で完全置換する（差分更新）
-func (r *reservationStaffRepository) UpdateExcludedReservationTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error {
+func (r *reservationStaffRepository) UpdateExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64, courseIDs []uint64) error {
+	// テナント越境 write 防止: 除外対象の予約区分IDが呼び出し元クリニックに属することを検証する。
+	// staff_reservation_exclusions は自前 clinic_id を持たないため、ここで型IDの所有権を
+	// 確認しなければ別クリニックの予約区分IDを書き込めてしまう（UpdateReservationCapabilities と対称）。
+	// スタッフ所有権は呼び出し側（service/handler）で検証済み。検証は DELETE 前に行い部分書き込みを防ぐ。
+	if len(courseIDs) > 0 {
+		var count int64
+		if err := r.db.WithContext(ctx).
+			Model(&model.ReservationType{}).
+			Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, courseIDs).
+			Count(&count).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_type", "")
+		}
+		if count != int64(len(courseIDs)) {
+			return apperrors.WrapInvalidInput("reservation_type_ids contains invalid reservation type")
+		}
+	}
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存を全削除
 		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffReservationExclusion{}).Error; err != nil {

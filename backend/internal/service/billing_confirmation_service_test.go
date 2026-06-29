@@ -31,6 +31,15 @@ func (m *mockBillingConfirmationRepository) Update(ctx context.Context, clinicID
 	return m.updateFn(ctx, clinicID, reviewID, fields)
 }
 
+// okMedRecForBilling は親カルテの所有権検証が成功する（同一クリニック）モックを返す。
+func okMedRecForBilling() *mockMedicalRecordRepository {
+	return &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{}, nil
+		},
+	}
+}
+
 // ---- Tests ----
 
 func TestBillingConfirmationService_GetOrCreate(t *testing.T) {
@@ -95,7 +104,7 @@ func TestBillingConfirmationService_GetOrCreate(t *testing.T) {
 					return tt.createErr
 				},
 			}
-			svc := NewBillingConfirmationService(repo)
+			svc := NewBillingConfirmationService(repo, okMedRecForBilling())
 
 			review, err := svc.GetOrCreate(context.Background(), 1, tt.medicalRecordID)
 
@@ -193,7 +202,7 @@ func TestBillingConfirmationService_Confirm(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewBillingConfirmationService(repo)
+			svc := NewBillingConfirmationService(repo, okMedRecForBilling())
 
 			review, err := svc.Confirm(context.Background(), 1, tt.medicalRecordID, tt.input)
 
@@ -278,7 +287,7 @@ func TestBillingConfirmationService_Return(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewBillingConfirmationService(repo)
+			svc := NewBillingConfirmationService(repo, okMedRecForBilling())
 
 			review, err := svc.Return(context.Background(), 1, tt.medicalRecordID, tt.input)
 
@@ -290,4 +299,41 @@ func TestBillingConfirmationService_Return(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestBillingConfirmationService_GetOrCreate_CrossTenantParentRejected は
+// clinic A の呼び出しが clinic B のカルテを参照する自動作成（GetOrCreate）を拒否し、
+// billing_confirmation（自前 clinic_id を持たない）が clinic B のカルテ配下に
+// 永続化されない（repo.Create が呼ばれない）ことを検証する。
+// 親所有権検証（medRec.FindByID(clinicID, medRecID)）を削除すると必ず失敗する回帰テスト。
+func TestBillingConfirmationService_GetOrCreate_CrossTenantParentRejected(t *testing.T) {
+	const (
+		clinicA     = uint64(1)
+		clinicBMRID = uint64(99) // clinic B のカルテ ID（clinic A は所有しない）
+	)
+	createCalled := false
+	repo := &mockBillingConfirmationRepository{
+		// clinic A のスコープでは clinic B のカルテの確認は見えない → NotFound（作成分岐へ）。
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+			return nil, apperrors.WrapNotFound("billing_confirmation", "99")
+		},
+		createFn: func(_ context.Context, _ *model.BillingConfirmation) error {
+			createCalled = true
+			return nil
+		},
+	}
+	// 親カルテも clinic A の所有ではない → NotFound（クロステナント）。
+	medRec := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return nil, apperrors.WrapNotFound("medical_record", "99")
+		},
+	}
+	svc := NewBillingConfirmationService(repo, medRec)
+
+	review, err := svc.GetOrCreate(context.Background(), clinicA, clinicBMRID)
+
+	assert.Error(t, err, "clinic A から clinic B のカルテへの billing_confirmation 自動作成は拒否されるべき")
+	assert.True(t, apperrors.IsNotFound(err), "拒否は NotFound(404) にマップされるべき: %v", err)
+	assert.Nil(t, review)
+	assert.False(t, createCalled, "親カルテ所有権検証に失敗した場合、billing_confirmation を永続化してはならない")
 }

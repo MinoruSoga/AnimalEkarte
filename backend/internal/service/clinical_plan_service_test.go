@@ -36,6 +36,15 @@ func (m *mockClinicalPlanRepository) Delete(ctx context.Context, clinicID, planI
 	return m.deleteFn(ctx, clinicID, planID)
 }
 
+// okMedRecForPlan は親カルテの所有権検証が成功する（同一クリニック）モックを返す。
+func okMedRecForPlan() *mockMedicalRecordRepository {
+	return &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{}, nil
+		},
+	}
+}
+
 // ---- Tests ----
 
 func TestClinicalPlanService_GetOrCreate(t *testing.T) {
@@ -106,7 +115,7 @@ func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 					return tt.repoCreatErr
 				},
 			}
-			svc := NewClinicalPlanService(repo)
+			svc := NewClinicalPlanService(repo, okMedRecForPlan())
 
 			plan, err := svc.GetOrCreate(context.Background(), 1, tt.medicalRecordID)
 
@@ -234,7 +243,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewClinicalPlanService(repo)
+			svc := NewClinicalPlanService(repo, okMedRecForPlan())
 
 			plan, err := svc.Update(context.Background(), 1, tt.medicalRecordID, tt.input)
 
@@ -299,7 +308,7 @@ func TestClinicalPlanService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewClinicalPlanService(repo)
+			svc := NewClinicalPlanService(repo, okMedRecForPlan())
 
 			err := svc.Delete(context.Background(), 1, tt.medicalRecordID)
 
@@ -310,4 +319,41 @@ func TestClinicalPlanService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestClinicalPlanService_GetOrCreate_CrossTenantParentRejected は
+// clinic A の呼び出しが clinic B のカルテを参照する自動作成（GetOrCreate）を拒否し、
+// clinical_plan（自前 clinic_id を持たない）が clinic B のカルテ配下に
+// 永続化されない（repo.Create が呼ばれない）ことを検証する。
+// 親所有権検証（medRec.FindByID(clinicID, medRecID)）を削除すると必ず失敗する回帰テスト。
+func TestClinicalPlanService_GetOrCreate_CrossTenantParentRejected(t *testing.T) {
+	const (
+		clinicA     = uint64(1)
+		clinicBMRID = uint64(99) // clinic B のカルテ ID（clinic A は所有しない）
+	)
+	createCalled := false
+	repo := &mockClinicalPlanRepository{
+		// clinic A のスコープでは clinic B のカルテのプランは見えない → NotFound（作成分岐へ）。
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return nil, apperrors.WrapNotFound("clinical_plan", "99")
+		},
+		createFn: func(_ context.Context, _ *model.ClinicalPlan) error {
+			createCalled = true
+			return nil
+		},
+	}
+	// 親カルテも clinic A の所有ではない → NotFound（クロステナント）。
+	medRec := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return nil, apperrors.WrapNotFound("medical_record", "99")
+		},
+	}
+	svc := NewClinicalPlanService(repo, medRec)
+
+	plan, err := svc.GetOrCreate(context.Background(), clinicA, clinicBMRID)
+
+	assert.Error(t, err, "clinic A から clinic B のカルテへの clinical_plan 自動作成は拒否されるべき")
+	assert.True(t, apperrors.IsNotFound(err), "拒否は NotFound(404) にマップされるべき: %v", err)
+	assert.Nil(t, plan)
+	assert.False(t, createCalled, "親カルテ所有権検証に失敗した場合、clinical_plan を永続化してはならない")
 }

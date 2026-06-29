@@ -130,7 +130,7 @@ func (m *mockLiffStaffRepository) FindAllExcludedReservationTypesByStaffIDs(ctx 
 	return nil, nil
 }
 
-func (m *mockLiffStaffRepository) UpdateExcludedReservationTypes(_ context.Context, _ uint64, _ []uint64) error {
+func (m *mockLiffStaffRepository) UpdateExcludedReservationTypes(_ context.Context, _, _ uint64, _ []uint64) error {
 	return nil
 }
 

@@ -183,7 +183,7 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 	if req.GroupIDs == nil {
 		req.GroupIDs = []uint64{}
 	}
-	if err := h.svc.Staff.SetPermissionGroupIDs(c.Request.Context(), id, req.GroupIDs); err != nil {
+	if err := h.svc.Staff.SetPermissionGroupIDs(c.Request.Context(), clinicID, id, req.GroupIDs); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -291,7 +291,7 @@ func (h *Handler) SetStaffExcludedReservationTypes(c *gin.Context) {
 	if req.ReservationTypeIDs == nil {
 		req.ReservationTypeIDs = []uint64{}
 	}
-	if err := h.svc.Staff.SetExcludedReservationTypeIDs(c.Request.Context(), id, req.ReservationTypeIDs); err != nil {
+	if err := h.svc.Staff.SetExcludedReservationTypeIDs(c.Request.Context(), clinicID, id, req.ReservationTypeIDs); err != nil {
 		RespondError(c, err)
 		return
 	}

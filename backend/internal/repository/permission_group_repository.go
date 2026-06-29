@@ -28,7 +28,7 @@ type PermissionGroupRepository interface {
 	// FindAllGroupIDsByStaffID はスタッフが所属する権限グループIDリストを返す。
 	FindAllGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error)
 	// UpdateStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
-	UpdateStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error
+	UpdateStaffGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error
 }
 
 type permissionGroupRepository struct{ db *gorm.DB }
@@ -192,7 +192,23 @@ func (r *permissionGroupRepository) FindAllGroupIDsByStaffID(ctx context.Context
 }
 
 // UpdateStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
-func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
+func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error {
+	// テナント越境 write 防止: 紐付け対象の権限グループIDが呼び出し元クリニックに属することを検証する。
+	// staff_permission_groups は自前 clinic_id を持たないため、ここで group_id の所有権を
+	// 確認しなければ別クリニックの権限グループIDを紐付けできてしまう（横断テナント書き換え）。
+	// スタッフ所有権は呼び出し側（handler verifyStaffClinicMembership）で検証済み。検証は DELETE 前に行い部分書き込みを防ぐ。
+	if len(groupIDs) > 0 {
+		var count int64
+		if err := r.db.WithContext(ctx).
+			Model(&model.PermissionGroup{}).
+			Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, groupIDs).
+			Count(&count).Error; err != nil {
+			return apperrors.FromGORM(err, "permission_group", "")
+		}
+		if count != int64(len(groupIDs)) {
+			return apperrors.WrapInvalidInput("group_ids contains invalid permission group")
+		}
+	}
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存の紐付けを全削除
 		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffPermissionGroup{}).Error; err != nil {

@@ -31,12 +31,13 @@ type BillingConfirmationService interface {
 }
 
 type billingConfirmationService struct {
-	repo repository.BillingConfirmationRepository
+	repo   repository.BillingConfirmationRepository
+	medRec repository.MedicalRecordRepository
 }
 
 // NewBillingConfirmationService はBillingConfirmationServiceを初期化して返す
-func NewBillingConfirmationService(repo repository.BillingConfirmationRepository) BillingConfirmationService {
-	return &billingConfirmationService{repo: repo}
+func NewBillingConfirmationService(repo repository.BillingConfirmationRepository, medRec repository.MedicalRecordRepository) BillingConfirmationService {
+	return &billingConfirmationService{repo: repo, medRec: medRec}
 }
 
 func (s *billingConfirmationService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
@@ -45,6 +46,15 @@ func (s *billingConfirmationService) GetOrCreate(ctx context.Context, clinicID, 
 		if !apperrors.IsNotFound(err) {
 			slog.ErrorContext(ctx, "failed to get billing review", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get billing review")
+		}
+		// テナント所有権検証（クロステナント write 防止）。
+		// billing_confirmations は自前 clinic_id を持たず medical_records 経由で隔離するため、
+		// 自動作成前に親カルテの所有権を明示検証する（NotFound 分岐は越境ケースと重なる）。
+		if _, ownerErr := s.medRec.FindByID(ctx, clinicID, medicalRecordID); ownerErr != nil {
+			if !apperrors.IsNotFound(ownerErr) {
+				slog.ErrorContext(ctx, "failed to verify parent medical record", "error", ownerErr)
+			}
+			return nil, apperrors.Wrap(ownerErr, "failed to verify parent medical record")
 		}
 		// 存在しない場合はpendingで新規作成
 		review = &model.BillingConfirmation{

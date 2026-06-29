@@ -22,7 +22,7 @@ type mockReservationStaffRepository struct {
 	swapSortOrderFn                        func(ctx context.Context, clinicID, id uint64, direction string) error
 	findExcludedReservationTypesFn         func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	findExcludedReservationTypesByStaffIDs func(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
-	replaceExcludedReservationTypesFn      func(ctx context.Context, staffID uint64, courseIDs []uint64) error
+	replaceExcludedReservationTypesFn      func(ctx context.Context, clinicID, staffID uint64, courseIDs []uint64) error
 	findCapabilitiesFn                     func(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error)
 	findCapabilitiesByStaffIDsFn           func(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error)
 	replaceCapabilitiesFn                  func(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error
@@ -80,9 +80,9 @@ func (m *mockReservationStaffRepository) FindAllExcludedReservationTypesByStaffI
 	return []model.StaffReservationExclusion{}, nil
 }
 
-func (m *mockReservationStaffRepository) UpdateExcludedReservationTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error {
+func (m *mockReservationStaffRepository) UpdateExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64, courseIDs []uint64) error {
 	if m.replaceExcludedReservationTypesFn != nil {
-		return m.replaceExcludedReservationTypesFn(ctx, staffID, courseIDs)
+		return m.replaceExcludedReservationTypesFn(ctx, clinicID, staffID, courseIDs)
 	}
 	return nil
 }
