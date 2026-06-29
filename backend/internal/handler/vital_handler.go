@@ -31,10 +31,7 @@ func (h *Handler) ListVitals(c *gin.Context) {
 		return
 	}
 
-	items := make([]vitalResponse, 0, len(vitals))
-	for i := range vitals {
-		items = append(items, toVitalResponse(&vitals[i]))
-	}
+	items := mapSlice(vitals, toVitalResponse)
 	c.JSON(http.StatusOK, items)
 }
 

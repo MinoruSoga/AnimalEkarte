@@ -44,10 +44,7 @@ func (h *Handler) ListMedicalRecordImages(c *gin.Context) {
 		return
 	}
 
-	items := make([]medicalRecordImageResponse, 0, len(images))
-	for i := range images {
-		items = append(items, toMedicalRecordImageResponse(&images[i]))
-	}
+	items := mapSlice(images, toMedicalRecordImageResponse)
 	c.JSON(http.StatusOK, items)
 }
 

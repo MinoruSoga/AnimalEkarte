@@ -105,9 +105,6 @@ type examItemsResponse struct {
 }
 
 func toExamItemsResponse(items []model.ExamResult) examItemsResponse {
-	out := make([]examResultResponse, 0, len(items))
-	for i := range items {
-		out = append(out, toExamResultResponse(&items[i]))
-	}
+	out := mapSlice(items, toExamResultResponse)
 	return examItemsResponse{Items: out}
 }

@@ -29,10 +29,7 @@ func (h *Handler) ListDailyRecords(c *gin.Context) {
 		return
 	}
 
-	items := make([]dailyRecordResponse, 0, len(records))
-	for i := range records {
-		items = append(items, toDailyRecordResponse(&records[i]))
-	}
+	items := mapSlice(records, toDailyRecordResponse)
 	c.JSON(http.StatusOK, items)
 }
 

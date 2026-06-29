@@ -42,10 +42,7 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	responses := make([]trimmingResponse, 0, len(appts))
-	for i := range appts {
-		responses = append(responses, toTrimmingResponse(&appts[i]))
-	}
+	responses := mapSlice(appts, toTrimmingResponse)
 	c.JSON(http.StatusOK, newPaginatedResponse(responses, total, page, limit))
 }
 

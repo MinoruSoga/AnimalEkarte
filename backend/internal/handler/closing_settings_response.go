@@ -51,10 +51,7 @@ type closingSettingsFullResponse struct {
 }
 
 func toClosingSettingsFullResponse(s *model.ClinicSettings, periods []model.ClosingSpecialPeriod) closingSettingsFullResponse {
-	sp := make([]closingSpecialPeriodResponse, 0, len(periods))
-	for i := range periods {
-		sp = append(sp, toClosingSpecialPeriodResponse(&periods[i]))
-	}
+	sp := mapSlice(periods, toClosingSpecialPeriodResponse)
 	return closingSettingsFullResponse{
 		Settings:       toClinicSettingsResponse(s),
 		SpecialPeriods: sp,

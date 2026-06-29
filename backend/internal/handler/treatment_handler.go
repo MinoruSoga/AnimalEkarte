@@ -28,10 +28,7 @@ func (h *Handler) ListTreatments(c *gin.Context) {
 		return
 	}
 
-	items := make([]treatmentResponse, 0, len(treatments))
-	for i := range treatments {
-		items = append(items, toTreatmentResponse(&treatments[i]))
-	}
+	items := mapSlice(treatments, toTreatmentResponse)
 	c.JSON(http.StatusOK, items)
 }
 

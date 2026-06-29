@@ -27,10 +27,7 @@ func (h *Handler) ListTreatmentPlansByMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	items := make([]treatmentPlanResponse, 0, len(plans))
-	for i := range plans {
-		items = append(items, toTreatmentPlanResponse(&plans[i]))
-	}
+	items := mapSlice(plans, toTreatmentPlanResponse)
 	c.JSON(http.StatusOK, items)
 }
 
@@ -87,10 +84,7 @@ func (h *Handler) ListTreatmentPlansByHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	items := make([]treatmentPlanResponse, 0, len(plans))
-	for i := range plans {
-		items = append(items, toTreatmentPlanResponse(&plans[i]))
-	}
+	items := mapSlice(plans, toTreatmentPlanResponse)
 	c.JSON(http.StatusOK, items)
 }
 

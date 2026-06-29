@@ -26,10 +26,7 @@ func (h *Handler) ListReservationSchedules(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	list := make([]scheduleEntryResponse, 0, len(entries))
-	for i := range entries {
-		list = append(list, toScheduleEntryResponse(&entries[i]))
-	}
+	list := mapSlice(entries, toScheduleEntryResponse)
 	c.JSON(http.StatusOK, list)
 }
 
