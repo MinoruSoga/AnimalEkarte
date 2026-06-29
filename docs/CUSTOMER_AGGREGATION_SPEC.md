@@ -27,6 +27,8 @@
 - **疎遠**: 120 日〜 180 日経過。
 - **休眠**: 240 日以上経過。
 
+> **閾値の出典・注記**: これらの境界日数は **clinic 単位で設定変更可能**(`backend/internal/model/cpm_v1_thresholds.go` の `CPMV1Thresholds.WithDefaults`)。デフォルト定数は `DefaultCPMV1SpotInactiveDays = 90`(アクティブ境界)、`DefaultCPMV1DormantDays = 240`(休眠境界)であり、上記「90」「240」はこのデフォルトに対応する。「疎遠 120〜180」は両境界の中間帯で、正確な区切りは clinic 設定および CPM ステージ判定ロジックに依存する(単一の固定定数ではない)。
+
 ---
 
 ## 3. 画面構成と機能

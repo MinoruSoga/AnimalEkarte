@@ -50,6 +50,6 @@
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
 | GET | `/api/v1/accountings` | 条件に応じた会計一覧の取得。 |
-| DELETE | `/api/v1/accountings/:id` | 特定の会計レコードの論理削除（キャンセル処理）。 |
+| POST | `/api/v1/accountings/:id/cancel` | 特定の会計レコードの論理削除（キャンセル処理。#118 で旧 `DELETE /:id` から変更）。 |
 
 ---

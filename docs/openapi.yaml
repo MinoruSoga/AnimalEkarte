@@ -1629,7 +1629,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/MedicalRecord' }
 
-  /api/v1/appointments:
+  /api/v1/reservations:
     parameters:
       - $ref: '#/components/parameters/XClinicIDHeader'
     get:
@@ -2481,8 +2481,8 @@ components:
       properties:
         id: { type: integer }
         clinic_id: { type: integer }
-        name: { type: string }
-        name_kana: { type: string }
+        owner_name: { type: string }
+        owner_name_kana: { type: string }
         birth_date: { type: string, format: date, nullable: true }
         company: { type: string }
         postal_code: { type: string }
@@ -2498,26 +2498,28 @@ components:
         is_dangerous: { type: boolean }
         discount_rate: { type: number, format: float }
         membership_type: { type: string, enum: [non_member, member, deceased, transferred] }
-        line_user_id: { type: string, nullable: true }
-        lstep_opt_out: { type: boolean }
-        lstep_opt_out_at: { type: string, format: date-time, nullable: true }
-        lstep_opt_out_reason: { type: string, nullable: true }
-        line_followed_at: { type: string, format: date-time, nullable: true }
-        line_blocked_at: { type: string, format: date-time, nullable: true }
+        line_id_confirmed_at: { type: string, format: date-time, nullable: true }
+        line_id_confirmed_by: { type: integer, nullable: true }
+        delivery_excluded: { type: boolean }
+        delivery_excluded_reason: { type: string, nullable: true }
+        delivery_caution: { type: boolean }
+        delivery_caution_reason: { type: string, nullable: true }
+        is_transferred: { type: boolean }
+        transfer_at: { type: string, format: date-time, nullable: true }
+        dm_preference: { type: boolean, nullable: true }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
-        deleted_at: { type: string, format: date-time, nullable: true }
         pets:
           type: array
           items: { $ref: '#/components/schemas/Pet' }
 
     OwnerInput:
       type: object
-      required: [name]
+      required: [owner_name]
       properties:
         clinic_id: { type: integer }
-        name: { type: string }
-        name_kana: { type: string }
+        owner_name: { type: string }
+        owner_name_kana: { type: string }
         birth_date: { type: string, format: date, nullable: true }
         company: { type: string }
         postal_code: { type: string }
@@ -2533,8 +2535,11 @@ components:
         is_dangerous: { type: boolean }
         discount_rate: { type: number, format: float }
         membership_type: { type: string, enum: [non_member, member, deceased, transferred] }
-        line_user_id: { type: string, nullable: true }
-        lstep_opt_out: { type: boolean }
+        dm_preference: { type: boolean, nullable: true }
+        pets:
+          type: array
+          description: 飼主と同時に作成するペット(原子的作成)。各要素はペット作成フィールド。
+          items: { type: object }
 
     Pet:
       type: object
@@ -2574,8 +2579,8 @@ components:
         clinic_id: { type: integer }
         start_time: { type: string, format: date-time }
         end_time: { type: string, format: date-time }
-        owner_id: { type: integer }
-        pet_id: { type: integer }
+        owner_id: { type: integer, nullable: true }
+        pet_id: { type: integer, nullable: true }
         visit_type: { type: string, enum: [first, revisit] }
         reservation_type_id: { type: integer }
         doctor_id: { type: integer, nullable: true }
@@ -2587,9 +2592,15 @@ components:
         is_staff_delegated: { type: boolean }
         customer_fields: { type: object }
         line_customer_id: { type: integer, nullable: true }
+        reservation_route: { type: string, nullable: true }
+        actual_reservation_at: { type: string, format: date-time, nullable: true }
+        owner: { type: object, nullable: true, description: '飼主サマリ(id, name)。Preload 時のみ。' }
+        pet: { type: object, nullable: true, description: 'ペットサマリ。Preload 時のみ。' }
+        reservation_type: { type: object, nullable: true, description: '予約区分。Preload 時のみ。' }
+        doctor: { type: object, nullable: true, description: '担当医サマリ(id, name)。Preload 時のみ。' }
+        created_by_staff: { type: object, nullable: true, description: '作成スタッフサマリ(id, name)。Preload 時のみ。' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
-        deleted_at: { type: string, format: date-time, nullable: true }
 
     MedicalRecord:
       type: object

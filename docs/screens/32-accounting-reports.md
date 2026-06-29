@@ -46,6 +46,6 @@
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
 | GET | `/api/v1/reports/monthly` | 指定年月の集計データの取得。 |
-| GET | `/api/v1/reports/monthly/export` | 集計データの CSV 出力。 |
+| GET | `/api/v1/reports/monthly/csv` | 集計データの CSV 出力。 |
 
 ---

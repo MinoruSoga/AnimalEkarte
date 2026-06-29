@@ -54,6 +54,7 @@
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
 | GET | `/api/v1/masters/permission-groups` | 権限定義の一覧取得。 |
-| PATCH | `/api/v1/masters/permission-groups/:id` | 権限マトリックスの更新。 |
+| PATCH | `/api/v1/masters/permission-groups/:id` | グループ名・説明・カラー等メタデータの更新。 |
+| PUT | `/api/v1/masters/permission-groups/:id/rules` | 権限マトリックス（ルール）の更新。 |
 
 ---

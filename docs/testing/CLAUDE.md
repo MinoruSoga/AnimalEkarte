@@ -10,7 +10,7 @@
 - **`E2E_TESTING_GUIDE.md`**: Playwright を使用した、実際の業務フローに基づく自動検証の手順。
 - **`SECTION_14_MANUAL_TEST_GUIDE.md`**: ブラウザを使用した詳細な手動検証のチェックリスト。
 - **`PERFORMANCE_PROFILING.md`**: レスポンスタイム目標と、ボトルネック特定のプロファイリング手法。
-- **`HANDLER_TEST_DOCUMENTATION_STATUS.md`**: 全 31 バックエンドハンドラーのテストカバレッジ状況。
+- **`HANDLER_TEST_DOCUMENTATION_STATUS.md`**: バックエンドハンドラー（`backend/internal/handler/*_handler.go`・88 ファイル）のテストカバレッジ状況。
 
 ---
 

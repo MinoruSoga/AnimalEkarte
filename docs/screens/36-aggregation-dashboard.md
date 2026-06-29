@@ -52,6 +52,6 @@ LTV や最終来院日でソート可能な詳細リスト。
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|
 | GET | `/api/v1/clinics/:clinic_id/owners/aggregations` | 統計サマリおよびランキングの取得。 |
-| GET | `/api/v1/clinics/:clinic_id/owners/aggregations/charts` | ステージ分布グラフ用データの取得。 |
+| GET | `/api/v1/clinics/:clinic_id/owners/aggregations?cpm_stage=<stage>` | CPM ステージ分布。専用 `/charts` エンドポイントは無く、`cpm_stage` を指定した同一エンドポイントをステージ数分並列取得してグラフ化する。 |
 
 ---
