@@ -18,8 +18,7 @@ LIFF アプリ内の主要な 4 つのフェーズを個別に編集可能です
 
 ### 2. コンテンツ編集エリア
 - **見出し (`header_text`)**: 各画面の最上部に強調表示されるテキスト。
-- **案内文 (`body_text`)**: 飼い主へ詳しく伝えるための詳細文。
-- **注釈 (`footer_text`)**: 免責事項や緊急連絡先。
+- **案内・注釈文**: 飼い主向けの本文・注釈は `reservation_notice`（予約時の案内）、`cancel_notice`（キャンセル規定）、`privacy_policy`（免責・プライバシー）、`request_example`（入力例）の各フィールドで編集する。`body_text` / `footer_text` という単一フィールドは存在しない（`line_reservation_settings` 実装基準）。
 
 ---
 

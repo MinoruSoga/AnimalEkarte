@@ -2195,6 +2195,9 @@ components:
         result_summary: { type: string }
         machine: { type: string }
         status: { $ref: '#/components/schemas/ExaminationStatus' }
+        pet: { type: object, nullable: true, description: 'ペットサマリ。Preload 時のみ。' }
+        doctor: { type: object, nullable: true, description: '担当医サマリ(id, name)。Preload 時のみ。' }
+        exam_type: { type: object, nullable: true, description: '検査種別サマリ。Preload 時のみ。' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
@@ -2234,6 +2237,7 @@ components:
         name: { type: string }
         inspection_value: { type: string }
         normal_value: { type: string }
+        result: { type: string }
         unit: { type: string }
         reference_value: { type: string }
         ref_min: { type: number, nullable: true }
@@ -2395,6 +2399,15 @@ components:
           type: number
           format: float
           description: "軽減税率（例: 0.08）。BUG-367 インボイス帳票用。"
+        accounting_document_show_logo: { type: boolean }
+        accounting_document_show_registration_warning: { type: boolean }
+        accounting_document_show_item_category: { type: boolean }
+        accounting_document_footer_note: { type: string }
+        accounting_document_show_clinic_header: { type: boolean }
+        accounting_document_show_owner_pet_info: { type: boolean }
+        accounting_document_show_items_table: { type: boolean }
+        accounting_document_show_payment_summary: { type: boolean }
+        accounting_document_section_order: { type: array, items: { type: string } }
 
     MeClinicMembership:
       type: object
@@ -2547,15 +2560,17 @@ components:
         id: { type: integer }
         clinic_id: { type: integer }
         owner_id: { type: integer }
+        animal_species_id: { type: integer }
         pet_number: { type: string }
         name: { type: string }
-        name_kana: { type: string }
-        animal_species_id: { type: integer }
+        pet_name_kana: { type: string }
         gender: { type: string, enum: [male, female, unknown] }
         status: { type: string, enum: [alive, deceased] }
         birth_date: { type: string, format: date, nullable: true }
         breed: { type: string }
         color: { type: string }
+        blood_type: { type: string, nullable: true }
+        microchip_number: { type: string, nullable: true }
         weight: { type: number, format: float, nullable: true }
         neutered_date: { type: string, format: date, nullable: true }
         acquisition_type: { type: string, enum: [purchased, transferred, rescued, other], nullable: true }
@@ -2566,11 +2581,11 @@ components:
         last_visit: { type: string, format: date, nullable: true }
         insurance_id: { type: integer, nullable: true }
         remarks: { type: string }
-        deceased_at: { type: string, format: date-time, nullable: true }
-        deceased_reason: { type: string, nullable: true }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
-        deleted_at: { type: string, format: date-time, nullable: true }
+        owner: { type: object, nullable: true, description: '飼主サマリ。Preload 時のみ。' }
+        animal_species: { type: object, nullable: true, description: '動物種別。Preload 時のみ。' }
+        insurance: { type: object, nullable: true, description: '保険。Preload 時のみ。' }
 
     Appointment:
       type: object
@@ -2614,12 +2629,16 @@ components:
         doctor_id: { type: integer, nullable: true }
         appointment_id: { type: integer, nullable: true }
         status: { type: string, enum: [draft, finalized] }
-        version: { type: integer }
-        entered_by: { type: integer, nullable: true }
+        accounting_id: { type: integer, nullable: true }
+        visit_count: { type: integer }
         next_visit_recommended_date: { type: string, format: date, nullable: true }
+        recommendation_reason: { type: string, nullable: true }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
-        deleted_at: { type: string, format: date-time, nullable: true }
+        owner: { type: object, nullable: true, description: '飼主サマリ。Preload 時のみ。' }
+        pet: { type: object, nullable: true, description: 'ペットサマリ。Preload 時のみ。' }
+        doctor: { type: object, nullable: true, description: '担当医サマリ。Preload 時のみ。' }
+        inquiry: { type: object, nullable: true, description: '問診サマリ。Preload 時のみ。' }
 
     Accounting:
       type: object
@@ -2631,17 +2650,23 @@ components:
         hospitalization_id: { type: integer, nullable: true }
         owner_id: { type: integer, nullable: true }
         pet_id: { type: integer, nullable: true }
+        owner: { type: object, nullable: true, description: '飼主サマリ。Preload 時のみ。' }
+        pet: { type: object, nullable: true, description: 'ペットサマリ。Preload 時のみ。' }
         subtotal: { type: integer }
         tax_total: { type: integer }
         total_amount: { type: integer }
+        total_refunded_amount: { type: integer }
         has_insurance: { type: boolean }
         status: { type: string, enum: [waiting, completed, cancelled, pending] }
         scheduled_date: { type: string, format: date }
         completed_at: { type: string, format: date-time, nullable: true }
         memo: { type: string }
+        items: { type: array, items: { type: object }, description: '請求明細(billingItemResponse)。' }
+        payments: { type: array, items: { type: object }, description: '入金(paymentResponse)。' }
+        payment_splits: { type: array, items: { type: object }, description: '支払分割(paymentSplitResponse)。' }
+        refunds: { type: array, items: { type: object }, description: '返金(refundResponse)。' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
-        deleted_at: { type: string, format: date-time, nullable: true }
 
     CheckupSyncExclusionReason:
       type: string
@@ -2833,7 +2858,7 @@ components:
         scheduled_at: { type: string, format: date-time }
         status: { type: string, enum: [scheduled, fired, excluded, failed] }
         fired_at: { type: string, format: date-time, nullable: true }
-        exclusion_reason: { type: string, nullable: true }
+        excluded_reason: { type: string, nullable: true }
 
     LstepTagSummary:
       type: object
@@ -3227,42 +3252,50 @@ components:
     CashRegisterPreview:
       type: object
       properties:
-        subtotal: { type: integer }
-        tax_total: { type: integer }
-        total_amount: { type: integer }
-        count: { type: integer }
-        by_method:
-          type: object
-          additionalProperties: { type: integer }
+        date: { type: string }
+        period: { type: string }
+        period_start: { type: string }
+        period_end: { type: string }
+        is_already_closed: { type: boolean }
+        is_holiday: { type: boolean }
+        aggregate: { type: object, description: '集計サマリ(cashRegisterAggregateSummaryResponse)。' }
+        billing_details: { type: array, items: { type: object }, description: '会計明細(cashRegisterBillingDetailResponse)。' }
 
     CashRegisterClose:
       type: object
       properties:
-        id: { type: string }
+        id: { type: integer }
+        clinic_id: { type: integer }
+        close_date: { type: string, format: date-time }
+        period: { type: string }
+        theoretical_cash: { type: integer }
+        actual_cash: { type: integer }
+        cash_difference: { type: integer }
+        category_breakdown: { type: object }
+        memo: { type: string }
+        closed_by: { type: integer, nullable: true }
         closed_at: { type: string, format: date-time }
-        staff_name: { type: string }
-        total_amount: { type: integer }
-        difference: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
     CashRegisterCloseRequest:
       type: object
-      required: [period_type, actual_cash]
+      required: [date, period]
       properties:
-        period_type: { type: string, enum: [am, pm, full_day] }
+        date: { type: string, format: date }
+        period: { type: string, enum: [am, pm, emg] }
         actual_cash: { type: integer }
-        notes: { type: string }
+        memo: { type: string }
 
     MonthlyReport:
       type: object
       properties:
-        total_sales: { type: integer }
-        daily_details:
-          type: array
-          items:
-            type: object
-            properties:
-              date: { type: string, format: date }
-              amount: { type: integer }
+        year: { type: integer }
+        month: { type: integer }
+        start_date: { type: string }
+        end_date: { type: string }
+        summary: { type: object, description: '月次サマリ(monthlyReportSummaryResponse)。' }
+        daily_details: { type: array, items: { type: object }, description: '日次明細(dailyReportDetailResponse)。' }
 
     Error:
       type: object
