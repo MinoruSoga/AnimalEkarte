@@ -62,6 +62,26 @@ staff は `staff_clinic_assignments` による**多医院所属**（`staffs.clin
   （`staffAssignedToClinicsCond`・`reservation_repository.go`）。`staffs.clinic_id` でなく
   `staff_clinic_assignments` の所属で判定し多医院所属を尊重する。
 
+### P3.1 の機械強制（read 側）と write 側の決着
+
+**read 側（マスタ Preload の clinic_id 述語）は機械強制済み**:
+`preload_clinic_scope_lint_test.go`（`go:embed` + `go/ast`、`model/audit_taxonomy_exhaustiveness_test.go` と同枠組み）が
+本パッケージの全 `Preload` を走査し、clinic-scoped マスタの述語に `clinic_id` が無いものを CI で fail させる
+（`go test ./internal/repository/ -run TestPreloadClinicScope`）。対象マスタ集合・Staff/global allowlist・
+site 例外（clinicID が scope 外の identity/junction lookup）は同ファイルに根拠付きで一覧化。新規 `Preload` は自動で対象に入る。
+
+**write 側（request 由来 master FK の所有権検証）は静的機械強制を断念**:
+「永続化前に `FindByID(clinicID,…)` 等で検証済みか」は handler→service→repository を跨ぐ手続き間データフロー（taint）
+解析が必須で、`go/ast` 単体では値を呼び出し越しに追えず false-negative/positive が多発する。#124（f4e7b7a7）が反例:
+親 `exam_type_id` は検証済みでもネストの `exam_type_field_id` が未検証だった——「検証済み親」と「未検証ネスト子」を
+意味理解なしに構文だけで区別する信頼できる規則は無い。**偽の部分チェックは #124 を再発させた「検証した気にさせる」
+失敗モードそのものなので作らない。**
+- **正本ガード = 各サイトの runtime isolation test**（`*_clinic_isolation_test.go`: treatment/vaccination/
+  examination/care_plan/clinical_plan/checkup ほか）。検証が実際に効くことを動作で証明する。
+- **P1 候補（correctness ではなく review 網羅性の機械化）**: master-FK パラメータを受ける write メソッドを AST で列挙し
+  保守された allowlist と突合、新規未登録 write が出たら fail させる exhaustiveness gate
+  （`audit_taxonomy_exhaustiveness_test.go` と同型・決定可能・taint 不要）。「新 write を必ずレビューに乗せる」強制。
+
 ## P4: clinicScope on Update/Upsert (MANDATORY — 最重要)
 
 UPDATE/UPSERT に `Scopes(clinicScope(clinicID))` を必ず付ける。

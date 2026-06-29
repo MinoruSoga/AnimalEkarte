@@ -35,7 +35,7 @@ func NewReservationTypeRepository(db *gorm.DB) ReservationTypeRepository {
 func (r *reservationTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	reservationTypes := make([]model.ReservationType, 0)
 	if err := dbOrTx(ctx, r.db).
-		Preload("Group", "deleted_at IS NULL").
+		Preload("Group", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(clinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&reservationTypes).Error; err != nil {
@@ -47,9 +47,9 @@ func (r *reservationTypeRepository) FindAll(ctx context.Context, clinicID uint64
 func (r *reservationTypeRepository) FindAllWithChildren(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	reservationTypes := make([]model.ReservationType, 0)
 	if err := dbOrTx(ctx, r.db).
-		Preload("Group", "deleted_at IS NULL").
+		Preload("Group", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Children", func(db *gorm.DB) *gorm.DB {
-			return db.Where("deleted_at IS NULL").Order("sort_order ASC, name ASC")
+			return db.Where("clinic_id = ? AND deleted_at IS NULL", clinicID).Order("sort_order ASC, name ASC")
 		}).
 		Scopes(clinicScope(clinicID)).
 		Where("parent_id IS NULL").
@@ -63,8 +63,8 @@ func (r *reservationTypeRepository) FindAllWithChildren(ctx context.Context, cli
 func (r *reservationTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	var st model.ReservationType
 	err := dbOrTx(ctx, r.db).
-		Preload("Group", "deleted_at IS NULL").
-		Preload("Parent", "deleted_at IS NULL").
+		Preload("Group", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Parent", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&st).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", id))
@@ -75,10 +75,10 @@ func (r *reservationTypeRepository) FindByID(ctx context.Context, clinicID, id u
 func (r *reservationTypeRepository) FindByIDWithChildren(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	var st model.ReservationType
 	err := dbOrTx(ctx, r.db).
-		Preload("Group", "deleted_at IS NULL").
-		Preload("Parent", "deleted_at IS NULL").
+		Preload("Group", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Parent", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Children", func(db *gorm.DB) *gorm.DB {
-			return db.Where("deleted_at IS NULL").Order("sort_order ASC, name ASC")
+			return db.Where("clinic_id = ? AND deleted_at IS NULL", clinicID).Order("sort_order ASC, name ASC")
 		}).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).

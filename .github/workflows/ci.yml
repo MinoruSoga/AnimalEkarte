@@ -92,6 +92,30 @@ jobs:
         run: bash scripts/shellcheck-scripts.test.sh
 
   # ──────────────────────────────────────────────
+  # P3.1 Preload clinic-scope lint: clinic-scoped マスタの Preload に clinic_id 述語が
+  # 無いものを go/ast で検出する read-IDOR (b3638d5e) 再発防止ゲート（DB 不要・純静的検査）。
+  # backend job は PR→main でスキップされる (daily work 想定) ため、セキュリティゲートは
+  # 全イベント無条件で走る独立 job にして pre-merge で必ずブロックする。
+  # ./... の backend Test step でも走るが、それは push/PR→staging のみ。
+  # ──────────────────────────────────────────────
+  preload-clinic-scope-lint:
+    name: P3.1 Preload Clinic-Scope Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Run P3.1 Preload clinic-scope lint
+        working-directory: backend
+        run: go test ./internal/repository/ -run TestPreloadClinicScope -count=1
+
+  # ──────────────────────────────────────────────
   # Backend: build + lint + schema check
   # ──────────────────────────────────────────────
   backend:

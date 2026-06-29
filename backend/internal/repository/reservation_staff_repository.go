@@ -246,7 +246,7 @@ func (r *reservationStaffRepository) UpdateExcludedReservationTypes(ctx context.
 func (r *reservationStaffRepository) FindAllReservationCapabilities(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error) {
 	var items []model.StaffReservationCapability
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Where("clinic_id = ? AND staff_id = ?", clinicID, staffID).
 		Find(&items).Error
 	if err != nil {
@@ -261,7 +261,7 @@ func (r *reservationStaffRepository) FindAllReservationCapabilitiesByStaffIDs(ct
 	}
 	var items []model.StaffReservationCapability
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Where("clinic_id = ? AND staff_id IN ?", clinicID, staffIDs).
 		Find(&items).Error
 	if err != nil {
