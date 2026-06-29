@@ -36,7 +36,7 @@ func (r *reservationAdminRepository) FindAllByMonth(ctx context.Context, clinicI
 
 	items := make([]model.Reservation, 0)
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("LineCustomer").
 		Scopes(clinicScope(clinicID)).
@@ -56,7 +56,7 @@ func (r *reservationAdminRepository) FindAllByDay(ctx context.Context, clinicID 
 
 	items := make([]model.Reservation, 0)
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CreatedByStaff", "deleted_at IS NULL").
 		Preload("LineCustomer").
@@ -94,7 +94,7 @@ func (r *reservationAdminRepository) SoftDelete(ctx context.Context, clinicID, i
 func (r *reservationAdminRepository) FindAllByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
 	items := make([]model.Reservation, 0)
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		Where("line_customer_id = ? AND deleted_at IS NULL", customerID).
@@ -109,7 +109,7 @@ func (r *reservationAdminRepository) FindAllByCustomerID(ctx context.Context, cl
 func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	var appt model.Reservation
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").

@@ -82,7 +82,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
 	}
 	if err := buildBase().
-		Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "deleted_at IS NULL").
+		Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").
 		Find(&owners).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
@@ -91,22 +91,27 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 }
 
 func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
-	return r.findOwnerByID(ctx, clinicScope(clinicID), id)
+	return r.findOwnerByID(ctx, []uint64{clinicID}, id)
 }
 
 func (r *ownerRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
-	return r.findOwnerByID(ctx, clinicScopeIn(clinicIDs), id)
+	return r.findOwnerByID(ctx, clinicIDs, id)
 }
 
-// findOwnerByID は scope（単一/複数クリニック）を受け取り飼主を1件取得する共通実装。
-func (r *ownerRepository) findOwnerByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.Owner, error) {
+// findOwnerByID は認可済みクリニック集合を受け取り飼主を1件取得する共通実装。
+// clinicIDs は呼び出し側で検証済みの集合（単一は []uint64{clinicID}、拠点横断#86は全所属）。
+// Preload する保険マスタも同じ集合で clinic 隔離する（別クリニックの保険マスタ混入防止）。
+func (r *ownerRepository) findOwnerByID(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+	if len(clinicIDs) == 0 {
+		return nil, apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
+	}
 	var owner model.Owner
 	err := r.db.WithContext(ctx).
 		Preload("Pets", "deleted_at IS NULL").
 		Preload("Pets.AnimalSpecies").
-		Preload("Pets.Insurance", "deleted_at IS NULL").
+		Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pets.Owner", "deleted_at IS NULL").
-		Scopes(scope).Where("id = ?", id).First(&owner).Error
+		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&owner).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}

@@ -39,7 +39,7 @@ func (r *diagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, 
 	}
 	categories := make([]model.DiagnosisType, 0)
 	if err := buildBase().
-		Preload("Names", "deleted_at IS NULL").
+		Preload("Names", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error; err != nil {
@@ -51,7 +51,7 @@ func (r *diagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, 
 func (r *diagnosisTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error) {
 	var category model.DiagnosisType
 	err := r.db.WithContext(ctx).
-		Preload("Names", "deleted_at IS NULL").
+		Preload("Names", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&category).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "diagnosis_type", fmt.Sprintf("%d", id))

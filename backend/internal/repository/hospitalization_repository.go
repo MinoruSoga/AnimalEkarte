@@ -53,7 +53,7 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
-	if err := q.Preload("Pet", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("Owner", "deleted_at IS NULL").Preload("Cage", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
+	if err := q.Preload("Pet", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("Owner", "deleted_at IS NULL").Preload("Cage", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Doctor", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("start_date DESC, created_at DESC").
 		Find(&hospitalizations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
@@ -67,7 +67,7 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.AnimalSpecies").
 		Preload("Owner", "deleted_at IS NULL").
-		Preload("Cage", "deleted_at IS NULL").
+		Preload("Cage", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CarePlanItems", "deleted_at IS NULL").
 		Preload("DailyRecords", "deleted_at IS NULL").

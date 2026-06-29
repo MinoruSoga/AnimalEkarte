@@ -11,6 +11,12 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// staffAssignedToClinicsCond は Preload した staff（Doctor / CreatedByStaff）を、指定クリニック集合の
+// いずれかに現在所属している場合のみ表示する条件。staff は staff_clinic_assignments による多医院所属のため
+// staffs.clinic_id（主所属）単純スコープでは共有スタッフを誤って隠す。assignment-EXISTS で多医院所属を
+// 尊重しつつ、別テナント単独所属スタッフ名の漏洩を防ぐ。予約は現在/未来データのため履歴表示の回帰はない。
+const staffAssignedToClinicsCond = "deleted_at IS NULL AND EXISTS (SELECT 1 FROM staff_clinic_assignments sca WHERE sca.staff_id = staffs.id AND sca.clinic_id IN ? AND sca.deleted_at IS NULL)"
+
 // ReservationCRUDRepository はコア CRUD 操作（5 メソッド）。
 // reservation_service / trimming_service / liff_service で使用。
 type ReservationCRUDRepository interface {
@@ -110,7 +116,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
-	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("ReservationType", "deleted_at IS NULL").Preload("ReservationType.Group", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
+	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("ReservationType", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("ReservationType.Group", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("Doctor", staffAssignedToClinicsCond, clinicIDs).
 		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
@@ -118,26 +124,30 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 }
 
 func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
-	return r.findReservationByID(ctx, clinicScope(clinicID), id)
+	return r.findReservationByID(ctx, []uint64{clinicID}, id)
 }
 
 func (r *reservationRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
-	return r.findReservationByID(ctx, clinicScopeIn(clinicIDs), id)
+	return r.findReservationByID(ctx, clinicIDs, id)
 }
 
-// findReservationByID は scope（単一/複数クリニック）を受け取り予約を1件取得する共通実装。
-func (r *reservationRepository) findReservationByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.Reservation, error) {
+// findReservationByID は認可済みクリニック集合を受け取り予約を1件取得する共通実装。
+// Preload する診療区分マスタも同じ集合で clinic 隔離する（別クリニックの診療区分混入防止）。
+func (r *reservationRepository) findReservationByID(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
+	if len(clinicIDs) == 0 {
+		return nil, apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
+	}
 	var reservation model.Reservation
 	err := dbOrTx(ctx, r.db).
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner", "deleted_at IS NULL").
 		Preload("Pet.AnimalSpecies").
-		Preload("ReservationType", "deleted_at IS NULL").
-		Preload("ReservationType.Group", "deleted_at IS NULL").
-		Preload("Doctor", "deleted_at IS NULL").
-		Preload("CreatedByStaff", "deleted_at IS NULL").
-		Scopes(scope).Where("id = ?", id).First(&reservation).Error
+		Preload("ReservationType", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("ReservationType.Group", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Doctor", staffAssignedToClinicsCond, clinicIDs).
+		Preload("CreatedByStaff", staffAssignedToClinicsCond, clinicIDs).
+		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&reservation).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}
@@ -370,10 +380,10 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner", "deleted_at IS NULL").
 		Preload("Pet.AnimalSpecies").
-		Preload("ReservationType", "deleted_at IS NULL").
-		Preload("Doctor", "deleted_at IS NULL").
-		Preload("TrimmingDetail.Course", "deleted_at IS NULL").
-		Preload("TrimmingDetail.Options", "deleted_at IS NULL").
+		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
+		Preload("TrimmingDetail.Course", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("TrimmingDetail.Options", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Offset((page - 1) * limit).Limit(limit).
 		Order("appointments.start_time DESC").
 		Find(&reservations).Error; err != nil {

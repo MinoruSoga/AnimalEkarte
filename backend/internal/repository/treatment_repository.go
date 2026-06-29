@@ -50,9 +50,9 @@ func (r *treatmentRepository) FindByMedicalRecordID(ctx context.Context, clinicI
 	if err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND treatments.medical_record_id = ? AND treatments.deleted_at IS NULL", clinicID, medicalRecordID).
-		Preload("Consultation", "deleted_at IS NULL").
-		Preload("Procedure", "deleted_at IS NULL").
-		Preload("Medicine", "deleted_at IS NULL").
+		Preload("Consultation", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Order("treatments.sort_order ASC").
 		Find(&treatments).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "treatment", "")
@@ -118,8 +118,8 @@ func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, 
 	treatments := make([]model.Treatment, 0)
 	if err := buildBase().
 		Preload("MedicalRecord", "deleted_at IS NULL").
-		Preload("Procedure", "deleted_at IS NULL").
-		Preload("Medicine", "deleted_at IS NULL").
+		Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Order("medical_records.date DESC, treatments.sort_order ASC, treatments.id DESC").
 		Offset((page - 1) * limit).Limit(limit).
 		Find(&treatments).Error; err != nil {

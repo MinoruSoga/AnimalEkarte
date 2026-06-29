@@ -30,8 +30,8 @@ func (r *appointmentTrimmingDetailRepository) FindByAppointmentID(ctx context.Co
 	var detail model.AppointmentTrimmingDetail
 	err := dbOrTx(ctx, r.db).
 		Scopes(clinicScope(clinicID)).
-		Preload("Course", "deleted_at IS NULL").
-		Preload("Options", "deleted_at IS NULL").
+		Preload("Course", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Options", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Where("appointment_id = ?", appointmentID).
 		First(&detail).Error
 	if err != nil {

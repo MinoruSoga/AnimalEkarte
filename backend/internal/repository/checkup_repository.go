@@ -45,7 +45,7 @@ func (r *checkupRepository) FindByClinicID(ctx context.Context, clinicID uint64,
 	checkups := make([]model.Checkup, 0)
 	q := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Preload("CheckupType", "deleted_at IS NULL").
+		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("MedicalRecord", "deleted_at IS NULL").
 		Preload("MedicalRecord.Pet", "deleted_at IS NULL").
@@ -78,7 +78,7 @@ func (r *checkupRepository) FindByOwnerID(ctx context.Context, clinicID, ownerID
 			" AND medical_records.clinic_id = ?"+
 			" AND medical_records.deleted_at IS NULL", clinicID).
 		Where("checkups.clinic_id = ? AND medical_records.owner_id = ?", clinicID, ownerID).
-		Preload("CheckupType", "deleted_at IS NULL").
+		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Order("checkups.date DESC").
 		Find(&checkups).Error
 	if err != nil {
@@ -94,7 +94,7 @@ func (r *checkupRepository) FindByMedicalRecordID(ctx context.Context, clinicID,
 			" AND medical_records.clinic_id = ?"+
 			" AND medical_records.deleted_at IS NULL", clinicID).
 		Where("checkups.medical_record_id = ?", medicalRecordID).
-		Preload("CheckupType", "deleted_at IS NULL").
+		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Order("checkups.date ASC").
 		Find(&checkups).Error
@@ -109,7 +109,7 @@ func (r *checkupRepository) FindAlerts(ctx context.Context, clinicID uint64, wit
 	upperBound := time.Now().In(time.Local).AddDate(0, 0, withinDays).Format("2006-01-02")
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Preload("CheckupType", "deleted_at IS NULL").
+		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("MedicalRecord", "deleted_at IS NULL").
 		Preload("MedicalRecord.Pet", "deleted_at IS NULL").
 		Preload("MedicalRecord.Pet.Owner", "deleted_at IS NULL").
@@ -126,7 +126,7 @@ func (r *checkupRepository) FindAlerts(ctx context.Context, clinicID uint64, wit
 func (r *checkupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error) {
 	var checkup model.Checkup
 	err := r.db.WithContext(ctx).
-		Preload("CheckupType", "deleted_at IS NULL").
+		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("MedicalRecord", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).

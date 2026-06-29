@@ -67,7 +67,7 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
-	if err := buildBase().Preload("Owner", "deleted_at IS NULL").Preload("AnimalSpecies").Preload("Insurance", "deleted_at IS NULL").
+	if err := buildBase().Preload("Owner", "deleted_at IS NULL").Preload("AnimalSpecies").Preload("Insurance", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Offset((page - 1) * limit).Limit(limit).Order("pets.created_at DESC").Find(&pets).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
@@ -75,21 +75,25 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 }
 
 func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
-	return r.findPetByID(ctx, clinicScope(clinicID), id)
+	return r.findPetByID(ctx, []uint64{clinicID}, id)
 }
 
 func (r *petRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
-	return r.findPetByID(ctx, clinicScopeIn(clinicIDs), id)
+	return r.findPetByID(ctx, clinicIDs, id)
 }
 
-// findPetByID は scope（単一/複数クリニック）を受け取りペットを1件取得する共通実装。
-func (r *petRepository) findPetByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.Pet, error) {
+// findPetByID は認可済みクリニック集合を受け取りペットを1件取得する共通実装。
+// Preload する保険マスタも同じ集合で clinic 隔離する（別クリニックの保険マスタ混入防止）。
+func (r *petRepository) findPetByID(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
+	if len(clinicIDs) == 0 {
+		return nil, apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
+	}
 	var pet model.Pet
 	err := r.db.WithContext(ctx).
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("AnimalSpecies").
-		Preload("Insurance", "deleted_at IS NULL").
-		Scopes(scope).Where("id = ?", id).First(&pet).Error
+		Preload("Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&pet).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
 	}

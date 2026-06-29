@@ -58,7 +58,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 
 	vaccinations := make([]model.Vaccination, 0)
 	if err := buildBase().
-		Preload("Vaccine", "deleted_at IS NULL").
+		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
@@ -76,7 +76,7 @@ func (r *vaccinationRepository) FindByOwner(ctx context.Context, clinicID, owner
 	err := r.db.WithContext(ctx).
 		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.deleted_at IS NULL").
 		Where("vaccinations.clinic_id = ? AND pets.owner_id = ?", clinicID, ownerID).
-		Preload("Vaccine", "deleted_at IS NULL").
+		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error
 	if err != nil {
@@ -89,7 +89,7 @@ func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 	var vaccination model.Vaccination
 	err := r.db.WithContext(ctx).
 		Where("vaccinations.id = ? AND vaccinations.clinic_id = ?", id, clinicID).
-		Preload("Vaccine", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
+		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
 		First(&vaccination).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("%d", id))
