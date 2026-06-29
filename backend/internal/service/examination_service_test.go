@@ -270,7 +270,7 @@ func TestExaminationService_List(t *testing.T) {
 					return tt.repoItems, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
 
 			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -336,7 +336,7 @@ func TestExaminationService_GetByID(t *testing.T) {
 					return tt.repoItem, tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
 
 			item, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -404,7 +404,7 @@ func TestExaminationService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
 
 			exam, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
@@ -481,7 +481,7 @@ func TestExaminationService_Update(t *testing.T) {
 					return &model.Examination{ID: 1}, nil
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
 
 			exam, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -570,7 +570,7 @@ func TestExaminationService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -667,7 +667,7 @@ func TestExaminationService_ListItems(t *testing.T) {
 					return tt.repoItems, tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
 
 			items, err := svc.ListItems(context.Background(), 1, 10)
 
@@ -697,7 +697,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 				return items, nil
 			},
 		}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
 
 		min1 := 1.0
 		max10 := 10.0
@@ -740,7 +740,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 				return nil, nil
 			},
 		}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
 
 		_, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
 			{Name: "WBC", InspectionValue: "5.0"},
@@ -755,7 +755,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 				return nil, apperrors.WrapNotFound("exam", "999")
 			},
 		}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
 
 		_, err := svc.ReplaceItems(context.Background(), 1, 999, []UpsertExamItemInput{})
 		assert.Error(t, err)
@@ -774,7 +774,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 				return []model.ExamResult{}, nil
 			},
 		}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
 
 		saved, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{})
 		assert.NoError(t, err)
@@ -791,7 +791,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
 
 		_, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
 			{Name: "WBC", InspectionValue: "5.0"},

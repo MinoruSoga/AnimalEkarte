@@ -96,7 +96,7 @@ func TestCarePlanItemService_List(t *testing.T) {
 					return tt.repoItems, tt.repoErr
 				},
 			}
-			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan())
+			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo())
 
 			items, err := svc.List(context.Background(), 1, tt.hospitalizationID)
 
@@ -190,7 +190,7 @@ func TestCarePlanItemService_Create(t *testing.T) {
 					return &model.CarePlanItem{ID: 1, HospitalizationID: tt.hospitalizationID}, nil
 				},
 			}
-			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan())
+			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo())
 
 			item, err := svc.Create(context.Background(), 1, tt.hospitalizationID, tt.input)
 
@@ -289,7 +289,7 @@ func TestCarePlanItemService_Update(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan())
+			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo())
 
 			item, err := svc.Update(context.Background(), 1, tt.hospitalizationID, tt.itemID, tt.input)
 
@@ -351,7 +351,7 @@ func TestCarePlanItemService_Delete(t *testing.T) {
 					return tt.repoDeleteErr
 				},
 			}
-			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan())
+			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo())
 
 			err := svc.Delete(context.Background(), 1, tt.hospitalizationID, tt.itemID)
 
@@ -390,7 +390,7 @@ func TestCarePlanItemService_Create_CrossTenantParentRejected(t *testing.T) {
 			return nil, apperrors.WrapNotFound("hospitalization", "99")
 		},
 	}
-	svc := NewCarePlanItemService(repo, hospRepo)
+	svc := NewCarePlanItemService(repo, hospRepo, okMedicineRepo(), okProcedureRepo())
 
 	item, err := svc.Create(context.Background(), clinicA, clinicBHospID, &CreateCarePlanItemInput{
 		Type: string(model.CarePlanTypeMedicine),

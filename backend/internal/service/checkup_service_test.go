@@ -115,7 +115,7 @@ func TestCheckupService_List(t *testing.T) {
 					return tt.repoCheckups, tt.repoErr
 				},
 			}
-			svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
+			svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 
 			checkups, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
@@ -191,7 +191,7 @@ func TestCheckupService_Create(t *testing.T) {
 					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 				},
 			}
-			svc := NewCheckupService(repo, mrRepo, nil, nil)
+			svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 			checkup, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 
@@ -294,7 +294,7 @@ func TestCheckupService_Update(t *testing.T) {
 					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 				},
 			}
-			svc := NewCheckupService(repo, mrRepo, nil, nil)
+			svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 			checkup, err := svc.Update(context.Background(), 1, tt.medicalRecordID, tt.checkupID, tt.input)
 
@@ -361,7 +361,7 @@ func TestCheckupService_Delete(t *testing.T) {
 					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 				},
 			}
-			svc := NewCheckupService(repo, mrRepo, nil, nil)
+			svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 			err := svc.Delete(context.Background(), 1, tt.medicalRecordID, tt.checkupID)
 
@@ -412,7 +412,7 @@ func TestCheckupService_Create_SyncsCheckupTagBestEffort(t *testing.T) {
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil, tagSync)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, tagSync)
 
 	result, err := svc.Create(context.Background(), 2, &CreateCheckupInput{
 		ClinicID:      1,
@@ -464,7 +464,7 @@ func TestCheckupService_Update_ResyncsOwnerCheckupTags(t *testing.T) {
 		},
 	}
 	resultText := "updated"
-	svc := NewCheckupService(repo, mrRepo, nil, tagSync)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, tagSync)
 
 	result, err := svc.Update(context.Background(), 1, medicalRecordID, 30, &UpdateCheckupInput{Result: &resultText})
 
@@ -504,7 +504,7 @@ func TestCheckupService_Delete_ResyncsOwnerCheckupTagsAfterDelete(t *testing.T) 
 			return nil
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil, tagSync)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, tagSync)
 
 	err := svc.Delete(context.Background(), 1, medicalRecordID, 30)
 
@@ -513,7 +513,7 @@ func TestCheckupService_Delete_ResyncsOwnerCheckupTagsAfterDelete(t *testing.T) 
 }
 
 func TestGetAlerts_RejectsInvalidWithinDays(t *testing.T) {
-	svc := NewCheckupService(&mockCheckupRepository{}, &mockMedicalRecordRepository{}, nil, nil)
+	svc := NewCheckupService(&mockCheckupRepository{}, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 
 	for _, days := range []int{0, -1, 366} {
 		result, err := svc.GetAlerts(context.Background(), 1, days)
@@ -537,7 +537,7 @@ func TestGetAlerts_SeparatesOverdueAndUpcoming(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
+	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 	svc.(*checkupService).nowFn = func() time.Time { return fixedNow }
 
 	result, err := svc.GetAlerts(context.Background(), 1, 30)
@@ -555,7 +555,7 @@ func TestGetAlerts_NilNextDateExcluded(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
+	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 	svc.(*checkupService).nowFn = func() time.Time {
 		return time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation)
 	}
@@ -572,7 +572,7 @@ func TestGetAlerts_PropagatesRepositoryError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
+	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 	svc.(*checkupService).nowFn = func() time.Time {
 		return time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation)
 	}
@@ -598,7 +598,7 @@ func TestGetAlerts_JSTLateNight_TodayIsCorrectJSTDate(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
+	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 	svc.(*checkupService).nowFn = func() time.Time { return jstLateNight }
 
 	result, err := svc.GetAlerts(context.Background(), 1, 30)
@@ -635,7 +635,7 @@ func TestCheckupService_Create_FinalizedRejection(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil, nil)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 	_, err := svc.Create(context.Background(), 1, &CreateCheckupInput{
 		ClinicID: 1, CheckupTypeID: 1, Date: now,
@@ -655,7 +655,7 @@ func TestCheckupService_Update_FinalizedRejection(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil, nil)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 	_, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCheckupInput{Result: &newResult})
 	assert.Error(t, err)
@@ -672,7 +672,7 @@ func TestCheckupService_Delete_FinalizedRejection(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil, nil)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 	err := svc.Delete(context.Background(), 1, 1, 1)
 	assert.Error(t, err)

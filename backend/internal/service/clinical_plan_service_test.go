@@ -115,7 +115,7 @@ func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 					return tt.repoCreatErr
 				},
 			}
-			svc := NewClinicalPlanService(repo, okMedRecForPlan())
+			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
 
 			plan, err := svc.GetOrCreate(context.Background(), 1, tt.medicalRecordID)
 
@@ -243,7 +243,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewClinicalPlanService(repo, okMedRecForPlan())
+			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
 
 			plan, err := svc.Update(context.Background(), 1, tt.medicalRecordID, tt.input)
 
@@ -308,7 +308,7 @@ func TestClinicalPlanService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewClinicalPlanService(repo, okMedRecForPlan())
+			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
 
 			err := svc.Delete(context.Background(), 1, tt.medicalRecordID)
 
@@ -348,7 +348,7 @@ func TestClinicalPlanService_GetOrCreate_CrossTenantParentRejected(t *testing.T)
 			return nil, apperrors.WrapNotFound("medical_record", "99")
 		},
 	}
-	svc := NewClinicalPlanService(repo, medRec)
+	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo())
 
 	plan, err := svc.GetOrCreate(context.Background(), clinicA, clinicBMRID)
 

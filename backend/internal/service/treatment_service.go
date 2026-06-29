@@ -220,6 +220,13 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		return nil, apperrors.WrapConflict("確定済みカルテには治療を追加できません")
 	}
 
+	// クロステナント write 防止: request 由来の clinic-scoped マスタFK
+	// (medicine/procedure/consultation) が caller の clinic に属することを検証する。
+	// 別 clinic のマスタ参照は NotFound で遮断し #124/#125 同型の mislink を防ぐ。
+	if err := s.validateTreatmentMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID, input.ConsultationID); err != nil {
+		return nil, err
+	}
+
 	var treatment *model.Treatment
 	var doseEval *SavedDoseEvaluation
 
@@ -316,6 +323,11 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	}
 	if parent.Status == model.MedicalRecordStatusFinalized {
 		return nil, apperrors.WrapConflict("確定済みカルテの治療は編集できません")
+	}
+
+	// クロステナント write 防止: 変更後に貼り替わる clinic-scoped マスタFK の所有権を検証する。
+	if err := s.validateTreatmentMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID, input.ConsultationID); err != nil {
+		return nil, err
 	}
 
 	if input.ItemType != nil {
@@ -457,6 +469,30 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Int("count", len(updates)))
 
+	return nil
+}
+
+// validateTreatmentMasterFKs は request 由来の clinic-scoped マスタFK
+// (medicine/procedure/consultation) の所有権を検証する。treatments は自前 clinic_id を
+// 持たず medical_record 経由で隔離されるため、これらのマスタが別 clinic のものでないことを
+// write 前に明示確認しないと cross-tenant の mislink（#124/#125 同型）を作れてしまう。
+// 別 clinic のマスタ参照は repo の FindByID が NotFound を返し write を遮断する。
+func (s *treatmentService) validateTreatmentMasterFKs(ctx context.Context, clinicID uint64, medicineID, procedureID, consultationID *uint64) error {
+	if medicineID != nil {
+		if _, err := s.repos.Medicine.FindByID(ctx, clinicID, *medicineID); err != nil {
+			return apperrors.Wrap(err, "failed to verify medicine ownership")
+		}
+	}
+	if procedureID != nil {
+		if _, err := s.repos.Procedure.FindByID(ctx, clinicID, *procedureID); err != nil {
+			return apperrors.Wrap(err, "failed to verify procedure ownership")
+		}
+	}
+	if consultationID != nil {
+		if _, err := s.repos.Consultation.FindByID(ctx, clinicID, *consultationID); err != nil {
+			return apperrors.Wrap(err, "failed to verify consultation ownership")
+		}
+	}
 	return nil
 }
 

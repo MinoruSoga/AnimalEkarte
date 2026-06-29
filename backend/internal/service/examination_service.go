@@ -117,13 +117,14 @@ type ExaminationService interface {
 }
 
 type examinationService struct {
-	repo     repository.ExaminationRepository
-	medRec   repository.MedicalRecordRepository
-	auditSvc AuditService
+	repo         repository.ExaminationRepository
+	medRec       repository.MedicalRecordRepository
+	examTypeRepo repository.ExamTypeRepository
+	auditSvc     AuditService
 }
 
-func NewExaminationService(repo repository.ExaminationRepository, medRec repository.MedicalRecordRepository, auditSvc AuditService) ExaminationService {
-	return &examinationService{repo: repo, medRec: medRec, auditSvc: auditSvc}
+func NewExaminationService(repo repository.ExaminationRepository, medRec repository.MedicalRecordRepository, examTypeRepo repository.ExamTypeRepository, auditSvc AuditService) ExaminationService {
+	return &examinationService{repo: repo, medRec: medRec, examTypeRepo: examTypeRepo, auditSvc: auditSvc}
 }
 
 func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -154,6 +155,14 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 		}
 		if parent.Status == model.MedicalRecordStatusFinalized {
 			return nil, apperrors.WrapConflict("確定済みカルテに検査を追加できません")
+		}
+	}
+
+	// クロステナント write 防止: 別 clinic の exam_type を紐付けると、その exam_type が持つ
+	// 異常値判定の基準値/単位（exam_type_fields）が検査記録に混入する（#124 同型）。所有権を検証する。
+	if input.ExamTypeID != 0 {
+		if _, err := s.examTypeRepo.FindByID(ctx, clinicID, input.ExamTypeID); err != nil {
+			return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
 		}
 	}
 
@@ -199,6 +208,13 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 		}
 		if parent.Status == model.MedicalRecordStatusFinalized {
 			return nil, apperrors.WrapConflict("確定済みカルテの検査は編集できません")
+		}
+	}
+
+	// クロステナント write 防止: 貼り替え先 exam_type が caller の clinic に属することを検証する。
+	if input.ExamTypeID != nil {
+		if _, err := s.examTypeRepo.FindByID(ctx, clinicID, *input.ExamTypeID); err != nil {
+			return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
 		}
 	}
 

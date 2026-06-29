@@ -391,6 +391,9 @@ func TestTreatmentService_Create(t *testing.T) {
 				Treatment:     repo,
 				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
 				Inventory:     invRepo,
+				Medicine:      okMedicineRepo(),
+				Procedure:     okProcedureRepo(),
+				Consultation:  okConsultationRepo(),
 			}
 			repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
 				return fn(repos)

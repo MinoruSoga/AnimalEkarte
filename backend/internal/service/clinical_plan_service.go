@@ -54,13 +54,36 @@ type ClinicalPlanService interface {
 }
 
 type clinicalPlanService struct {
-	repo   repository.ClinicalPlanRepository
-	medRec repository.MedicalRecordRepository
+	repo         repository.ClinicalPlanRepository
+	medRec       repository.MedicalRecordRepository
+	diagTypeRepo repository.DiagnosisTypeRepository
+	diagNameRepo repository.DiagnosisNameRepository
 }
 
 // NewClinicalPlanService はClinicalPlanServiceを初期化して返す
-func NewClinicalPlanService(repo repository.ClinicalPlanRepository, medRec repository.MedicalRecordRepository) ClinicalPlanService {
-	return &clinicalPlanService{repo: repo, medRec: medRec}
+func NewClinicalPlanService(repo repository.ClinicalPlanRepository, medRec repository.MedicalRecordRepository, diagTypeRepo repository.DiagnosisTypeRepository, diagNameRepo repository.DiagnosisNameRepository) ClinicalPlanService {
+	return &clinicalPlanService{repo: repo, medRec: medRec, diagTypeRepo: diagTypeRepo, diagNameRepo: diagNameRepo}
+}
+
+// validateDiagnosisFKs は request 由来の clinic-scoped 診断マスタFK
+// (diagnosis_type ×2 / diagnosis_name ×2) の所有権を検証する。別 clinic の診断分類を
+// 患者の診断記録へ縫い付ける cross-tenant mislink を NotFound で遮断する。
+func (s *clinicalPlanService) validateDiagnosisFKs(ctx context.Context, clinicID uint64, input *UpdateClinicalPlanInput) error {
+	for _, typeID := range []*uint64{input.DiagnosisTypeID, input.Diagnosis2CategoryID} {
+		if typeID != nil {
+			if _, err := s.diagTypeRepo.FindByID(ctx, clinicID, *typeID); err != nil {
+				return apperrors.Wrap(err, "failed to verify diagnosis type ownership")
+			}
+		}
+	}
+	for _, nameID := range []*uint64{input.DiagnosisNameID, input.Diagnosis2NameID} {
+		if nameID != nil {
+			if _, err := s.diagNameRepo.FindByID(ctx, clinicID, *nameID); err != nil {
+				return apperrors.Wrap(err, "failed to verify diagnosis name ownership")
+			}
+		}
+	}
+	return nil
 }
 
 func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
@@ -102,6 +125,11 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 		slog.ErrorContext(ctx, "failed to get or create clinical plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get or create clinical plan")
 	}
+	// クロステナント write 防止: 貼り替え先の診断マスタFK所有権を検証する。
+	if err := s.validateDiagnosisFKs(ctx, clinicID, input); err != nil {
+		return nil, err
+	}
+
 	fields := buildClinicalPlanUpdate(input)
 	if len(fields) == 0 {
 		// 全フィールドが未指定の場合は no-op として現在のレコードをそのまま返す

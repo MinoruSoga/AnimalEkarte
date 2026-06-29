@@ -87,14 +87,15 @@ type CheckupService interface {
 type checkupService struct {
 	repo                 repository.CheckupRepository
 	medicalRecordRepo    repository.MedicalRecordRepository
+	checkupTypeRepo      repository.CheckupTypeRepository
 	lstepDeliveryTrigger LstepDeliveryTriggerService
 	tagSyncSvc           LstepTagSyncService
 	nowFn                func() time.Time // test hook; nil uses time.Now
 }
 
 // NewCheckupService は CheckupService の実装を返す
-func NewCheckupService(repo repository.CheckupRepository, medicalRecordRepo repository.MedicalRecordRepository, lstepDeliveryTrigger LstepDeliveryTriggerService, tagSyncSvc LstepTagSyncService) CheckupService {
-	return &checkupService{repo: repo, medicalRecordRepo: medicalRecordRepo, lstepDeliveryTrigger: lstepDeliveryTrigger, tagSyncSvc: tagSyncSvc}
+func NewCheckupService(repo repository.CheckupRepository, medicalRecordRepo repository.MedicalRecordRepository, checkupTypeRepo repository.CheckupTypeRepository, lstepDeliveryTrigger LstepDeliveryTriggerService, tagSyncSvc LstepTagSyncService) CheckupService {
+	return &checkupService{repo: repo, medicalRecordRepo: medicalRecordRepo, checkupTypeRepo: checkupTypeRepo, lstepDeliveryTrigger: lstepDeliveryTrigger, tagSyncSvc: tagSyncSvc}
 }
 
 func (s *checkupService) now() time.Time {
@@ -148,6 +149,12 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 	}
 	if parent.Status == model.MedicalRecordStatusFinalized {
 		return nil, apperrors.WrapConflict("確定済みカルテのため健診記録は追加できません")
+	}
+	// クロステナント write 防止: checkup_type が caller の clinic に属することを検証する。
+	if input.CheckupTypeID != 0 {
+		if _, err := s.checkupTypeRepo.FindByID(ctx, input.ClinicID, input.CheckupTypeID); err != nil {
+			return nil, apperrors.Wrap(err, "failed to verify checkup type ownership")
+		}
 	}
 	checkup := &model.Checkup{
 		ClinicID:        input.ClinicID,
@@ -211,6 +218,12 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 	}
 	if parent.Status == model.MedicalRecordStatusFinalized {
 		return nil, apperrors.WrapConflict("確定済みカルテのため健診記録は編集できません")
+	}
+	// クロステナント write 防止: 貼り替え先 checkup_type の所有権を検証する。
+	if input.CheckupTypeID != nil {
+		if _, err := s.checkupTypeRepo.FindByID(ctx, clinicID, *input.CheckupTypeID); err != nil {
+			return nil, apperrors.Wrap(err, "failed to verify checkup type ownership")
+		}
 	}
 	fields := buildCheckupUpdate(input)
 	if len(fields) == 0 {

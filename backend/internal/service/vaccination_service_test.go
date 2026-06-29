@@ -162,7 +162,7 @@ func TestVaccinationService_List(t *testing.T) {
 					return tt.repoVaccinations, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewVaccinationService(repo, nil)
+			svc := NewVaccinationService(repo, okVaccineRepo(), nil)
 
 			vaccinations, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
 
@@ -226,7 +226,7 @@ func TestVaccinationService_GetByID(t *testing.T) {
 					return tt.repoVaccination, tt.repoErr
 				},
 			}
-			svc := NewVaccinationService(repo, nil)
+			svc := NewVaccinationService(repo, okVaccineRepo(), nil)
 
 			vaccination, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -249,7 +249,7 @@ func TestVaccinationService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("vaccination", "999")
 		},
 	}
-	svc := NewVaccinationService(repo, nil)
+	svc := NewVaccinationService(repo, okVaccineRepo(), nil)
 
 	vaccination, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -309,7 +309,7 @@ func TestVaccinationService_Create(t *testing.T) {
 					return &model.Vaccination{ID: id, MedicalRecordID: tt.input.MedicalRecordID, VaccineID: tt.input.VaccineID, Date: tt.input.Date}, nil
 				},
 			}
-			svc := NewVaccinationService(repo, nil)
+			svc := NewVaccinationService(repo, okVaccineRepo(), nil)
 
 			vaccination, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
@@ -352,7 +352,7 @@ func TestVaccinationService_Create_SyncsVaccineTagBestEffort(t *testing.T) {
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewVaccinationService(repo, tagSync)
+	svc := NewVaccinationService(repo, okVaccineRepo(), tagSync)
 
 	vaccination, err := svc.Create(context.Background(), 1, &CreateVaccinationInput{
 		PetID:     &petID,
@@ -424,7 +424,7 @@ func TestVaccinationService_Update(t *testing.T) {
 					return &model.Vaccination{ID: 1}, nil
 				},
 			}
-			svc := NewVaccinationService(repo, nil)
+			svc := NewVaccinationService(repo, okVaccineRepo(), nil)
 
 			vaccination, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -484,7 +484,7 @@ func TestVaccinationService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewVaccinationService(repo, nil)
+			svc := NewVaccinationService(repo, okVaccineRepo(), nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -522,7 +522,7 @@ func TestVaccinationService_Update_ResyncsOwnerVaccineTags(t *testing.T) {
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewVaccinationService(repo, tagSync)
+	svc := NewVaccinationService(repo, okVaccineRepo(), tagSync)
 
 	vaccination, err := svc.Update(context.Background(), 1, 30, &UpdateVaccinationInput{Supplemental: &supplemental})
 
@@ -555,7 +555,7 @@ func TestVaccinationService_Delete_ResyncsOwnerVaccineTagsAfterDelete(t *testing
 			return nil
 		},
 	}
-	svc := NewVaccinationService(repo, tagSync)
+	svc := NewVaccinationService(repo, okVaccineRepo(), tagSync)
 
 	err := svc.Delete(context.Background(), 1, 30)
 
