@@ -76,11 +76,29 @@ site 例外（clinicID が scope 外の identity/junction lookup）は同ファ�
 親 `exam_type_id` は検証済みでもネストの `exam_type_field_id` が未検証だった——「検証済み親」と「未検証ネスト子」を
 意味理解なしに構文だけで区別する信頼できる規則は無い。**偽の部分チェックは #124 を再発させた「検証した気にさせる」
 失敗モードそのものなので作らない。**
-- **正本ガード = 各サイトの runtime isolation test**（`*_clinic_isolation_test.go`: treatment/vaccination/
-  examination/care_plan/clinical_plan/checkup ほか）。検証が実際に効くことを動作で証明する。
-- **P1 候補（correctness ではなく review 網羅性の機械化）**: master-FK パラメータを受ける write メソッドを AST で列挙し
-  保守された allowlist と突合、新規未登録 write が出たら fail させる exhaustiveness gate
-  （`audit_taxonomy_exhaustiveness_test.go` と同型・決定可能・taint 不要）。「新 write を必ずレビューに乗せる」強制。
+- **正本ガード = 各サイトの runtime isolation test**（`*_clinic_isolation_test.go` /
+  `cross_tenant_master_fk_write_test.go`: treatment/vaccination/examination/care_plan/clinical_plan/checkup ほか）。
+  検証が実際に効くことを動作で証明する。
+
+**review 網羅性は機械強制済み（correctness ではない）**:
+`internal/service/master_fk_write_inventory_lint_test.go`（`go:embed` + `go/ast`、本 read lint と同枠組み）が
+service の全 exported メソッドを走査し、**param が transitively に clinic-scoped master FK フィールド**
+（`MedicineID`/`VaccineID`/`ExamTypeFieldID`/`ParentID`(self-ref master)/`GroupID`/… を含むネスト/slice/embedded DTO）
+**を受けるもの**を列挙、保守された `masterFKWriteAllowlist`（各エントリに `guarded`/`known-unguarded`/`exempt` の
+status + 含む master FK 集合を pin）と**双方向**突合する。新規未登録 write・stale エントリ・**既存 DTO への
+master FK 追加（#124 のネスト子追加形）**で CI fail（`go test ./internal/service/ -run TestMasterFKWriteInventory`、
+独立 job `master-fk-write-inventory`・DB 不要・全イベント無条件）。列挙トリガは**動詞ではなく master-FK 包含**
+なので `ValidateAndCreate`/`Confirm`/`Close` 等の非 Create/Update 永続化経路も自動捕捉する。
+- **この gate は correctness を検証しない**（FindByID ガードの有無は見ない＝上記 taint 断念のとおり）。
+  「master-FK write を必ずレビュー（= isolation test 追加）の俎上に乗せる」名簿のみを担保する。status は人間のレビュー記録。
+- **gate が cov[er] しない残存ギャップ**（同ファイル冒頭にも明記）:
+  ①ガードの正しさ（runtime test が正本）②裸スカラ param の master FK（`medicineDoseParam.Upsert`・
+  `staff.Set{Excluded,Capable}ReservationTypeIDs` 等は DTO field でないため対象外）③`model.`/stdlib 以外の
+  cross-package struct param（現状ゼロ・`knownSafeParamQualifiers` で新出は fail-closed）。
+- **新マスタ追加時**: write 側 `clinicScopedMasterFKField` を更新し、**そのマスタを clinic_id 述語なしで Preload する箇所が
+  あれば** read 側 `clinicScopedMasterAssoc` も更新する。現在 `ChiefComplaintType`/`HospitalizationPlan`/`MerchandiseItem`/
+  `PaymentMethodMaster`/`TrimmingCourseType`/`InventoryItem` は write 側のみに在る（read 側で Preload されていないため）。
+  これらを将来 Preload する場合は **先に read 側 allowlist へ追加**しないと read gate を素通りする。
 
 ## P4: clinicScope on Update/Upsert (MANDATORY — 最重要)
 

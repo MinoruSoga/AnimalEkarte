@@ -116,6 +116,31 @@ jobs:
         run: go test ./internal/repository/ -run TestPreloadClinicScope -count=1
 
   # ──────────────────────────────────────────────
+  # P3.1 Master-FK write inventory gate: go/ast exhaustiveness check that every service
+  # method receiving a request-derived clinic-scoped master FK via a DTO is on a reviewed
+  # allowlist (write-side analogue of preload-clinic-scope-lint; the #124 slip-through
+  # prevention). REVIEW COVERAGE only — correctness is enforced by runtime isolation tests.
+  # DB 不要・純静的検査。backend job は PR→main でスキップされるため、独立 job で全イベント
+  # 無条件に走らせ pre-merge で必ずブロックする。
+  # ──────────────────────────────────────────────
+  master-fk-write-inventory:
+    name: P3.1 Master-FK Write Inventory Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Run P3.1 master-FK write inventory gate
+        working-directory: backend
+        run: go test ./internal/service/ -run TestMasterFKWriteInventory -count=1
+
+  # ──────────────────────────────────────────────
   # Backend: build + lint + schema check
   # ──────────────────────────────────────────────
   backend:
