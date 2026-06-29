@@ -2496,7 +2496,7 @@ components:
         clinic_id: { type: integer }
         owner_name: { type: string }
         owner_name_kana: { type: string }
-        birth_date: { type: string, format: date, nullable: true }
+        birth_date: { type: string, format: date-time, nullable: true }
         company: { type: string }
         postal_code: { type: string }
         address1: { type: string }
@@ -2566,19 +2566,19 @@ components:
         pet_name_kana: { type: string }
         gender: { type: string, enum: [male, female, unknown] }
         status: { type: string, enum: [alive, deceased] }
-        birth_date: { type: string, format: date, nullable: true }
+        birth_date: { type: string, format: date-time, nullable: true }
         breed: { type: string }
         color: { type: string }
         blood_type: { type: string, nullable: true }
         microchip_number: { type: string, nullable: true }
         weight: { type: number, format: float, nullable: true }
-        neutered_date: { type: string, format: date, nullable: true }
+        neutered_date: { type: string, format: date-time, nullable: true }
         acquisition_type: { type: string, enum: [purchased, transferred, rescued, other], nullable: true }
         danger_level: { type: string, enum: [low, medium, high] }
         food: { type: string }
         environment: { type: string }
         phone: { type: string }
-        last_visit: { type: string, format: date, nullable: true }
+        last_visit: { type: string, format: date-time, nullable: true }
         insurance_id: { type: integer, nullable: true }
         remarks: { type: string }
         created_at: { type: string, format: date-time }
@@ -2623,7 +2623,7 @@ components:
         id: { type: integer }
         clinic_id: { type: integer }
         record_no: { type: string }
-        date: { type: string, format: date }
+        date: { type: string, format: date-time }
         owner_id: { type: integer, nullable: true }
         pet_id: { type: integer, nullable: true }
         doctor_id: { type: integer, nullable: true }
@@ -2658,7 +2658,7 @@ components:
         total_refunded_amount: { type: integer }
         has_insurance: { type: boolean }
         status: { type: string, enum: [waiting, completed, cancelled, pending] }
-        scheduled_date: { type: string, format: date }
+        scheduled_date: { type: string, format: date-time }
         completed_at: { type: string, format: date-time, nullable: true }
         memo: { type: string }
         items: { type: array, items: { type: object }, description: '請求明細(billingItemResponse)。' }
@@ -2977,9 +2977,9 @@ components:
       type: object
       properties:
         lstep_ok: { type: boolean }
-        lstep_error: { type: string, nullable: true }
+        lstep_error: { type: string }
         line_ok: { type: boolean }
-        line_error: { type: string, nullable: true }
+        line_error: { type: string }
 
     LstepTriggerPriorityItem:
       type: object
@@ -3090,7 +3090,7 @@ components:
       type: object
       properties:
         id: { type: string }
-        clinic_id: { type: integer }
+        clinic_id: { type: string }
         csv_type: { type: string }
         file_name: { type: string }
         uploaded_by_user_id: { type: string, nullable: true }
