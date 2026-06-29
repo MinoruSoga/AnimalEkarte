@@ -30,11 +30,12 @@ React DevTools の **Profiler** タブを使用して、不要な再描画（Re-
 - **対策**: `memo()`, `useCallback`, `useMemo` によるコンポーネントの保護。
 
 ### 3.2 バックエンド (Go)
-`pprof` を使用して CPU およびメモリ消費の激しい処理を特定します。
+`pprof` を使用して CPU およびメモリ消費の激しい処理を特定します。バックエンドは HTTP の `/debug/pprof` エンドポイントを公開していません。プロファイルは CLI ツール `backend/scripts/profile.go`（`profile [memory|cpu|goroutine|stats]`）で取得し、`profile_cpu.pprof` などの `*.pprof` ファイルを出力します。
 ```bash
-# CPU プロファイルの取得
-curl -s http://localhost:8080/debug/pprof/profile?seconds=30 > cpu.prof
-go tool pprof -http=:8081 cpu.prof
+# CPU プロファイルを取得（backend/scripts/profile.go の cpu サブコマンド。引数で取得秒数を指定可）
+#   出力例: profile_cpu.pprof
+# 取得後、可視化:
+go tool pprof -http=:8081 profile_cpu.pprof
 ```
 
 ### 3.3 データベース (PostgreSQL)

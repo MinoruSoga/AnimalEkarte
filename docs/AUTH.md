@@ -15,7 +15,7 @@
 - **一般スタッフ (Staff)**: 業務ロール（獣医師、看護師、受付等）に応じた権限グループに所属。
 
 ### 1.2 リソースベース認可 (RBAC)
-システム内の **31 種類のリソース** に対し、`View (閲覧)`, `Create (作成)`, `Edit (編集)`, `Delete (削除)` の 4 アクション単位でアクセスを制御します。
+システム内の **34 種類のリソース** に対し、`View (閲覧)`, `Create (作成)`, `Edit (編集)`, `Delete (削除)` の 4 アクション単位でアクセスを制御します。
 
 ---
 
@@ -25,19 +25,19 @@
 
 1.  **グループ所属**: スタッフは 1 つ以上の `permission_groups` に紐付けられます。
 2.  **ルール統合**: 各グループが持つ `permission_group_rules` を収集。
-3.  **パーミッション・マップ**: 同一リソースに対して複数のルールがある場合、いずれかのグループで許可されていれば「許可」と判定（`middleware/auth.go`）。
+3.  **パーミッション・マップ**: 同一リソースに対して複数のルールがある場合、いずれかのグループで許可されていれば「許可」と判定（実効権限の集計は repository 層 `permission_group_repository.go` の `FindAllEffectivePermissionsByStaffID`、エンドポイントでの強制は handler 層 `permission_middleware.go` の `RequirePermission` ／ `clinic_handler.go` の `hasPermission`）。
 4.  **Admin 特例**: `is_system_admin` フラグが true の場合、全ての計算をバイパスし、全リソースに対して全アクションが許可されます。
 
 ---
 
 ## 3. 全リソース・キー一覧 (Verified)
 
-実装コード (`backend/internal/model/permission.go`) に定義されている全 31 リソースキーです。
+実装コード (`backend/internal/model/permission.go` の `AllResources`) に定義されている全 34 リソースキーです。
 
 | カテゴリ | リソースキー | 管理対象 |
 |:---|:---|:---|
-| **臨床コア** | `reception`, `owners`, `reservations`, `medical-records`, `hospitalization`, `trimming`, `examinations`, `vaccinations`, `checkups` | 受付、飼主、予約、カルテ、入院、トリミング、検査、ワクチン、健診。 |
-| **会計・経営** | `accounting`, `cash-register-close`, `accounting-reports`, `discount`, `closing-settings`, `master-payment-method` | 会計、レジ締め、売上レポート、値引操作、締め時間設定、支払方法。 |
+| **臨床コア** | `reception`, `owners`, `reservations`, `medical-records`, `hospitalization`, `trimming`, `examinations`, `vaccinations`, `checkups`, `lab-import` | 受付、飼主、予約、カルテ、入院、トリミング、検査、ワクチン、健診、外部検査結果インポート。 |
+| **会計・経営** | `accounting`, `accounting-cancel`, `accounting-post-close-edit`, `cash-register-close`, `accounting-reports`, `discount`, `closing-settings`, `master-payment-method` | 会計、会計キャンセル、締め後編集、レジ締め、売上レポート、値引操作、締め時間設定、支払方法。 |
 | **物流・管理** | `inventory`, `estimates`, `shifts`, `hospital-settings` | 在庫、見積書、シフト、医院基本設定。 |
 | **マスタ設定** | `master-animal-species`, `master-medical`, `master-reservation-type`, `master-hospitalization`, `master-trimming`, `master-permission`, `master-staff`, `master-insurance`, `master-merchandise` | 各種定義データの管理。 |
 | **外部連携** | `lstep-analytics`, `lstep-csv-import` | CRM 分析、CSV インポート履歴。 |

@@ -232,7 +232,7 @@ a: ({ href, children }) => {
 
 **Issue #93**: `payment_splits.clinic_id` に FK 制約がない — テナント汚染リスク
 
-**変更ファイル**: `backend/migrations/007_add_payment_splits_fk.sql`
+**変更ファイル**: 当時の `007_add_payment_splits_fk.sql`（2026-06-26 の統合で `001_init.sql` に取り込み済み。`payment_splits.clinic_id` の FK 制約 `fk_payment_splits_clinic_id` は現在 `001_init.sql` に定義）
 
 **修正内容**:
 

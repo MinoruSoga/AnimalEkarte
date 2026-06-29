@@ -42,7 +42,7 @@
 
 #### ── サブリソース ──
 - `GET/PUT /medical-records/:id/treatments` — 処置・処方明細。一括更新（PUT）対応。
-- `GET/POST/DELETE /medical-records/:id/exams` — 検査記録と数値結果。
+- 検査記録は medical-records のサブリソースではなく、**独立リソース `/examinations`** として実装（`GET`/`POST` で一覧・作成、`GET`/`PATCH`/`DELETE /examinations/:id`、検査項目は `GET`/`PUT /examinations/:id/items`）。
 - `GET/POST/DELETE /medical-records/:id/vitals` — バイタル測定値（グラフ用）。
 - `GET/POST/DELETE /medical-records/:id/images` — 患部写真・資料 PDF。
 - `GET/POST/PATCH/DELETE /medical-records/:id/checkups` — 定期健診記録。

@@ -36,8 +36,8 @@
 
 ### 3.1 準備
 ```bash
-# 環境変数のセット
-export BASE_URL=http://localhost:3000
+# 環境変数のセット（playwright.config.ts が参照する変数名。未設定時は http://localhost:3003 が既定）
+export PLAYWRIGHT_TEST_BASE_URL=http://localhost:3003
 export TEST_ADMIN_USER=admin@example.com
 ```
 
@@ -47,7 +47,7 @@ export TEST_ADMIN_USER=admin@example.com
 docker compose exec frontend pnpm test:e2e
 
 # 特定の機能（例：会計）に絞って実行
-docker compose exec frontend pnpm test:e2e tests/accounting.spec.ts
+docker compose exec frontend pnpm test:e2e e2e/accounting-flow.spec.ts
 
 # UI モードで動作を確認しながら実行
 docker compose exec frontend pnpm test:e2e --ui

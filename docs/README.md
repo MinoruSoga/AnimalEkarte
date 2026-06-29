@@ -20,10 +20,10 @@
 | カテゴリ | ドキュメント | 概要 |
 |:---|:---|:---|
 | **技術設計** | [architecture.md](architecture.md) | 軽量レイヤードアーキテクチャの定義。 |
-| **データ** | [ERD.md](file:///Users/minoru/dev/case/AnimalHospital/AnimalEkarte/docs/ERD.md) | データベース設計（全 **103 テーブル**・リレーション）。 |
-| **セキュリティ**| [AUTH.md](AUTH.md) | RBAC 権限モデル（全 **31 リソース**）、マルチテナント隔離。 |
+| **データ** | [ERD.md](ERD.md) | データベース設計（全 **106 テーブル**・リレーション）。 |
+| **セキュリティ**| [AUTH.md](AUTH.md) | RBAC 権限モデル（全 **34 リソース**）、マルチテナント隔離。 |
 | **UI/UX** | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Notion ライクなデザイン規約とデザイントークン。 |
-| **API** | [API_SPEC.md](API_SPEC.md) | バックエンド Go API の詳細リファレンス (v2.3)。 |
+| **API** | [API_SPEC.md](API_SPEC.md) | バックエンド Go API の詳細リファレンス (v3.1.0)。 |
 | **データフロー** | [data-flow.md](data-flow.md) | リクエストの追跡（Request ID）と非同期同期の仕組み。 |
 
 ---
@@ -55,4 +55,4 @@
 
 ---
 
-**最新更新**: 2026-06-12 | **ステータス**: All Sync with Implementation (103 Tables / 31 Resources)
+**最新更新**: 2026-06-29 | **ステータス**: All Sync with Implementation (106 Tables / 34 Resources)

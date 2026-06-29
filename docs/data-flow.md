@@ -10,7 +10,7 @@
 本システムは、すべての処理を一意の ID で追跡し、商用グレードの運用監視を実現しています。
 
 ### Request ID の伝播フロー
-1.  **生成**: リクエスト受信時、`middleware.RequestID()` が UUID を生成。
+1.  **生成**: リクエスト受信時、`middleware.RequestID()` が 8 文字のランダム hex 文字列（4 バイト）を生成。クライアントが英数字・ハイフン・アンダースコアのみ 64 文字以内の有効な `X-Request-ID` を送信した場合はそれを再利用。
 2.  **格納**: `gin.Context` に `request_id` として保持。
 3.  **返却**: レスポンスヘッダー `X-Request-ID` としてクライアントへ返却。
 4.  **記録**: `slog` 出力に常に含まれ、ログ基盤（CloudWatch等）での一括検索を可能にします。
@@ -28,19 +28,19 @@
     - `extractClinicID` でテナントを確定。
     - `parsePagination` でページ・リミットを解析。
 3.  **Service (OwnerService.List)**:
-    - 権限チェックと業務ルールの評価。
+    - `clinic_id` でスコープしたリポジトリ呼び出し（権限チェックは handler 層の `RequirePermission` ミドルウェアが担い、service 層では行わない）。
 4.  **Repository (OwnerRepository.FindAll)**:
     - **テナント隔離**: `WHERE clinic_id = ?` を強制適用。
     - 総件数 (Total) とリストを単一トランザクションまたは一貫した状態で取得。
 
 ---
 
-## 3. 非同期・イベント駆動フロー
+## 3. イベント駆動フロー（会計完了時の CPM タグ同期）
 
 ### 例：Lステップタグ自動付与 (会計完了時)
 
-1.  **Event Trigger**: 会計完了 (`PATCH /accountings/:id`) ハンドラーが成功を検知。
-2.  **Goroutine Dispatch**: メインレスポンスを返却後、バックグラウンドで `LstepTagSyncService.Sync` を起動。
+1.  **Event Trigger**: サービス層 `accountingService.Create/Update` が会計完了（billing 確定）を検知（`accounting_service_core.go`）。
+2.  **同期ディスパッチ**: レスポンス返却前に `syncCPMStageTag` → `tagSyncSvc.SyncCPMStageTag(ctx, clinicID, ownerID)` を**同期呼び出し**（goroutine ではない）。タグ同期が失敗してもエラーは記録のみで会計処理は継続（fail-open）。
 3.  **Condition Judge**: 
     - 累計売上、来院頻度、最終来院日を再計算。
     - CPM ステージが変動したか判定。

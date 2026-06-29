@@ -26,7 +26,7 @@
     - メイン保存の成功をトリガーに、**現在アクティブなタブ**の内容を個別に API 通信して同期。
     - **処置・処方 (Tab 3)**: `PUT /v1/medical-records/:id/treatments` で一括更新。
     - **バイタル (Tab 2)**: `POST /v1/medical-records/:id/vitals` で記録。
-    - **検査 (Tab 6)**: `POST /v1/medical-records/:id/exams` で登録。
+    - **検査 (Tab 6)**: `POST /v1/examinations`（body に `medical_record_id` を指定）で登録。
 
 ---
 

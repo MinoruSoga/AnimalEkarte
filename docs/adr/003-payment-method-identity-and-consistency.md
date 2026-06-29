@@ -66,7 +66,7 @@
 
 ### 設計案
 `payment_methods` に `system_key varchar(50) NULL` を追加。予約体系 = `cash` / `credit_card` / `electronic_money` / `bank_transfer`。
-新規ファイル（当時 `008_add_payment_method_system_key.sql` として提案、現在は `001_init.sql` に統合済み）で additive に：
+新規の additive マイグレーション（当時の増分ファイルとして提案、現在は `001_init.sql` に統合済み）で：
 1. `ALTER TABLE payment_methods ADD COLUMN system_key varchar(50);`
 2. 既存行を name 一致で backfill（`'現金'→'cash'` 等。非標準のクリニック独自 method は NULL のまま）。
 3. `create_default_payment_methods()` を `CREATE OR REPLACE`（新規ファイル内）で `system_key` 込みに更新。
@@ -88,7 +88,7 @@
 
 ### 決定（#197 — 2026-06-26）
 
-**採用**。`payment_methods.system_key varchar(50)` 列を additive migration として追加（当時 `009_add_payment_method_system_key.sql`→2026-06-26 統合により `001_init.sql` に取り込み済み）。
+**採用**。`payment_methods.system_key varchar(50)` 列を additive migration として追加（当時の増分マイグレーションとして実装し、2026-06-26 の統合により `001_init.sql` に取り込み済み）。
 
 実装内容:
 - `ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS system_key varchar(50)` (db_reset 不要)

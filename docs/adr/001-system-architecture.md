@@ -24,7 +24,7 @@
 ## Consequences
 
 **ポジティブ:**
-- clinic_id スコープを GORM フックで強制し、クロステナントデータ漏洩を構造的に防止
+- clinic_id スコープをリポジトリ層の `clinicScope` (GORM Scopes) で強制し、クロステナントデータ漏洩を構造的に防止（詳細は ADR-002）
 - Go の静的型付けにより API レスポンス型の TypeScript 自動生成 (tygo) が可能
 - Vercel Preview Deployments で PR ごとのフロントエンド確認が容易
 

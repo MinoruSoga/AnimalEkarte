@@ -13,7 +13,7 @@
 ## 2. 検証の三層構造
 
 ### 2.1 ユニットテスト (Unit Testing)
-- **Backend**: `testify/suite` による Service/Repository のロジック検証。
+- **Backend**: `testify/assert` を用いた table-driven テストによる Service/Repository のロジック検証。
 - **Frontend**: `Vitest` + `React Testing Library` によるコンポーネントの挙動検証。
 - **合格基準**: 全テストスイートの 100% PASS。
 
