@@ -798,4 +798,57 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 		})
 		assert.Error(t, err)
 	})
+
+	// #124: exam_type_field のクロステナント/別種別 紐付け防止。03bf1cb5 は親 exam_type_id のみ
+	// 検証し、ReplaceItems の exam_type_field_id は未検証だった。別クリニック/別種別のフィールドを
+	// 紐付けると、その基準値・単位が結果に誤適用される（#124 実害と同型）。
+	t.Run("rejects exam_type_field not belonging to the exam's clinic-owned type (#124)", func(t *testing.T) {
+		repo := &mockExaminationRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+				return &model.Examination{ID: 10, ExamTypeID: 50, Status: model.ExaminationStatusInProgress}, nil
+			},
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, _ []model.ExamResult) ([]model.ExamResult, error) {
+				t.Fatal("repo should not persist when a cross-type/cross-tenant exam_type_field is supplied")
+				return nil, nil
+			},
+		}
+		examTypeRepo := &mockExamTypeRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
+			return &model.ExaminationType{ID: id, Items: []model.ExamTypeField{{ID: 100}, {ID: 101}}}, nil
+		}}
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, examTypeRepo, nil)
+
+		foreignField := uint64(999) // not in {100,101}
+		_, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
+			{Name: "WBC", InspectionValue: "5.0", ExamTypeFieldID: &foreignField},
+		})
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("accepts exam_type_field that belongs to the exam's own type", func(t *testing.T) {
+		var captured []model.ExamResult
+		repo := &mockExaminationRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+				return &model.Examination{ID: 10, ExamTypeID: 50, Status: model.ExaminationStatusInProgress}, nil
+			},
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, error) {
+				captured = items
+				return items, nil
+			},
+		}
+		examTypeRepo := &mockExamTypeRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
+			return &model.ExaminationType{ID: id, Items: []model.ExamTypeField{{ID: 100}, {ID: 101}}}, nil
+		}}
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, examTypeRepo, nil)
+
+		ownField := uint64(100)
+		saved, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
+			{Name: "WBC", InspectionValue: "5.0", ExamTypeFieldID: &ownField},
+		})
+		assert.NoError(t, err)
+		assert.Len(t, saved, 1)
+		if assert.NotNil(t, captured[0].ExamTypeItemID) {
+			assert.Equal(t, uint64(100), *captured[0].ExamTypeItemID)
+		}
+	})
 }

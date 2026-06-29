@@ -261,6 +261,35 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
 	}
 
+	// #124 防止: request の exam_type_field が caller の clinic に属する当該検査種別の
+	// フィールドであることを検証する。別 clinic / 別種別のフィールドを紐付けると、その
+	// フィールドが持つ基準値・単位が検査結果に誤適用される（#124 実害と同型・クロステナント）。
+	// 03bf1cb5 は親 exam_type_id のみ検証しており、この field 経路は未検証だった。
+	hasFieldRef := false
+	for _, in := range inputs {
+		if in.ExamTypeFieldID != nil {
+			hasFieldRef = true
+			break
+		}
+	}
+	if hasFieldRef {
+		examType, err := s.examTypeRepo.FindByID(ctx, clinicID, existing.ExamTypeID)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
+		}
+		validFieldIDs := make(map[uint64]struct{}, len(examType.Items))
+		for _, f := range examType.Items {
+			validFieldIDs[f.ID] = struct{}{}
+		}
+		for _, in := range inputs {
+			if in.ExamTypeFieldID != nil {
+				if _, ok := validFieldIDs[*in.ExamTypeFieldID]; !ok {
+					return nil, apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
+				}
+			}
+		}
+	}
+
 	items := make([]model.ExamResult, 0, len(inputs))
 	for _, in := range inputs {
 		status, isAbnormal := computeExamResultStatus(in.InspectionValue, in.RefMin, in.RefMax)
