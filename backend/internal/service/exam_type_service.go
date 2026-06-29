@@ -34,11 +34,7 @@ func buildExamTypeUpdate(input *UpdateExamTypeInput) map[string]any {
 	if input.Description != nil {
 		fields[colExamTypeDescription] = *input.Description
 	}
-	if input.ClearParentID {
-		fields[colExamTypeParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colExamTypeParentID] = *input.ParentID
-	}
+	setNullableUint64Field(fields, colExamTypeParentID, input.ClearParentID, input.ParentID)
 	if input.SortOrder != nil {
 		fields[colExamTypeSortOrder] = *input.SortOrder
 	}

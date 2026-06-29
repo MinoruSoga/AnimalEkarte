@@ -37,11 +37,7 @@ func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
 	if input.Name != nil {
 		fields[colMedicineName] = *input.Name
 	}
-	if input.ClearParentID {
-		fields[colMedicineParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colMedicineParentID] = *input.ParentID
-	}
+	setNullableUint64Field(fields, colMedicineParentID, input.ClearParentID, input.ParentID)
 	if input.Price != nil {
 		fields[colMedicinePrice] = *input.Price
 	}

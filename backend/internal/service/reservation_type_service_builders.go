@@ -76,15 +76,7 @@ func buildReservationTypeUpdate(input *UpdateReservationTypeInput) map[string]an
 	if input.IsInternal != nil {
 		fields[colReservationTypeIsInternal] = *input.IsInternal
 	}
-	if input.ClearGroupID {
-		fields[colReservationTypeGroupID] = nil
-	} else if input.GroupID != nil {
-		fields[colReservationTypeGroupID] = *input.GroupID
-	}
-	if input.ClearParentID {
-		fields[colReservationTypeParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colReservationTypeParentID] = *input.ParentID
-	}
+	setNullableUint64Field(fields, colReservationTypeGroupID, input.ClearGroupID, input.GroupID)
+	setNullableUint64Field(fields, colReservationTypeParentID, input.ClearParentID, input.ParentID)
 	return fields
 }

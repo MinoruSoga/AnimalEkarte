@@ -43,11 +43,7 @@ func buildConsultationUpdate(input *UpdateConsultationInput) map[string]any {
 	if input.Duration != nil {
 		fields[colConsultationDuration] = *input.Duration
 	}
-	if input.ClearParentID {
-		fields[colConsultationParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colConsultationParentID] = *input.ParentID
-	}
+	setNullableUint64Field(fields, colConsultationParentID, input.ClearParentID, input.ParentID)
 	if input.SortOrder != nil {
 		fields[colConsultationSortOrder] = *input.SortOrder
 	}

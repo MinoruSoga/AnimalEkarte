@@ -74,11 +74,7 @@ func buildProcedureUpdate(input *UpdateProcedureInput) map[string]any {
 	if input.Anesthesia != nil {
 		fields[colProcedureAnesthesia] = model.AnesthesiaType(*input.Anesthesia)
 	}
-	if input.ClearParentID {
-		fields[colProcedureParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colProcedureParentID] = *input.ParentID
-	}
+	setNullableUint64Field(fields, colProcedureParentID, input.ClearParentID, input.ParentID)
 	if input.SortOrder != nil {
 		fields[colProcedureSortOrder] = *input.SortOrder
 	}

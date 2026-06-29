@@ -68,11 +68,7 @@ func buildCheckupTypeUpdate(input *UpdateCheckupTypeInput) map[string]any {
 	if input.TargetAge != nil {
 		fields[colCheckupTypeTargetAge] = *input.TargetAge
 	}
-	if input.ClearParentID {
-		fields[colCheckupTypeParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colCheckupTypeParentID] = *input.ParentID
-	}
+	setNullableUint64Field(fields, colCheckupTypeParentID, input.ClearParentID, input.ParentID)
 	if input.SortOrder != nil {
 		fields[colCheckupTypeSortOrder] = *input.SortOrder
 	}

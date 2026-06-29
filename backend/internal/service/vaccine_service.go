@@ -68,11 +68,7 @@ func buildVaccineUpdate(input *UpdateVaccineInput) map[string]any {
 	if input.Interval != nil {
 		fields[colVaccineInterval] = *input.Interval
 	}
-	if input.ClearParentID {
-		fields[colVaccineParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colVaccineParentID] = *input.ParentID
-	}
+	setNullableUint64Field(fields, colVaccineParentID, input.ClearParentID, input.ParentID)
 	if input.SortOrder != nil {
 		fields[colVaccineSortOrder] = *input.SortOrder
 	}
