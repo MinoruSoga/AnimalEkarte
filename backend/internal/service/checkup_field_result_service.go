@@ -140,7 +140,7 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 		if !ok {
 			return nil, apperrors.WrapInvalidInput("checkup_type_field が当該健診パッケージに属していません（別クリニック/別パッケージの項目は紐付けできません）")
 		}
-		if err := validateCheckupFieldValue(field, in); err != nil {
+		if err := validateCheckupFieldValue(&field, in); err != nil {
 			return nil, err
 		}
 		// field_type に該当する value 列のみ書き込む（非該当列はゼロ値のまま）。
@@ -208,7 +208,7 @@ type checkupFieldOption struct {
 
 // validateCheckupFieldValue は request 値が field_type / options 定義に整合するか検証する
 // （request 境界の untrusted 入力検証。型/スキーマで排除できないため残す）。
-func validateCheckupFieldValue(field model.CheckupTypeField, in UpsertCheckupFieldResultInput) error {
+func validateCheckupFieldValue(field *model.CheckupTypeField, in UpsertCheckupFieldResultInput) error {
 	switch field.FieldType {
 	case model.CheckupFieldTypeSingleSelect:
 		if in.ValueText == "" {
@@ -240,7 +240,7 @@ func validateCheckupFieldValue(field model.CheckupTypeField, in UpsertCheckupFie
 	return nil
 }
 
-func parseCheckupOptionValues(field model.CheckupTypeField) (map[string]struct{}, error) {
+func parseCheckupOptionValues(field *model.CheckupTypeField) (map[string]struct{}, error) {
 	allowed := map[string]struct{}{}
 	if len(field.Options) == 0 {
 		return allowed, nil
