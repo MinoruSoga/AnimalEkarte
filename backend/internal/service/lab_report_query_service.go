@@ -63,7 +63,7 @@ func (s *labReportQueryService) GetExamReport(ctx context.Context, clinicID, exa
 	}
 	exam, err := s.examRepo.FindByID(ctx, clinicID, examID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, fmt.Sprintf("failed to get exam report %d", examID))
 	}
 	return toLabExamReportDetail(exam), nil
 }
