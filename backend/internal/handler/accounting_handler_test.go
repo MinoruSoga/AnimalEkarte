@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 )
 
 // TestAccountingHandlerCompiles verifies accounting_handler.go compiles

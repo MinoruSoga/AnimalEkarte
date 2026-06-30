@@ -437,7 +437,4 @@ func TestLabReportQueryService_GetExamReport_ItemsOrdered(t *testing.T) {
 	if first.Name == "" || second.Name == "" {
 		t.Error("item names must be populated")
 	}
-	if first.IsAbnormal && first.Status != string(model.ExaminationResultStatusHigh) {
-		// If the first item is ALT (sort_order=2) in this stub, that's fine.
-	}
 }

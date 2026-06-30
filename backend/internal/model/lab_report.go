@@ -34,19 +34,19 @@ type LabExamReportSummary struct {
 // result_summary は PHI 分類未確認のため omitempty NULL（Phase 4B.1 決定2）。
 // owner 名・pet 名・raw デバイスペイロードは含めない。
 type LabExamReportDetail struct {
-	ExamID          uint64            `json:"exam_id"`
-	ClinicID        string            `json:"clinic_id"`
-	JobID           *uuid.UUID        `json:"job_id,omitempty"`
-	PetID           *uint64           `json:"pet_id,omitempty"`
-	MedicalRecordID *uint64           `json:"medical_record_id,omitempty"`
-	DoctorID        *uint64           `json:"doctor_id,omitempty"`
-	Date            string            `json:"date"`
-	ExamTypeName    string            `json:"exam_type_name"`
-	Status          string            `json:"status"`
-	Machine         string            `json:"machine"`
+	ExamID          uint64              `json:"exam_id"`
+	ClinicID        string              `json:"clinic_id"`
+	JobID           *uuid.UUID          `json:"job_id,omitempty"`
+	PetID           *uint64             `json:"pet_id,omitempty"`
+	MedicalRecordID *uint64             `json:"medical_record_id,omitempty"`
+	DoctorID        *uint64             `json:"doctor_id,omitempty"`
+	Date            string              `json:"date"`
+	ExamTypeName    string              `json:"exam_type_name"`
+	Status          string              `json:"status"`
+	Machine         string              `json:"machine"`
 	Items           []LabExamResultItem `json:"items"`
-	CreatedAt       string            `json:"created_at"`
-	UpdatedAt       string            `json:"updated_at"`
+	CreatedAt       string              `json:"created_at"`
+	UpdatedAt       string              `json:"updated_at"`
 }
 
 // LabExamResultItem は LabExamReportDetail の検査結果 1 件。

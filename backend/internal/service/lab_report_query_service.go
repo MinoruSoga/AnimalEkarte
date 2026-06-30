@@ -57,7 +57,7 @@ func (s *labReportQueryService) ListJobReportSummaries(ctx context.Context, clin
 	return out, nil
 }
 
-func (s *labReportQueryService) GetExamReport(ctx context.Context, clinicID uint64, examID uint64) (*model.LabExamReportDetail, error) {
+func (s *labReportQueryService) GetExamReport(ctx context.Context, clinicID, examID uint64) (*model.LabExamReportDetail, error) {
 	if clinicID == 0 {
 		return nil, apperrors.WrapInvalidInput("clinic_id is required")
 	}
@@ -79,8 +79,8 @@ func toLabExamReportSummary(e *model.Examination) model.LabExamReportSummary {
 	}
 	resultCount := len(e.Items)
 	abnormalCount := 0
-	for _, item := range e.Items {
-		if item.IsAbnormal {
+	for i := range e.Items {
+		if e.Items[i].IsAbnormal {
 			abnormalCount++
 		}
 	}
@@ -104,7 +104,8 @@ func toLabExamReportDetail(e *model.Examination) *model.LabExamReportDetail {
 		typeName = e.ExaminationType.Name
 	}
 	items := make([]model.LabExamResultItem, 0, len(e.Items))
-	for _, r := range e.Items {
+	for i := range e.Items {
+		r := &e.Items[i]
 		items = append(items, model.LabExamResultItem{
 			Name:            r.Name,
 			InspectionValue: r.InspectionValue,

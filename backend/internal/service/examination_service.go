@@ -278,8 +278,8 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 			return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
 		}
 		validFieldIDs := make(map[uint64]struct{}, len(examType.Items))
-		for _, f := range examType.Items {
-			validFieldIDs[f.ID] = struct{}{}
+		for i := range examType.Items {
+			validFieldIDs[examType.Items[i].ID] = struct{}{}
 		}
 		for _, in := range inputs {
 			if in.ExamTypeFieldID != nil {

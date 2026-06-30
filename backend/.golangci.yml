@@ -94,6 +94,12 @@ linters:
           # テストヘルパは context.Background() でフィクスチャを生成するため
           # contextcheck は false positive（internal/handler/middleware と同じ方針）。
           - contextcheck
+          # テストヘルパは可読性のため意図的に柔軟なシグネチャ（clinic/exam ID を明示
+          # param で受ける・現状の呼び出しが一様・返り値を呼び出し側が破棄）を持つ。
+          # unparam の「常に同値 param / 未使用 result」は prod 向け API 最小化ルールで、
+          # fixture を magic number 化させるだけなので test では緩和する
+          # （gosec/wrapcheck/errcheck と同じ test 緩和方針）。
+          - unparam
 
       # main.goはwrapcheck緩和
       - path: cmd/

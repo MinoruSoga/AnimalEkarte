@@ -224,7 +224,7 @@ func analyzeFilePreloads(filename string, src []byte) ([]preloadFinding, preload
 // preloadHasClinicScope reports whether a Preload call carries a clinic_id scope and returns
 // the raw string predicate (for site-exception matching / diagnostics). For a closure-form
 // predicate it inspects the closure body for a clinic_id literal or a clinicScope(...) call.
-func preloadHasClinicScope(ce *ast.CallExpr) (bool, string) {
+func preloadHasClinicScope(ce *ast.CallExpr) (hasScope bool, predicate string) {
 	if len(ce.Args) < 2 {
 		return false, "" // master Preload with no predicate at all
 	}

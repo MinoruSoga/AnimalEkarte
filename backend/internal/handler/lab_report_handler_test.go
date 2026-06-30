@@ -31,7 +31,7 @@ func (s *stubLabReportQueryService) ListJobReportSummaries(ctx context.Context, 
 	return s.listFn(ctx, clinicID, jobID)
 }
 
-func (s *stubLabReportQueryService) GetExamReport(ctx context.Context, clinicID uint64, examID uint64) (*model.LabExamReportDetail, error) {
+func (s *stubLabReportQueryService) GetExamReport(ctx context.Context, clinicID, examID uint64) (*model.LabExamReportDetail, error) {
 	return s.getFn(ctx, clinicID, examID)
 }
 
