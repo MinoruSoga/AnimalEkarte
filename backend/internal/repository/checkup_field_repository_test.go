@@ -174,3 +174,46 @@ func TestCheckupTypeFieldRepository_FindByCheckupTypeID_ClinicScoped(t *testing.
 		assert.Equal(t, clinicA, f.ClinicID)
 	}
 }
+
+// FU3（#211 follow-up）: 残り 3 field_type（single_select / checklist / text）の round-trip。
+// 既存テストが number / boolean / multi_select を網羅済みのため、機構が主張する 6 型を全て検証する。
+// 値カラム規約（checkup_field_result_service.go）: single_select / text → value_text、checklist → value_list。
+func TestCheckupFieldResultRepository_ReplaceForCheckup_RoundTripsRemainingFieldTypes(t *testing.T) {
+	db := setupCheckupFieldTestDB(t)
+	resultRepo := NewCheckupFieldResultRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	owner := makeOwner(t, db, clinicA, "残型飼主")
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "残型ポチ")
+	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-FIELDTYPES", time.Now())
+	ct := makeCheckupTypeMaster(t, db, clinicA, "歯科検診")
+
+	fSingle := makeCheckupTypeField(t, db, &model.CheckupTypeField{ClinicID: clinicA, CheckupTypeID: ct.ID, Name: "総合評価", FieldType: model.CheckupFieldTypeSingleSelect, SortOrder: 1})
+	fCheck := makeCheckupTypeField(t, db, &model.CheckupTypeField{ClinicID: clinicA, CheckupTypeID: ct.ID, Name: "処置チェック", FieldType: model.CheckupFieldTypeChecklist, SortOrder: 2})
+	fText := makeCheckupTypeField(t, db, &model.CheckupTypeField{ClinicID: clinicA, CheckupTypeID: ct.ID, Name: "所見", FieldType: model.CheckupFieldTypeText, SortOrder: 3})
+
+	checkupID := makeCheckupRec(t, db, clinicA, mr.ID, pet.ID, ct.ID)
+
+	saved, err := resultRepo.ReplaceForCheckup(ctx, clinicA, checkupID, []model.CheckupFieldResult{
+		{CheckupTypeFieldID: &fSingle.ID, FieldName: fSingle.Name, FieldType: model.CheckupFieldTypeSingleSelect, ValueText: "要経過観察", SortOrder: 1},
+		{CheckupTypeFieldID: &fCheck.ID, FieldName: fCheck.Name, FieldType: model.CheckupFieldTypeChecklist, ValueList: []string{"スケーリング", "ポリッシング"}, SortOrder: 2},
+		{CheckupTypeFieldID: &fText.ID, FieldName: fText.Name, FieldType: model.CheckupFieldTypeText, ValueText: "下顎臼歯に軽度の歯肉炎あり。次回再評価。", SortOrder: 3},
+	})
+	require.NoError(t, err)
+	require.Len(t, saved, 3)
+
+	got, err := resultRepo.FindByCheckupID(ctx, clinicA, checkupID)
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+
+	// single_select → value_text に単一選択値が保持される。
+	assert.Equal(t, model.CheckupFieldTypeSingleSelect, got[0].FieldType)
+	assert.Equal(t, "要経過観察", got[0].ValueText)
+	// checklist → value_list に複数チェック値が保持される。
+	assert.Equal(t, model.CheckupFieldTypeChecklist, got[1].FieldType)
+	assert.Equal(t, []string{"スケーリング", "ポリッシング"}, []string(got[1].ValueList))
+	// text → value_text に自由記述が保持される。
+	assert.Equal(t, model.CheckupFieldTypeText, got[2].FieldType)
+	assert.Equal(t, "下顎臼歯に軽度の歯肉炎あり。次回再評価。", got[2].ValueText)
+}

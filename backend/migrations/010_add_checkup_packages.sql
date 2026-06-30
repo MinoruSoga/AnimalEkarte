@@ -90,10 +90,14 @@ CREATE INDEX idx_checkup_type_fields_clinic_id        ON checkup_type_fields(cli
 CREATE INDEX idx_checkup_type_fields_checkup_type_id  ON checkup_type_fields(checkup_type_id);
 CREATE INDEX idx_checkup_type_fields_clinic_type_sort ON checkup_type_fields(clinic_id, checkup_type_id, sort_order) WHERE deleted_at IS NULL;
 
-CREATE INDEX idx_checkup_field_results_clinic_id  ON checkup_field_results(clinic_id);
-CREATE INDEX idx_checkup_field_results_checkup_id ON checkup_field_results(checkup_id);
+-- FindByCheckupID / ReplaceForCheckup はともに WHERE clinic_id = ? AND checkup_id = ? を発行する。
+-- clinic_id 先頭（等値）+ checkup_id（等値）の複合で両クエリを単一インデックスで賄う
+-- （migrations/CLAUDE.md「clinic_id を含む複合インデックス」規約）。clinic_id 単独はこの複合の前方一致で代替できるため作らない。
+CREATE INDEX idx_checkup_field_results_clinic_checkup ON checkup_field_results(clinic_id, checkup_id);
+-- checkup_id 単独は FindByPetID の JOIN（checkups.id = checkup_field_results.checkup_id）用に保持する。
+CREATE INDEX idx_checkup_field_results_checkup_id      ON checkup_field_results(checkup_id);
 -- checkup_type_field_id は ON DELETE SET NULL で NULL 行が増えるため部分インデックス。
-CREATE INDEX idx_checkup_field_results_field_id   ON checkup_field_results(checkup_type_field_id) WHERE checkup_type_field_id IS NOT NULL;
+CREATE INDEX idx_checkup_field_results_field_id        ON checkup_field_results(checkup_type_field_id) WHERE checkup_type_field_id IS NOT NULL;
 
 -- ------------------------------------
 -- RLS（clinic_id 直接ポリシー。001_init の自動ループ相当を後発で明示適用）
