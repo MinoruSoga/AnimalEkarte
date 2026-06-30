@@ -99,15 +99,8 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 
 // GetStaff godoc
 func (h *Handler) GetStaff(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	_, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	staff, err := h.svc.Staff.GetByID(c.Request.Context(), id)
@@ -142,15 +135,8 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 // GetStaffPermissionGroups godoc
 // GET /v1/masters/staffs/:id/permission-groups
 func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	_, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	groupIDs, err := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), id)
@@ -164,15 +150,8 @@ func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
 // SetStaffPermissionGroups godoc
 // PUT /v1/masters/staffs/:id/permission-groups
 func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicID, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	var req setStaffPermissionGroupsRequest
@@ -193,15 +172,8 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 // GetStaffClinicAssignments godoc
 // GET /v1/masters/staffs/:id/clinics
 func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	_, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(c.Request.Context(), id)
@@ -219,15 +191,8 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 // SetStaffClinicAssignments godoc
 // PUT /v1/masters/staffs/:id/clinics
 func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	_, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	var req setStaffClinicAssignmentsRequest
@@ -250,15 +215,8 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 // GetStaffExcludedReservationTypes godoc
 // GET /v1/masters/staffs/:id/excluded-reservation-types
 func (h *Handler) GetStaffExcludedReservationTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	_, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	ids, err := h.svc.Staff.GetExcludedReservationTypeIDs(c.Request.Context(), id)
@@ -272,15 +230,8 @@ func (h *Handler) GetStaffExcludedReservationTypes(c *gin.Context) {
 // SetStaffExcludedReservationTypes godoc
 // PUT /v1/masters/staffs/:id/excluded-reservation-types
 func (h *Handler) SetStaffExcludedReservationTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicID, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	var req setStaffExcludedReservationTypesRequest
@@ -301,15 +252,8 @@ func (h *Handler) SetStaffExcludedReservationTypes(c *gin.Context) {
 // GetStaffCapableReservationTypes godoc
 // GET /v1/masters/staffs/:id/capable-reservation-types
 func (h *Handler) GetStaffCapableReservationTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicID, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	ids, err := h.svc.Staff.GetCapableReservationTypeIDs(c.Request.Context(), clinicID, id)
@@ -323,15 +267,8 @@ func (h *Handler) GetStaffCapableReservationTypes(c *gin.Context) {
 // SetStaffCapableReservationTypes godoc
 // PUT /v1/masters/staffs/:id/capable-reservation-types
 func (h *Handler) SetStaffCapableReservationTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicID, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	var req setStaffCapableReservationTypesRequest
