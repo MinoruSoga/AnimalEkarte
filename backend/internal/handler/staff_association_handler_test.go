@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // staffAssocCtx builds a gin test context with clinic_id=1 and :id=10.
@@ -343,4 +344,84 @@ func TestStaffAssociation_MissingClinicID_Returns401(t *testing.T) {
 	// NOTE: clinic_id intentionally NOT set.
 	newHandlerWithStaffSvc(svc).GetStaffPermissionGroups(c)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+// ---- GetStaff (9th endpoint refactored by A3 — completes the preamble net) ----
+
+func TestGetStaff_Characterization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("200 returns staff", func(t *testing.T) {
+		svc := &mockStaffService{
+			getByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
+				assert.Equal(t, uint64(10), id)
+				return &model.Staff{ID: 10, Name: "田中太郎", StaffType: model.StaffTypeDoctor}, nil
+			},
+		}
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(svc).GetStaff(staffAssocCtx(w, http.MethodGet, nil))
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"id":10`)
+		assert.Contains(t, w.Body.String(), `"name":"田中太郎"`)
+	})
+
+	t.Run("404 when not clinic member; membership checked with correct tenant args; downstream not called", func(t *testing.T) {
+		svc := &mockStaffService{
+			// Locks the tenant arguments: membership must be checked for the URL
+			// staff id (10) against the authenticated clinic (1). Catches an
+			// accidental clinicID/staffID transposition in the preamble helper.
+			verifyClinicMembershipFn: func(_ context.Context, staffID, clinicID uint64) error {
+				assert.Equal(t, uint64(10), staffID)
+				assert.Equal(t, uint64(1), clinicID)
+				return notMemberErr()
+			},
+			getByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
+				t.Fatal("downstream GetByID must not run when membership fails")
+				return nil, nil
+			},
+		}
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(svc).GetStaff(staffAssocCtx(w, http.MethodGet, nil))
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("401 when clinic_id missing; membership and downstream not called", func(t *testing.T) {
+		svc := &mockStaffService{
+			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error {
+				t.Fatal("membership must not run when clinic_id is missing")
+				return nil
+			},
+			getByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
+				t.Fatal("downstream must not run when clinic_id is missing")
+				return nil, nil
+			},
+		}
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+		// clinic_id intentionally NOT set.
+		newHandlerWithStaffSvc(svc).GetStaff(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("400 when id is not numeric; membership and downstream not called", func(t *testing.T) {
+		svc := &mockStaffService{
+			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error {
+				t.Fatal("membership must not run when id is invalid")
+				return nil
+			},
+			getByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
+				t.Fatal("downstream must not run when id is invalid")
+				return nil, nil
+			},
+		}
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		setClinicID(c)
+		c.Params = gin.Params{{Key: "id", Value: "abc"}}
+		newHandlerWithStaffSvc(svc).GetStaff(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 }
