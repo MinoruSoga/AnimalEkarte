@@ -64,6 +64,8 @@ type Repositories struct {
 	MedicalRecordImage        MedicalRecordImageRepository
 	ClinicalPlan              ClinicalPlanRepository
 	Checkup                   CheckupRepository
+	CheckupTypeField          CheckupTypeFieldRepository
+	CheckupFieldResult        CheckupFieldResultRepository
 	Estimate                  EstimateRepository
 	ManualArticle             ManualArticleRepository
 	MerchandiseItem           MerchandiseItemRepository
@@ -179,6 +181,8 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		MedicalRecordImage:             NewMedicalRecordImageRepository(db),
 		ClinicalPlan:                   NewClinicalPlanRepository(db),
 		Checkup:                        NewCheckupRepository(db),
+		CheckupTypeField:               NewCheckupTypeFieldRepository(db),
+		CheckupFieldResult:             NewCheckupFieldResultRepository(db),
 		Estimate:                       NewEstimateRepository(db),
 		ManualArticle:                  NewManualArticleRepository(db),
 		MerchandiseItem:                NewMerchandiseItemRepository(db),

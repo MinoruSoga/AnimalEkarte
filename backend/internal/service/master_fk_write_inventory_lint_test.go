@@ -81,6 +81,7 @@ var clinicScopedMasterFKField = map[string]string{
 	"ConsultationID":        "Consultation",
 	"ExamTypeID":            "ExaminationType",
 	"ExamTypeFieldID":       "ExamTypeField (sub-master of ExaminationType, #124)",
+	"CheckupTypeFieldID":    "CheckupTypeField (sub-master of CheckupType, #211)",
 	"ReservationTypeID":     "ReservationType",
 	"TrimmingCourseID":      "TrimmingCourse",
 	"TrimmingOptionID":      "TrimmingOption",
@@ -166,6 +167,7 @@ type masterFKWriteEntry struct {
 // REMINDER: status is a human review record. The gate does NOT verify it (see file header).
 var masterFKWriteAllowlist = []masterFKWriteEntry{
 	// ── guarded (FindByID ownership check covers every master FK; most have runtime isolation tests) ──
+	{"checkupFieldResultService.ReplaceForCheckup", statusGuarded, []string{"CheckupTypeFieldID"}, "checkup_field_result_service.go: each CheckupTypeFieldID validated within the owned checkup_type's fields (#124 同型, #211); test in checkup_field_result_service_test.go"},
 	{"checkupService.Create", statusGuarded, []string{"CheckupTypeID"}, "checkup_service.go: checkupTypeRepo.FindByID(ctx, clinicID, CheckupTypeID); test in cross_tenant_master_fk_write_test.go"},
 	{"checkupService.Update", statusGuarded, []string{"CheckupTypeID"}, "checkup_service.go:223 checkupTypeRepo.FindByID(ctx, clinicID, *CheckupTypeID)"},
 	{"clinicalPlanService.Update", statusGuarded, []string{"Diagnosis2CategoryID", "Diagnosis2NameID", "DiagnosisNameID", "DiagnosisTypeID"}, "validateDiagnosisFKs FindByID for all four slots (03bf1cb5); test present"},

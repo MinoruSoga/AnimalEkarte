@@ -191,6 +191,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.GET("/checkup-types/:id", perm(model.ResourceCheckups, "view"), h.GetCheckupType)
 	masters.PATCH("/checkup-types/:id", perm(model.ResourceCheckups, "edit"), h.UpdateCheckupType)
 	masters.DELETE("/checkup-types/:id", perm(model.ResourceCheckups, "delete"), h.DeleteCheckupType)
+	// #211: 健診パッケージのフィールド定義（FE 動的フォーム構築用）。
+	masters.GET("/checkup-types/:id/fields", perm(model.ResourceCheckups, "view"), h.ListCheckupTypeFields)
 
 	// Occupations
 	masters.GET("/occupations", perm(model.ResourceMasterStaff, "view"), h.ListOccupations)

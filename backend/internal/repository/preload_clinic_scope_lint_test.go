@@ -59,10 +59,13 @@ var clinicScopedMasterAssoc = map[string]string{
 	"Insurance":       "Insurance",
 	"ExaminationType": "ExaminationType",
 	"CheckupType":     "CheckupType",
-	"DiagnosisType":   "DiagnosisType",
-	"DiagnosisName":   "DiagnosisName",
-	"Names":           "DiagnosisName", // diagnosis_type.Names []DiagnosisName
-	"Occupation":      "Occupation",
+	// #211: 健診パッケージのフィールド定義マスタ（checkup_type_fields, clinic_id 列あり）。
+	// checkup_field_results.CheckupTypeField として clinic_id 述語付きで Preload される。
+	"CheckupTypeField": "CheckupTypeField",
+	"DiagnosisType":    "DiagnosisType",
+	"DiagnosisName":    "DiagnosisName",
+	"Names":            "DiagnosisName", // diagnosis_type.Names []DiagnosisName
+	"Occupation":       "Occupation",
 }
 
 // staffExemptAssoc: P3.1 Staff exception. Staff belongs to multiple clinics via

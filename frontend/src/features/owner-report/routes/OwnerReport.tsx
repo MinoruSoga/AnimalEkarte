@@ -20,6 +20,7 @@ import {
 import { PetDetailSection } from "../components/PetDetailSection";
 import { VaccinationHistorySection } from "../components/VaccinationHistorySection";
 import { ExaminationHistorySection } from "../components/ExaminationHistorySection";
+import { CheckupHistorySection } from "../components/CheckupHistorySection";
 import { TreatmentHistorySection } from "../components/TreatmentHistorySection";
 import { TrimmingHistorySection } from "../components/TrimmingHistorySection";
 
@@ -91,7 +92,7 @@ function OwnerReportContent() {
   // - lg+ では overflow-hidden で root も固定し、各履歴パネルだけが内部スクロールする（ページ非スクロール）。
   // - lg 未満（タブレット/モバイル）は root が overflow-y-auto でスクロールし、パネルは自然高さで縦積みする。
   // - 上部 <header> = 常時固定（sticky）の飼主コンテキスト + ペット切替（R4/R5）。
-  // - <main> = 8 セクションを敷き詰めるグリッド（xl:3列×3行 / lg:2列×4行 / それ未満:1列）。
+  // - <main> = 9 セクションを敷き詰めるグリッド（xl:3列×3行 / lg:2列×5行 / それ未満:1列）。
   return (
     <div className={`flex h-dvh flex-col overflow-y-auto ${C.bgPage} lg:overflow-hidden`}>
       {/* R4/R5: 飼主は固定表示、ペット切替は即アクセス可能。モバイルでも sticky で残す。 */}
@@ -116,11 +117,12 @@ function OwnerReportContent() {
             id={OWNER_REPORT_TABPANEL_ID}
             role="tabpanel"
             aria-labelledby={ownerReportPetTabId(selectedPet.id)}
-            className="grid grid-cols-1 gap-2 p-2 lg:h-full lg:min-h-0 lg:grid-cols-2 lg:grid-rows-4 xl:grid-cols-3 xl:grid-rows-3"
+            className="grid grid-cols-1 gap-2 p-2 lg:h-full lg:min-h-0 lg:grid-cols-2 lg:grid-rows-5 xl:grid-cols-3 xl:grid-rows-3"
           >
             <PetDetailSection pet={selectedPet} firstVisitDate={firstVisitDate} />
             <VaccinationHistorySection petId={selectedPet.id} />
             <ExaminationHistorySection petId={selectedPet.id} />
+            <CheckupHistorySection petId={selectedPet.id} />
             <TreatmentHistorySection
               petId={selectedPet.id}
               title="投薬履歴"

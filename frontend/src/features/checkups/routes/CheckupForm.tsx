@@ -24,6 +24,7 @@ import { ResourceCheckups } from "@/types/generated/models";
 
 // Relative
 import { useCheckupForm } from "../hooks/use-checkup-form";
+import { DynamicCheckupFields } from "../components/DynamicCheckupFields";
 
 export function CheckupForm() {
   const navigate = useNavigate();
@@ -35,6 +36,9 @@ export function CheckupForm() {
     formAction,
     isPending,
     fieldErrors,
+    checkupFields,
+    fieldValues,
+    setFieldValue,
     setCheckupTypeId,
     setDate,
     setNextDate,
@@ -136,6 +140,18 @@ export function CheckupForm() {
               />
             </div>
           </div>
+
+          {/* #211 健診パッケージの型付き入力（選択種別にフィールド定義がある場合のみ表示） */}
+          {checkupFields.length > 0 ? (
+            <div className={`border-t ${C.borderLight} pt-6`}>
+              <h2 className={`mb-4 text-sm font-medium ${C.text}`}>健診項目</h2>
+              <DynamicCheckupFields
+                fields={checkupFields}
+                values={fieldValues}
+                onChange={setFieldValue}
+              />
+            </div>
+          ) : null}
 
           {/* 結果・所見 */}
           <div className="space-y-2">
