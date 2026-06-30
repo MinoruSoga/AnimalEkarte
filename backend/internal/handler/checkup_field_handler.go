@@ -69,7 +69,7 @@ func (h *Handler) ReplaceCheckupFieldResults(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	saved, err := h.svc.CheckupFieldResult.ReplaceForCheckup(c.Request.Context(), clinicID, medicalRecordID, checkupID, req.toServiceInput())
+	saved, err := h.svc.CheckupFieldResult.ReplaceForCheckup(c.Request.Context(), clinicID, medicalRecordID, checkupID, optionalStaffID(c), req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

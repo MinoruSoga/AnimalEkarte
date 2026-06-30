@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,11 +27,17 @@ func (m *mockCheckupTypeFieldRepository) FindByCheckupTypeID(ctx context.Context
 type mockCheckupFieldResultRepository struct {
 	replaceCalled bool
 	captured      []model.CheckupFieldResult
+	// existing は置換前に service が取得する「既存（=削除対象）結果」のスナップショット。
+	// #211 の削除監査テストでは、これを seed して削除が発生する状況を再現する。
+	existing []model.CheckupFieldResult
+	// existingErr は FindByCheckupID（置換前スナップショット）の失敗を注入する。
+	// スナップショット失敗時に置換を中断する制御（監査なし silent 削除の防止）を検証する。
+	existingErr   error
 	findByPetIDFn func(ctx context.Context, clinicID, petID uint64) ([]model.CheckupFieldResult, error)
 }
 
 func (m *mockCheckupFieldResultRepository) FindByCheckupID(_ context.Context, _, _ uint64) ([]model.CheckupFieldResult, error) {
-	return m.captured, nil
+	return m.existing, m.existingErr
 }
 
 func (m *mockCheckupFieldResultRepository) FindByPetID(ctx context.Context, clinicID, petID uint64) ([]model.CheckupFieldResult, error) {
@@ -62,7 +70,11 @@ func clinicAFields() []model.CheckupTypeField {
 	}
 }
 
-func newCheckupFieldResultServiceForTest(resultRepo *mockCheckupFieldResultRepository) (CheckupFieldResultService, *mockCheckupFieldResultRepository) {
+// newCheckupFieldResultServiceForTest は実 AuditService（NewAuditService）に記録用の
+// mockAuditRepository を噛ませて service を構築する。mock の AuditService ではなく実装を使うことで
+// validateAuditLog（actor_type / clinic_id 整合）が実際に走り、監査が silent に弾かれる失敗モード
+// （前段 security M2 の教訓）を検知できる。auditRepo.lastLogged は validateAuditLog 通過後にのみ set される。
+func newCheckupFieldResultServiceForTest(resultRepo *mockCheckupFieldResultRepository) (CheckupFieldResultService, *mockCheckupFieldResultRepository, *mockAuditRepository) {
 	checkupRepo := &mockCheckupRepository{
 		findByIDFn: func(_ context.Context, _, checkupID uint64) (*model.Checkup, error) {
 			// clinic A・カルテ 5・歯科パッケージ(10) の健診記録。
@@ -83,8 +95,9 @@ func newCheckupFieldResultServiceForTest(resultRepo *mockCheckupFieldResultRepos
 			return []model.CheckupTypeField{}, nil
 		},
 	}
-	svc := NewCheckupFieldResultService(checkupRepo, mrRepo, fieldRepo, resultRepo)
-	return svc, resultRepo
+	auditRepo := &mockAuditRepository{}
+	svc := NewCheckupFieldResultService(checkupRepo, mrRepo, fieldRepo, resultRepo, NewAuditService(auditRepo))
+	return svc, resultRepo, auditRepo
 }
 
 // SC3: 別 clinic / 別パッケージの checkup_type_field_id を渡す書き込みは拒否され、永続化されない。
@@ -95,10 +108,10 @@ func newCheckupFieldResultServiceForTest(resultRepo *mockCheckupFieldResultRepos
 func TestCheckupFieldResultService_ReplaceForCheckup_RejectsCrossPackageField(t *testing.T) {
 	t.Run("cross-package field id rejected and NOT persisted", func(t *testing.T) {
 		resultRepo := &mockCheckupFieldResultRepository{}
-		svc, repo := newCheckupFieldResultServiceForTest(resultRepo)
+		svc, repo, _ := newCheckupFieldResultServiceForTest(resultRepo)
 
 		// field 999 は clinic A の歯科パッケージに属さない（別 clinic / 別種別の項目）。
-		_, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, []UpsertCheckupFieldResultInput{
+		_, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, nil, []UpsertCheckupFieldResultInput{
 			{CheckupTypeFieldID: uint64Ptr(999), ValueBool: boolPtr(true)},
 		})
 		require.Error(t, err)
@@ -108,9 +121,9 @@ func TestCheckupFieldResultService_ReplaceForCheckup_RejectsCrossPackageField(t 
 
 	t.Run("same-package field id succeeds and is persisted", func(t *testing.T) {
 		resultRepo := &mockCheckupFieldResultRepository{}
-		svc, repo := newCheckupFieldResultServiceForTest(resultRepo)
+		svc, repo, _ := newCheckupFieldResultServiceForTest(resultRepo)
 
-		saved, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, []UpsertCheckupFieldResultInput{
+		saved, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, nil, []UpsertCheckupFieldResultInput{
 			{CheckupTypeFieldID: uint64Ptr(101), ValueBool: boolPtr(true)},
 		})
 		require.NoError(t, err)
@@ -136,9 +149,9 @@ func TestCheckupFieldResultService_ReplaceForCheckup_ComputesNumberStatus(t *tes
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			resultRepo := &mockCheckupFieldResultRepository{}
-			svc, _ := newCheckupFieldResultServiceForTest(resultRepo)
+			svc, _, _ := newCheckupFieldResultServiceForTest(resultRepo)
 			v := tc.value
-			saved, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, []UpsertCheckupFieldResultInput{
+			saved, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, nil, []UpsertCheckupFieldResultInput{
 				{CheckupTypeFieldID: uint64Ptr(102), ValueNumber: &v},
 			})
 			require.NoError(t, err)
@@ -152,9 +165,9 @@ func TestCheckupFieldResultService_ReplaceForCheckup_ComputesNumberStatus(t *tes
 // multi_select は options に存在しない値を request 境界で拒否する。
 func TestCheckupFieldResultService_ReplaceForCheckup_RejectsUnknownOption(t *testing.T) {
 	resultRepo := &mockCheckupFieldResultRepository{}
-	svc, repo := newCheckupFieldResultServiceForTest(resultRepo)
+	svc, repo, _ := newCheckupFieldResultServiceForTest(resultRepo)
 
-	_, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, []UpsertCheckupFieldResultInput{
+	_, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, nil, []UpsertCheckupFieldResultInput{
 		{CheckupTypeFieldID: uint64Ptr(103), ValueList: []string{"daily_brushing", "unknown_value"}},
 	})
 	require.Error(t, err)
@@ -180,12 +193,158 @@ func TestCheckupFieldResultService_ReplaceForCheckup_RejectsFinalizedRecord(t *t
 			return clinicAFields(), nil
 		},
 	}
-	svc := NewCheckupFieldResultService(checkupRepo, mrRepo, fieldRepo, resultRepo)
+	svc := NewCheckupFieldResultService(checkupRepo, mrRepo, fieldRepo, resultRepo, NewAuditService(&mockAuditRepository{}))
 
-	_, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, []UpsertCheckupFieldResultInput{
+	_, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, nil, []UpsertCheckupFieldResultInput{
 		{CheckupTypeFieldID: uint64Ptr(101), ValueBool: boolPtr(true)},
 	})
 	require.Error(t, err)
 	assert.True(t, apperrors.IsConflict(err), "確定済みカルテは conflict で拒否されるべき: %v", err)
 	assert.False(t, resultRepo.replaceCalled)
 }
+
+// SC1 (#211): 既存結果を持つ checkup の置換は、削除を実 AuditService 経由で監査記録する。
+// 誰が（actor_id）・どの clinic（clinic_id）・対象（checkup_id=resource_id）・何を削除したか（old_value）が
+// 追跡可能であることを assert する。これは「監査なしの silent な患者結果削除」旧挙動の回帰ガード。
+//
+// temp-revert RED 実証: ReplaceForCheckup の `if len(existing) > 0 && s.auditSvc != nil { LogEntry(...) }`
+// ブロックを削除すると auditRepo.lastLogged が nil のままになり本テストは RED（=旧 silent 削除を再現）。
+func TestCheckupFieldResultService_ReplaceForCheckup_AuditsDeletion(t *testing.T) {
+	resultRepo := &mockCheckupFieldResultRepository{
+		existing: []model.CheckupFieldResult{
+			{ID: 50, ClinicID: 1, CheckupID: 7, CheckupTypeFieldID: uint64Ptr(101),
+				FieldName: "歯石除去必要の有無", FieldType: model.CheckupFieldTypeBoolean, ValueBool: boolPtr(true)},
+		},
+	}
+	svc, repo, auditRepo := newCheckupFieldResultServiceForTest(resultRepo)
+	actor := uint64(9)
+	num := 2.0
+
+	_, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, &actor, []UpsertCheckupFieldResultInput{
+		{CheckupTypeFieldID: uint64Ptr(102), ValueNumber: &num},
+	})
+	require.NoError(t, err)
+	assert.True(t, repo.replaceCalled)
+
+	require.NotNil(t, auditRepo.lastLogged, "既存結果の削除は監査記録されなければならない（silent 削除禁止）")
+	logged := auditRepo.lastLogged
+	require.NotNil(t, logged.ClinicID)
+	assert.Equal(t, uint64(1), *logged.ClinicID, "監査は対象 clinic を記録する")
+	require.NotNil(t, logged.ActorID)
+	assert.Equal(t, uint64(9), *logged.ActorID, "監査は実行者（誰が）を記録する")
+	assert.Equal(t, model.AuditActorTypeStaff, logged.ActorType)
+	assert.Equal(t, model.AuditActionCheckupFieldResultReplace, logged.Action)
+	assert.Equal(t, model.AuditResourceCheckupFieldResult, logged.Resource)
+	require.NotNil(t, logged.ResourceID)
+	assert.Equal(t, uint64(7), *logged.ResourceID, "監査は対象 checkup を記録する")
+	assert.NotEmpty(t, logged.OldValue, "監査は削除された結果値（何を）を記録する")
+	assert.Contains(t, string(logged.OldValue), "歯石除去必要の有無", "削除された結果値のスナップショットが old_value に含まれる")
+}
+
+// SC2 (#211): 空PUT の挙動。
+//
+//	(a) results 省略（nil）は拒否され、永続化も監査も発生しない（偶発的全消去の防御＝明示フラグ要求）。
+//	(b) 明示的な空配列 [] による全削除は PUT セマンティクスとして許容されるが、既存結果があれば監査される。
+//	(c) 既存結果が無い空配列は削除が発生しないため監査されない。
+//
+// 兄弟整合の根拠: 兄弟 examination.ReplaceItems（exam_results）は空入力で既存を silent・無監査削除する
+// 同型欠陥を持つ（auditSvc 注入済みだが delete を監査せず防御も無い）。本タスクは checkup でこの
+// 監査＋明示フラグ防御パターンを確立し、exam_results は別タスクで適用する（prompt 明記）。
+func TestCheckupFieldResultService_ReplaceForCheckup_EmptyPut(t *testing.T) {
+	t.Run("nil results (omitted) is rejected and not persisted/audited", func(t *testing.T) {
+		resultRepo := &mockCheckupFieldResultRepository{
+			existing: []model.CheckupFieldResult{
+				{ID: 50, ClinicID: 1, CheckupID: 7, CheckupTypeFieldID: uint64Ptr(101),
+					FieldName: "歯石除去必要の有無", FieldType: model.CheckupFieldTypeBoolean, ValueBool: boolPtr(true)},
+			},
+		}
+		svc, repo, auditRepo := newCheckupFieldResultServiceForTest(resultRepo)
+		actor := uint64(9)
+
+		_, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, &actor, nil)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "省略された results は必須エラーで拒否されるべき: %v", err)
+		assert.False(t, repo.replaceCalled, "拒否時は既存結果を削除してはならない")
+		assert.Nil(t, auditRepo.lastLogged, "削除が起きないため監査も発生しない")
+	})
+
+	t.Run("explicit empty array clears and is audited when results existed", func(t *testing.T) {
+		resultRepo := &mockCheckupFieldResultRepository{
+			existing: []model.CheckupFieldResult{
+				{ID: 50, ClinicID: 1, CheckupID: 7, CheckupTypeFieldID: uint64Ptr(101),
+					FieldName: "歯石除去必要の有無", FieldType: model.CheckupFieldTypeBoolean, ValueBool: boolPtr(true)},
+			},
+		}
+		svc, repo, auditRepo := newCheckupFieldResultServiceForTest(resultRepo)
+		actor := uint64(9)
+
+		saved, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, &actor, []UpsertCheckupFieldResultInput{})
+		require.NoError(t, err, "明示的な空配列による全削除は PUT セマンティクスとして許容される")
+		assert.True(t, repo.replaceCalled)
+		assert.Len(t, saved, 0)
+		require.NotNil(t, auditRepo.lastLogged, "空配列での全削除も監査されなければならない（silent 全削除禁止）")
+		assert.Equal(t, model.AuditResourceCheckupFieldResult, auditRepo.lastLogged.Resource)
+		// JSON キー順序に依存しないよう unmarshal して型付きで検証する。
+		var meta map[string]any
+		require.NoError(t, json.Unmarshal(auditRepo.lastLogged.Metadata, &meta))
+		assert.Equal(t, float64(0), meta["new_count"], "全削除は new_count=0 として監査される")
+		assert.Equal(t, float64(1), meta["deleted_count"], "削除件数が監査される")
+	})
+
+	t.Run("empty array with no existing results is not audited (no deletion)", func(t *testing.T) {
+		resultRepo := &mockCheckupFieldResultRepository{} // existing = nil
+		svc, repo, auditRepo := newCheckupFieldResultServiceForTest(resultRepo)
+		actor := uint64(9)
+
+		saved, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, &actor, []UpsertCheckupFieldResultInput{})
+		require.NoError(t, err)
+		assert.True(t, repo.replaceCalled)
+		assert.Len(t, saved, 0)
+		assert.Nil(t, auditRepo.lastLogged, "既存結果が無ければ削除は発生せず監査もされない")
+	})
+}
+
+// SC1/SC3 補強（security LOW-2 / go M3）: 置換前スナップショット取得（FindByCheckupID）が失敗したら、
+// 監査なしの silent 削除を避けるため置換を中断する。スナップショットを確立できないまま削除する経路は
+// 旧 silent 削除の再来であり、許してはならない。
+func TestCheckupFieldResultService_ReplaceForCheckup_AbortsWhenSnapshotFails(t *testing.T) {
+	resultRepo := &mockCheckupFieldResultRepository{
+		existingErr: errors.New("db unavailable"),
+	}
+	svc, repo, auditRepo := newCheckupFieldResultServiceForTest(resultRepo)
+	actor := uint64(9)
+
+	_, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, &actor, []UpsertCheckupFieldResultInput{
+		{CheckupTypeFieldID: uint64Ptr(101), ValueBool: boolPtr(true)},
+	})
+	require.Error(t, err, "スナップショット取得失敗時は置換を中断しなければならない")
+	assert.False(t, repo.replaceCalled, "スナップショットを確立できないまま削除してはならない（silent 削除防止）")
+	assert.Nil(t, auditRepo.lastLogged)
+}
+
+// SC4 補強（security LOW-3）: 監査書込が失敗しても置換自体は best-effort で成功する
+// （audit_logs は観測目的・操作中断しない＝medical_record/vital/refund と同方針）。
+// 監査失敗で PUT 全体が落ちる回帰（audit_logs 負荷時に編集不能になる）を防ぐ。
+func TestCheckupFieldResultService_ReplaceForCheckup_AuditFailureIsBestEffort(t *testing.T) {
+	resultRepo := &mockCheckupFieldResultRepository{
+		existing: []model.CheckupFieldResult{
+			{ID: 50, ClinicID: 1, CheckupID: 7, CheckupTypeFieldID: uint64Ptr(101),
+				FieldName: "歯石除去必要の有無", FieldType: model.CheckupFieldTypeBoolean, ValueBool: boolPtr(true)},
+		},
+	}
+	svc, repo, auditRepo := newCheckupFieldResultServiceForTest(resultRepo)
+	auditRepo.createFn = func(_ context.Context, _ *model.AuditLog) error {
+		return errors.New("audit_logs insert failed")
+	}
+	actor := uint64(9)
+
+	saved, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, &actor, []UpsertCheckupFieldResultInput{
+		{CheckupTypeFieldID: uint64Ptr(102), ValueNumber: float64PtrLocal(2)},
+	})
+	require.NoError(t, err, "監査書込失敗で置換が落ちてはならない（best-effort）")
+	assert.True(t, repo.replaceCalled, "監査失敗でも置換自体は成立する")
+	require.Len(t, saved, 1)
+}
+
+// float64PtrLocal は #211 テスト内で *float64 を生成するヘルパー。
+func float64PtrLocal(v float64) *float64 { return &v }

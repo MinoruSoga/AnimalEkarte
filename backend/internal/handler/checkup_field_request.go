@@ -15,13 +15,19 @@ type upsertCheckupFieldResultRequest struct {
 }
 
 // replaceCheckupFieldResultsRequest は健診結果値の一括置換 PUT リクエスト。
-// results が nil の場合は空配列として扱う（全削除と等価）。max は 1 パッケージあたりの
-// フィールド数の現実的上限（過大配列による無駄な処理を防ぐ）。
+// #211: results の省略（JSON に results キーが無い／null）は nil として service へ伝播し拒否される。
+// 患者検診結果値の全削除は意図的な空配列 [] の明示送信を要求し、空ボディ/壊れた request による
+// 偶発的・silent な全消去を防止する。max は 1 パッケージあたりのフィールド数の現実的上限。
 type replaceCheckupFieldResultsRequest struct {
 	Results []upsertCheckupFieldResultRequest `json:"results" binding:"max=200,dive"`
 }
 
 func (r replaceCheckupFieldResultsRequest) toServiceInput() []service.UpsertCheckupFieldResultInput {
+	// nil（results 省略）は nil のまま伝播させ、service 層で必須エラーにする（#211 偶発全消去防御）。
+	// 明示的な空配列 [] は非 nil の空 slice として伝播し、意図的な全削除（監査される）となる。
+	if r.Results == nil {
+		return nil
+	}
 	inputs := make([]service.UpsertCheckupFieldResultInput, 0, len(r.Results))
 	for _, item := range r.Results {
 		inputs = append(inputs, service.UpsertCheckupFieldResultInput{

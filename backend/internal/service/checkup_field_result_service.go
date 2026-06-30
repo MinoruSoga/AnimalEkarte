@@ -47,7 +47,9 @@ type CheckupFieldResultService interface {
 	// ListByPet は pet 単位の健診結果を返す（飼い主レポート用）。
 	ListByPet(ctx context.Context, clinicID, petID uint64) ([]model.CheckupFieldResult, error)
 	// ReplaceForCheckup は健診結果値を一括置換する（PUT セマンティクス・#124 同型ガード付き）。
-	ReplaceForCheckup(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, inputs []UpsertCheckupFieldResultInput) ([]model.CheckupFieldResult, error)
+	// actorID は監査ログ用の操作スタッフ ID（nil = システム実行）。
+	// inputs が nil（request で results 省略）は拒否する。意図的な全削除は明示的な空配列 [] を要求する（#211）。
+	ReplaceForCheckup(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, actorID *uint64, inputs []UpsertCheckupFieldResultInput) ([]model.CheckupFieldResult, error)
 }
 
 type checkupFieldResultService struct {
@@ -55,6 +57,7 @@ type checkupFieldResultService struct {
 	medicalRecordRepo repository.MedicalRecordRepository
 	fieldRepo         repository.CheckupTypeFieldRepository
 	resultRepo        repository.CheckupFieldResultRepository
+	auditSvc          AuditService
 }
 
 // NewCheckupFieldResultService は CheckupFieldResultService の実装を返す。
@@ -63,12 +66,14 @@ func NewCheckupFieldResultService(
 	medicalRecordRepo repository.MedicalRecordRepository,
 	fieldRepo repository.CheckupTypeFieldRepository,
 	resultRepo repository.CheckupFieldResultRepository,
+	auditSvc AuditService,
 ) CheckupFieldResultService {
 	return &checkupFieldResultService{
 		checkupRepo:       checkupRepo,
 		medicalRecordRepo: medicalRecordRepo,
 		fieldRepo:         fieldRepo,
 		resultRepo:        resultRepo,
+		auditSvc:          auditSvc,
 	}
 }
 
@@ -102,7 +107,14 @@ func (s *checkupFieldResultService) ListByPet(ctx context.Context, clinicID, pet
 	return results, nil
 }
 
-func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, inputs []UpsertCheckupFieldResultInput) ([]model.CheckupFieldResult, error) {
+func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, actorID *uint64, inputs []UpsertCheckupFieldResultInput) ([]model.CheckupFieldResult, error) {
+	// #211 偶発的全消去の防御: results 省略（nil）は拒否する。患者検診結果値の全削除は
+	// 明示的な空配列 [] の送信を要求し、空ボディ/壊れた request での silent な全消去を遮断する。
+	// 明示的な空配列での全削除は下流で監査される（PUT セマンティクスとしての意図的 clear は許容）。
+	if inputs == nil {
+		return nil, apperrors.WrapInvalidInput("results は必須です（全削除する場合も results: [] を明示送信してください）")
+	}
+
 	checkup, err := s.verifyCheckup(ctx, clinicID, medicalRecordID, checkupID)
 	if err != nil {
 		return nil, err
@@ -172,6 +184,18 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 		results = append(results, result)
 	}
 
+	// #211 削除監査: 置換は既存結果の全削除を伴う。削除される患者検診結果値を監査ログへ
+	// 残せるよう、置換前に既存スナップショットを取得する。スナップショットを確立できない（DB 障害）
+	// 場合は監査なしの silent 削除を避けるため処理を中断する。
+	// 注: スナップショットは repo の置換トランザクション外のため、本 SELECT と repo 内 DELETE の間に
+	// 同一 checkup へ並行 PUT が行を挿入すると、その行は削除されるが old_value/deleted_count に
+	// 反映されない狭い TOCTOU 窓がある（audit best-effort と同方針で許容。完全解は tx 内監査の follow-up）。
+	existing, err := s.resultRepo.FindByCheckupID(ctx, clinicID, checkupID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to snapshot existing checkup field results before replace", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to load existing checkup field results")
+	}
+
 	saved, err := s.resultRepo.ReplaceForCheckup(ctx, clinicID, checkupID, results)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to replace checkup field results", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
@@ -182,6 +206,37 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 		slog.Uint64("checkup_id", checkupID),
 		slog.Int("result_count", len(saved)),
 	)
+
+	// 既存結果が存在した＝削除が発生した場合のみ監査する（純粋な新規挿入は削除を伴わない）。
+	// best-effort 方針（medical_record / vital の delete 監査と同様、監査書込の失敗は slog に
+	// 残すが操作自体は中断しない）。ただし checkup_field_results は hard-delete のため、soft-delete の
+	// medical_record / vital と異なり old_value が唯一の耐久的記録となる。置換 tx コミット後〜本監査
+	// 書込の間にプロセス停止が起きると削除が無記録で残る狭い窓がある（healthcare review MEDIUM-1）。
+	// 完全な原子性（tx 内監査）または soft-delete 化は follow-up（兄弟 exam_results 横展開時に併せて対応）。
+	if len(existing) > 0 && s.auditSvc != nil {
+		actorType := model.AuditActorTypeSystem
+		if actorID != nil {
+			actorType = model.AuditActorTypeStaff
+		}
+		if logErr := s.auditSvc.LogEntry(ctx, &AuditLogInput{
+			ClinicID:   &clinicID,
+			ActorID:    actorID,
+			ActorType:  actorType,
+			Action:     model.AuditActionCheckupFieldResultReplace,
+			Resource:   model.AuditResourceCheckupFieldResult,
+			ResourceID: &checkupID,
+			OldValue:   extractCheckupFieldResultsAudit(existing),
+			NewValue:   extractCheckupFieldResultsAudit(saved),
+			Metadata: map[string]any{
+				"medical_record_id": medicalRecordID,
+				"checkup_id":        checkupID,
+				"deleted_count":     len(existing),
+				"new_count":         len(saved),
+			},
+		}); logErr != nil {
+			slog.ErrorContext(ctx, "audit log failed for checkup field results replace", "error", logErr, "checkup_id", checkupID, "clinic_id", clinicID)
+		}
+	}
 	return saved, nil
 }
 
@@ -253,4 +308,38 @@ func parseCheckupOptionValues(field *model.CheckupTypeField) (map[string]struct{
 		allowed[o.Value] = struct{}{}
 	}
 	return allowed, nil
+}
+
+// extractCheckupFieldResultsAudit は監査ログ用に結果値の PII フリーなスナップショットを構築する。
+// 飼い主/患者の識別情報は含まず、行 ID・フィールド定義（field_name/field_type）と入力値のみを記録する
+// （LogVitalChange / LogMedicalRecordChange が臨床値を old/new に残すのと同方針）。
+// checkup_type_field_id はフィールド定義 hard-delete 時に SET NULL されうるため（migration 010）、
+// nil 安全に *uint64 のまま格納する（json.Marshal が null として出力する）。
+func extractCheckupFieldResultsAudit(results []model.CheckupFieldResult) []map[string]any {
+	if len(results) == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(results))
+	for i := range results {
+		r := results[i]
+		entry := map[string]any{
+			"id":                    r.ID,
+			"checkup_type_field_id": r.CheckupTypeFieldID,
+			"field_name":            r.FieldName,
+			"field_type":            string(r.FieldType),
+			"is_abnormal":           r.IsAbnormal,
+		}
+		switch r.FieldType {
+		case model.CheckupFieldTypeNumber:
+			entry["value_number"] = r.ValueNumber
+		case model.CheckupFieldTypeBoolean:
+			entry["value_bool"] = r.ValueBool
+		case model.CheckupFieldTypeMultiSelect, model.CheckupFieldTypeChecklist:
+			entry["value_list"] = []string(r.ValueList)
+		case model.CheckupFieldTypeSingleSelect, model.CheckupFieldTypeText:
+			entry["value_text"] = r.ValueText
+		}
+		out = append(out, entry)
+	}
+	return out
 }
