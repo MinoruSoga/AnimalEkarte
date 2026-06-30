@@ -697,8 +697,22 @@ func TestCalculateCPMStage(t *testing.T) {
 		data  CPMData
 		stage CPMStage
 	}{
-		{"来院なし → dormant", CPMData{DaysSinceVisit: -1}, CPMStageDormant},
-		{"240日以上 → dormant", CPMData{DaysSinceVisit: 240}, CPMStageDormant},
+		{"来院なし → dormant", CPMData{
+			TotalVisitCount:      0,
+			AnnualVisitCount:     0,
+			DaysSinceVisit:       -1,
+			LTVAmount:            0,
+			FirstVisitDaysSince:  0,
+			MaxSingleVisitAmount: 0,
+		}, CPMStageDormant},
+		{"240日以上 → dormant", CPMData{
+			TotalVisitCount:      4,
+			AnnualVisitCount:     0,
+			DaysSinceVisit:       240,
+			LTVAmount:            40_000,
+			FirstVisitDaysSince:  500,
+			MaxSingleVisitAmount: 15_000,
+		}, CPMStageDormant},
 		{"noah条件満たす → noah", CPMData{
 			TotalVisitCount:      3,
 			AnnualVisitCount:     3,
