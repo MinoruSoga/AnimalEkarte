@@ -1,14 +1,150 @@
 package handler
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
 
 // TestAccountingHandlerCompiles verifies accounting_handler.go compiles
 func TestAccountingHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "accounting_handler.go compiled successfully")
+}
+
+// ---- UpdateAccounting 締め後経路 characterization (#115 / B4) ----
+//
+// レジ締め済み期間の会計編集に対する現行 HTTP 挙動を固定する安全網。
+// 認可（accounting-post-close-edit:edit 権限要求）と post_close_reason 必須検証の
+// 観測可能なステータス／エラーエンベロープを before/after で不変に保つ。
+
+// stubAccountingPostClose は UpdateAccounting の締め後経路で呼ばれる
+// GetByID / Update のみを実装する最小スタブ（他メソッドは経路上呼ばれない）。
+type stubAccountingPostClose struct {
+	service.AccountingService
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	updateFn  func(ctx context.Context, input *service.UpdateAccountingInput) (*model.Billing, error)
+}
+
+func (s *stubAccountingPostClose) GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
+	return s.getByIDFn(ctx, clinicID, id)
+}
+
+func (s *stubAccountingPostClose) Update(ctx context.Context, input *service.UpdateAccountingInput) (*model.Billing, error) {
+	return s.updateFn(ctx, input)
+}
+
+// stubCashRegisterIsClosed は IsDateClosed のみを実装する CashRegisterService スタブ。
+type stubCashRegisterIsClosed struct {
+	service.CashRegisterService
+	isDateClosedFn func(ctx context.Context, clinicID uint64, date time.Time) (bool, error)
+}
+
+func (s *stubCashRegisterIsClosed) IsDateClosed(ctx context.Context, clinicID uint64, date time.Time) (bool, error) {
+	return s.isDateClosedFn(ctx, clinicID, date)
+}
+
+func TestUpdateAccounting_PostClose(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const reasonRequiredMsg = "レジ締め済み期間の会計編集には post_close_reason の入力が必要です"
+	const forbiddenMsg = "レジ締め済み期間の会計編集には accounting-post-close-edit:edit 権限が必要です"
+
+	existing := &model.Billing{ID: 1, ClinicID: 1, ScheduledDate: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}
+
+	// postCloseAwareUpdate は accountingService.Update の締め後不変条件を忠実に再現する。
+	// （理由なし締め後編集は拒否、それ以外は更新済み Billing を返す。）
+	// 実 service が同契約を満たすことは accounting_service_test.go の直接呼びテストで独立検証する。
+	postCloseAwareUpdate := func(_ context.Context, input *service.UpdateAccountingInput) (*model.Billing, error) {
+		if input.IsPostClose && (input.PostCloseReason == nil || *input.PostCloseReason == "") {
+			return nil, apperrors.WrapInvalidInput(reasonRequiredMsg)
+		}
+		return &model.Billing{ID: input.ID, ClinicID: input.ClinicID}, nil
+	}
+
+	grantPostClose := func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+		return []model.PermissionGroupRule{{Resource: string(model.ResourceAccountingPostCloseEdit), CanEdit: true}}, nil
+	}
+	denyAll := func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+		return []model.PermissionGroupRule{}, nil
+	}
+
+	tests := []struct {
+		name       string
+		body       string
+		isClosed   bool
+		perms      func(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "closed without post-close permission returns 403",
+			body:       `{"memo":"x"}`,
+			isClosed:   true,
+			perms:      denyAll,
+			wantStatus: http.StatusForbidden,
+			wantBody:   forbiddenMsg,
+		},
+		{
+			name:       "closed with permission but no reason returns 400",
+			body:       `{"memo":"x"}`,
+			isClosed:   true,
+			perms:      grantPostClose,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   reasonRequiredMsg,
+		},
+		{
+			name:       "closed with permission and reason returns 200",
+			body:       `{"memo":"x","post_close_reason":"訂正のため"}`,
+			isClosed:   true,
+			perms:      grantPostClose,
+			wantStatus: http.StatusOK,
+			wantBody:   `"clinic_id":1`,
+		},
+		{
+			name:       "not closed performs normal update without gate",
+			body:       `{"memo":"x"}`,
+			isClosed:   false,
+			perms:      denyAll, // 締めていないため権限・理由は問われない
+			wantStatus: http.StatusOK,
+			wantBody:   `"clinic_id":1`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := &Handler{svc: &service.Services{
+				Accounting: &stubAccountingPostClose{
+					getByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) { return existing, nil },
+					updateFn:  postCloseAwareUpdate,
+				},
+				CashRegister: &stubCashRegisterIsClosed{
+					isDateClosedFn: func(_ context.Context, _ uint64, _ time.Time) (bool, error) { return tt.isClosed, nil },
+				},
+				EffectivePermission: &mockEffectivePermissionService{getEffectivePermissionsFn: tt.perms},
+			}}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			setNonSystemAdmin(c) // is_system_admin=false, user_id=1, clinic_id=1
+			c.Request = httptest.NewRequest(http.MethodPatch, "/v1/accountings/1", strings.NewReader(tt.body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "1"}}
+
+			h.UpdateAccounting(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Contains(t, w.Body.String(), tt.wantBody)
+		})
+	}
 }
 
 // ---- Comprehensive Test Coverage Documentation ----
