@@ -29,7 +29,7 @@ func NewRefundRepository(db *gorm.DB) RefundRepository {
 }
 
 func (r *refundRepository) Create(ctx context.Context, refund *model.BillingRefund) error {
-	if err := r.db.WithContext(ctx).Create(refund).Error; err != nil {
+	if err := dbOrTx(ctx, r.db).Create(refund).Error; err != nil {
 		return apperrors.FromGORM(err, "billing_refund", "")
 	}
 	return nil

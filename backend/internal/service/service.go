@@ -263,7 +263,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ManualArticle:                  NewManualArticleService(repos.ManualArticle),
 		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:                    NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.Campaign, repos.Owner),
-		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditSvc, tx),
+		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditTxLogger, tx),
 		PasswordReset:                  NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
 		// FEAT-368: 集計・締め機能
 		ClosingSettings:           closingSettingsSvc,

@@ -25,15 +25,15 @@ type RefundService interface {
 }
 
 type refundService struct {
-	repo        repository.RefundRepository
-	accountRepo repository.AccountingRepository
-	auditSvc    AuditService
-	transactor  repository.Transactor
+	repo          repository.RefundRepository
+	accountRepo   repository.AccountingRepository
+	auditTxLogger AuditTxLogger // fail-closed: ambient tx に参加して監査を書く（#211）
+	transactor    repository.Transactor
 }
 
 // NewRefundService はRefundServiceを初期化して返す
-func NewRefundService(repo repository.RefundRepository, accountRepo repository.AccountingRepository, auditSvc AuditService, transactor repository.Transactor) RefundService {
-	return &refundService{repo: repo, accountRepo: accountRepo, auditSvc: auditSvc, transactor: transactor}
+func NewRefundService(repo repository.RefundRepository, accountRepo repository.AccountingRepository, auditTxLogger AuditTxLogger, transactor repository.Transactor) RefundService {
+	return &refundService{repo: repo, accountRepo: accountRepo, auditTxLogger: auditTxLogger, transactor: transactor}
 }
 
 func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, input CreateRefundInput) (*model.BillingRefund, error) {
@@ -109,8 +109,8 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 			slog.Uint64("billing_id", billingID),
 			slog.Int64("amount", amount))
 
-		// 監査ログ記録（best-effort）
-		if err := s.auditSvc.LogEntry(txCtx, &AuditLogInput{
+		// 監査ログ記録（fail-closed: 失敗→tx ロールバック→返金無効）
+		if err := s.auditTxLogger.LogEntryTx(txCtx, &AuditLogInput{
 			ClinicID:   &clinicID,
 			ActorID:    input.StaffID,
 			ActorType:  "staff",
@@ -123,7 +123,8 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 				"payment_method": refund.PaymentMethod,
 			},
 		}); err != nil {
-			slog.WarnContext(txCtx, "audit log failed for refund create", "error", err, "refund_id", refund.ID)
+			slog.ErrorContext(txCtx, "audit log failed for refund create", "error", err, "refund_id", refund.ID)
+			return apperrors.Wrap(err, "failed to write refund audit log")
 		}
 
 		return nil
