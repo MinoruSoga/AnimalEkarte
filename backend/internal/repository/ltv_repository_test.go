@@ -1026,7 +1026,9 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	db := getTestDatabaseConnection(t)
 
 	// AutoMigrate の前に、PostgreSQL カスタム ENUM 型を作成
-	// （マイグレーション 001_init.sql で定義されている全 46 型）
+	// （001_init.sql の 46 型 + 009 #201 薬量計算の 4 型）。
+	// model.Medicine が calculation_type を持つため、本 setup を使う全テストの
+	// medicines AutoMigrate に medicine_calculation_type が必須（欠落で CREATE TABLE 失敗）。
 	// DROP TYPE IF EXISTS → CREATE TYPE の順序で、既存型を削除してから再作成
 	enumTypes := []struct {
 		drop   string
@@ -1043,6 +1045,11 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		{"DROP TYPE IF EXISTS inventory_status CASCADE", "CREATE TYPE inventory_status AS ENUM ('sufficient', 'low', 'out_of_stock')"},
 		{"DROP TYPE IF EXISTS dosage_form CASCADE", "CREATE TYPE dosage_form AS ENUM ('tablet', 'liquid', 'injection', 'topical', 'powder')"},
 		{"DROP TYPE IF EXISTS medicine_unit CASCADE", "CREATE TYPE medicine_unit AS ENUM ('per_tablet', 'per_ml', 'per_dose', 'per_gram')"},
+		// #201 薬量自動計算（migration 009）: medicines.calculation_type + medicine_dose_params 用
+		{"DROP TYPE IF EXISTS medicine_calculation_type CASCADE", "CREATE TYPE medicine_calculation_type AS ENUM ('none', 'per_weight')"},
+		{"DROP TYPE IF EXISTS medicine_dose_basis CASCADE", "CREATE TYPE medicine_dose_basis AS ENUM ('per_administration', 'per_day')"},
+		{"DROP TYPE IF EXISTS medicine_rounding_mode CASCADE", "CREATE TYPE medicine_rounding_mode AS ENUM ('up', 'down', 'nearest')"},
+		{"DROP TYPE IF EXISTS medicine_dose_species CASCADE", "CREATE TYPE medicine_dose_species AS ENUM ('dog', 'cat')"},
 		{"DROP TYPE IF EXISTS cage_type CASCADE", "CREATE TYPE cage_type AS ENUM ('icu', 'dog', 'cat', 'general')"},
 		{"DROP TYPE IF EXISTS cage_size CASCADE", "CREATE TYPE cage_size AS ENUM ('small', 'medium', 'large')"},
 		{"DROP TYPE IF EXISTS body_size CASCADE", "CREATE TYPE body_size AS ENUM ('small', 'medium', 'large')"},
