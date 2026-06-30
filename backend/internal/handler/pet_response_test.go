@@ -51,7 +51,10 @@ func TestToPetListResponseIncludesOwnerReportDetailFields(t *testing.T) {
 	assert.Equal(t, "赤", resp.Color)
 	assert.Equal(t, "DEA1.1陽性", *resp.BloodType)
 	assert.Equal(t, "392140000123456", *resp.MicrochipNumber)
-	assert.Equal(t, &neuteredDate, resp.NeuteredDate)
+	// neutered_date は canonical 規約 (localTimePtr) でローカル化されるため、
+	// tz 表現ではなくカレンダー日付で検証する (格納値 2016-05-20 を保持)。
+	require.NotNil(t, resp.NeuteredDate)
+	assert.Equal(t, "2016-05-20", resp.NeuteredDate.Format("2006-01-02"))
 	require.NotNil(t, resp.AcquisitionType)
 	assert.Equal(t, "purchased", *resp.AcquisitionType)
 	assert.Equal(t, "medium", resp.DangerLevel)
