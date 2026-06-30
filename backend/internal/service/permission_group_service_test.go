@@ -353,3 +353,34 @@ func TestPermissionGroupService_SetRules(t *testing.T) {
 		})
 	}
 }
+
+// F-3 回帰: FindAllGroupIDsByStaffID が error を返すとき、自己参照チェックを
+// 素通り（fail-open）させてはならない。旧実装は error 時に staffGroupIDs を空へ
+// フォールバックし、actor が自分の所属グループの master-permission edit を削除する
+// 危険な編集を許していた（BUG-140 の無効化）。security control として fail-closed
+// で拒否し、検証不能時に repo.UpdateRules を呼ばないことを検証する。
+func TestPermissionGroupService_UpdateRules_FailClosedOnGroupLookupError(t *testing.T) {
+	// 編集対象グループに actor が所属し、master-permission edit を外す入力。
+	// 所属取得が成功していれば validateNotSelfReference が拒否するケース。
+	inputs := []SetPermissionGroupRulesInput{
+		{Resource: string(model.ResourceOwners), CanView: true},
+	}
+
+	setRulesCalled := false
+	repo := &mockPermissionGroupRepository{
+		getGroupIDsByStaffIDFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+			return nil, errors.New("db error") // 所属グループ取得が失敗
+		},
+		setRulesFn: func(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+			setRulesCalled = true
+			return nil
+		},
+	}
+	svc := NewPermissionGroupService(repo)
+
+	// groupID=1 を actorStaffID=10 が編集。所属取得失敗 → fail-closed で拒否すべき。
+	err := svc.UpdateRules(context.Background(), 1, inputs, 10)
+
+	assert.Error(t, err, "所属グループ取得が失敗したら fail-closed で拒否すべき（自己参照チェックを素通りさせない）")
+	assert.False(t, setRulesCalled, "検証不能時に repo.UpdateRules を呼んではならない")
+}

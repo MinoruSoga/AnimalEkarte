@@ -210,8 +210,13 @@ func (s *permissionGroupService) UpdateRules(ctx context.Context, groupID uint64
 	// staffGroupIDs をサービス内で取得する（Handler が外部データを取得する責務を持たない）
 	staffGroupIDs, err := s.repo.FindAllGroupIDsByStaffID(ctx, actorStaffID)
 	if err != nil {
-		// エラー時は空にして自己参照チェック不能なら許可方向（ベストエフォート、Handler層がエラーハンドリング）
-		staffGroupIDs = []uint64{}
+		// F-3 / BUG-140: 所属グループ取得に失敗すると自己参照チェックが不能になる。
+		// 旧実装は空スライスへフォールバックして検証を素通りさせていた（fail-open）が、
+		// これは self master-permission edit の削除を許す security ホールだった。
+		// 自己参照保護は security control のため fail-closed とし、検証不能なら拒否する。
+		slog.ErrorContext(ctx, "failed to find staff group IDs for self-reference check",
+			"error", err, "actor_staff_id", actorStaffID)
+		return apperrors.Wrap(err, "failed to find staff group IDs")
 	}
 	if err := validateNotSelfReference(groupID, rules, staffGroupIDs); err != nil {
 		return err
