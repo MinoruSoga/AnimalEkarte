@@ -57,23 +57,28 @@ type checkupFieldResultService struct {
 	medicalRecordRepo repository.MedicalRecordRepository
 	fieldRepo         repository.CheckupTypeFieldRepository
 	resultRepo        repository.CheckupFieldResultRepository
-	auditSvc          AuditService
+	auditTx           AuditTxLogger
+	transactor        repository.Transactor
 }
 
 // NewCheckupFieldResultService は CheckupFieldResultService の実装を返す。
+// auditTx は tx 内監査（#211 fail-closed）の記録経路、transactor は「削除+挿入+監査」を
+// 単一トランザクションで原子化するためのトランザクション境界。
 func NewCheckupFieldResultService(
 	checkupRepo repository.CheckupRepository,
 	medicalRecordRepo repository.MedicalRecordRepository,
 	fieldRepo repository.CheckupTypeFieldRepository,
 	resultRepo repository.CheckupFieldResultRepository,
-	auditSvc AuditService,
+	auditTx AuditTxLogger,
+	transactor repository.Transactor,
 ) CheckupFieldResultService {
 	return &checkupFieldResultService{
 		checkupRepo:       checkupRepo,
 		medicalRecordRepo: medicalRecordRepo,
 		fieldRepo:         fieldRepo,
 		resultRepo:        resultRepo,
-		auditSvc:          auditSvc,
+		auditTx:           auditTx,
+		transactor:        transactor,
 	}
 }
 
@@ -184,59 +189,66 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 		results = append(results, result)
 	}
 
-	// #211 削除監査: 置換は既存結果の全削除を伴う。削除される患者検診結果値を監査ログへ
-	// 残せるよう、置換前に既存スナップショットを取得する。スナップショットを確立できない（DB 障害）
-	// 場合は監査なしの silent 削除を避けるため処理を中断する。
-	// 注: スナップショットは repo の置換トランザクション外のため、本 SELECT と repo 内 DELETE の間に
-	// 同一 checkup へ並行 PUT が行を挿入すると、その行は削除されるが old_value/deleted_count に
-	// 反映されない狭い TOCTOU 窓がある（audit best-effort と同方針で許容。完全解は tx 内監査の follow-up）。
-	existing, err := s.resultRepo.FindByCheckupID(ctx, clinicID, checkupID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to snapshot existing checkup field results before replace", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to load existing checkup field results")
+	// #211 tx 内監査による原子的置換: スナップショット読取→削除/挿入→削除監査 を単一トランザクションで
+	// 実行する。監査書込が失敗したら tx 全体を rollback し、削除・挿入も巻き戻す（監査なしの患者検診結果
+	// 削除を許さない＝fail-closed）。checkup_field_results は hard-delete のため old_value が唯一の耐久記録
+	// であり、旧 best-effort では「置換 commit 後に監査書込が落ちると無記録削除が残る」窓があった
+	// （healthcare review MEDIUM-1）。スナップショットも同一 tx 内で取得し、旧コードの
+	// 「スナップショット↔削除」TOCTOU 窓も同時に解消する。
+	var saved []model.CheckupFieldResult
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		existing, err := s.resultRepo.FindByCheckupID(txCtx, clinicID, checkupID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to snapshot existing checkup field results before replace", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to load existing checkup field results")
+		}
+
+		replaced, deletedCount, err := s.resultRepo.ReplaceForCheckup(txCtx, clinicID, checkupID, results)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to replace checkup field results", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to persist replaced checkup field results")
+		}
+		saved = replaced
+
+		// 実際に削除が発生した場合のみ監査する（純粋な新規挿入は削除を伴わない）。ゲートはスナップショット
+		// 件数でなく DELETE の実削除数（deletedCount）に基づく（#211 security MEDIUM-1: 並行 INSERT 競合下で
+		// スナップショット 0 件でも実削除>0 を取りこぼさず、無監査 hard-delete を残さない）。
+		// 監査書込失敗はエラーを返して tx を rollback する（best-effort ではなく fail-closed）。
+		if deletedCount > 0 {
+			actorType := model.AuditActorTypeSystem
+			if actorID != nil {
+				actorType = model.AuditActorTypeStaff
+			}
+			if err := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
+				ClinicID:   &clinicID,
+				ActorID:    actorID,
+				ActorType:  actorType,
+				Action:     model.AuditActionCheckupFieldResultReplace,
+				Resource:   model.AuditResourceCheckupFieldResult,
+				ResourceID: &checkupID,
+				OldValue:   extractCheckupFieldResultsAudit(existing),
+				NewValue:   extractCheckupFieldResultsAudit(saved),
+				Metadata: map[string]any{
+					"medical_record_id": medicalRecordID,
+					"checkup_id":        checkupID,
+					"deleted_count":     deletedCount,
+					"new_count":         len(saved),
+				},
+			}); err != nil {
+				slog.ErrorContext(txCtx, "audit log failed for checkup field results replace; rolling back deletion", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
+				return apperrors.Wrap(err, "failed to write checkup field results deletion audit")
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to replace checkup field results in transaction")
 	}
 
-	saved, err := s.resultRepo.ReplaceForCheckup(ctx, clinicID, checkupID, results)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to replace checkup field results", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to replace checkup field results")
-	}
 	slog.InfoContext(ctx, "checkup field results replaced",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("checkup_id", checkupID),
 		slog.Int("result_count", len(saved)),
 	)
-
-	// 既存結果が存在した＝削除が発生した場合のみ監査する（純粋な新規挿入は削除を伴わない）。
-	// best-effort 方針（medical_record / vital の delete 監査と同様、監査書込の失敗は slog に
-	// 残すが操作自体は中断しない）。ただし checkup_field_results は hard-delete のため、soft-delete の
-	// medical_record / vital と異なり old_value が唯一の耐久的記録となる。置換 tx コミット後〜本監査
-	// 書込の間にプロセス停止が起きると削除が無記録で残る狭い窓がある（healthcare review MEDIUM-1）。
-	// 完全な原子性（tx 内監査）または soft-delete 化は follow-up（兄弟 exam_results 横展開時に併せて対応）。
-	if len(existing) > 0 && s.auditSvc != nil {
-		actorType := model.AuditActorTypeSystem
-		if actorID != nil {
-			actorType = model.AuditActorTypeStaff
-		}
-		if logErr := s.auditSvc.LogEntry(ctx, &AuditLogInput{
-			ClinicID:   &clinicID,
-			ActorID:    actorID,
-			ActorType:  actorType,
-			Action:     model.AuditActionCheckupFieldResultReplace,
-			Resource:   model.AuditResourceCheckupFieldResult,
-			ResourceID: &checkupID,
-			OldValue:   extractCheckupFieldResultsAudit(existing),
-			NewValue:   extractCheckupFieldResultsAudit(saved),
-			Metadata: map[string]any{
-				"medical_record_id": medicalRecordID,
-				"checkup_id":        checkupID,
-				"deleted_count":     len(existing),
-				"new_count":         len(saved),
-			},
-		}); logErr != nil {
-			slog.ErrorContext(ctx, "audit log failed for checkup field results replace", "error", logErr, "checkup_id", checkupID, "clinic_id", clinicID)
-		}
-	}
 	return saved, nil
 }
 

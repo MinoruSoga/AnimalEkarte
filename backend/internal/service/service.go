@@ -140,6 +140,15 @@ type Services struct {
 func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig) *Services {
 	notifier := NewReservationNotificationService(notifCfg, repos.LineReservationSetting)
 	auditSvc := NewAuditService(repos.Audit)
+	// auditTxLogger: 具象 *auditService は tx 内監査の LogEntryTx も実装する（#211）。
+	// AuditService インターフェース自体は広げず（既存サービス/モックへ非波及）、tx 内監査を要する
+	// checkup のみ narrow な AuditTxLogger に依存させる。コンパイル時保証は audit_service.go の
+	// `var _ AuditTxLogger = (*auditService)(nil)`。配線時の comma-ok で、将来 NewAuditService が
+	// AuditTxLogger 非実装のラッパを返すよう変わった場合に原因の分かる panic を出す。
+	auditTxLogger, ok := auditSvc.(AuditTxLogger)
+	if !ok {
+		panic("DI wiring error: AuditService concrete does not implement AuditTxLogger (#211 tx-internal audit); check NewAuditService return type")
+	}
 	tx := repository.NewTransactor(repos.DB())
 	pwResetCfg := PasswordResetConfig{
 		SMTPHost:    notifCfg.SMTPHost,
@@ -249,7 +258,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord),
 		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan, repos.MedicalRecord, repos.DiagnosisType, repos.DiagnosisName),
 		Checkup:                        NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, nil, lstepTagSyncSvc),
-		CheckupFieldResult:             NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, auditSvc),
+		CheckupFieldResult:             NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, auditTxLogger, tx),
 		Estimate:                       NewEstimateService(repos.Estimate),
 		ManualArticle:                  NewManualArticleService(repos.ManualArticle),
 		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),

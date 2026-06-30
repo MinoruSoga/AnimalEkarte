@@ -37,6 +37,16 @@ type AuditService interface {
 	LogClinicSwitch(ctx context.Context, actorID *uint64, fromClinicID, toClinicID uint64, ipAddress, userAgent string) error
 }
 
+// AuditTxLogger は caller の ambient transaction に参加して監査ログを記録する経路を提供する（#211）。
+// AuditService とは独立の小さなインターフェースとして定義し、tx 内監査（fail-closed）を要する
+// service のみが依存する。AuditService 本体を広げないことで、既存利用者（refund 等）や
+// 各 service の AuditService モックへの波及を避ける（後方互換）。具象 *auditService が本 IF も実装する。
+type AuditTxLogger interface {
+	// LogEntryTx は ctx の ambient transaction（Transactor.WithTx）に参加して監査ログを書き込む。
+	// 監査書込が失敗したらエラーを返し、caller が tx を rollback することで監査も操作も巻き戻る。
+	LogEntryTx(ctx context.Context, input *AuditLogInput) error
+}
+
 type AuditLogInput struct {
 	ClinicID   *uint64
 	ActorID    *uint64
@@ -53,6 +63,28 @@ type AuditLogInput struct {
 
 type auditService struct {
 	repo repository.AuditRepository
+}
+
+// 具象 *auditService が tx 内監査の AuditTxLogger を実装することをコンパイル時に保証する（#211）。
+// service.go の auditSvc.(AuditTxLogger) アサーションが、将来 concrete 型が変わった際に
+// ランタイム panic でなくビルドエラーで検出されるようにする。
+var _ AuditTxLogger = (*auditService)(nil)
+
+// buildAuditLog は AuditLogInput を model.AuditLog に変換する（LogEntry / LogEntryTx 共通の buildFunc）。
+func buildAuditLog(input *AuditLogInput) *model.AuditLog {
+	return &model.AuditLog{
+		ClinicID:   input.ClinicID,
+		ActorID:    input.ActorID,
+		ActorType:  input.ActorType,
+		Action:     input.Action,
+		Resource:   input.Resource,
+		ResourceID: input.ResourceID,
+		OldValue:   repository.MarshalAuditJSON(input.OldValue),
+		NewValue:   repository.MarshalAuditJSON(input.NewValue),
+		Metadata:   repository.MarshalAuditJSON(input.Metadata),
+		IPAddress:  input.IPAddress,
+		UserAgent:  input.UserAgent,
+	}
 }
 
 func validateAuditLog(log *model.AuditLog) error {
@@ -102,20 +134,22 @@ func (s *auditService) Log(ctx context.Context, log *model.AuditLog) error {
 }
 
 func (s *auditService) LogEntry(ctx context.Context, input *AuditLogInput) error {
-	log := &model.AuditLog{
-		ClinicID:   input.ClinicID,
-		ActorID:    input.ActorID,
-		ActorType:  input.ActorType,
-		Action:     input.Action,
-		Resource:   input.Resource,
-		ResourceID: input.ResourceID,
-		OldValue:   repository.MarshalAuditJSON(input.OldValue),
-		NewValue:   repository.MarshalAuditJSON(input.NewValue),
-		Metadata:   repository.MarshalAuditJSON(input.Metadata),
-		IPAddress:  input.IPAddress,
-		UserAgent:  input.UserAgent,
+	return s.Log(ctx, buildAuditLog(input))
+}
+
+// LogEntryTx は caller の ambient transaction に参加して監査ログを記録する（#211 tx 内監査）。
+// repo.CreateTx 経由で dbOrTx を使うため、Transactor.WithTx 内から呼ぶと監査書込が同一 tx に入り、
+// caller がエラーを返して tx を rollback すれば監査書込も巻き戻る（fail-closed の原子監査）。
+// 既存 LogEntry / Log（非 tx・base db 書込）は不変。
+func (s *auditService) LogEntryTx(ctx context.Context, input *AuditLogInput) error {
+	log := buildAuditLog(input)
+	if err := validateAuditLog(log); err != nil {
+		return err
 	}
-	return s.Log(ctx, log)
+	if err := s.repo.CreateTx(ctx, log); err != nil {
+		return apperrors.Wrap(err, "failed to create audit log")
+	}
+	return nil
 }
 
 // LogAuthLogin は認証イベントログを記録する

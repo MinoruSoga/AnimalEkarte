@@ -47,14 +47,16 @@ func (m *mockCheckupFieldResultRepository) FindByPetID(ctx context.Context, clin
 	return nil, nil
 }
 
-func (m *mockCheckupFieldResultRepository) ReplaceForCheckup(_ context.Context, clinicID, checkupID uint64, results []model.CheckupFieldResult) ([]model.CheckupFieldResult, error) {
+func (m *mockCheckupFieldResultRepository) ReplaceForCheckup(_ context.Context, clinicID, checkupID uint64, results []model.CheckupFieldResult) ([]model.CheckupFieldResult, int64, error) {
 	m.replaceCalled = true
 	for i := range results {
 		results[i].CheckupID = checkupID
 		results[i].ClinicID = clinicID
 	}
 	m.captured = results
-	return results, nil
+	// 実 repo は既存全削除→挿入。mock は snapshot 件数（m.existing）を実削除数として返す
+	// （#211: サービスの監査ゲートはスナップショットでなく実削除数 deletedCount に基づくため）。
+	return results, int64(len(m.existing)), nil
 }
 
 // 健診パッケージ（clinic A の checkup_type=10）が持つフィールド定義。
@@ -96,7 +98,9 @@ func newCheckupFieldResultServiceForTest(resultRepo *mockCheckupFieldResultRepos
 		},
 	}
 	auditRepo := &mockAuditRepository{}
-	svc := NewCheckupFieldResultService(checkupRepo, mrRepo, fieldRepo, resultRepo, NewAuditService(auditRepo))
+	// 実 AuditService（*auditService）は AuditTxLogger も実装する。noopTransactor は fn を直接実行する
+	// テスト用トランザクション（fn のエラーを伝播）。これにより #211 の fail-closed 制御フローを検証できる。
+	svc := NewCheckupFieldResultService(checkupRepo, mrRepo, fieldRepo, resultRepo, NewAuditService(auditRepo).(AuditTxLogger), noopTransactor{})
 	return svc, resultRepo, auditRepo
 }
 
@@ -193,7 +197,7 @@ func TestCheckupFieldResultService_ReplaceForCheckup_RejectsFinalizedRecord(t *t
 			return clinicAFields(), nil
 		},
 	}
-	svc := NewCheckupFieldResultService(checkupRepo, mrRepo, fieldRepo, resultRepo, NewAuditService(&mockAuditRepository{}))
+	svc := NewCheckupFieldResultService(checkupRepo, mrRepo, fieldRepo, resultRepo, NewAuditService(&mockAuditRepository{}).(AuditTxLogger), noopTransactor{})
 
 	_, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, nil, []UpsertCheckupFieldResultInput{
 		{CheckupTypeFieldID: uint64Ptr(101), ValueBool: boolPtr(true)},
@@ -322,28 +326,31 @@ func TestCheckupFieldResultService_ReplaceForCheckup_AbortsWhenSnapshotFails(t *
 	assert.Nil(t, auditRepo.lastLogged)
 }
 
-// SC4 補強（security LOW-3）: 監査書込が失敗しても置換自体は best-effort で成功する
-// （audit_logs は観測目的・操作中断しない＝medical_record/vital/refund と同方針）。
-// 監査失敗で PUT 全体が落ちる回帰（audit_logs 負荷時に編集不能になる）を防ぐ。
-func TestCheckupFieldResultService_ReplaceForCheckup_AuditFailureIsBestEffort(t *testing.T) {
+// SC3 (#211): 監査書込が失敗したら ReplaceForCheckup はエラーを返す（旧 best-effort → fail-closed への
+// 意図的な挙動変更）。tx 内監査により、監査が書けないなら患者検診結果の削除も行わない。
+// 実 DB での「削除がロールバックし既存結果が DB に残存する」原子性は repository の tx atomicity テストが
+// 正本（checkup_field_result_tx_atomicity_test.go: RollsBackWhenAmbientTxFails）。本 service テストは
+// 監査エラーを握り潰さず伝播する fail-closed 制御フローを検証する（noopTransactor が fn のエラーを伝播）。
+//
+// temp-revert RED 実証: service の監査ブロックを `return apperrors.Wrap(...)` から旧 best-effort の
+// slog のみ（エラーを返さない）に戻すと、本テストは NoError となり RED（旧 silent 継続を再現）。
+func TestCheckupFieldResultService_ReplaceForCheckup_AuditFailureIsFailClosed(t *testing.T) {
 	resultRepo := &mockCheckupFieldResultRepository{
 		existing: []model.CheckupFieldResult{
 			{ID: 50, ClinicID: 1, CheckupID: 7, CheckupTypeFieldID: uint64Ptr(101),
 				FieldName: "歯石除去必要の有無", FieldType: model.CheckupFieldTypeBoolean, ValueBool: boolPtr(true)},
 		},
 	}
-	svc, repo, auditRepo := newCheckupFieldResultServiceForTest(resultRepo)
+	svc, _, auditRepo := newCheckupFieldResultServiceForTest(resultRepo)
 	auditRepo.createFn = func(_ context.Context, _ *model.AuditLog) error {
 		return errors.New("audit_logs insert failed")
 	}
 	actor := uint64(9)
 
-	saved, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, &actor, []UpsertCheckupFieldResultInput{
+	_, err := svc.ReplaceForCheckup(context.Background(), 1, 5, 7, &actor, []UpsertCheckupFieldResultInput{
 		{CheckupTypeFieldID: uint64Ptr(102), ValueNumber: float64PtrLocal(2)},
 	})
-	require.NoError(t, err, "監査書込失敗で置換が落ちてはならない（best-effort）")
-	assert.True(t, repo.replaceCalled, "監査失敗でも置換自体は成立する")
-	require.Len(t, saved, 1)
+	require.Error(t, err, "監査書込失敗時は置換をエラーにし、削除をロールバックさせる（fail-closed）")
 }
 
 // float64PtrLocal は #211 テスト内で *float64 を生成するヘルパー。

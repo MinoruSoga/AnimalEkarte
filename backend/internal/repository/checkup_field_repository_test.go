@@ -76,7 +76,7 @@ func TestCheckupFieldResultRepository_ReplaceForCheckup_RoundTripsFieldTypes(t *
 
 	boolTrue := true
 	score := 5.0 // max(4) 超過 → high
-	saved, err := resultRepo.ReplaceForCheckup(ctx, clinicA, checkupID, []model.CheckupFieldResult{
+	saved, _, err := resultRepo.ReplaceForCheckup(ctx, clinicA, checkupID, []model.CheckupFieldResult{
 		{CheckupTypeFieldID: &fBool.ID, FieldName: fBool.Name, FieldType: model.CheckupFieldTypeBoolean, ValueBool: &boolTrue, SortOrder: 1},
 		{CheckupTypeFieldID: &fNum.ID, FieldName: fNum.Name, FieldType: model.CheckupFieldTypeNumber, ValueNumber: &score, RefMax: &maxScore, IsAbnormal: true, Status: model.ExaminationResultStatusHigh, SortOrder: 2},
 		{CheckupTypeFieldID: &fMulti.ID, FieldName: fMulti.Name, FieldType: model.CheckupFieldTypeMultiSelect, ValueList: []string{"brush"}, SortOrder: 3},
@@ -101,7 +101,7 @@ func TestCheckupFieldResultRepository_ReplaceForCheckup_RoundTripsFieldTypes(t *
 	assert.Equal(t, []string{"brush"}, []string(got[2].ValueList))
 
 	// 置換セマンティクス: 再 Replace で件数が入れ替わる（全削除→挿入）。
-	saved2, err := resultRepo.ReplaceForCheckup(ctx, clinicA, checkupID, []model.CheckupFieldResult{
+	saved2, _, err := resultRepo.ReplaceForCheckup(ctx, clinicA, checkupID, []model.CheckupFieldResult{
 		{CheckupTypeFieldID: &fBool.ID, FieldName: fBool.Name, FieldType: model.CheckupFieldTypeBoolean, ValueBool: &boolTrue, SortOrder: 1},
 	})
 	require.NoError(t, err)
@@ -195,7 +195,7 @@ func TestCheckupFieldResultRepository_ReplaceForCheckup_RoundTripsRemainingField
 
 	checkupID := makeCheckupRec(t, db, clinicA, mr.ID, pet.ID, ct.ID)
 
-	saved, err := resultRepo.ReplaceForCheckup(ctx, clinicA, checkupID, []model.CheckupFieldResult{
+	saved, _, err := resultRepo.ReplaceForCheckup(ctx, clinicA, checkupID, []model.CheckupFieldResult{
 		{CheckupTypeFieldID: &fSingle.ID, FieldName: fSingle.Name, FieldType: model.CheckupFieldTypeSingleSelect, ValueText: "要経過観察", SortOrder: 1},
 		{CheckupTypeFieldID: &fCheck.ID, FieldName: fCheck.Name, FieldType: model.CheckupFieldTypeChecklist, ValueList: []string{"スケーリング", "ポリッシング"}, SortOrder: 2},
 		{CheckupTypeFieldID: &fText.ID, FieldName: fText.Name, FieldType: model.CheckupFieldTypeText, ValueText: "下顎臼歯に軽度の歯肉炎あり。次回再評価。", SortOrder: 3},
