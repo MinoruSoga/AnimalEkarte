@@ -144,7 +144,7 @@ func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"group_ids": groupIDs})
+	c.JSON(http.StatusOK, staffPermissionGroupsResponse{GroupIDs: groupIDs})
 }
 
 // SetStaffPermissionGroups godoc
@@ -166,7 +166,7 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"group_ids": req.GroupIDs})
+	c.JSON(http.StatusOK, staffPermissionGroupsResponse{GroupIDs: req.GroupIDs})
 }
 
 // GetStaffClinicAssignments godoc
@@ -185,7 +185,7 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 	for i := range assignments {
 		clinicIDs = append(clinicIDs, assignments[i].ClinicID)
 	}
-	c.JSON(http.StatusOK, gin.H{"clinic_ids": clinicIDs})
+	c.JSON(http.StatusOK, staffClinicAssignmentsResponse{ClinicIDs: clinicIDs})
 }
 
 // SetStaffClinicAssignments godoc
@@ -209,7 +209,7 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"clinic_ids": req.ClinicIDs})
+	c.JSON(http.StatusOK, staffClinicAssignmentsResponse{ClinicIDs: req.ClinicIDs})
 }
 
 // GetStaffExcludedReservationTypes godoc
@@ -224,7 +224,7 @@ func (h *Handler) GetStaffExcludedReservationTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"reservation_type_ids": ids})
+	c.JSON(http.StatusOK, staffReservationTypesResponse{ReservationTypeIDs: ids})
 }
 
 // SetStaffExcludedReservationTypes godoc
@@ -246,7 +246,7 @@ func (h *Handler) SetStaffExcludedReservationTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"reservation_type_ids": req.ReservationTypeIDs})
+	c.JSON(http.StatusOK, staffReservationTypesResponse{ReservationTypeIDs: req.ReservationTypeIDs})
 }
 
 // GetStaffCapableReservationTypes godoc
@@ -261,7 +261,7 @@ func (h *Handler) GetStaffCapableReservationTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"reservation_type_ids": ids})
+	c.JSON(http.StatusOK, staffReservationTypesResponse{ReservationTypeIDs: ids})
 }
 
 // SetStaffCapableReservationTypes godoc
@@ -283,7 +283,7 @@ func (h *Handler) SetStaffCapableReservationTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"reservation_type_ids": req.ReservationTypeIDs})
+	c.JSON(http.StatusOK, staffReservationTypesResponse{ReservationTypeIDs: req.ReservationTypeIDs})
 }
 
 // ReorderStaffs godoc

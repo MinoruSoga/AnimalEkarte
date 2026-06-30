@@ -91,3 +91,17 @@ func toStaffSummary(s *model.Staff) *staffSummaryResponse {
 		Name: s.Name,
 	}
 }
+
+// 関連付けエンドポイント（権限グループ / 所属医院 / 予約種別）の ID リスト応答型。
+// 旧 gin.H{"...": ids} を P7 準拠の typed struct に置き換える（JSON 表現は同一）。
+type staffPermissionGroupsResponse struct {
+	GroupIDs []uint64 `json:"group_ids"`
+}
+
+type staffClinicAssignmentsResponse struct {
+	ClinicIDs []uint64 `json:"clinic_ids"`
+}
+
+type staffReservationTypesResponse struct {
+	ReservationTypeIDs []uint64 `json:"reservation_type_ids"`
+}
