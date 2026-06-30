@@ -366,7 +366,11 @@ func (h *Handler) GetMe(c *gin.Context) {
 
 	// clinic assignments を取得
 	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(ctx, staff.ID)
-	if err == nil {
+	if err != nil {
+		// F-1: 取得失敗は観測性のため slog 記録（P11）。挙動は従来通り — ClinicAssignments を
+		// 未設定のまま続行する（error 伝播へのフリップは製品判断のため follow-up）。
+		slog.ErrorContext(ctx, "failed to find clinic assignments", "error", err, "staff_id", staff.ID)
+	} else {
 		staff.ClinicAssignments = assignments
 	}
 

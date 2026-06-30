@@ -24,8 +24,16 @@ func (s *liffService) buildStaffSlotInputs(ctx context.Context, clinicID uint64,
 
 		// シフトエントリを取得
 		entry, err := s.scheduleRepo.FindAllByDate(ctx, clinicID, staffs[i].ID, date)
+		if err != nil {
+			// LIFF-2: 取得失敗は観測性のため slog 記録（P11）。挙動は従来通り（entry を使わずスキップ）。
+			slog.ErrorContext(ctx, "failed to get schedule entry", "error", err, "staff_id", staffs[i].ID)
+		}
 		if err == nil && entry != nil {
-			breaks, _ := s.scheduleRepo.FindAllBreaksByEntryID(ctx, entry.ID)
+			breaks, brkErr := s.scheduleRepo.FindAllBreaksByEntryID(ctx, entry.ID)
+			if brkErr != nil {
+				// LIFF-1: 休憩取得失敗は観測性のため slog 記録（P11）。挙動は従来通り（breaks 空で続行）。
+				slog.ErrorContext(ctx, "failed to get breaks", "error", brkErr, "entry_id", entry.ID)
+			}
 			override := &StaffScheduleOverride{
 				ShiftType: string(entry.ShiftType),
 				WorkStart: ptrTimeToHHMM(entry.StartTime), // PostgreSQL "HH:MM:SS" → "HHMM"
