@@ -1758,3 +1758,52 @@ func TestGetOwnerUnpaidBalance(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+// TestAccountingService_Update_PostCloseReasonRequired は #115 / B4 の service 層 enforcement を検証する。
+// handler を経由せず Update を直接呼んだ場合でも、締め後編集（IsPostClose=true）で
+// post_close_reason を欠くと拒否される（サイレント通過しない）ことを示す。
+func TestAccountingService_Update_PostCloseReasonRequired(t *testing.T) {
+	emptyReason := ""
+	validReason := "訂正のため"
+
+	tests := []struct {
+		name        string
+		input       *UpdateAccountingInput
+		wantErrText string
+	}{
+		{
+			name:        "post-close edit without reason (nil) is rejected at service boundary",
+			input:       &UpdateAccountingInput{ID: 1, ClinicID: 1, IsPostClose: true, PostCloseReason: nil},
+			wantErrText: "レジ締め済み期間の会計編集には post_close_reason の入力が必要です",
+		},
+		{
+			name:        "post-close edit with empty reason is rejected at service boundary",
+			input:       &UpdateAccountingInput{ID: 1, ClinicID: 1, IsPostClose: true, PostCloseReason: &emptyReason},
+			wantErrText: "レジ締め済み期間の会計編集には post_close_reason の入力が必要です",
+		},
+		{
+			// 締め後＋理由ありはガードを通過する。本ケースは他フィールド未指定のため
+			// 後続の "no fields to update" 検証で停止する＝理由ガードを越えたことを示す。
+			name:        "post-close edit with valid reason passes the reason guard",
+			input:       &UpdateAccountingInput{ID: 1, ClinicID: 1, IsPostClose: true, PostCloseReason: &validReason},
+			wantErrText: "no fields to update",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockAccountingRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+					return &model.Billing{ID: 1, ClinicID: 1}, nil
+				},
+			}
+			svc := NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, &mockPaymentMethodMasterRepository{})
+
+			_, err := svc.Update(context.Background(), tt.input)
+
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, apperrors.ErrInvalidInput)
+			assert.ErrorContains(t, err, tt.wantErrText)
+		})
+	}
+}

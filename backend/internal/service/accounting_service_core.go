@@ -87,6 +87,13 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 }
 
 func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error) {
+	// #115 / B4: レジ締め済み期間の会計編集は理由必須。service 層を権威的 enforcement 点とし、
+	// handler を迂回する呼び出し元にも不変条件を強制する。
+	// 注: 認可（ユーザー権限）はリクエストスコープの関心事のため handler 側に残す（service 入力に actor 権限は持たせない）。
+	if input.IsPostClose && (input.PostCloseReason == nil || *input.PostCloseReason == "") {
+		return nil, apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
+	}
+
 	_, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find accounting", "error", err)

@@ -154,13 +154,12 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	// 認可（締め後編集権限）はリクエストスコープの関心事のため handler に残す。
+	// post_close_reason の必須検証は service 層（accountingService.Update 冒頭）へ移設し、
+	// handler を迂回する呼び出し元にも不変条件を強制する（B4）。
 	if isClosed {
 		if !h.hasPermission(c, string(model.ResourceAccountingPostCloseEdit), "edit") {
 			RespondError(c, apperrors.WrapForbidden("レジ締め済み期間の会計編集には accounting-post-close-edit:edit 権限が必要です"))
-			return
-		}
-		if input.PostCloseReason == nil || *input.PostCloseReason == "" {
-			RespondError(c, apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です"))
 			return
 		}
 	}
