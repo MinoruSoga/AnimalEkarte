@@ -571,6 +571,74 @@ export interface TaxBreakdownItem {
 }
 
 //////////
+// source: checkup_field.go
+
+/**
+ * CheckupFieldType は健診パッケージのフィールド型（#211・6種）。
+ */
+export type CheckupFieldType = string;
+export const CheckupFieldTypeNumber: CheckupFieldType = "number";
+export const CheckupFieldTypeSingleSelect: CheckupFieldType = "single_select";
+export const CheckupFieldTypeMultiSelect: CheckupFieldType = "multi_select";
+export const CheckupFieldTypeBoolean: CheckupFieldType = "boolean";
+export const CheckupFieldTypeChecklist: CheckupFieldType = "checklist";
+export const CheckupFieldTypeText: CheckupFieldType = "text";
+/**
+ * CheckupTypeField は健診パッケージ（checkup_type）の型付きフィールド定義マスタ。
+ * examination の exam_type_fields に相当するが、field_type / options / 異常値基準を持つ。
+ */
+export interface CheckupTypeField {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  checkup_type_id: number /* uint64 */;
+  name: string;
+  field_type: CheckupFieldType;
+  unit: string;
+  min_value?: number /* float64 */;
+  max_value?: number /* float64 */;
+  options: any /* datatypes.JSON */;
+  is_provisional: boolean;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * CheckupFieldResult は健診記録（checkup）に紐づく型付き結果値（checkups の純粋従属子）。
+ * field 定義削除後も自己記述的であるよう field_name/field_type/unit を非正規化保持する
+ * （exam_results.exam_type_field_id と同型: nullable FK + snapshot）。
+ */
+export interface CheckupFieldResult {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  checkup_id: number /* uint64 */;
+  checkup_type_field_id?: number /* uint64 */;
+  field_name: string;
+  field_type: CheckupFieldType;
+  unit: string;
+  value_number?: number /* float64 */;
+  value_text: string;
+  value_bool?: boolean;
+  value_list: string[];
+  ref_min?: number /* float64 */;
+  ref_max?: number /* float64 */;
+  is_abnormal: boolean;
+  status: ExaminationResultStatus;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations — 関連名はモデル名と一致させる（P3.1 read lint の assoc キーが
+   * clinicScopedMasterAssoc["CheckupTypeField"] で解決されるため）。
+   */
+  checkup_type_field?: CheckupTypeField;
+  /**
+   * 飼い主レポート用に親 checkup（日付・種別）を解決する。Checkup は記録であり
+   * マスタではないため P3.1 lint 対象外だが、ネストの CheckupType は対象（clinic_id 述語を付ける）。
+   */
+  checkup?: Checkup;
+}
+
+//////////
 // source: checkup_record.go
 
 export interface Checkup {
