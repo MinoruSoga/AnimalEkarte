@@ -1807,3 +1807,39 @@ func TestAccountingService_Update_PostCloseReasonRequired(t *testing.T) {
 		})
 	}
 }
+
+// TestAccountingService_Update_PostCloseEmitsAudit は #115 / B4 の成功経路で
+// 締め後編集監査ログ（AuditActionBillingPostCloseEdit・reason 付き）が必ず記録されることを固定する。
+// reason ガード通過後に監査が欠落しないことの回帰防止網（review follow-up）。
+func TestAccountingService_Update_PostCloseEmitsAudit(t *testing.T) {
+	reason := "金額訂正のため"
+	memo := "訂正済み"
+	staffID := uint64(3)
+	billing := &model.Billing{ID: 7, ClinicID: 1, ScheduledDate: time.Now()}
+
+	repo := &mockAccountingRepository{
+		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
+	}
+	audit := &mockAccountingAuditService{}
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+
+	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:              7,
+		ClinicID:        1,
+		StaffID:         &staffID,
+		Memo:            &memo,
+		IsPostClose:     true,
+		PostCloseReason: &reason,
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, audit.logEntryCalled, "post-close edit must emit an audit log entry")
+	if assert.NotNil(t, audit.logEntryInput) {
+		assert.Equal(t, model.AuditActionBillingPostCloseEdit, audit.logEntryInput.Action)
+		meta, ok := audit.logEntryInput.Metadata.(map[string]any)
+		if assert.True(t, ok, "audit metadata should be map[string]any") {
+			assert.Equal(t, reason, meta["reason"])
+		}
+	}
+}
