@@ -64,7 +64,10 @@ type petFirstVisitResponse struct {
 }
 
 func toPetFirstVisitResponse(date *time.Time) petFirstVisitResponse {
-	return petFirstVisitResponse{FirstVisitDate: date}
+	// MedicalRecord.date は medical_record 詳細経路で localTime(r.Date) として datetime 配信される。
+	// 同じ date 値の派生である初診日も localTimePtr で time.Local へ変換し、経路間の tz 表現割れ
+	// (`…Z` vs `…+09:00`) を防ぐ。nil (カルテ無し) は素通しで null を維持する。
+	return petFirstVisitResponse{FirstVisitDate: localTimePtr(date)}
 }
 
 // petListResponse はリスト表示に必要な最小限フィールドのみ返す（GET /v1/pets 専用）
