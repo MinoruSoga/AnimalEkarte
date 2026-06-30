@@ -141,6 +141,30 @@ jobs:
         run: go test ./internal/service/ -run TestMasterFKWriteInventory -count=1
 
   # ──────────────────────────────────────────────
+  # Clinical-result audit-tx inventory gate: 患者臨床結果（exam_results/checkup_field_results）の
+  # hard-delete/replace サイトを go/ast で列挙し、監査ステータス付き allowlist と突合する。
+  # 未移行サイト（exam_results pending-migration）の CI 可視化と再発防止ゲート（#211 follow-up）。
+  # DB 不要・純静的検査。backend job は PR→main でスキップされるため、独立 job で全イベント
+  # 無条件に走らせ pre-merge で必ずブロックする。
+  # ──────────────────────────────────────────────
+  clinical-result-audit-tx-inventory:
+    name: Clinical-Result Audit-Tx Inventory Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Run clinical-result audit-tx inventory gate
+        working-directory: backend
+        run: go test ./internal/repository/ -run TestClinicalResultAuditTxInventory -count=1
+
+  # ──────────────────────────────────────────────
   # Backend: build + lint + schema check
   # ──────────────────────────────────────────────
   backend:
