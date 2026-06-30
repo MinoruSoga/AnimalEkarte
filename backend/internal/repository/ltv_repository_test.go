@@ -1151,6 +1151,12 @@ func getTestDatabaseConnection(t *testing.T) *gorm.DB {
 		t.Logf("warning: failed to connect to main db: %v", err)
 	} else {
 		mainDB.Exec("CREATE DATABASE " + testDBName)
+		// 接続リーク防止: mainDB は CREATE DATABASE 専用。閉じないと setupTestDB 呼び出し毎に
+		// 1 接続が漏れ、full suite で PostgreSQL の max_connections を使い切る
+		// （FATAL: sorry, too many clients already / SQLSTATE 53300）。
+		if sqlMainDB, derr := mainDB.DB(); derr == nil {
+			_ = sqlMainDB.Close()
+		}
 	}
 
 	// テストDB接続
@@ -1161,6 +1167,13 @@ func getTestDatabaseConnection(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(postgres.Open(testDSN), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to connect to test db: %v", err)
+	}
+	// 接続枯渇防止: setupTestDB は多数のテストから呼ばれる。プールを上限し、テスト終了時に
+	// 必ず閉じることで接続の累積を防ぐ（閉じないと full suite で max_connections を超え 53300）。
+	if sqlDB, derr := db.DB(); derr == nil {
+		sqlDB.SetMaxOpenConns(10)
+		sqlDB.SetMaxIdleConns(2)
+		t.Cleanup(func() { _ = sqlDB.Close() })
 	}
 	return db
 }

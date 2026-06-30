@@ -28,9 +28,10 @@ func setupStaffOccupationPreloadTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
 	// setupTestDB は staff_type ENUM を DROP CASCADE するため staffs.staff_type 列が消える。
-	// AutoMigrate で staffs・occupations・assignments を再整備する。
+	// AutoMigrate で companies・clinics（seedClinicsForFK の FK 親）・occupations・staffs・
+	// assignments を再整備する。fresh DB（CI）では FK 親テーブルも明示作成しないと存在しない。
 	require.NoError(t, db.AutoMigrate(
-		&model.Occupation{}, &model.Staff{}, &model.StaffClinicAssignment{},
+		&model.Company{}, &model.Clinic{}, &model.Occupation{}, &model.Staff{}, &model.StaffClinicAssignment{},
 	))
 	// クリーン状態にする。staffs / occupations CASCADE は両者を参照する全テーブル（reservations・
 	// medical_records・audit_logs・reservation_type_occupations 等）も連鎖 TRUNCATE する点に注意。
