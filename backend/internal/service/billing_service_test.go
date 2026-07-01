@@ -64,6 +64,14 @@ func TestCalculateTaxAmount(t *testing.T) {
 			taxRate:   0.10,
 			want:      33, // 33.3 → 33
 		},
+		{
+			name:      "不正な課税区分 - 税額は0",
+			unitPrice: 1000,
+			quantity:  1,
+			taxType:   "invalid",
+			taxRate:   0.10,
+			want:      0,
+		},
 	}
 
 	for _, tt := range tests {
