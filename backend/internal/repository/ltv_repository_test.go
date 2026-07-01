@@ -1031,70 +1031,77 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	// medicines AutoMigrate に medicine_calculation_type が必須（欠落で CREATE TABLE 失敗）。
 	// DROP TYPE IF EXISTS → CREATE TYPE の順序で、既存型を削除してから再作成
 	enumTypes := []struct {
-		drop   string
+		name   string
 		create string
 	}{
 		// ペット関連
-		{"DROP TYPE IF EXISTS pet_status CASCADE", "CREATE TYPE pet_status AS ENUM ('alive', 'deceased')"},
-		{"DROP TYPE IF EXISTS pet_gender CASCADE", "CREATE TYPE pet_gender AS ENUM ('male', 'female', 'unknown')"},
-		{"DROP TYPE IF EXISTS acquisition_type CASCADE", "CREATE TYPE acquisition_type AS ENUM ('purchased', 'transferred', 'rescued', 'other')"},
-		{"DROP TYPE IF EXISTS danger_level CASCADE", "CREATE TYPE danger_level AS ENUM ('low', 'medium', 'high')"},
-		{"DROP TYPE IF EXISTS membership_type CASCADE", "CREATE TYPE membership_type AS ENUM ('non_member', 'member', 'deceased', 'transferred')"},
+		{"pet_status", "CREATE TYPE pet_status AS ENUM ('alive', 'deceased')"},
+		{"pet_gender", "CREATE TYPE pet_gender AS ENUM ('male', 'female', 'unknown')"},
+		{"acquisition_type", "CREATE TYPE acquisition_type AS ENUM ('purchased', 'transferred', 'rescued', 'other')"},
+		{"danger_level", "CREATE TYPE danger_level AS ENUM ('low', 'medium', 'high')"},
+		{"membership_type", "CREATE TYPE membership_type AS ENUM ('non_member', 'member', 'deceased', 'transferred')"},
 		// マスタ共通
-		{"DROP TYPE IF EXISTS inventory_category CASCADE", "CREATE TYPE inventory_category AS ENUM ('medicine', 'consumable', 'food', 'other')"},
-		{"DROP TYPE IF EXISTS inventory_status CASCADE", "CREATE TYPE inventory_status AS ENUM ('sufficient', 'low', 'out_of_stock')"},
-		{"DROP TYPE IF EXISTS dosage_form CASCADE", "CREATE TYPE dosage_form AS ENUM ('tablet', 'liquid', 'injection', 'topical', 'powder')"},
-		{"DROP TYPE IF EXISTS medicine_unit CASCADE", "CREATE TYPE medicine_unit AS ENUM ('per_tablet', 'per_ml', 'per_dose', 'per_gram')"},
+		{"inventory_category", "CREATE TYPE inventory_category AS ENUM ('medicine', 'consumable', 'food', 'other')"},
+		{"inventory_status", "CREATE TYPE inventory_status AS ENUM ('sufficient', 'low', 'out_of_stock')"},
+		{"dosage_form", "CREATE TYPE dosage_form AS ENUM ('tablet', 'liquid', 'injection', 'topical', 'powder')"},
+		{"medicine_unit", "CREATE TYPE medicine_unit AS ENUM ('per_tablet', 'per_ml', 'per_dose', 'per_gram')"},
 		// #201 薬量自動計算（migration 009）: medicines.calculation_type + medicine_dose_params 用
-		{"DROP TYPE IF EXISTS medicine_calculation_type CASCADE", "CREATE TYPE medicine_calculation_type AS ENUM ('none', 'per_weight')"},
-		{"DROP TYPE IF EXISTS medicine_dose_basis CASCADE", "CREATE TYPE medicine_dose_basis AS ENUM ('per_administration', 'per_day')"},
-		{"DROP TYPE IF EXISTS medicine_rounding_mode CASCADE", "CREATE TYPE medicine_rounding_mode AS ENUM ('up', 'down', 'nearest')"},
-		{"DROP TYPE IF EXISTS medicine_dose_species CASCADE", "CREATE TYPE medicine_dose_species AS ENUM ('dog', 'cat')"},
-		{"DROP TYPE IF EXISTS cage_type CASCADE", "CREATE TYPE cage_type AS ENUM ('icu', 'dog', 'cat', 'general')"},
-		{"DROP TYPE IF EXISTS cage_size CASCADE", "CREATE TYPE cage_size AS ENUM ('small', 'medium', 'large')"},
-		{"DROP TYPE IF EXISTS body_size CASCADE", "CREATE TYPE body_size AS ENUM ('small', 'medium', 'large')"},
-		{"DROP TYPE IF EXISTS billing_unit CASCADE", "CREATE TYPE billing_unit AS ENUM ('per_day', 'per_night')"},
-		{"DROP TYPE IF EXISTS target_size CASCADE", "CREATE TYPE target_size AS ENUM ('small', 'medium', 'large', 'cat')"},
-		{"DROP TYPE IF EXISTS anesthesia_type CASCADE", "CREATE TYPE anesthesia_type AS ENUM ('none', 'local', 'sedation', 'general')"},
-		{"DROP TYPE IF EXISTS vaccine_species CASCADE", "CREATE TYPE vaccine_species AS ENUM ('dog', 'cat', 'both')"},
+		{"medicine_calculation_type", "CREATE TYPE medicine_calculation_type AS ENUM ('none', 'per_weight')"},
+		{"medicine_dose_basis", "CREATE TYPE medicine_dose_basis AS ENUM ('per_administration', 'per_day')"},
+		{"medicine_rounding_mode", "CREATE TYPE medicine_rounding_mode AS ENUM ('up', 'down', 'nearest')"},
+		{"medicine_dose_species", "CREATE TYPE medicine_dose_species AS ENUM ('dog', 'cat')"},
+		{"cage_type", "CREATE TYPE cage_type AS ENUM ('icu', 'dog', 'cat', 'general')"},
+		{"cage_size", "CREATE TYPE cage_size AS ENUM ('small', 'medium', 'large')"},
+		{"body_size", "CREATE TYPE body_size AS ENUM ('small', 'medium', 'large')"},
+		{"billing_unit", "CREATE TYPE billing_unit AS ENUM ('per_day', 'per_night')"},
+		{"target_size", "CREATE TYPE target_size AS ENUM ('small', 'medium', 'large', 'cat')"},
+		{"anesthesia_type", "CREATE TYPE anesthesia_type AS ENUM ('none', 'local', 'sedation', 'general')"},
+		{"vaccine_species", "CREATE TYPE vaccine_species AS ENUM ('dog', 'cat', 'both')"},
 		// 電子カルテ関連
-		{"DROP TYPE IF EXISTS medical_record_status CASCADE", "CREATE TYPE medical_record_status AS ENUM ('draft', 'finalized')"},
-		{"DROP TYPE IF EXISTS treatment_item_type CASCADE", "CREATE TYPE treatment_item_type AS ENUM ('consultation', 'procedure', 'medicine', 'other')"},
-		{"DROP TYPE IF EXISTS treatment_status CASCADE", "CREATE TYPE treatment_status AS ENUM ('pending', 'completed', 'not_applicable')"},
-		{"DROP TYPE IF EXISTS exam_status CASCADE", "CREATE TYPE exam_status AS ENUM ('pending', 'in_progress', 'result_entered', 'completed', 'confirmed')"},
-		{"DROP TYPE IF EXISTS exam_result_status CASCADE", "CREATE TYPE exam_result_status AS ENUM ('normal', 'high', 'low')"},
-		{"DROP TYPE IF EXISTS next_schedule_type CASCADE", "CREATE TYPE next_schedule_type AS ENUM ('3weeks', '4weeks', '1year', 'other')"},
-		{"DROP TYPE IF EXISTS appetite_level CASCADE", "CREATE TYPE appetite_level AS ENUM ('normal', 'increased', 'decreased', 'none')"},
-		{"DROP TYPE IF EXISTS water_intake_level CASCADE", "CREATE TYPE water_intake_level AS ENUM ('normal', 'increased', 'decreased', 'none')"},
-		{"DROP TYPE IF EXISTS medical_image_type CASCADE", "CREATE TYPE medical_image_type AS ENUM ('xray', 'echo', 'photo', 'endoscope', 'ct', 'mri', 'microscope', 'other')"},
-		{"DROP TYPE IF EXISTS estimate_status CASCADE", "CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected')"},
-		{"DROP TYPE IF EXISTS confirmation_status CASCADE", "CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'returned')"},
-		{"DROP TYPE IF EXISTS item_category CASCADE", "CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other', 'vaccine', 'trimming', 'hotel', 'training')"},
-		{"DROP TYPE IF EXISTS item_source CASCADE", "CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization')"},
+		{"medical_record_status", "CREATE TYPE medical_record_status AS ENUM ('draft', 'finalized')"},
+		{"treatment_item_type", "CREATE TYPE treatment_item_type AS ENUM ('consultation', 'procedure', 'medicine', 'other')"},
+		{"treatment_status", "CREATE TYPE treatment_status AS ENUM ('pending', 'completed', 'not_applicable')"},
+		{"exam_status", "CREATE TYPE exam_status AS ENUM ('pending', 'in_progress', 'result_entered', 'completed', 'confirmed')"},
+		{"exam_result_status", "CREATE TYPE exam_result_status AS ENUM ('normal', 'high', 'low')"},
+		{"next_schedule_type", "CREATE TYPE next_schedule_type AS ENUM ('3weeks', '4weeks', '1year', 'other')"},
+		{"appetite_level", "CREATE TYPE appetite_level AS ENUM ('normal', 'increased', 'decreased', 'none')"},
+		{"water_intake_level", "CREATE TYPE water_intake_level AS ENUM ('normal', 'increased', 'decreased', 'none')"},
+		{"medical_image_type", "CREATE TYPE medical_image_type AS ENUM ('xray', 'echo', 'photo', 'endoscope', 'ct', 'mri', 'microscope', 'other')"},
+		{"estimate_status", "CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected')"},
+		{"confirmation_status", "CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'returned')"},
+		{"item_category", "CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other', 'vaccine', 'trimming', 'hotel', 'training')"},
+		{"item_source", "CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization')"},
 		// 予約・会計・入院関連
-		{"DROP TYPE IF EXISTS visit_type CASCADE", "CREATE TYPE visit_type AS ENUM ('first', 'revisit')"},
-		{"DROP TYPE IF EXISTS reservation_status CASCADE", "CREATE TYPE reservation_status AS ENUM ('confirmed', 'pending', 'cancelled', 'checked_in', 'in_consultation', 'accounting', 'completed', 'no_show')"},
-		{"DROP TYPE IF EXISTS staff_type CASCADE", "CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'trimmer', 'resource')"},
-		{"DROP TYPE IF EXISTS reservation_source CASCADE", "CREATE TYPE reservation_source AS ENUM ('manual', 'line')"},
-		{"DROP TYPE IF EXISTS billing_status CASCADE", "CREATE TYPE billing_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending')"},
-		{"DROP TYPE IF EXISTS hospitalization_type CASCADE", "CREATE TYPE hospitalization_type AS ENUM ('hospitalization', 'hotel')"},
-		{"DROP TYPE IF EXISTS hospitalization_status CASCADE", "CREATE TYPE hospitalization_status AS ENUM ('admitted', 'discharged', 'reserved')"},
-		{"DROP TYPE IF EXISTS care_plan_type CASCADE", "CREATE TYPE care_plan_type AS ENUM ('food', 'medicine', 'treatment', 'instruction', 'item')"},
-		{"DROP TYPE IF EXISTS care_plan_status CASCADE", "CREATE TYPE care_plan_status AS ENUM ('active', 'completed', 'discontinued')"},
-		{"DROP TYPE IF EXISTS care_log_type CASCADE", "CREATE TYPE care_log_type AS ENUM ('food', 'excretion', 'medicine', 'treatment', 'other')"},
-		{"DROP TYPE IF EXISTS care_log_status CASCADE", "CREATE TYPE care_log_status AS ENUM ('completed', 'partial', 'skipped')"},
-		{"DROP TYPE IF EXISTS plan_timing CASCADE", "CREATE TYPE plan_timing AS ENUM ('morning', 'noon', 'night')"},
-		{"DROP TYPE IF EXISTS body_weight_unit CASCADE", "CREATE TYPE body_weight_unit AS ENUM ('Kg', 'g')"},
+		{"visit_type", "CREATE TYPE visit_type AS ENUM ('first', 'revisit')"},
+		{"reservation_status", "CREATE TYPE reservation_status AS ENUM ('confirmed', 'pending', 'cancelled', 'checked_in', 'in_consultation', 'accounting', 'completed', 'no_show')"},
+		{"staff_type", "CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'trimmer', 'resource')"},
+		{"reservation_source", "CREATE TYPE reservation_source AS ENUM ('manual', 'line')"},
+		{"billing_status", "CREATE TYPE billing_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending')"},
+		{"hospitalization_type", "CREATE TYPE hospitalization_type AS ENUM ('hospitalization', 'hotel')"},
+		{"hospitalization_status", "CREATE TYPE hospitalization_status AS ENUM ('admitted', 'discharged', 'reserved')"},
+		{"care_plan_type", "CREATE TYPE care_plan_type AS ENUM ('food', 'medicine', 'treatment', 'instruction', 'item')"},
+		{"care_plan_status", "CREATE TYPE care_plan_status AS ENUM ('active', 'completed', 'discontinued')"},
+		{"care_log_type", "CREATE TYPE care_log_type AS ENUM ('food', 'excretion', 'medicine', 'treatment', 'other')"},
+		{"care_log_status", "CREATE TYPE care_log_status AS ENUM ('completed', 'partial', 'skipped')"},
+		{"plan_timing", "CREATE TYPE plan_timing AS ENUM ('morning', 'noon', 'night')"},
+		{"body_weight_unit", "CREATE TYPE body_weight_unit AS ENUM ('Kg', 'g')"},
 		// トリミング・シフト関連
-		{"DROP TYPE IF EXISTS reservation_type_category CASCADE", "CREATE TYPE reservation_type_category AS ENUM ('general', 'trimming')"},
-		{"DROP TYPE IF EXISTS payment_method CASCADE", "CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money', 'bank_transfer')"},
-		{"DROP TYPE IF EXISTS shift_type CASCADE", "CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave')"},
-		{"DROP TYPE IF EXISTS tax_type CASCADE", "CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt')"},
+		{"reservation_type_category", "CREATE TYPE reservation_type_category AS ENUM ('general', 'trimming')"},
+		{"payment_method", "CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money', 'bank_transfer')"},
+		{"shift_type", "CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave')"},
+		{"tax_type", "CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt')"},
 	}
 	for _, et := range enumTypes {
-		db.Exec(et.drop) // ignore errors on DROP
-		if err := db.Exec(et.create).Error; err != nil {
-			t.Fatalf("failed to create ENUM type: %v", err)
+		query := fmt.Sprintf(`
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '%s') THEN
+        %s;
+    END IF;
+END
+$$;`, et.name, et.create)
+		if err := db.Exec(query).Error; err != nil {
+			t.Fatalf("failed to create ENUM type %s: %v", et.name, err)
 		}
 	}
 

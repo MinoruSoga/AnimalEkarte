@@ -293,3 +293,174 @@ func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 		assert.NotNil(t, spy.logClinicSwitchCall, "LogClinicSwitch was called (but returned error)")
 	})
 }
+
+func TestAuth_AccessTokenCookie(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	router := gin.New()
+	router.Use(Auth(testSecret, false, nil, nil))
+	router.GET("/test", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	token := makeToken(t, jwt.SigningMethodHS256, validClaims())
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestAuth_AuthTokenCookieFallback(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	router := gin.New()
+	router.Use(Auth(testSecret, false, nil, nil))
+	router.GET("/test", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	token := makeToken(t, jwt.SigningMethodHS256, validClaims())
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req.AddCookie(&http.Cookie{Name: "auth_token", Value: token})
+
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestAuth_SigningMethodMismatch(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	router := gin.New()
+	router.Use(Auth(testSecret, false, nil, nil))
+	router.GET("/test", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	token := jwt.NewWithClaims(jwt.SigningMethodNone, validClaims())
+	tokenStr, err := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req.Header.Set("Authorization", "Bearer "+tokenStr)
+
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestAuth_InvalidClinicIDHeader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	router := gin.New()
+	router.Use(Auth(testSecret, false, nil, nil))
+	router.GET("/test", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	token := makeToken(t, jwt.SigningMethodHS256, validClaims())
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Clinic-ID", "invalid-int")
+
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestAuth_NotAssignedClinicIDHeader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	router := gin.New()
+	claims := clinicSwitchClaims([]uint64{1, 2})
+	token := makeToken(t, jwt.SigningMethodHS256, claims)
+
+	router.Use(Auth(testSecret, false, nil, nil))
+	router.GET("/test", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Clinic-ID", "3")
+
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+type mockStaffService struct {
+	service.StaffService
+	getByIDFn func(ctx context.Context, id uint64) (*model.Staff, error)
+}
+
+func (m *mockStaffService) GetByID(ctx context.Context, id uint64) (*model.Staff, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, id)
+	}
+	return &model.Staff{ID: id, IsActive: true}, nil
+}
+
+func TestAuth_StaffValidation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	claims := jwt.MapClaims{
+		"user_id":   "123",
+		"clinic_id": "1",
+		"exp":       time.Now().Add(time.Hour).Unix(),
+	}
+	token := makeToken(t, jwt.SigningMethodHS256, claims)
+
+	t.Run("allows active staff", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		router := gin.New()
+		staffSvc := &mockStaffService{}
+		router.Use(Auth(testSecret, false, nil, staffSvc))
+		router.GET("/test", func(c *gin.Context) {
+			c.Status(http.StatusOK)
+		})
+
+		req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+		req.Header.Set("Authorization", "Bearer "+token)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("blocks inactive staff", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		router := gin.New()
+		staffSvc := &mockStaffService{
+			getByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
+				return &model.Staff{IsActive: false}, nil
+			},
+		}
+		router.Use(Auth(testSecret, false, nil, staffSvc))
+		router.GET("/test", func(c *gin.Context) {
+			c.Status(http.StatusOK)
+		})
+
+		req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+		req.Header.Set("Authorization", "Bearer "+token)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+
+	t.Run("allows staff check to proceed even if DB query fails", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		router := gin.New()
+		staffSvc := &mockStaffService{
+			getByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		router.Use(Auth(testSecret, false, nil, staffSvc))
+		router.GET("/test", func(c *gin.Context) {
+			c.Status(http.StatusOK)
+		})
+
+		req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+		req.Header.Set("Authorization", "Bearer "+token)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
