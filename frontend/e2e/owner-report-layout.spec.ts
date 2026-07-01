@@ -81,20 +81,21 @@ test.describe('#158 飼主レポート 高密度レイアウト', () => {
         expect(doc.scrollH).toBeLessThanOrEqual(doc.innerH + SCROLL_TOLERANCE);
         expect(doc.scrollYAfterAttempt).toBe(0);
 
-        // --- AC2: 8 パネルそれぞれが overflow:auto かつビューポート内に収まる境界高さを持つ ---
+        // --- AC2: 9 パネルそれぞれが overflow:auto かつビューポート内に収まる境界高さを持つ ---
         const metrics = await panelMetrics(page);
-        expect(metrics).toHaveLength(8);
+        expect(metrics).toHaveLength(9);
         for (const m of metrics) {
           expect(['auto', 'scroll']).toContain(m.overflowY);
           expect(m.clientHeight).toBeGreaterThan(0);
           expect(m.clientHeight).toBeLessThanOrEqual(doc.innerH);
         }
 
-        // --- AC4: 8 セクション見出しが最初のビューポートに同時提示される ---
+        // --- AC4: 9 セクション見出しが最初のビューポートに同時提示される ---
         for (const title of [
           'ペット詳細',
           '予防接種履歴',
           '健康診断（検査）履歴',
+          '健診（パッケージ）履歴',
           '投薬履歴',
           '麻酔処置履歴',
           '手術処置履歴',
@@ -167,12 +168,13 @@ test.describe('#158 飼主レポート 高密度レイアウト', () => {
   test('モバイル 390x844: 飼主と全セクションが利用可能（ページスクロール許容） (AC8)', async () => {
     const page = await gotoReport(context, 390, 844);
     try {
-      // 飼主名 + 8 セクション見出しが（スクロールすれば）到達可能であること。
+      // 飼主名 + 9 セクション見出しが（スクロールすれば）到達可能であること。
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       for (const title of [
         'ペット詳細',
         '予防接種履歴',
         '健康診断（検査）履歴',
+        '健診（パッケージ）履歴',
         '投薬履歴',
         '麻酔処置履歴',
         '手術処置履歴',
