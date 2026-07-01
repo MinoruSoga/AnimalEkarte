@@ -55,10 +55,17 @@ func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Contex
 	}
 	lineUserID := *owner.LineUserID
 
-	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get health prevention thresholds for healthcheck tags", "error", err, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	// PERF-1: cachedThresholds が提供されている場合は再取得しない（batch からの hoist）。
+	var thresholds model.HealthPreventionThresholds
+	if cachedThresholds != nil {
+		thresholds = *cachedThresholds
+	} else {
+		var tErr error
+		thresholds, tErr = s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+		if tErr != nil {
+			slog.ErrorContext(ctx, "failed to get health prevention thresholds for healthcheck tags", "error", tErr, "clinic_id", clinicID)
+			return apperrors.Wrap(tErr, "failed to get health prevention thresholds")
+		}
 	}
 	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)

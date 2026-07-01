@@ -5,10 +5,22 @@ import (
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // SyncDormantTags は最終来院からの経過日数に基づき dormant_* タグを差分同期する（BE-005）。
+// 閾値を都度 DB から取得する。バッチ処理では SyncDormantTagsWithThresholds を使用すること（N+1 解消）。
 func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error {
+	thresholds, tErr := s.settingsSvc.GetDormantThresholds(ctx, clinicID)
+	if tErr != nil {
+		slog.ErrorContext(ctx, "SyncDormantTags: failed to get dormant thresholds", "clinic_id", clinicID, "error", tErr)
+		return apperrors.Wrap(tErr, "failed to get dormant thresholds")
+	}
+	return s.SyncDormantTagsWithThresholds(ctx, clinicID, ownerID, daysSinceLastVisit, thresholds)
+}
+
+// SyncDormantTagsWithThresholds は事前取得済みの閾値を使って dormant タグを差分同期する（PERF-2 N+1 解消用）。
+func (s *lstepTagSyncService) SyncDormantTagsWithThresholds(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int, thresholds model.DormantThresholds) error {
 	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
 		return err
 	} else if skip {
@@ -36,12 +48,7 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 		return nil
 	}
 
-	// 付与すべき dormant タグを決定（閾値は clinic_settings から取得、Q21）
-	thresholds, tErr := s.settingsSvc.GetDormantThresholds(ctx, clinicID)
-	if tErr != nil {
-		slog.ErrorContext(ctx, "SyncDormantTags: failed to get dormant thresholds", "clinic_id", clinicID, "error", tErr)
-		return apperrors.Wrap(tErr, "failed to get dormant thresholds")
-	}
+	// 付与すべき dormant タグを決定（閾値はパラメータで受け取る）
 	var targetTag string
 	switch {
 	case daysSinceLastVisit < 0 || daysSinceLastVisit >= thresholds.Stage365:

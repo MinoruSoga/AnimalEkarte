@@ -183,6 +183,9 @@ func (m *mrMockOwnerRepo) UpdateLineFollowedAt(_ context.Context, _, _ uint64, _
 func (m *mrMockOwnerRepo) UpdateLineBlockedAt(_ context.Context, _, _ uint64, _ time.Time) error {
 	return nil
 }
+func (m *mrMockOwnerRepo) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
+	return nil, nil
+}
 
 // mrMockPetRepo は MedicalRecord テスト用 PetRepository モック（FindByID のみ）
 type mrMockPetRepo struct {
@@ -215,6 +218,9 @@ func (m *mrMockPetRepo) FindLivingByOwner(_ context.Context, _, _ uint64) ([]mod
 }
 func (m *mrMockPetRepo) FindOwnersByPetBirthday(_ context.Context, _ uint64, _, _ int) ([]uint64, error) {
 	return nil, nil
+}
+func (m *mrMockPetRepo) CountLivingByOwnerIDs(_ context.Context, _ uint64, _ []uint64) (map[uint64]int64, error) {
+	return map[uint64]int64{}, nil
 }
 
 func TestMedicalRecordService_List(t *testing.T) {

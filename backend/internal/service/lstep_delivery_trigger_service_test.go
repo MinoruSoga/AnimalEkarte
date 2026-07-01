@@ -157,6 +157,9 @@ func (m *mockOwnerRepoForDelivery) Delete(_ context.Context, _, _ uint64) error 
 func (m *mockOwnerRepoForDelivery) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
+func (m *mockOwnerRepoForDelivery) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
+	return nil, nil
+}
 
 // ---- MedicalRecordRepository モック（delivery trigger 用）----
 
@@ -337,6 +340,9 @@ func (m *mockPetRepoForDelivery) FindOwnersByPetBirthday(ctx context.Context, cl
 		return m.findOwnersByPetBirthdayFn(ctx, clinicID, month, day)
 	}
 	return nil, nil
+}
+func (m *mockPetRepoForDelivery) CountLivingByOwnerIDs(_ context.Context, _ uint64, _ []uint64) (map[uint64]int64, error) {
+	return map[uint64]int64{}, nil
 }
 
 // ---- helpers ----

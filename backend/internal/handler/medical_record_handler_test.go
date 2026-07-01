@@ -251,6 +251,10 @@ func (m *mockLstepTagSyncService) SyncHealthPreventionTagsForClinic(_ context.Co
 	return 0, nil
 }
 
+func (m *mockLstepTagSyncService) SyncDormantTagsWithThresholds(_ context.Context, _, _ uint64, _ int, _ model.DormantThresholds) error {
+	return nil
+}
+
 // ---- test helper ----
 
 func newHandlerWithMedicalRecordSvc(mrSvc service.MedicalRecordService, cpSvc service.ClinicalPlanService) *Handler {

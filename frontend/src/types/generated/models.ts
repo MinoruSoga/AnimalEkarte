@@ -335,6 +335,10 @@ export const AuditActionLabImportCommitFailed = "lab_import.commit.failed";
  */
 export const AuditActionLabImportSourceBlocked = "lab_import.source.blocked";
 /**
+ * #211 健診結果値の置換（既存削除を伴う PUT）監査アクション
+ */
+export const AuditActionCheckupFieldResultReplace = "checkup_field_result.replace";
+/**
  * audit_logs.resource 定数
  */
 export const AuditResourceLabImport = "lab_import";
@@ -350,6 +354,10 @@ export const AuditResourceMedicine = "medicine";
  * audit_logs.resource 定数
  */
 export const AuditResourceTreatmentDose = "treatment_dose";
+/**
+ * #211 健診パッケージ型付き結果値の置換（既存削除を伴う）監査
+ */
+export const AuditResourceCheckupFieldResult = "checkup_field_result";
 /**
  * LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
  * 許可された値のみを表す型。free-form string は使用不可。

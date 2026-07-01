@@ -19,6 +19,7 @@ type mockPetRepository struct {
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	countByOwnerFn                func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	countLivingByOwnerFn          func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	countLivingByOwnerIDsFn       func(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]int64, error)
 	countUsageByAnimalSpeciesIDFn func(ctx context.Context, speciesID uint64) (int64, error)
 	createFn                      func(ctx context.Context, pet *model.Pet) error
 	updateFn                      func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -53,6 +54,13 @@ func (m *mockPetRepository) CountLivingByOwner(ctx context.Context, clinicID, ow
 		return m.countLivingByOwnerFn(ctx, clinicID, ownerID)
 	}
 	return 0, nil
+}
+
+func (m *mockPetRepository) CountLivingByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]int64, error) {
+	if m.countLivingByOwnerIDsFn != nil {
+		return m.countLivingByOwnerIDsFn(ctx, clinicID, ownerIDs)
+	}
+	return map[uint64]int64{}, nil
 }
 
 func (m *mockPetRepository) CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {

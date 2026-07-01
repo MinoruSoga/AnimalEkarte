@@ -343,6 +343,10 @@ func (m *mockLiffOwnerRepository) UpdateLineBlockedAt(_ context.Context, _, _ ui
 	return nil
 }
 
+func (m *mockLiffOwnerRepository) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
+	return nil, nil
+}
+
 // --- mockLiffReservationRepository ---
 
 type mockLiffReservationRepository struct {

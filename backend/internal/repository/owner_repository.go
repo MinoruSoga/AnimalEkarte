@@ -39,6 +39,9 @@ type OwnerRepository interface {
 	UpdateLineBlockedAt(ctx context.Context, clinicID, id uint64, t time.Time) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountPetsByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	// FindByIDs は複数 ID でオーナーを一括取得する（タグ一括同期の N+1 解消用）。
+	// Preload なしの軽量クエリ。返り値の順序は ids の順序と一致しない場合がある。
+	FindByIDs(ctx context.Context, clinicID uint64, ids []uint64) ([]*model.Owner, error)
 }
 
 type ownerRepository struct {
@@ -318,4 +321,18 @@ func (r *ownerRepository) UpdateLineUserID(ctx context.Context, clinicID, id uin
 		return apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *ownerRepository) FindByIDs(ctx context.Context, clinicID uint64, ids []uint64) ([]*model.Owner, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var owners []*model.Owner
+	if err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("id IN ?", ids).
+		Find(&owners).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "owner", "")
+	}
+	return owners, nil
 }

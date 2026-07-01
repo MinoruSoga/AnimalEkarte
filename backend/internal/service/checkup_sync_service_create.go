@@ -20,6 +20,28 @@ func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uin
 		return nil, apperrors.WrapInvalidInput("Lステップ API が設定されていません")
 	}
 
+	if len(input.OwnerIDs) == 0 {
+		return &CreateCheckupSyncResult{FailedOwnerIDs: []uint64{}}, nil
+	}
+
+	// PERF-3: オーナー情報を 1 クエリで一括取得する（FindByID N+1 解消）。
+	//
+	// H-2 コントラクト変更: FindByIDs / CountLivingByOwnerIDs の DB エラーは
+	// 全体 HTTP 500 を返す（以前は per-owner FailedOwnerIDs に積んでいた）。
+	// 理由: DB 障害時に partial success を返すと「処理済み」と誤解させるリスクがある。
+	// 全件失敗した場合はリトライで安全に再試行できる（AddTag は冪等）。
+	owners, findErr := s.ownerRepo.FindByIDs(ctx, clinicID, input.OwnerIDs)
+	if findErr != nil {
+		slog.ErrorContext(ctx, "checkup sync: failed to fetch owners", "error", findErr)
+		return nil, apperrors.Wrap(findErr, "failed to fetch owners")
+	}
+
+	// 要求されたが見つからなかったオーナーを failed に積む。
+	foundIDs := make(map[uint64]struct{}, len(owners))
+	for _, o := range owners {
+		foundIDs[o.ID] = struct{}{}
+	}
+
 	result := &CreateCheckupSyncResult{FailedOwnerIDs: []uint64{}}
 	// ISSUE-007: 監査要件 — スキップ理由内訳をカウントしてログに残す。
 	skippedOptOut := 0
@@ -27,43 +49,58 @@ func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uin
 	skippedLineUnlinked := 0
 
 	for _, ownerID := range input.OwnerIDs {
-		owner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
-		if findErr != nil {
+		if _, ok := foundIDs[ownerID]; !ok {
 			slog.ErrorContext(ctx, "checkup sync: owner not found", "owner_id", ownerID)
 			result.FailedOwnerIDs = append(result.FailedOwnerIDs, ownerID)
 			result.FailedCount++
-			continue
 		}
+	}
 
-		// ISSUE-007: スキップ判定は preview 側の deriveExclusionReason と同じ優先度で行う。
-		//   優先度: opt-out > 生存ペットなし > LINE未連携
-		// API を直接叩かれた場合でも死亡ペットのみの飼い主を確実に除外し、誤配信を防ぐ。
+	// ISSUE-007: スキップ判定は preview 側の deriveExclusionReason と同じ優先度で行う。
+	//   優先度: opt-out > 生存ペットなし > LINE未連携
+	// opt-out 済みオーナーをスキップし、生存ペット判定の対象を絞り込む。
+	candidateIDs := make([]uint64, 0, len(owners))
+	for _, owner := range owners {
 		if owner.LstepOptOut {
 			skippedOptOut++
 			result.SkippedCount++
 			continue
 		}
+		candidateIDs = append(candidateIDs, owner.ID)
+	}
 
-		livingPetCount, countErr := s.petRepo.CountLivingByOwner(ctx, clinicID, ownerID)
+	// PERF-3: 生存ペット数を 1 クエリで一括取得する（CountLivingByOwner N+1 解消）。
+	var livingPetCounts map[uint64]int64
+	if len(candidateIDs) > 0 {
+		var countErr error
+		livingPetCounts, countErr = s.petRepo.CountLivingByOwnerIDs(ctx, clinicID, candidateIDs)
 		if countErr != nil {
-			slog.ErrorContext(ctx, "checkup sync: failed to count living pets", "error", countErr, "owner_id", ownerID)
-			result.FailedOwnerIDs = append(result.FailedOwnerIDs, ownerID)
-			result.FailedCount++
-			continue
+			slog.ErrorContext(ctx, "checkup sync: failed to count living pets", "error", countErr)
+			return nil, apperrors.Wrap(countErr, "failed to count living pets")
 		}
-		if livingPetCount == 0 {
+	}
+
+	// candidate オーナーをルックアップマップに変換。
+	ownerMap := make(map[uint64]struct{ LineUserID *string }, len(owners))
+	for _, o := range owners {
+		ownerMap[o.ID] = struct{ LineUserID *string }{LineUserID: o.LineUserID}
+	}
+
+	for _, ownerID := range candidateIDs {
+		if livingPetCounts[ownerID] == 0 {
 			skippedNoLivingPet++
 			result.SkippedCount++
 			continue
 		}
 
-		if owner.LineUserID == nil || *owner.LineUserID == "" {
+		lineUserID := ownerMap[ownerID].LineUserID
+		if lineUserID == nil || *lineUserID == "" {
 			skippedLineUnlinked++
 			result.SkippedCount++
 			continue
 		}
 
-		if addErr := client.AddTag(ctx, *owner.LineUserID, input.TagName); addErr != nil {
+		if addErr := client.AddTag(ctx, *lineUserID, input.TagName); addErr != nil {
 			slog.ErrorContext(ctx, "checkup sync: failed to add lstep tag", "error", addErr, "owner_id", ownerID)
 			result.FailedOwnerIDs = append(result.FailedOwnerIDs, ownerID)
 			result.FailedCount++

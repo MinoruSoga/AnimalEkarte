@@ -7,14 +7,28 @@ import (
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// SyncVaccineDeadlineTag はワクチン次回予定日が VaccineDeadlineDays 以内なら PREV_ワクチン期限 を同期する（FEAT-379）。
 func (s *lstepTagSyncService) SyncVaccineDeadlineTag(ctx context.Context, clinicID, ownerID uint64) error {
 	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
 		return err
 	} else if skip {
 		return nil
 	}
+	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get health prevention thresholds for vaccine deadline tag", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	}
+	return s.syncVaccineDeadlineTagImpl(ctx, clinicID, ownerID, thresholds)
+}
+
+// syncVaccineDeadlineTagImpl は事前取得済み thresholds を使って処理する（PERF-1 N+1 解消用）。
+//
+//nolint:gocritic // hugeParam: thresholds は HealthPreventionThresholds を値型で受ける
+func (s *lstepTagSyncService) syncVaccineDeadlineTagImpl(ctx context.Context, clinicID, ownerID uint64, thresholds model.HealthPreventionThresholds) error {
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out for vaccine deadline tag", "error", err)
@@ -34,11 +48,6 @@ func (s *lstepTagSyncService) SyncVaccineDeadlineTag(ctx context.Context, clinic
 		return apperrors.Wrap(err, "failed to find vaccinations")
 	}
 
-	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get health prevention thresholds for vaccine deadline tag", "error", err, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to get health prevention thresholds")
-	}
 	now := time.Now()
 	deadline := now.AddDate(0, 0, thresholds.VaccineDeadline)
 	deadlineSoon := false

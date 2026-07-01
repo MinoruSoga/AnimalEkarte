@@ -141,7 +141,8 @@ func (m *batchMockMedRecordRepo) DeleteDraftByAppointmentID(_ context.Context, _
 
 // batchMockTagSyncSvc は batch テスト専用 LstepTagSyncService モック
 type batchMockTagSyncSvc struct {
-	syncDormantTagFn func(ctx context.Context, clinicID, ownerID uint64, daysSince int) error
+	syncDormantTagFn                func(ctx context.Context, clinicID, ownerID uint64, daysSince int) error
+	syncDormantTagsWithThresholdsFn func(ctx context.Context, clinicID, ownerID uint64, daysSince int, thresholds model.DormantThresholds) error
 }
 
 func (m *batchMockTagSyncSvc) SyncVaccineTag(_ context.Context, _, _, _ uint64) error { return nil }
@@ -228,6 +229,13 @@ func (m *batchMockTagSyncSvc) SyncFoodPurchaseTag(_ context.Context, _, _ uint64
 
 func (m *batchMockTagSyncSvc) SyncHealthPreventionTagsForClinic(_ context.Context, _ uint64) (int, []error) {
 	return 0, nil
+}
+
+func (m *batchMockTagSyncSvc) SyncDormantTagsWithThresholds(ctx context.Context, clinicID, ownerID uint64, daysSince int, thresholds model.DormantThresholds) error {
+	if m.syncDormantTagsWithThresholdsFn != nil {
+		return m.syncDormantTagsWithThresholdsFn(ctx, clinicID, ownerID, daysSince, thresholds)
+	}
+	return nil
 }
 
 type batchMockAuditService struct {
@@ -394,7 +402,8 @@ func TestDetectDormantOwners_Success(t *testing.T) {
 	svc := newBatchService(
 		&batchMockReservationRepo{},
 		&batchMockTagSyncSvc{
-			syncDormantTagFn: func(_ context.Context, _, ownerID uint64, _ int) error {
+			// PERF-2: DetectDormantOwners は SyncDormantTagsWithThresholds を呼ぶ。
+			syncDormantTagsWithThresholdsFn: func(_ context.Context, _, ownerID uint64, _ int, _ model.DormantThresholds) error {
 				synced = append(synced, ownerID)
 				return nil
 			},
@@ -437,7 +446,8 @@ func TestDetectDormantOwners_TagSyncError(t *testing.T) {
 	svc := newBatchService(
 		&batchMockReservationRepo{},
 		&batchMockTagSyncSvc{
-			syncDormantTagFn: func(_ context.Context, _, _ uint64, _ int) error {
+			// PERF-2: DetectDormantOwners は SyncDormantTagsWithThresholds を呼ぶ。
+			syncDormantTagsWithThresholdsFn: func(_ context.Context, _, _ uint64, _ int, _ model.DormantThresholds) error {
 				return errors.New("lstep api error")
 			},
 		},

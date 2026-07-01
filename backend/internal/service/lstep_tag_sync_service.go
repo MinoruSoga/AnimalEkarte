@@ -168,6 +168,9 @@ type LstepTagSyncService interface {
 	// SyncChronicConditionTags は慢性疾患フラグに基づき chronic_* タグを差分同期する（BE-012）。
 	// activeConditionCodes は飼い主の全生存ペットのアクティブ疾患コード一覧。
 	SyncChronicConditionTags(ctx context.Context, clinicID, ownerID uint64, activeConditionCodes []string) error
+	// SyncDormantTagsWithThresholds は事前取得済みの閾値を使って dormant タグを同期する（N+1 解消用 PERF-2）。
+	// DetectDormantOwners バッチがループ外で閾値を 1 回取得し、各オーナーに渡す。
+	SyncDormantTagsWithThresholds(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int, thresholds model.DormantThresholds) error
 	// SyncDormantTags は最終来院からの経過日数に基づき dormant_* タグを差分同期する（BE-005）。
 	// daysSinceLastVisit < 0 は来院なしを表す。
 	SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error

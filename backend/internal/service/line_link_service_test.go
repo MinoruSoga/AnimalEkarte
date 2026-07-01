@@ -88,6 +88,9 @@ func (m *mockLineLinkOwnerRepo) UpdateLineBlockedAt(ctx context.Context, clinicI
 func (m *mockLineLinkOwnerRepo) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
+func (m *mockLineLinkOwnerRepo) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
+	return nil, nil
+}
 
 // --- mock: LineLinkTokenRepository ---
 

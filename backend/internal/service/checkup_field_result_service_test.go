@@ -296,7 +296,7 @@ func TestCheckupFieldResultService_ReplaceForCheckup_EmptyPut(t *testing.T) {
 	})
 
 	t.Run("empty array with no existing results is not audited (no deletion)", func(t *testing.T) {
-		resultRepo := &mockCheckupFieldResultRepository{} // existing = nil
+		resultRepo := &mockCheckupFieldResultRepository{} // existing is nil
 		svc, repo, auditRepo := newCheckupFieldResultServiceForTest(resultRepo)
 		actor := uint64(9)
 

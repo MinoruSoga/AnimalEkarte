@@ -186,18 +186,24 @@ func newCheckupSyncSvcForCreate(
 	}
 
 	ownerRepo := &mockOwnerRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
-			o, ok := owners[id]
-			if !ok {
-				return nil, apperrors.WrapNotFound("owner", "")
+		findByIDsFn: func(_ context.Context, _ uint64, ids []uint64) ([]*model.Owner, error) {
+			result := make([]*model.Owner, 0, len(ids))
+			for _, id := range ids {
+				if o, ok := owners[id]; ok {
+					result = append(result, o)
+				}
 			}
-			return o, nil
+			return result, nil
 		},
 	}
 
 	petRepo := &mockPetRepository{
-		countLivingByOwnerFn: func(_ context.Context, _, ownerID uint64) (int64, error) {
-			return livingPetCounts[ownerID], nil
+		countLivingByOwnerIDsFn: func(_ context.Context, _ uint64, ownerIDs []uint64) (map[uint64]int64, error) {
+			m := make(map[uint64]int64, len(ownerIDs))
+			for _, id := range ownerIDs {
+				m[id] = livingPetCounts[id]
+			}
+			return m, nil
 		},
 	}
 
@@ -700,13 +706,23 @@ func TestCheckupSyncService_CreateCheckupSync_PersistsMetadata(t *testing.T) {
 		},
 	}
 	ownerRepo := &mockOwnerRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
-			return owners[id], nil
+		findByIDsFn: func(_ context.Context, _ uint64, ids []uint64) ([]*model.Owner, error) {
+			result := make([]*model.Owner, 0, len(ids))
+			for _, id := range ids {
+				if o, ok := owners[id]; ok {
+					result = append(result, o)
+				}
+			}
+			return result, nil
 		},
 	}
 	petRepo := &mockPetRepository{
-		countLivingByOwnerFn: func(_ context.Context, _, ownerID uint64) (int64, error) {
-			return livingPetCounts[ownerID], nil
+		countLivingByOwnerIDsFn: func(_ context.Context, _ uint64, ownerIDs []uint64) (map[uint64]int64, error) {
+			m := make(map[uint64]int64, len(ownerIDs))
+			for _, id := range ownerIDs {
+				m[id] = livingPetCounts[id]
+			}
+			return m, nil
 		},
 	}
 

@@ -20,6 +20,9 @@ type PetRepository interface {
 	// CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL）を返す。
 	// ISSUE-007: CreateCheckupSync のサーバ側二重防御で誤配信を防ぐ。
 	CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	// CountLivingByOwnerIDs は複数オーナーの生存ペット数を一括取得する（N+1 解消用）。
+	// 返り値は ownerID → 生存ペット数のマップ。存在しない ownerID は 0 として扱う。
+	CountLivingByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]int64, error)
 	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
 	Create(ctx context.Context, pet *model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -136,6 +139,31 @@ func (r *petRepository) CountLivingByOwner(ctx context.Context, clinicID, ownerI
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return count, nil
+}
+
+type ownerPetCount struct {
+	OwnerID uint64
+	Count   int64
+}
+
+func (r *petRepository) CountLivingByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]int64, error) {
+	if len(ownerIDs) == 0 {
+		return map[uint64]int64{}, nil
+	}
+	var rows []ownerPetCount
+	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
+		Scopes(clinicScope(clinicID)).
+		Select("owner_id, COUNT(*) AS count").
+		Where("owner_id IN ? AND deceased_at IS NULL AND deleted_at IS NULL", ownerIDs).
+		Group("owner_id").
+		Scan(&rows).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "pet", "")
+	}
+	result := make(map[uint64]int64, len(ownerIDs))
+	for _, row := range rows {
+		result[row.OwnerID] = row.Count
+	}
+	return result, nil
 }
 
 func (r *petRepository) CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {

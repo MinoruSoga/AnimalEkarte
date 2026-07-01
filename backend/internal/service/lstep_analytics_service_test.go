@@ -147,6 +147,9 @@ func (m *mockAnalyticsOwnerRepo) Delete(_ context.Context, _, _ uint64) error { 
 func (m *mockAnalyticsOwnerRepo) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
+func (m *mockAnalyticsOwnerRepo) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
+	return nil, nil
+}
 
 // ---- GetDeliveryHistoryByOwner tests ----
 

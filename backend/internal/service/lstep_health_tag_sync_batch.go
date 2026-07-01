@@ -20,11 +20,18 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 		return 0, []error{apperrors.Wrap(err, "failed to find owners with line user id")}
 	}
 
-	// PERF-03 Stage 1: Cache tag code mappings for health prevention tags once per clinic
+	// Stage 1: tag code mappings を clinic 単位で 1 回キャッシュ。
 	cachedMappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
 	if err != nil {
 		slog.ErrorContext(ctx, "health-prevention batch: failed to cache mappings", "clinic_id", clinicID, "error", err)
 		cachedMappings = nil // fallback to per-owner fetch
+	}
+
+	// PERF-1: HealthPreventionThresholds を clinic 単位で 1 回だけ取得し、ループ内で再利用する。
+	thresholds, tErr := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	if tErr != nil {
+		slog.ErrorContext(ctx, "health-prevention batch: failed to get thresholds", "clinic_id", clinicID, "error", tErr)
+		return 0, []error{apperrors.Wrap(tErr, "failed to get health prevention thresholds")}
 	}
 
 	var errs []error
@@ -35,9 +42,13 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 			name string
 			fn   func() error
 		}{
-			{"SyncHealthcheckTags", func() error { return s.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, cachedMappings, nil) }},
+			{"SyncHealthcheckTags", func() error {
+				return s.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, cachedMappings, &thresholds)
+			}},
 			{"SyncAnnual4CheckupTag", func() error { return s.SyncAnnual4CheckupTag(ctx, clinicID, ownerID) }},
-			{"SyncVaccineDeadlineTag", func() error { return s.SyncVaccineDeadlineTag(ctx, clinicID, ownerID) }},
+			{"SyncVaccineDeadlineTag", func() error {
+				return s.syncVaccineDeadlineTagImpl(ctx, clinicID, ownerID, thresholds)
+			}},
 			{"SyncFilariaTag", func() error { return s.SyncFilariaTag(ctx, clinicID, ownerID) }},
 			{"SyncFleaTickTag", func() error { return s.SyncFleaTickTag(ctx, clinicID, ownerID) }},
 			{"SyncFoodPurchaseTag", func() error { return s.SyncFoodPurchaseTag(ctx, clinicID, ownerID) }},

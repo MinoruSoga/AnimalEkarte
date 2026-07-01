@@ -547,7 +547,8 @@ func TestClinicalResultAuditTxInventory_GateDetectsViolations(t *testing.T) {
 	})
 
 	t.Run("duplicate allowlist key fails", func(t *testing.T) {
-		dup := append(baseAllowlist, baseAllowlist[0])
+		dup := append([]auditInventoryEntry(nil), baseAllowlist...)
+		dup = append(dup, baseAllowlist[0])
 		got := reconcileClinicalResultDeletes(baseFound, dup)
 		if len(got) != 1 || !strings.Contains(got[0], "duplicate") {
 			t.Fatalf("expected duplicate key to be flagged, got %v", got)
