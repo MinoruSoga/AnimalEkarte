@@ -6,89 +6,56 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- モックリポジトリ定義 ----
-
 type mockClinicSettingsRepository struct {
-	findByClinicIDFn          func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
-	upsertFn                  func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
-	updateCPMVersionFn        func(ctx context.Context, clinicID uint64, version string) error
-	updateDormantThresholdsFn func(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error
-	updateCPMV2ThresholdsFn   func(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error
-	updateCPMV1ThresholdsFn   func(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error
+	repository.ClinicSettingsRepository
+	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
+	saveFn           func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
 }
 
 func (m *mockClinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
 	if m.findByClinicIDFn != nil {
 		return m.findByClinicIDFn(ctx, clinicID)
 	}
-	return &model.ClinicSettings{}, nil
+	return &model.ClinicSettings{ClinicID: clinicID}, nil
 }
 
 func (m *mockClinicSettingsRepository) Save(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error) {
-	if m.upsertFn != nil {
-		return m.upsertFn(ctx, clinicID, s)
+	if m.saveFn != nil {
+		return m.saveFn(ctx, clinicID, s)
 	}
 	return s, nil
 }
-func (m *mockClinicSettingsRepository) UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error {
-	if m.updateCPMVersionFn != nil {
-		return m.updateCPMVersionFn(ctx, clinicID, version)
-	}
-	return nil
-}
-func (m *mockClinicSettingsRepository) UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error {
-	if m.updateDormantThresholdsFn != nil {
-		return m.updateDormantThresholdsFn(ctx, clinicID, thresholds)
-	}
-	return nil
-}
-func (m *mockClinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error {
-	if m.updateCPMV2ThresholdsFn != nil {
-		return m.updateCPMV2ThresholdsFn(ctx, clinicID, thresholds)
-	}
-	return nil
-}
-
-//nolint:gocritic // hugeParam: ClinicSettingsRepository interface に signatures を合わせるため必須
-func (m *mockClinicSettingsRepository) UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error {
-	if m.updateCPMV1ThresholdsFn != nil {
-		return m.updateCPMV1ThresholdsFn(ctx, clinicID, thresholds)
-	}
-	return nil
-}
-
-func (m *mockClinicSettingsRepository) UpdateHealthPreventionThresholds(_ context.Context, _ uint64, _ model.HealthPreventionThresholds) error {
-	return nil
-}
 
 type mockClosingSpecialPeriodRepository struct {
-	findAllFn    func(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
-	findByIDFn   func(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error)
-	findByDateFn func(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error)
-	createFn     func(ctx context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error)
-	updateFn     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error)
-	deleteFn     func(ctx context.Context, clinicID, id uint64) error
-	hasOverlapFn func(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error)
+	repository.ClosingSpecialPeriodRepository
+	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error)
+	findByDateFn   func(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error)
+	createFn       func(ctx context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error)
+	updateFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error)
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
+	checkOverlapFn func(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error)
 }
 
 func (m *mockClosingSpecialPeriodRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error) {
 	if m.findAllFn != nil {
 		return m.findAllFn(ctx, clinicID)
 	}
-	return nil, nil
+	return []model.ClosingSpecialPeriod{}, nil
 }
 
 func (m *mockClosingSpecialPeriodRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
-	return nil, nil
+	return &model.ClosingSpecialPeriod{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockClosingSpecialPeriodRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error) {
@@ -109,7 +76,7 @@ func (m *mockClosingSpecialPeriodRepository) Update(ctx context.Context, clinicI
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, fields)
 	}
-	return nil, nil
+	return &model.ClosingSpecialPeriod{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockClosingSpecialPeriodRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -120,392 +87,688 @@ func (m *mockClosingSpecialPeriodRepository) Delete(ctx context.Context, clinicI
 }
 
 func (m *mockClosingSpecialPeriodRepository) CheckOverlap(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error) {
-	if m.hasOverlapFn != nil {
-		return m.hasOverlapFn(ctx, clinicID, startDate, endDate, excludeID)
+	if m.checkOverlapFn != nil {
+		return m.checkOverlapFn(ctx, clinicID, startDate, endDate, excludeID)
 	}
 	return false, nil
 }
 
-// ---- ヘルパー ----
-
-// mockClosingHolidayRepository は ClinicHolidayRepository のテスト用モック（closing_settings 専用）
-type mockClosingHolidayRepository struct {
-	findByDateFn      func(context.Context, uint64, time.Time) (*model.ClinicHoliday, error)
-	findByYearMonthFn func(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
-	upsertFn          func(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
-	deleteFn          func(ctx context.Context, clinicID uint64, date time.Time) error
+type mockClosingClinicHolidayRepository struct {
+	repository.ClinicHolidayRepository
+	findByDateFn         func(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
+	findAllByYearMonthFn func(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
 }
 
-func (m *mockClosingHolidayRepository) FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
-	if m.findByYearMonthFn != nil {
-		return m.findByYearMonthFn(ctx, clinicID, yearMonth)
-	}
-	return nil, nil
-}
-
-func (m *mockClosingHolidayRepository) Save(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
-	if m.upsertFn != nil {
-		return m.upsertFn(ctx, clinicID, holiday)
-	}
-	return holiday, nil
-}
-
-func (m *mockClosingHolidayRepository) Delete(ctx context.Context, clinicID uint64, date time.Time) error {
-	if m.deleteFn != nil {
-		return m.deleteFn(ctx, clinicID, date)
-	}
-	return nil
-}
-
-func defaultSettings() *model.ClinicSettings {
-	return &model.ClinicSettings{
-		ClinicID:            1,
-		ClosingAmPmBoundary: "14:00",
-		ClosingWeekdayEnd:   "18:30",
-		ClosingSundayEnd:    "17:30",
-		ClosedWeekdays:      nil,
-	}
-}
-
-func newClosingService(
-	settingsRepo *mockClinicSettingsRepository,
-	periodRepo *mockClosingSpecialPeriodRepository,
-	holidayRepo *mockClosingHolidayRepository,
-) ClosingSettingsService {
-	return NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo)
-}
-
-// ---- テスト ----
-
-func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
-	// 2026-04-20 (月曜日)
-	monday := time.Date(2026, 4, 20, 0, 0, 0, 0, time.UTC)
-	// 2026-04-19 (日曜日)
-	sunday := time.Date(2026, 4, 19, 0, 0, 0, 0, time.UTC)
-
-	specialPeriod := &model.ClosingSpecialPeriod{
-		ID:           10,
-		ClinicID:     1,
-		StartDate:    monday,
-		EndDate:      monday,
-		AmPmBoundary: "13:00",
-		PmEnd:        "17:00",
-	}
-
-	tests := []struct {
-		name        string
-		date        time.Time
-		settingsFn  func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
-		periodFn    func(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error)
-		holidayFn   func(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
-		wantErr     bool
-		wantErrIs   error
-		checkResult func(t *testing.T, got *DaySchedule)
-	}{
-		{
-			name: "特別期間内の日付: 特別期間設定を返す",
-			date: monday,
-			periodFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
-				return specialPeriod, nil
-			},
-			checkResult: func(t *testing.T, got *DaySchedule) {
-				assert.Equal(t, "13:00", got.AmPmBoundary)
-				assert.Equal(t, "17:00", got.PmEnd)
-				assert.False(t, got.IsHoliday)
-			},
-		},
-		{
-			name: "個別休診日: IsHoliday=true を返す",
-			date: monday,
-			periodFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
-				return nil, nil
-			},
-			settingsFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
-				return defaultSettings(), nil
-			},
-			holidayFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
-				return []model.ClinicHoliday{
-					{ClinicID: 1, Date: monday},
-				}, nil
-			},
-			checkResult: func(t *testing.T, got *DaySchedule) {
-				assert.True(t, got.IsHoliday)
-				assert.Equal(t, "14:00", got.AmPmBoundary)
-			},
-		},
-		{
-			name: "通常の平日: デフォルト設定を返す",
-			date: monday,
-			periodFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
-				return nil, nil
-			},
-			settingsFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
-				return defaultSettings(), nil
-			},
-			holidayFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
-				return []model.ClinicHoliday{}, nil
-			},
-			checkResult: func(t *testing.T, got *DaySchedule) {
-				assert.Equal(t, "14:00", got.AmPmBoundary)
-				assert.Equal(t, "18:30", got.PmEnd)
-				assert.False(t, got.IsHoliday)
-			},
-		},
-		{
-			name: "日曜日: sunday 設定を返す",
-			date: sunday,
-			periodFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
-				return nil, nil
-			},
-			settingsFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
-				return defaultSettings(), nil
-			},
-			holidayFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
-				return []model.ClinicHoliday{}, nil
-			},
-			checkResult: func(t *testing.T, got *DaySchedule) {
-				assert.Equal(t, "14:00", got.AmPmBoundary)
-				assert.Equal(t, "17:30", got.PmEnd)
-				assert.False(t, got.IsHoliday)
-			},
-		},
-		{
-			name: "週次休診曜日（日曜）: IsHoliday=true を返す",
-			date: sunday,
-			periodFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
-				return nil, nil
-			},
-			settingsFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
-				s := defaultSettings()
-				s.ClosedWeekdays = []int64{0} // 0 = 日曜
-				return s, nil
-			},
-			holidayFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
-				return []model.ClinicHoliday{}, nil
-			},
-			checkResult: func(t *testing.T, got *DaySchedule) {
-				assert.True(t, got.IsHoliday)
-			},
-		},
-		{
-			name: "periodRepo.FindByDate エラー: エラーを返す",
-			date: monday,
-			periodFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
-				return nil, errors.New("db error")
-			},
-			wantErr: true,
-		},
-		{
-			name: "settingsRepo.Get エラー: エラーを返す",
-			date: monday,
-			periodFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
-				return nil, nil
-			},
-			settingsFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
-				return nil, errors.New("db error")
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Arrange
-			settingsRepo := &mockClinicSettingsRepository{findByClinicIDFn: tt.settingsFn}
-			periodRepo := &mockClosingSpecialPeriodRepository{findByDateFn: tt.periodFn}
-			holidayRepo := &mockClosingHolidayRepository{findByYearMonthFn: tt.holidayFn}
-			svc := newClosingService(settingsRepo, periodRepo, holidayRepo)
-
-			// Act
-			got, err := svc.ResolveSchedule(context.Background(), 1, tt.date)
-
-			// Assert
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.wantErrIs != nil {
-					assert.True(t, errors.Is(err, tt.wantErrIs))
-				}
-				return
-			}
-			assert.NoError(t, err)
-			assert.NotNil(t, got)
-			if tt.checkResult != nil {
-				tt.checkResult(t, got)
-			}
-		})
-	}
-}
-
-func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
-	startTime := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-	endTime := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
-	startStr := "2026-05-01"
-	endStr := "2026-05-05"
-
-	created := &model.ClosingSpecialPeriod{
-		ID:           1,
-		ClinicID:     1,
-		StartDate:    startTime,
-		EndDate:      endTime,
-		AmPmBoundary: "13:00",
-		PmEnd:        "17:00",
-		Note:         "GW",
-	}
-
-	validInput := CreateSpecialPeriodInput{
-		StartDate:    startStr,
-		EndDate:      endStr,
-		AmPmBoundary: "13:00",
-		PmEnd:        "17:00",
-		Note:         "GW",
-	}
-
-	tests := []struct {
-		name         string
-		input        CreateSpecialPeriodInput
-		hasOverlapFn func(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error)
-		createFn     func(ctx context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error)
-		wantErr      bool
-		wantErrIs    error
-		wantResult   *model.ClosingSpecialPeriod
-	}{
-		{
-			name:  "正常: 作成済みレコードを返す",
-			input: validInput,
-			hasOverlapFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
-				return false, nil
-			},
-			createFn: func(_ context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error) {
-				return created, nil
-			},
-			wantResult: created,
-		},
-		{
-			name:  "エラー: 期間重複あり → ErrConflict",
-			input: validInput,
-			hasOverlapFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
-				return true, nil
-			},
-			wantErr:   true,
-			wantErrIs: apperrors.ErrConflict,
-		},
-		{
-			name: "エラー: 開始日が終了日より後 → ErrInvalidInput",
-			input: CreateSpecialPeriodInput{
-				StartDate:    endStr,
-				EndDate:      startStr, // 逆転
-				AmPmBoundary: "13:00",
-				PmEnd:        "17:00",
-			},
-			wantErr:   true,
-			wantErrIs: apperrors.ErrInvalidInput,
-		},
-		{
-			name: "エラー: 時刻バリデーション不正（boundary >= pmEnd） → ErrInvalidInput",
-			input: CreateSpecialPeriodInput{
-				StartDate:    startStr,
-				EndDate:      endStr,
-				AmPmBoundary: "18:00",
-				PmEnd:        "14:00",
-			},
-			wantErr:   true,
-			wantErrIs: apperrors.ErrInvalidInput,
-		},
-		{
-			name:  "エラー: CheckOverlap がエラーを返す",
-			input: validInput,
-			hasOverlapFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
-				return false, errors.New("db error")
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Arrange
-			periodRepo := &mockClosingSpecialPeriodRepository{
-				hasOverlapFn: tt.hasOverlapFn,
-				createFn:     tt.createFn,
-			}
-			svc := newClosingService(
-				&mockClinicSettingsRepository{},
-				periodRepo,
-				&mockClosingHolidayRepository{},
-			)
-
-			// Act
-			got, err := svc.CreateSpecialPeriod(context.Background(), 1, &tt.input)
-
-			// Assert
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.wantErrIs != nil {
-					assert.True(t, errors.Is(err, tt.wantErrIs), "want errors.Is(%v), got %v", tt.wantErrIs, err)
-				}
-				assert.Nil(t, got)
-				return
-			}
-			assert.NoError(t, err)
-			assert.Equal(t, tt.wantResult, got)
-		})
-	}
-}
-
-func TestClosingSettingsService_ListSpecialPeriods(t *testing.T) {
-	periods := []model.ClosingSpecialPeriod{
-		{ID: 1, ClinicID: 1, AmPmBoundary: "13:00", PmEnd: "17:00"},
-		{ID: 2, ClinicID: 1, AmPmBoundary: "13:00", PmEnd: "17:00"},
-	}
-
-	tests := []struct {
-		name       string
-		findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
-		wantErr    bool
-		wantResult []model.ClosingSpecialPeriod
-	}{
-		{
-			name: "正常: 全件を返す",
-			findAllFn: func(_ context.Context, _ uint64) ([]model.ClosingSpecialPeriod, error) {
-				return periods, nil
-			},
-			wantResult: periods,
-		},
-		{
-			name: "エラー: DB エラーを返す",
-			findAllFn: func(_ context.Context, _ uint64) ([]model.ClosingSpecialPeriod, error) {
-				return nil, errors.New("db error")
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Arrange
-			svc := newClosingService(
-				&mockClinicSettingsRepository{},
-				&mockClosingSpecialPeriodRepository{findAllFn: tt.findAllFn},
-				&mockClosingHolidayRepository{},
-			)
-
-			// Act
-			got, err := svc.ListSpecialPeriods(context.Background(), 1)
-
-			// Assert
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-			assert.NoError(t, err)
-			assert.Equal(t, tt.wantResult, got)
-		})
-	}
-}
-
-func (m *mockClosingHolidayRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+func (m *mockClosingClinicHolidayRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
 	if m.findByDateFn != nil {
 		return m.findByDateFn(ctx, clinicID, date)
 	}
 	return nil, nil
+}
+
+func (m *mockClosingClinicHolidayRepository) FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
+	if m.findAllByYearMonthFn != nil {
+		return m.findAllByYearMonthFn(ctx, clinicID, yearMonth)
+	}
+	return []model.ClinicHoliday{}, nil
+}
+
+func TestClosingSettingsService_ListSpecialPeriods(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		repo := &mockClosingSpecialPeriodRepository{
+			findAllFn: func(_ context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error) {
+				return []model.ClosingSpecialPeriod{{ID: 1, ClinicID: clinicID}}, nil
+			},
+		}
+		svc := NewClosingSettingsService(nil, repo, nil)
+		res, err := svc.ListSpecialPeriods(ctx, 1)
+		assert.NoError(t, err)
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		repo := &mockClosingSpecialPeriodRepository{
+			findAllFn: func(_ context.Context, _ uint64) ([]model.ClosingSpecialPeriod, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(nil, repo, nil)
+		_, err := svc.ListSpecialPeriods(ctx, 1)
+		assert.Error(t, err)
+	})
+}
+
+func TestClosingSettingsService_Get(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		settingsRepo := &mockClinicSettingsRepository{}
+		periodRepo := &mockClosingSpecialPeriodRepository{}
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
+		res, err := svc.Get(ctx, 1)
+		assert.NoError(t, err)
+		assert.NotNil(t, res.Settings)
+		assert.Empty(t, res.SpecialPeriods)
+	})
+
+	t.Run("settings error", func(t *testing.T) {
+		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(settingsRepo, nil, nil)
+		_, err := svc.Get(ctx, 1)
+		assert.Error(t, err)
+	})
+
+	t.Run("periods error", func(t *testing.T) {
+		settingsRepo := &mockClinicSettingsRepository{}
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findAllFn: func(_ context.Context, _ uint64) ([]model.ClosingSpecialPeriod, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
+		_, err := svc.Get(ctx, 1)
+		assert.Error(t, err)
+	})
+}
+
+func TestClosingSettingsService_UpdateStandard(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+				return &model.ClinicSettings{ClinicID: clinicID}, nil
+			},
+		}
+		svc := NewClosingSettingsService(settingsRepo, nil, nil)
+		boundary := "12:00"
+		weekdayEnd := "19:00"
+		sundayEnd := "17:00"
+		input := UpdateClinicSettingsInput{
+			ClosingAmPmBoundary: &boundary,
+			ClosingWeekdayEnd:   &weekdayEnd,
+			ClosingSundayEnd:    &sundayEnd,
+			ClosedWeekdays:      []int64{0},
+		}
+		res, err := svc.UpdateStandard(ctx, 1, input)
+		assert.NoError(t, err)
+		assert.Equal(t, "12:00", res.ClosingAmPmBoundary)
+		assert.Equal(t, "19:00", res.ClosingWeekdayEnd)
+		assert.Equal(t, "17:00", res.ClosingSundayEnd)
+		assert.Equal(t, pq.Int64Array{0}, res.ClosedWeekdays)
+	})
+
+	t.Run("find error", func(t *testing.T) {
+		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(settingsRepo, nil, nil)
+		_, err := svc.UpdateStandard(ctx, 1, UpdateClinicSettingsInput{})
+		assert.Error(t, err)
+	})
+
+	t.Run("save error", func(t *testing.T) {
+		settingsRepo := &mockClinicSettingsRepository{
+			saveFn: func(_ context.Context, _ uint64, _ *model.ClinicSettings) (*model.ClinicSettings, error) {
+				return nil, errors.New("save error")
+			},
+		}
+		svc := NewClosingSettingsService(settingsRepo, nil, nil)
+		_, err := svc.UpdateStandard(ctx, 1, UpdateClinicSettingsInput{})
+		assert.Error(t, err)
+	})
+}
+
+func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		input := &CreateSpecialPeriodInput{
+			StartDate:    "2026-07-01",
+			EndDate:      "2026-07-05",
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+			Note:         "note",
+		}
+		res, err := svc.CreateSpecialPeriod(ctx, 1, input)
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+	})
+
+	t.Run("invalid start date", func(t *testing.T) {
+		svc := NewClosingSettingsService(nil, nil, nil)
+		input := &CreateSpecialPeriodInput{StartDate: "bad"}
+		_, err := svc.CreateSpecialPeriod(ctx, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid end date", func(t *testing.T) {
+		svc := NewClosingSettingsService(nil, nil, nil)
+		input := &CreateSpecialPeriodInput{StartDate: "2026-07-01", EndDate: "bad"}
+		_, err := svc.CreateSpecialPeriod(ctx, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid boundary time", func(t *testing.T) {
+		svc := NewClosingSettingsService(nil, nil, nil)
+		input := &CreateSpecialPeriodInput{
+			StartDate:    "2026-07-01",
+			EndDate:      "2026-07-05",
+			AmPmBoundary: "bad",
+		}
+		_, err := svc.CreateSpecialPeriod(ctx, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid pmEnd time", func(t *testing.T) {
+		svc := NewClosingSettingsService(nil, nil, nil)
+		input := &CreateSpecialPeriodInput{
+			StartDate:    "2026-07-01",
+			EndDate:      "2026-07-05",
+			AmPmBoundary: "12:00",
+			PmEnd:        "bad",
+		}
+		_, err := svc.CreateSpecialPeriod(ctx, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("pmEnd <= boundary", func(t *testing.T) {
+		svc := NewClosingSettingsService(nil, nil, nil)
+		input := &CreateSpecialPeriodInput{
+			StartDate:    "2026-07-01",
+			EndDate:      "2026-07-05",
+			AmPmBoundary: "12:00",
+			PmEnd:        "11:00",
+		}
+		_, err := svc.CreateSpecialPeriod(ctx, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("start after end", func(t *testing.T) {
+		svc := NewClosingSettingsService(nil, nil, nil)
+		input := &CreateSpecialPeriodInput{
+			StartDate:    "2026-07-05",
+			EndDate:      "2026-07-01",
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		_, err := svc.CreateSpecialPeriod(ctx, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("overlap error", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			checkOverlapFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+				return true, nil
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		input := &CreateSpecialPeriodInput{
+			StartDate:    "2026-07-01",
+			EndDate:      "2026-07-05",
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		_, err := svc.CreateSpecialPeriod(ctx, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("check overlap db error", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			checkOverlapFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+				return false, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		input := &CreateSpecialPeriodInput{
+			StartDate:    "2026-07-01",
+			EndDate:      "2026-07-05",
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		_, err := svc.CreateSpecialPeriod(ctx, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("create db error", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			createFn: func(_ context.Context, _ *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		input := &CreateSpecialPeriodInput{
+			StartDate:    "2026-07-01",
+			EndDate:      "2026-07-05",
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		_, err := svc.CreateSpecialPeriod(ctx, 1, input)
+		assert.Error(t, err)
+	})
+}
+
+func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		current := &model.ClosingSpecialPeriod{
+			ID:           1,
+			ClinicID:     1,
+			StartDate:    time.Now(),
+			EndDate:      time.Now().AddDate(0, 0, 5),
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
+				return current, nil
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		start := "2026-07-01"
+		end := "2026-07-05"
+		boundary := "13:00"
+		pmEnd := "20:00"
+		note := "new note"
+		input := UpdateSpecialPeriodInput{
+			StartDate:    &start,
+			EndDate:      &end,
+			AmPmBoundary: &boundary,
+			PmEnd:        &pmEnd,
+			Note:         &note,
+		}
+		res, err := svc.UpdateSpecialPeriod(ctx, 1, 1, input)
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+	})
+
+	t.Run("find error", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{})
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid boundary time", func(t *testing.T) {
+		current := &model.ClosingSpecialPeriod{
+			ID:           1,
+			ClinicID:     1,
+			StartDate:    time.Now(),
+			EndDate:      time.Now().AddDate(0, 0, 5),
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
+				return current, nil
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		bad := "bad"
+		input := UpdateSpecialPeriodInput{AmPmBoundary: &bad}
+		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid start date format", func(t *testing.T) {
+		current := &model.ClosingSpecialPeriod{
+			ID:           1,
+			ClinicID:     1,
+			StartDate:    time.Now(),
+			EndDate:      time.Now().AddDate(0, 0, 5),
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
+				return current, nil
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		bad := "bad"
+		input := UpdateSpecialPeriodInput{StartDate: &bad}
+		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid end date format", func(t *testing.T) {
+		current := &model.ClosingSpecialPeriod{
+			ID:           1,
+			ClinicID:     1,
+			StartDate:    time.Now(),
+			EndDate:      time.Now().AddDate(0, 0, 5),
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
+				return current, nil
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		bad := "bad"
+		input := UpdateSpecialPeriodInput{EndDate: &bad}
+		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("start after end", func(t *testing.T) {
+		current := &model.ClosingSpecialPeriod{
+			ID:           1,
+			ClinicID:     1,
+			StartDate:    time.Now(),
+			EndDate:      time.Now().AddDate(0, 0, 5),
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
+				return current, nil
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		start := "2026-07-05"
+		end := "2026-07-01"
+		input := UpdateSpecialPeriodInput{StartDate: &start, EndDate: &end}
+		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("overlap db error", func(t *testing.T) {
+		current := &model.ClosingSpecialPeriod{
+			ID:           1,
+			ClinicID:     1,
+			StartDate:    time.Now(),
+			EndDate:      time.Now().AddDate(0, 0, 5),
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
+				return current, nil
+			},
+			checkOverlapFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+				return false, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{})
+		assert.Error(t, err)
+	})
+
+	t.Run("overlap conflict", func(t *testing.T) {
+		current := &model.ClosingSpecialPeriod{
+			ID:           1,
+			ClinicID:     1,
+			StartDate:    time.Now(),
+			EndDate:      time.Now().AddDate(0, 0, 5),
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
+				return current, nil
+			},
+			checkOverlapFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+				return true, nil
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{})
+		assert.Error(t, err)
+	})
+
+	t.Run("update db error", func(t *testing.T) {
+		current := &model.ClosingSpecialPeriod{
+			ID:           1,
+			ClinicID:     1,
+			StartDate:    time.Now(),
+			EndDate:      time.Now().AddDate(0, 0, 5),
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
+				return current, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ClosingSpecialPeriod, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		start := "2026-07-01"
+		input := UpdateSpecialPeriodInput{StartDate: &start}
+		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, input)
+		assert.Error(t, err)
+	})
+
+	t.Run("no change", func(t *testing.T) {
+		current := &model.ClosingSpecialPeriod{
+			ID:           1,
+			ClinicID:     1,
+			StartDate:    time.Now(),
+			EndDate:      time.Now().AddDate(0, 0, 5),
+			AmPmBoundary: "12:00",
+			PmEnd:        "19:00",
+		}
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
+				return current, nil
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		res, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{})
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+	})
+}
+
+func TestClosingSettingsService_DeleteSpecialPeriod(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		err := svc.DeleteSpecialPeriod(ctx, 1, 1)
+		assert.NoError(t, err)
+	})
+
+	t.Run("find error", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		err := svc.DeleteSpecialPeriod(ctx, 1, 1)
+		assert.Error(t, err)
+	})
+
+	t.Run("delete error", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			deleteFn: func(_ context.Context, _, _ uint64) error {
+				return errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		err := svc.DeleteSpecialPeriod(ctx, 1, 1)
+		assert.Error(t, err)
+	})
+}
+
+func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
+	ctx := context.Background()
+	date := time.Date(2026, 7, 5, 0, 0, 0, 0, time.Local) // 2026-07-05 (日曜)
+
+	t.Run("special period matches (highest priority)", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
+				return &model.ClosingSpecialPeriod{
+					AmPmBoundary: "13:00",
+					PmEnd:        "20:00",
+				}, nil
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		res, err := svc.ResolveSchedule(ctx, 1, date)
+		assert.NoError(t, err)
+		assert.Equal(t, "13:00", res.AmPmBoundary)
+		assert.Equal(t, "20:00", res.PmEnd)
+		assert.False(t, res.IsHoliday)
+	})
+
+	t.Run("special period find db error", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		_, err := svc.ResolveSchedule(ctx, 1, date)
+		assert.Error(t, err)
+	})
+
+	t.Run("standard settings get db error", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{}
+		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
+		_, err := svc.ResolveSchedule(ctx, 1, date)
+		assert.Error(t, err)
+	})
+
+	t.Run("standard weekday scheduling", func(t *testing.T) {
+		weekdayDate := time.Date(2026, 7, 1, 0, 0, 0, 0, time.Local) // 2026-07-01 (水曜)
+		periodRepo := &mockClosingSpecialPeriodRepository{}
+		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+				return &model.ClinicSettings{
+					ClinicID:            clinicID,
+					ClosingAmPmBoundary: "12:00",
+					ClosingWeekdayEnd:   "19:00",
+					ClosingSundayEnd:    "17:00",
+					ClosedWeekdays:      []int64{0}, // 日曜休み
+				}, nil
+			},
+		}
+		holidayRepo := &mockClosingClinicHolidayRepository{}
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo)
+		res, err := svc.ResolveSchedule(ctx, 1, weekdayDate)
+		assert.NoError(t, err)
+		assert.Equal(t, "19:00", res.PmEnd)
+		assert.False(t, res.IsHoliday)
+	})
+
+	t.Run("standard sunday scheduling", func(t *testing.T) {
+		sundayDate := time.Date(2026, 7, 5, 0, 0, 0, 0, time.Local) // 2026-07-05 (日曜)
+		periodRepo := &mockClosingSpecialPeriodRepository{}
+		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+				return &model.ClinicSettings{
+					ClinicID:            clinicID,
+					ClosingAmPmBoundary: "12:00",
+					ClosingWeekdayEnd:   "19:00",
+					ClosingSundayEnd:    "17:00",
+					ClosedWeekdays:      []int64{1}, // 月曜休み
+				}, nil
+			},
+		}
+		holidayRepo := &mockClosingClinicHolidayRepository{}
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo)
+		res, err := svc.ResolveSchedule(ctx, 1, sundayDate)
+		assert.NoError(t, err)
+		assert.Equal(t, "17:00", res.PmEnd)
+		assert.False(t, res.IsHoliday)
+	})
+
+	t.Run("weekly closed weekday match", func(t *testing.T) {
+		sundayDate := time.Date(2026, 7, 5, 0, 0, 0, 0, time.Local) // 2026-07-05 (日曜)
+		periodRepo := &mockClosingSpecialPeriodRepository{}
+		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+				return &model.ClinicSettings{
+					ClinicID:            clinicID,
+					ClosingAmPmBoundary: "12:00",
+					ClosingWeekdayEnd:   "19:00",
+					ClosingSundayEnd:    "17:00",
+					ClosedWeekdays:      []int64{0}, // 日曜休み
+				}, nil
+			},
+		}
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
+		res, err := svc.ResolveSchedule(ctx, 1, sundayDate)
+		assert.NoError(t, err)
+		assert.True(t, res.IsHoliday)
+	})
+
+	t.Run("custom holiday match", func(t *testing.T) {
+		weekdayDate := time.Date(2026, 7, 1, 0, 0, 0, 0, time.Local) // 2026-07-01 (水曜)
+		periodRepo := &mockClosingSpecialPeriodRepository{}
+		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+				return &model.ClinicSettings{
+					ClinicID:            clinicID,
+					ClosingAmPmBoundary: "12:00",
+					ClosingWeekdayEnd:   "19:00",
+					ClosingSundayEnd:    "17:00",
+					ClosedWeekdays:      []int64{0},
+				}, nil
+			},
+		}
+		holidayRepo := &mockClosingClinicHolidayRepository{
+			findAllByYearMonthFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
+				return []model.ClinicHoliday{
+					{
+						Date: weekdayDate,
+					},
+				}, nil
+			},
+		}
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo)
+		res, err := svc.ResolveSchedule(ctx, 1, weekdayDate)
+		assert.NoError(t, err)
+		assert.True(t, res.IsHoliday)
+	})
+
+	t.Run("custom holiday load db error", func(t *testing.T) {
+		weekdayDate := time.Date(2026, 7, 1, 0, 0, 0, 0, time.Local) // 2026-07-01 (水曜)
+		periodRepo := &mockClosingSpecialPeriodRepository{}
+		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+				return &model.ClinicSettings{
+					ClinicID:            clinicID,
+					ClosingAmPmBoundary: "12:00",
+					ClosingWeekdayEnd:   "19:00",
+					ClosingSundayEnd:    "17:00",
+					ClosedWeekdays:      []int64{0},
+				}, nil
+			},
+		}
+		holidayRepo := &mockClosingClinicHolidayRepository{
+			findAllByYearMonthFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo)
+		_, err := svc.ResolveSchedule(ctx, 1, weekdayDate)
+		assert.Error(t, err)
+	})
 }
