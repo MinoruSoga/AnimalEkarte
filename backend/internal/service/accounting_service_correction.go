@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -84,6 +85,7 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 		if len(billing.Payments) == 0 {
 			return apperrors.WrapInvalidInput("支払い情報が存在しません")
 		}
+		oldBillingAmount := billing.Payments[0].BillingAmount
 
 		// 訂正後の内訳を新規スライスとして構築（既存はミューテートしない）
 		corrected := make([]model.PaymentSplit, len(billing.PaymentSplits))
@@ -98,8 +100,13 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 			newBillingAmount += corrected[i].Amount
 		}
 
-		// 整合検証（重複手段・金額>0・現金お釣り整合。#188 上書きは再導出済みで維持）
-		if err := validatePaymentSplits(toValidationInputs(corrected), &newBillingAmount); err != nil {
+		// 整合検証（重複手段・金額>0・現金お釣り整合。#188 上書きは再導出済みで維持）。
+		// billingAmount 引数には意図的に nil を渡す（総額照合はしない）。
+		// 訂正は「実際に決済された金額」へ billing_amount を再定義するフロー（#188 のレジ実態記録と同思想）で、
+		// 総額は corrected 内訳の合計そのもの（newBillingAmount）に従属する。ゆえに &newBillingAmount を渡すと
+		// validatePaymentSplits 内の total==*billingAmount 照合は sum==sum で恒真＝無検証になり、呼び出し形が誤解を招く。
+		// 厳格化（元の請求額 total_amount との一致要求）の要否は PO 判断待ち（bug.md M-1）。
+		if err := validatePaymentSplits(toValidationInputs(corrected), nil); err != nil {
 			return apperrors.Wrap(err, "failed to validate corrected payment splits")
 		}
 
@@ -122,8 +129,26 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 			slog.Int64("before_amount", target.Amount),
 			slog.Int64("after_amount", input.Amount))
 
+		// M-1: 総額（billing_amount）が変化した訂正は売上金額の改変であり、追跡可能性のため明示的に記録する。
+		if oldBillingAmount != newBillingAmount {
+			slog.InfoContext(txCtx, "credit correction changed billing amount",
+				slog.Uint64("clinic_id", input.ClinicID),
+				slog.Uint64("billing_id", input.BillingID),
+				slog.Int64("old_billing_amount", oldBillingAmount),
+				slog.Int64("new_billing_amount", newBillingAmount))
+		}
+
+		// M-2: 締め済み期間の売上に対する訂正は拒否しない（ルートで post-close-edit 権限を要求済み）が、
+		// silent な改変を防ぐため WarnContext + 監査ログの post_close フラグで可視化する。
+		if input.IsPostClose {
+			slog.WarnContext(txCtx, "credit correction on closed period",
+				slog.Uint64("clinic_id", input.ClinicID),
+				slog.Uint64("billing_id", input.BillingID),
+				slog.String("scheduled_date", billing.ScheduledDate.Format("2006-01-02")))
+		}
+
 		// 監査ログ（best-effort。auditRepository は tx 非参加のため失敗しても訂正は確定する）
-		s.logCreditCorrection(txCtx, input, &target, newBillingAmount)
+		s.logCreditCorrection(txCtx, input, &target, oldBillingAmount, newBillingAmount, billing.ScheduledDate)
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to correct credit payment in transaction")
@@ -139,7 +164,9 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 }
 
 // logCreditCorrection はクレジット訂正の監査ログを記録する（before/after・理由・メモ・実行者）。
-func (s *accountingService) logCreditCorrection(ctx context.Context, input *CorrectCreditPaymentInput, before *model.PaymentSplit, newBillingAmount int64) {
+// M-1: billing_amount の before/after と差額（delta）を明示し、売上への影響額を追跡可能にする。
+// M-2: 締め済み期間への訂正（IsPostClose）は post_close フラグと対象締めの識別子（予定日）を記録する。
+func (s *accountingService) logCreditCorrection(ctx context.Context, input *CorrectCreditPaymentInput, before *model.PaymentSplit, oldBillingAmount, newBillingAmount int64, scheduledDate time.Time) {
 	if s.auditSvc == nil {
 		return
 	}
@@ -148,6 +175,17 @@ func (s *accountingService) logCreditCorrection(ctx context.Context, input *Corr
 		actorType = model.AuditActorTypeStaff
 	}
 	billingID := input.BillingID
+	metadata := map[string]any{
+		"reason": input.Reason,
+		"memo":   input.Memo,
+		// billing_amount の増減額を明示（売上への影響額の追跡用）。
+		"billing_amount_delta": newBillingAmount - oldBillingAmount,
+	}
+	// M-2: 締め済み期間への訂正は監査エントリで可視化する（対象締めの識別子として予定日を記録）。
+	if input.IsPostClose {
+		metadata["post_close"] = true
+		metadata["post_close_date"] = scheduledDate.Format("2006-01-02")
+	}
 	if err := s.auditSvc.LogEntry(ctx, &AuditLogInput{
 		ClinicID:   &input.ClinicID,
 		ActorID:    input.StaffID,
@@ -160,6 +198,7 @@ func (s *accountingService) logCreditCorrection(ctx context.Context, input *Corr
 			"amount":          before.Amount,
 			"received_amount": before.ReceivedAmount,
 			"change_amount":   before.ChangeAmount,
+			"billing_amount":  oldBillingAmount,
 		},
 		NewValue: map[string]any{
 			"method":          string(input.Method),
@@ -168,10 +207,7 @@ func (s *accountingService) logCreditCorrection(ctx context.Context, input *Corr
 			"change_amount":   int64(0),
 			"billing_amount":  newBillingAmount,
 		},
-		Metadata: map[string]any{
-			"reason": input.Reason,
-			"memo":   input.Memo,
-		},
+		Metadata: metadata,
 	}); err != nil {
 		slog.WarnContext(ctx, "audit log failed for credit correction", "error", err, "billing_id", input.BillingID)
 	}

@@ -88,6 +88,10 @@ type CorrectCreditPaymentInput struct {
 	Reason string
 	// Memo は補足メモ（任意）。監査ログに記録する。
 	Memo string
+	// IsPostClose はハンドラがレジ締め済み期間判定を注入する（#211 M-2）。
+	// true でも訂正は拒否しない（認可は post-close-edit 権限としてルートで既にゲート済み）。
+	// 監査ログに post_close フラグを記録し WarnContext で可視化する、可視化専用フラグ。
+	IsPostClose bool
 }
 
 // ClinicDailySummary は拠点別日次集計結果 (#86 段階3 論点4=2 拠点別集計)。

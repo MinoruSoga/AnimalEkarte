@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -108,6 +109,37 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 		assert.True(t, ok, "Metadata は map")
 		assert.Equal(t, "クレジット端末の打ち間違い", meta["reason"])
 		assert.Equal(t, "本人確認済み", meta["memo"])
+
+		// M-1: billing_amount の before/after と差額を監査に記録する（総額 10000 → 12000）
+		assert.Equal(t, int64(10000), old["billing_amount"], "OldValue に訂正前 billing_amount")
+		assert.Equal(t, int64(12000), nv["billing_amount"], "NewValue に訂正後 billing_amount")
+		assert.Equal(t, int64(2000), meta["billing_amount_delta"], "Metadata に billing_amount 差額(delta)")
+		// 締め前（通常）訂正は post_close を記録しない
+		_, hasPostClose := meta["post_close"]
+		assert.False(t, hasPostClose, "締め前の訂正では post_close を記録しない")
+	})
+
+	t.Run("M-2: 締め済み期間の訂正は post_close を監査に記録する（拒否はしない）", func(t *testing.T) {
+		billing := completedCardBilling()
+		billing.ScheduledDate = time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)
+		repo := &mockAccountingRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
+		}
+		audit := &mockAccountingAuditService{}
+		svc := NewAccountingService(repo, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+
+		_, err := svc.CorrectCreditPayment(context.Background(), &CorrectCreditPaymentInput{
+			ClinicID: 1, BillingID: 10, StaffID: &staffID,
+			Method: model.PaymentMethodCreditCard, Amount: 12000, Reason: "締め後のカード端末訂正",
+			IsPostClose: true,
+		})
+		assert.NoError(t, err, "締め済み期間でも訂正は成功する（M-2 は拒否しない・可視化のみ）")
+
+		assert.True(t, audit.logEntryCalled, "締め済み訂正も監査ログを記録する")
+		meta, ok := audit.logEntryInput.Metadata.(map[string]any)
+		assert.True(t, ok, "Metadata は map")
+		assert.Equal(t, true, meta["post_close"], "締め済み期間の訂正は post_close=true を記録")
+		assert.Equal(t, "2026-06-30", meta["post_close_date"], "対象締めの識別子として予定日を記録")
 	})
 
 	denied := []struct {

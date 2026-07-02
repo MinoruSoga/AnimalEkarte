@@ -199,7 +199,25 @@ func (h *Handler) CorrectCreditPayment(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	updated, err := h.svc.Accounting.CorrectCreditPayment(ctx, req.toServiceInput(id, clinicID, staffID))
+
+	// bug.md M-2（#189 follow-up）: 訂正対象会計の予定日が締め済み期間かを PATCH 経路（UpdateAccounting）と同じ判定で解決する。
+	// 拒否はしない（ルートで post-close-edit 権限を既に要求）が、締め済み売上への訂正を service 側で
+	// 監査ログ・WarnContext に可視化させるため、判定結果を IsPostClose として注入する。
+	existing, err := h.svc.Accounting.GetByID(ctx, clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	isClosed, err := h.svc.CashRegister.IsDateClosed(ctx, clinicID, existing.ScheduledDate)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	serviceInput := req.toServiceInput(id, clinicID, staffID)
+	serviceInput.IsPostClose = isClosed
+
+	updated, err := h.svc.Accounting.CorrectCreditPayment(ctx, serviceInput)
 	if err != nil {
 		RespondError(c, err)
 		return
