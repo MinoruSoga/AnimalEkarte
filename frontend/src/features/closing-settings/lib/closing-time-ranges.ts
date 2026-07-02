@@ -1,18 +1,17 @@
 /**
- * 締め時間設定（午前・午後区切り / 終了時刻）から AM / PM / EMG の
- * 表示用レンジを導出する純粋ユーティリティ（Issue #151）。
+ * 締め時間設定（AM 開始 / 午前・午後区切り / 終了時刻）から AM / PM / EMG の
+ * 表示用レンジを導出する純粋ユーティリティ（Issue #151 / #215）。
  *
- * 導出ルール（#151 本文で確定）:
- *   AM : 00:00:00 〜 (boundary − 1秒)
- *   PM : boundary  〜 (end − 1秒)
- *   EMG: end       〜 23:59:59（同日内）
+ * 導出ルール（#151 で確定・#215 で越日対応）:
+ *   AM : amStart 〜 (boundary − 1秒)      … amStart 既定 09:00
+ *   PM : boundary 〜 (end − 1秒)
+ *   EMG: end 〜 翌 (amStart − 1秒)        … 越日レンジ（例: 18:30:00～翌08:59:59）。
+ *        amStart が 00:00 のときのみ同日 23:59:59 終点（越日しない）。
  *
- * クライアント仕様の「9:00 開始フロア / 越日 EMG (18:30→翌08:59)」の完全再現は
- * AM 開始時刻フィールド (#156) 依存のため本ユーティリティの対象外。本表示は
- * 同日内レンジ（00:00 始点 / 23:59:59 終点）で充足する。
+ * 深夜 0:00〜amStart の会計は前日の EMG に帰属する（BE resolvePeriodRange と同一規則）。
  */
 
-/** 単一の時間帯レンジ。値はいずれも "HH:MM:SS"。 */
+/** 単一の時間帯レンジ。start は "HH:MM:SS"、end は "HH:MM:SS" または越日の "翌HH:MM:SS"。 */
 export interface ClosingTimeRange {
   start: string;
   end: string;
@@ -27,6 +26,9 @@ export interface ClosingTimeRanges {
 
 /** 値が未設定・不正・逆転しているときに表示するフォールバック文言。 */
 export const UNSET_RANGE_LABEL = "未設定";
+
+/** AM 開始時刻の既定値（BE clinic_settings.closing_am_start の DB default と一致）。 */
+export const DEFAULT_CLOSING_AM_START = "09:00";
 
 const SECONDS_PER_DAY = 86_400;
 const END_OF_DAY_SECONDS = SECONDS_PER_DAY - 1; // 23:59:59
@@ -63,14 +65,21 @@ function formatSeconds(total: number): string {
  *
  * @param boundary 午前・午後の区切り時刻 ("HH:MM" / "HH:MM:SS")
  * @param end      対象曜日の終了時刻 ("HH:MM" / "HH:MM:SS")
+ * @param amStart  AM 開始時刻 ("HH:MM" / "HH:MM:SS")。省略時は 09:00（#215）
  */
-export function computeClosingTimeRanges(boundary: string, end: string): ClosingTimeRanges {
+export function computeClosingTimeRanges(
+  boundary: string,
+  end: string,
+  amStart: string = DEFAULT_CLOSING_AM_START,
+): ClosingTimeRanges {
   const boundarySec = parseTimeToSeconds(boundary);
   const endSec = parseTimeToSeconds(end);
+  const amStartSec = parseTimeToSeconds(amStart);
 
+  // amStart が boundary 以上（逆転・同値）の場合 AM は成立しない。
   const am =
-    boundarySec !== null && boundarySec >= 1
-      ? { start: formatSeconds(0), end: formatSeconds(boundarySec - 1) }
+    amStartSec !== null && boundarySec !== null && boundarySec - 1 >= amStartSec
+      ? { start: formatSeconds(amStartSec), end: formatSeconds(boundarySec - 1) }
       : null;
 
   // end が boundary 以下（逆転・同値）の場合 PM は成立しない。
@@ -79,9 +88,16 @@ export function computeClosingTimeRanges(boundary: string, end: string): Closing
       ? { start: formatSeconds(boundarySec), end: formatSeconds(endSec - 1) }
       : null;
 
+  // EMG は end〜翌 amStart−1秒の越日レンジ（#215）。amStart=00:00 のときのみ同日終点。
   const emg =
-    endSec !== null
-      ? { start: formatSeconds(endSec), end: formatSeconds(END_OF_DAY_SECONDS) }
+    endSec !== null && amStartSec !== null
+      ? {
+          start: formatSeconds(endSec),
+          end:
+            amStartSec >= 1
+              ? `翌${formatSeconds(amStartSec - 1)}`
+              : formatSeconds(END_OF_DAY_SECONDS),
+        }
       : null;
 
   return { am, pm, emg };

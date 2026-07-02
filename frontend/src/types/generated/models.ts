@@ -809,6 +809,10 @@ export interface ClinicSettings {
   closing_am_pm_boundary: string;
   closing_weekday_end: string;
   closing_sunday_end: string;
+  /**
+   * #215: AM 開始時刻。AM=[am_start, boundary) / EMG=[pm_end, 翌日 am_start) の越日レンジに使う（migration 011）。
+   */
+  closing_am_start: string;
   closed_weekdays: any /* pq.Int64Array */;
   cpm_version: string;
   /**

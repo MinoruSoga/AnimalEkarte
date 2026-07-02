@@ -391,7 +391,10 @@ func (s *cashRegisterService) IsDateClosed(ctx context.Context, clinicID uint64,
 	return closed, nil
 }
 
-// resolvePeriodRange は period（"am"/"pm"/"emg"）と DaySchedule から集計期間（JST）を返す
+// resolvePeriodRange は period（"am"/"pm"/"emg"）と DaySchedule から集計期間（JST）を返す。
+// 集計クエリ（GetCloseAggregate）は completed_at >= start AND < end の終端排他なので、
+// AM=[am_start, boundary) / PM=[boundary, pmEnd) / EMG=[pmEnd, 翌日 am_start) は
+// 連続・非重複で24時間を被覆する（#215: 深夜 0:00〜am_start の会計は前日 EMG に帰属）。
 func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule) (start, end time.Time, err error) {
 	boundaryH, boundaryM, parseErr := parseHHMM(schedule.AmPmBoundary)
 	if parseErr != nil {
@@ -401,21 +404,33 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule)
 	if parseErr != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("pm_end の形式が正しくありません")
 	}
+	amStartStr := schedule.AmStart
+	if amStartStr == "" {
+		// migration 011 以前のデータ・旧呼び出し元は既定 09:00 として扱う（#215 後方互換）
+		amStartStr = defaultClosingAmStart
+	}
+	amStartH, amStartM, parseErr := parseHHMM(amStartStr)
+	if parseErr != nil {
+		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("am_start の形式が正しくありません")
+	}
 
 	boundary := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), boundaryH, boundaryM, 0, 0, jstLocation)
 	pmEnd := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), pmEndH, pmEndM, 0, 0, jstLocation)
-	dayStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, jstLocation)
+	amStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), amStartH, amStartM, 0, 0, jstLocation)
+	if !amStart.Before(boundary) {
+		// 逆転設定は空レンジ集計を silent に返すより設定不正として fail-loud にする
+		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("am_start は am_pm_boundary より前に設定してください")
+	}
 
 	switch period {
 	case "am":
-		return dayStart, boundary, nil
+		return amStart, boundary, nil
 	case "pm":
 		return boundary, pmEnd, nil
 	case "emg":
-		// 越日EMG（18:30〜翌8:59）は未実装。現行は同日内（pmEnd〜24:00）で集計する。
-		// 追跡Issueは未起票（bug.md M-3）。
-		nextDayStart := dayStart.AddDate(0, 0, 1)
-		return pmEnd, nextDayStart, nil
+		// #215: EMG は当日 pmEnd 〜 翌日 am_start の越日レンジ。am_start は標準設定由来で日別に
+		// 変わらない（特別期間も標準設定を継承する）ため、「翌日の am_start」は当日値 + 1日 と一致する。
+		return pmEnd, amStart.AddDate(0, 0, 1), nil
 	default:
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("period は 'am'、'pm'、'emg' のいずれかを指定してください")
 	}

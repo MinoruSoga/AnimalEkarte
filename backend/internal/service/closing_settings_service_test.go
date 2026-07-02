@@ -624,12 +624,35 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		// #215: 特別期間は am_start を持たず標準設定から継承するため settingsRepo が必要
+		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+				return &model.ClinicSettings{ClinicID: clinicID, ClosingAmStart: "08:00"}, nil
+			},
+		}
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
 		res, err := svc.ResolveSchedule(ctx, 1, date)
 		assert.NoError(t, err)
 		assert.Equal(t, "13:00", res.AmPmBoundary)
 		assert.Equal(t, "20:00", res.PmEnd)
+		assert.Equal(t, "08:00", res.AmStart, "特別期間でも am_start は標準設定から継承する（#215）")
 		assert.False(t, res.IsHoliday)
+	})
+
+	t.Run("special period: settings fetch error propagates (#215)", func(t *testing.T) {
+		periodRepo := &mockClosingSpecialPeriodRepository{
+			findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClosingSpecialPeriod, error) {
+				return &model.ClosingSpecialPeriod{AmPmBoundary: "13:00", PmEnd: "20:00"}, nil
+			},
+		}
+		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
+		_, err := svc.ResolveSchedule(ctx, 1, date)
+		assert.Error(t, err)
 	})
 
 	t.Run("special period find db error", func(t *testing.T) {
@@ -674,6 +697,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 		res, err := svc.ResolveSchedule(ctx, 1, weekdayDate)
 		assert.NoError(t, err)
 		assert.Equal(t, "19:00", res.PmEnd)
+		assert.Equal(t, "09:00", res.AmStart, "am_start 未設定の旧データは既定 09:00 にフォールバック（#215）")
 		assert.False(t, res.IsHoliday)
 	})
 

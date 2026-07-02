@@ -66,10 +66,10 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
     return null;
   }, null);
 
-  // 派生値は描画時に計算する（useEffect で同期しない）。AM は境界のみに依存し
-  // 平日・日曜で共通。PM/EMG は各曜日の終了時刻に追従する。
-  const weekdayRanges = computeClosingTimeRanges(amPmBoundary, weekdayEnd);
-  const sundayRanges = computeClosingTimeRanges(amPmBoundary, sundayEnd);
+  // 派生値は描画時に計算する（useEffect で同期しない）。AM は am_start と境界に依存し
+  // 平日・日曜で共通。PM/EMG は各曜日の終了時刻に追従する（EMG は翌 am_start までの越日 #215）。
+  const weekdayRanges = computeClosingTimeRanges(amPmBoundary, weekdayEnd, settings.closing_am_start);
+  const sundayRanges = computeClosingTimeRanges(amPmBoundary, sundayEnd, settings.closing_am_start);
 
   const rangeCellClass = `px-3 py-1.5 text-sm tabular-nums whitespace-nowrap ${C.text}`;
   const headCellClass = `px-3 py-1.5 text-sm font-medium ${C.textMuted}`;
