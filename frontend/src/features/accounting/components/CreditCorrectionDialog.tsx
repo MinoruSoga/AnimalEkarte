@@ -34,12 +34,14 @@ const CARD_METHOD_LABELS: Record<CorrectableCardMethod, string> = {
 
 interface CreditCorrectionDialogProps {
   accounting: Accounting;
+  // #189/M-2: 対象会計の予定日がレジ締め確定済み期間か（親の判定を受け取り警告を表示する）
+  isPostClose?: boolean;
 }
 
 // #189: 確定済み会計のクレジット（カード）金額を確定後に訂正する専用導線。
 // 確定済み（completed）かつカード系支払いが存在する場合のみ表示する（getCorrectableCardPayments で判定）。
 // 通常の updateAccounting (PATCH) ではなく専用 correctCreditPayment エンドポイントを呼ぶ。
-export function CreditCorrectionDialog({ accounting }: CreditCorrectionDialogProps) {
+export function CreditCorrectionDialog({ accounting, isPostClose = false }: CreditCorrectionDialogProps) {
   const correctable = getCorrectableCardPayments(accounting);
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState<CorrectableCardMethod>(
@@ -118,6 +120,11 @@ export function CreditCorrectionDialog({ accounting }: CreditCorrectionDialogPro
             確定済み会計のカード金額を訂正します。訂正理由は監査ログに記録されます。
           </DialogDescription>
         </DialogHeader>
+        {isPostClose ? (
+          <p className="rounded-md border border-red-200 bg-red-50 p-2 text-sm font-semibold text-red-600">
+            ⚠ この会計はレジ締め確定済み期間です。訂正すると締め時点の帳票と差異が生じます。
+          </p>
+        ) : null}
         <form action={formAction} className="space-y-4">
           {correctable.length > 1 ? (
             <div className="space-y-1">

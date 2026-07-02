@@ -17,11 +17,11 @@ function makeAccounting(overrides: Partial<Accounting>): Accounting {
   } as unknown as Accounting;
 }
 
-function renderDialog(accounting: Accounting) {
+function renderDialog(accounting: Accounting, isPostClose = false) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <CreditCorrectionDialog accounting={accounting} />
+      <CreditCorrectionDialog accounting={accounting} isPostClose={isPostClose} />
     </QueryClientProvider>,
   );
 }
@@ -44,6 +44,23 @@ describe("CreditCorrectionDialog 表示ゲート (#189)", () => {
       }),
     );
     expect(screen.queryByRole("button", { name: "クレジット訂正" })).not.toBeInTheDocument();
+  });
+});
+
+describe("CreditCorrectionDialog 締め済み警告 (#189/M-2)", () => {
+  it("isPostClose=true: ダイアログ内に締め済み期間の警告を表示する", async () => {
+    const user = userEvent.setup();
+    renderDialog(makeAccounting({}), true);
+    await user.click(screen.getByRole("button", { name: "クレジット訂正" }));
+    expect(await screen.findByText(/レジ締め確定済み期間です/)).toBeInTheDocument();
+  });
+
+  it("isPostClose=false: 警告を表示しない", async () => {
+    const user = userEvent.setup();
+    renderDialog(makeAccounting({}));
+    await user.click(screen.getByRole("button", { name: "クレジット訂正" }));
+    await screen.findByLabelText("訂正理由（必須）");
+    expect(screen.queryByText(/レジ締め確定済み期間です/)).not.toBeInTheDocument();
   });
 });
 

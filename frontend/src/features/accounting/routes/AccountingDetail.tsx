@@ -205,7 +205,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               CreditCorrectionDialog は確定済み(completed)かつカード支払いが無ければ自動で null を返す。 */}
           {id && canPostCloseEdit ? (
             <div className="px-4 pb-4">
-              <CreditCorrectionDialog accounting={accounting} />
+              <CreditCorrectionDialog accounting={accounting} isPostClose={isScheduledDateClosed} />
             </div>
           ) : null}
 
