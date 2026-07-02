@@ -105,7 +105,9 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 		// 訂正は「実際に決済された金額」へ billing_amount を再定義するフロー（#188 のレジ実態記録と同思想）で、
 		// 総額は corrected 内訳の合計そのもの（newBillingAmount）に従属する。ゆえに &newBillingAmount を渡すと
 		// validatePaymentSplits 内の total==*billingAmount 照合は sum==sum で恒真＝無検証になり、呼び出し形が誤解を招く。
-		// 厳格化（元の請求額 total_amount との一致要求）の要否は PO 判断待ち（bug.md M-1）。
+		// PO 決定（2026-07-02・bug.md M-1）: 本挙動（総額変更許容＋監査 delta 記録）を最終仕様として確定。
+		// 厳格化（訂正後合計＝請求額の強制）は、単一 split 書換 API と「保存済み内訳合計＝請求額」の
+		// 不変条件の下では金額を変える全訂正を 400 にするため不採用（詳細は #189 コメント）。
 		if err := validatePaymentSplits(toValidationInputs(corrected), nil); err != nil {
 			return apperrors.Wrap(err, "failed to validate corrected payment splits")
 		}
