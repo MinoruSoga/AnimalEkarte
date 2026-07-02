@@ -52,9 +52,6 @@ func (m *mockMedicalRecordRepositoryForImage) CountByPetID(_ context.Context, _,
 func (m *mockMedicalRecordRepositoryForImage) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
 	return nil, nil
 }
-func (m *mockMedicalRecordRepositoryForImage) FindOwnerMedicationHistory(_ context.Context, _, _ uint64, _, _ int) ([]repository.OwnerMedicationHistoryRow, int64, error) {
-	return nil, 0, nil
-}
 func (m *mockMedicalRecordRepositoryForImage) CountEstimatesByMedicalRecordID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }

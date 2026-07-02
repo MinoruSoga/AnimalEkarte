@@ -25,21 +25,6 @@ type DormantOwnerEntry struct {
 	DaysSince int
 }
 
-// OwnerMedicationHistoryRow は飼い主の全ペット横断の投薬履歴1行（#158 飼主レポート）。
-// 投薬の実体は treatments(item_type=medicine)。prescriptions は薬剤名を持たない死蔵テーブルの
-// ため投薬歴のソースにしてはならない。treatments は clinic_id を直接持たないため
-// medical_records.clinic_id で隔離する。
-type OwnerMedicationHistoryRow struct {
-	TreatmentID  uint64    `gorm:"column:treatment_id"`
-	RecordDate   time.Time `gorm:"column:record_date"`
-	PetID        uint64    `gorm:"column:pet_id"`
-	PetName      string    `gorm:"column:pet_name"`
-	MedicineName string    `gorm:"column:medicine_name"`
-	AdminRoute   string    `gorm:"column:admin_route"`
-	Quantity     float64   `gorm:"column:quantity"`
-	DoctorName   string    `gorm:"column:doctor_name"`
-}
-
 type MedicalRecordRepository interface {
 	// FindAll は指定した複数医院 (#86 拠点横断) のカルテを検索する。clinicIDs はハンドラ層で所属検証済みであること。
 	FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
@@ -71,10 +56,6 @@ type MedicalRecordRepository interface {
 	FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	// CountByOwnerID は飼い主に紐付く有効カルテ数を返す（初診判定用: FEAT-383 Phase 2）。
 	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	// FindOwnerMedicationHistory は飼い主の全ペット横断の投薬履歴（treatments item_type=medicine）を
-	// 日付降順でページング取得する（#158 飼主レポート）。treatments は clinic_id を直接持たないため
-	// medical_records.clinic_id で隔離する。total は同一条件の総件数。
-	FindOwnerMedicationHistory(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]OwnerMedicationHistoryRow, int64, error)
 }
 
 type medicalRecordRepository struct {
@@ -301,47 +282,6 @@ func (r *medicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, cli
 		TotalCount:   result.TotalCount,
 		AnnualCount:  result.AnnualCount,
 	}, nil
-}
-
-// FindOwnerMedicationHistory は飼い主の全ペット横断の投薬履歴を日付降順でページング取得する（#158）。
-// 投薬の実体は treatments(item_type=medicine)。clinic 隔離は treatments が clinic_id を持たないため
-// medical_records.clinic_id で行う（別医院のカルテに紐づく投薬は混入させない）。
-// 補助 JOIN（pets/medicines/staffs）は表示名のみを供給するが、データ不整合時に他院の名称が
-// 漏れないよう clinic_id 一致を JOIN 条件に含める（防御の深さ）。
-// 薬剤名は medicines.name を優先し、空なら treatments.content にフォールバックする。
-func (r *medicalRecordRepository) FindOwnerMedicationHistory(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]OwnerMedicationHistoryRow, int64, error) {
-	buildBase := func() *gorm.DB {
-		return r.db.WithContext(ctx).
-			Model(&model.Treatment{}).
-			Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
-			Where("medical_records.clinic_id = ? AND medical_records.owner_id = ?", clinicID, ownerID).
-			Where("treatments.item_type = ? AND treatments.deleted_at IS NULL", model.TreatmentItemTypeMedicine)
-	}
-
-	var total int64
-	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "treatment", fmt.Sprintf("owner=%d", ownerID))
-	}
-
-	rows := make([]OwnerMedicationHistoryRow, 0)
-	if err := buildBase().
-		Joins("LEFT JOIN pets ON pets.id = medical_records.pet_id AND pets.clinic_id = medical_records.clinic_id AND pets.deleted_at IS NULL").
-		Joins("LEFT JOIN medicines ON medicines.id = treatments.medicine_id AND medicines.clinic_id = medical_records.clinic_id AND medicines.deleted_at IS NULL").
-		Joins("LEFT JOIN staffs ON staffs.id = medical_records.doctor_id AND staffs.clinic_id = medical_records.clinic_id AND staffs.deleted_at IS NULL").
-		Select(`treatments.id AS treatment_id,
-			medical_records.date AS record_date,
-			COALESCE(medical_records.pet_id, 0) AS pet_id,
-			COALESCE(pets.name, '') AS pet_name,
-			COALESCE(NULLIF(medicines.name, ''), treatments.content) AS medicine_name,
-			treatments.admin_route AS admin_route,
-			treatments.quantity AS quantity,
-			COALESCE(staffs.name, '') AS doctor_name`).
-		Order("medical_records.date DESC, treatments.id DESC").
-		Offset((page - 1) * limit).Limit(limit).
-		Scan(&rows).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "treatment", fmt.Sprintf("owner=%d", ownerID))
-	}
-	return rows, total, nil
 }
 
 // FindOwnersByFirstVisitDate は初回来院日（MIN(date)）が targetDate と一致する飼い主IDリストを返す（FEAT-383）。

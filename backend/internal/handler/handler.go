@@ -145,8 +145,6 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners := rg.Group("/owners")
 	owners.GET("", h.RequirePermission(string(model.ResourceOwners), "view"), h.ListOwners)
 	owners.GET("/:id", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetOwner)
-	// #158: 飼い主の全ペット横断の投薬歴レポート。医療データ閲覧のため medical-records view 権限を要求する。
-	owners.GET("/:id/medication-history", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.GetOwnerMedicationHistory)
 	owners.POST("", h.RequirePermission(string(model.ResourceOwners), "create"), h.CreateOwner)
 	owners.PATCH("/:id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwner)
 	owners.DELETE("/:id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwner)
