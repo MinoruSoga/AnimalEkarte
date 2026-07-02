@@ -1,7 +1,10 @@
 # Environment
 .env
 .env.*.local
-# .env.local / .env.production は git track する（ローカル・本番設定）
+# frontend/.env.production は意図的に git track する（PO決定 2026-07-02 / Issue #91 / bug.md M-10）。
+# 根拠: VITE_* はビルド成果物に埋め込まれる公開値でありシークレットではない。
+# ルール: この env ファイルにシークレット（トークン・パスワード・鍵）を置くことは禁止。
+#        違反は CI シークレットスキャン（bug.md C-1-4 で導入予定）で検出する。
 
 # Dependencies
 node_modules/
