@@ -8,14 +8,14 @@ import (
 
 // ClinicSettings は診療所の締め時間設定
 type ClinicSettings struct {
-	ClinicID            uint64        `gorm:"primaryKey"                            json:"clinic_id"`
-	ClosingAmPmBoundary string        `gorm:"type:time;not null;default:'14:00'"    json:"closing_am_pm_boundary"`
-	ClosingWeekdayEnd   string        `gorm:"type:time;not null;default:'18:30'"    json:"closing_weekday_end"`
-	ClosingSundayEnd    string        `gorm:"type:time;not null;default:'17:30'"    json:"closing_sunday_end"`
+	ClinicID            uint64 `gorm:"primaryKey"                            json:"clinic_id"`
+	ClosingAmPmBoundary string `gorm:"type:time;not null;default:'14:00'"    json:"closing_am_pm_boundary"`
+	ClosingWeekdayEnd   string `gorm:"type:time;not null;default:'18:30'"    json:"closing_weekday_end"`
+	ClosingSundayEnd    string `gorm:"type:time;not null;default:'17:30'"    json:"closing_sunday_end"`
 	// #215: AM 開始時刻。AM=[am_start, boundary) / EMG=[pm_end, 翌日 am_start) の越日レンジに使う（migration 011）。
 	ClosingAmStart string        `gorm:"type:time;not null;default:'09:00'"    json:"closing_am_start"`
 	ClosedWeekdays pq.Int64Array `gorm:"type:smallint[];not null;default:'{}'" json:"closed_weekdays"`
-	CPMVersion          string        `gorm:"type:varchar(8);not null;default:'v1'" json:"cpm_version"`
+	CPMVersion     string        `gorm:"type:varchar(8);not null;default:'v1'" json:"cpm_version"`
 	// Q21 SPEC-004 dormant prevention 閾値 (clinic 単位調整可能)
 	DormantPrevention180Days int `gorm:"not null;default:180" json:"dormant_prevention_180_days"`
 	DormantPrevention210Days int `gorm:"not null;default:210" json:"dormant_prevention_210_days"`
