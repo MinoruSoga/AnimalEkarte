@@ -399,10 +399,8 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule)
 	case "pm":
 		return boundary, pmEnd, nil
 	case "emg":
-		// EMG（緊急）は PM 締め終了後〜翌日0時までの夜間時間帯を集計対象とする。
-		// 仕様(#150)の「翌8:59まで」越日範囲を完全再現するには am 開始時刻の設定値
-		// (現状未保持) が必要で、既存 am=[0時,境界] を壊さずには表現できない。
-		// よって非破壊な PM終了〜当日24時 を採用する（越日分は #150 フォローアップ）。
+		// 越日EMG（18:30〜翌8:59）は未実装。現行は同日内（pmEnd〜24:00）で集計する。
+		// 追跡Issueは未起票（bug.md M-3）。
 		nextDayStart := dayStart.AddDate(0, 0, 1)
 		return pmEnd, nextDayStart, nil
 	default:
@@ -441,11 +439,15 @@ func findCashMethodID(methods []model.PaymentMethodMaster) (uint64, error) {
 }
 
 // calcTheoreticalCash は支払方法別集計行から現金合計を返し、返金合計を差し引いて理論現金残高を算出する。
-// 現金判定（#128）: payment_method_id が現金マスタ id と一致する split のみを現金として集計する。
+// 現金判定: payment_method_id が現金マスタ id と一致する split（#197 の新データ）に加え、
+// payment_method_id=NULL の split（旧 seed/レガシーデータの現金 split）も現金として集計する（#128 後方互換）。
+// 集計クエリ（accounting_repository_reports_close.go）は payment_method_id で GROUP BY し method ENUM を
+// 射影しないため、NULL 行の元 method は判定できない。月次レポート側 resolvePaymentMethodName も NULL→"現金"
+// 扱いのため、締め理論現金と月次レポート現金を一致させるにはここでも NULL を現金に含める（bug.md H-3）。
 func calcTheoreticalCash(payRows []repository.PaymentAggregateRow, totalRefund int64, cashMethodID uint64) int64 {
 	var cashTotal int64
 	for _, r := range payRows {
-		if r.PaymentMethodID != nil && *r.PaymentMethodID == cashMethodID {
+		if r.PaymentMethodID == nil || *r.PaymentMethodID == cashMethodID {
 			cashTotal += r.Amount
 		}
 	}

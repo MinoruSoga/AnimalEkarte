@@ -756,10 +756,12 @@ func TestFindCashMethodID(t *testing.T) {
 }
 
 // TestCalcTheoreticalCash は理論現金の現金判定を検証する（#128/#197）。
-// 現金 = payment_method_id が現金マスタ id と一致する split のみ（NULL 行はスキップ）。
+// 現金 = payment_method_id が現金マスタ id と一致する split（#197 の新データ）、
+// または payment_method_id=NULL の split（旧 seed/レガシーデータの現金: #128 後方互換, bug.md H-3）。
 func TestCalcTheoreticalCash(t *testing.T) {
 	cashID := uint64(101)
 	creditID := uint64(102)
+	unknownID := uint64(999) // どの行の payment_method_id とも一致しない現金マスタ id
 
 	tests := []struct {
 		name         string
@@ -776,6 +778,34 @@ func TestCalcTheoreticalCash(t *testing.T) {
 			},
 			cashMethodID: cashID,
 			want:         5000,
+		},
+		{
+			name: "payment_method_id=NULL の行も現金として加算する（レガシー seed 後方互換, bug.md H-3）",
+			rows: []repository.PaymentAggregateRow{
+				{PaymentMethodID: nil, Amount: 4000},
+				{PaymentMethodID: &creditID, Amount: 1000},
+			},
+			cashMethodID: cashID,
+			want:         4000,
+		},
+		{
+			name: "現金マスタ id と NULL が混在しても両方加算する",
+			rows: []repository.PaymentAggregateRow{
+				{PaymentMethodID: &cashID, Amount: 5000},
+				{PaymentMethodID: nil, Amount: 2000},
+				{PaymentMethodID: &creditID, Amount: 3000},
+			},
+			cashMethodID: cashID,
+			want:         7000,
+		},
+		{
+			name: "現金マスタ id がどの行にも一致しなくても NULL 行は現金として加算する（NULL 後方互換は id 一致に非依存）",
+			rows: []repository.PaymentAggregateRow{
+				{PaymentMethodID: nil, Amount: 4000},
+				{PaymentMethodID: &cashID, Amount: 5000},
+			},
+			cashMethodID: unknownID,
+			want:         4000,
 		},
 		{
 			name: "非現金（credit_card）のみは現金 0",
