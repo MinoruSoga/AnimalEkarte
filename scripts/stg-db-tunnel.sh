@@ -1,7 +1,9 @@
 #!/bin/bash
 # ステージング RDS への SSM ポートフォワードトンネル
 # 使い方: ./scripts/stg-db-tunnel.sh
-# TablePlus: 127.0.0.1:15432 / ekarte_admin / TempPass123!ChangeMe / ekarte_db
+# TablePlus: 127.0.0.1:15432 / ekarte_admin / ekarte_db
+# パスワードはこのファイルに書かないこと（過去に平文コメントで漏洩 → Issue #98。git 履歴には残存するためローテーション必須）。
+# 取得先: チームのシークレット管理（SSM Parameter Store 等）を参照。
 
 set -e
 
