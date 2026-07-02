@@ -109,11 +109,10 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
 
   // #115: billing の scheduled_date が締め済みか確認
   const scheduledDateStr = accounting?.scheduledDate ? accounting.scheduledDate.slice(0, 10) : null;
-  const scheduledYear = scheduledDateStr ? parseInt(scheduledDateStr.slice(0, 4), 10) : undefined;
-  const scheduledMonth = scheduledDateStr ? parseInt(scheduledDateStr.slice(5, 7), 10) : undefined;
+  // #115: scheduled_date が締め済みか、その 1 日分（AM/PM/EMG）を BE 契約（start_date/end_date）で問い合わせる
   const { data: closesData } = useGetCashRegisterCloses(
-    scheduledYear && scheduledMonth ? { year: scheduledYear, month: scheduledMonth, limit: 100 } : undefined,
-    Boolean(scheduledYear && scheduledMonth),
+    scheduledDateStr ? { start_date: scheduledDateStr, end_date: scheduledDateStr } : undefined,
+    Boolean(scheduledDateStr),
   );
   const isScheduledDateClosed = Boolean(
     scheduledDateStr && closesData?.data.some((c) => c.closeDate?.slice(0, 10) === scheduledDateStr),

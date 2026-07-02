@@ -9,12 +9,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatJSTDateTimeLocal, toJSTWallDate } from "@/lib/jst-date";
+import { Pagination } from "@/components/shared/Pagination";
 import { useGetCashRegisterCloses } from "../api/get-cash-register-closes";
 import type { CashRegisterClose } from "../api/get-cash-register-closes";
 import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../constants";
 import { summarizeCategoryTotals } from "../category-breakdown";
+import { monthDateRange } from "../month-date-range";
 
 type PeriodFilter = "all" | CashRegisterPeriod;
+
+// BE のデフォルト limit（query_helpers.go）と一致させる
+const HISTORY_PAGE_SIZE = 20;
 
 // 月次集計レポートからのドリルダウン用 ?date=YYYY-MM-DD を年月にパースする
 function parseHighlightDate(dateParam: string | null): { year: number; month: number } | null {
@@ -43,15 +48,33 @@ export function CashRegisterHistoryPage() {
   const [month, setMonth] = useState<number>(drillDownTarget?.month ?? now.getMonth() + 1);
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
   const [selectedClose, setSelectedClose] = useState<CashRegisterClose | null>(null);
+  // ドリルダウン(?date=)初期表示は該当日 1 日分に絞る。年月セレクタを操作したら
+  // null に落として月レンジ(月初〜月末)表示へ切り替える。
+  const [singleDate, setSingleDate] = useState<string | null>(highlightDate);
+  const [page, setPage] = useState<number>(1);
 
-  const { data, isLoading, isError } = useGetCashRegisterCloses({ year, month });
+  // BE 契約: start_date <= close_date <= end_date（両端含む）。年月→月初/月末を導出する。
+  const { startDate, endDate } = singleDate
+    ? { startDate: singleDate, endDate: singleDate }
+    : monthDateRange(year, month);
+
+  const { data, isLoading, isError } = useGetCashRegisterCloses({
+    start_date: startDate,
+    end_date: endDate,
+    page,
+    limit: HISTORY_PAGE_SIZE,
+  });
 
   const handleYearChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setYear(Number(e.target.value));
+    setSingleDate(null);
+    setPage(1);
   }, []);
 
   const handleMonthChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setMonth(Number(e.target.value));
+    setSingleDate(null);
+    setPage(1);
   }, []);
 
   const handlePeriodFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -60,9 +83,16 @@ export function CashRegisterHistoryPage() {
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
 
+  // period(AM/PM/EMG)はクライアント側フィルタのため、現在ページ内の行だけに作用する。
   const rows = (data?.data ?? []).filter(
     (close) => periodFilter === "all" || close.period === periodFilter,
   );
+
+  // ページネーションはサーバー側。BE の total と FE 管理の page/limit から算出する。
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / HISTORY_PAGE_SIZE));
+  const startIndex = total === 0 ? 0 : (page - 1) * HISTORY_PAGE_SIZE + 1;
+  const endIndex = Math.min(page * HISTORY_PAGE_SIZE, total);
 
   const detailSubtotals = selectedClose
     ? summarizeCategoryTotals(selectedClose.categoryBreakdown)
@@ -217,6 +247,19 @@ export function CashRegisterHistoryPage() {
           )}
         </div>
       )}
+
+      {!isLoading && !isError && total > HISTORY_PAGE_SIZE ? (
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalCount={total}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={(p) => setPage(p)}
+          onPrev={() => setPage((p) => Math.max(1, p - 1))}
+          onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+        />
+      ) : null}
 
       <Dialog
         open={selectedClose !== null}

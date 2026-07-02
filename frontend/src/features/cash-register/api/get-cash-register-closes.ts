@@ -8,8 +8,8 @@ import type { CashRegisterClose } from "./transforms";
 export type { CashRegisterClose };
 
 export interface GetCashRegisterClosesParams {
-  year?: number;
-  month?: number;
+  start_date?: string;
+  end_date?: string;
   page?: number;
   limit?: number;
 }
