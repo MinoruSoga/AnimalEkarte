@@ -186,6 +186,16 @@
           }
         ],
         "description": "Warn when editing linter/formatter config files"
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-edit-migration-guard.js"
+          }
+        ],
+        "description": "Warn when modifying an existing backend/migrations/*.sql file (checksum mismatch risk)"
       }
     ],
     "PostToolUse": [
@@ -218,6 +228,16 @@
           }
         ],
         "description": "Auto-format .go files with gofmt via Docker after edits"
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-lint-go.js"
+          }
+        ],
+        "description": "Scoped golangci-lint via Docker after .go edits (non-blocking)"
       },
       {
         "matcher": "Edit|Write",
