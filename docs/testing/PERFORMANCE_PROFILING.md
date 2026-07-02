@@ -42,6 +42,16 @@ go tool pprof -http=:8081 profile_cpu.pprof
 `EXPLAIN ANALYZE` を使用して、集計クエリのインデックス効力を検証します。
 - **重点監視**: `billings`, `lstep_delivery_trigger_log` などの成長率の高いテーブル。
 
+### 3.4 N+1 クエリ回帰テスト (Performance Regression Tests)
+ループ内での個別クエリ実行や設定フェッチによる N+1 問題の発生を未然に防ぐため、テストコードによる自動回帰テストを導入しています。
+- **実装場所**: `backend/internal/service/perf_n1_regression_test.go`
+- **検証アプローチ**: 依存サービスのメソッド呼び出し回数をモック（Spy）でカウントし、ループの回数（N回）ではなく 1 回のみのフェッチ（ループ外へのホイスト）で処理できているかをテストコードでアサート（Assert）します。
+  - 例: `SyncHealthPreventionTagsForClinic` 内で `GetHealthPreventionThresholds` を呼び出す回数が、飼い主数 `N` によらず `1` 回に抑えられているかを検証します。
+- **実行方法**:
+  ```bash
+  docker compose exec backend go test -v ./internal/service/ -run "TestPERF|TestH1"
+  ```
+
 ---
 
 ## 4. 負荷テスト (Load Testing)

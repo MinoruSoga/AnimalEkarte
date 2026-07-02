@@ -329,6 +329,17 @@ func (r *Repo) DeleteParentWithSoftDeletedChildren(ctx context.Context,
 - 親削除と同一トランザクション内で実行されても個別ログ行として区別
 - 理由：FK cleanup の explicit 証跡
 
+### 12.4 臨床結果レコード物理削除と監査ログの原子性（#211）
+- **背景**: `exam_results`, `checkup_field_results` などの臨床結果レコードは物理削除（Hard Delete）されますが、削除後の監査ログ（`audit_logs`）の書き込みが別トランザクションで行われると、監査ログ書き込みが失敗した際に物理削除をロールバックできず、監査トレイルが失われる危険性があります。
+- **Fail-closed 設計**: 臨床結果レコードの置換（物理削除＋再作成）時の物理削除と監査ログ書き込みは、必ず同一のトランザクション（ambient tx / `dbOrTx`）内で実行しなければなりません。監査ログの作成に失敗した場合はトランザクション全体をロールバックし、削除を元に戻します。
+- **CI ゲートテスト (`audit_tx_inventory_lint_test.go`)**: 臨床結果レコードを物理削除するリポジトリ関数を監査対象の allowlist（許容リスト）で管理し、新規の物理削除が発生した場合は CI で検知・制限します。
+- **返金処理の同一トランザクション化**: `refund_service.go`（返金処理）においても、返金処理と監査ログ作成を同一のトランザクション内で実行し、監査ログ作成に失敗した場合は返金処理もロールバックされるように実装します。
+- **監査ログの定義拡張**: #211 の置換処理に伴い、監査ログに記録するリソース定数 `checkup_field_result` およびアクション定数 `checkup_field_result.replace` を新たに定義し、監査証跡の追跡性を保証しています。
+- **並行競合時の無監査物理削除の防止 (READ COMMITTED 対策)**: 置換（Replace）処理において、削除判定を「スナップショット時の事前取得件数」ではなく、DELETE文実行後の実際の `RowsAffected` (物理削除数) を用いて監査ログ作成の要否をゲートします。これにより、READ COMMITTED 分離レベル下で事前取得時点では 0 件であっても、直後に並行処理でコミットされた新規データを削除してしまい、監査ログが出力されない（無監査物理削除）という競合を防ぎます。
+- **移行ステータス**:
+  - `checkup_field_results` (完了 / `statusAuditedTxInternal`): ambient tx を用いてトランザクション内で削除と監査を実施。実行時テスト `checkup_field_result_tx_atomicity_test.go` により担保。
+  - `exam_results` (未完了 / `statusPendingMigration`): 独自トランザクションで物理削除を実行しているため、呼び出し元の ambient tx に連動していない。今後 `checkup_field_results` と同様に ambient tx 対応へ移行予定。
+
 ---
 
 ## 13. マルチテナント Clinic_ID 隔離
