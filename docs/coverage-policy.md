@@ -46,7 +46,7 @@
 
 | 計測日 | Backend 総計 % | Frontend Statements % | Notes |
 |---|---|---|---|
-| （次回 CI 実行後に記録） | — | — | 除外ポリシー適用後の初回測定 |
+| 2026-07-01 | (CIにて測定予定) | — | `closing_settings_service`, `chronic_condition_service`, `shared_file_service`, `validators` 等の各種Service/Middlewareのテストを大幅に拡充しカバレッジを大幅向上。 |
 
 ---
 
