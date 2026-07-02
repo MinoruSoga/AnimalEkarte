@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -136,9 +137,12 @@ type Services struct {
 	LabReportQuery LabReportQueryService
 }
 
-// NewServices はリポジトリからすべてのサービスを初期化して返す
-func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig) *Services {
-	notifier := NewReservationNotificationService(notifCfg, repos.LineReservationSetting)
+// NewServices はリポジトリからすべてのサービスを初期化して返す。
+// cipher は LINE 認証情報（line_channel_secret / line_access_token）の暗号化に使う（H-4）。
+// nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
+// lstep 連携と同一の cipher を再利用する。
+func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig, cipher *crypto.AESGCMCipher) *Services {
+	notifier := NewReservationNotificationService(notifCfg, repos.LineReservationSetting, cipher)
 	auditSvc := NewAuditService(repos.Audit)
 	// auditTxLogger: 具象 *auditService は tx 内監査の LogEntryTx も実装する（#211）。
 	// AuditService インターフェース自体は広げず（既存サービス/モックへ非波及）、tx 内監査を要する
@@ -272,7 +276,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Campaign:                  NewCampaignService(repos.Campaign),
 		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster),
 		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
-		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting),
+		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting, cipher),
 		ReservationTypeLiff:       NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),
 		ReservationStaff:          resStaffSvc,
 		ReservationStaffCore:      resStaffSvc,

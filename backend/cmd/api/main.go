@@ -66,6 +66,22 @@ func main() {
 	// リポジトリ初期化
 	repos := repository.NewRepositories(db)
 
+	// 連携設定の暗号化 cipher 初期化（INTEGRATION_ENCRYPTION_KEY 未設定時は dev モード・暗号化なし）。
+	// lstep 連携（clinic_integrations）と LINE 予約設定（line_reservation_settings）で共有する（H-4）。
+	// NewServices に渡すため NewServices 呼び出しより前に初期化する。
+	var integrationCipher *appCrypto.AESGCMCipher
+	if cfg.IntegrationEncryptionKey != "" {
+		c, err := appCrypto.NewAESGCMCipher(cfg.IntegrationEncryptionKey)
+		if err != nil {
+			logger.Error("failed to initialize AES-GCM cipher", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		integrationCipher = c
+		logger.Info("integration cipher: AES-256-GCM enabled")
+	} else {
+		logger.Info("INTEGRATION_ENCRYPTION_KEY not set: running without encryption (dev mode)")
+	}
+
 	// サービス初期化
 	svcs := service.NewServices(repos, &service.ReservationNotificationConfig{
 		SMTPHost:    cfg.SMTPHost,
@@ -74,22 +90,9 @@ func main() {
 		SMTPPass:    cfg.SMTPPass,
 		SMTPFrom:    cfg.SMTPFrom,
 		FrontendURL: cfg.FrontendURL,
-	})
+	}, integrationCipher)
 
-	// LSTEP 暗号化 cipher 初期化（INTEGRATION_ENCRYPTION_KEY 未設定時は dev モード・暗号化なし）
-	var lstepCipher *appCrypto.AESGCMCipher
-	if cfg.IntegrationEncryptionKey != "" {
-		c, err := appCrypto.NewAESGCMCipher(cfg.IntegrationEncryptionKey)
-		if err != nil {
-			logger.Error("failed to initialize AES-GCM cipher", slog.String("error", err.Error()))
-			os.Exit(1)
-		}
-		lstepCipher = c
-		logger.Info("LSTEP cipher: AES-256-GCM enabled")
-	} else {
-		logger.Info("INTEGRATION_ENCRYPTION_KEY not set: running without encryption (dev mode)")
-	}
-	svcs.LstepSettings = service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, lstepCipher, svcs.Audit, repos.ClinicSettings)
+	svcs.LstepSettings = service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, integrationCipher, svcs.Audit, repos.ClinicSettings)
 	svcs.LstepTagSync = service.NewLstepTagSyncService(
 		svcs.LstepSettings,
 		repos.Owner,
@@ -143,7 +146,7 @@ func main() {
 	// LSTEP-BE-013: LINE個別送信
 	svcs.LineSend = service.NewLineSendService(svcs.LstepSettings, repos.Owner, svcs.SharedFile, repos.LstepTagCache, svcs.Audit, repos.LineSendLog, repos.LstepTagConfig)
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
-	svcs.LineLink = service.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, svcs.Audit)
+	svcs.LineLink = service.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, svcs.Audit, integrationCipher)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	svcs.LstepTagSummary = service.NewLstepTagSummaryService(repos.LstepTagCache)
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携

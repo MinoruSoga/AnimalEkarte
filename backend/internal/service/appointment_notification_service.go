@@ -10,6 +10,7 @@ import (
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -39,15 +40,20 @@ type ReservationNotificationConfig struct {
 type reservationNotificationService struct {
 	cfg         ReservationNotificationConfig
 	settingRepo repository.LineReservationSettingRepository
+	// cipher は line_access_token を復号するために使う（H-4）。
+	// nil の場合は復号なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
+	cipher *crypto.AESGCMCipher
 }
 
 // NewReservationNotificationService は通知サービスを初期化して返す。
 // SMTP設定が空の場合はメール送信をスキップする。
 // LINE アクセストークン・通知先メールは予約のクリニック設定（DB）から都度取得する。
-func NewReservationNotificationService(cfg *ReservationNotificationConfig, settingRepo repository.LineReservationSettingRepository) ReservationNotifier {
+// cipher が nil の場合は復号なしで動作する（lstep 連携と同一の cipher を再利用する）。
+func NewReservationNotificationService(cfg *ReservationNotificationConfig, settingRepo repository.LineReservationSettingRepository, cipher *crypto.AESGCMCipher) ReservationNotifier {
 	return &reservationNotificationService{
 		cfg:         *cfg,
 		settingRepo: settingRepo,
+		cipher:      cipher,
 	}
 }
 
@@ -77,8 +83,10 @@ func (s *reservationNotificationService) NotifyCreated(
 			return
 		}
 
-		if customer != nil && customer.LineUserID != "" && setting.LineAccessToken != "" {
-			lineSvc := NewLineMessagingService(setting.LineAccessToken)
+		// DB 上の line_access_token は暗号文（H-4）。レガシー平文行はそのまま返る。
+		accessToken := decryptLineCredential(bgCtx, s.cipher, setting.LineAccessToken)
+		if customer != nil && customer.LineUserID != "" && accessToken != "" {
+			lineSvc := NewLineMessagingService(accessToken)
 			if err := lineSvc.PushText(bgCtx, customer.LineUserID, lineText); err != nil {
 				slog.ErrorContext(bgCtx, "LINE notify created failed",
 					"reservation_id", appt.ID,
@@ -124,8 +132,10 @@ func (s *reservationNotificationService) NotifyCancelled(
 			return
 		}
 
-		if customer != nil && customer.LineUserID != "" && setting.LineAccessToken != "" {
-			lineSvc := NewLineMessagingService(setting.LineAccessToken)
+		// DB 上の line_access_token は暗号文（H-4）。レガシー平文行はそのまま返る。
+		accessToken := decryptLineCredential(bgCtx, s.cipher, setting.LineAccessToken)
+		if customer != nil && customer.LineUserID != "" && accessToken != "" {
+			lineSvc := NewLineMessagingService(accessToken)
 			if err := lineSvc.PushText(bgCtx, customer.LineUserID, lineMsg); err != nil {
 				slog.ErrorContext(bgCtx, "LINE notify cancelled failed",
 					"reservation_id", appt.ID,

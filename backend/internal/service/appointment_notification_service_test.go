@@ -36,7 +36,7 @@ func TestReservationNotificationService_NotifyCreated(t *testing.T) {
 		cfg := &ReservationNotificationConfig{
 			SMTPHost: "",
 		}
-		svc := NewReservationNotificationService(cfg, repo)
+		svc := NewReservationNotificationService(cfg, repo, nil)
 
 		appt := &model.Reservation{
 			ID:        123,
@@ -68,7 +68,7 @@ func TestReservationNotificationService_NotifyCreated(t *testing.T) {
 			},
 		}
 		cfg := &ReservationNotificationConfig{}
-		svc := NewReservationNotificationService(cfg, repo)
+		svc := NewReservationNotificationService(cfg, repo, nil)
 
 		appt := &model.Reservation{
 			ID:       123,
@@ -88,7 +88,7 @@ func TestReservationNotificationService_NotifyCancelled(t *testing.T) {
 		cfg := &ReservationNotificationConfig{
 			SMTPHost: "",
 		}
-		svc := NewReservationNotificationService(cfg, repo)
+		svc := NewReservationNotificationService(cfg, repo, nil)
 
 		appt := &model.Reservation{
 			ID:        123,
@@ -112,7 +112,7 @@ func TestReservationNotificationService_NotifyCancelled(t *testing.T) {
 			},
 		}
 		cfg := &ReservationNotificationConfig{}
-		svc := NewReservationNotificationService(cfg, repo)
+		svc := NewReservationNotificationService(cfg, repo, nil)
 
 		appt := &model.Reservation{
 			ID:       123,

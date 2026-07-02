@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -50,10 +51,15 @@ type LineReservationSettingService interface {
 
 type lineReservationSettingService struct {
 	repo repository.LineReservationSettingRepository
+	// cipher は line_channel_secret / line_access_token の暗号化に使う（H-4）。
+	// nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
+	cipher *crypto.AESGCMCipher
 }
 
-func NewLineReservationSettingService(repo repository.LineReservationSettingRepository) LineReservationSettingService {
-	return &lineReservationSettingService{repo: repo}
+// NewLineReservationSettingService は LineReservationSettingService を初期化して返す。
+// cipher が nil の場合は暗号化なしで動作する（lstep 連携と同一の cipher を再利用する）。
+func NewLineReservationSettingService(repo repository.LineReservationSettingRepository, cipher *crypto.AESGCMCipher) LineReservationSettingService {
+	return &lineReservationSettingService{repo: repo, cipher: cipher}
 }
 
 func (s *lineReservationSettingService) Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -99,16 +105,30 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 	isNew := existing == nil
 
 	// LineChannelSecret / LineAccessToken はレスポンスに含まれないため、
-	// フロントエンドは既存値を読み取れない。空文字が送られてきた場合は既存値を保持する。
+	// フロントエンドは既存値を読み取れない。空文字が送られてきた場合は既存値（DB 上は暗号文）を
+	// 復号して平文として保持する。decryptLineCredential はレガシー平文行もそのまま返す。
 	channelSecret := input.LineChannelSecret
 	accessToken := input.LineAccessToken
 	if existing != nil {
 		if channelSecret == "" {
-			channelSecret = existing.LineChannelSecret
+			channelSecret = decryptLineCredential(ctx, s.cipher, existing.LineChannelSecret)
 		}
 		if accessToken == "" {
-			accessToken = existing.LineAccessToken
+			accessToken = decryptLineCredential(ctx, s.cipher, existing.LineAccessToken)
 		}
+	}
+
+	// H-4: 保存時は常に暗号化して書き込む。既存のレガシー平文行は、この経路（次回保存）で
+	// 自然に暗号化される（機会的再暗号化）。一括 migration は行わない。
+	encryptedSecret, err := encryptLineCredential(s.cipher, channelSecret)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to encrypt line channel secret", "error", err, "clinic_id", clinicID)
+		return nil, false, apperrors.Wrap(err, "failed to encrypt line channel secret")
+	}
+	encryptedToken, err := encryptLineCredential(s.cipher, accessToken)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to encrypt line access token", "error", err, "clinic_id", clinicID)
+		return nil, false, apperrors.Wrap(err, "failed to encrypt line access token")
 	}
 
 	setting := &model.LineReservationSetting{
@@ -138,9 +158,9 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		ShowNoStaffOption:       input.ShowNoStaffOption,
 		AdditionalFields:        input.AdditionalFields,
 		LineChannelID:           input.LineChannelID,
-		LineChannelSecret:       channelSecret,
+		LineChannelSecret:       encryptedSecret,
 		LiffID:                  input.LiffID,
-		LineAccessToken:         accessToken,
+		LineAccessToken:         encryptedToken,
 	}
 	if err := s.repo.Save(ctx, clinicID, setting); err != nil {
 		slog.ErrorContext(ctx, "failed to upsert reservation setting", "error", err, "clinic_id", clinicID)

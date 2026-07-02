@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -178,7 +179,7 @@ func newTestLineLinkService(
 	tokenRepo *mockLineLinkTokenRepo,
 	settingRepo *mockLineLinkSettingRepo,
 ) LineLinkService {
-	return NewLineLinkService(ownerRepo, tokenRepo, settingRepo, &mockLineLinkAuditService{})
+	return NewLineLinkService(ownerRepo, tokenRepo, settingRepo, &mockLineLinkAuditService{}, nil)
 }
 
 // --- GenerateLinkToken tests ---
@@ -275,6 +276,49 @@ func TestLineLinkService_HandleWebhook_FollowEvent(t *testing.T) {
 	sig := makeLineSignature(body, "secret")
 
 	err := svc.HandleWebhook(context.Background(), body, sig)
+	require.NoError(t, err)
+	assert.True(t, followedAt)
+}
+
+// TestLineLinkService_HandleWebhook_EncryptedSecret は DB 上の line_channel_secret が
+// 暗号化されていても、復号後の平文で署名検証が成功することを確認する（H-4）。
+func TestLineLinkService_HandleWebhook_EncryptedSecret(t *testing.T) {
+	cipher, err := crypto.NewAESGCMCipher("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	require.NoError(t, err)
+	encSecret, err := cipher.Encrypt("secret")
+	require.NoError(t, err)
+
+	lineUserID := "Uabc123"
+	followedAt := false
+	ownerRepo := &mockLineLinkOwnerRepo{
+		findAllByLineUserIDFn: func(_ context.Context, uid string) ([]model.Owner, error) {
+			return []model.Owner{{ID: 10, ClinicID: 1, LineUserID: &uid}}, nil
+		},
+		updateLineFollowedAtFn: func(_ context.Context, _, _ uint64, _ time.Time) error {
+			followedAt = true
+			return nil
+		},
+	}
+	settingRepo := &mockLineLinkSettingRepo{
+		findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
+			return []model.LineReservationSetting{{ClinicID: 1, LineChannelSecret: encSecret}}, nil
+		},
+	}
+	svc := NewLineLinkService(ownerRepo, &mockLineLinkTokenRepo{}, settingRepo, &mockLineLinkAuditService{}, cipher)
+
+	payload := WebhookPayload{
+		Destination: "dest",
+		Events: []WebhookEvent{
+			{Type: "follow", Source: struct {
+				UserID string `json:"userId"`
+			}{UserID: lineUserID}},
+		},
+	}
+	body, _ := json.Marshal(payload)
+	// 署名は平文シークレットで計算する（LINE 側の実挙動）。
+	sig := makeLineSignature(body, "secret")
+
+	err = svc.HandleWebhook(context.Background(), body, sig)
 	require.NoError(t, err)
 	assert.True(t, followedAt)
 }
