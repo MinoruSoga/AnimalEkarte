@@ -245,17 +245,20 @@ func buildMonthlyReportResponse(
 	}
 }
 
-// buildTaxBreakdown は TaxBreakdownRow スライスを TaxBreakdownSummary に変換する
-// cash_register_service.go からも利用するためパッケージスコープで定義する
-func buildTaxBreakdown(rows []repository.TaxBreakdownRow) TaxBreakdownSummary {
+// buildTaxBreakdown は TaxBreakdownRow スライスを病院マスタ税率（exact-match）で標準/軽減に分類し
+// TaxBreakdownSummary に変換する。cash_register_service.go（締めレジ経路）からも利用するため
+// パッケージスコープで定義する。M-7(#191): 固定閾値 `>8` を廃止し月次レポート経路と分類規則を統一。
+// 軽減税率と一致しない税率（0% 非課税を含む）は標準へ分類する（月次 #191 と同一規則）。
+// 保存済みの過去の締め記録（category_breakdown スナップショット）は再計算しない。
+func buildTaxBreakdown(rows []repository.TaxBreakdownRow, rates accountingReportTaxRates) TaxBreakdownSummary {
 	var summary TaxBreakdownSummary
 	for _, tr := range rows {
-		if tr.TaxRate > 8 {
-			summary.Standard.TaxableAmount += tr.TaxableAmount
-			summary.Standard.TaxAmount += tr.TaxAmount
-		} else {
+		if isReducedTaxRate(tr.TaxRate, rates) {
 			summary.Reduced.TaxableAmount += tr.TaxableAmount
 			summary.Reduced.TaxAmount += tr.TaxAmount
+		} else {
+			summary.Standard.TaxableAmount += tr.TaxableAmount
+			summary.Standard.TaxAmount += tr.TaxAmount
 		}
 	}
 	return summary

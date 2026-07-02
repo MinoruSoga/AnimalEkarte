@@ -274,7 +274,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		PaymentMethodMaster:       NewPaymentMethodMasterService(repos.PaymentMethodMaster),
 		TrimmingCourseType:        NewTrimmingCourseTypeService(repos.TrimmingCourseType),
 		Campaign:                  NewCampaignService(repos.Campaign),
-		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster),
+		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
 		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
 		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting, cipher),
 		ReservationTypeLiff:       NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),

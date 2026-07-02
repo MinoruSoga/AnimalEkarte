@@ -59,7 +59,7 @@ type CloseBillingDetail struct {
 // buildCategoryBreakdown はカテゴリ行と支払方法行から CategoryBreakdownSchema を構築する。
 // 混在支払いの場合、カテゴリ金額を支払方法比率で按分する。
 // 支払方法キーは system_key（例: "cash", "credit_card"）を使用。未登録 id は "method_N" にフォールバック。
-func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []repository.CategoryAggregateRow, taxRows []repository.TaxBreakdownRow, payMethods []model.PaymentMethodMaster) model.CategoryBreakdownSchema {
+func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []repository.CategoryAggregateRow, taxRows []repository.TaxBreakdownRow, payMethods []model.PaymentMethodMaster, taxRates accountingReportTaxRates) model.CategoryBreakdownSchema {
 	idToKey := make(map[uint64]string, len(payMethods))
 	for i := range payMethods {
 		m := &payMethods[i]
@@ -92,7 +92,7 @@ func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []
 		}
 	}
 
-	tax := buildTaxBreakdown(taxRows)
+	tax := buildTaxBreakdown(taxRows, taxRates)
 	return model.CategoryBreakdownSchema{
 		Categories: cats,
 		TaxBreakdown: model.TaxBreakdown{
@@ -125,6 +125,8 @@ type periodAggregate struct {
 	PeriodEnd       time.Time
 	// PaymentMethods は当該 clinic の支払方法マスタ。現金マスタ id 判定（#128）と GetPreview の二重ロード回避に使う。
 	PaymentMethods []model.PaymentMethodMaster
+	// TaxRates は病院マスタの税率設定。M-7(#191): 締めレジの税率分類を月次レポート経路（exact-match）と統一する。
+	TaxRates accountingReportTaxRates
 }
 
 type cashRegisterService struct {
@@ -132,6 +134,7 @@ type cashRegisterService struct {
 	accountingRepo repository.AccountingRepository
 	closingsSvc    ClosingSettingsService
 	payMethodRepo  repository.PaymentMethodMasterRepository
+	clinicRepo     repository.ClinicRepository
 }
 
 // NewCashRegisterService は CashRegisterService を初期化して返す
@@ -140,12 +143,14 @@ func NewCashRegisterService(
 	accountingRepo repository.AccountingRepository,
 	closingsSvc ClosingSettingsService,
 	payMethodRepo repository.PaymentMethodMasterRepository,
+	clinicRepo repository.ClinicRepository,
 ) CashRegisterService {
 	return &cashRegisterService{
 		closeRepo:      closeRepo,
 		accountingRepo: accountingRepo,
 		closingsSvc:    closingsSvc,
 		payMethodRepo:  payMethodRepo,
+		clinicRepo:     clinicRepo,
 	}
 }
 
@@ -195,6 +200,13 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to find cash payment method")
 	}
 
+	// M-7(#191): 税率分類は固定閾値ではなく病院マスタ税率（exact-match）で行う（月次レポート経路と統一）。
+	clinic, err := s.clinicRepo.FindByID(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load clinic for tax rates", "error", err)
+		return nil, apperrors.Wrap(err, "failed to load clinic for tax rates")
+	}
+
 	return &periodAggregate{
 		Schedule:        schedule,
 		PaymentRows:     aggregate.PaymentRows,
@@ -206,6 +218,7 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		PeriodStart:     periodStart,
 		PeriodEnd:       periodEnd,
 		PaymentMethods:  payMethods,
+		TaxRates:        clinicTaxRates(clinic),
 	}, nil
 }
 
@@ -278,7 +291,7 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	}
 
 	// 税率別集計
-	taxSummary := buildTaxBreakdown(agg.TaxBreakdown)
+	taxSummary := buildTaxBreakdown(agg.TaxBreakdown, agg.TaxRates)
 
 	return &CashRegisterPreview{
 		Date:            date.In(time.Local).Format("2006-01-02"),
@@ -321,7 +334,7 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 	cashDifference := input.ActualCash - agg.TheoreticalCash
 
 	// category_breakdown JSONB を構築（消費税内訳を含む）
-	breakdownSchema := buildCategoryBreakdown(agg.PaymentRows, agg.CategoryRows, agg.TaxBreakdown, agg.PaymentMethods)
+	breakdownSchema := buildCategoryBreakdown(agg.PaymentRows, agg.CategoryRows, agg.TaxBreakdown, agg.PaymentMethods, agg.TaxRates)
 	breakdownJSON, err := json.Marshal(breakdownSchema)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal category breakdown", "error", err)

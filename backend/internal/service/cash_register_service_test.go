@@ -205,7 +205,8 @@ func newCashRegisterService(
 	closingsSvc *mockClosingSettingsService,
 	payMethodRepo *mockPaymentMethodMasterRepository,
 ) CashRegisterService {
-	return NewCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo)
+	// clinicRepo の zero-value mock は nil clinic を返し、税率は既定値（標準10%/軽減8%）になる（M-7）。
+	return NewCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo, &mockClinicRepository{})
 }
 
 // ---- テスト ----
