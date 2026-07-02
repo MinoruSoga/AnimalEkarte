@@ -16,6 +16,8 @@ jobs:
       - uses: actions/checkout@v7.0.0
       - name: Run actionlint
         shell: bash
+        # バージョン固定: main からの未ピン取得はサプライチェーン・再現性リスク（bug.md M-9）。
+        # 更新時は URL のタグと引数の両方を同じバージョンに揃えること。
         run: |
-          bash <(curl -Ls https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          bash <(curl -Ls https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
           ./actionlint
