@@ -319,7 +319,10 @@ jobs:
         # -coverpkg=./internal/... で internal/* のみを計測対象とし、cmd/,
         # lstep-migrate/, seed-old-db/, stage-import/, migrations/ 等のエントリポイント・
         # インフラパッケージを除外する。除外ポリシー/ロードマップ: docs/coverage-policy.md
-        run: go test ./... -count=1 -race -covermode=atomic -coverprofile=coverage.out -coverpkg=./internal/... -timeout 120s
+        # -timeout 450s: internal/repository は _test.go ファイル急増（33→130、b69932eb）で
+        # 旧 120s では通常実行でも到達しうるため引き上げ。ローカル -race 実測 245.867s 完走
+        # （CI実機との速度比が未確定なため、実測値の約1.8倍で余裕を確保）。PR #186 timeout調査参照。
+        run: go test ./... -count=1 -race -covermode=atomic -coverprofile=coverage.out -coverpkg=./internal/... -timeout 450s
 
       - name: Coverage summary (non-gating, baseline visibility)
         if: always()
