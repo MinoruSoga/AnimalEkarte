@@ -422,6 +422,14 @@ jobs:
         working-directory: frontend
         run: pnpm run type-check
 
+      - name: Lint
+        working-directory: frontend
+        run: pnpm run lint
+
+      - name: Build
+        working-directory: frontend
+        run: pnpm run build
+
       # 非ゲートのカバレッジ可視化: vite.config.ts には coverage.thresholds 未設定のため、
       # --coverage はレポート生成のみで低カバレッジによる fail は起きない。テストの合否は従来どおり。
       - name: Test (with coverage)
@@ -431,6 +439,8 @@ jobs:
       # FE-refactor.md R-F5 / coverage-policy.md Phase 1: カバレッジ ratchet（backend cmd/coverage-ratchet と対）。
       # .coverage-baseline が未記録（0）の間は warn のみで exit 0。実測値は本 PR merge 後の CI run の
       # frontend-coverage artifact から取得し、別コミットで .coverage-baseline に転記する。
+      # Lint/Build は本ステップより前に実行済みのため、ratchet が fail してもマスクされない
+      # （backend job の Build→Lint→Test→ratchet と同じ順序。feedback_ci_step_order_masks_lint 対策）。
       - name: Coverage ratchet
         working-directory: frontend
         run: |
@@ -448,14 +458,6 @@ jobs:
           path: frontend/coverage
           if-no-files-found: ignore
           retention-days: 14
-
-      - name: Lint
-        working-directory: frontend
-        run: pnpm run lint
-
-      - name: Build
-        working-directory: frontend
-        run: pnpm run build
 
   # ──────────────────────────────────────────────
   # Codegen: Go model → TypeScript 型の同期チェック

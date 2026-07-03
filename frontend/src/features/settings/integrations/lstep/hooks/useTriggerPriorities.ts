@@ -27,10 +27,12 @@ export function useGetTriggerPriorities() {
   return useQuery({
     queryKey: TRIGGER_PRIORITY_QUERY_KEY(clinicId),
     queryFn: () => {
-      if (clinicId === null) {
+      // refetch時も都度最新値を読む（挙動保存。useLstepSettings.ts の同種修正を参照）。
+      const currentClinicId = getClinicId();
+      if (currentClinicId === null) {
         throw new Error("clinic_id is not selected");
       }
-      return fetchTriggerPriorities(clinicId);
+      return fetchTriggerPriorities(currentClinicId);
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

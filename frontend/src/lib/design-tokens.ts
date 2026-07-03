@@ -136,6 +136,10 @@ export const PALETTE = {
   warningText:   "#856404",
   warningBar:    "#F2AC57",
 
+  /** 健診「期限間近」バッジ専用の黄土色（#158 系の warning トークンとは意図的に別配色） */
+  checkupDueSoonBg:   "#F0D070",
+  checkupDueSoonText: "#7A5C00",
+
   /* ── Notion purple — 診療中ステータス ── */
   statusPurpleText: "#6940A5",
   statusPurpleBg:   "#EEE0F7",
@@ -593,6 +597,10 @@ export const C = {
   hoverBorderMedicalBlue50: "hover:border-[#2EAADC]/50",
   ringMedicalBlue:        "ring-[#2EAADC]",
   focusRingMedicalBlue:   "focus-visible:ring-[#2EAADC]",
+
+  /* ── 健診「期限間近」バッジ ── */
+  bgCheckupDueSoon:   "bg-[#F0D070]",
+  textCheckupDueSoon: "text-[#7A5C00]",
 
   /* ── Data-state active (Radix Tabs) ── */
   dataActiveBorderB: "data-[state=active]:border-b-[#37352F]",

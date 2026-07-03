@@ -28,10 +28,14 @@ export function useGetLstepSettings() {
   return useQuery({
     queryKey: LSTEP_QUERY_KEY(clinicId),
     queryFn: () => {
-      if (clinicId === null) {
+      // refetch（window focus 等）時も都度最新値を読む — 元の fetchLstepSettings() は
+      // 呼び出しごとに getClinicId() していたため、render 時点の clinicId をクロージャで
+      // 固定しない（挙動保存）。
+      const currentClinicId = getClinicId();
+      if (currentClinicId === null) {
         throw new Error("clinic_id is not selected");
       }
-      return fetchLstepSettings(clinicId);
+      return fetchLstepSettings(currentClinicId);
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
